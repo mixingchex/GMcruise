@@ -38,11 +38,33 @@ const CATEGORIES = ['travel-tip', 'qna', 'destination'];
 const BOT_USER_ID = 1; // 관리자 계정 또는 봇 전용 계정 ID
 
 /**
+ * 게시글 길이 범위 선택 (비율에 따라)
+ */
+function selectPostLengthRange(): { min: number; max: number } {
+  const random = Math.random();
+  
+  if (random < 0.2) {
+    // 20%: 300자 이내
+    return { min: 50, max: 300 };
+  } else if (random < 0.7) {
+    // 50%: 500자 이내
+    return { min: 200, max: 500 };
+  } else if (random < 0.9) {
+    // 20%: 1000자 이내
+    return { min: 500, max: 1000 };
+  } else {
+    // 10%: 3000자 이내
+    return { min: 1000, max: 3000 };
+  }
+}
+
+/**
  * AI를 사용하여 크루즈 관련 게시글 생성 (유튜브 댓글 스타일 참고)
  */
 async function generatePost(): Promise<{ title: string; content: string; category: string } | null> {
   try {
     const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+    const lengthRange = selectPostLengthRange();
     
     const prompt = `유튜브 크루즈 영상 댓글을 참고하여 크루즈 여행 커뮤니티 게시글을 작성해주세요.
 
@@ -58,9 +80,10 @@ async function generatePost(): Promise<{ title: string; content: string; categor
 - 카테고리: ${category === 'travel-tip' ? '여행팁' : category === 'qna' ? '질문답변' : '관광지 추천'}
 - 실제 크루즈 여행객이 유튜브 댓글에 쓸 것처럼 자연스럽고 진솔한 톤
 - 제목: 15-35자 정도, 궁금증이나 감동을 담은 제목
-- 내용: 80-180자 정도, 구체적이고 실용적이며 감정이 담긴 내용
+- 내용: ${lengthRange.min}-${lengthRange.max}자 정도, 구체적이고 실용적이며 감정이 담긴 내용
 - 유튜브 댓글처럼 "정말 궁금해요", "도움 부탁드려요", "너무 좋았어요" 같은 표현 사용
 - 한국어로 작성
+- 반드시 ${lengthRange.min}자 이상 ${lengthRange.max}자 이내로 작성하세요
 
 응답 형식:
 제목: [제목]
@@ -83,11 +106,16 @@ async function generatePost(): Promise<{ title: string; content: string; categor
       // 형식이 다르면 전체를 제목으로, 나머지를 내용으로
       const lines = text.split('\n').filter(l => l.trim());
       const title = lines[0]?.replace(/^제목:\s*/, '').trim() || '크루즈 여행 후기';
-      const content = lines.slice(1).join('\n').replace(/^내용:\s*/, '').trim() || text;
+      let content = lines.slice(1).join('\n').replace(/^내용:\s*/, '').trim() || text;
+      
+      // 길이 범위에 맞게 조정
+      if (content.length > lengthRange.max) {
+        content = content.substring(0, lengthRange.max);
+      }
       
       return {
         title: title.substring(0, 100),
-        content: content.substring(0, 500),
+        content,
         category
       };
     }
@@ -184,10 +212,36 @@ async function generatePositiveResponse(negativeComment: string, postTitle: stri
 }
 
 /**
+ * 댓글 길이 범위 선택 (비율에 따라)
+ */
+function selectCommentLengthRange(): { min: number; max: number } {
+  const random = Math.random();
+  
+  if (random < 0.4) {
+    // 40%: 30자 이내
+    return { min: 10, max: 30 };
+  } else if (random < 0.7) {
+    // 30%: 60자 이내
+    return { min: 25, max: 60 };
+  } else if (random < 0.8) {
+    // 10%: 100자 이내
+    return { min: 60, max: 100 };
+  } else if (random < 0.85) {
+    // 5%: 150자 이내
+    return { min: 100, max: 150 };
+  } else {
+    // 5%: 200자 이내
+    return { min: 150, max: 200 };
+  }
+}
+
+/**
  * 게시글에 맞는 자연스러운 댓글 생성 (유튜브 댓글 스타일)
  */
 async function generateComment(postTitle: string, postContent: string, postCategory: string): Promise<string | null> {
   try {
+    const lengthRange = selectCommentLengthRange();
+    
     const prompt = `유튜브 크루즈 영상 댓글 스타일을 참고하여 다음 게시글에 대한 자연스러운 댓글을 작성해주세요.
 
 게시글 제목: ${postTitle}
@@ -204,12 +258,13 @@ async function generateComment(postTitle: string, postContent: string, postCateg
 
 요구사항:
 - 실제 유튜브 댓글처럼 자연스럽고 진솔한 톤
-- 15-60자 정도의 짧고 간결한 댓글
+- ${lengthRange.min}-${lengthRange.max}자 정도의 짧고 간결한 댓글
 - 게시글 내용과 관련된 공감, 질문, 조언, 경험 공유
 - 이모지 사용 가능 (1-2개 정도, 자연스럽게)
 - 한국어로 작성
 - 댓글만 작성 (다른 설명 없이)
-- "정말", "너무", "진짜", "꼭", "감사합니다" 같은 표현 자연스럽게 사용`;
+- "정말", "너무", "진짜", "꼭", "감사합니다" 같은 표현 자연스럽게 사용
+- 반드시 ${lengthRange.min}자 이상 ${lengthRange.max}자 이내로 작성하세요`;
 
     const response = await askGemini([
       { role: 'user', content: prompt }
@@ -228,10 +283,27 @@ async function generateComment(postTitle: string, postContent: string, postCateg
 }
 
 /**
+ * 대댓글 길이 범위 선택 (비율에 따라)
+ */
+function selectReplyLengthRange(): { min: number; max: number } {
+  const random = Math.random();
+  
+  if (random < 0.6) {
+    // 60%: 20자 이내
+    return { min: 5, max: 20 };
+  } else {
+    // 40%: 30자 이내
+    return { min: 15, max: 30 };
+  }
+}
+
+/**
  * 댓글에 대한 자연스러운 대댓글 생성 (AI끼리 대화)
  */
 async function generateReply(commentContent: string, commentAuthor: string, postTitle: string): Promise<string | null> {
   try {
+    const lengthRange = selectReplyLengthRange();
+    
     const prompt = `다음 댓글에 대한 자연스러운 대댓글을 작성해주세요. 실제 사람들이 댓글에 답하는 것처럼 자연스럽게 대화하듯이 작성해주세요.
 
 원본 댓글: "${commentContent}"
@@ -241,11 +313,12 @@ async function generateReply(commentContent: string, commentAuthor: string, post
 요구사항:
 - 댓글 내용에 자연스럽게 반응 (공감, 질문, 추가 정보, 경험 공유 등)
 - 실제 사람들이 댓글에 답하는 것처럼 자연스러운 대화 톤
-- 15-50자 정도의 짧고 간결한 대댓글
+- ${lengthRange.min}-${lengthRange.max}자 정도의 짧고 간결한 대댓글
 - 이모지 사용 가능 (1개 정도, 자연스럽게)
 - 한국어로 작성
 - 대댓글만 작성 (다른 설명 없이)
-- "맞아요", "저도", "그렇군요", "추가로" 같은 자연스러운 연결 표현 사용`;
+- "맞아요", "저도", "그렇군요", "추가로" 같은 자연스러운 연결 표현 사용
+- 반드시 ${lengthRange.min}자 이상 ${lengthRange.max}자 이내로 작성하세요`;
 
     const response = await askGemini([
       { role: 'user', content: prompt }
@@ -255,7 +328,13 @@ async function generateReply(commentContent: string, commentAuthor: string, post
       return null;
     }
 
-    const reply = response.text.trim().substring(0, 200);
+    let reply = response.text.trim();
+    
+    // 길이 범위에 맞게 조정
+    if (reply.length > lengthRange.max) {
+      reply = reply.substring(0, lengthRange.max);
+    }
+    
     return reply;
   } catch (error) {
     console.error('[COMMUNITY BOT] 대댓글 생성 실패:', error);
