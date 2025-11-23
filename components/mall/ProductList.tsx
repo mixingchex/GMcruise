@@ -250,6 +250,8 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
   }, []);
 
   useEffect(() => {
+    // 페이지를 먼저 표시하고 백그라운드에서 로드
+    setIsLoading(false);
     // 설정 불러오기
     loadSettings();
     // 판매 중인 상품이 있는 지역 확인
@@ -378,7 +380,14 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
         params.append('shipName', filters.shipName);
       }
 
-      const response = await fetch(`/api/public/products?${params.toString()}`);
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
+      
+      const response = await fetch(`/api/public/products?${params.toString()}`, {
+        signal: abortController.signal,
+      });
+      clearTimeout(timeoutId);
+      
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
@@ -436,9 +445,11 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
       
       // 상품이 로드되면 지역 정보 업데이트
       updateAvailableRegions(filteredProducts);
-    } catch (err) {
-      console.error('Failed to load products:', err);
-      setError(err instanceof Error ? err.message : '상품 목록을 불러올 수 없습니다.');
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error('Failed to load products:', err);
+        setError(err instanceof Error ? err.message : '상품 목록을 불러올 수 없습니다.');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -57,14 +57,25 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
   const linkUrl = config?.linkUrl ?? '/community';
 
   useEffect(() => {
+    // 페이지를 먼저 표시하고 백그라운드에서 로드
+    setLoading(false);
+    
     // 로그인 상태 확인
-    fetch('/api/auth/me', { credentials: 'include' })
+    const authAbortController = new AbortController();
+    const authTimeoutId = setTimeout(() => authAbortController.abort(), 3000);
+    
+    fetch('/api/auth/me', { 
+      credentials: 'include',
+      signal: authAbortController.signal,
+    })
       .then(res => res.json())
       .then(data => {
+        clearTimeout(authTimeoutId);
         const role = (data?.user?.role ?? '').toLowerCase();
         setIsLoggedIn(data.ok && data.user && (role === 'community' || role === 'admin'));
       })
       .catch(() => {
+        clearTimeout(authTimeoutId);
         setIsLoggedIn(false);
       });
     
@@ -73,33 +84,59 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
 
   const loadPosts = async () => {
     try {
-      setLoading(true);
+      // 모든 API 호출을 병렬로 처리
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
       
       // 최근 게시글 6개
-      const recentResponse = await fetch('/api/community/posts?limit=6');
-      const recentData = await recentResponse.json();
+      const recentResponse = fetch('/api/community/posts?limit=6', {
+        signal: abortController.signal,
+      });
       
-      if (recentData.ok && recentData.posts) {
-        setRecentPosts(recentData.posts.slice(0, 6));
-      }
-
       // 인기 게시글 (조회수 + 좋아요 기준) 6개
-      const popularResponse = await fetch('/api/community/posts?limit=20');
-      const popularData = await popularResponse.json();
+      const popularResponse = fetch('/api/community/posts?limit=20', {
+        signal: abortController.signal,
+      });
       
-      if (popularData.ok && popularData.posts) {
-        // 조회수 + 좋아요 기준으로 정렬
-        const sorted = [...popularData.posts].sort((a, b) => {
-          const scoreA = a.views + (a.likes * 10);
-          const scoreB = b.views + (b.likes * 10);
-          return scoreB - scoreA;
-        });
-        setPopularPosts(sorted.slice(0, 6));
+      // 크루즈뉘우스 미리보기 게시글
+      const newsResponse = fetch('/api/community/posts?limit=20&category=cruisedot-news', {
+        signal: abortController.signal,
+      });
+      
+      // 모든 응답을 병렬로 처리
+      const [recentRes, popularRes, newsRes] = await Promise.allSettled([
+        recentResponse,
+        popularResponse,
+        newsResponse,
+      ]);
+      
+      clearTimeout(timeoutId);
+      
+      // 최근 게시글 처리
+      if (recentRes.status === 'fulfilled') {
+        const recentData = await recentRes.value.json();
+        if (recentData.ok && recentData.posts) {
+          setRecentPosts(recentData.posts.slice(0, 6));
+        }
       }
 
-      // 크루즈뉘우스 미리보기 게시글
-      const newsResponse = await fetch('/api/community/posts?limit=20&category=cruisedot-news');
-      const newsData = await newsResponse.json();
+      // 인기 게시글 처리
+      if (popularRes.status === 'fulfilled') {
+        const popularData = await popularRes.value.json();
+        if (popularData.ok && popularData.posts) {
+          // 조회수 + 좋아요 기준으로 정렬
+          const sorted = [...popularData.posts].sort((a, b) => {
+            const scoreA = a.views + (a.likes * 10);
+            const scoreB = b.views + (b.likes * 10);
+            return scoreB - scoreA;
+          });
+          setPopularPosts(sorted.slice(0, 6));
+        }
+      }
+
+      // 크루즈뉘우스 미리보기 게시글 처리
+      if (newsRes.status === 'fulfilled') {
+        const newsData = await newsRes.value.json();
 
       if (newsData.ok && Array.isArray(newsData.posts)) {
         const mappedNews = newsData.posts
@@ -140,10 +177,10 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       })) as CommunityNewsPost[];
 
       setNewsPosts(fallbackNews);
-    } catch (error) {
-      console.error('Failed to load community posts:', error);
-    } finally {
-      setLoading(false);
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Failed to load community posts:', error);
+      }
     }
   };
 

@@ -21,22 +21,30 @@ export default function YoutubeShortsSlider() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // 페이지를 먼저 표시하고 백그라운드에서 로드
+    setIsLoading(false);
     loadShorts();
   }, []);
 
   const loadShorts = async () => {
     try {
-      setIsLoading(true);
-      const response = await fetch('/api/public/youtube/shorts?maxResults=10');
+      const abortController = new AbortController();
+      const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
+      
+      const response = await fetch('/api/public/youtube/shorts?maxResults=10', {
+        signal: abortController.signal,
+      });
+      clearTimeout(timeoutId);
+      
       const data = await response.json();
 
       if (data.ok) {
         setShorts(data.shorts);
       }
-    } catch (error) {
-      console.error('Error loading Shorts:', error);
-    } finally {
-      setIsLoading(false);
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error('Error loading Shorts:', error);
+      }
     }
   };
 
