@@ -14,6 +14,8 @@ interface UserInfo {
   name: string | null;
   phone: string | null;
   email: string | null;
+  mallNickname: string | null;
+  mallUserId: string | null;
   genieStatus?: string | null;
   linkedGenieUser?: {
     id: number;
@@ -31,6 +33,7 @@ export default function MyInfoPage() {
   
   // 편집 모드
   const [isEditing, setIsEditing] = useState(false);
+  const [editNickname, setEditNickname] = useState('');
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   
@@ -66,6 +69,7 @@ export default function MyInfoPage() {
       }
 
       setUser(data.user);
+      setEditNickname(data.user.mallNickname || '');
       setEditName(data.user.name || '');
       setEditPhone(data.user.phone || '');
     } catch (err) {
@@ -76,8 +80,8 @@ export default function MyInfoPage() {
   };
 
   const handleSave = async () => {
-    if (!editName.trim() || !editPhone.trim()) {
-      alert('이름과 연락처를 모두 입력해주세요.');
+    if (!editNickname.trim()) {
+      alert('닉네임을 입력해주세요.');
       return;
     }
 
@@ -90,6 +94,7 @@ export default function MyInfoPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
+          mallNickname: editNickname.trim(),
           name: editName.trim(),
           phone: editPhone.trim(),
         }),
@@ -161,10 +166,11 @@ export default function MyInfoPage() {
     }
   };
 
-  // 사용자 타입 확인
-  const isMallOnly = user && !user.genieStatus && !user.linkedGenieUser;
-  const isGenieUser = user && (user.genieStatus === 'active' || user.linkedGenieUser?.genieStatus === 'active');
+  // 서비스 이용 상태 확인
+  // genieStatus가 'active'이면 이용중, 그 외(null 포함)는 미이용
+  const isGenieActive = user && (user.genieStatus === 'active' || user.linkedGenieUser?.genieStatus === 'active');
   const isTrialUser = user && user.genieStatus === 'trial';
+  const isGenieUser = isGenieActive || isTrialUser;
 
   if (loading) {
     return (
@@ -235,6 +241,7 @@ export default function MyInfoPage() {
                   <button
                     onClick={() => {
                       setIsEditing(false);
+                      setEditNickname(user?.mallNickname || '');
                       setEditName(user?.name || '');
                       setEditPhone(user?.phone || '');
                     }}
@@ -258,7 +265,17 @@ export default function MyInfoPage() {
             {isEditing ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">이름</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">닉네임 <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={editNickname}
+                    onChange={(e) => setEditNickname(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="닉네임을 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">이름 (선택사항)</label>
                   <input
                     type="text"
                     value={editName}
@@ -268,7 +285,7 @@ export default function MyInfoPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">연락처</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">연락처 (선택사항)</label>
                   <input
                     type="tel"
                     value={editPhone}
@@ -281,17 +298,29 @@ export default function MyInfoPage() {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이름:</span>
-                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.name || '정보 없음'}</span>
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">닉네임:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.mallNickname || '정보 없음'}</span>
                 </div>
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
-                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user?.phone || '정보 없음'}</span>
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">아이디:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user?.mallUserId || user?.id || '정보 없음'}</span>
                 </div>
                 {user?.email && (
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                     <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이메일:</span>
                     <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.email}</span>
+                  </div>
+                )}
+                {user?.name && (
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이름:</span>
+                    <span className="font-bold text-gray-900 text-base md:text-lg">{user.name}</span>
+                  </div>
+                )}
+                {user?.phone && (
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
+                    <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.phone}</span>
                   </div>
                 )}
               </div>

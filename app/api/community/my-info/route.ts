@@ -47,6 +47,21 @@ export async function GET() {
     }
 
     console.log('[MY INFO] User found:', user.name);
+    console.log('[MY INFO] User phone:', user.phone);
+    console.log('[MY INFO] User id:', user.id);
+    console.log('[MY INFO] User mallUserId:', user.mallUserId);
+
+    // phone 필드가 사용자 ID와 같거나 비어있으면 mallUserId 사용 (전화번호 형식인 경우)
+    let displayPhone = user.phone;
+    if (!displayPhone || displayPhone === String(user.id) || displayPhone.trim() === '') {
+      // mallUserId가 전화번호 형식(숫자로 시작하고 길이가 10자 이상)이면 사용
+      if (user.mallUserId && /^[0-9]/.test(user.mallUserId) && user.mallUserId.length >= 10) {
+        displayPhone = user.mallUserId;
+        console.log('[MY INFO] Using mallUserId as phone:', displayPhone);
+      } else {
+        displayPhone = user.phone || '정보 없음';
+      }
+    }
 
     // 내가 올린 커뮤니티 게시글
     console.log('[MY INFO] Fetching posts...');
@@ -184,10 +199,10 @@ export async function GET() {
         id: user.id,
         name: user.name,
         email: user.email,
-        phone: user.phone,
+        phone: displayPhone,
+        mallNickname: user.mallNickname,
+        mallUserId: user.mallUserId,
         genieStatus: user.genieStatus,
-        genieName: user.mallNickname,
-        geniePhone: user.mallUserId,
         linkedGenieUser: linkedGenieUser ? {
           id: linkedGenieUser.id,
           name: linkedGenieUser.name,

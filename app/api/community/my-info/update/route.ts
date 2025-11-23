@@ -19,7 +19,7 @@ export async function PUT(req: Request) {
 
     const userId = parseInt(session.userId);
     const body = await req.json();
-    const { name, phone, password, currentPassword } = body;
+    const { name, phone, password, currentPassword, mallNickname } = body;
 
     // 사용자 정보 조회
     const user = await prisma.user.findUnique({
@@ -38,6 +38,11 @@ export async function PUT(req: Request) {
     }
 
     const updateData: any = {};
+
+    // 닉네임 업데이트
+    if (mallNickname !== undefined && mallNickname.trim()) {
+      updateData.mallNickname = mallNickname.trim();
+    }
 
     // 이름 업데이트
     if (name !== undefined && name.trim()) {
