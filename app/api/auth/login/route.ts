@@ -524,15 +524,12 @@ export async function POST(req: Request) {
           }
         }
 
-        // AffiliateLead 생성 또는 업데이트 (대리점장/판매원에 고객 연동)
-        if (managerProfileId || agentProfileId) {
+        // AffiliateLead 생성 또는 업데이트 (잠재고객으로 항상 저장)
+        // 이름과 연락처가 있으면 항상 잠재고객으로 저장 (managerId/agentId가 없어도 됨)
+        if (name && phone) {
           const existingLead = await prisma.affiliateLead.findFirst({
             where: {
               customerPhone: phone,
-              OR: [
-                { managerId: managerProfileId || undefined },
-                { agentId: agentProfileId || undefined },
-              ],
             },
           });
 
@@ -543,26 +540,29 @@ export async function POST(req: Request) {
               data: {
                 customerName: name,
                 status: 'IN_PROGRESS',
-                source: trialCode ? 'trial-invite-link' : 'affiliate-link',
+                source: trialCode ? 'trial-invite-link' : (affiliateCode ? 'affiliate-link' : 'test-guide'),
+                managerId: managerProfileId || existingLead.managerId,
+                agentId: agentProfileId || existingLead.agentId,
                 updatedAt: now,
               },
             });
           } else {
-            // 새 Lead 생성
+            // 새 Lead 생성 (managerId/agentId가 없어도 생성)
             await prisma.affiliateLead.create({
               data: {
                 customerName: name,
                 customerPhone: phone,
                 status: 'IN_PROGRESS',
-                source: trialCode ? 'trial-invite-link' : 'affiliate-link',
-                managerId: managerProfileId,
-                agentId: agentProfileId,
+                source: trialCode ? 'trial-invite-link' : (affiliateCode ? 'affiliate-link' : 'test-guide'),
+                managerId: managerProfileId || null,
+                agentId: agentProfileId || null,
               },
             });
           }
-          console.log('[Login] AffiliateLead 생성/업데이트 완료:', { 
+          console.log('[Login] AffiliateLead 생성/업데이트 완료 (잠재고객):', { 
             managerId: managerProfileId, 
-            agentId: agentProfileId 
+            agentId: agentProfileId,
+            phone: phone ? `${phone.substring(0, 3)}***` : 'empty'
           });
         }
 
