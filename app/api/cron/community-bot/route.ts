@@ -120,9 +120,17 @@ async function generatePost(): Promise<{ title: string; content: string; categor
       };
     }
 
+    const title = titleMatch[1].trim().substring(0, 100);
+    let content = contentMatch[1].trim();
+    
+    // 길이 범위에 맞게 조정
+    if (content.length > lengthRange.max) {
+      content = content.substring(0, lengthRange.max);
+    }
+    
     return {
-      title: titleMatch[1].trim().substring(0, 100),
-      content: contentMatch[1].trim().substring(0, 500),
+      title,
+      content,
       category
     };
   } catch (error) {
