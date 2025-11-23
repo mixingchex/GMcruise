@@ -43,58 +43,80 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
   }, []);
 
   return (
-    <div className="relative bg-white overflow-hidden">
-      {/* 상단: 로고 섹션 (흰색 배경) */}
-      <div className="bg-white py-12 md:py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            {/* 크루즈 선박 로고 (빨간색) */}
-            {heroConfig.logoUrl && (
-              <div className="mb-6">
-                <img 
-                  src={heroConfig.logoUrl} 
-                  alt="크루즈닷 로고" 
-                  className="mx-auto h-32 md:h-40 lg:h-48 object-contain"
-                  style={{ filter: 'none' }}
-                  onError={(e) => {
-                    // 이미지 로드 실패 시 기본 로고로 대체
-                    (e.target as HTMLImageElement).src = '/images/ai-cruise-logo.png';
-                  }}
-                />
-              </div>
-            )}
-
-            {/* 서브타이틀 */}
-            <p className="text-lg md:text-xl lg:text-2xl mb-8 md:mb-10 text-gray-700 font-semibold whitespace-pre-line leading-relaxed px-2">
-              {heroConfig.subtitle || '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행'}
-            </p>
-
-            {/* 주요 기능 소개 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-8 md:mb-10 text-sm md:text-base lg:text-lg">
-              <div className="bg-gray-50 rounded-xl p-4 md:p-5 lg:p-6 border-2 border-gray-200 shadow-md hover:bg-gray-100 hover:shadow-lg transition-all">
-                <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">🗺️</div>
-                <div className="font-bold text-gray-900 text-base md:text-lg lg:text-xl">지니야 가자</div>
-                <div className="text-xs md:text-sm lg:text-base text-gray-600 mt-1 md:mt-2">경로 안내</div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4 md:p-5 lg:p-6 border-2 border-gray-200 shadow-md hover:bg-gray-100 hover:shadow-lg transition-all">
-                <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📸</div>
-                <div className="font-bold text-gray-900 text-base md:text-lg lg:text-xl">지니야 보여줘</div>
-                <div className="text-xs md:text-sm lg:text-base text-gray-600 mt-1 md:mt-2">관광지 정보</div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4 md:p-5 lg:p-6 border-2 border-gray-200 shadow-md hover:bg-gray-100 hover:shadow-lg transition-all">
-                <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">💰</div>
-                <div className="font-bold text-gray-900 text-base md:text-lg lg:text-xl">지니야 가계부</div>
-                <div className="text-xs md:text-sm lg:text-base text-gray-600 mt-1 md:mt-2">경비 관리</div>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4 md:p-5 lg:p-6 border-2 border-gray-200 shadow-md hover:bg-gray-100 hover:shadow-lg transition-all">
-                <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📝</div>
-                <div className="font-bold text-gray-900 text-base md:text-lg lg:text-xl">지니야 다이어리</div>
-                <div className="text-xs md:text-sm lg:text-base text-gray-600 mt-1 md:mt-2">여행 기록</div>
-              </div>
+    <div className="relative text-white py-16 md:py-24 overflow-hidden min-h-screen">
+      {/* 배경 비디오 */}
+      <video
+        ref={videoRef}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+      >
+        <source src={heroConfig.videoUrl} type="video/mp4" />
+        {/* 비디오 로드 실패 시 크루즈 배경 이미지로 대체 */}
+        <img 
+          src="/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png" 
+          alt="크루즈 배경" 
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      </video>
+      
+      {/* 어두운 오버레이 (가독성 향상) */}
+      <div className="absolute inset-0 bg-black/50 z-10"></div>
+      
+      {/* 컨텐츠 */}
+      <div className="relative z-20 container mx-auto px-4">
+        <div className="max-w-3xl mx-auto text-center">
+          {/* AI 지니 로고/아이콘 */}
+          {heroConfig.logoUrl && (
+            <div className="mb-6">
+              <img 
+                src={heroConfig.logoUrl} 
+                alt="크루즈닷 AI 지니" 
+                className="mx-auto h-20 md:h-24"
+                onError={(e) => {
+                  // 이미지 로드 실패 시 기본 로고로 대체
+                  (e.target as HTMLImageElement).src = '/images/ai-cruise-logo.png';
+                }}
+              />
             </div>
+          )}
 
-            {/* CTA 버튼 */}
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 lg:gap-6 justify-center px-2">
+          {/* 메인 타이틀 */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-4 md:mb-6 drop-shadow-2xl leading-tight">
+            {heroConfig.title}
+          </h1>
+          <p className="text-xl md:text-2xl lg:text-3xl mb-8 md:mb-10 text-white font-semibold drop-shadow-lg whitespace-pre-line leading-relaxed px-2">
+            {heroConfig.subtitle}
+          </p>
+
+          {/* 주요 기능 소개 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-8 md:mb-10 text-sm md:text-base lg:text-lg">
+            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
+              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">🗺️</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 가자</div>
+              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">경로 안내</div>
+            </div>
+            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
+              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📸</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 보여줘</div>
+              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">관광지 정보</div>
+            </div>
+            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
+              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">💰</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 가계부</div>
+              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">경비 관리</div>
+            </div>
+            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
+              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📝</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 다이어리</div>
+              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">여행 기록</div>
+            </div>
+          </div>
+
+          {/* CTA 버튼 */}
+          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 lg:gap-6 justify-center px-2">
             {heroConfig.buttons?.map((btn, idx) => {
               // 버튼 스타일 생성
               const buttonStyle: React.CSSProperties = {};
@@ -177,39 +199,8 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
                 </Link>
               );
             })}
-            </div>
           </div>
         </div>
-      </div>
-      
-      {/* 하단: 크루즈 선박 이미지 섹션 */}
-      <div className="relative w-full h-64 md:h-96 lg:h-[500px] overflow-hidden">
-        {/* 배경 이미지 (크루즈 선박 사진) */}
-        <img 
-          src="/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png" 
-          alt="크루즈 선박" 
-          className="absolute inset-0 w-full h-full object-cover"
-          onError={(e) => {
-            // 이미지 로드 실패 시 대체 이미지 시도
-            const img = e.target as HTMLImageElement;
-            const fallbacks = [
-              '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (2).png',
-              '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (3).png',
-              '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (4).png',
-            ];
-            const currentSrc = img.src;
-            const currentIndex = fallbacks.findIndex(f => currentSrc.includes(f.split('/').pop() || ''));
-            if (currentIndex < fallbacks.length - 1) {
-              img.src = fallbacks[currentIndex + 1];
-            } else {
-              // 모든 이미지 실패 시 그라데이션 배경 사용
-              img.style.display = 'none';
-              const gradientDiv = document.createElement('div');
-              gradientDiv.className = 'absolute inset-0 bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600';
-              img.parentElement?.appendChild(gradientDiv);
-            }
-          }}
-        />
       </div>
     </div>
   );
