@@ -487,7 +487,7 @@ Remember: Output ONLY the ${toLangEn} translation, nothing else. Translate LONG 
 
       // 번역 모드에서도 히스토리 저장 (비동기, 실패해도 응답은 반환)
       try {
-        const sessionId = body.sessionId || 'default';
+        const sessionId = body.sessionId || 'translate'; // 번역 모드는 'translate' 세션
         const tripId = body.tripId || null;
         
         // 현재 히스토리 조회
@@ -1119,7 +1119,11 @@ Remember: Output ONLY the ${toLangEn} translation, nothing else. Translate LONG 
   
   // 채팅 히스토리 저장 (비동기, 실패해도 응답은 반환)
   try {
-    const sessionId = body.sessionId || 'default';
+    // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리)
+    const sessionId = body.sessionId || (mode === 'general' ? 'general' : 
+                                         mode === 'go' ? 'go' : 
+                                         mode === 'show' ? 'show' : 
+                                         mode === 'translate' ? 'translate' : 'default');
     const tripId = body.tripId || null;
     
     // 현재 히스토리 조회

@@ -41,7 +41,13 @@ export default function ChatClientShell({
       
       try {
         setIsLoading(true);
-        const response = await fetch('/api/chat/history', {
+        // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리)
+        const sessionId = mode === 'general' ? 'general' : 
+                         mode === 'go' ? 'go' : 
+                         mode === 'show' ? 'show' : 
+                         mode === 'translate' ? 'translate' : 'default';
+        
+        const response = await fetch(`/api/chat/history?sessionId=${sessionId}`, {
           credentials: 'include',
         });
         
@@ -61,7 +67,7 @@ export default function ChatClientShell({
                 ...(msg.chips && { chips: msg.chips }),
               }));
             setMessages(loadedMessages);
-            console.log('[ChatClientShell] 히스토리 로드 완료:', loadedMessages.length, '개 메시지');
+            console.log('[ChatClientShell] 히스토리 로드 완료:', loadedMessages.length, '개 메시지 (모드:', mode, ')');
           }
         }
       } catch (error) {
@@ -72,13 +78,8 @@ export default function ChatClientShell({
       }
     };
 
-    // general 모드일 때만 히스토리 로드
-    if (mode === 'general') {
-      loadChatHistory();
-    } else {
-      setIsLoading(false);
-      hasLoadedHistoryRef.current = true;
-    }
+    // 모든 모드에서 히스토리 로드 (탭별로 분리)
+    loadChatHistory();
   }, [mode]);
 
   // 모드가 변경될 때마다 메시지 초기화 (새로운 대화 시작)
@@ -100,6 +101,12 @@ export default function ChatClientShell({
   const saveChatHistory = async (messagesToSave: ChatMessage[]) => {
     if (!ENABLE_CHAT_HISTORY) return;
     try {
+      // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리)
+      const sessionId = mode === 'general' ? 'general' : 
+                       mode === 'go' ? 'go' : 
+                       mode === 'show' ? 'show' : 
+                       mode === 'translate' ? 'translate' : 'default';
+      
       // ChatMessage 형식을 API 형식으로 변환
       const apiMessages = messagesToSave.map(msg => ({
         id: msg.id,
@@ -118,7 +125,7 @@ export default function ChatClientShell({
         credentials: 'include',
         body: JSON.stringify({ 
           messages: apiMessages,
-          sessionId: 'default', // 기본 세션 ID
+          sessionId, // 모드별 세션 ID
         }),
       });
     } catch (error) {
