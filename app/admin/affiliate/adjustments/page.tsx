@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   FiRefreshCw,
   FiSearch,
@@ -107,15 +107,7 @@ export default function AdminAdjustmentsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [processingId, setProcessingId] = useState<number | null>(null);
 
-  useEffect(() => {
-    if (activeTab === 'adjustments') {
-      loadAdjustments();
-    } else {
-      loadPendingApprovals();
-    }
-  }, [filters, activeTab]);
-
-  const loadAdjustments = async () => {
+  const loadAdjustments = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -133,7 +125,15 @@ export default function AdminAdjustmentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters.status]);
+
+  useEffect(() => {
+    if (activeTab === 'adjustments') {
+      loadAdjustments();
+    } else {
+      loadPendingApprovals();
+    }
+  }, [filters, activeTab, loadAdjustments, loadPendingApprovals]);
 
   const handleApprove = async (adjustmentId: number) => {
     if (!confirm('이 수당 조정을 승인하시겠습니까?')) {
@@ -192,7 +192,7 @@ export default function AdminAdjustmentsPage() {
     }
   };
 
-  const loadPendingApprovals = async () => {
+  const loadPendingApprovals = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await fetch('/api/admin/affiliate/sales/pending-approval');
@@ -207,7 +207,7 @@ export default function AdminAdjustmentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const handleApprovePurchase = async (saleId: number) => {
     if (!confirm('이 구매 완료를 승인하고 수당을 확정하시겠습니까?')) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiSearch, FiChevronLeft, FiChevronRight, FiPlus, FiEdit, FiTrash2, FiEdit2, FiInfo, FiX } from 'react-icons/fi';
 
@@ -53,11 +53,7 @@ export default function AdminPanelAdminsPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => {
-    loadAdmins();
-  }, [search, pagination.page]);
-
-  const loadAdmins = async () => {
+  const loadAdmins = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -98,7 +94,11 @@ export default function AdminPanelAdminsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [search, pagination.page]);
+
+  useEffect(() => {
+    loadAdmins();
+  }, [loadAdmins]);
 
   const handleResetPassword = async (adminId: number, currentPassword: string | null) => {
     const newPassword = prompt(
