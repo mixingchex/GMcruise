@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
     //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     // }
 
-    // 최신 여행 정보 조회
-    const latestTrip = await prisma.trip.findFirst({
+    // 최신 여행 정보 조회 (UserTrip 사용)
+    const latestTrip = await prisma.userTrip.findFirst({
       orderBy: { createdAt: 'desc' },
       select: {
         destination: true,

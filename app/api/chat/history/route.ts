@@ -85,9 +85,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // tripId가 있으면 여행 소유권 확인
+    // tripId가 있으면 여행 소유권 확인 (UserTrip 사용)
     if (tripId) {
-      const trip = await prisma.trip.findFirst({
+      const trip = await prisma.userTrip.findFirst({
         where: { id: tripId, userId: user.id },
       });
 

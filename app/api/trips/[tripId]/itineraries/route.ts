@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSession } from '@/lib/session';
+import { getSessionUser } from '@/lib/auth';
 
 /**
  * GET: 특정 여행의 일정 조회
@@ -11,8 +11,8 @@ export async function GET(
   { params }: { params: { tripId: string } }
 ) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const user = await getSessionUser();
+    if (!user) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -27,11 +27,11 @@ export async function GET(
       );
     }
 
-    // 여행 소유권 확인
-    const trip = await prisma.trip.findFirst({
+    // 여행 소유권 확인 (UserTrip 사용)
+    const trip = await prisma.userTrip.findFirst({
       where: {
         id: tripId,
-        userId: session.user.id,
+        userId: user.id,
       },
     });
 
@@ -44,7 +44,7 @@ export async function GET(
 
     // 쿼리 파라미터에서 날짜 추출
     const dateParam = req.nextUrl.searchParams.get('date');
-    let whereClause: any = { tripId };
+    let whereClause: any = { userTripId: tripId };
 
     if (dateParam) {
       const targetDate = new Date(dateParam);

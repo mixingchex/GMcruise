@@ -40,9 +40,9 @@ export async function GET(req: NextRequest) {
 
     let targetTripId: number | null = tripId ? parseInt(tripId) : null;
 
-    // tripId가 없으면 최신 여행 조회
+    // tripId가 없으면 최신 여행 조회 (UserTrip 사용)
     if (!targetTripId) {
-      const latestTrip = await prisma.trip.findFirst({
+      const latestTrip = await prisma.userTrip.findFirst({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
         select: { id: true },
@@ -59,8 +59,8 @@ export async function GET(req: NextRequest) {
       targetTripId = latestTrip.id;
     }
 
-    // 여행 소유권 확인
-    const trip = await prisma.trip.findFirst({
+    // 여행 소유권 확인 (UserTrip 사용)
+    const trip = await prisma.userTrip.findFirst({
       where: { id: targetTripId, userId: user.id },
       select: { id: true },
     });
@@ -165,9 +165,9 @@ export async function POST(req: NextRequest) {
 
     let targetTripId: number | null = tripId ? parseInt(tripId) : null;
 
-    // tripId가 없으면 최신 여행 사용
+    // tripId가 없으면 최신 여행 사용 (UserTrip 사용)
     if (!targetTripId) {
-      const latestTrip = await prisma.trip.findFirst({
+      const latestTrip = await prisma.userTrip.findFirst({
         where: { userId: user.id },
         orderBy: { createdAt: 'desc' },
         select: { id: true },
@@ -183,8 +183,8 @@ export async function POST(req: NextRequest) {
       targetTripId = latestTrip.id;
     }
 
-    // 여행 소유권 확인
-    const trip = await prisma.trip.findFirst({
+    // 여행 소유권 확인 (UserTrip 사용)
+    const trip = await prisma.userTrip.findFirst({
       where: { id: targetTripId, userId: user.id },
       select: { id: true },
     });
