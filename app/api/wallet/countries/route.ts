@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth';
+import prisma from '@/lib/prisma';
 
 // 국가명을 통화 코드로 매핑
 const COUNTRY_TO_CURRENCY: Record<string, { code: string; symbol: string; name: string }> = {
