@@ -227,16 +227,36 @@ export async function GET() {
         createdAt: comment.createdAt instanceof Date ? comment.createdAt.toISOString() : comment.createdAt,
         updatedAt: comment.updatedAt instanceof Date ? comment.updatedAt.toISOString() : comment.updatedAt
       })),
-      trips: myTrips.map(trip => ({
-        ...trip,
-        startDate: trip.startDate instanceof Date ? trip.startDate.toISOString() : trip.startDate,
-        endDate: trip.endDate instanceof Date ? trip.endDate.toISOString() : trip.endDate,
-        createdAt: trip.createdAt instanceof Date ? trip.createdAt.toISOString() : trip.createdAt,
-        companionType: trip.companionType,
-        destination: trip.destination ? (Array.isArray(trip.destination) ? trip.destination : [trip.destination]) : null,
-        nights: trip.nights,
-        days: trip.days,
-      }))
+      trips: myTrips.map(trip => {
+        try {
+          return {
+            ...trip,
+            startDate: trip.startDate instanceof Date ? trip.startDate.toISOString() : (trip.startDate ? String(trip.startDate) : null),
+            endDate: trip.endDate instanceof Date ? trip.endDate.toISOString() : (trip.endDate ? String(trip.endDate) : null),
+            createdAt: trip.createdAt instanceof Date ? trip.createdAt.toISOString() : (trip.createdAt ? String(trip.createdAt) : null),
+            companionType: trip.companionType,
+            destination: trip.destination ? (Array.isArray(trip.destination) ? trip.destination : [trip.destination]) : null,
+            nights: trip.nights,
+            days: trip.days,
+            CruiseProduct: trip.CruiseProduct || null,
+          };
+        } catch (tripMapError: any) {
+          console.error('[MY INFO] Error mapping trip:', tripMapError);
+          return {
+            id: trip.id,
+            cruiseName: trip.cruiseName,
+            startDate: null,
+            endDate: null,
+            createdAt: null,
+            status: trip.status,
+            companionType: trip.companionType,
+            destination: null,
+            nights: trip.nights,
+            days: trip.days,
+            CruiseProduct: null,
+          };
+        }
+      })
     });
   } catch (error: any) {
     console.error('[MY INFO] Error:', error);

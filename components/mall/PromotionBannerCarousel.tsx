@@ -195,47 +195,45 @@ export default function PromotionBannerCarousel() {
     >
       {/* 배너 이미지 */}
       <div className="relative w-full h-full">
-        {banners.map((banner, index) => (
-          <a
-            key={banner.id}
-            href={banner.link || banner.button1Link || '/products'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`absolute inset-0 transition-opacity duration-500 block ${
-              index === currentIndex ? 'opacity-100' : 'opacity-0'
-            }`}
-            onClick={(e) => {
-              // 스와이프 중이면 링크 클릭 방지
-              if (isSwiping) {
-                e.preventDefault();
-                return;
-              }
-              
-              // 첫 번째 배너(크루즈닷 지니 AI 출시)는 무조건 /login-test로 이동
-              if (banner.id === 1) {
-                e.preventDefault();
-                window.open('/login-test', '_blank', 'noopener,noreferrer');
-                return;
-              }
-              
-              // 세 번째 배너(크루즈닷과 행복한 크루즈여행 하기)는 외부 링크로 새 창 열기
-              if (banner.id === 3 && banner.link) {
-                e.preventDefault();
-                window.open(banner.link, '_blank', 'noopener,noreferrer');
-                return;
-              }
-              
-              // link가 있고 버튼이 없으면 클릭 허용
-              if (banner.link && !banner.button1Text && !banner.button2Text) {
-                // 클릭 허용 - 링크로 이동
-                return;
-              }
-              // 버튼이 있으면 전체 배너 클릭 비활성화 (버튼 클릭만 동작)
-              if (banner.button1Text || banner.button2Text) {
-                e.preventDefault();
-              }
-            }}
-          >
+        {banners.map((banner, index) => {
+          const hasButtons = banner.button1Text || banner.button2Text;
+          const bannerLink = banner.link || banner.button1Link || '/products';
+          
+          return (
+            <div
+              key={banner.id}
+              className={`absolute inset-0 transition-opacity duration-500 ${
+                index === currentIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+              onClick={(e) => {
+                // 스와이프 중이면 링크 클릭 방지
+                if (isSwiping) {
+                  return;
+                }
+                
+                // 버튼이 있으면 전체 배너 클릭 비활성화 (버튼 클릭만 동작)
+                if (hasButtons) {
+                  return;
+                }
+                
+                // 첫 번째 배너(크루즈닷 지니 AI 출시)는 무조건 /login-test로 이동
+                if (banner.id === 1) {
+                  window.open('/login-test', '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                
+                // 세 번째 배너(크루즈닷과 행복한 크루즈여행 하기)는 외부 링크로 새 창 열기
+                if (banner.id === 3 && banner.link) {
+                  window.open(banner.link, '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                
+                // link가 있고 버튼이 없으면 클릭 허용
+                if (banner.link && !hasButtons) {
+                  window.open(banner.link, '_blank', 'noopener,noreferrer');
+                }
+              }}
+            >
             {/* 이미지 프리로더 */}
             {banner.image && (
               <img
@@ -359,8 +357,9 @@ export default function PromotionBannerCarousel() {
                 </div>
               </div>
             </div>
-          </a>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
       {/* 좌우 화살표 */}

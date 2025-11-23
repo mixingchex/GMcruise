@@ -117,9 +117,9 @@ export default function ReviewCarousel() {
 
       {/* 후기 그리드 */}
       <div className="grid md:grid-cols-3 gap-6">
-        {visibleReviews.map((review) => (
+        {visibleReviews.map((review, idx) => (
           <Link
-            key={review.id}
+            key={`review-${review.id}-${currentIndex}-${idx}`}
             href={`/community/reviews/${review.id}`}
             className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all border border-gray-100"
           >
