@@ -112,9 +112,16 @@ export default function PWAInstallButtonGenie() {
         } else {
           console.log('크루즈가이드 지니 PWA 설치 취소됨');
         }
-      } catch (error) {
-        console.error('PWA 설치 오류:', error);
-        alert('설치 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      } catch (error: any) {
+        console.error('[PWA Install Genie] 설치 오류:', error);
+        // 에러 메시지가 있으면 표시, 없으면 기본 메시지
+        const errorMessage = error?.message || '설치 중 오류가 발생했습니다.';
+        if (errorMessage.includes('User dismissed') || errorMessage.includes('cancelled')) {
+          // 사용자가 취소한 경우 조용히 처리
+          console.log('[PWA Install Genie] 사용자가 설치를 취소했습니다.');
+        } else {
+          alert(`설치 중 오류가 발생했습니다: ${errorMessage}\n\n브라우저가 PWA 설치를 지원하지 않거나 이미 설치되어 있을 수 있습니다.`);
+        }
       } finally {
         setDeferredPrompt(null);
       }
@@ -162,9 +169,16 @@ export default function PWAInstallButtonGenie() {
         } else {
           console.log('크루즈가이드 지니 PWA 설치 취소됨');
         }
-      } catch (error) {
-        console.error('PWA 설치 오류:', error);
-        alert('설치 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      } catch (error: any) {
+        console.error('[PWA Install Genie] 설치 오류:', error);
+        // 에러 메시지가 있으면 표시, 없으면 기본 메시지
+        const errorMessage = error?.message || '설치 중 오류가 발생했습니다.';
+        if (errorMessage.includes('User dismissed') || errorMessage.includes('cancelled')) {
+          // 사용자가 취소한 경우 조용히 처리
+          console.log('[PWA Install Genie] 사용자가 설치를 취소했습니다.');
+        } else {
+          alert(`설치 중 오류가 발생했습니다: ${errorMessage}\n\n브라우저가 PWA 설치를 지원하지 않거나 이미 설치되어 있을 수 있습니다.`);
+        }
       }
       return;
     }

@@ -22,7 +22,7 @@ export async function GET() {
     return NextResponse.json({ ok: false, success: false }, { status: 404 });
   }
 
-  const trips = await prisma.trip.findMany({
+  const trips = await prisma.userTrip.findMany({
     where: { userId: userFromDb.id },
     select: {
       id: true,
