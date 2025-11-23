@@ -43,7 +43,7 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
   }, []);
 
   return (
-    <div className="relative text-white py-16 md:py-24 overflow-hidden min-h-screen">
+    <div className="relative text-white py-16 md:py-24 overflow-hidden">
       {/* 배경 비디오 */}
       <video
         ref={videoRef}
@@ -66,7 +66,7 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
       <div className="absolute inset-0 bg-black/50 z-10"></div>
       
       {/* 컨텐츠 */}
-      <div className="relative z-20 container mx-auto px-4">
+      <div className="relative z-20 container mx-auto px-4 pb-8">
         <div className="max-w-3xl mx-auto text-center">
           {/* AI 지니 로고/아이콘 */}
           {heroConfig.logoUrl && (
