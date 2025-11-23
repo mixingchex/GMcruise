@@ -102,8 +102,8 @@ export async function GET() {
       orderBy: { createdAt: 'desc' }
     });
 
-    // 여행 문의 정보 (Trip 모델에서 조회) - 관리자가 배정한 여행 정보 포함
-    const myTrips = await prisma.trip.findMany({
+    // 여행 문의 정보 (UserTrip 모델에서 조회) - 관리자가 배정한 여행 정보 포함
+    const myTrips = await prisma.userTrip.findMany({
       where: { userId: user.id },
       select: {
         id: true,
@@ -169,13 +169,26 @@ export async function GET() {
         createdAt: post.createdAt instanceof Date ? post.createdAt.toISOString() : post.createdAt,
         updatedAt: post.updatedAt instanceof Date ? post.updatedAt.toISOString() : post.updatedAt
       })),
-      reviews: myReviews.map(review => ({
-        ...review,
-        travelDate: review.travelDate instanceof Date ? review.travelDate.toISOString() : (review.travelDate || null),
-        images: Array.isArray(review.images) ? review.images : (typeof review.images === 'string' ? JSON.parse(review.images) : []),
-        createdAt: review.createdAt instanceof Date ? review.createdAt.toISOString() : review.createdAt,
-        updatedAt: review.updatedAt instanceof Date ? review.updatedAt.toISOString() : review.updatedAt
-      })),
+      reviews: myReviews.map(review => {
+        let images = [];
+        try {
+          if (Array.isArray(review.images)) {
+            images = review.images;
+          } else if (typeof review.images === 'string') {
+            images = JSON.parse(review.images);
+          }
+        } catch (e) {
+          console.error('[MY INFO] Failed to parse review images:', e);
+          images = [];
+        }
+        return {
+          ...review,
+          travelDate: review.travelDate instanceof Date ? review.travelDate.toISOString() : (review.travelDate || null),
+          images,
+          createdAt: review.createdAt instanceof Date ? review.createdAt.toISOString() : review.createdAt,
+          updatedAt: review.updatedAt instanceof Date ? review.updatedAt.toISOString() : review.updatedAt
+        };
+      }),
       comments: myComments.map(comment => ({
         ...comment,
         createdAt: comment.createdAt instanceof Date ? comment.createdAt.toISOString() : comment.createdAt,

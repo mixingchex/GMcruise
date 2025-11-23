@@ -104,12 +104,90 @@ async function generatePost(): Promise<{ title: string; content: string; categor
 }
 
 /**
+ * 댓글이 부정적인지 감지
+ */
+async function detectNegativeSentiment(commentContent: string): Promise<boolean> {
+  try {
+    const prompt = `다음 댓글이 부정적(불만, 비판, 실망, 불만족 등)인지 판단해주세요.
+
+댓글: "${commentContent}"
+
+부정적인 표현 예시:
+- "별로였어요", "실망했어요", "비추해요", "안 좋았어요"
+- "비싸요", "불편했어요", "서비스가 나빠요"
+- "추천 안 해요", "후회했어요", "별로예요"
+
+긍정적이거나 중립적인 표현은 부정적이 아닙니다:
+- "궁금해요", "어떤가요?", "추천해주세요"
+- "좋았어요", "만족했어요", "추천해요"
+
+응답 형식:
+부정적이면: "YES"
+부정적이 아니면: "NO"
+댓글만 작성 (다른 설명 없이)`;
+
+    const response = await askGemini([
+      { role: 'user', content: prompt }
+    ], 0.7);
+
+    if (!response || !response.text) {
+      return false;
+    }
+
+    const result = response.text.trim().toUpperCase();
+    return result.includes('YES');
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 감정 분석 실패:', error);
+    return false; // 에러 시 부정적이 아니라고 가정
+  }
+}
+
+/**
+ * 부정적 댓글에 대한 긍정적 대응 댓글 생성
+ */
+async function generatePositiveResponse(negativeComment: string, postTitle: string, postContent: string): Promise<string | null> {
+  try {
+    const prompt = `다음 부정적인 댓글에 대해 긍정적이고 도움이 되는 대응 댓글을 작성해주세요.
+
+부정적 댓글: "${negativeComment}"
+게시글 제목: ${postTitle}
+게시글 내용: ${postContent}
+
+요구사항:
+- 부정적인 내용을 직접 반박하지 않고, 긍정적인 관점으로 대응
+- 공감과 이해를 표현하면서도 긍정적인 해결책이나 다른 관점 제시
+- 친근하고 자연스러운 말투
+- 20-70자 정도의 짧고 간결한 댓글
+- 이모지 사용 가능 (1-2개, 자연스럽게)
+- 한국어로 작성
+- 댓글만 작성 (다른 설명 없이)
+
+예시:
+- "아쉽게 느끼셨군요. 저는 이렇게 해서 좋았어요..."
+- "그런 경험도 있으시군요. 저는 이 부분이 좋았는데..."
+- "이해해요. 다음에는 이렇게 해보시면 어떨까요?"`;
+
+    const response = await askGemini([
+      { role: 'user', content: prompt }
+    ], 0.8);
+
+    if (!response || !response.text) {
+      return null;
+    }
+
+    const comment = response.text.trim().substring(0, 200);
+    return comment;
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 긍정적 대응 댓글 생성 실패:', error);
+    return null;
+  }
+}
+
+/**
  * 게시글에 맞는 자연스러운 댓글 생성 (유튜브 댓글 스타일)
  */
 async function generateComment(postTitle: string, postContent: string, postCategory: string): Promise<string | null> {
   try {
-    const authorName = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
-    
     const prompt = `유튜브 크루즈 영상 댓글 스타일을 참고하여 다음 게시글에 대한 자연스러운 댓글을 작성해주세요.
 
 게시글 제목: ${postTitle}
@@ -150,6 +228,42 @@ async function generateComment(postTitle: string, postContent: string, postCateg
 }
 
 /**
+ * 댓글에 대한 자연스러운 대댓글 생성 (AI끼리 대화)
+ */
+async function generateReply(commentContent: string, commentAuthor: string, postTitle: string): Promise<string | null> {
+  try {
+    const prompt = `다음 댓글에 대한 자연스러운 대댓글을 작성해주세요. 실제 사람들이 댓글에 답하는 것처럼 자연스럽게 대화하듯이 작성해주세요.
+
+원본 댓글: "${commentContent}"
+댓글 작성자: ${commentAuthor}
+게시글 제목: ${postTitle}
+
+요구사항:
+- 댓글 내용에 자연스럽게 반응 (공감, 질문, 추가 정보, 경험 공유 등)
+- 실제 사람들이 댓글에 답하는 것처럼 자연스러운 대화 톤
+- 15-50자 정도의 짧고 간결한 대댓글
+- 이모지 사용 가능 (1개 정도, 자연스럽게)
+- 한국어로 작성
+- 대댓글만 작성 (다른 설명 없이)
+- "맞아요", "저도", "그렇군요", "추가로" 같은 자연스러운 연결 표현 사용`;
+
+    const response = await askGemini([
+      { role: 'user', content: prompt }
+    ], 0.85);
+
+    if (!response || !response.text) {
+      return null;
+    }
+
+    const reply = response.text.trim().substring(0, 200);
+    return reply;
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 대댓글 생성 실패:', error);
+    return null;
+  }
+}
+
+/**
  * 봇 사용자 계정 확인 또는 생성
  */
 async function getOrCreateBotUser() {
@@ -184,8 +298,17 @@ async function getOrCreateBotUser() {
 
 /**
  * POST: 봇 실행 (외부 cron 서비스에서 호출)
+ * 
+ * 서버 부하 최적화:
+ * - AI 호출: 최대 8-10회 (게시글 1, 댓글 1, 기존 게시글 댓글 2-3, 대댓글 1-2, 감정 분석 1-2, 긍정적 대응 1-2)
+ * - 예상 실행 시간: 20-30초 (각 AI 호출당 2-3초)
+ * - 5분 간격 실행이므로 충분한 여유
+ * - 타임아웃: 60초 (안전장치)
  */
 export async function POST(req: Request) {
+  const startTime = Date.now();
+  const MAX_EXECUTION_TIME = 60000; // 60초 타임아웃
+  
   try {
     // 보안: Cron 비밀 키 확인
     const authHeader = req.headers.get('authorization');
@@ -197,13 +320,22 @@ export async function POST(req: Request) {
 
     console.log('[COMMUNITY BOT] 봇 실행 시작...');
 
+    // 타임아웃 체크 함수
+    const checkTimeout = () => {
+      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+        throw new Error('봇 실행 시간 초과 (60초)');
+      }
+    };
+
     // 봇 사용자 확인
+    checkTimeout();
     const botUser = await getOrCreateBotUser();
     if (!botUser) {
       return NextResponse.json({ ok: false, error: '봇 사용자 확인 실패' }, { status: 500 });
     }
 
     // 1. 게시글 생성
+    checkTimeout();
     const postData = await generatePost();
     if (!postData) {
       return NextResponse.json({ ok: false, error: '게시글 생성 실패' }, { status: 500 });
@@ -227,6 +359,7 @@ export async function POST(req: Request) {
     console.log('[COMMUNITY BOT] 게시글 저장 완료:', post.id);
 
     // 3. 댓글 생성 (게시글에 맞는 자연스러운 댓글)
+    checkTimeout();
     const commentContent = await generateComment(postData.title, postData.content, postData.category);
     
     if (commentContent) {
@@ -254,9 +387,209 @@ export async function POST(req: Request) {
       console.log('[COMMUNITY BOT] 댓글 저장 완료');
     }
 
-    // 4. 기존 게시글에 좋아요와 뷰 증가 (5분마다 4개씩)
+    // 4. 기존 게시글에 댓글/대댓글 생성 (2-3개 게시글)
+    let existingPostCommentsCreated = 0;
+    let repliesCreated = 0;
     try {
-      // 활성 게시글 중 랜덤으로 4개 선택
+      // 활성 게시글 중 랜덤으로 2-3개 선택
+      const activePosts = await prisma.communityPost.findMany({
+        where: {
+          isDeleted: false
+        },
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          category: true
+        },
+        take: 50, // 최근 50개 중에서 선택
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      if (activePosts.length > 0) {
+        // 랜덤으로 2-3개 선택
+        const selectedPosts = activePosts
+          .sort(() => Math.random() - 0.5)
+          .slice(0, Math.min(3, activePosts.length));
+
+        for (const selectedPost of selectedPosts) {
+          try {
+            checkTimeout(); // 각 게시글 처리 전 타임아웃 체크
+            
+            // 기존 게시글에 댓글 생성
+            const commentContent = await generateComment(
+              selectedPost.title,
+              selectedPost.content || '',
+              selectedPost.category || 'travel-tip'
+            );
+
+            if (commentContent) {
+              const commentAuthor = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
+              
+              const newComment = await prisma.communityComment.create({
+                data: {
+                  postId: selectedPost.id,
+                  userId: botUser.id,
+                  content: commentContent,
+                  authorName: commentAuthor,
+                  updatedAt: now
+                }
+              });
+
+              // 게시글 댓글 수 업데이트
+              await prisma.communityPost.update({
+                where: { id: selectedPost.id },
+                data: {
+                  comments: { increment: 1 }
+                }
+              });
+
+              existingPostCommentsCreated++;
+              console.log(`[COMMUNITY BOT] 기존 게시글 ${selectedPost.id}에 댓글 생성 완료`);
+
+              // 50% 확률로 대댓글 생성 (AI끼리 대화)
+              if (Math.random() > 0.5) {
+                checkTimeout();
+                const replyContent = await generateReply(
+                  commentContent,
+                  commentAuthor,
+                  selectedPost.title
+                );
+
+                if (replyContent) {
+                  const replyAuthor = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
+                  
+                  await prisma.communityComment.create({
+                    data: {
+                      postId: selectedPost.id,
+                      userId: botUser.id,
+                      content: replyContent,
+                      authorName: replyAuthor,
+                      parentCommentId: newComment.id,
+                      updatedAt: now
+                    }
+                  });
+
+                  // 게시글 댓글 수 업데이트
+                  await prisma.communityPost.update({
+                    where: { id: selectedPost.id },
+                    data: {
+                      comments: { increment: 1 }
+                    }
+                  });
+
+                  repliesCreated++;
+                  console.log(`[COMMUNITY BOT] 댓글 ${newComment.id}에 대댓글 생성 완료`);
+                }
+              }
+            }
+          } catch (error) {
+            console.error(`[COMMUNITY BOT] 게시글 ${selectedPost.id} 댓글 생성 실패 (무시):`, error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[COMMUNITY BOT] 기존 게시글 댓글 생성 실패 (무시):', error);
+    }
+
+    // 5. 부정적 댓글 감지 및 긍정적 대응 (최근 댓글 중 1-2개 확인)
+    let positiveResponsesCreated = 0;
+    try {
+      // 최근 댓글 중 봇이 작성하지 않은 댓글 확인 (실제 유저 댓글)
+      const recentComments = await prisma.communityComment.findMany({
+        where: {
+          userId: { not: botUser.id }, // 봇이 아닌 실제 유저 댓글만
+          parentCommentId: null, // 대댓글이 아닌 댓글만
+          createdAt: {
+            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // 최근 24시간 내
+          }
+        },
+        include: {
+          Post: {
+            select: {
+              id: true,
+              title: true,
+              content: true
+            }
+          }
+        },
+        take: 10,
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+
+      // 랜덤으로 1-2개 선택하여 부정적 댓글 감지
+      const commentsToCheck = recentComments
+        .sort(() => Math.random() - 0.5)
+        .slice(0, Math.min(2, recentComments.length));
+
+      for (const comment of commentsToCheck) {
+        try {
+          checkTimeout(); // 각 댓글 처리 전 타임아웃 체크
+          
+          // 부정적 댓글 감지
+          const isNegative = await detectNegativeSentiment(comment.content);
+          
+          if (isNegative) {
+            // 이미 긍정적 대응이 있는지 확인 (중복 방지)
+            const existingResponse = await prisma.communityComment.findFirst({
+              where: {
+                postId: comment.postId,
+                parentCommentId: comment.id,
+                userId: botUser.id
+              }
+            });
+
+            if (!existingResponse && comment.Post) {
+              checkTimeout();
+              
+              // 긍정적 대응 댓글 생성
+              const positiveResponse = await generatePositiveResponse(
+                comment.content,
+                comment.Post.title,
+                comment.Post.content || ''
+              );
+
+              if (positiveResponse) {
+                const responseAuthor = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
+                
+                await prisma.communityComment.create({
+                  data: {
+                    postId: comment.postId,
+                    userId: botUser.id,
+                    content: positiveResponse,
+                    authorName: responseAuthor,
+                    parentCommentId: comment.id,
+                    updatedAt: now
+                  }
+                });
+
+                // 게시글 댓글 수 업데이트
+                await prisma.communityPost.update({
+                  where: { id: comment.postId },
+                  data: {
+                    comments: { increment: 1 }
+                  }
+                });
+
+                positiveResponsesCreated++;
+                console.log(`[COMMUNITY BOT] 부정적 댓글 ${comment.id}에 긍정적 대응 생성 완료`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`[COMMUNITY BOT] 댓글 ${comment.id} 감정 분석 실패 (무시):`, error);
+        }
+      }
+    } catch (error) {
+      console.error('[COMMUNITY BOT] 부정적 댓글 대응 실패 (무시):', error);
+    }
+
+    // 6. 기존 게시글에 좋아요와 뷰 증가 (5분마다 4개씩)
+    try {
       const activePosts = await prisma.communityPost.findMany({
         where: {
           isDeleted: false
@@ -264,16 +597,14 @@ export async function POST(req: Request) {
         select: {
           id: true
         },
-        take: 100 // 최근 100개 중에서 선택
+        take: 100
       });
 
       if (activePosts.length > 0) {
-        // 랜덤으로 4개 선택 (또는 전체가 4개 미만이면 모두)
         const selectedPosts = activePosts
           .sort(() => Math.random() - 0.5)
           .slice(0, Math.min(4, activePosts.length));
 
-        // 각 게시글에 좋아요 4개, 뷰 4개씩 증가
         for (const selectedPost of selectedPosts) {
           await prisma.communityPost.update({
             where: { id: selectedPost.id },
@@ -287,7 +618,6 @@ export async function POST(req: Request) {
         console.log(`[COMMUNITY BOT] ${selectedPosts.length}개 게시글에 좋아요/뷰 증가 완료`);
       }
     } catch (error) {
-      // 좋아요/뷰 증가 실패해도 게시글 생성은 성공으로 처리
       console.error('[COMMUNITY BOT] 좋아요/뷰 증가 실패 (무시):', error);
     }
 
@@ -299,14 +629,38 @@ export async function POST(req: Request) {
         title: post.title,
         category: post.category
       },
-      commentCreated: !!commentContent
+      commentCreated: !!commentContent,
+      existingPostComments: existingPostCommentsCreated,
+      replies: repliesCreated,
+      positiveResponses: positiveResponsesCreated
+    });
+    const executionTime = Date.now() - startTime;
+    console.log(`[COMMUNITY BOT] 봇 실행 완료 (${executionTime}ms)`);
+    
+    return NextResponse.json({
+      ok: true,
+      message: '게시글과 댓글이 생성되었습니다.',
+      post: {
+        id: post.id,
+        title: post.title,
+        category: post.category
+      },
+      commentCreated: !!commentContent,
+      existingPostComments: existingPostCommentsCreated,
+      replies: repliesCreated,
+      positiveResponses: positiveResponsesCreated,
+      executionTime: `${executionTime}ms`
     });
   } catch (error: any) {
+    const executionTime = Date.now() - startTime;
     console.error('[COMMUNITY BOT] 오류:', error);
+    console.error(`[COMMUNITY BOT] 실행 시간: ${executionTime}ms`);
+    
     return NextResponse.json({
       ok: false,
       error: '봇 실행 실패',
-      details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
+      executionTime: `${executionTime}ms`
     }, { status: 500 });
   }
 }
