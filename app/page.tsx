@@ -380,7 +380,7 @@ export default function HomePage() {
       <CommunitySection config={pageConfig?.communitySection} />
 
       {/* 크루즈닷 지니 AI 출시 3일 무료체험 배너 */}
-      <section className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 py-16 md:py-20">
+      <section className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 py-16 md:py-20 cursor-pointer" onClick={() => window.location.href = '/login-test'}>
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="mb-6">
@@ -398,8 +398,10 @@ export default function HomePage() {
             <div className="mb-6 space-y-4">
               <a
                 href="/login-test"
-                target="_blank"
-                rel="noopener noreferrer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = '/login-test';
+                }}
                 className="inline-block bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 text-blue-900 font-bold text-xl md:text-2xl px-12 py-6 rounded-2xl shadow-2xl hover:from-yellow-300 hover:via-yellow-200 hover:to-yellow-300 hover:scale-105 transition-all duration-300 transform border-2 border-yellow-500"
               >
                 크루즈 지니 AI 3일 무료체험 구경하기 🎉
@@ -409,9 +411,11 @@ export default function HomePage() {
                   무료 체험은 본사 문의 해 주세요
                 </p>
                 <a
-                  href="https://leadgeny.kr/i/yjo"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="/login-test"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = '/login-test';
+                  }}
                   className="inline-block bg-white text-blue-700 font-bold text-xl px-10 py-5 rounded-2xl shadow-2xl hover:bg-yellow-300 hover:scale-105 transition-all duration-300 transform"
                 >
                   무료체험 신청하기 🚀

@@ -169,7 +169,6 @@ export async function GET() {
           name: true,
           phone: true,
           genieStatus: true,
-          genieLinkedAt: true,
           isLocked: true,
         },
       });
@@ -194,7 +193,6 @@ export async function GET() {
           name: linkedGenieUser.name,
           phone: linkedGenieUser.phone,
           genieStatus: linkedGenieUser.genieStatus,
-          genieLinkedAt: linkedGenieUser.genieLinkedAt?.toISOString() || null,
           isLocked: linkedGenieUser.isLocked,
         } : null,
       },

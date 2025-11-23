@@ -38,7 +38,7 @@ const defaultBanners: Banner[] = [
     image: '/크루즈사진/코스타세레나/코스타세레나.jpg',
     title: '크루즈닷과',
     subtitle: '행복한 크루즈여행 하기',
-    link: '/products',
+    link: 'https://leadgeny.kr/lpo.php?seq=4d7a4d314e445978',
   },
 ];
 
@@ -218,6 +218,13 @@ export default function PromotionBannerCarousel() {
                 return;
               }
               
+              // 세 번째 배너(크루즈닷과 행복한 크루즈여행 하기)는 외부 링크로 새 창 열기
+              if (banner.id === 3 && banner.link) {
+                e.preventDefault();
+                window.open(banner.link, '_blank', 'noopener,noreferrer');
+                return;
+              }
+              
               // link가 있고 버튼이 없으면 클릭 허용
               if (banner.link && !banner.button1Text && !banner.button2Text) {
                 // 클릭 허용 - 링크로 이동
@@ -313,12 +320,40 @@ export default function PromotionBannerCarousel() {
                   {/* 하위 호환성: 버튼이 없고 link만 있는 경우 */}
                   {!banner.button1Text && !banner.button2Text && (
                     <>
-                      <span className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50">
+                      <a
+                        href={banner.link || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          if (banner.link && banner.link !== '#') {
+                            e.stopPropagation(); // 배너 클릭 이벤트와 충돌 방지
+                            window.open(banner.link, '_blank', 'noopener,noreferrer');
+                            e.preventDefault();
+                          } else {
+                            e.preventDefault();
+                          }
+                        }}
+                        className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50 hover:bg-white/40 transition-all cursor-pointer"
+                      >
                         ✓ 프리미엄 서비스
-                      </span>
-                      <span className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50">
+                      </a>
+                      <a
+                        href={banner.link || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          if (banner.link && banner.link !== '#') {
+                            e.stopPropagation(); // 배너 클릭 이벤트와 충돌 방지
+                            window.open(banner.link, '_blank', 'noopener,noreferrer');
+                            e.preventDefault();
+                          } else {
+                            e.preventDefault();
+                          }
+                        }}
+                        className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50 hover:bg-white/40 transition-all cursor-pointer"
+                      >
                         ✓ 신뢰할 수 있는 여행사
-                      </span>
+                      </a>
                     </>
                   )}
                 </div>

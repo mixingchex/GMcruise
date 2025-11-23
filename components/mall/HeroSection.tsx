@@ -43,7 +43,10 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
   }, []);
 
   return (
-    <div className="relative text-white py-16 md:py-24 overflow-hidden">
+    <div 
+      className="relative text-white py-16 md:py-24 overflow-hidden cursor-pointer"
+      onClick={() => window.location.href = '/login-test'}
+    >
       {/* 배경 비디오 */}
       <video
         ref={videoRef}
@@ -144,59 +147,20 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
                 buttonStyle.color = '#ffffff';
               }
               
-              // #로 시작하는 앵커 링크는 같은 페이지 내 이동이므로 새 창으로 열지 않음
-              if (btn.link.startsWith('#')) {
-                return (
-                  <Link
-                    key={idx}
-                    href={btn.link}
-                    className={buttonClass}
-                    style={buttonStyle}
-                  >
-                    {btn.text}
-                  </Link>
-                );
-              }
-              // "지금 시작하기" 버튼은 로그인 페이지를 새 창으로 열기
-              if (btn.text === '지금 시작하기' && btn.link.startsWith('/login')) {
-                return (
-                  <a
-                    key={idx}
-                    href={btn.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={buttonClass}
-                    style={buttonStyle}
-                  >
-                    {btn.text}
-                  </a>
-                );
-              }
-              // 외부 링크(http/https로 시작)만 새 창에서 열기
-              if (btn.link.startsWith('http://') || btn.link.startsWith('https://')) {
-                return (
-                  <a
-                    key={idx}
-                    href={btn.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={buttonClass}
-                    style={buttonStyle}
-                  >
-                    {btn.text}
-                  </a>
-                );
-              }
-              // 내부 링크 (예: /login, /chat 등) - 같은 창에서 열기
+              // 모든 버튼을 /login-test로 이동하도록 변경
               return (
-                <Link
+                <a
                   key={idx}
-                  href={btn.link}
+                  href="/login-test"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = '/login-test';
+                  }}
                   className={buttonClass}
                   style={buttonStyle}
                 >
                   {btn.text}
-                </Link>
+                </a>
               );
             })}
           </div>
