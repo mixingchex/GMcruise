@@ -280,7 +280,11 @@ export default function EditFlowPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [flowId]);
+
+  useEffect(() => {
+    loadFlow();
+  }, [loadFlow]);
 
   // 노드 추가 함수
   const addNode = useCallback((type: NodeType) => {
