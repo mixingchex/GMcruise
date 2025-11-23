@@ -543,10 +543,29 @@ export async function GET(req: NextRequest) {
         genieStatus = 'locked';
       }
 
+      // 비밀번호: PasswordEvent의 최신 비밀번호를 우선 사용, 없으면 password 필드 사용
+      // password 필드가 해시된 경우를 대비해 PasswordEvent 우선
       const latestPasswordEvent = mergedCustomer.PasswordEvent && mergedCustomer.PasswordEvent.length > 0
         ? mergedCustomer.PasswordEvent[0]
         : null;
-      const currentPassword = latestPasswordEvent?.to || null;
+      
+      // 비밀번호를 문자형식 그대로 표시 (관리자 요구사항)
+      let currentPassword: string | null = null;
+      if (latestPasswordEvent?.to) {
+        currentPassword = latestPasswordEvent.to; // PasswordEvent의 비밀번호 (평문)
+      } else if (mergedCustomer.password) {
+        // password 필드가 해시인지 확인 (bcrypt는 $2로 시작)
+        if (mergedCustomer.password.startsWith('$2')) {
+          // 해시된 비밀번호는 표시 불가, 기본값 사용
+          currentPassword = '3800'; // 기본 비밀번호
+        } else {
+          // 평문 비밀번호
+          currentPassword = mergedCustomer.password;
+        }
+      } else {
+        // 비밀번호가 없으면 기본값
+        currentPassword = '3800';
+      }
 
       let daysRemaining: number | null = null;
       if (mergedCustomer.currentTripEndDate) {
