@@ -676,17 +676,22 @@ export default function MapPage() {
             console.log('Map Page: Visited countries loaded from API:', visitedData.visitedCountries);
             // API colorMap의 키(국가 코드)를 영어 국가명으로 변환
             const apiColorMapConverted: { [key: string]: string } = {};
+            console.log('Map Page: API colorMap before conversion:', visitedData.colorMap);
             Object.entries(visitedData.colorMap).forEach(([countryCode, color]) => {
               const englishName = isoToEnglishCountryNameMap[countryCode];
               if (englishName) {
                 apiColorMapConverted[englishName] = color as string;
+                console.log(`Map Page: Converting ${countryCode} -> ${englishName}`);
               } else {
                 // 매핑이 없으면 국가 코드 그대로 사용 (fallback)
                 apiColorMapConverted[countryCode] = color as string;
+                console.log(`Map Page: No mapping for ${countryCode}, keeping as is`);
               }
             });
+            console.log('Map Page: API colorMap after conversion:', apiColorMapConverted);
             // API 데이터, localStorage 데이터, 자동 추출된 색상 병합 (우선순위: localStorage > API > 자동)
             const mergedColorMap = { ...autoColorMap, ...apiColorMapConverted, ...localColorMap };
+            console.log('Map Page: Final merged colorMap:', mergedColorMap);
             setCountryColorMap(mergedColorMap);
             localStorage.setItem('countryColors', JSON.stringify(mergedColorMap));
           } else {
@@ -1142,6 +1147,7 @@ export default function MapPage() {
                     {({ geographies }: { geographies: any[] }) => {
                       console.log('Map Page: Rendering geographies.', geographies.length, 'geographies found.');
                       console.log('Map Page: countryColorMap keys:', Object.keys(countryColorMap));
+                      console.log('Map Page: countryColorMap full:', countryColorMap);
                       
                       // 싱가포르 관련 국가 찾기 (디버깅)
                       const singaporeCountries = geographies.filter((g: any) => {
@@ -1163,11 +1169,17 @@ export default function MapPage() {
                           return null;
                         }
 
-                        // 국가명 매칭 시도 (대소문자 무시, 부분 일치)
-                        let isVisited = Object.keys(countryColorMap).includes(englishCountryName);
-                        let countryColor = countryColorMap[englishCountryName] || "#F8F9FA";
+                        // 국가명 매칭 시도 (다양한 방법으로 시도)
+                        let isVisited = false;
+                        let countryColor = "#F8F9FA";
                         
-                        // 정확히 매칭되지 않으면 대소문자 무시하여 찾기
+                        // 1. 정확한 매칭
+                        if (countryColorMap[englishCountryName]) {
+                          isVisited = true;
+                          countryColor = countryColorMap[englishCountryName];
+                        }
+                        
+                        // 2. 대소문자 무시 매칭
                         if (!isVisited) {
                           const matchedKey = Object.keys(countryColorMap).find(key => 
                             key.toLowerCase() === englishCountryName.toLowerCase()
@@ -1175,43 +1187,45 @@ export default function MapPage() {
                           if (matchedKey) {
                             isVisited = true;
                             countryColor = countryColorMap[matchedKey];
-                            console.log(`Map Page: Case-insensitive match found: ${englishCountryName} -> ${matchedKey}`);
+                            console.log(`Map Page: Case-insensitive match: ${englishCountryName} -> ${matchedKey}`);
                           }
                         }
                         
-                        // 여전히 매칭되지 않으면 Singapore 관련 매칭 시도
-                        if (!isVisited && englishCountryName.toLowerCase().includes('singapore')) {
-                          const singaporeKey = Object.keys(countryColorMap).find(key => 
-                            key.toLowerCase().includes('singapore')
-                          );
-                          if (singaporeKey) {
+                        // 3. 별칭 매핑을 통한 매칭
+                        if (!isVisited) {
+                          const alias = countryNameAliases[englishCountryName];
+                          if (alias && countryColorMap[alias]) {
                             isVisited = true;
-                            countryColor = countryColorMap[singaporeKey];
-                            console.log(`Map Page: Singapore match found: ${englishCountryName} -> ${singaporeKey}`);
+                            countryColor = countryColorMap[alias];
+                            console.log(`Map Page: Alias match: ${englishCountryName} -> ${alias}`);
                           }
                         }
                         
-                        // Brazil 매칭 시도 (대소문자 무시)
-                        if (!isVisited && englishCountryName.toLowerCase() === 'brazil') {
-                          const brazilKey = Object.keys(countryColorMap).find(key => 
-                            key.toLowerCase() === 'brazil'
-                          );
-                          if (brazilKey) {
+                        // 4. 국가 코드를 통해 매칭 (countryColorMap에 국가 코드가 키로 있는 경우)
+                        if (!isVisited) {
+                          // 영어 국가명에서 국가 코드 찾기
+                          const countryCode = isoToEnglishCountryNameMap ? 
+                            Object.keys(isoToEnglishCountryNameMap).find(code => 
+                              isoToEnglishCountryNameMap[code] === englishCountryName
+                            ) : null;
+                          if (countryCode && countryColorMap[countryCode]) {
                             isVisited = true;
-                            countryColor = countryColorMap[brazilKey];
-                            console.log(`Map Page: Brazil match found: ${englishCountryName} -> ${brazilKey}`);
+                            countryColor = countryColorMap[countryCode];
+                            console.log(`Map Page: Country code match: ${englishCountryName} (${countryCode})`);
                           }
                         }
                         
-                        // Antarctica 매칭 시도 (대소문자 무시)
-                        if (!isVisited && englishCountryName.toLowerCase() === 'antarctica') {
-                          const antarcticaKey = Object.keys(countryColorMap).find(key => 
-                            key.toLowerCase() === 'antarctica'
-                          );
-                          if (antarcticaKey) {
+                        // 5. 부분 일치 매칭 (Singapore, Brazil 등)
+                        if (!isVisited) {
+                          const partialMatch = Object.keys(countryColorMap).find(key => {
+                            const keyLower = key.toLowerCase();
+                            const nameLower = englishCountryName.toLowerCase();
+                            return keyLower.includes(nameLower) || nameLower.includes(keyLower);
+                          });
+                          if (partialMatch) {
                             isVisited = true;
-                            countryColor = countryColorMap[antarcticaKey];
-                            console.log(`Map Page: Antarctica match found: ${englishCountryName} -> ${antarcticaKey}`);
+                            countryColor = countryColorMap[partialMatch];
+                            console.log(`Map Page: Partial match: ${englishCountryName} -> ${partialMatch}`);
                           }
                         }
                         
