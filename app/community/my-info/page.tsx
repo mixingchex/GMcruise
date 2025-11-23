@@ -525,7 +525,7 @@ export default function MyInfoPage() {
       </div>
 
       {/* 블링블링 애니메이션 스타일 */}
-      <style jsx>{`
+      <style>{`
         @keyframes shimmer {
           0% {
             transform: translateX(-100%);
