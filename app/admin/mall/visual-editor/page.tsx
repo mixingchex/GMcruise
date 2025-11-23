@@ -91,6 +91,8 @@ interface PageConfig {
     enabled: boolean;
     title: string;
     description: string;
+    linkText?: string;
+    linkUrl?: string;
   };
   youtubeLive: {
     enabled: boolean;

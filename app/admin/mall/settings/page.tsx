@@ -24,6 +24,11 @@ interface Banner {
   order: number;
 }
 
+interface Settings {
+  banners?: Banner[];
+  [key: string]: any;
+}
+
 export default function MallSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

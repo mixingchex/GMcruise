@@ -453,7 +453,7 @@ export default function LandingPagesPage() {
         const data = await response.json();
         if (data.ok && data.sharedLandingPages) {
           // 이미 공유된 대리점장 ID를 선택된 목록에 추가
-          const sharedIds = new Set(data.sharedLandingPages.map((r: any) => r.managerProfileId));
+          const sharedIds = new Set<number>(data.sharedLandingPages.map((r: any) => r.managerProfileId));
           setSelectedManagerIds(sharedIds);
         }
       }

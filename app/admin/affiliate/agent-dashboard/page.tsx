@@ -89,6 +89,7 @@ type AgentMetric = {
 
 type DashboardResponse = {
   ok: boolean;
+  message?: string;
   agents: AgentMetric[];
   totals: {
     agentCount: number;

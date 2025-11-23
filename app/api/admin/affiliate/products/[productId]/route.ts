@@ -91,7 +91,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
         updateData.currency = data.currency;
       }
       if (data.cruiseProductId !== undefined) {
-        updateData.cruiseProduct = data.cruiseProductId
+        updateData.CruiseProduct = data.cruiseProductId
           ? { connect: { id: data.cruiseProductId } }
           : { disconnect: true };
       }

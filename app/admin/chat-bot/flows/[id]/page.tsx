@@ -49,7 +49,7 @@ import {
 
 // CSS는 클라이언트에서만 로드
 if (typeof window !== 'undefined') {
-  import('reactflow/dist/style.css');
+  require('reactflow/dist/style.css');
 }
 import { FiSave, FiX, FiPlus, FiMessageSquare, FiHelpCircle, FiCode, FiZap, FiCheckCircle, FiPlay, FiArrowLeft } from 'react-icons/fi';
 import { MdAutoAwesome } from 'react-icons/md';

@@ -79,6 +79,11 @@ export default async function PersonalCustomersPage({ params }: { params: { mall
                   type: true,
                   displayName: true,
                   branchLabel: true,
+                  user: {
+                    select: {
+                      mallUserId: true,
+                    },
+                  },
                 },
               },
             },
@@ -110,6 +115,7 @@ export default async function PersonalCustomersPage({ params }: { params: { mall
           id: agent.id,
           displayName: agent.displayName,
           affiliateCode: agent.affiliateCode,
+          mallUserId: agent.user?.mallUserId || '',
         };
       }).filter(Boolean) ?? [];
 
@@ -128,13 +134,15 @@ export default async function PersonalCustomersPage({ params }: { params: { mall
                   label: profile.agentRelations[0].manager.displayName,
                   affiliateCode: profile.agentRelations[0].manager.affiliateCode,
                   branchLabel: profile.agentRelations[0].manager.branchLabel,
+                  mallUserId: profile.agentRelations[0].manager.user?.mallUserId || '',
                 }
               : null,
-          teamAgents: teamAgents as Array<{
-            id: number;
-            displayName: string | null;
-            affiliateCode: string | null;
-          }>,
+          teamAgents: teamAgents.map(agent => ({
+            id: agent.id,
+            displayName: agent.displayName,
+            affiliateCode: agent.affiliateCode,
+            mallUserId: agent.mallUserId || '',
+          })),
         }}
         leadStatusOptions={leadStatusOptions}
       />

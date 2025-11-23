@@ -653,8 +653,8 @@ export default function NewProductPage() {
       isBudget: formData.isBudget,
       mallProductContent: {
         thumbnail: thumbnail,
-        images: detailBlocks.filter(b => b.type === 'image').map(b => b.url),
-        videos: detailBlocks.filter(b => b.type === 'video').map(b => b.url),
+        images: detailBlocks.filter((b): b is Extract<ContentBlock, { type: 'image' }> => b.type === 'image').map(b => b.url),
+        videos: detailBlocks.filter((b): b is Extract<ContentBlock, { type: 'video' }> => b.type === 'video').map(b => b.url),
         layout: {
           blocks: detailBlocks,
           included: includedItems,

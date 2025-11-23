@@ -196,7 +196,7 @@ export default function CustomersPage() {
         setGroupCounts(data.groupCounts);
         // 전체 고객 수 계산 (모든 그룹의 합)
         // 주의: 일부 고객이 여러 그룹에 중복 카운트될 수 있음 (예: 대리점장 고객이면서 구매 고객)
-        const total = Object.values(data.groupCounts).reduce((sum, count) => sum + count, 0);
+        const total = Object.values(data.groupCounts as Record<string, number>).reduce((sum: number, count: number) => sum + count, 0);
         setTotalCustomers(total);
       }
       

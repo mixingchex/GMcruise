@@ -165,7 +165,7 @@ export default function CustomerDetailPage() {
 
       console.log('[Delete User] Response status:', response.status);
       console.log('[Delete User] Response ok:', response.ok);
-      console.log('[Delete User] Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('[Delete User] Response headers:', Object.fromEntries(Array.from(response.headers.entries())));
       
       const responseText = await response.text();
       console.log('[Delete User] Response text (raw):', responseText);

@@ -10,9 +10,9 @@ import { FiCheckCircle, FiXCircle, FiAlertCircle } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
 // SignaturePad를 동적으로 import (클라이언트 사이드에서만 로드)
-const SignaturePad = dynamic(() => import('signature_pad').then((mod) => mod.default), {
+const SignaturePad = dynamic(() => import('signature_pad').then((mod) => mod.default as any), {
   ssr: false,
-});
+}) as any;
 
 type Contract = {
   id: number;
@@ -36,7 +36,7 @@ export default function ContractSignPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [signedByName, setSignedByName] = useState('');
-  const [signaturePad, setSignaturePad] = useState<SignaturePad | null>(null);
+  const [signaturePad, setSignaturePad] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

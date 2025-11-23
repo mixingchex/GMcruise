@@ -10,6 +10,8 @@ import prisma from '@/lib/prisma';
 export async function syncApisSpreadsheet(tripId: number): Promise<{
   ok: boolean;
   spreadsheetId?: string;
+  folderId?: string;
+  rowCount?: number;
   error?: string;
 }> {
   try {

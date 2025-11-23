@@ -833,8 +833,8 @@ export default function ProductEditPage() {
       tags: selectedTags,
       mallProductContent: {
         thumbnail: thumbnail || product.mallProductContent?.thumbnail || null,
-        images: detailBlocks.filter(b => b.type === 'image').map(b => b.url),
-        videos: detailBlocks.filter(b => b.type === 'video').map(b => b.url),
+        images: detailBlocks.filter((b): b is Extract<ContentBlock, { type: 'image' }> => b.type === 'image').map(b => b.url),
+        videos: detailBlocks.filter((b): b is Extract<ContentBlock, { type: 'video' }> => b.type === 'video').map(b => b.url),
         layout: {
           blocks: detailBlocks,
           included: includedItems,
