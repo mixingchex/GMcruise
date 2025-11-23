@@ -364,15 +364,13 @@ export async function POST(req: Request) {
       // 3일 체험 로그인: 이름/전화번호는 선택사항, 비밀번호 1101만 맞으면 무조건 로그인 가능
 
       try {
-        // 3일 체험 로그인: 이름/전화번호가 일치하지 않아도 비밀번호 1101만 맞으면 무조건 로그인 가능
-        // 이름/전화번호로 기존 사용자 찾기 시도 (일치하지 않아도 됨)
+        // 3일 체험 로그인: 비밀번호 1101만 맞으면 무조건 로그인 가능 (가벼운 인증)
+        // 전화번호로 기존 사용자 찾기 (이름은 무시)
         let testUser = await prisma.user.findFirst({
           where: {
-            OR: [
-              { name, phone, password: { in: TEST_MODE_PASSWORDS }, role: 'user' },
-              { phone, password: { in: TEST_MODE_PASSWORDS }, role: 'user' },
-              { name, password: { in: TEST_MODE_PASSWORDS }, role: 'user' },
-            ],
+            phone: phone || undefined,
+            password: { in: TEST_MODE_PASSWORDS },
+            role: 'user',
           },
           select: { 
             id: true, 
@@ -556,6 +554,7 @@ export async function POST(req: Request) {
                 source: trialCode ? 'trial-invite-link' : (affiliateCode ? 'affiliate-link' : 'test-guide'),
                 managerId: managerProfileId || null,
                 agentId: agentProfileId || null,
+                updatedAt: now,
               },
             });
           }
