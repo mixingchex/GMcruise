@@ -295,7 +295,6 @@ export default function MyInfoPage() {
               </p>
             </div>
           )}
-          </div>
 
           {/* 비밀번호 변경 섹션 */}
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-purple-200 mb-6">
