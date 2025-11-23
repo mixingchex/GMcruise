@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
         text,
         completed: false,
         order: 0,
+        updatedAt: new Date(),
       },
     });
 
@@ -150,7 +151,9 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const updateData: { completed?: boolean; text?: string } = {};
+    const updateData: { completed?: boolean; text?: string; updatedAt: Date } = {
+      updatedAt: new Date(),
+    };
     if (completed !== undefined) {
       updateData.completed = completed;
     }
