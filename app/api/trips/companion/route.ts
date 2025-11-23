@@ -52,8 +52,8 @@ export async function PATCH(req: NextRequest) {
     };
     const dbCompanionType = typeMap[companionType] || companionType;
 
-    // 최신 여행 조회
-    const latestTrip = await prisma.trip.findFirst({
+    // 최신 여행 조회 (UserTrip 모델 사용)
+    const latestTrip = await prisma.userTrip.findFirst({
       where: { userId: sess.userId },
       orderBy: { createdAt: 'desc' },
       select: { id: true },
@@ -67,11 +67,11 @@ export async function PATCH(req: NextRequest) {
     }
 
     // 동반자 정보만 업데이트
-    const updatedTrip = await prisma.trip.update({
+    const updatedTrip = await prisma.userTrip.update({
       where: { id: latestTrip.id },
       data: {
         companionType: dbCompanionType,
-        // 온보딩 수정 추적 플래그 설정
+        updatedAt: new Date(),
       },
     });
 
