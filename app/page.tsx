@@ -126,9 +126,13 @@ export default function HomePage() {
         credentials: 'include',
       });
       setUser(null);
+      // 크루즈가이드 지니에서는 로그아웃 후 크루즈몰로만 이동 (온보딩으로 절대 이동하지 않음)
       window.location.href = '/';
     } catch (error) {
       console.error('Logout failed:', error);
+      // 에러가 발생해도 크루즈몰로 이동
+      setUser(null);
+      window.location.href = '/';
     } finally {
       setIsLoggingOut(false);
     }
