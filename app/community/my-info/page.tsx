@@ -420,49 +420,47 @@ export default function MyInfoPage() {
 
               {/* 크루즈닷지니AI 상태 */}
               {isGenieUser ? (
-                <div className="p-5 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-xl relative overflow-hidden">
-                  {/* 블링블링 효과 */}
-                  <div className="absolute inset-0 animate-pulse">
-                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-yellow-200/30 to-transparent animate-shimmer"></div>
-                  </div>
-                  <div className="relative flex items-center justify-between">
+                <div className="p-5 bg-gradient-to-br from-yellow-400 via-yellow-300 to-orange-400 border-2 border-yellow-500 rounded-xl relative overflow-hidden shadow-lg">
+                  {/* 블링블링 효과 - 그라데이션 애니메이션 */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-yellow-200/50 via-transparent to-orange-200/50"></div>
+                  <div className="relative flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <span className="text-4xl animate-bounce">✨</span>
+                        <span className="text-4xl animate-bounce drop-shadow-lg">✨</span>
                         <span className="absolute -top-1 -right-1 text-2xl animate-ping">⭐</span>
                       </div>
                       <div>
-                        <p className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                        <p className="font-bold text-lg text-gray-900 flex items-center gap-2 drop-shadow-sm">
                           크루즈닷지니AI (유료)
-                          <span className="text-xs px-2 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold animate-pulse">PRO</span>
+                          <span className="text-xs px-2 py-1 bg-yellow-500 text-white rounded-full font-bold animate-pulse shadow-md">PRO</span>
                         </p>
-                        <p className="text-sm text-gray-600">AI 여행 가이드 서비스</p>
+                        <p className="text-sm text-gray-800 font-medium">AI 여행 가이드 서비스</p>
                       </div>
                     </div>
-                    <span className="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg animate-pulse">이용 중</span>
+                    <span className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-orange-600 text-white font-bold rounded-lg shadow-lg animate-pulse">이용 중</span>
                   </div>
                 </div>
               ) : isTrialUser ? (
-                <div className="p-5 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-400 rounded-xl relative overflow-hidden">
-                  {/* 블링블링 효과 */}
-                  <div className="absolute inset-0 animate-pulse">
-                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-purple-200/30 to-transparent animate-shimmer"></div>
-                  </div>
-                  <div className="relative flex items-center justify-between">
+                <div className="p-5 bg-gradient-to-br from-purple-400 via-pink-400 to-purple-500 border-2 border-purple-500 rounded-xl relative overflow-hidden shadow-lg">
+                  {/* 블링블링 효과 - 그라데이션 애니메이션 */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-200/50 via-transparent to-pink-200/50"></div>
+                  <div className="relative flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <span className="text-4xl animate-bounce">🎁</span>
+                        <span className="text-4xl animate-bounce drop-shadow-lg">🎁</span>
                         <span className="absolute -top-1 -right-1 text-2xl animate-ping">💎</span>
                       </div>
                       <div>
-                        <p className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                        <p className="font-bold text-lg text-gray-900 flex items-center gap-2 drop-shadow-sm">
                           크루즈가이드지니 3일 체험
-                          <span className="text-xs px-2 py-1 bg-purple-400 text-purple-900 rounded-full font-bold animate-pulse">TRIAL</span>
+                          <span className="text-xs px-2 py-1 bg-purple-500 text-white rounded-full font-bold animate-pulse shadow-md">TRIAL</span>
                         </p>
-                        <p className="text-sm text-gray-600">3일 무료 체험 중</p>
+                        <p className="text-sm text-gray-800 font-medium">3일 무료 체험 중</p>
                       </div>
                     </div>
-                    <span className="px-4 py-2 bg-purple-500 text-white font-bold rounded-lg animate-pulse">체험 중</span>
+                    <span className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold rounded-lg shadow-lg animate-pulse">체험 중</span>
                   </div>
                 </div>
               ) : (
@@ -484,25 +482,24 @@ export default function MyInfoPage() {
 
           {/* 크루즈 3일 무료체험 홍보 배너 */}
           {!isGenieUser && !isTrialUser && (
-            <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-2xl shadow-2xl p-6 md:p-8 mb-6 relative overflow-hidden animate-pulse">
-              {/* 블링블링 효과 */}
-              <div className="absolute inset-0">
-                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
-                <div className="absolute top-4 right-4 text-4xl animate-bounce">✨</div>
-                <div className="absolute bottom-4 left-4 text-3xl animate-ping">⭐</div>
-                <div className="absolute top-1/2 right-1/4 text-2xl animate-pulse">💎</div>
-              </div>
+            <div className="bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-2xl shadow-2xl p-6 md:p-8 mb-6 relative overflow-hidden">
+              {/* 블링블링 효과 - 그라데이션 애니메이션 */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-300/30 via-transparent to-orange-300/30"></div>
+              <div className="absolute top-4 right-4 text-4xl animate-bounce drop-shadow-lg">✨</div>
+              <div className="absolute bottom-4 left-4 text-3xl animate-ping drop-shadow-lg">⭐</div>
+              <div className="absolute top-1/2 right-1/4 text-2xl animate-pulse drop-shadow-lg">💎</div>
               <div className="relative z-10 text-center text-white">
-                <h3 className="text-3xl md:text-4xl font-black mb-4 flex items-center justify-center gap-3">
+                <h3 className="text-3xl md:text-4xl font-black mb-4 flex items-center justify-center gap-3 drop-shadow-lg">
                   <span className="text-5xl animate-bounce">🎁</span>
                   크루즈가이드지니 3일 무료체험
                 </h3>
-                <p className="text-lg md:text-xl mb-6 font-semibold">
+                <p className="text-lg md:text-xl mb-6 font-semibold drop-shadow-md">
                   지금 바로 AI 여행 가이드를 무료로 체험해보세요!
                 </p>
                 <Link
                   href="/login-test"
-                  className="inline-block px-8 py-4 bg-white text-purple-600 font-black text-lg rounded-xl hover:bg-gray-100 transition-colors shadow-lg transform hover:scale-105"
+                  className="inline-block px-8 py-4 bg-white text-purple-600 font-black text-lg rounded-xl hover:bg-gray-100 transition-all shadow-2xl transform hover:scale-105 hover:shadow-3xl"
                 >
                   무료체험 시작하기 →
                 </Link>
@@ -524,20 +521,6 @@ export default function MyInfoPage() {
         </div>
       </div>
 
-      {/* 블링블링 애니메이션 스타일 */}
-      <style>{`
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-100%);
-          }
-          100% {
-            transform: translateX(100%);
-          }
-        }
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
-        }
-      `}</style>
     </div>
   );
 }
