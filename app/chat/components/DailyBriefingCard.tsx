@@ -1210,23 +1210,7 @@ export default function DailyBriefingCard() {
             {/* 현재 보기 모드에 따라 일정 표시 */}
             {scheduleViewMode === 'today' ? (
               <>
-                {/* 오늘 일정 정보는 간단하게만 표시 */}
-                {today && !isCruising && (
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    {today.location && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-base md:text-lg font-bold border-2 border-blue-300">
-                        <FiMapPin size={16} className="text-blue-600" />
-                        {today.location}
-                      </span>
-                    )}
-                    {(today.arrival || today.departure) && (
-                      <div className="flex items-center gap-2 text-sm md:text-base text-gray-600 font-semibold">
-                        {today.arrival && <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md">입항: {today.arrival}</span>}
-                        {today.departure && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-md">출항: {today.departure}</span>}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {/* 오늘 일정 정보는 표시하지 않음 (사용자가 추가한 일정만 표시) */}
 
                 {/* 추가된 일정 목록 - 메모지 스타일, 5열 그리드 */}
                 {console.log('[DailyBriefingCard] 오늘 일정 렌더링:', schedules.length, '개', schedules)}
