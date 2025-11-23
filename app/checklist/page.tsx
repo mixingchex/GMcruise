@@ -9,7 +9,7 @@ import { trackFeature } from '@/lib/analytics';
 
 // 체크리스트 아이템 타입 정의 (API 응답 형식에 맞춤)
 type ChecklistItem = {
-  id: number;
+  id: number | string; // 서버는 number, 클라이언트는 string일 수 있음
   text: string;
   completed: boolean;
   createdAt?: string;
@@ -23,11 +23,12 @@ export default function ChecklistPage() {
   const [newText, setNewText] = useState('');
   const [textScale, setTextScale] = useState<1 | 2 | 3>(3); // 1(보통) 2(큼) 3(아주 큼) - 기본값 3으로 변경
   const [isProhibitedItemsExpanded, setIsProhibitedItemsExpanded] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [editingItemId, setEditingItemId] = useState<number | string | null>(null);
   const [editingText, setEditingText] = useState('');
   const [speakingCategory, setSpeakingCategory] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const hasCreatedDefaultsRef = useRef(false); // 기본 항목 생성 플래그
 
   const startSpeaking = (text: string, category: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -158,8 +159,13 @@ export default function ChecklistPage() {
     { id: Date.now() + 29, text: '지퍼백 (액체류 담기)', completed: false },
   ];
 
-  // 기본 항목을 서버에 저장하는 함수
+  // 기본 항목을 서버에 저장하는 함수 (한 번만 실행되도록 보호)
   const createDefaultItemsOnServer = async (defaultItems: ChecklistItem[]) => {
+    // 이미 실행 중이면 중복 실행 방지
+    if (hasCreatedDefaultsRef.current && items.length > 0) {
+      return;
+    }
+    
     for (const item of defaultItems) {
       try {
         const res = await fetch('/api/checklist', {
@@ -177,14 +183,19 @@ export default function ChecklistPage() {
             const updated = prev.map(localItem =>
               localItem.id === item.id ? finalItem : localItem
             );
-            // API 전용 - localStorage 제거됨
             return updated;
           });
-          // 서버 저장 간격 조절
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // 서버 저장 간격 조절 (429 에러 방지)
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } else if (res.status === 429) {
+          // Rate limit이면 더 긴 대기
+          console.warn('[Checklist] Rate limit, waiting longer...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       } catch (error) {
         console.error('[Checklist] Error creating default item on server:', error);
+        // 에러 발생 시에도 계속 진행 (다음 항목 시도)
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
   };
@@ -218,14 +229,22 @@ export default function ChecklistPage() {
       const items = data.items || data;
       
       if (Array.isArray(items)) {
-        // 항목이 없으면 기본 항목 생성
-        if (items.length === 0) {
+        // 서버에서 받은 항목을 클라이언트 형식으로 변환 (id: number 유지)
+        const formattedItems = items.map((item: any) => ({
+          id: typeof item.id === 'number' ? item.id : parseInt(item.id) || item.id,
+          text: item.text || '',
+          completed: item.completed || false,
+        }));
+        
+        // 항목이 없으면 기본 항목 생성 (한 번만)
+        if (formattedItems.length === 0 && !skipError && !hasCreatedDefaultsRef.current) {
+          hasCreatedDefaultsRef.current = true;
           const defaultItems = getDefaultItems();
           setItems(defaultItems);
-          // 백그라운드에서 서버에 저장
+          // 백그라운드에서 서버에 저장 (한 번만 실행되도록 플래그 사용)
           createDefaultItemsOnServer(defaultItems).catch(console.error);
         } else {
-          setItems(items);
+          setItems(formattedItems);
         }
       } else {
         throw new Error('잘못된 데이터 형식입니다.');
@@ -237,11 +256,12 @@ export default function ChecklistPage() {
         setError(`체크리스트를 불러오는 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
       }
       
-      // 401이나 429 오류가 아니면 기본 항목 생성
-      if (err.message && !err.message.includes('인증') && !err.message.includes('너무 많')) {
+      // 401이나 429 오류가 아니고, 아직 기본 항목을 생성하지 않았으면 생성
+      if (err.message && !err.message.includes('인증') && !err.message.includes('너무 많') && !hasCreatedDefaultsRef.current) {
+        hasCreatedDefaultsRef.current = true;
         const defaultItems = getDefaultItems();
         setItems(defaultItems);
-        // 백그라운드에서 서버에 저장 시도
+        // 백그라운드에서 서버에 저장 시도 (한 번만)
         createDefaultItemsOnServer(defaultItems).catch(console.error);
       }
     } finally {
@@ -314,7 +334,7 @@ export default function ChecklistPage() {
   };
 
   // 완료 토글 (API 전용)
-  const handleToggle = async (id: number) => {
+  const handleToggle = async (id: number | string) => {
     const item = items.find(i => i.id === id);
     if (!item) return;
 
@@ -337,13 +357,15 @@ export default function ChecklistPage() {
 
     try {
       // PATCH 메서드 사용 (체크리스트 API는 PATCH 사용)
+      // id를 숫자로 변환 (서버는 number를 기대)
+      const numericId = typeof id === 'string' ? parseInt(id) : id;
       const res = await fetch('/api/checklist', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ id, completed: newCompleted }),
+        body: JSON.stringify({ id: numericId, completed: newCompleted }),
       });
       
       if (!res.ok) {
@@ -385,7 +407,7 @@ export default function ChecklistPage() {
   };
 
   // 항목 수정 (API 전용)
-  const handleUpdate = async (id: number, newText: string) => {
+  const handleUpdate = async (id: number | string, newText: string) => {
     const trimmedText = newText.trim();
     if (!trimmedText) {
       setEditingItemId(null);
@@ -406,13 +428,15 @@ export default function ChecklistPage() {
 
     try {
       // 체크리스트 API는 PATCH 메서드 사용
+      // id를 숫자로 변환 (서버는 number를 기대)
+      const numericId = typeof id === 'string' ? parseInt(id) : id;
       const res = await fetch('/api/checklist', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ id, text: trimmedText }),
+        body: JSON.stringify({ id: numericId, text: trimmedText }),
       });
       
       if (!res.ok) {
@@ -524,7 +548,7 @@ export default function ChecklistPage() {
   };
 
   // 삭제 (API 전용)
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: number | string) => {
     hapticImpact();
     
     const item = items.find(i => i.id === id);
@@ -537,13 +561,15 @@ export default function ChecklistPage() {
     setError(null);
 
     try {
+      // id를 숫자로 변환 (서버는 number를 기대)
+      const numericId = typeof id === 'string' ? parseInt(id) : id;
       const res = await fetch('/api/checklist', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ id }),
+        body: JSON.stringify({ id: numericId }),
       });
       
       if (!res.ok) {
