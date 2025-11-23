@@ -1,0 +1,17 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expire-trips",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/database-backup",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/payslip-sender",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}
+

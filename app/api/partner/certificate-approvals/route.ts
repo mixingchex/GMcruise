@@ -1,0 +1,174 @@
+// 파트너 인증서 승인 요청 API
+import { NextRequest, NextResponse } from 'next/server';
+import prisma from '@/lib/prisma';
+import { requirePartnerContext } from '@/lib/partner-auth';
+import { notifyAdminOfApprovalRequest } from '@/lib/notifications/certificateNotifications';
+
+// GET: 승인 요청 조회
+export async function GET(req: NextRequest) {
+  try {
+    const { user, profile } = await requirePartnerContext(req);
+
+    const { searchParams } = new URL(req.url);
+    const customerId = searchParams.get('customerId');
+    const certificateType = searchParams.get('type');
+    const status = searchParams.get('status');
+
+    const where: any = {
+      requesterId: user.id,
+    };
+
+    if (customerId) {
+      where.customerId = parseInt(customerId);
+    }
+
+    if (certificateType) {
+      where.certificateType = certificateType;
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
+    // 최신 승인 요청 조회
+    const approval = await prisma.certificateApproval.findFirst({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        Customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+        Approver: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      approval,
+    });
+  } catch (error: any) {
+    console.error('[Certificate Approvals GET] Error:', error);
+    return NextResponse.json(
+      { ok: false, error: error.message || '조회 실패' },
+      { status: error.status || 500 }
+    );
+  }
+}
+
+// POST: 승인 요청 생성
+export async function POST(req: NextRequest) {
+  try {
+    const { user, profile } = await requirePartnerContext(req);
+
+    const body = await req.json();
+    const {
+      certificateType,
+      customerId,
+      customerName,
+      customerEmail,
+      birthDate,
+      productName,
+      paymentAmount,
+      paymentDate,
+      refundAmount,
+      refundDate,
+      metadata,
+    } = body;
+
+    // 필수 필드 검증
+    if (!certificateType || !customerId || !customerName || !productName || !paymentAmount || !paymentDate) {
+      return NextResponse.json(
+        { ok: false, error: '필수 정보를 모두 입력해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    // 환불인증서인 경우 환불 정보 검증
+    if (certificateType === 'refund') {
+      if (!refundAmount || !refundDate) {
+        return NextResponse.json(
+          { ok: false, error: '환불금액과 환불일자를 입력해주세요.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 권한 확인
+    const requesterType = profile.type; // 'BRANCH_MANAGER' | 'SALES_AGENT'
+
+    // 대리점장이 구매확인증서를 요청하는 경우 - 자동 승인
+    const autoApprove = requesterType === 'BRANCH_MANAGER' && certificateType === 'purchase';
+
+    // 승인 요청 생성
+    const approval = await prisma.certificateApproval.create({
+      data: {
+        certificateType,
+        requesterId: user.id,
+        requesterType,
+        customerId,
+        customerName,
+        customerEmail,
+        birthDate,
+        productName,
+        paymentAmount,
+        paymentDate,
+        refundAmount,
+        refundDate,
+        status: autoApprove ? 'approved' : 'pending',
+        approvedBy: autoApprove ? user.id : null,
+        approvedByType: autoApprove ? 'BRANCH_MANAGER' : null,
+        approvedAt: autoApprove ? new Date() : null,
+        metadata,
+      },
+      include: {
+        Customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    console.log('[Certificate Approval] Created:', {
+      id: approval.id,
+      type: certificateType,
+      requester: user.name,
+      requesterType,
+      customer: customerName,
+      autoApproved: autoApprove,
+    });
+
+    // 자동 승인이 아닌 경우 관리자에게 알림
+    if (!autoApprove) {
+      notifyAdminOfApprovalRequest(approval.id).catch((err) => {
+        console.error('[Certificate Approval] Notification failed:', err);
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      approval,
+      message: autoApprove ? '자동 승인되었습니다.' : '승인 요청이 제출되었습니다.',
+    });
+  } catch (error: any) {
+    console.error('[Certificate Approvals POST] Error:', error);
+    return NextResponse.json(
+      { ok: false, error: error.message || '승인 요청 실패' },
+      { status: 500 }
+    );
+  }
+}
+
