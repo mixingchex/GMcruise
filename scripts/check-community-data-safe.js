@@ -1,7 +1,7 @@
 // 커뮤니티 데이터 확인 스크립트 (Node.js 버전 - 더 안전함)
 // 사용법: node scripts/check-community-data-safe.js
 
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function checkCommunityData() {
