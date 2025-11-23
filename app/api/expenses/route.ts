@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ data: expenses }, { status: 200 });
+    return NextResponse.json({ ok: true, data: expenses }, { status: 200 });
   } catch (error) {
     console.error('[API] 지출 조회 오류:', error);
     return NextResponse.json(
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ data: expense }, { status: 201 });
+    return NextResponse.json({ ok: true, data: expense }, { status: 201 });
   } catch (error) {
     console.error('[API] 지출 생성 오류:', error);
     return NextResponse.json(
@@ -190,7 +190,7 @@ export async function PUT(req: NextRequest) {
       data: updateData,
     });
 
-    return NextResponse.json({ data: updatedExpense }, { status: 200 });
+    return NextResponse.json({ ok: true, data: updatedExpense }, { status: 200 });
   } catch (error) {
     console.error('[API] 지출 수정 오류:', error);
     return NextResponse.json(

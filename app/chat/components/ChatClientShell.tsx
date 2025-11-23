@@ -12,7 +12,7 @@ import { ChatMessageSkeleton } from '@/components/ui/Skeleton';
 import { csrfFetch } from '@/lib/csrf-client';
 import tts, { extractPlainText } from '@/lib/tts';
 
-const ENABLE_CHAT_HISTORY = false;
+const ENABLE_CHAT_HISTORY = true; // 채팅 히스토리 활성화
 
 export default function ChatClientShell({
   mode,
@@ -49,12 +49,17 @@ export default function ChatClientShell({
           const data = await response.json();
           if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
             // API 응답 형식을 ChatMessage 형식으로 변환
-            const loadedMessages: ChatMessage[] = data.messages.map((msg: any) => ({
-              id: msg.id || Date.now().toString() + Math.random(),
-              role: msg.role === 'assistant' ? 'assistant' : 'user',
-              type: 'text',
-              text: msg.content || msg.text || '',
-            }));
+            const loadedMessages: ChatMessage[] = data.messages
+              .filter((msg: any) => msg.role === 'user' || msg.role === 'assistant') // user/assistant만
+              .map((msg: any) => ({
+                id: msg.id || `${Date.now()}-${Math.random()}`,
+                role: msg.role === 'assistant' ? 'assistant' : 'user',
+                type: msg.type || 'text',
+                text: msg.text || msg.content || '',
+                ...(msg.links && { links: msg.links }),
+                ...(msg.images && { images: msg.images }),
+                ...(msg.chips && { chips: msg.chips }),
+              }));
             setMessages(loadedMessages);
             console.log('[ChatClientShell] 히스토리 로드 완료:', loadedMessages.length, '개 메시지');
           }
@@ -99,14 +104,22 @@ export default function ChatClientShell({
       const apiMessages = messagesToSave.map(msg => ({
         id: msg.id,
         role: msg.role,
-        content: msg.type === 'text' ? msg.text : '',
+        type: msg.type || 'text',
+        text: msg.type === 'text' ? (msg.text || '') : '',
+        ...(msg.links && { links: msg.links }),
+        ...(msg.images && { images: msg.images }),
+        ...(msg.chips && { chips: msg.chips }),
+        timestamp: new Date().toISOString(),
       }));
 
       await fetch('/api/chat/history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ messages: apiMessages }),
+        body: JSON.stringify({ 
+          messages: apiMessages,
+          sessionId: 'default', // 기본 세션 ID
+        }),
       });
     } catch (error) {
       console.error('[ChatClientShell] 히스토리 저장 실패:', error);

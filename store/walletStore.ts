@@ -171,7 +171,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   error: null,
   isUsingFallbackRate: false,
   
-  // 서버에서 데이터 로드
+  // 서버에서 데이터 로드 (localStorage fallback 제거)
   loadItems: async () => {
     set({ isLoading: true, error: null });
     
@@ -186,24 +186,26 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       const data = await response.json();
       
-      if (data.ok && Array.isArray(data.expenses)) {
+      if (data.data && Array.isArray(data.data)) {
         // 서버 형식을 클라이언트 형식으로 변환
-        const items: WalletItem[] = data.expenses.map((exp: any) => ({
+        const items: WalletItem[] = data.data.map((exp: any) => ({
           id: exp.id.toString(),
-          description: exp.description,
+          description: exp.description || '',
           category: exp.category,
-          foreignAmount: exp.foreignAmount,
-          krwAmount: exp.krwAmount,
-          usdAmount: exp.usdAmount,
-          currency: exp.currency,
-          createdAt: exp.createdAt,
+          foreignAmount: exp.foreignAmount || 0,
+          krwAmount: exp.krwAmount || 0,
+          usdAmount: exp.usdAmount || 0,
+          currency: exp.currency || 'USD',
+          createdAt: exp.createdAt || new Date().toISOString(),
         }));
         set({ items });
+      } else {
+        set({ items: [] });
       }
     } catch (error) {
       console.error('Error loading expenses:', error);
-      const errorMsg = '가계부를 불러오는데 실패했습니다.';
-      set({ error: errorMsg });
+      const errorMsg = '가계부를 불러오는데 실패했습니다. 인터넷 연결을 확인해주세요.';
+      set({ error: errorMsg, items: [] });
       showError(errorMsg, '불러오기 실패');
     } finally {
       set({ isLoading: false });
@@ -226,19 +228,21 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       const data = await response.json();
       
-      if (data.ok && data.expense) {
+      if (data.data) {
         const newItem: WalletItem = {
-          id: data.expense.id.toString(),
-          description: data.expense.description,
-          category: data.expense.category,
-          foreignAmount: data.expense.foreignAmount,
-          krwAmount: data.expense.krwAmount,
-          usdAmount: data.expense.usdAmount,
-          currency: data.expense.currency,
-          createdAt: data.expense.createdAt,
+          id: data.data.id.toString(),
+          description: data.data.description || '',
+          category: data.data.category,
+          foreignAmount: data.data.foreignAmount || 0,
+          krwAmount: data.data.krwAmount || 0,
+          usdAmount: data.data.usdAmount || 0,
+          currency: data.data.currency || 'USD',
+          createdAt: data.data.createdAt || new Date().toISOString(),
         };
         set((state) => ({ items: [newItem, ...state.items] }));
         showSuccess('지출이 기록되었습니다.');
+      } else {
+        throw new Error('서버 응답 형식 오류');
       }
     } catch (error) {
       console.error('Error adding expense:', error);
@@ -290,12 +294,26 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       }
 
       const data = await response.json();
-      set((state) => ({
-        items: state.items.map((item) =>
-          item.id === id ? data.data : item
-        ),
-      }));
-      showSuccess('항목이 수정되었습니다.');
+      if (data.data) {
+        const updatedItem: WalletItem = {
+          id: data.data.id.toString(),
+          description: data.data.description || '',
+          category: data.data.category,
+          foreignAmount: data.data.foreignAmount || 0,
+          krwAmount: data.data.krwAmount || 0,
+          usdAmount: data.data.usdAmount || 0,
+          currency: data.data.currency || 'USD',
+          createdAt: data.data.createdAt || new Date().toISOString(),
+        };
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? updatedItem : item
+          ),
+        }));
+        showSuccess('항목이 수정되었습니다.');
+      } else {
+        throw new Error('서버 응답 형식 오류');
+      }
     } catch (error) {
       console.error('Error updating item:', error);
       const errorMsg = '항목 수정에 실패했습니다.';

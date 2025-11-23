@@ -19,6 +19,63 @@ export function ReturnToShipBanner({ tripId }: ReturnToShipBannerProps) {
   const [isUrgent, setIsUrgent] = useState(false);
   const [locationName, setLocationName] = useState<string>('기항지');
   const [isLoading, setIsLoading] = useState(true);
+  const [distance, setDistance] = useState<number | null>(null); // km
+  const [estimatedTime, setEstimatedTime] = useState<string | null>(null); // 예상 시간
+  const [terminalCoords, setTerminalCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // GPS 위치 기반 거리/시간 계산
+  useEffect(() => {
+    if (!terminalCoords || !isActive) return;
+
+    const updateDistanceAndTime = () => {
+      if (!navigator.geolocation) {
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          
+          // Haversine 공식으로 거리 계산 (km)
+          const R = 6371; // 지구 반지름 (km)
+          const dLat = (terminalCoords.lat - latitude) * Math.PI / 180;
+          const dLon = (terminalCoords.lng - longitude) * Math.PI / 180;
+          const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(latitude * Math.PI / 180) * Math.cos(terminalCoords.lat * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const calculatedDistance = R * c;
+          
+          setDistance(calculatedDistance);
+          
+          // 예상 시간 계산 (도보: 5km/h, 택시: 30km/h 평균)
+          // 도시 환경을 고려하여 평균 20km/h로 계산
+          const avgSpeed = 20; // km/h
+          const hours = calculatedDistance / avgSpeed;
+          const minutes = Math.round(hours * 60);
+          
+          if (minutes < 60) {
+            setEstimatedTime(`${minutes}분`);
+          } else {
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            setEstimatedTime(`${h}시간 ${m}분`);
+          }
+        },
+        (error) => {
+          // GPS 오류는 조용히 처리 (거리 표시 안 함)
+          console.warn('[ReturnToShip] GPS 위치 획득 실패:', error);
+        },
+        { timeout: 5000, maximumAge: 60000 } // 1분 캐시
+      );
+    };
+
+    updateDistanceAndTime();
+    const interval = setInterval(updateDistanceAndTime, 30000); // 30초마다 업데이트
+
+    return () => clearInterval(interval);
+  }, [terminalCoords, isActive]);
 
   // 카운트다운 타이머 업데이트
   useEffect(() => {
@@ -91,6 +148,23 @@ export function ReturnToShipBanner({ tripId }: ReturnToShipBannerProps) {
           setIsActive(true);
           setDepartureTime(portVisit.departure);
           setLocationName(portVisit.location || '기항지');
+          
+          // 터미널 좌표 조회
+          try {
+            const terminalRes = await fetch(
+              `/api/terminals/search?location=${encodeURIComponent(portVisit.location || '기항지')}`
+            ).then(r => r.json());
+            
+            const terminal = terminalRes?.data?.[0];
+            if (terminal && terminal.latitude && terminal.longitude) {
+              setTerminalCoords({
+                lat: terminal.latitude,
+                lng: terminal.longitude,
+              });
+            }
+          } catch (error) {
+            logger.error('[ReturnToShip] 터미널 좌표 조회 오류:', error);
+          }
         } else {
           setIsActive(false);
         }
@@ -185,12 +259,26 @@ export function ReturnToShipBanner({ tripId }: ReturnToShipBannerProps) {
                   ? '⚠️ 출항 1시간 전! 지금 바로 배로 돌아오세요!'
                   : `🚢 ${locationName} 출항까지`}
               </h3>
-              <div className="flex items-center gap-2 text-sm sm:text-base">
+              <div className="flex items-center gap-2 text-sm sm:text-base flex-wrap">
                 <FiClock size={16} />
                 <span className={`font-mono font-bold ${isUrgent ? 'text-lg' : ''}`}>
                   {remainingTime}
                 </span>
                 <span className="opacity-90">남음</span>
+                {distance !== null && (
+                  <>
+                    <span className="opacity-70">•</span>
+                    <span className="opacity-90">
+                      약 {distance < 1 ? `${Math.round(distance * 1000)}m` : `${distance.toFixed(1)}km`} 거리
+                    </span>
+                    {estimatedTime && (
+                      <>
+                        <span className="opacity-70">•</span>
+                        <span className="opacity-90">예상 {estimatedTime}</span>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           </div>

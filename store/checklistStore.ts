@@ -52,7 +52,7 @@ export const useChecklistStore = create<ChecklistStore>((set, get) => ({
   isLoading: false,
   error: null,
   
-  // 서버에서 데이터 로드 (API 실패 시 localStorage 사용)
+  // 서버에서 데이터 로드 (localStorage fallback 제거)
   loadItems: async () => {
     set({ isLoading: true, error: null });
     
@@ -68,119 +68,88 @@ export const useChecklistStore = create<ChecklistStore>((set, get) => ({
       const data = await response.json();
       
       if (Array.isArray(data.items)) {
-        set({ items: data.items });
-        // localStorage에도 백업 저장
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.items));
-        }
-        return;
+        // 서버 형식(id: number)을 클라이언트 형식(id: string)으로 변환
+        const items: ChecklistItem[] = data.items.map((item: any) => ({
+          id: item.id.toString(),
+          text: item.text || '',
+          completed: item.completed || false,
+        }));
+        set({ items });
+      } else {
+        set({ items: [] });
       }
     } catch (error) {
-      console.error('Error loading checklist from API, trying localStorage:', error);
-      // API 실패 시 localStorage에서 로드
-      if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          try {
-            const localItems: ChecklistItem[] = JSON.parse(saved);
-            if (Array.isArray(localItems)) {
-              set({ items: localItems });
-              console.log('[Checklist] Loaded from localStorage:', localItems.length, 'items');
-              return;
-            }
-          } catch (e) {
-            console.error('Error parsing localStorage:', e);
-          }
-        }
-      }
-      // localStorage에도 없으면 에러 표시하지 않고 빈 배열로 시작
-      set({ items: [], error: null });
+      console.error('Error loading checklist:', error);
+      const errorMsg = '체크리스트를 불러오는데 실패했습니다. 인터넷 연결을 확인해주세요.';
+      set({ items: [], error: errorMsg });
     } finally {
       set({ isLoading: false });
     }
   },
   
-  // 항목 추가 (API 실패 시 localStorage 사용)
+  // 항목 추가 (API만 사용)
   addItem: async (text: string) => {
-    const newItem: ChecklistItem = {
-      id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      text,
-      completed: false,
-    };
-
-    // 즉시 로컬 상태에 추가 (낙관적 업데이트)
-    set((state) => ({ items: [...state.items, newItem] }));
-    
-    // localStorage에도 즉시 저장
-    if (typeof window !== 'undefined') {
-      const currentItems = get().items;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentItems));
-    }
-
-    // API 호출 시도 (실패해도 로컬에는 이미 저장됨)
     try {
       const response = await fetch('/api/checklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ text }), // API는 'text'를 기대함
+        body: JSON.stringify({ text }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.item) {
-          // 서버에서 받은 ID로 업데이트
-          set((state) => ({
-            items: state.items.map((item) =>
-              item.id === newItem.id ? data.item : item
-            ),
-          }));
-          // localStorage도 업데이트
-          if (typeof window !== 'undefined') {
-            const updatedItems = get().items;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
-          }
-        }
+      if (!response.ok) {
+        throw new Error('Failed to add checklist item');
+      }
+
+      const data = await response.json();
+      if (data.item) {
+        // 서버 형식을 클라이언트 형식으로 변환
+        const newItem: ChecklistItem = {
+          id: data.item.id.toString(),
+          text: data.item.text || '',
+          completed: data.item.completed || false,
+        };
+        set((state) => ({ items: [...state.items, newItem] }));
+        showSuccess('항목이 추가되었습니다.');
+      } else {
+        throw new Error('서버 응답 형식 오류');
       }
     } catch (error) {
-      console.error('Error adding item to API (using local storage):', error);
-      // API 실패해도 로컬에는 이미 저장되어 있으므로 에러 표시하지 않음
+      console.error('Error adding checklist item:', error);
+      const errorMsg = '항목 추가에 실패했습니다. 인터넷 연결을 확인해주세요.';
+      set({ error: errorMsg });
+      showError(errorMsg);
     }
   },
   
-  // 항목 삭제 (API 실패 시 localStorage 사용)
+  // 항목 삭제 (API만 사용)
   removeItem: async (id: string) => {
-    // 즉시 로컬 상태에서 제거
-    set((state) => ({
-      items: state.items.filter((item) => item.id !== id),
-    }));
-    
-    // localStorage에도 즉시 저장
-    if (typeof window !== 'undefined') {
-      const currentItems = get().items;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentItems));
-    }
+    try {
+      const response = await fetch('/api/checklist', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: parseInt(id) }),
+      });
 
-    // API 호출 시도 (로컬 ID가 아닌 경우만)
-    if (!id.startsWith('local_')) {
-      try {
-        const response = await fetch('/api/checklist', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ id }),
-        });
-
-        if (!response.ok) {
-          console.warn('Failed to delete item from API, but removed from local storage');
-        }
-      } catch (error) {
-        console.error('Error deleting item from API (already removed locally):', error);
+      if (!response.ok) {
+        throw new Error('Failed to delete checklist item');
       }
+
+      // 성공 시 로컬 상태에서 제거
+      set((state) => ({
+        items: state.items.filter((item) => item.id !== id),
+      }));
+      showSuccess('항목이 삭제되었습니다.');
+    } catch (error) {
+      console.error('Error deleting checklist item:', error);
+      const errorMsg = '항목 삭제에 실패했습니다. 인터넷 연결을 확인해주세요.';
+      set({ error: errorMsg });
+      showError(errorMsg);
     }
   },
   
-  // 완료 상태 토글 (API 실패 시 localStorage 사용)
+  // 완료 상태 토글 (API만 사용)
   toggleItem: async (id: string) => {
     // 현재 상태 확인
     const currentItem = get().items.find(item => item.id === id);
@@ -188,47 +157,39 @@ export const useChecklistStore = create<ChecklistStore>((set, get) => ({
 
     const newCompleted = !currentItem.completed;
 
-    // 즉시 로컬 상태 업데이트
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.id === id ? { ...item, completed: newCompleted } : item
-      ),
-    }));
+    try {
+      const response = await fetch('/api/checklist', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: parseInt(id), completed: newCompleted }),
+      });
 
-    // localStorage에도 즉시 저장
-    if (typeof window !== 'undefined') {
-      const currentItems = get().items;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(currentItems));
-    }
-
-    // API 호출 시도 (로컬 ID가 아닌 경우만)
-    if (!id.startsWith('local_')) {
-      try {
-        const response = await fetch('/api/checklist', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ id, completed: newCompleted }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.item) {
-            set((state) => ({
-              items: state.items.map((item) =>
-                item.id === id ? data.item : item
-              ),
-            }));
-            // localStorage도 업데이트
-            if (typeof window !== 'undefined') {
-              const updatedItems = get().items;
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error toggling item in API (already updated locally):', error);
+      if (!response.ok) {
+        throw new Error('Failed to toggle checklist item');
       }
+
+      const data = await response.json();
+      if (data.item) {
+        // 서버 형식을 클라이언트 형식으로 변환
+        const updatedItem: ChecklistItem = {
+          id: data.item.id.toString(),
+          text: data.item.text || '',
+          completed: data.item.completed || false,
+        };
+        set((state) => ({
+          items: state.items.map((item) =>
+            item.id === id ? updatedItem : item
+          ),
+        }));
+      } else {
+        throw new Error('서버 응답 형식 오류');
+      }
+    } catch (error) {
+      console.error('Error toggling checklist item:', error);
+      const errorMsg = '상태 변경에 실패했습니다. 인터넷 연결을 확인해주세요.';
+      set({ error: errorMsg });
+      showError(errorMsg);
     }
   },
   

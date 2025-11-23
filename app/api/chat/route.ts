@@ -1052,5 +1052,68 @@ Remember: Output ONLY the ${toLangEn} translation, nothing else. Translate LONG 
     messages: responseMessages.map(m => ({ type: m.type, role: m.role, hasText: !!(m as any).text, hasLinks: !!(m as any).links })),
   });
   
+  // 채팅 히스토리 저장 (비동기, 실패해도 응답은 반환)
+  try {
+    const sessionId = body.sessionId || 'default';
+    const tripId = body.tripId || null;
+    
+    // 현재 히스토리 조회
+    const existing = await prisma.chatHistory.findFirst({
+      where: {
+        userId: user.id,
+        ...(tripId ? { tripId } : {}),
+        sessionId,
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    
+    const existingMessages = existing && Array.isArray(existing.messages) 
+      ? existing.messages 
+      : typeof existing?.messages === 'object' 
+        ? Object.values(existing.messages as any)
+        : [];
+    
+    // 새 메시지 추가 (사용자 메시지 + AI 응답)
+    const userMessage = {
+      id: generateMessageId(),
+      role: 'user',
+      type: 'text',
+      text,
+      timestamp: new Date().toISOString(),
+    };
+    
+    const allMessages = [
+      ...existingMessages,
+      userMessage,
+      ...responseMessages.map(m => ({
+        ...m,
+        timestamp: new Date().toISOString(),
+      })),
+    ];
+    
+    // 히스토리 저장 또는 업데이트
+    if (existing) {
+      await prisma.chatHistory.update({
+        where: { id: existing.id },
+        data: {
+          messages: allMessages as any,
+          updatedAt: new Date(),
+        },
+      });
+    } else {
+      await prisma.chatHistory.create({
+        data: {
+          userId: user.id,
+          tripId: tripId || null,
+          sessionId,
+          messages: allMessages as any,
+        },
+      });
+    }
+  } catch (error) {
+    // 히스토리 저장 실패는 조용히 처리 (로그만)
+    console.error('[API/chat] 히스토리 저장 실패:', error);
+  }
+  
   return NextResponse.json({ ok: true, messages: responseMessages });
 }

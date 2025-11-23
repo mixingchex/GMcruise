@@ -1,163 +1,150 @@
+// app/api/chat/history/route.ts
+// 채팅 히스토리 저장 및 조회 API
+
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { getSessionUser } from '@/lib/auth';
+import { nanoid } from 'nanoid';
+
+export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/chat/history
- * 현재 사용자의 활성 여행에 해당하는 채팅 기록을 불러옵니다.
+ * GET: 채팅 히스토리 조회
  */
 export async function GET(req: NextRequest) {
   try {
     const user = await getSessionUser();
     if (!user) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: '인증이 필요합니다' },
+        { status: 401 }
+      );
     }
 
-    // 사용자 정보 가져오기 (tripCount 포함)
-    const userInfo = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { tripCount: true, name: true },
-    });
+    const tripIdParam = req.nextUrl.searchParams.get('tripId');
+    const tripId = tripIdParam ? parseInt(tripIdParam) : null;
+    const sessionId = req.nextUrl.searchParams.get('sessionId') || 'default';
 
-    // 사용자의 가장 최근 여행 가져오기
-    const latestTrip = await prisma.trip.findFirst({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
-
-    if (!latestTrip) {
-      // 여행이 없으면 빈 메시지 배열 반환
-      return NextResponse.json({ ok: true, messages: [] });
-    }
-
-    // 해당 여행의 채팅 기록 가져오기
-    const chatHistory = await prisma.chatHistory.findFirst({
+    // 가장 최근 히스토리 조회
+    const history = await prisma.chatHistory.findFirst({
       where: {
         userId: user.id,
-        tripId: latestTrip.id,
+        ...(tripId ? { tripId } : {}),
+        sessionId,
       },
       orderBy: { updatedAt: 'desc' },
-      select: { messages: true, updatedAt: true },
     });
 
-    let messages: any[] = [];
-    
-    if (chatHistory) {
-      // 기존 채팅 기록이 있으면 파싱
-      const parsedMessages = chatHistory.messages as any;
-      messages = Array.isArray(parsedMessages) ? parsedMessages : [];
+    if (!history) {
+      return NextResponse.json({
+        ok: true,
+        messages: [],
+      });
     }
-    
-    return NextResponse.json({ ok: true, messages });
-  } catch (error) {
-    console.error('GET /api/chat/history error:', error);
-    return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
+
+    // JSON 메시지 파싱
+    const messages = Array.isArray(history.messages) 
+      ? history.messages 
+      : typeof history.messages === 'object' 
+        ? Object.values(history.messages as any)
+        : [];
+
+    return NextResponse.json({
+      ok: true,
+      messages,
+      sessionId: history.sessionId,
+    });
+  } catch (error: any) {
+    console.error('[API] 채팅 히스토리 조회 오류:', error);
+    return NextResponse.json(
+      { ok: false, error: error.message || '히스토리 조회 중 오류가 발생했습니다' },
+      { status: 500 }
+    );
   }
 }
 
 /**
- * POST /api/chat/history
- * 채팅 기록을 저장합니다. (기존 기록이 있으면 업데이트, 없으면 생성)
+ * POST: 채팅 히스토리 저장
  */
 export async function POST(req: NextRequest) {
   try {
     const user = await getSessionUser();
     if (!user) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: '인증이 필요합니다' },
+        { status: 401 }
+      );
     }
 
-    const { messages } = await req.json();
+    const { messages, tripId, sessionId = 'default' } = await req.json();
 
     if (!Array.isArray(messages)) {
-      return NextResponse.json({ ok: false, message: 'Invalid messages format' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: '메시지 배열이 필요합니다' },
+        { status: 400 }
+      );
     }
 
-    // 사용자의 가장 최근 여행 가져오기
-    const latestTrip = await prisma.trip.findFirst({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
+    // tripId가 있으면 여행 소유권 확인
+    if (tripId) {
+      const trip = await prisma.trip.findFirst({
+        where: { id: tripId, userId: user.id },
+      });
 
-    // 여행이 없으면 여행 없이 저장 (tripId = null)
-    const tripId = latestTrip ? latestTrip.id : null;
+      if (!trip) {
+        return NextResponse.json(
+          { ok: false, error: '여행을 찾을 수 없습니다' },
+          { status: 404 }
+        );
+      }
+    }
 
-    // sessionId 생성 (사용자 ID 기반)
-    const sessionId = `user-${user.id}-trip-${tripId || 'none'}`;
-
-    // 기존 ChatHistory 찾기
-    const existingHistory = await prisma.chatHistory.findFirst({
+    // 기존 히스토리 찾기 또는 생성
+    const existing = await prisma.chatHistory.findFirst({
       where: {
         userId: user.id,
-        tripId: tripId,
+        ...(tripId ? { tripId } : {}),
+        sessionId,
       },
     });
 
-    if (existingHistory) {
-      // 기존 기록 업데이트
-      await prisma.chatHistory.update({
-        where: { id: existingHistory.id },
+    if (existing) {
+      // 업데이트
+      const updated = await prisma.chatHistory.update({
+        where: { id: existing.id },
         data: {
-          messages: messages,
+          messages: messages as any,
           updatedAt: new Date(),
         },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        historyId: updated.id,
+        sessionId: updated.sessionId,
       });
     } else {
-      // 새 기록 생성
-      await prisma.chatHistory.create({
+      // 생성
+      const created = await prisma.chatHistory.create({
         data: {
           userId: user.id,
-          tripId: tripId,
-          sessionId: sessionId,
-          messages: messages,
-          updatedAt: new Date(),
+          tripId: tripId || null,
+          sessionId,
+          messages: messages as any,
         },
       });
+
+      return NextResponse.json({
+        ok: true,
+        historyId: created.id,
+        sessionId: created.sessionId,
+      });
     }
-
-    return NextResponse.json({ ok: true, message: 'Chat history saved successfully' });
-  } catch (error) {
-    console.error('POST /api/chat/history error:', error);
-    return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
-  }
-}
-
-/**
- * DELETE /api/chat/history
- * 현재 사용자의 채팅 기록을 삭제합니다.
- */
-export async function DELETE(req: NextRequest) {
-  try {
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 사용자의 가장 최근 여행 가져오기
-    const latestTrip = await prisma.trip.findFirst({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
-
-    const tripId = latestTrip ? latestTrip.id : null;
-
-    // 해당 여행의 채팅 기록 삭제
-    const deleteResult = await prisma.chatHistory.deleteMany({
-      where: {
-        userId: user.id,
-        tripId: tripId,
-      },
-    });
-
-    return NextResponse.json({ 
-      ok: true, 
-      message: 'Chat history deleted successfully',
-      deletedCount: deleteResult.count 
-    });
-  } catch (error) {
-    console.error('DELETE /api/chat/history error:', error);
-    return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[API] 채팅 히스토리 저장 오류:', error);
+    return NextResponse.json(
+      { ok: false, error: error.message || '히스토리 저장 중 오류가 발생했습니다' },
+      { status: 500 }
+    );
   }
 }
