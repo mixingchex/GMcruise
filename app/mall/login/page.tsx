@@ -79,7 +79,12 @@ function MallLoginPageContent() {
     const decodedNext = nextParam ? decodeURIComponent(nextParam) : null;
     const next = data.next || decodedNext || '/';
     console.log('[MALL LOGIN] Redirecting to:', next);
-    router.push(next);
+    
+    // 세션 쿠키가 제대로 설정되도록 완전한 페이지 리로드 사용
+    // 약간의 딜레이를 추가하여 쿠키가 브라우저에 저장되도록 보장
+    setTimeout(() => {
+      window.location.href = next;
+    }, 100);
   }
 
   return (

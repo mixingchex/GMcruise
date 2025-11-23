@@ -76,44 +76,82 @@ export default function HomePage() {
       if (isMounted) {
         setUser(null);
       }
-    }, 3000); // 3초로 단축
+    }, 5000); // 5초로 증가 (로그인 후 세션 설정 시간 고려)
 
-    fetch('/api/auth/me', { 
-      credentials: 'include',
-      signal: authAbortController.signal
-    })
-      .then(res => {
+    // 로그인 직후일 수 있으므로 약간의 딜레이 후 사용자 정보 조회
+    const checkAuth = async () => {
+      try {
+        // 로그인 직후일 수 있으므로 200ms 대기
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        const res = await fetch('/api/auth/me', { 
+          credentials: 'include',
+          signal: authAbortController.signal
+        });
+        
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }
-        return res.json();
-      })
-      .then(data => {
+        
+        const data = await res.json();
         clearTimeout(authTimeoutId);
+        
         if (!isMounted) return;
+        
         if (data.ok && data.user) {
+          console.log('[HomePage] 사용자 정보 로드 성공:', data.user.name);
           setUser(data.user);
         } else {
+          console.log('[HomePage] 사용자 정보 없음');
           setUser(null);
         }
-      })
-      .catch((error) => {
+      } catch (error: any) {
         clearTimeout(authTimeoutId);
         if (!isMounted) return;
         if (error.name !== 'AbortError') {
           console.warn('[HomePage] 로그인 상태 확인 실패:', error);
         }
         setUser(null);
-      });
+      }
+    };
+    
+    checkAuth();
 
     // 페이지 설정 로드 (병렬로 실행)
     loadPageConfig();
+
+    // 페이지 포커스 시 사용자 정보 다시 확인 (로그인 후 리다이렉트 대응)
+    const handleFocus = () => {
+      if (!isMounted) return;
+      const focusAbortController = new AbortController();
+      fetch('/api/auth/me', { 
+        credentials: 'include',
+        signal: focusAbortController.signal
+      })
+        .then(res => {
+          if (!res.ok) return null;
+          return res.json();
+        })
+        .then(data => {
+          if (!isMounted) return;
+          if (data?.ok && data?.user) {
+            console.log('[HomePage] 포커스 시 사용자 정보 확인:', data.user.name);
+            setUser(data.user);
+          }
+        })
+        .catch(() => {
+          // 포커스 시 에러는 무시
+        });
+    };
+
+    window.addEventListener('focus', handleFocus);
 
     return () => {
       isMounted = false;
       clearTimeout(authTimeoutId);
       abortController.abort();
       authAbortController.abort();
+      window.removeEventListener('focus', handleFocus);
     };
   }, []);
 
