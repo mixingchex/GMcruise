@@ -141,11 +141,11 @@ export default function ReviewSlider() {
       href={`/community/reviews/${review.id}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex-shrink-0 w-96 md:w-[420px] bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all cursor-pointer block"
+      className="flex-shrink-0 w-80 md:w-96 bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all cursor-pointer block"
     >
-      {/* 후기 이미지 */}
+      {/* 후기 이미지 - 정사각형 */}
       {review.images && review.images.length > 0 ? (
-        <div className="relative w-full bg-gray-200 overflow-hidden aspect-video">
+        <div className="relative w-full bg-gray-200 overflow-hidden aspect-square">
           <img
             src={review.images[0]}
             alt={review.title || '후기 사진'}
@@ -158,51 +158,51 @@ export default function ReviewSlider() {
           />
         </div>
       ) : (
-        <div className="aspect-video bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center">
+        <div className="aspect-square bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center">
           <div className="text-white text-center">
-            <p className="text-3xl md:text-4xl font-black">{review.shipName || '크루즈'}</p>
-            <p className="text-base md:text-lg mt-2 font-semibold">{review.cruiseLine || ''}</p>
+            <p className="text-2xl md:text-3xl font-black">{review.shipName || '크루즈'}</p>
+            <p className="text-sm md:text-base mt-2 font-semibold">{review.cruiseLine || ''}</p>
           </div>
         </div>
       )}
 
       {/* 후기 내용 */}
-      <div className="p-5 md:p-6">
+      <div className="p-4 md:p-5">
         {/* 작성자 및 별점 */}
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-base md:text-lg font-bold text-gray-900">{review.authorName}</span>
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm md:text-base font-bold text-gray-900 truncate">{review.authorName}</span>
+          <div className="flex items-center gap-1 flex-shrink-0">
             {renderStars(review.rating)}
-            <span className="text-base md:text-lg text-gray-700 ml-1 font-semibold">({review.rating})</span>
+            <span className="text-sm md:text-base text-gray-700 ml-1 font-semibold">({review.rating})</span>
           </div>
         </div>
 
-        {/* 제목 */}
+        {/* 제목 - 말줄임표 처리 */}
         {review.title && (
-          <h3 className="text-lg md:text-xl font-black text-gray-900 mb-3 leading-relaxed">
+          <h3 className="text-base md:text-lg font-black text-gray-900 mb-2 leading-tight line-clamp-2">
             {review.title}
           </h3>
         )}
 
-        {/* 내용 */}
-        <p className="text-base md:text-lg text-gray-700 mb-4 leading-relaxed">
+        {/* 내용 - 말줄임표 처리 (3줄) */}
+        <p className="text-sm md:text-base text-gray-700 mb-3 leading-relaxed line-clamp-3">
           {review.content}
         </p>
 
         {/* 여행 정보 */}
-        <div className="text-sm md:text-base text-gray-600 space-y-2 font-semibold">
+        <div className="text-xs md:text-sm text-gray-600 space-y-1 font-semibold">
           {review.cruiseLine && (
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🚢</span>
-              <span>{review.cruiseLine}</span>
+            <div className="flex items-center gap-2 truncate">
+              <span className="text-lg">🚢</span>
+              <span className="truncate">{review.cruiseLine}</span>
               {review.shipName && review.shipName !== review.cruiseLine && (
-                <span>· {review.shipName}</span>
+                <span className="truncate">· {review.shipName}</span>
               )}
             </div>
           )}
           <div className="flex items-center gap-2">
-            <span className="text-xl">📅</span>
-            <span>{review.createdAt ? new Date(review.createdAt).toLocaleDateString('ko-KR') : review.travelDate || '날짜 없음'}</span>
+            <span className="text-lg">📅</span>
+            <span className="truncate">{review.createdAt ? new Date(review.createdAt).toLocaleDateString('ko-KR') : review.travelDate || '날짜 없음'}</span>
           </div>
         </div>
       </div>
