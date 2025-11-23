@@ -190,11 +190,7 @@ export default function EditFlowPage() {
   const [isGenerating, setIsGenerating] = useState(false);
 
   // 플로우 로드
-  useEffect(() => {
-    loadFlow();
-  }, [flowId]);
-
-  const loadFlow = async () => {
+  const loadFlow = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await fetch(`/api/admin/chat-bot/flows/${flowId}`);

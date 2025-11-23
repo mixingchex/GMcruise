@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiRefreshCw,
@@ -53,11 +53,7 @@ export default function AffiliateCustomersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    loadLeads();
-  }, [filters, page]);
-
-  const loadLeads = async () => {
+  const loadLeads = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -84,7 +80,11 @@ export default function AffiliateCustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters, page]);
+
+  useEffect(() => {
+    loadLeads();
+  }, [loadLeads]);
 
   const getStatusColor = (status: string) => {
     switch (status) {

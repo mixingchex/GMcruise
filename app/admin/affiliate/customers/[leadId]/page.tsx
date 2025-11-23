@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import {
   FiArrowLeft,
@@ -181,13 +181,7 @@ export default function CustomerDetailPage() {
     files: [] as File[],
   });
 
-  useEffect(() => {
-    if (leadId) {
-      loadLead();
-    }
-  }, [leadId]);
-
-  const loadLead = async () => {
+  const loadLead = useCallback(async () => {
     try {
       setIsLoading(true);
       const res = await fetch(`/api/admin/affiliate/leads/${leadId}`);
@@ -225,7 +219,13 @@ export default function CustomerDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [leadId]);
+
+  useEffect(() => {
+    if (leadId) {
+      loadLead();
+    }
+  }, [leadId, loadLead]);
 
   // 여행 종료일이 지났는지 확인
   const isTravelEnded = (sale: AffiliateLead['sales'][0]): boolean => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FiFileText,
@@ -82,11 +82,7 @@ export default function AdminDocumentsPage() {
     fareCategory: '',
   });
 
-  useEffect(() => {
-    loadSales();
-  }, [filters]);
-
-  const loadSales = async () => {
+  const loadSales = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -110,7 +106,11 @@ export default function AdminDocumentsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters.status, filters.search]);
+
+  useEffect(() => {
+    loadSales();
+  }, [loadSales]);
 
   const handleOpenModal = (sale: AffiliateSale, documentType: DocumentType) => {
     setSelectedSale(sale);

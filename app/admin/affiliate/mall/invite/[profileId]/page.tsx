@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { FiArrowLeft, FiFileText, FiCopy, FiCheckCircle } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
@@ -29,11 +29,7 @@ export default function SalesAgentInvitePage() {
   const [loading, setLoading] = useState(true);
   const [contractLink, setContractLink] = useState<string>('');
 
-  useEffect(() => {
-    loadProfile();
-  }, [profileId]);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/admin/affiliate/profiles/${profileId}`);
@@ -57,7 +53,11 @@ export default function SalesAgentInvitePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [profileId]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const handleCopyLink = async () => {
     try {

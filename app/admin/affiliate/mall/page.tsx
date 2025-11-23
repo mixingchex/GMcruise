@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   FiPlus,
   FiEdit2,
@@ -69,11 +69,7 @@ export default function AffiliateMallManagementPage() {
     published: true,
   });
 
-  useEffect(() => {
-    loadProfiles();
-  }, [filters]);
-
-  const loadProfiles = async () => {
+  const loadProfiles = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -92,7 +88,11 @@ export default function AffiliateMallManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters.search]);
+
+  useEffect(() => {
+    loadProfiles();
+  }, [loadProfiles]);
 
   const handleCreate = async () => {
     try {

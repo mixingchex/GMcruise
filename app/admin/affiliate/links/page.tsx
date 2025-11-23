@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import {
   FiPlus,
   FiSearch,
@@ -165,12 +165,7 @@ export default function LinksPage() {
     };
   }, [emojiPickerOpen]);
 
-  useEffect(() => {
-    loadLinks();
-    loadOptions();
-  }, [statusFilter]);
-
-  const loadOptions = async () => {
+  const loadOptions = useCallback(async () => {
     try {
       setLoadingOptions(true);
       const res = await fetch('/api/admin/affiliate/links/options');
@@ -188,9 +183,9 @@ export default function LinksPage() {
     } finally {
       setLoadingOptions(false);
     }
-  };
+  }, []);
 
-  const loadLinks = async () => {
+  const loadLinks = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -278,7 +273,12 @@ export default function LinksPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [statusFilter]);
+
+  useEffect(() => {
+    loadLinks();
+    loadOptions();
+  }, [loadLinks, loadOptions]);
 
   const handleUpdateLink = async () => {
     if (!selectedLink) return;

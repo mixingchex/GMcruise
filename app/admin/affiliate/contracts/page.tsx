@@ -757,9 +757,30 @@ export default function AdminAffiliateContractsPage() {
   // 계약서 열람 확인 추적 (계약서 ID Set)
   const [viewedContractIds, setViewedContractIds] = useState<Set<number>>(new Set());
 
+  const loadContracts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const params = new URLSearchParams();
+      if (filters.status !== 'all') params.set('status', filters.status);
+      if (filters.search.trim()) params.set('search', filters.search.trim());
+
+      const res = await fetch(`/api/admin/affiliate/contracts?${params.toString()}`);
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '계약 목록을 불러오지 못했습니다.');
+      }
+      setContracts(json.contracts ?? []);
+    } catch (error: any) {
+      console.error('[AdminContracts] load error', error);
+      showError(error.message || '계약 목록을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filters.status, filters.search]);
+
   useEffect(() => {
     loadContracts();
-  }, [filters]);
+  }, [loadContracts]);
 
   const loadProfiles = async () => {
     try {
@@ -965,26 +986,6 @@ export default function AdminAffiliateContractsPage() {
     }
   };
 
-  const loadContracts = async () => {
-    try {
-      setIsLoading(true);
-      const params = new URLSearchParams();
-      if (filters.status !== 'all') params.set('status', filters.status);
-      if (filters.search.trim()) params.set('search', filters.search.trim());
-
-      const res = await fetch(`/api/admin/affiliate/contracts?${params.toString()}`);
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        throw new Error(json.message || '계약 목록을 불러오지 못했습니다.');
-      }
-      setContracts(json.contracts ?? []);
-    } catch (error: any) {
-      console.error('[AdminContracts] load error', error);
-      showError(error.message || '계약 목록을 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleApprove = async (contractId: number) => {
     if (!confirm('이 계약을 승인하여 아이디와 비밀번호를 생성하시겠습니까?')) return;

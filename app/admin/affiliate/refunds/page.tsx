@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   FiRefreshCw,
   FiSearch,
@@ -54,11 +54,7 @@ export default function AdminRefundsPage() {
   const [refundReason, setRefundReason] = useState('');
   const [processing, setProcessing] = useState(false);
 
-  useEffect(() => {
-    loadSales();
-  }, [filters]);
-
-  const loadSales = async () => {
+  const loadSales = useCallback(async () => {
     try {
       setIsLoading(true);
       const params = new URLSearchParams();
@@ -91,7 +87,11 @@ export default function AdminRefundsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filters.status, filters.search]);
+
+  useEffect(() => {
+    loadSales();
+  }, [loadSales]);
 
   const handleRefund = async () => {
     if (!selectedSale || !refundReason.trim()) {
