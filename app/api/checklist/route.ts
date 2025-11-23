@@ -129,9 +129,18 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // id를 숫자로 변환 (문자열로 올 수 있음)
+    const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
+    if (isNaN(numericId)) {
+      return NextResponse.json(
+        { error: '유효하지 않은 ID입니다' },
+        { status: 400 }
+      );
+    }
+
     // 항목 소유권 확인
     const item = await prisma.checklistItem.findFirst({
-      where: { id, userId: user.id },
+      where: { id: numericId, userId: user.id },
     });
 
     if (!item) {
@@ -150,7 +159,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updated = await prisma.checklistItem.update({
-      where: { id },
+      where: { id: numericId },
       data: updateData,
     });
 
