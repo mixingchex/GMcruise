@@ -260,10 +260,13 @@ export async function PUT(
       select: { role: true }
     });
 
-    // 본인 리뷰가 아니고 관리자가 아니면 수정 불가
-    if (review.userId !== userId && user?.role !== 'admin') {
+    // 관리자만 수정 가능 (일반 사용자는 수정 불가)
+    const normalizedRole = (user?.role || '').toLowerCase();
+    const isAdmin = normalizedRole === 'admin';
+    
+    if (!isAdmin) {
       return NextResponse.json(
-        { ok: false, error: '본인의 리뷰만 수정할 수 있습니다.' },
+        { ok: false, error: '후기 수정은 관리자만 가능합니다.' },
         { status: 403 }
       );
     }
