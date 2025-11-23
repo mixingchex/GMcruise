@@ -590,12 +590,14 @@ export default function PostDetailPage() {
   }, [post?.category, post?.likes]);
 
   const canWriteComment = useMemo(() => {
+    // 로그인 상태 확인 중이면 댓글 작성 불가
+    if (isCheckingAuth) return false;
     if (!post) return false;
     if (post.category === 'cruisedot-news') {
       return isCommunityMember;
     }
     return isLoggedIn;
-  }, [post, isCommunityMember, isLoggedIn]);
+  }, [post, isCommunityMember, isLoggedIn, isCheckingAuth]);
 
   const shouldShowMembershipNotice = useMemo(() => {
     if (!post) return false;

@@ -96,8 +96,8 @@ export default function MyInfoPage() {
       setComments((data.comments || []).map((comment: any) => ({
         id: comment.id,
         content: comment.content,
-        postId: comment.Post?.id || comment.postId,
-        postTitle: comment.Post?.title || comment.postTitle || '게시글',
+        postId: comment.CommunityPost?.id || comment.postId,
+        postTitle: comment.CommunityPost?.title || comment.postTitle || '게시글',
         createdAt: comment.createdAt,
         updatedAt: comment.updatedAt
       })));
