@@ -159,7 +159,11 @@ export default function DormantPage() {
             </a>
             
             <button
-              onClick={() => router.push('/onboarding')}
+              onClick={() => {
+                // 온보딩으로 가는 것 차단 - 크루즈몰로 이동
+                console.warn('[DORMANT] 온보딩 리다이렉트 차단, 크루즈몰로 이동');
+                window.location.href = '/';
+              }}
               className="flex items-center justify-center gap-2 bg-purple-600 text-white px-6 py-4 rounded-xl font-bold text-lg hover:bg-purple-700 transition-colors shadow-md"
             >
               <FiCalendar size={22} />

@@ -114,10 +114,17 @@ function LoginPageContent() {
         console.log('[LOGIN] CSRF token saved');
       }
 
-      // 서버가 알려준 next로 이동
+      // 서버가 알려준 next로 이동 (온보딩으로는 절대 이동하지 않음)
       const nextParam = sp.get('next');
       const decodedNext = nextParam ? decodeURIComponent(nextParam) : null;
-      const next = data.next || decodedNext || '/chat';
+      let next = data.next || decodedNext || '/chat';
+      
+      // 온보딩으로 가려는 시도 차단 - 크루즈몰로 리다이렉트
+      if (next === '/onboarding' || next.startsWith('/onboarding')) {
+        console.warn('[LOGIN] 온보딩 리다이렉트 차단, 크루즈몰로 이동');
+        next = '/';
+      }
+      
       console.log('[LOGIN] Redirecting to:', next);
       router.push(next);
     } catch (error) {
