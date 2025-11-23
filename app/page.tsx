@@ -30,18 +30,21 @@ export default function HomePage() {
 
   useEffect(() => {
     let isMounted = true;
-    let timeoutId: NodeJS.Timeout;
     const abortController = new AbortController();
 
-    // 페이지 설정 로드 함수
+    // 로딩 상태를 즉시 false로 설정하여 페이지를 먼저 표시
+    // API 응답은 백그라운드에서 처리
+    setLoading(false);
+
+    // 페이지 설정 로드 함수 (비동기, 실패해도 페이지는 표시)
     const loadPageConfig = async () => {
       try {
         const configAbortController = new AbortController();
-        const configTimeoutId = setTimeout(() => configAbortController.abort(), 10000); // 10초로 증가
+        const configTimeoutId = setTimeout(() => configAbortController.abort(), 3000); // 3초로 단축
 
         const response = await fetch('/api/public/page-config', {
           signal: configAbortController.signal,
-          cache: 'no-store', // 캐시 방지
+          cache: 'no-store',
         });
         
         clearTimeout(configTimeoutId);
@@ -55,34 +58,29 @@ export default function HomePage() {
         if (data.ok && data.config) {
           setPageConfig(data.config);
         } else {
-          console.warn('[HomePage] 페이지 설정 데이터 형식 오류, 기본값 사용');
           setPageConfig(null);
         }
       } catch (error: any) {
         if (!isMounted) return;
-        // AbortError는 타임아웃이므로 무시
         if (error.name !== 'AbortError') {
           console.warn('[HomePage] 페이지 설정 로드 실패 (기본값 사용):', error);
         }
-        // 페이지 설정이 없어도 페이지는 표시되도록 함
         setPageConfig(null);
       }
     };
 
-    // 타임아웃 설정 (5초)
-    timeoutId = setTimeout(() => {
+    // 로그인 상태 확인 (비동기, 실패해도 페이지는 표시)
+    const authAbortController = new AbortController();
+    const authTimeoutId = setTimeout(() => {
+      authAbortController.abort();
       if (isMounted) {
-        console.warn('[HomePage] API 호출 타임아웃, 기본값으로 진행');
-        abortController.abort();
         setUser(null);
-        setLoading(false);
       }
-    }, 5000);
+    }, 3000); // 3초로 단축
 
-    // 로그인 상태 확인
     fetch('/api/auth/me', { 
       credentials: 'include',
-      signal: abortController.signal
+      signal: authAbortController.signal
     })
       .then(res => {
         if (!res.ok) {
@@ -91,24 +89,21 @@ export default function HomePage() {
         return res.json();
       })
       .then(data => {
+        clearTimeout(authTimeoutId);
         if (!isMounted) return;
-        clearTimeout(timeoutId);
         if (data.ok && data.user) {
           setUser(data.user);
         } else {
           setUser(null);
         }
-        setLoading(false);
       })
       .catch((error) => {
+        clearTimeout(authTimeoutId);
         if (!isMounted) return;
-        clearTimeout(timeoutId);
-        // AbortError는 타임아웃이므로 무시
         if (error.name !== 'AbortError') {
           console.warn('[HomePage] 로그인 상태 확인 실패:', error);
         }
         setUser(null);
-        setLoading(false);
       });
 
     // 페이지 설정 로드 (병렬로 실행)
@@ -116,8 +111,9 @@ export default function HomePage() {
 
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
+      clearTimeout(authTimeoutId);
       abortController.abort();
+      authAbortController.abort();
     };
   }, []);
 

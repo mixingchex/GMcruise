@@ -190,31 +190,31 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
       {/* 하단: 크루즈 선박 이미지 섹션 */}
       <div className="relative w-full h-64 md:h-96 lg:h-[500px] overflow-hidden">
         {/* 배경 이미지 (크루즈 선박 사진) */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: 'url(/images/cruise-ship-hero.jpg)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+        <img 
+          src="/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png" 
+          alt="크루즈 선박" 
+          className="absolute inset-0 w-full h-full object-cover"
+          onError={(e) => {
+            // 이미지 로드 실패 시 대체 이미지 시도
+            const img = e.target as HTMLImageElement;
+            const fallbacks = [
+              '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (2).png',
+              '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (3).png',
+              '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (4).png',
+            ];
+            const currentSrc = img.src;
+            const currentIndex = fallbacks.findIndex(f => currentSrc.includes(f.split('/').pop() || ''));
+            if (currentIndex < fallbacks.length - 1) {
+              img.src = fallbacks[currentIndex + 1];
+            } else {
+              // 모든 이미지 실패 시 그라데이션 배경 사용
+              img.style.display = 'none';
+              const gradientDiv = document.createElement('div');
+              gradientDiv.className = 'absolute inset-0 bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600';
+              img.parentElement?.appendChild(gradientDiv);
+            }
           }}
-        >
-          {/* 이미지가 없을 경우를 위한 대체 배경 */}
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-400 via-blue-500 to-blue-600"></div>
-        </div>
-        
-        {/* 비디오 옵션 (설정에 비디오가 있으면 비디오 사용) */}
-        {heroConfig.videoUrl && (
-          <video
-            ref={videoRef}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          >
-            <source src={heroConfig.videoUrl} type="video/mp4" />
-          </video>
-        )}
+        />
       </div>
     </div>
   );
