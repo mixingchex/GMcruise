@@ -59,12 +59,20 @@ function selectPostLengthRange(): { min: number; max: number } {
 }
 
 /**
+ * 이모지 사용 여부 결정 (10% 확률)
+ */
+function shouldUseEmoji(): boolean {
+  return Math.random() < 0.1; // 10% 확률
+}
+
+/**
  * AI를 사용하여 크루즈 관련 게시글 생성 (유튜브 댓글 스타일 참고)
  */
 async function generatePost(): Promise<{ title: string; content: string; category: string } | null> {
   try {
     const category = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
     const lengthRange = selectPostLengthRange();
+    const useEmoji = shouldUseEmoji();
     
     const prompt = `유튜브 크루즈 영상 댓글을 참고하여 크루즈 여행 커뮤니티 게시글을 작성해주세요.
 
@@ -73,7 +81,8 @@ async function generatePost(): Promise<{ title: string; content: string; categor
 - 행복하고 즐거워하는 감정 표현
 - 구체적이고 실용적인 경험 공유
 - 친근하고 자연스러운 말투
-- 이모지 적절히 사용 (1-2개)
+- 한국어 이모티콘 적극 사용: ^^, ㅋㅋㅋ, ㅋㅋ, ㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
+${useEmoji ? '- 이모지(이모지)도 1-2개 사용 가능' : '- 이모지(이모지)는 사용하지 마세요'}
 - 짧고 간결하지만 진심이 담긴 표현
 
 요구사항:
@@ -82,6 +91,7 @@ async function generatePost(): Promise<{ title: string; content: string; categor
 - 제목: 15-35자 정도, 궁금증이나 감동을 담은 제목
 - 내용: ${lengthRange.min}-${lengthRange.max}자 정도, 구체적이고 실용적이며 감정이 담긴 내용
 - 유튜브 댓글처럼 "정말 궁금해요", "도움 부탁드려요", "너무 좋았어요" 같은 표현 사용
+- 한국어 이모티콘(^^, ㅋㅋㅋ, ㅎㅎ, ㅠㅠ 등)을 자연스럽게 사용하여 감정 표현
 - 한국어로 작성
 - 반드시 ${lengthRange.min}자 이상 ${lengthRange.max}자 이내로 작성하세요
 
@@ -183,6 +193,8 @@ async function detectNegativeSentiment(commentContent: string): Promise<boolean>
  */
 async function generatePositiveResponse(negativeComment: string, postTitle: string, postContent: string): Promise<string | null> {
   try {
+    const useEmoji = shouldUseEmoji();
+    
     const prompt = `다음 부정적인 댓글에 대해 긍정적이고 도움이 되는 대응 댓글을 작성해주세요.
 
 부정적 댓글: "${negativeComment}"
@@ -194,7 +206,8 @@ async function generatePositiveResponse(negativeComment: string, postTitle: stri
 - 공감과 이해를 표현하면서도 긍정적인 해결책이나 다른 관점 제시
 - 친근하고 자연스러운 말투
 - 20-70자 정도의 짧고 간결한 댓글
-- 이모지 사용 가능 (1-2개, 자연스럽게)
+- 한국어 이모티콘 적극 사용: ^^, ㅋㅋㅋ, ㅋㅋ, ㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
+${useEmoji ? '- 이모지(이모지)도 1개 정도 사용 가능' : '- 이모지(이모지)는 사용하지 마세요'}
 - 한국어로 작성
 - 댓글만 작성 (다른 설명 없이)
 
@@ -249,6 +262,7 @@ function selectCommentLengthRange(): { min: number; max: number } {
 async function generateComment(postTitle: string, postContent: string, postCategory: string): Promise<string | null> {
   try {
     const lengthRange = selectCommentLengthRange();
+    const useEmoji = shouldUseEmoji();
     
     const prompt = `유튜브 크루즈 영상 댓글 스타일을 참고하여 다음 게시글에 대한 자연스러운 댓글을 작성해주세요.
 
@@ -262,13 +276,15 @@ async function generateComment(postTitle: string, postContent: string, postCateg
 - 공감과 격려 ("저도 궁금했어요", "도움됐어요 감사합니다")
 - 구체적인 경험 공유 ("저도 거기 갔었는데...", "저는 이렇게 했어요")
 - 친근하고 자연스러운 말투
+- 한국어 이모티콘 적극 사용: ^^, ㅋㅋㅋ, ㅋㅋ, ㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
+${useEmoji ? '- 이모지(이모지)도 1개 정도 사용 가능' : '- 이모지(이모지)는 사용하지 마세요'}
 - 짧고 간결하지만 진심이 담긴 표현
 
 요구사항:
 - 실제 유튜브 댓글처럼 자연스럽고 진솔한 톤
 - ${lengthRange.min}-${lengthRange.max}자 정도의 짧고 간결한 댓글
 - 게시글 내용과 관련된 공감, 질문, 조언, 경험 공유
-- 이모지 사용 가능 (1-2개 정도, 자연스럽게)
+- 한국어 이모티콘(^^, ㅋㅋㅋ, ㅎㅎ, ㅠㅠ 등)을 자연스럽게 사용하여 감정 표현
 - 한국어로 작성
 - 댓글만 작성 (다른 설명 없이)
 - "정말", "너무", "진짜", "꼭", "감사합니다" 같은 표현 자연스럽게 사용
@@ -317,6 +333,7 @@ function selectReplyLengthRange(): { min: number; max: number } {
 async function generateReply(commentContent: string, commentAuthor: string, postTitle: string): Promise<string | null> {
   try {
     const lengthRange = selectReplyLengthRange();
+    const useEmoji = shouldUseEmoji();
     
     const prompt = `다음 댓글에 대한 자연스러운 대댓글을 작성해주세요. 실제 사람들이 댓글에 답하는 것처럼 자연스럽게 대화하듯이 작성해주세요.
 
@@ -328,7 +345,8 @@ async function generateReply(commentContent: string, commentAuthor: string, post
 - 댓글 내용에 자연스럽게 반응 (공감, 질문, 추가 정보, 경험 공유 등)
 - 실제 사람들이 댓글에 답하는 것처럼 자연스러운 대화 톤
 - ${lengthRange.min}-${lengthRange.max}자 정도의 짧고 간결한 대댓글
-- 이모지 사용 가능 (1개 정도, 자연스럽게)
+- 한국어 이모티콘 적극 사용: ^^, ㅋㅋㅋ, ㅋㅋ, ㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
+${useEmoji ? '- 이모지(이모지)도 1개 정도 사용 가능' : '- 이모지(이모지)는 사용하지 마세요'}
 - 한국어로 작성
 - 대댓글만 작성 (다른 설명 없이)
 - "맞아요", "저도", "그렇군요", "추가로" 같은 자연스러운 연결 표현 사용
