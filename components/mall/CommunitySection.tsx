@@ -138,45 +138,76 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       if (newsRes.status === 'fulfilled') {
         const newsData = await newsRes.value.json();
 
-      if (newsData.ok && Array.isArray(newsData.posts)) {
-        const mappedNews = newsData.posts
-          .filter((post: any) => post?.title)
-          .map((post: any) => ({
-            id: post.id,
+        if (newsData.ok && Array.isArray(newsData.posts)) {
+          const mappedNews = newsData.posts
+            .filter((post: any) => post?.title)
+            .map((post: any) => ({
+              id: post.id,
+              title: post.title,
+              content: post.summary || post.highlight || post.content || '',
+              category: post.category || 'cruisedot-news',
+              authorName: post.authorName || '크루즈닷 본사',
+              images: Array.isArray(post.images) ? post.images : [],
+              views: typeof post.views === 'number' ? post.views : 0,
+              likes: typeof post.likes === 'number' ? post.likes : 0,
+              comments: typeof post.comments === 'number' ? post.comments : 0,
+              createdAt: post.createdAt || new Date().toISOString(),
+              href: `/community/cruisedot-news?post=db-${post.id}`,
+            })) as CommunityNewsPost[];
+
+          if (mappedNews.length > 0) {
+            setNewsPosts(mappedNews.slice(0, 12));
+          } else {
+            // fallback to static news posts when no DB news available
+            const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
+              id: `static-${post.id}`,
+              title: post.title,
+              content: post.summary,
+              category: 'cruisedot-news',
+              authorName: '크루즈닷 본사',
+              images: [],
+              views: post.baseViews,
+              likes: post.baseLikes,
+              comments: Math.max(12, Math.floor(post.baseLikes / 2)),
+              createdAt: post.publishedAt,
+              href: `/community/cruisedot-news?post=${post.id}`,
+            })) as CommunityNewsPost[];
+            setNewsPosts(fallbackNews);
+          }
+        } else {
+          // fallback to static news posts when no DB news available
+          const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
+            id: `static-${post.id}`,
             title: post.title,
-            content: post.summary || post.highlight || post.content || '',
-            category: post.category || 'cruisedot-news',
-            authorName: post.authorName || '크루즈닷 본사',
-            images: Array.isArray(post.images) ? post.images : [],
-            views: typeof post.views === 'number' ? post.views : 0,
-            likes: typeof post.likes === 'number' ? post.likes : 0,
-            comments: typeof post.comments === 'number' ? post.comments : 0,
-            createdAt: post.createdAt || new Date().toISOString(),
-            href: `/community/cruisedot-news?post=db-${post.id}`,
+            content: post.summary,
+            category: 'cruisedot-news',
+            authorName: '크루즈닷 본사',
+            images: [],
+            views: post.baseViews,
+            likes: post.baseLikes,
+            comments: Math.max(12, Math.floor(post.baseLikes / 2)),
+            createdAt: post.publishedAt,
+            href: `/community/cruisedot-news?post=${post.id}`,
           })) as CommunityNewsPost[];
-
-        if (mappedNews.length > 0) {
-          setNewsPosts(mappedNews.slice(0, 12));
-          return;
+          setNewsPosts(fallbackNews);
         }
+      } else {
+        // API 호출 실패 시 fallback
+        const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
+          id: `static-${post.id}`,
+          title: post.title,
+          content: post.summary,
+          category: 'cruisedot-news',
+          authorName: '크루즈닷 본사',
+          images: [],
+          views: post.baseViews,
+          likes: post.baseLikes,
+          comments: Math.max(12, Math.floor(post.baseLikes / 2)),
+          createdAt: post.publishedAt,
+          href: `/community/cruisedot-news?post=${post.id}`,
+        })) as CommunityNewsPost[];
+        setNewsPosts(fallbackNews);
       }
-
-      // fallback to static news posts when no DB news available
-      const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
-        id: `static-${post.id}`,
-        title: post.title,
-        content: post.summary,
-        category: 'cruisedot-news',
-        authorName: '크루즈닷 본사',
-        images: [],
-        views: post.baseViews,
-        likes: post.baseLikes,
-        comments: Math.max(12, Math.floor(post.baseLikes / 2)),
-        createdAt: post.publishedAt,
-        href: `/community/cruisedot-news?post=${post.id}`,
-      })) as CommunityNewsPost[];
-
-      setNewsPosts(fallbackNews);
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('Failed to load community posts:', error);
