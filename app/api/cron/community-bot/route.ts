@@ -219,6 +219,43 @@ export async function POST(req: Request) {
       console.log('[COMMUNITY BOT] 댓글 저장 완료');
     }
 
+    // 4. 기존 게시글에 좋아요와 뷰 증가 (5분마다 4개씩)
+    try {
+      // 활성 게시글 중 랜덤으로 4개 선택
+      const activePosts = await prisma.communityPost.findMany({
+        where: {
+          isDeleted: false
+        },
+        select: {
+          id: true
+        },
+        take: 100 // 최근 100개 중에서 선택
+      });
+
+      if (activePosts.length > 0) {
+        // 랜덤으로 4개 선택 (또는 전체가 4개 미만이면 모두)
+        const selectedPosts = activePosts
+          .sort(() => Math.random() - 0.5)
+          .slice(0, Math.min(4, activePosts.length));
+
+        // 각 게시글에 좋아요 4개, 뷰 4개씩 증가
+        for (const selectedPost of selectedPosts) {
+          await prisma.communityPost.update({
+            where: { id: selectedPost.id },
+            data: {
+              likes: { increment: 4 },
+              views: { increment: 4 }
+            }
+          });
+        }
+
+        console.log(`[COMMUNITY BOT] ${selectedPosts.length}개 게시글에 좋아요/뷰 증가 완료`);
+      }
+    } catch (error) {
+      // 좋아요/뷰 증가 실패해도 게시글 생성은 성공으로 처리
+      console.error('[COMMUNITY BOT] 좋아요/뷰 증가 실패 (무시):', error);
+    }
+
     return NextResponse.json({
       ok: true,
       message: '게시글과 댓글이 생성되었습니다.',
