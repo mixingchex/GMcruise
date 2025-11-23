@@ -4,13 +4,16 @@
 echo "🔍 커뮤니티 데이터 확인 중..."
 echo ""
 
-# 환경 변수 로드
+# DATABASE_URL만 안전하게 추출 (.env 파일의 여러 줄 값 처리)
 if [ -f .env ]; then
-  export $(cat .env | grep -v '^#' | xargs)
+  # DATABASE_URL=로 시작하는 줄만 추출하고, = 뒤의 값 전체를 가져옴
+  DATABASE_URL=$(grep -E '^DATABASE_URL=' .env | head -1 | sed 's/^DATABASE_URL=//' | sed 's/^"//' | sed 's/"$//')
+  export DATABASE_URL
 fi
 
 if [ -z "$DATABASE_URL" ]; then
   echo "❌ DATABASE_URL 환경 변수가 설정되지 않았습니다."
+  echo "💡 .env 파일에서 DATABASE_URL을 확인해주세요."
   exit 1
 fi
 
