@@ -743,7 +743,10 @@ export async function POST(
       });
       
       comment = await prisma.communityComment.create({
-        data: commentData
+        data: {
+          ...commentData,
+          updatedAt: new Date() // updatedAt 필수 필드 명시적으로 설정
+        }
       });
       console.log('[COMMENT CREATE] Comment created successfully:', comment.id);
     } catch (dbError: any) {

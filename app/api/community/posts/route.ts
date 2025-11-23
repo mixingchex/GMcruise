@@ -598,6 +598,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const now = new Date();
     const post = await prisma.communityPost.create({
       data: {
         userId: parseInt(session.userId),
@@ -613,7 +614,8 @@ export async function POST(req: Request) {
         authorName:
           category === 'cruisedot-news'
             ? '크루즈닷'
-            : user?.name || KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)]
+            : user?.name || KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)],
+        updatedAt: now // 필수 필드 명시적으로 설정
       }
     });
 
@@ -726,7 +728,8 @@ export async function PATCH(req: Request) {
             ? ['/images/ai-cruise-logo.png']
             : images && Array.isArray(images) && images.length > 0
               ? images
-              : undefined
+              : undefined,
+        updatedAt: new Date() // updatedAt 필수 필드 명시적으로 설정
       },
       select: {
         id: true,
