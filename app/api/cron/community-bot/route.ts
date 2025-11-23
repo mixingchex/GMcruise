@@ -282,7 +282,13 @@ async function generateComment(postTitle: string, postContent: string, postCateg
       return null;
     }
 
-    const comment = response.text.trim().substring(0, 200);
+    let comment = response.text.trim();
+    
+    // 길이 범위에 맞게 조정
+    if (comment.length > lengthRange.max) {
+      comment = comment.substring(0, lengthRange.max);
+    }
+    
     return comment;
   } catch (error) {
     console.error('[COMMUNITY BOT] 댓글 생성 실패:', error);
