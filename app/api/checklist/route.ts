@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSession } from '@/lib/session';
+import { getSessionUser } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 
 /**
@@ -11,8 +11,8 @@ import { logger } from '@/lib/logger';
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const user = await getSessionUser();
+    if (!user) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
 
     const items = await prisma.checklistItem.findMany({
       where: {
-        userId: session.user.id,
+        userId: user.id,
         ...(tripId ? { tripId } : {}),
       },
       orderBy: [
@@ -52,8 +52,8 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const user = await getSessionUser();
+    if (!user) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -69,10 +69,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // tripId가 있으면 여행 소유권 확인
+    // tripId가 있으면 여행 소유권 확인 (UserTrip 모델 사용)
     if (tripId) {
-      const trip = await prisma.trip.findFirst({
-        where: { id: tripId, userId: session.user.id },
+      const trip = await prisma.userTrip.findFirst({
+        where: { id: tripId, userId: user.id },
       });
 
       if (!trip) {
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     const item = await prisma.checklistItem.create({
       data: {
-        userId: session.user.id,
+        userId: user.id,
         tripId: tripId || null,
         text,
         completed: false,
@@ -112,8 +112,8 @@ export async function POST(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const user = await getSessionUser();
+    if (!user) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -131,7 +131,7 @@ export async function PATCH(req: NextRequest) {
 
     // 항목 소유권 확인
     const item = await prisma.checklistItem.findFirst({
-      where: { id, userId: session.user.id },
+      where: { id, userId: user.id },
     });
 
     if (!item) {
@@ -173,8 +173,8 @@ export async function PATCH(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const user = await getSessionUser();
+    if (!user) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -193,7 +193,7 @@ export async function DELETE(req: NextRequest) {
 
     // 항목 소유권 확인
     const item = await prisma.checklistItem.findFirst({
-      where: { id: parseInt(id), userId: session.user.id },
+      where: { id: parseInt(id), userId: user.id },
     });
 
     if (!item) {
