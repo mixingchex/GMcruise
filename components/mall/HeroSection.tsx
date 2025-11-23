@@ -64,11 +64,6 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
               </div>
             )}
 
-            {/* 크루즈닷 텍스트 (빨간색) */}
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-4 md:mb-6 leading-tight" style={{ color: '#E50914' }}>
-              크루즈닷
-            </h1>
-            
             {/* 서브타이틀 */}
             <p className="text-lg md:text-xl lg:text-2xl mb-8 md:mb-10 text-gray-700 font-semibold whitespace-pre-line leading-relaxed px-2">
               {heroConfig.subtitle || '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행'}
