@@ -104,7 +104,7 @@ export async function GET() {
         content: true,
         createdAt: true,
         updatedAt: true,
-        Post: {
+        CommunityPost: {
           select: {
             id: true,
             title: true

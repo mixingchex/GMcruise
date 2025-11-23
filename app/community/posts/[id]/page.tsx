@@ -44,6 +44,7 @@ export default function PostDetailPage() {
   const [replyingTo, setReplyingTo] = useState<number | null>(null); // 답글 작성 중인 댓글 ID
   const [replyText, setReplyText] = useState(''); // 답글 내용
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true); // 로그인 상태 확인 중인지 여부
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false); // user1~user10 관리자 확인
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -101,6 +102,7 @@ export default function PostDetailPage() {
     const postIdStr = Array.isArray(postId) ? postId[0] : postId;
 
     // 로그인 상태 확인 (커뮤니티 전용)
+    setIsCheckingAuth(true);
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
@@ -130,8 +132,11 @@ export default function PostDetailPage() {
         setIsLoggedIn(false);
         setCurrentUserId(null);
         setIsAdminUser(false);
-      setUserRole(null);
-      setIsCommunityMember(false);
+        setUserRole(null);
+        setIsCommunityMember(false);
+      })
+      .finally(() => {
+        setIsCheckingAuth(false); // 로그인 상태 확인 완료
       });
 
     // 게시글 로드
@@ -283,6 +288,17 @@ export default function PostDetailPage() {
   const handleLike = async () => {
     if (!post || hasLiked || liking) return;
     
+    // 로그인 상태 확인 중이면 대기
+    if (isCheckingAuth) {
+      return;
+    }
+    
+    // 로그인하지 않은 경우 로그인 페이지로 이동
+    if (!isLoggedIn) {
+      router.push('/signup?next=' + encodeURIComponent(`/community/posts/${params.id}`));
+      return;
+    }
+    
     setLiking(true);
     try {
       const response = await fetch(`/api/community/posts/${post.id}/like`, {
@@ -309,6 +325,11 @@ export default function PostDetailPage() {
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentText.trim()) return;
+    
+    // 로그인 상태 확인 중이면 대기
+    if (isCheckingAuth) {
+      return;
+    }
     
     if (!isLoggedIn) {
       router.push('/signup?next=' + encodeURIComponent(`/community/posts/${params.id}`));
@@ -387,6 +408,11 @@ export default function PostDetailPage() {
   // 답글 작성
   const handleSubmitReply = async (parentCommentId: number) => {
     if (!replyText.trim()) return;
+    
+    // 로그인 상태 확인 중이면 대기
+    if (isCheckingAuth) {
+      return;
+    }
     
     if (!isLoggedIn) {
       router.push('/signup?next=' + encodeURIComponent(`/community/posts/${params.id}`));
