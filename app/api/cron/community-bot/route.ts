@@ -31,7 +31,7 @@ const KOREAN_NICKNAMES = [
   '해외여행러버킹', '선상낭만가킹', '오션드리머킹', '크루즈매니아킹', '여행스타일러킹'
 ];
 
-// 카테고리 목록
+// 카테고리 목록 (여행팁, 질문답변, 관광지추천)
 const CATEGORIES = ['travel-tip', 'qna', 'destination'];
 
 // 봇 사용자 ID (봇 전용 계정)
@@ -86,7 +86,7 @@ ${useEmoji ? '- 이모지(이모지)도 1-2개 사용 가능' : '- 이모지(이
 - 짧고 간결하지만 진심이 담긴 표현
 
 요구사항:
-- 카테고리: ${category === 'travel-tip' ? '여행팁' : category === 'qna' ? '질문답변' : '관광지 추천'}
+- 카테고리: ${category === 'travel-tip' ? '여행팁' : category === 'qna' ? '질문답변' : '관광지추천'}
 - 실제 크루즈 여행객이 유튜브 댓글에 쓸 것처럼 자연스럽고 진솔한 톤
 - 제목: 15-35자 정도, 궁금증이나 감동을 담은 제목
 - 내용: ${lengthRange.min}-${lengthRange.max}자 정도, 구체적이고 실용적이며 감정이 담긴 내용
@@ -732,19 +732,6 @@ export async function POST(req: Request) {
       console.error('[COMMUNITY BOT] 좋아요/뷰 증가 실패 (무시):', error);
     }
 
-    return NextResponse.json({
-      ok: true,
-      message: '게시글과 댓글이 생성되었습니다.',
-      post: {
-        id: post.id,
-        title: post.title,
-        category: post.category
-      },
-      commentCreated: !!commentContent,
-      existingPostComments: existingPostCommentsCreated,
-      replies: repliesCreated,
-      positiveResponses: positiveResponsesCreated
-    });
     const executionTime = Date.now() - startTime;
     console.log(`[COMMUNITY BOT] 봇 실행 완료 (${executionTime}ms)`);
     

@@ -1,87 +1,48 @@
 // app/community/my-info/page.tsx
-// 내 정보 페이지 (커뮤니티 전용)
+// 내 정보 페이지 (크루즈몰 전용) - 완전히 새로 작성
 
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-import { FiArrowLeft, FiEdit2, FiTrash2, FiEye, FiMessageCircle, FiHeart } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiSave, FiX, FiEye, FiEyeOff } from 'react-icons/fi';
 import PWAInstallButtonMall from '@/components/PWAInstallButtonMall';
 
-interface Post {
+interface UserInfo {
   id: number;
-  title: string;
-  content: string;
-  category: string;
-  views: number;
-  likes: number;
-  comments: number;
-  commentCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Review {
-  id: number;
-  title: string;
-  content: string;
-  rating: number;
-  cruiseLine: string | null;
-  shipName: string | null;
-  travelDate: string | null;
-  images: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface Comment {
-  id: number;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-  Post: {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  genieStatus?: string | null;
+  linkedGenieUser?: {
     id: number;
-    title: string;
-  };
-}
-
-interface Trip {
-  id: number;
-  cruiseName: string | null;
-  startDate: string | null;
-  endDate: string | null;
-  status: string;
-  companionType: string | null; // 동행유형 추가
-  destination: string[] | null; // 목적지 추가
-  nights: number | null;
-  days: number | null;
-  createdAt: string;
-  CruiseProduct: {
-    productCode: string;
-    packageName: string;
-    cruiseLine: string;
-    shipName: string;
+    name: string | null;
+    phone: string | null;
+    genieStatus: string | null;
   } | null;
 }
 
 export default function MyInfoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<{
-    name: string | null;
-    email: string | null;
-    phone: string | null;
-    genieStatus?: string | null;
-    genieName?: string | null;
-    geniePhone?: string | null;
-  } | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [trips, setTrips] = useState<Trip[]>([]);
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [error, setError] = useState('');
+  
+  // 편집 모드
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  
+  // 비밀번호 변경
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchMyInfo();
@@ -105,10 +66,8 @@ export default function MyInfoPage() {
       }
 
       setUser(data.user);
-      setPosts(data.posts || []);
-      setReviews(data.reviews || []);
-      setComments(data.comments || []);
-      setTrips(data.trips || []);
+      setEditName(data.user.name || '');
+      setEditPhone(data.user.phone || '');
     } catch (err) {
       setError('정보를 불러오는 중 오류가 발생했습니다.');
     } finally {
@@ -116,67 +75,96 @@ export default function MyInfoPage() {
     }
   };
 
-  const handleDeleteReview = async (reviewId: number) => {
-    if (!confirm('정말 이 리뷰를 삭제하시겠습니까?')) {
+  const handleSave = async () => {
+    if (!editName.trim() || !editPhone.trim()) {
+      alert('이름과 연락처를 모두 입력해주세요.');
       return;
     }
 
+    setSaving(true);
     try {
-      const response = await fetch(`/api/community/reviews/${reviewId}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      const response = await fetch('/api/community/my-info/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: editName.trim(),
+          phone: editPhone.trim(),
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        alert(data.error || '리뷰 삭제에 실패했습니다.');
+        alert(data.error || '정보 저장에 실패했습니다.');
         return;
       }
 
-      // 리뷰 목록에서 제거
-      setReviews(reviews.filter(r => r.id !== reviewId));
-      alert('리뷰가 삭제되었습니다.');
+      alert('정보가 저장되었습니다.');
+      setIsEditing(false);
+      fetchMyInfo();
     } catch (err) {
-      alert('리뷰 삭제 중 오류가 발생했습니다.');
+      alert('정보 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDeletePost = async (postId: number) => {
-    if (!confirm('정말 이 게시글을 삭제하시겠습니까?')) {
+  const handlePasswordChange = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      alert('모든 비밀번호 필드를 입력해주세요.');
       return;
     }
 
+    if (newPassword !== confirmPassword) {
+      alert('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      alert('비밀번호는 최소 4자 이상이어야 합니다.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      const response = await fetch(`/api/community/posts/${postId}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      const response = await fetch('/api/community/my-info/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          password: newPassword,
+          currentPassword: currentPassword,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok || !data.ok) {
-        alert(data.error || '게시글 삭제에 실패했습니다.');
+        alert(data.error || '비밀번호 변경에 실패했습니다.');
         return;
       }
 
-      // 게시글 목록에서 제거
-      setPosts(posts.filter(p => p.id !== postId));
-      alert('게시글이 삭제되었습니다.');
+      alert('비밀번호가 변경되었습니다.');
+      setShowPasswordChange(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (err) {
-      alert('게시글 삭제 중 오류가 발생했습니다.');
+      alert('비밀번호 변경 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const getCategoryLabel = (category: string) => {
-    const labels: Record<string, { label: string; color: string }> = {
-      'general': { label: '일반', color: 'bg-gray-100 text-gray-700' },
-      'travel-tip': { label: '여행팁', color: 'bg-blue-100 text-blue-700' },
-      'destination': { label: '관광지추천', color: 'bg-purple-100 text-purple-700' },
-      'qna': { label: '질문 답변', color: 'bg-green-100 text-green-700' }
-    };
-    return labels[category] || { label: category, color: 'bg-gray-100 text-gray-700' };
-  };
+  // 사용자 타입 확인
+  const isMallOnly = user && !user.genieStatus && !user.linkedGenieUser;
+  const isGenieUser = user && (user.genieStatus === 'active' || user.linkedGenieUser?.genieStatus === 'active');
+  const isTrialUser = user && user.genieStatus === 'trial';
 
   if (loading) {
     return (
@@ -207,8 +195,8 @@ export default function MyInfoPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-6xl mx-auto">
+      <div className="container mx-auto px-4 py-8 md:py-12">
+        <div className="max-w-4xl mx-auto">
           {/* 이전으로 가기 */}
           <div className="mb-6">
             <Link
@@ -221,91 +209,312 @@ export default function MyInfoPage() {
           </div>
 
           {/* 헤더 */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-2">
               내 정보
             </h1>
-            {user && (
-              <div className="flex flex-col items-center gap-6">
-                <p className="text-xl text-gray-600">
-                  {user.name || '사용자'}님의 활동 내역입니다.
-                </p>
-                <Link
-                  href="/community/profile"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+          </div>
+
+          {/* 사용자 정보 섹션 */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-blue-200 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <span className="text-4xl">👤</span>
+                사용자 정보
+              </h2>
+              {!isEditing ? (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <FiEdit2 size={18} />
-                  프로필 수정
-                </Link>
-
-                {/* 지니 AI 상태 */}
-                {user.genieStatus ? (
-                  <div
-                    className={`w-full max-w-2xl px-5 py-4 rounded-xl border text-center ${
-                      user.genieStatus === 'active'
-                        ? 'bg-green-50 border-green-500 text-green-700'
-                        : 'bg-red-50 border-red-500 text-red-700'
-                    }`}
+                  수정
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditName(user?.name || '');
+                      setEditPhone(user?.phone || '');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
                   >
-                    {user.genieStatus === 'active' ? (
-                      <p className="text-base md:text-lg font-semibold">
-                        🟢 지니 AI 사용중입니다. 행복한 여행 되세요!
-                      </p>
-                    ) : (
-                      <p className="text-base md:text-lg font-semibold">
-                        🔴 지니AI 사용종료 되셨습니다. 다음에 또 만나요
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="w-full max-w-2xl space-y-4">
-                    <div className="px-5 py-4 rounded-xl border bg-red-50 border-red-500 text-red-700 text-center">
-                      <p className="text-base md:text-lg font-semibold">
-                        🔴 이런! 지니 AI를 사용하지 않고 있군요? 빨리 만나길 바래요!
-                      </p>
-                    </div>
-                    <div className="aspect-video w-full rounded-xl overflow-hidden shadow-lg border border-gray-200">
-                      <iframe
-                        src="https://www.youtube.com/embed/-p_6G69MgyQ?si=3KTuC8W6n5Be1zzY"
-                        title="지니 AI 소개 영상"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="strict-origin-when-cross-origin"
-                        allowFullScreen
-                        className="w-full h-full"
-                      ></iframe>
-                    </div>
-                  </div>
-                )}
+                    <FiX size={18} />
+                    취소
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    <FiSave size={18} />
+                    {saving ? '저장 중...' : '저장'}
+                  </button>
+                </div>
+              )}
+            </div>
 
-                {(user.genieName || user.geniePhone) && (
-                  <div className="w-full max-w-2xl p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-800 text-left">
-                    <p className="font-semibold mb-1 text-center">현재 연동된 지니 AI 가이드</p>
-                    <ul className="space-y-1">
-                      {user.genieName && (
-                        <li>
-                          <span className="font-medium">로그인 이름:</span> {user.genieName}
-                        </li>
-                      )}
-                      {user.geniePhone && (
-                        <li>
-                          <span className="font-medium">로그인 연락처:</span> {user.geniePhone}
-                        </li>
-                      )}
-                      <li>
-                        <span className="font-medium">로그인 비밀번호:</span> 3800
-                      </li>
-                    </ul>
-                    <p className="mt-3 text-xs text-blue-700 text-center">* 여행이 종료되면 지니 AI는 자동으로 연결이 중지됩니다.</p>
+            {isEditing ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">이름</label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="이름을 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">연락처</label>
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="연락처를 입력하세요"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이름:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.name || '정보 없음'}</span>
+                </div>
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user?.phone || '정보 없음'}</span>
+                </div>
+                {user?.email && (
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이메일:</span>
+                    <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.email}</span>
                   </div>
                 )}
               </div>
             )}
           </div>
 
+          {/* 비밀번호 변경 섹션 */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-purple-200 mb-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <span className="text-4xl">🔒</span>
+                비밀번호 변경
+              </h2>
+              {!showPasswordChange && (
+                <button
+                  onClick={() => setShowPasswordChange(true)}
+                  className="px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  변경하기
+                </button>
+              )}
+            </div>
+
+            {showPasswordChange && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">현재 비밀번호</label>
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                      placeholder="현재 비밀번호를 입력하세요"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      {showCurrentPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">새 비밀번호</label>
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                      placeholder="새 비밀번호를 입력하세요 (최소 4자)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      {showNewPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">새 비밀번호 확인</label>
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none"
+                      placeholder="새 비밀번호를 다시 입력하세요"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      {showConfirmPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handlePasswordChange}
+                    disabled={saving}
+                    className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+                  >
+                    {saving ? '변경 중...' : '비밀번호 변경'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPasswordChange(false);
+                      setCurrentPassword('');
+                      setNewPassword('');
+                      setConfirmPassword('');
+                    }}
+                    className="px-6 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 서비스 이용 상태 섹션 */}
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-indigo-200 mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span className="text-4xl">🎯</span>
+              서비스 이용 상태
+            </h2>
+            <div className="space-y-4">
+              {/* 크루즈몰 이용 상태 */}
+              <div className="p-5 bg-blue-50 border-2 border-blue-300 rounded-xl">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🛒</span>
+                    <div>
+                      <p className="font-bold text-lg text-gray-900">크루즈몰</p>
+                      <p className="text-sm text-gray-600">크루즈 상품 구매 및 커뮤니티 이용</p>
+                    </div>
+                  </div>
+                  <span className="px-4 py-2 bg-green-500 text-white font-bold rounded-lg">이용 중</span>
+                </div>
+              </div>
+
+              {/* 크루즈닷지니AI 상태 */}
+              {isGenieUser ? (
+                <div className="p-5 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-400 rounded-xl relative overflow-hidden">
+                  {/* 블링블링 효과 */}
+                  <div className="absolute inset-0 animate-pulse">
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-yellow-200/30 to-transparent animate-shimmer"></div>
+                  </div>
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <span className="text-4xl animate-bounce">✨</span>
+                        <span className="absolute -top-1 -right-1 text-2xl animate-ping">⭐</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                          크루즈닷지니AI (유료)
+                          <span className="text-xs px-2 py-1 bg-yellow-400 text-yellow-900 rounded-full font-bold animate-pulse">PRO</span>
+                        </p>
+                        <p className="text-sm text-gray-600">AI 여행 가이드 서비스</p>
+                      </div>
+                    </div>
+                    <span className="px-4 py-2 bg-yellow-500 text-white font-bold rounded-lg animate-pulse">이용 중</span>
+                  </div>
+                </div>
+              ) : isTrialUser ? (
+                <div className="p-5 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-400 rounded-xl relative overflow-hidden">
+                  {/* 블링블링 효과 */}
+                  <div className="absolute inset-0 animate-pulse">
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-purple-200/30 to-transparent animate-shimmer"></div>
+                  </div>
+                  <div className="relative flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <span className="text-4xl animate-bounce">🎁</span>
+                        <span className="absolute -top-1 -right-1 text-2xl animate-ping">💎</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                          크루즈가이드지니 3일 체험
+                          <span className="text-xs px-2 py-1 bg-purple-400 text-purple-900 rounded-full font-bold animate-pulse">TRIAL</span>
+                        </p>
+                        <p className="text-sm text-gray-600">3일 무료 체험 중</p>
+                      </div>
+                    </div>
+                    <span className="px-4 py-2 bg-purple-500 text-white font-bold rounded-lg animate-pulse">체험 중</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-5 bg-gray-50 border-2 border-gray-300 rounded-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">🤖</span>
+                      <div>
+                        <p className="font-bold text-lg text-gray-900">크루즈닷지니AI</p>
+                        <p className="text-sm text-gray-600">AI 여행 가이드 서비스</p>
+                      </div>
+                    </div>
+                    <span className="px-4 py-2 bg-gray-400 text-white font-bold rounded-lg">미이용</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 크루즈 3일 무료체험 홍보 배너 */}
+          {!isGenieUser && !isTrialUser && (
+            <div className="bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 rounded-2xl shadow-2xl p-6 md:p-8 mb-6 relative overflow-hidden animate-pulse">
+              {/* 블링블링 효과 */}
+              <div className="absolute inset-0">
+                <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                <div className="absolute top-4 right-4 text-4xl animate-bounce">✨</div>
+                <div className="absolute bottom-4 left-4 text-3xl animate-ping">⭐</div>
+                <div className="absolute top-1/2 right-1/4 text-2xl animate-pulse">💎</div>
+              </div>
+              <div className="relative z-10 text-center text-white">
+                <h3 className="text-3xl md:text-4xl font-black mb-4 flex items-center justify-center gap-3">
+                  <span className="text-5xl animate-bounce">🎁</span>
+                  크루즈가이드지니 3일 무료체험
+                </h3>
+                <p className="text-lg md:text-xl mb-6 font-semibold">
+                  지금 바로 AI 여행 가이드를 무료로 체험해보세요!
+                </p>
+                <Link
+                  href="/login-test"
+                  className="inline-block px-8 py-4 bg-white text-purple-600 font-black text-lg rounded-xl hover:bg-gray-100 transition-colors shadow-lg transform hover:scale-105"
+                >
+                  무료체험 시작하기 →
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* 바탕화면 추가 섹션 */}
-          <div className="mb-12 bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <span className="text-3xl">📲</span>
+          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-green-200 mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+              <span className="text-4xl">📲</span>
               바탕화면에 추가하기
             </h2>
             <p className="text-base text-gray-700 mb-5 leading-relaxed">
@@ -313,289 +522,23 @@ export default function MyInfoPage() {
             </p>
             <PWAInstallButtonMall />
           </div>
-
-          {/* 여행 배정 섹션 (관리자가 배정한 여행 정보) */}
-          <div className="mb-12 bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              여행 배정 정보 ({trips.length}건)
-            </h2>
-            {trips.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">아직 배정된 여행이 없습니다.</p>
-            ) : (
-              <div className="space-y-4">
-                {trips.map((trip) => (
-                  <div
-                    key={trip.id}
-                    className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                          {trip.CruiseProduct?.packageName || trip.cruiseName || '여행 정보'}
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-                          {trip.CruiseProduct && (
-                            <>
-                              <div>
-                                <span className="font-medium text-gray-700">크루즈선:</span> {trip.CruiseProduct.cruiseLine} {trip.CruiseProduct.shipName}
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">상품코드:</span> {trip.CruiseProduct.productCode}
-                              </div>
-                            </>
-                          )}
-                          {trip.startDate && trip.endDate && (
-                            <>
-                              <div>
-                                <span className="font-medium text-gray-700">출발일:</span> {new Date(trip.startDate).toLocaleDateString('ko-KR', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric'
-                                })}
-                              </div>
-                              <div>
-                                <span className="font-medium text-gray-700">종료일:</span> {new Date(trip.endDate).toLocaleDateString('ko-KR', {
-                                  year: 'numeric',
-                                  month: 'long',
-                                  day: 'numeric'
-                                })}
-                              </div>
-                            </>
-                          )}
-                          {trip.nights && trip.days && (
-                            <div>
-                              <span className="font-medium text-gray-700">일정:</span> {trip.nights}박 {trip.days}일
-                            </div>
-                          )}
-                          {trip.companionType && (
-                            <div>
-                              <span className="font-medium text-gray-700">동행유형:</span> {trip.companionType}
-                            </div>
-                          )}
-                          {trip.destination && trip.destination.length > 0 && (
-                            <div className="md:col-span-2">
-                              <span className="font-medium text-gray-700">목적지:</span> {Array.isArray(trip.destination) ? trip.destination.join(', ') : trip.destination}
-                            </div>
-                          )}
-                          <div>
-                            <span className="font-medium text-gray-700">상태:</span> {trip.status === 'Upcoming' ? '예정' : trip.status === 'InProgress' ? '진행중' : trip.status === 'Completed' ? '완료' : trip.status}
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">배정일:</span> {new Date(trip.createdAt).toLocaleDateString('ko-KR', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric'
-                            })}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 내 게시글 섹션 */}
-          <div className="mb-12 bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              내가 올린 게시글 ({posts.length}개)
-            </h2>
-            {posts.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">아직 작성한 게시글이 없습니다.</p>
-            ) : (
-              <div className="space-y-4">
-                {posts.map((post) => {
-                  const categoryInfo = getCategoryLabel(post.category);
-                  return (
-                    <div
-                      key={post.id}
-                      className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${categoryInfo.color}`}>
-                              {categoryInfo.label}
-                            </span>
-                            <Link
-                              href={`/community/posts/${post.id}`}
-                              className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
-                            >
-                              {post.title}
-                            </Link>
-                          </div>
-                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{post.content}</p>
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <FiEye size={16} />
-                              {post.views}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <FiHeart size={16} />
-                              {post.likes}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <FiMessageCircle size={16} />
-                              {post.commentCount || post.comments}
-                            </span>
-                            <span>
-                              {new Date(post.createdAt).toLocaleDateString('ko-KR', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <button
-                            onClick={() => handleDeletePost(post.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="삭제"
-                          >
-                            <FiTrash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* 내 리뷰 섹션 */}
-          <div className="mb-12 bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              내가 올린 리뷰 ({reviews.length}개)
-            </h2>
-            {reviews.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">아직 작성한 리뷰가 없습니다.</p>
-            ) : (
-              <div className="space-y-4">
-                {reviews.map((review) => (
-                  <div
-                    key={review.id}
-                    className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <span
-                                key={i}
-                                className={`text-lg ${i < review.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                              >
-                                ★
-                              </span>
-                            ))}
-                          </div>
-                          <Link
-                            href={`/community/reviews/${review.id}`}
-                            className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
-                          >
-                            {review.title}
-                          </Link>
-                        </div>
-                        {(review.cruiseLine || review.shipName) && (
-                          <p className="text-sm text-gray-600 mb-2">
-                            {review.cruiseLine} {review.shipName}
-                          </p>
-                        )}
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{review.content}</p>
-                        {review.images && review.images.length > 0 && (
-                          <div className="flex gap-2 mb-3">
-                            {review.images.slice(0, 3).map((img, idx) => (
-                              <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden bg-gray-100">
-                                <Image
-                                  src={img}
-                                  alt={`리뷰 이미지 ${idx + 1}`}
-                                  fill
-                                  className="object-cover"
-                                  sizes="80px"
-                                />
-                              </div>
-                            ))}
-                            {review.images.length > 3 && (
-                              <div className="w-20 h-20 rounded-lg bg-gray-100 flex items-center justify-center text-sm text-gray-600">
-                                +{review.images.length - 3}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        <p className="text-sm text-gray-500">
-                          {new Date(review.createdAt).toLocaleDateString('ko-KR', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <Link
-                          href={`/community/reviews/${review.id}/edit`}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="수정"
-                        >
-                          <FiEdit2 size={18} />
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteReview(review.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="삭제"
-                        >
-                          <FiTrash2 size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 내 댓글 섹션 */}
-          <div className="mb-12 bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">
-              내가 쓴 댓글 ({comments.length}개)
-            </h2>
-            {comments.length === 0 ? (
-              <p className="text-gray-500 text-center py-8">아직 작성한 댓글이 없습니다.</p>
-            ) : (
-              <div className="space-y-4">
-                {comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-                  >
-                    <div className="mb-3">
-                      <Link
-                        href={`/community/posts/${comment.Post.id}`}
-                        className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
-                      >
-                        {comment.Post.title}
-                      </Link>
-                    </div>
-                    <p className="text-gray-700 mb-3">{comment.content}</p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(comment.createdAt).toLocaleDateString('ko-KR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
+
+      {/* 블링블링 애니메이션 스타일 */}
+      <style jsx>{`
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
+        }
+      `}</style>
     </div>
   );
 }
-

@@ -155,9 +155,13 @@ export async function GET() {
     console.log('[MY INFO] Fetching linked genie user...');
     let linkedGenieUser = null;
     try {
+      // mallUserId가 문자열 또는 숫자일 수 있으므로 둘 다 확인
       linkedGenieUser = await prisma.user.findFirst({
         where: {
-          mallUserId: user.id.toString(),
+          OR: [
+            { mallUserId: user.id.toString() },
+            { mallUserId: String(user.id) },
+          ],
           genieStatus: { not: null },
         },
         select: {
