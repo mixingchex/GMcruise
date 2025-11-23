@@ -1212,15 +1212,17 @@ export default function DailyBriefingCard() {
               <>
                 {/* 오늘 일정 정보는 간단하게만 표시 */}
                 {today && !isCruising && (
-                  <div className="space-y-0.5 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
                     {today.location && (
-                      <p className="text-xl md:text-2xl text-gray-800 font-bold leading-tight break-words">{today.location}</p>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-800 rounded-full text-base md:text-lg font-bold border-2 border-blue-300">
+                        <FiMapPin size={16} className="text-blue-600" />
+                        {today.location}
+                      </span>
                     )}
                     {(today.arrival || today.departure) && (
-                      <div className="text-lg md:text-xl text-gray-600 font-semibold leading-relaxed">
-                        {today.arrival && <span>입항: {today.arrival}</span>}
-                        {today.arrival && today.departure && <span className="mx-2">·</span>}
-                        {today.departure && <span>출항: {today.departure}</span>}
+                      <div className="flex items-center gap-2 text-sm md:text-base text-gray-600 font-semibold">
+                        {today.arrival && <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md">입항: {today.arrival}</span>}
+                        {today.departure && <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-md">출항: {today.departure}</span>}
                       </div>
                     )}
                   </div>
@@ -1419,18 +1421,28 @@ export default function DailyBriefingCard() {
             </div>
           ) : null}
 
-          {/* 내일 일정 미리보기 */}
-          {briefing.tomorrow && (
-            <div className="bg-white rounded-lg p-2 shadow-sm border-l-4 border-purple-400">
-              <h3 className="text-gray-900 font-bold text-xl mb-1">내일 예정</h3>
-              <div className="flex items-center gap-2">
+          {/* 내일 일정 미리보기 - 크루즈 일정의 내일 항구 정보 (여행 중일 때만 표시) */}
+          {briefing.tomorrow && briefing.tomorrow.location && (
+            <div className="bg-white rounded-lg p-3 shadow-sm border-l-4 border-purple-400">
+              <h3 className="text-gray-900 font-bold text-xl mb-2 flex items-center gap-2">
                 <FiMapPin className="text-purple-600" size={20} />
-                <p className="text-gray-700 text-lg font-semibold">
-                  {briefing.tomorrow.location} ({briefing.tomorrow.country})
-                  {briefing.tomorrow.arrival && (
-                    <span className="ml-2 text-gray-600 text-base">입항 {briefing.tomorrow.arrival}</span>
-                  )}
-                </p>
+                내일 예정
+              </h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 text-purple-800 rounded-full text-base md:text-lg font-bold border-2 border-purple-300">
+                  <FiMapPin size={16} className="text-purple-600" />
+                  {briefing.tomorrow.location}
+                </span>
+                {briefing.tomorrow.country && (
+                  <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-sm font-semibold">
+                    {briefing.tomorrow.country}
+                  </span>
+                )}
+                {briefing.tomorrow.arrival && (
+                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-sm font-semibold">
+                    입항 {briefing.tomorrow.arrival}
+                  </span>
+                )}
               </div>
             </div>
           )}
