@@ -49,16 +49,18 @@ function TestLoginPageContent() {
     setName('');
   }, [sp]);
 
-  // 연락처 입력 핸들러 - 숫자만 입력 가능 (길이 제한 없음)
+  // 연락처 입력 핸들러 - 숫자만 입력 가능하고 11자리 제한
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9]/g, ''); // 숫자만 허용
-    setPhone(value);
+    if (value.length <= 11) {
+      setPhone(value);
+    }
   };
 
-  // 연락처 유효성 검사 (최소 1자리 이상이면 유효)
-  const isValidPhone = phone.length > 0;
+  // 연락처 유효성 검사 (10자리 또는 11자리)
+  const isValidPhone = phone.length >= 10 && phone.length <= 11 && /^[0-9]{10,11}$/.test(phone);
   
-  // 버튼 활성화 조건: 이름과 연락처가 모두 입력되어 있으면 됨 (형식 검증 완화)
+  // 버튼 활성화 조건: 이름과 연락처가 모두 유효해야 함
   const isFormValid = name.trim().length > 0 && isValidPhone;
 
   async function onSubmit(e: React.FormEvent) {
@@ -80,9 +82,9 @@ function TestLoginPageContent() {
       return;
     }
     
-    // 연락처 형식 검증 (최소 1자리 이상이면 통과)
-    if (!/^[0-9]+$/.test(trimmedPhone) || trimmedPhone.length === 0) {
-      setError('연락처를 입력해주세요.');
+    // 연락처 형식 검증 (10자리 또는 11자리)
+    if (!/^[0-9]{10,11}$/.test(trimmedPhone)) {
+      setError('연락처는 10자리 또는 11자리 숫자로 입력해주세요.');
       return;
     }
     
@@ -293,6 +295,12 @@ function TestLoginPageContent() {
                 <div>
                   <label className="block text-sm md:text-base lg:text-lg font-semibold text-gray-700 mb-2 md:mb-3">
                     연락처 <span className="text-red-500">*</span>
+                    {phone.length > 0 && phone.length < 10 && (
+                      <span className="text-red-500 text-xs md:text-sm ml-2">({phone.length}/10-11자리)</span>
+                    )}
+                    {phone.length >= 10 && phone.length <= 11 && !isValidPhone && (
+                      <span className="text-red-500 text-xs md:text-sm ml-2">({phone.length}/10-11자리)</span>
+                    )}
                     {isValidPhone && (
                       <span className="text-green-600 text-xs md:text-sm ml-2">✓</span>
                     )}
@@ -304,17 +312,31 @@ function TestLoginPageContent() {
                     required
                     inputMode="numeric"
                     autoComplete="off"
+                    maxLength={11}
                     className={`w-full bg-gray-50 border-2 rounded-lg md:rounded-xl px-4 py-3 md:px-5 md:py-4 text-base md:text-lg lg:text-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-all duration-200 ${
                       isValidPhone 
                         ? 'border-green-500 focus:ring-green-500 focus:border-green-500' 
+                        : phone.length > 0 && phone.length < 10
+                        ? 'border-yellow-400 focus:ring-yellow-500 focus:border-yellow-500'
+                        : phone.length > 11
+                        ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
                         : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
                     }`}
-                    placeholder="연락처를 입력하세요"
+                    placeholder="연락처를 입력하세요 (10-11자리)"
                     style={{ fontSize: '16px', minHeight: '48px' }}
                   />
                   <p className="text-xs md:text-sm lg:text-base text-gray-500 mt-1 md:mt-2 ml-1 leading-relaxed">
+                    {phone.length > 0 && phone.length < 10 && (
+                      <span className="text-yellow-600">{phone.length}자리 입력됨 - 10자리 또는 11자리까지 입력해주세요</span>
+                    )}
+                    {phone.length === 10 && !isValidPhone && (
+                      <span className="text-yellow-600">10자리 입력됨 - 11자리도 가능합니다</span>
+                    )}
+                    {phone.length === 11 && !isValidPhone && (
+                      <span className="text-red-600">올바른 형식이 아닙니다</span>
+                    )}
                     {isValidPhone && (
-                      <span className="text-green-600">✓ 입력 완료</span>
+                      <span className="text-green-600">✓ 올바른 형식입니다 ({phone.length}자리)</span>
                     )}
                   </p>
                 </div>
