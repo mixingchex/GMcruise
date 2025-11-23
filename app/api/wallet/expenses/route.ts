@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     // 지출 기록 조회
     // 실제 스키마: userId, foreignAmount, krwAmount, usdAmount, currency, category, description
     const whereClause: any = { 
-      tripId: targetTripId,
+      userTripId: targetTripId, // userTripId 사용
       userId: user.id, // 사용자별로 필터링
     };
 
@@ -223,7 +223,7 @@ export async function POST(req: NextRequest) {
       const expense = await prisma.expense.create({
         data: {
           userId: user.id,
-          tripId: targetTripId,
+          userTripId: targetTripId, // userTripId 사용
           category,
           foreignAmount: amountNum,
           krwAmount: amountInKRWNum,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getSessionUser } from '@/lib/auth';
 
 // 국가명을 통화 코드로 매핑
 const COUNTRY_TO_CURRENCY: Record<string, { code: string; symbol: string; name: string }> = {
@@ -51,14 +52,18 @@ function extractCurrency(destination: string): { code: string; symbol: string; n
 
 export async function GET(req: NextRequest) {
   try {
-    // 세션 확인 (선택적)
-    // const session = await getServerSession();
-    // if (!session?.user?.email) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    // 인증 확인
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
-    // 최신 여행 정보 조회 (UserTrip 사용)
+    // 사용자의 최신 여행 정보 조회 (UserTrip 사용)
     const latestTrip = await prisma.userTrip.findFirst({
+      where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       select: {
         destination: true,
