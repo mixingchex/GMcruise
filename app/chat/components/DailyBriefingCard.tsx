@@ -843,19 +843,33 @@ export default function DailyBriefingCard() {
         selectedScheduleDate,
       });
 
-      // 서버에 일정 저장
-      const response = await fetch('/api/schedules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          time: newScheduleTime,
-          title: newScheduleTitle,
-          alarm: newScheduleAlarm,
-          alarmTime: newScheduleAlarm ? newScheduleAlarmTime : null,
-          date: targetDate,
-        }),
-      });
+      // 서버에 일정 저장 (타임아웃 10초)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10초 타임아웃
+      
+      let response;
+      try {
+        response = await fetch('/api/schedules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          signal: controller.signal,
+          body: JSON.stringify({
+            time: newScheduleTime,
+            title: newScheduleTitle,
+            alarm: newScheduleAlarm,
+            alarmTime: newScheduleAlarm ? newScheduleAlarmTime : null,
+            date: targetDate,
+          }),
+        });
+        clearTimeout(timeoutId);
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('요청 시간이 초과되었습니다. 네트워크 연결을 확인하고 다시 시도해주세요.');
+        }
+        throw new Error(`네트워크 오류: ${fetchError.message || '알 수 없는 오류'}`);
+      }
 
       console.log('[DailyBriefingCard] API 응답 상태:', response.status, response.statusText);
 

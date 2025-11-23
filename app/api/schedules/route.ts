@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
         alarm: alarm ?? false,
         alarmTime: alarm && alarmTime ? alarmTime : null, // alarm이 true이고 alarmTime이 있으면 저장
         date: scheduleDate,
-        updatedAt: new Date(), // updatedAt 필수 필드 추가
+        // updatedAt은 @updatedAt 데코레이터로 자동 관리됨
       },
     });
 
@@ -292,7 +292,7 @@ export async function PUT(req: NextRequest) {
         ...(alarm !== undefined && { alarm }),
         ...(alarmTime !== undefined && { alarmTime: alarm && alarmTime ? alarmTime : null }),
         ...(date && { date: new Date(date) }),
-        updatedAt: new Date(), // updatedAt 필수 필드 업데이트
+        // updatedAt은 @updatedAt 데코레이터로 자동 관리됨
       },
     });
 
