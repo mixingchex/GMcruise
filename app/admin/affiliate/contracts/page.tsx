@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import {
   FiRefreshCw,
   FiSearch,
@@ -2070,7 +2071,7 @@ export default function AdminAffiliateContractsPage() {
                     <div className="rounded-lg border-2 border-green-200 bg-green-50/30 p-4">
                       <p className="mb-2 text-xs font-semibold text-green-800">저장된 싸인 미리보기:</p>
                       <div className="rounded-lg bg-white p-3 shadow-sm">
-                        <img src={signaturePreview} alt="서명 미리보기" className="h-32 w-auto" />
+                        <Image src={signaturePreview} alt="서명 미리보기" width={128} height={128} className="h-32 w-auto" />
                       </div>
                     </div>
                   )}
@@ -2725,9 +2726,11 @@ export default function AdminAffiliateContractsPage() {
                                 파일명: {selectedContract.metadata.signatures.education.originalName}
                               </p>
                             )}
-                            <img
+                            <Image
                               src={selectedContract.metadata.signatures.education.url}
                               alt="교육 계약서 서명"
+                              width={800}
+                              height={600}
                               className="max-w-full h-auto"
                             />
                           </div>
@@ -2742,9 +2745,11 @@ export default function AdminAffiliateContractsPage() {
                                 파일명: {selectedContract.metadata.signatures.b2b.originalName}
                               </p>
                             )}
-                            <img
+                            <Image
                               src={selectedContract.metadata.signatures.b2b.url}
                               alt="B2B 계약서 서명"
+                              width={800}
+                              height={600}
                               className="max-w-full h-auto"
                             />
                           </div>
