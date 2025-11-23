@@ -43,14 +43,15 @@ next-env.d.ts
 /app/generated/prisma
 
 # 대용량 미디어 파일 (GitHub 100MB 제한 방지)
-# 비디오 파일
-*.mp4
-*.mov
-*.avi
-*.mkv
-*.webm
-*.flv
-*.wmv
+# 비디오 파일 (배너용 비디오는 제외 - /public/videos/ 폴더는 포함)
+# 크루즈정보사진 폴더의 비디오는 제외
+/public/크루즈정보사진/**/*.mp4
+/public/크루즈정보사진/**/*.mov
+/public/크루즈정보사진/**/*.avi
+/public/크루즈정보사진/**/*.mkv
+/public/크루즈정보사진/**/*.webm
+/public/크루즈정보사진/**/*.flv
+/public/크루즈정보사진/**/*.wmv
 
 # 대용량 이미지 (10MB 이상)
 # 원본 이미지는 제외하고, 최적화된 이미지만 포함

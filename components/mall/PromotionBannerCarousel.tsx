@@ -35,7 +35,7 @@ const defaultBanners: Banner[] = [
   },
   {
     id: 3,
-    image: '/크루즈정보사진/코스타세레나/코스타세레나.jpg',
+    image: '/크루즈사진/코스타세레나/코스타세레나.jpg',
     title: '크루즈닷과',
     subtitle: '행복한 크루즈여행 하기',
     link: '/products',
