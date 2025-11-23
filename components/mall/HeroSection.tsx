@@ -147,15 +147,39 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
                 buttonStyle.color = '#ffffff';
               }
               
-              // 모든 버튼을 /login-test로 이동하도록 변경
+              // 버튼별 동작 처리
+              const handleButtonClick = (e: React.MouseEvent) => {
+                e.stopPropagation();
+                
+                if (btn.text === '라이브방송참여') {
+                  // 라이브 방송 섹션으로 스크롤
+                  const liveSection = document.getElementById('live-broadcast');
+                  if (liveSection) {
+                    liveSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                } else if (btn.text === '상품 둘러보기') {
+                  // 프로모션 배너 섹션으로 스크롤 (크루즈닷 지니 TV영상 밑)
+                  const promotionSection = document.getElementById('promotion-banner');
+                  if (promotionSection) {
+                    promotionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  } else {
+                    // 프로모션 배너 섹션을 찾을 수 없으면 products 섹션으로
+                    const productsSection = document.getElementById('products');
+                    if (productsSection) {
+                      productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }
+                } else {
+                  // 기타 버튼은 기존 동작
+                  window.location.href = btn.link || '/login-test';
+                }
+              };
+              
               return (
                 <a
                   key={idx}
-                  href="/login-test"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.location.href = '/login-test';
-                  }}
+                  href={btn.text === '라이브방송참여' ? '#live-broadcast' : btn.text === '상품 둘러보기' ? '#products' : btn.link || '/login-test'}
+                  onClick={handleButtonClick}
                   className={buttonClass}
                   style={buttonStyle}
                 >

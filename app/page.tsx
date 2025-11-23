@@ -371,7 +371,7 @@ export default function HomePage() {
 
       {/* 프로모션 배너 (양싱 베너) */}
       {pageConfig?.promotionBanner?.enabled !== false && (
-        <section className="container mx-auto px-4 py-12 bg-gray-50">
+        <section id="promotion-banner" className="container mx-auto px-4 py-12 bg-gray-50">
           <PromotionBannerCarousel />
         </section>
       )}

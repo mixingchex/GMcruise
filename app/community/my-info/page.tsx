@@ -34,8 +34,6 @@ export default function MyInfoPage() {
   // 편집 모드
   const [isEditing, setIsEditing] = useState(false);
   const [editNickname, setEditNickname] = useState('');
-  const [editName, setEditName] = useState('');
-  const [editPhone, setEditPhone] = useState('');
   
   // 비밀번호 변경
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -69,9 +67,7 @@ export default function MyInfoPage() {
       }
 
       setUser(data.user);
-      setEditNickname(data.user.mallNickname || '');
-      setEditName(data.user.name || '');
-      setEditPhone(data.user.phone || '');
+      setEditNickname(data.user.mallNickname || data.user.name || '');
     } catch (err) {
       setError('정보를 불러오는 중 오류가 발생했습니다.');
     } finally {
@@ -95,8 +91,6 @@ export default function MyInfoPage() {
         credentials: 'include',
         body: JSON.stringify({
           mallNickname: editNickname.trim(),
-          name: editName.trim(),
-          phone: editPhone.trim(),
         }),
       });
 
@@ -241,9 +235,7 @@ export default function MyInfoPage() {
                   <button
                     onClick={() => {
                       setIsEditing(false);
-                      setEditNickname(user?.mallNickname || '');
-                      setEditName(user?.name || '');
-                      setEditPhone(user?.phone || '');
+                      setEditNickname(user?.mallNickname || user?.name || '');
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
                   >
@@ -274,36 +266,16 @@ export default function MyInfoPage() {
                     placeholder="닉네임을 입력하세요"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">이름 (선택사항)</label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="이름을 입력하세요"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">연락처 (선택사항)</label>
-                  <input
-                    type="tel"
-                    value={editPhone}
-                    onChange={(e) => setEditPhone(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    placeholder="연락처를 입력하세요"
-                  />
-                </div>
               </div>
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                   <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">닉네임:</span>
-                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.mallNickname || '정보 없음'}</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.mallNickname || user?.name || '정보 없음'}</span>
                 </div>
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
                   <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">아이디:</span>
-                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user?.mallUserId || user?.id || '정보 없음'}</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user?.phone || user?.mallUserId || '정보 없음'}</span>
                 </div>
                 {user?.email && (
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
@@ -311,20 +283,18 @@ export default function MyInfoPage() {
                     <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.email}</span>
                   </div>
                 )}
-                {user?.name && (
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이름:</span>
-                    <span className="font-bold text-gray-900 text-base md:text-lg">{user.name}</span>
-                  </div>
-                )}
-                {user?.phone && (
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
-                    <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.phone}</span>
-                  </div>
-                )}
               </div>
             )}
+          </div>
+
+          {/* 이름과 연락처 입력 권유 메시지 */}
+          {(!user?.name || !user?.phone) && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 md:p-6 mb-6">
+              <p className="text-red-700 font-bold text-base md:text-lg text-center">
+                ⚠️ 이름과 연락처를 입력하시면 비밀번호 찾을때 쉬워요!
+              </p>
+            </div>
+          )}
           </div>
 
           {/* 비밀번호 변경 섹션 */}

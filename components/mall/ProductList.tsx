@@ -1158,18 +1158,38 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
           {(showFilteredProducts || (filters.type === 'all' && filters.region === 'all')) && (
             <div className="mb-8">
               {showFilteredProducts && (
-                <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">
-                  {menuFilters.find(f => f.value === filters.region)?.label || '필터링된'} 크루즈
-                </h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-3xl md:text-4xl font-black text-gray-900">
+                    {menuFilters.find(f => f.value === filters.region)?.label || '필터링된'} 크루즈
+                  </h3>
+                  <a
+                    href="/product"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg min-h-[48px] flex items-center justify-center text-base md:text-lg"
+                  >
+                    전체 보기 →
+                  </a>
+                </div>
               )}
               {!showFilteredProducts && filters.type === 'all' && filters.region === 'all' && (
-                <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">크루즈 상품 안내</h3>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-3xl md:text-4xl font-black text-gray-900">크루즈 상품 안내</h3>
+                  <a
+                    href="/product"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg min-h-[48px] flex items-center justify-center text-base md:text-lg"
+                  >
+                    전체 보기 →
+                  </a>
+                </div>
               )}
-              {/* 크루즈 상품 안내: 한 줄에 10개씩, 각 줄마다 독립적으로 좌우 스크롤 (최대 3줄, 총 30개) */}
+              {/* 크루즈 상품 안내: 한 줄에 5개씩, 각 줄마다 독립적으로 좌우 스크롤 (최대 3줄, 총 15개) */}
               <div className="space-y-6">
                 {(() => {
-                  // 상품을 10개씩 그룹으로 나누기 (최대 3줄)
-                  const productsPerRow = 10;
+                  // 상품을 5개씩 그룹으로 나누기 (최대 3줄)
+                  const productsPerRow = 5;
                   const maxRows = 3;
                   const productGroups: Product[][] = [];
                   

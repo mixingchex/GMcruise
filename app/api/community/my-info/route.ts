@@ -197,10 +197,10 @@ export async function GET() {
       ok: true,
       user: {
         id: user.id,
-        name: user.name,
+        name: user.name, // 비밀번호 찾기용 이름
         email: user.email,
-        phone: displayPhone,
-        mallNickname: user.mallNickname,
+        phone: user.phone, // 아이디로 사용 (회원가입 시 username이 phone 필드에 저장됨)
+        mallNickname: user.mallNickname || user.name, // 닉네임 (회원가입 시 name 필드에 nickname 저장)
         mallUserId: user.mallUserId,
         genieStatus: user.genieStatus,
         linkedGenieUser: linkedGenieUser ? {
