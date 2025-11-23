@@ -270,6 +270,7 @@ export async function POST(req: Request) {
     }
 
     // 후기 생성 (명시적으로 isApproved 값 설정)
+    const now = new Date();
     const review = await prisma.cruiseReview.create({
       data: {
         userId: parseInt(session.userId),
@@ -282,7 +283,8 @@ export async function POST(req: Request) {
         images: imagesArray.length > 0 ? imagesArray : null,
         authorName: finalAuthorName,
         isApproved: true, // 모든 후기 자동 승인
-        isDeleted: false // 명시적으로 설정
+        isDeleted: false, // 명시적으로 설정
+        updatedAt: now // updatedAt 필수 필드 명시적으로 설정
       }
     });
 
