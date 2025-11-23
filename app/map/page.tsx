@@ -73,6 +73,8 @@ const countryCodeMap: { [key: string]: string } = {
   '이집트': 'EG',
   '터키': 'TR',
   '러시아': 'RU',
+  '남극': 'AQ',
+  'Antarctica': 'AQ',
 };
 
 // 국가 이름으로 국기 이모티콘 가져오기 (from app/page.tsx)
@@ -301,6 +303,9 @@ const CONTINENTS_DATA = {
     { koreanName: "나우루", englishName: "Nauru" },
     { koreanName: "투발루", englishName: "Tuvalu" },
   ],
+  Antarctica: [
+    { koreanName: "남극", englishName: "Antarctica" },
+  ],
 };
 
 // 한국어 국가명을 영문 국가명으로 매핑하는 맵
@@ -391,6 +396,17 @@ const englishToKoreanCountryNameMap: { [key: string]: string } = (() => {
 const isoToKoreanCountryNameMap: { [key: string]: string } = {};
 Object.entries(countryCodeMap).forEach(([koreanName, isoCode]) => {
   isoToKoreanCountryNameMap[isoCode] = koreanName;
+});
+
+// ISO A2 코드를 영어 국가명으로 매핑하는 맵 (새로 추가)
+const isoToEnglishCountryNameMap: { [key: string]: string } = {};
+Object.values(CONTINENTS_DATA).forEach(countries => {
+  countries.forEach(country => {
+    const isoCode = countryCodeMap[country.koreanName];
+    if (isoCode) {
+      isoToEnglishCountryNameMap[isoCode] = country.englishName;
+    }
+  });
 });
 
 // 4-1) 여행 기록 로드/저장 유틸 추가
@@ -488,7 +504,8 @@ export default function MapPage() {
             englishCountryName === 'Russia' ? 'RU' :
             englishCountryName === 'Turkey' ? 'TR' :
             englishCountryName === 'Egypt' ? 'EG' :
-            englishCountryName === 'South Africa' ? 'ZA' : null;
+            englishCountryName === 'South Africa' ? 'ZA' :
+            englishCountryName === 'Antarctica' ? 'AQ' : null;
           countryCode = countryCodeFromEnglish || 'XX'; // 기본값 XX
         }
 
@@ -627,14 +644,20 @@ export default function MapPage() {
           if (savedColors) {
             try {
               const parsedColors = JSON.parse(savedColors);
-              // 한국어 키를 영어 키로 변환
-              for (const koreanName in parsedColors) {
-                const englishName = countryKoreanToEnglishMap[koreanName];
+              // 키 변환: 한국어 → 영어, 국가 코드 → 영어
+              for (const key in parsedColors) {
+                // 1. 한국어 키인 경우 영어로 변환
+                const englishName = countryKoreanToEnglishMap[key];
                 if (englishName) {
-                  localColorMap[englishName] = parsedColors[koreanName];
-                } else if (koreanName) {
-                  // 이미 영어 키인 경우
-                  localColorMap[koreanName] = parsedColors[koreanName];
+                  localColorMap[englishName] = parsedColors[key];
+                } 
+                // 2. 국가 코드인 경우 영어로 변환
+                else if (isoToEnglishCountryNameMap[key]) {
+                  localColorMap[isoToEnglishCountryNameMap[key]] = parsedColors[key];
+                } 
+                // 3. 이미 영어 키인 경우 그대로 사용
+                else {
+                  localColorMap[key] = parsedColors[key];
                 }
               }
               console.log('Map Page: Country colors loaded from localStorage:', localColorMap);
@@ -651,8 +674,19 @@ export default function MapPage() {
           
           if (visitedData.ok && visitedData.colorMap) {
             console.log('Map Page: Visited countries loaded from API:', visitedData.visitedCountries);
+            // API colorMap의 키(국가 코드)를 영어 국가명으로 변환
+            const apiColorMapConverted: { [key: string]: string } = {};
+            Object.entries(visitedData.colorMap).forEach(([countryCode, color]) => {
+              const englishName = isoToEnglishCountryNameMap[countryCode];
+              if (englishName) {
+                apiColorMapConverted[englishName] = color as string;
+              } else {
+                // 매핑이 없으면 국가 코드 그대로 사용 (fallback)
+                apiColorMapConverted[countryCode] = color as string;
+              }
+            });
             // API 데이터, localStorage 데이터, 자동 추출된 색상 병합 (우선순위: localStorage > API > 자동)
-            const mergedColorMap = { ...autoColorMap, ...visitedData.colorMap, ...localColorMap };
+            const mergedColorMap = { ...autoColorMap, ...apiColorMapConverted, ...localColorMap };
             setCountryColorMap(mergedColorMap);
             localStorage.setItem('countryColors', JSON.stringify(mergedColorMap));
           } else {
@@ -784,7 +818,9 @@ export default function MapPage() {
                         englishCountryName === 'Singapore' ? 'SG' :
                         englishCountryName === 'Indonesia' ? 'ID' :
                         englishCountryName === 'Malaysia' ? 'MY' :
-                        englishCountryName;
+                        englishCountryName === 'Brazil' ? 'BR' :
+                        englishCountryName === 'Antarctica' ? 'AQ' :
+                        isoToEnglishCountryNameMap ? Object.keys(isoToEnglishCountryNameMap).find(code => isoToEnglishCountryNameMap[code] === englishCountryName) || englishCountryName : englishCountryName;
     
     setSelectedCountryCode(countryCode);
     
@@ -1152,6 +1188,30 @@ export default function MapPage() {
                             isVisited = true;
                             countryColor = countryColorMap[singaporeKey];
                             console.log(`Map Page: Singapore match found: ${englishCountryName} -> ${singaporeKey}`);
+                          }
+                        }
+                        
+                        // Brazil 매칭 시도 (대소문자 무시)
+                        if (!isVisited && englishCountryName.toLowerCase() === 'brazil') {
+                          const brazilKey = Object.keys(countryColorMap).find(key => 
+                            key.toLowerCase() === 'brazil'
+                          );
+                          if (brazilKey) {
+                            isVisited = true;
+                            countryColor = countryColorMap[brazilKey];
+                            console.log(`Map Page: Brazil match found: ${englishCountryName} -> ${brazilKey}`);
+                          }
+                        }
+                        
+                        // Antarctica 매칭 시도 (대소문자 무시)
+                        if (!isVisited && englishCountryName.toLowerCase() === 'antarctica') {
+                          const antarcticaKey = Object.keys(countryColorMap).find(key => 
+                            key.toLowerCase() === 'antarctica'
+                          );
+                          if (antarcticaKey) {
+                            isVisited = true;
+                            countryColor = countryColorMap[antarcticaKey];
+                            console.log(`Map Page: Antarctica match found: ${englishCountryName} -> ${antarcticaKey}`);
                           }
                         }
                         
