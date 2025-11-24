@@ -35,29 +35,8 @@ export async function GET(request: NextRequest) {
         { signal: controller.signal }
       );
 
-    if (!channelResponse.ok) {
-      const error = await channelResponse.json();
-      console.error('YouTube API Error (channels):', error);
-      return NextResponse.json(
-        { ok: false, error: 'Failed to fetch channel info' },
-        { status: channelResponse.status }
-      );
-    }
-
-    const channelData = await channelResponse.json();
-
-    if (!channelData.items || channelData.items.length === 0) {
-      return NextResponse.json(
-        { ok: false, error: 'Channel not found' },
-        { status: 404 }
-      );
-    }
-
-    const channel = channelData.items[0];
-    const uploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
-
       clearTimeout(timeoutId);
-      
+
       if (!channelResponse.ok) {
         const error = await channelResponse.json();
         console.error('YouTube API Error (channels):', error);
