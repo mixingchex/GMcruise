@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiLock, FiUnlock, FiKey, FiLogOut, FiArrowLeft, FiRefreshCw, FiTrash2, FiBarChart2, FiFileText } from 'react-icons/fi';
+import { FiLock, FiUnlock, FiKey, FiLogOut, FiArrowLeft, FiRefreshCw, FiTrash2, FiBarChart2, FiFileText, FiX, FiPlus, FiEdit } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
@@ -73,16 +73,90 @@ export default function CustomerDetailPage() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [journeyHistory, setJourneyHistory] = useState<any[]>([]);
   const [showJourney, setShowJourney] = useState(false);
+  const [showPassportModal, setShowPassportModal] = useState(false);
+  const [selectedReservationId, setSelectedReservationId] = useState<number | null>(null);
+  const [editingTravelerId, setEditingTravelerId] = useState<number | null>(null);
+  const [passportForm, setPassportForm] = useState({
+    korName: '',
+    engGivenName: '',
+    engSurname: '',
+    passportNo: '',
+    birthDate: '',
+    expiryDate: '',
+  });
+  
+  // 소속 편집 관련 state
+  const [isEditingAffiliation, setIsEditingAffiliation] = useState(false);
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('');
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('');
+  const [managers, setManagers] = useState<Array<{ id: number; displayName: string | null; nickname: string | null; affiliateCode: string | null; branchLabel: string | null }>>([]);
+  const [agents, setAgents] = useState<Array<{ id: number; displayName: string | null; nickname: string | null; affiliateCode: string | null; managerId: number | null }>>([]);
+  const [isLoadingAffiliation, setIsLoadingAffiliation] = useState(false);
+  const [affiliationHistory, setAffiliationHistory] = useState<Array<{
+    id: number;
+    note: string | null;
+    occurredAt: string;
+    createdBy: string | null;
+    metadata: any;
+  }>>([]);
+  const [showAffiliationHistory, setShowAffiliationHistory] = useState(false);
 
   // 사용자 정보 로드
   const loadUserData = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      // 캐시 방지를 위해 timestamp 추가
+      const response = await fetch(`/api/admin/users/${userId}?t=${Date.now()}`, {
         credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
       });
       const data = await response.json();
       if (data.ok) {
+        // 디버깅: 여권 정보 확인
+        const allTravelers: any[] = [];
+        if (data.user.trips) {
+          data.user.trips.forEach((trip: any) => {
+            if (trip.Reservation) {
+              trip.Reservation.forEach((res: any) => {
+                if (res.Traveler) {
+                  allTravelers.push(...res.Traveler);
+                }
+              });
+            }
+          });
+        }
+        if (data.user.reservations) {
+          data.user.reservations.forEach((res: any) => {
+            if (res.Traveler) {
+              res.Traveler.forEach((t: any) => {
+                if (!allTravelers.find(at => at.id === t.id)) {
+                  allTravelers.push(t);
+                }
+              });
+            }
+          });
+        }
+        
+        console.log('[Load User Data] User data loaded:', {
+          trips: data.user.trips?.length || 0,
+          reservations: data.user.reservations?.length || 0,
+          totalTravelers: allTravelers.length,
+          travelersWithPassport: allTravelers.filter(t => t.passportNo).length,
+          travelers: allTravelers.map(t => ({
+            id: t.id,
+            passportNo: t.passportNo,
+            korName: t.korName,
+          })),
+          rawTrips: data.user.trips?.map((t: any) => ({
+            id: t.id,
+            cruiseName: t.cruiseName,
+            reservations: t.Reservation?.length || 0,
+            travelers: t.Reservation?.reduce((sum: number, r: any) => sum + (r.Traveler?.length || 0), 0) || 0,
+          })),
+        });
         setUser(data.user);
       } else {
         alert('사용자 정보를 불러올 수 없습니다: ' + (data.error || 'Unknown error'));
@@ -165,7 +239,11 @@ export default function CustomerDetailPage() {
 
       console.log('[Delete User] Response status:', response.status);
       console.log('[Delete User] Response ok:', response.ok);
-      console.log('[Delete User] Response headers:', Object.fromEntries(Array.from(response.headers.entries())));
+      const headersObj: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        headersObj[key] = value;
+      });
+      console.log('[Delete User] Response headers:', headersObj);
       
       const responseText = await response.text();
       console.log('[Delete User] Response text (raw):', responseText);
@@ -255,17 +333,117 @@ export default function CustomerDetailPage() {
       label = '판매원';
     }
 
+    // 편집 모드
+    if (isEditingAffiliation) {
+      return (
+        <div className="mt-1 flex flex-col gap-3">
+          <div className="space-y-3">
+            {/* 대리점장 선택 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                담당 대리점장
+              </label>
+              <select
+                value={selectedManagerId}
+                onChange={(e) => {
+                  setSelectedManagerId(e.target.value);
+                  // 대리점장 변경 시 판매원 초기화 (선택사항)
+                  if (e.target.value && selectedAgentId) {
+                    const agent = agents.find(a => a.id === parseInt(selectedAgentId));
+                    if (agent?.managerId !== parseInt(e.target.value)) {
+                      setSelectedAgentId('');
+                    }
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">본사 직속 (대리점장 없음)</option>
+                {managers.map((manager) => (
+                  <option key={manager.id} value={manager.id}>
+                    {manager.nickname || manager.displayName || '이름 없음'}
+                    {manager.affiliateCode ? ` (${manager.affiliateCode})` : ''}
+                    {manager.branchLabel ? ` - ${manager.branchLabel}` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 판매원 선택 */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">
+                담당 판매원
+              </label>
+              <select
+                value={selectedAgentId}
+                onChange={(e) => handleAgentChange(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">판매원 없음 (대리점장 직속)</option>
+                {agents
+                  .filter(agent => {
+                    // 대리점장이 선택된 경우, 해당 대리점장 소속 판매원만 표시
+                    if (selectedManagerId) {
+                      return agent.managerId === parseInt(selectedManagerId);
+                    }
+                    // 대리점장이 선택되지 않은 경우 모든 판매원 표시
+                    return true;
+                  })
+                  .map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.nickname || agent.displayName || '이름 없음'}
+                      {agent.affiliateCode ? ` (${agent.affiliateCode})` : ''}
+                    </option>
+                  ))}
+              </select>
+              {selectedManagerId && agents.filter(a => a.managerId === parseInt(selectedManagerId)).length === 0 && (
+                <p className="text-xs text-gray-500 mt-1">선택한 대리점장 소속 판매원이 없습니다.</p>
+              )}
+            </div>
+          </div>
+
+          {/* 버튼 */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveAffiliation}
+              disabled={isLoadingAffiliation}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoadingAffiliation ? '저장 중...' : '저장'}
+            </button>
+            <button
+              onClick={handleCancelEditAffiliation}
+              disabled={isLoadingAffiliation}
+              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // 표시 모드
     return (
       <div className="mt-1 flex flex-col gap-2">
-        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${badgeClass}`}>
-          {label}
-          {data.ownerName && (
-            <span className="font-normal">
-              {data.ownerName}
-              {data.ownerAffiliateCode ? ` (${data.ownerAffiliateCode})` : ''}
-            </span>
-          )}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-semibold ${badgeClass}`}>
+            {label}
+            {data.ownerName && (
+              <span className="font-normal">
+                {data.ownerName}
+                {data.ownerAffiliateCode ? ` (${data.ownerAffiliateCode})` : ''}
+              </span>
+            )}
+          </span>
+          {/* 관리자는 항상 편집 가능 */}
+          <button
+            onClick={handleStartEditAffiliation}
+            className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+            title="소속 편집"
+          >
+            <FiEdit size={16} />
+          </button>
+        </div>
         {data.ownerBranchLabel && (
           <span className="text-sm text-gray-600">
             소속 지점: {data.ownerBranchLabel}
@@ -288,6 +466,228 @@ export default function CustomerDetailPage() {
     );
   };
 
+  // 소속 변경 이력 로드
+  const loadAffiliationHistory = async () => {
+    if (!user?.affiliateOwnership?.leadId) {
+      setAffiliationHistory([]);
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/api/admin/affiliate/leads/${user.affiliateOwnership.leadId}`);
+      const data = await response.json();
+      if (data.ok && data.lead?.interactions) {
+        // 소속 변경 관련 이력만 필터링 (managerId 또는 agentId 변경)
+        const affiliationChanges = data.lead.interactions
+          .filter((interaction: any) => {
+            if (interaction.interactionType !== 'UPDATED') return false;
+            // metadata에 managerChange 또는 agentChange가 있거나
+            // changes에 managerId 또는 agentId가 있는 경우
+            const metadata = interaction.metadata || {};
+            return metadata.managerChange || 
+                   metadata.agentChange || 
+                   (metadata.changes && (metadata.changes.managerId !== undefined || metadata.changes.agentId !== undefined));
+          })
+          .map((interaction: any) => ({
+            id: interaction.id,
+            note: interaction.note,
+            occurredAt: interaction.occurredAt || interaction.createdAt,
+            createdBy: interaction.createdBy?.name || interaction.createdBy?.email || '관리자',
+            metadata: interaction.metadata,
+          }));
+        setAffiliationHistory(affiliationChanges);
+      } else {
+        setAffiliationHistory([]);
+      }
+    } catch (error) {
+      console.error('Failed to load affiliation history:', error);
+      setAffiliationHistory([]);
+    }
+  };
+
+  // 대리점장/판매원 목록 로드
+  const loadAffiliateProfiles = async () => {
+    try {
+      // 대리점장 목록
+      const managersResponse = await fetch('/api/admin/affiliate/profiles?type=BRANCH_MANAGER&status=ACTIVE');
+      const managersData = await managersResponse.json();
+      if (managersData.ok && managersData.profiles) {
+        setManagers(managersData.profiles.map((p: any) => ({
+          id: p.id,
+          displayName: p.displayName,
+          nickname: p.nickname,
+          affiliateCode: p.affiliateCode,
+          branchLabel: p.branchLabel,
+        })));
+      }
+
+      // 판매원 목록 (모든 판매원을 가져온 후 필터링)
+      const agentsResponse = await fetch('/api/admin/affiliate/profiles?type=SALES_AGENT&status=ACTIVE');
+      const agentsData = await agentsResponse.json();
+      if (agentsData.ok && agentsData.profiles) {
+        // 판매원 목록을 가져온 후, 각 판매원의 대리점장 관계를 조회
+        // 성능을 위해 배치로 처리하거나, 일단 모든 판매원을 표시하고 필터링은 클라이언트에서 처리
+        const agentsList = agentsData.profiles.map((p: any) => ({
+          id: p.id,
+          displayName: p.displayName,
+          nickname: p.nickname,
+          affiliateCode: p.affiliateCode,
+          managerId: null, // 일단 null로 설정, 필요시 별도 조회
+        }));
+        
+        // 각 판매원의 대리점장 관계를 조회 (배치 처리)
+        const agentsWithManager = await Promise.all(
+          agentsList.map(async (agent: any) => {
+            try {
+              // 판매원의 대리점장 관계 조회
+              const relationResponse = await fetch(`/api/admin/affiliate/profiles/${agent.id}`);
+              const relationData = await relationResponse.json();
+              
+              if (relationData.ok && relationData.profile) {
+                const relations = relationData.profile.relations || [];
+                const activeRelation = relations.find((r: any) => r.status === 'ACTIVE');
+                if (activeRelation) {
+                  agent.managerId = activeRelation.managerId || activeRelation.manager?.id || null;
+                }
+              }
+            } catch (error) {
+              console.error(`Failed to load manager for agent ${agent.id}:`, error);
+            }
+            return agent;
+          })
+        );
+        
+        setAgents(agentsWithManager);
+      }
+    } catch (error) {
+      console.error('Failed to load affiliate profiles:', error);
+    }
+  };
+
+  // 소속 편집 시작
+  const handleStartEditAffiliation = () => {
+    if (!user) return;
+    
+    const ownership = user.affiliateOwnership;
+    
+    // 현재 소속 정보를 선택값에 설정
+    if (ownership) {
+      if (ownership.ownerType === 'BRANCH_MANAGER' && ownership.ownerProfileId) {
+        setSelectedManagerId(String(ownership.ownerProfileId));
+        setSelectedAgentId('');
+      } else if (ownership.ownerType === 'SALES_AGENT' && ownership.ownerProfileId) {
+        setSelectedAgentId(String(ownership.ownerProfileId));
+        if (ownership.managerProfile?.id) {
+          setSelectedManagerId(String(ownership.managerProfile.id));
+        }
+      } else {
+        setSelectedManagerId('');
+        setSelectedAgentId('');
+      }
+    } else {
+      // 리드가 없는 경우 기본값
+      setSelectedManagerId('');
+      setSelectedAgentId('');
+    }
+    
+    setIsEditingAffiliation(true);
+    loadAffiliateProfiles();
+  };
+
+  // 소속 편집 취소
+  const handleCancelEditAffiliation = () => {
+    setIsEditingAffiliation(false);
+    setSelectedManagerId('');
+    setSelectedAgentId('');
+  };
+
+  // 소속 저장
+  const handleSaveAffiliation = async () => {
+    if (!user) {
+      showError('고객 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    setIsLoadingAffiliation(true);
+    try {
+      let leadId = user.affiliateOwnership?.leadId;
+
+      // 리드가 없는 경우 새로 생성
+      if (!leadId) {
+        if (!user.phone) {
+          showError('고객의 전화번호가 없어 소속을 설정할 수 없습니다.');
+          setIsLoadingAffiliation(false);
+          return;
+        }
+
+        // 새 리드 생성
+        const createLeadResponse = await fetch('/api/admin/affiliate/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            customerName: user.name || '이름 없음',
+            customerPhone: user.phone.replace(/\D/g, ''), // 숫자만 추출
+            managerId: selectedManagerId ? parseInt(selectedManagerId) : null,
+            agentId: selectedAgentId ? parseInt(selectedAgentId) : null,
+            status: 'NEW',
+            source: 'admin-manual',
+          }),
+        });
+
+        const createLeadData = await createLeadResponse.json();
+        if (!createLeadData.ok) {
+          showError(createLeadData.message || '리드 생성에 실패했습니다.');
+          setIsLoadingAffiliation(false);
+          return;
+        }
+
+        leadId = createLeadData.lead.id;
+        showSuccess('리드가 생성되고 소속이 설정되었습니다.');
+      } else {
+        // 기존 리드 업데이트
+        const response = await fetch(`/api/admin/affiliate/leads/${leadId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            managerId: selectedManagerId ? parseInt(selectedManagerId) : null,
+            agentId: selectedAgentId ? parseInt(selectedAgentId) : null,
+          }),
+        });
+
+        const data = await response.json();
+        if (!data.ok) {
+          showError(data.message || '소속 변경에 실패했습니다.');
+          setIsLoadingAffiliation(false);
+          return;
+        }
+
+        showSuccess('소속이 변경되었습니다.');
+      }
+
+      setIsEditingAffiliation(false);
+      loadUserData(); // 사용자 정보 새로고침
+      loadAffiliationHistory(); // 변경 이력 새로고침
+    } catch (error) {
+      console.error('Failed to save affiliation:', error);
+      showError('소속 변경 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingAffiliation(false);
+    }
+  };
+
+  // 판매원 선택 시 해당 판매원의 대리점장 자동 설정
+  const handleAgentChange = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    if (agentId) {
+      const agent = agents.find(a => a.id === parseInt(agentId));
+      if (agent?.managerId) {
+        setSelectedManagerId(String(agent.managerId));
+      }
+    }
+  };
+
   useEffect(() => {
     if (userId) {
       loadUserData();
@@ -295,6 +695,12 @@ export default function CustomerDetailPage() {
       loadJourneyHistory();
     }
   }, [userId]);
+
+  useEffect(() => {
+    if (user?.affiliateOwnership?.leadId) {
+      loadAffiliationHistory();
+    }
+  }, [user?.affiliateOwnership?.leadId]);
 
   // 비밀번호 초기화
   const handleResetPassword = async () => {
@@ -477,6 +883,76 @@ export default function CustomerDetailPage() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // 여권정보 등록 (조건 없이 등록 가능 - 여권번호만 필수)
+  const handleRegisterPassport = async () => {
+    if (!passportForm.passportNo || passportForm.passportNo.trim() === '') {
+      alert('여권번호를 입력해주세요.');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const url = editingTravelerId
+        ? `/api/admin/customers/${userId}/passport`
+        : `/api/admin/customers/${userId}/passport`;
+      const method = editingTravelerId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          ...(editingTravelerId ? { travelerId: editingTravelerId } : {}),
+          ...passportForm,
+          reservationId: selectedReservationId,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        // 모달 닫기
+        setShowPassportModal(false);
+        setPassportForm({
+          korName: '',
+          engGivenName: '',
+          engSurname: '',
+          passportNo: '',
+          birthDate: '',
+          expiryDate: '',
+        });
+        setSelectedReservationId(null);
+        setEditingTravelerId(null);
+        
+        // 성공 메시지
+        alert(data.message || (editingTravelerId ? '여권 정보가 수정되었습니다.' : '여권 정보가 등록되었습니다.'));
+        
+        // 사용자 정보 강제 새로고침
+        await loadUserData();
+      } else {
+        alert((editingTravelerId ? '여권 수정' : '여권 등록') + ' 실패: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to register/update passport:', error);
+      alert((editingTravelerId ? '여권 수정' : '여권 등록') + ' 중 오류가 발생했습니다.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // 여권 정보 수정 모달 열기
+  const handleEditPassport = (traveler: any) => {
+    setEditingTravelerId(traveler.id);
+    setPassportForm({
+      korName: traveler.korName || '',
+      engGivenName: traveler.engGivenName || '',
+      engSurname: traveler.engSurname || '',
+      passportNo: traveler.passportNo || '',
+      birthDate: traveler.birthDate ? (typeof traveler.birthDate === 'string' ? traveler.birthDate : new Date(traveler.birthDate).toISOString().split('T')[0]) : '',
+      expiryDate: traveler.expiryDate ? (typeof traveler.expiryDate === 'string' ? traveler.expiryDate : new Date(traveler.expiryDate).toISOString().split('T')[0]) : '',
+    });
+    setShowPassportModal(true);
   };
 
   // 세션 강제 종료
@@ -730,8 +1206,60 @@ export default function CustomerDetailPage() {
                   <p className="text-lg text-gray-900">{user.phone || '-'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-gray-600">소속</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-semibold text-gray-600">소속</label>
+                    {user.affiliateOwnership?.leadId && affiliationHistory.length > 0 && (
+                      <button
+                        onClick={() => setShowAffiliationHistory(!showAffiliationHistory)}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        {showAffiliationHistory ? '이력 숨기기' : '변경 이력 보기'}
+                      </button>
+                    )}
+                  </div>
                   {renderAffiliateOwnershipSection(user.affiliateOwnership)}
+                  
+                  {/* 소속 변경 이력 */}
+                  {showAffiliationHistory && affiliationHistory.length > 0 && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">소속 변경 이력</h4>
+                      <div className="space-y-3">
+                        {affiliationHistory.map((history) => (
+                          <div key={history.id} className="text-xs border-l-2 border-blue-400 pl-3 py-2 bg-white rounded">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="font-medium text-gray-800 mb-1">{history.note}</div>
+                                {history.metadata?.managerChange && (
+                                  <div className="text-gray-600 mt-1">
+                                    <span className="font-semibold">대리점장:</span>{' '}
+                                    {history.metadata.managerChange.from.name} → {history.metadata.managerChange.to.name}
+                                  </div>
+                                )}
+                                {history.metadata?.agentChange && (
+                                  <div className="text-gray-600 mt-1">
+                                    <span className="font-semibold">판매원:</span>{' '}
+                                    {history.metadata.agentChange.from.name} → {history.metadata.agentChange.to.name}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-gray-500 whitespace-nowrap">
+                                {new Date(history.occurredAt).toLocaleString('ko-KR', {
+                                  year: 'numeric',
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                            </div>
+                            <div className="text-gray-400 mt-1">
+                              변경자: {history.createdBy}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="text-sm font-semibold text-gray-600">이메일</label>
@@ -761,6 +1289,292 @@ export default function CustomerDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* 여권 정보 카드 */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">여권 정보</h2>
+                <button
+                  onClick={() => {
+                    // 첫 번째 Reservation 찾기
+                    let firstReservation: any = null;
+                    if (user.trips && user.trips.length > 0) {
+                      for (const trip of user.trips) {
+                        if (trip.Reservation && trip.Reservation.length > 0) {
+                          firstReservation = trip.Reservation[0];
+                          break;
+                        }
+                      }
+                    }
+                    if (!firstReservation && user.reservations && user.reservations.length > 0) {
+                      firstReservation = user.reservations[0];
+                    }
+                    
+                    setSelectedReservationId(firstReservation?.id || null);
+                    setEditingTravelerId(null);
+                    setPassportForm({
+                      korName: '',
+                      engGivenName: '',
+                      engSurname: '',
+                      passportNo: '',
+                      birthDate: '',
+                      expiryDate: '',
+                    });
+                    setShowPassportModal(true);
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700 flex items-center gap-1"
+                >
+                  <FiPlus size={14} />
+                  여권 등록
+                </button>
+              </div>
+              {/* 모든 Reservation의 여권 정보 표시 */}
+              {(() => {
+                // 모든 trips의 모든 Reservation에서 Traveler 수집
+                const allTravelers: any[] = [];
+                const reservationMap = new Map<number, any>();
+
+                // 모든 trips의 모든 Reservation에서 Traveler 수집
+                if (user.trips && Array.isArray(user.trips) && user.trips.length > 0) {
+                  user.trips.forEach((trip: any) => {
+                    if (trip.Reservation && Array.isArray(trip.Reservation)) {
+                      trip.Reservation.forEach((reservation: any) => {
+                        if (reservation.Traveler && Array.isArray(reservation.Traveler)) {
+                          reservation.Traveler.forEach((traveler: any) => {
+                            allTravelers.push({
+                              ...traveler,
+                              reservationId: reservation.id,
+                              tripId: trip.id,
+                              cruiseName: trip.cruiseName,
+                            });
+                            if (!reservationMap.has(reservation.id)) {
+                              reservationMap.set(reservation.id, reservation);
+                            }
+                          });
+                        }
+                      });
+                    }
+                  });
+                }
+
+                // user.reservations도 확인 (API에서 제공하는 경우)
+                if (user.reservations && Array.isArray(user.reservations)) {
+                  user.reservations.forEach((reservation: any) => {
+                    if (reservation.Traveler && Array.isArray(reservation.Traveler)) {
+                      reservation.Traveler.forEach((traveler: any) => {
+                        // 중복 체크 (id로)
+                        if (!allTravelers.find(t => t.id === traveler.id)) {
+                          allTravelers.push({
+                            ...traveler,
+                            reservationId: reservation.id,
+                            tripId: null,
+                            cruiseName: null,
+                          });
+                          if (!reservationMap.has(reservation.id)) {
+                            reservationMap.set(reservation.id, reservation);
+                          }
+                        }
+                      });
+                    }
+                  });
+                }
+
+                // 디버깅 로그
+                console.log('[Passport Info] Final result:', {
+                  totalTravelers: allTravelers.length,
+                  travelersWithPassport: allTravelers.filter(t => t.passportNo).length,
+                  travelers: allTravelers.map(t => ({
+                    id: t.id,
+                    passportNo: t.passportNo,
+                    korName: t.korName,
+                    engSurname: t.engSurname,
+                  })),
+                });
+
+                if (allTravelers.length === 0) {
+                  // 여권 정보가 없으면 등록 버튼 표시
+                  const firstReservation = Array.from(reservationMap.values())[0];
+                  return (
+                    <div className="text-center py-4 text-gray-500">
+                      <p className="mb-2">등록된 여권 정보가 없습니다.</p>
+                      {firstReservation ? (
+                        <button
+                          onClick={() => {
+                            setSelectedReservationId(firstReservation.id);
+                            setEditingTravelerId(null);
+                            setPassportForm({
+                              korName: '',
+                              engGivenName: '',
+                              engSurname: '',
+                              passportNo: '',
+                              birthDate: '',
+                              expiryDate: '',
+                            });
+                            setShowPassportModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700"
+                        >
+                          여권 등록하기
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedReservationId(null);
+                            setEditingTravelerId(null);
+                            setPassportForm({
+                              korName: '',
+                              engGivenName: '',
+                              engSurname: '',
+                              passportNo: '',
+                              birthDate: '',
+                              expiryDate: '',
+                            });
+                            setShowPassportModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700"
+                        >
+                          여권 등록하기
+                        </button>
+                      )}
+                    </div>
+                  );
+                }
+
+                // 여권 정보가 있으면 표시
+                return (
+                  <div className="space-y-3">
+                    {allTravelers.map((traveler: any, idx: number) => (
+                      <div key={traveler.id || idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-semibold text-gray-900">
+                                {traveler.korName || `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() || `동행인 ${idx + 1}`}
+                              </span>
+                              {traveler.passportNo ? (
+                                <span className="text-green-600 text-xs font-medium px-2 py-0.5 bg-green-100 rounded">✅ 여권 입력됨</span>
+                              ) : (
+                                <span className="text-yellow-600 text-xs font-medium px-2 py-0.5 bg-yellow-100 rounded">⚠️ 여권 미입력</span>
+                              )}
+                            </div>
+                            {traveler.cruiseName && (
+                              <div className="text-xs text-gray-500 mb-1">여행: {traveler.cruiseName}</div>
+                            )}
+                            {traveler.passportNo ? (
+                              <div className="text-sm text-gray-700 space-y-1">
+                                <div><span className="font-medium">여권번호:</span> {traveler.passportNo}</div>
+                                {traveler.korName && <div><span className="font-medium">한국 이름:</span> {traveler.korName}</div>}
+                                {(traveler.engGivenName || traveler.engSurname) && (
+                                  <div><span className="font-medium">영문 이름:</span> {traveler.engGivenName || ''} {traveler.engSurname || ''}</div>
+                                )}
+                                {traveler.birthDate && (
+                                  <div><span className="font-medium">생년월일:</span> {typeof traveler.birthDate === 'string' ? traveler.birthDate : new Date(traveler.birthDate).toLocaleDateString('ko-KR')}</div>
+                                )}
+                                {traveler.expiryDate && (
+                                  <div><span className="font-medium">만료일:</span> {typeof traveler.expiryDate === 'string' ? traveler.expiryDate : new Date(traveler.expiryDate).toLocaleDateString('ko-KR')}</div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-gray-400">여권 정보가 등록되지 않았습니다.</div>
+                            )}
+                          </div>
+                          {traveler.passportNo && (
+                            <button
+                              onClick={() => {
+                                if (traveler.reservationId) {
+                                  setSelectedReservationId(traveler.reservationId);
+                                }
+                                handleEditPassport(traveler);
+                              }}
+                              className="px-3 py-1.5 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700 whitespace-nowrap"
+                            >
+                              수정
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* 여권 제출 정보 카드 */}
+            {user.passportSubmissions && user.passportSubmissions.length > 0 && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">🛂 여권 제출 정보</h2>
+                <div className="space-y-4">
+                  {user.passportSubmissions.map((submission: any) => (
+                    <div key={submission.id} className="border border-gray-200 rounded-lg p-4 bg-green-50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {submission.trip?.cruiseName || '여행 정보 없음'}
+                          </h3>
+                          {submission.submittedAt && (
+                            <p className="text-sm text-gray-600">
+                              제출일: {new Date(submission.submittedAt).toLocaleString('ko-KR')}
+                            </p>
+                          )}
+                          {submission.tokenExpiresAt && (
+                            <p className="text-sm text-gray-600">
+                              링크 만료일: {new Date(submission.tokenExpiresAt).toLocaleString('ko-KR')}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {submission.isSubmitted ? (
+                            <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded">
+                              ✅ 제출 완료
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 bg-yellow-100 text-yellow-800 text-sm font-semibold rounded">
+                              ⏳ 대기 중
+                            </span>
+                          )}
+                          {submission.driveFolderUrl && (
+                            <a
+                              href={submission.driveFolderUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1 bg-blue-600 text-white text-sm font-semibold rounded hover:bg-blue-700 flex items-center gap-1"
+                            >
+                              <FiFileText size={14} />
+                              구글 드라이브
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      {submission.guests && submission.guests.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <h4 className="text-sm font-semibold text-gray-700">제출된 여권 정보:</h4>
+                          {submission.guests.map((guest: any, idx: number) => (
+                            <div key={guest.id || idx} className="bg-white rounded p-2 border border-green-200">
+                              <div className="text-sm">
+                                <div className="font-medium text-gray-900">
+                                  그룹 {guest.groupNumber} - {guest.name}
+                                </div>
+                                <div className="text-gray-600 space-y-0.5 mt-1">
+                                  {guest.phone && <div>연락처: {guest.phone}</div>}
+                                  {guest.passportNumber && <div>여권번호: {guest.passportNumber}</div>}
+                                  {guest.nationality && <div>국적: {guest.nationality}</div>}
+                                  {guest.dateOfBirth && (
+                                    <div>생년월일: {new Date(guest.dateOfBirth).toLocaleDateString('ko-KR')}</div>
+                                  )}
+                                  {guest.passportExpiryDate && (
+                                    <div>만료일: {new Date(guest.passportExpiryDate).toLocaleDateString('ko-KR')}</div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* 비밀번호 이력 카드 */}
             <div className="bg-white rounded-lg shadow-sm p-6">
@@ -872,27 +1686,81 @@ export default function CustomerDetailPage() {
                                   {/* 동행인 정보 */}
                                   {travelers.length > 0 && (
                                     <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
-                                      <p className="font-semibold text-gray-800 mb-1">동행인 정보 ({travelers.length}명)</p>
-                                      <div className="space-y-1">
+                                      <div className="flex items-center justify-between mb-1">
+                                        <p className="font-semibold text-gray-800">동행인 정보 ({travelers.length}명)</p>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedReservationId(reservation.id);
+                                            setShowPassportModal(true);
+                                          }}
+                                          className="px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700"
+                                        >
+                                          + 여권 등록
+                                        </button>
+                                      </div>
+                                      <div className="space-y-2">
                                         {travelers.map((traveler: any, idx: number) => (
-                                          <div key={traveler.id || idx} className="text-gray-700 border-b border-gray-200 pb-1 last:border-0">
-                                            <div className="flex items-center gap-2">
-                                              <span className="font-medium">
-                                                {traveler.firstName} {traveler.lastName}
-                                              </span>
-                                              {traveler.passportNo ? (
-                                                <span className="text-green-600 text-xs">✅ 여권 입력됨</span>
-                                              ) : (
-                                                <span className="text-yellow-600 text-xs">⚠️ 여권 미입력</span>
+                                          <div key={traveler.id || idx} className="text-gray-700 border border-gray-300 rounded p-2 bg-white">
+                                            <div className="flex items-start justify-between gap-2">
+                                              <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                  <span className="font-semibold text-gray-900">
+                                                    {traveler.korName || `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() || `동행인 ${idx + 1}`}
+                                                  </span>
+                                                  {traveler.passportNo ? (
+                                                    <span className="text-green-600 text-xs font-medium">✅ 여권 입력됨</span>
+                                                  ) : (
+                                                    <span className="text-yellow-600 text-xs font-medium">⚠️ 여권 미입력</span>
+                                                  )}
+                                                </div>
+                                                {traveler.passportNo ? (
+                                                  <div className="text-xs text-gray-600 space-y-0.5">
+                                                    <div><span className="font-medium">여권번호:</span> {traveler.passportNo}</div>
+                                                    {traveler.korName && <div><span className="font-medium">한국 이름:</span> {traveler.korName}</div>}
+                                                    {(traveler.engGivenName || traveler.engSurname) && (
+                                                      <div><span className="font-medium">영문 이름:</span> {traveler.engGivenName || ''} {traveler.engSurname || ''}</div>
+                                                    )}
+                                                    {traveler.birthDate && (
+                                                      <div><span className="font-medium">생년월일:</span> {typeof traveler.birthDate === 'string' ? traveler.birthDate : new Date(traveler.birthDate).toLocaleDateString('ko-KR')}</div>
+                                                    )}
+                                                    {traveler.expiryDate && (
+                                                      <div><span className="font-medium">만료일:</span> {typeof traveler.expiryDate === 'string' ? traveler.expiryDate : new Date(traveler.expiryDate).toLocaleDateString('ko-KR')}</div>
+                                                    )}
+                                                  </div>
+                                                ) : (
+                                                  <div className="text-xs text-gray-400">여권 정보가 등록되지 않았습니다.</div>
+                                                )}
+                                              </div>
+                                              {traveler.passportNo && (
+                                                <button
+                                                  onClick={() => {
+                                                    setSelectedReservationId(reservation.id);
+                                                    handleEditPassport(traveler);
+                                                  }}
+                                                  className="px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700 whitespace-nowrap"
+                                                >
+                                                  수정
+                                                </button>
                                               )}
                                             </div>
-                                            {traveler.passportNo && (
-                                              <div className="text-xs text-gray-500 mt-0.5">
-                                                여권번호: {traveler.passportNo} | 생년월일: {traveler.birthDate || '-'} | 만료일: {traveler.expiryDate || '-'}
-                                              </div>
-                                            )}
                                           </div>
                                         ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {travelers.length === 0 && (
+                                    <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
+                                      <div className="flex items-center justify-between">
+                                        <p className="text-gray-600">동행인 정보가 없습니다.</p>
+                                        <button
+                                          onClick={() => {
+                                            setSelectedReservationId(reservation.id);
+                                            setShowPassportModal(true);
+                                          }}
+                                          className="px-2 py-1 bg-blue-600 text-white text-xs font-semibold rounded hover:bg-blue-700"
+                                        >
+                                          + 여권 등록
+                                        </button>
                                       </div>
                                     </div>
                                   )}
@@ -1097,6 +1965,147 @@ export default function CustomerDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* 여권정보 등록 모달 */}
+      {showPassportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {editingTravelerId ? '여권정보 수정' : '여권정보 등록'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowPassportModal(false);
+                    setPassportForm({
+                      korName: '',
+                      engGivenName: '',
+                      engSurname: '',
+                      passportNo: '',
+                      birthDate: '',
+                      expiryDate: '',
+                    });
+                    setSelectedReservationId(null);
+                    setEditingTravelerId(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    한국 이름
+                  </label>
+                  <input
+                    type="text"
+                    value={passportForm.korName}
+                    onChange={(e) => setPassportForm({ ...passportForm, korName: e.target.value })}
+                    placeholder="홍길동 (선택사항)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      영문 이름 (Given Name)
+                    </label>
+                    <input
+                      type="text"
+                      value={passportForm.engGivenName}
+                      onChange={(e) => setPassportForm({ ...passportForm, engGivenName: e.target.value })}
+                      placeholder="Gildong (선택사항)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      영문 성 (Surname)
+                    </label>
+                    <input
+                      type="text"
+                      value={passportForm.engSurname}
+                      onChange={(e) => setPassportForm({ ...passportForm, engSurname: e.target.value })}
+                      placeholder="Hong (선택사항)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    여권번호 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={passportForm.passportNo}
+                    onChange={(e) => setPassportForm({ ...passportForm, passportNo: e.target.value })}
+                    placeholder="M12345678"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      생년월일
+                    </label>
+                    <input
+                      type="date"
+                      value={passportForm.birthDate}
+                      onChange={(e) => setPassportForm({ ...passportForm, birthDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      만료일
+                    </label>
+                    <input
+                      type="date"
+                      value={passportForm.expiryDate}
+                      onChange={(e) => setPassportForm({ ...passportForm, expiryDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    onClick={handleRegisterPassport}
+                    disabled={isProcessing}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isProcessing ? (editingTravelerId ? '수정 중...' : '등록 중...') : (editingTravelerId ? '수정하기' : '등록하기')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPassportModal(false);
+                      setPassportForm({
+                        korName: '',
+                        engGivenName: '',
+                        engSurname: '',
+                        passportNo: '',
+                        birthDate: '',
+                        expiryDate: '',
+                      });
+                      setSelectedReservationId(null);
+                      setEditingTravelerId(null);
+                    }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

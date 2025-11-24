@@ -28,3 +28,12 @@ while true; do
   sleep 300  # 5분 = 300초
 done
 
+
+
+
+
+
+
+
+
+

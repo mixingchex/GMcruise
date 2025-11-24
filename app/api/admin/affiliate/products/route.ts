@@ -181,6 +181,15 @@ export async function GET() {
   }
 }
 
+/**
+ * POST /api/admin/affiliate/products
+ * 어필리에이트 상품(수당 카테고리) 생성
+ * 
+ * 주의사항:
+ * - 상품 생성 시 기본 어필리에이트 링크가 자동으로 생성됩니다.
+ * - 랜딩페이지는 별도로 생성해야 하며, 링크 수정 시 landingPageId로 연결할 수 있습니다.
+ * - 자동 생성된 링크는 공통 링크(managerId/agentId 없음)이며, 필요시 수정하여 특정 파트너에 할당할 수 있습니다.
+ */
 export async function POST(request: Request) {
   try {
     // 관리자 권한 확인
@@ -194,6 +203,7 @@ export async function POST(request: Request) {
     const data = (await request.json()) as CreateAffiliateProductBody;
     validateBody(data);
 
+    const now = new Date();
     const tiers = (data.tiers ?? []).map((tier) => ({
       cabinType: tier.cabinType,
       saleAmount: toSafeInt(tier.saleAmount),
@@ -207,15 +217,26 @@ export async function POST(request: Request) {
       pricingRowId: tier.pricingRowId ?? undefined,
       fareCategory: tier.fareCategory ?? undefined,
       fareLabel: tier.fareLabel ?? undefined,
+      updatedAt: now,
     }));
 
     const isPublished = data.isPublished ?? true;
+
+    // 세션에서 userId 가져오기 (링크 생성 시 issuedById로 사용)
+    const session = await prisma.session.findUnique({
+      where: { id: sid },
+      select: { userId: true },
+    });
 
     const product = await prisma.affiliateProduct.create({
       data: {
         productCode: data.productCode.trim(),
         title: data.title.trim(),
-        cruiseProductId: data.cruiseProductId ?? undefined,
+        CruiseProduct: data.cruiseProductId
+          ? {
+              connect: { id: data.cruiseProductId },
+            }
+          : undefined,
         status: data.status ?? 'active',
         currency: data.currency ?? 'KRW',
         defaultSaleAmount: toSafeInt(data.defaultSaleAmount),
@@ -225,8 +246,9 @@ export async function POST(request: Request) {
         effectiveTo: data.effectiveTo ? new Date(data.effectiveTo) : undefined,
         metadata: data.metadata ?? undefined,
         isPublished,
-        publishedAt: isPublished ? new Date() : null,
-        commissionTiers: tiers.length
+        publishedAt: isPublished ? now : null,
+        updatedAt: now,
+        AffiliateCommissionTier: tiers.length
           ? {
               create: tiers,
             }
@@ -234,6 +256,62 @@ export async function POST(request: Request) {
       },
       include: productInclude,
     });
+
+    // 어필리에이트 상품 생성 시 기본 어필리에이트 링크 자동 생성
+    // 주의: 랜딩페이지는 별도로 생성해야 하며, 여기서는 productCode만 연결
+    if (session?.userId) {
+      try {
+        // 고유한 링크 코드 생성
+        const generateLinkCode = async (): Promise<string> => {
+          const timestamp = Date.now().toString(36);
+          const random = Math.random().toString(36).substring(2, 8);
+          let code = `LINK-${timestamp}-${random}`.toUpperCase();
+          
+          // 중복 확인
+          let exists = await prisma.affiliateLink.findUnique({
+            where: { code },
+          });
+          
+          let attempts = 0;
+          while (exists && attempts < 10) {
+            const random2 = Math.random().toString(36).substring(2, 8);
+            code = `LINK-${timestamp}-${random2}`.toUpperCase();
+            exists = await prisma.affiliateLink.findUnique({
+              where: { code },
+            });
+            attempts++;
+          }
+          
+          if (exists) {
+            throw new Error('링크 코드 생성에 실패했습니다.');
+          }
+          
+          return code;
+        };
+
+        const linkCode = await generateLinkCode();
+        const now = new Date();
+
+        // 기본 어필리에이트 링크 생성 (공통 링크, managerId/agentId 없음)
+        await prisma.affiliateLink.create({
+          data: {
+            code: linkCode,
+            title: `${product.title} - 기본 링크`,
+            productCode: product.productCode,
+            affiliateProductId: product.id,
+            issuedById: session.userId,
+            status: 'ACTIVE',
+            updatedAt: now,
+            // landingPageId는 나중에 어필리에이트 링크 수정 시 추가 가능
+          },
+        });
+
+        console.log(`[Admin Affiliate Products] 기본 링크 자동 생성: ${linkCode} (productCode: ${product.productCode})`);
+      } catch (linkError: any) {
+        // 링크 생성 실패해도 상품 생성은 성공으로 처리
+        console.error('[Admin Affiliate Products] 기본 링크 생성 실패 (상품은 생성됨):', linkError);
+      }
+    }
 
     const pricingMatrix = await prisma.mallProductContent.findUnique({
       where: { productCode: product.productCode },

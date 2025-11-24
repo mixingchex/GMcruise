@@ -34,6 +34,8 @@ export default function MyInfoPage() {
   // 편집 모드
   const [isEditing, setIsEditing] = useState(false);
   const [editNickname, setEditNickname] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
   
   // 비밀번호 변경
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -68,6 +70,8 @@ export default function MyInfoPage() {
 
       setUser(data.user);
       setEditNickname(data.user.mallNickname || data.user.name || '');
+      setEditName(data.user.name || '');
+      setEditPhone(data.user.phone || '');
     } catch (err) {
       setError('정보를 불러오는 중 오류가 발생했습니다.');
     } finally {
@@ -76,8 +80,8 @@ export default function MyInfoPage() {
   };
 
   const handleSave = async () => {
-    if (!editNickname.trim()) {
-      alert('닉네임을 입력해주세요.');
+    if (!editName.trim() || !editPhone.trim()) {
+      alert('이름과 연락처를 모두 입력해주세요.');
       return;
     }
 
@@ -90,6 +94,8 @@ export default function MyInfoPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
+          name: editName.trim(),
+          phone: editPhone.trim(),
           mallNickname: editNickname.trim(),
         }),
       });
@@ -236,6 +242,8 @@ export default function MyInfoPage() {
                     onClick={() => {
                       setIsEditing(false);
                       setEditNickname(user?.mallNickname || user?.name || '');
+                      setEditName(user?.name || '');
+                      setEditPhone(user?.phone || '');
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
                   >
@@ -257,7 +265,27 @@ export default function MyInfoPage() {
             {isEditing ? (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">닉네임 <span className="text-red-500">*</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">이름 <span className="text-red-500">*</span></label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="이름을 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">연락처 <span className="text-red-500">*</span></label>
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="연락처를 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">닉네임</label>
                   <input
                     type="text"
                     value={editNickname}
@@ -270,12 +298,16 @@ export default function MyInfoPage() {
             ) : (
               <div className="space-y-4">
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">닉네임:</span>
-                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.mallNickname || user?.name || '정보 없음'}</span>
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이름:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.name || '정보 없음'}</span>
                 </div>
                 <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">아이디:</span>
-                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user?.phone || user?.mallUserId || '정보 없음'}</span>
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user?.phone || '정보 없음'}</span>
+                </div>
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">닉네임:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg">{user?.mallNickname || user?.name || '정보 없음'}</span>
                 </div>
                 {user?.email && (
                   <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">

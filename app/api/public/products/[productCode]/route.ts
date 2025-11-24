@@ -26,6 +26,47 @@ export async function GET(
 
     console.log('[Public Product Detail API] 조회 시작:', productCode);
 
+    // 어필리에이트 상품 유효성 확인
+    // 구매몰에 표시되려면:
+    // 1. AffiliateProduct가 존재해야 함
+    // 2. status: 'active', isPublished: true
+    // 3. effectiveFrom <= now
+    // 4. effectiveTo IS NULL OR effectiveTo >= now (종료일이 지난 상품은 제외)
+    // 5. 삭제된 상품은 자동으로 제외됨
+    const now = new Date();
+    const affiliateProduct = await prisma.affiliateProduct.findFirst({
+      where: {
+        AND: [
+          { productCode },
+          { status: 'active' },
+          { isPublished: true },
+          { effectiveFrom: { lte: now } },
+          {
+            OR: [
+              { effectiveTo: null },
+              { effectiveTo: { gte: now } },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        productCode: true,
+        status: true,
+        isPublished: true,
+        effectiveFrom: true,
+        effectiveTo: true,
+      },
+    });
+
+    if (!affiliateProduct) {
+      console.warn('[Public Product Detail API] 유효한 어필리에이트 상품이 없음:', productCode);
+      return NextResponse.json(
+        { ok: false, error: '상품을 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
     // 상품 조회
     const product = await prisma.cruiseProduct.findUnique({
       where: { productCode },
@@ -45,9 +86,6 @@ export async function GET(
         endDate: true,
         createdAt: true,
         updatedAt: true,
-        Trip: {
-          select: { id: true },
-        },
         MallProductContent: {
           select: {
             thumbnail: true,
@@ -70,19 +108,11 @@ export async function GET(
     console.log('[Public Product Detail API] 상품 조회 성공:', {
       productCode: product.productCode,
       hasItineraryPattern: !!product.itineraryPattern,
-      tripCount: product.Trip.length,
     });
-
-    // Trip 수를 별도 필드로 추가
-    const productWithPopularity = {
-      ...product,
-      tripCount: product.Trip?.length || 0,
-      Trip: undefined, // 응답에서 제거
-    };
 
     return NextResponse.json({
       ok: true,
-      product: productWithPopularity,
+      product,
     });
   } catch (error) {
     console.error('[Public Product Detail API] GET error:', error);

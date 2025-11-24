@@ -127,6 +127,7 @@ export async function getCustomerJourneyHistory(userId: number) {
 
 /**
  * 그룹별 고객 수 조회
+ * 성능 최적화: N+1 쿼리 문제 해결 - 이미 가져온 데이터로 직접 계산
  */
 export async function getCustomerCountByGroup(): Promise<Record<string, number>> {
   const users = await prisma.user.findMany({
@@ -157,8 +158,34 @@ export async function getCustomerCountByGroup(): Promise<Record<string, number>>
     'agent-customers': 0,
   };
 
+  // 성능 최적화: getCurrentCustomerGroup를 호출하지 않고 이미 가져온 데이터로 직접 계산
+  // 이렇게 하면 N+1 쿼리 문제를 해결할 수 있습니다
   for (const user of users) {
-    const group = await getCurrentCustomerGroup(user.id);
+    let group: CustomerGroup | 'landing-page' | null = null;
+    
+    // getCurrentCustomerGroup 로직을 인라인으로 구현 (이미 데이터가 있으므로 추가 쿼리 불필요)
+    // 1. 환불고객 (최우선)
+    if (user.customerStatus === 'refunded') {
+      group = 'refund';
+    }
+    // 2. 구매고객
+    else if (user.customerStatus === 'purchase_confirmed' || (user.Reservation && user.Reservation.length > 0)) {
+      group = 'purchase';
+    }
+    // 3. 3일 체험 고객
+    else if (user.customerSource === 'test-guide' || user.testModeStartedAt) {
+      group = 'trial';
+    }
+    // 4. 크루즈몰 고객 (정확한 조건: role이 'community'이고 customerSource가 'mall-signup')
+    else if (user.role === 'community' && user.customerSource === 'mall-signup') {
+      group = 'mall';
+    }
+    // 5. 랜딩페이지 고객
+    else if (user.customerSource === 'landing-page') {
+      group = 'landing-page';
+    }
+    
+    // 그룹 카운트 증가
     if (group) {
       // landing-page는 prospects로 매핑
       if (group === 'landing-page') {
@@ -166,6 +193,9 @@ export async function getCustomerCountByGroup(): Promise<Record<string, number>>
       } else if (counts.hasOwnProperty(group)) {
         counts[group] = (counts[group] || 0) + 1;
       }
+    } else {
+      // 그룹이 없으면 prospects로 분류
+      counts['prospects'] = (counts['prospects'] || 0) + 1;
     }
   }
 

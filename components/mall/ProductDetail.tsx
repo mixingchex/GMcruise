@@ -4,7 +4,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3 } from 'react-icons/fi';
+import { createPortal } from 'react-dom';
+import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3, FiMaximize2 } from 'react-icons/fi';
 import { getKoreanCruiseLineName, getKoreanShipName, formatTravelPeriod } from '@/lib/utils/cruiseNames';
 import { PRODUCT_TAGS } from '@/components/admin/ProductTagsSelector';
 import DOMPurify from 'isomorphic-dompurify';
@@ -45,6 +46,12 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
   const [isAdminUser, setIsAdminUser] = useState(false); // user1~user10 관리자 확인
   const [isSuperAdmin, setIsSuperAdmin] = useState(false); // 01024958013 관리자 확인
   const [canEditProductText, setCanEditProductText] = useState(false); // 상품 텍스트 수정 권한
+  const [showPricingModal, setShowPricingModal] = useState(false); // 요금표 모달
+  const [showImageModal, setShowImageModal] = useState(false); // 이미지 모달
+  const [showVideoModal, setShowVideoModal] = useState(false); // 동영상 모달
+  const [showReviewModal, setShowReviewModal] = useState(false); // 리뷰 미리보기 모달
+  const [modalImageUrl, setModalImageUrl] = useState<string | null>(null); // 모달에 표시할 이미지 URL
+  const [modalVideoUrl, setModalVideoUrl] = useState<string | null>(null); // 모달에 표시할 동영상 URL
 
   // 한국어 이름 가져오기
   const koreanCruiseLine = getKoreanCruiseLineName(product.cruiseLine);
@@ -166,6 +173,32 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
   
   // 환불/취소 규정 (layout에서 가져오기)
   const refundPolicy = layoutData?.refundPolicy || '';
+  
+  // 문의 옵션 (layout에서 가져오기)
+  const contactOptions = (() => {
+    if (layoutData?.contactOptions) {
+      return {
+        payment: layoutData.contactOptions.payment || layoutData.contactOptions.priceInquiry || false, // 하위 호환성: priceInquiry도 payment로 변환
+        phoneCall: layoutData.contactOptions.phoneCall || false,
+        aiChatbot: layoutData.contactOptions.aiChatbot !== false, // 기본값: true
+      };
+    } else if (layoutData?.contactType) {
+      // 기존 contactType 형식 지원 (하위 호환성)
+      const oldType = layoutData.contactType;
+      return {
+        payment: oldType === 'priceInquiry' || oldType === 'payment',
+        phoneCall: oldType === 'phoneCall' || oldType === 'phoneConsultation',
+        aiChatbot: oldType === 'aiChatbot' || !oldType,
+      };
+    } else {
+      // 기본값: AI 지니 채팅봇만 활성화
+      return {
+        payment: false,
+        phoneCall: false,
+        aiChatbot: true,
+      };
+    }
+  })();
   
   // 출발일 기준 만나이 계산 및 범위 표시 (PricingTableEditor와 동일한 로직)
   const calculateAgeRange = (minAge: number, maxAge: number | null) => {
@@ -582,18 +615,8 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
   // 가격 포맷팅 (천원 단위 또는 만원 단위로 표시)
   const formatPricingPrice = (price: number | null | undefined) => {
     if (!price) return '-';
-    // 만원 단위로 나누어떨어지면 만원 단위로 표시
-    if (price % 10000 === 0) {
-      const manwon = Math.floor(price / 10000);
-      return `${manwon.toLocaleString()}만원`;
-    }
-    // 천원 단위로 나누어떨어지면 천원 단위로 표시
-    if (price % 1000 === 0) {
-      const cheonwon = Math.floor(price / 1000);
-      return `${cheonwon.toLocaleString()}천원`;
-    }
-    // 그 외는 원 단위로 표시
-    return `${price.toLocaleString()}원`;
+    // 천단위 구분 표시 (예: 1,000원, 10,000원)
+    return `${price.toLocaleString('ko-KR')}원`;
   };
 
   // 가격 포맷팅 (basePrice용)
@@ -602,19 +625,31 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
     return `${price.toLocaleString('ko-KR')}원`;
   };
 
-  // 이미지 배열 파싱
-  const images = product.mallProductContent?.images 
-    ? (typeof product.mallProductContent.images === 'string' 
-        ? JSON.parse(product.mallProductContent.images) 
-        : product.mallProductContent.images)
-    : [];
+  // detailBlocks에서 이미지와 비디오 추출 (images/videos 배열 대신 사용)
+  const imagesFromBlocks = detailBlocks
+    .filter((block: any) => block.type === 'image')
+    .map((block: any) => block.url);
+  
+  const videosFromBlocks = detailBlocks
+    .filter((block: any) => block.type === 'video')
+    .map((block: any) => block.url);
 
-  // 비디오 배열 파싱
-  const videos = product.mallProductContent?.videos 
-    ? (typeof product.mallProductContent.videos === 'string' 
-        ? JSON.parse(product.mallProductContent.videos) 
-        : product.mallProductContent.videos)
-    : [];
+  // 하위 호환성을 위해 기존 images/videos 배열도 확인 (detailBlocks가 없을 때만 사용)
+  const images = imagesFromBlocks.length > 0 
+    ? imagesFromBlocks 
+    : (product.mallProductContent?.images 
+        ? (typeof product.mallProductContent.images === 'string' 
+            ? JSON.parse(product.mallProductContent.images) 
+            : product.mallProductContent.images)
+        : []);
+
+  const videos = videosFromBlocks.length > 0
+    ? videosFromBlocks
+    : (product.mallProductContent?.videos 
+        ? (typeof product.mallProductContent.videos === 'string' 
+            ? JSON.parse(product.mallProductContent.videos) 
+            : product.mallProductContent.videos)
+        : []);
 
   return (
     <div className="container mx-auto px-3 md:px-6 py-4 md:py-8 bg-gray-50 min-h-screen">
@@ -661,8 +696,8 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
               )}
             </div>
 
-            {/* 썸네일 갤러리 */}
-            {(images.length > 1 || videos.length > 0) && (
+            {/* 썸네일 갤러리 - detailBlocks가 없을 때만 표시 (하위 호환성) */}
+            {detailBlocks.length === 0 && (images.length > 1 || videos.length > 0) && (
               <div className="flex gap-2 overflow-x-auto pb-2">
                 {videos.map((video: string, index: number) => (
                   <button
@@ -763,7 +798,11 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                   {/* 별점과 리뷰 개수 */}
                   <div className="flex flex-col gap-3 mt-4">
                     <div className="flex items-center gap-3 flex-wrap">
-                      <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                      <div 
+                        className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 cursor-pointer hover:bg-amber-100 transition-colors"
+                        onClick={() => setShowReviewModal(true)}
+                        title="리뷰 보기"
+                      >
                         <FiStar className="text-amber-500 fill-amber-500" size={18} />
                         <span className="text-xl md:text-2xl font-bold text-gray-900">{rating.toFixed(1)}</span>
                       </div>
@@ -1294,7 +1333,11 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                       <img
                         src={block.url}
                         alt={block.alt || `${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 이미지 ${index + 1}`}
-                        className="w-full h-auto object-cover"
+                        className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          setModalImageUrl(block.url);
+                          setShowImageModal(true);
+                        }}
                       />
                       {block.alt && (
                         <div className="p-4 bg-gray-50 border-t border-gray-200">
@@ -1339,20 +1382,34 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                   return (
                     <div key={block.id || index} className="bg-white rounded-xl overflow-hidden shadow-md">
                       {embedUrl ? (
-                        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                        <div 
+                          className="relative w-full cursor-pointer hover:opacity-90 transition-opacity" 
+                          style={{ paddingBottom: '56.25%' }}
+                          onClick={() => {
+                            setModalVideoUrl(embedUrl);
+                            setShowVideoModal(true);
+                          }}
+                        >
                           <iframe
                             src={embedUrl}
-                            className="absolute top-0 left-0 w-full h-full rounded-t-xl"
+                            className="absolute top-0 left-0 w-full h-full rounded-t-xl pointer-events-none"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowFullScreen
                             frameBorder="0"
                           />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-10 transition-all">
+                            <FiMaximize2 size={48} className="text-white opacity-0 hover:opacity-100 transition-opacity" />
+                          </div>
                         </div>
                       ) : (
                         <video
                           src={block.url}
                           controls
-                          className="w-full h-auto"
+                          className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => {
+                            setModalVideoUrl(block.url);
+                            setShowVideoModal(true);
+                          }}
                         />
                       )}
                       {block.title && (
@@ -1718,7 +1775,11 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                                     <img
                                       src={block.url}
                                       alt={block.alt || `${product.packageName} ${day.day}일차 크루즈 여행 일정 이미지 ${blockIdx + 1}`}
-                                      className="w-full h-auto object-cover"
+                                      className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                      onClick={() => {
+                                        setModalImageUrl(block.url);
+                                        setShowImageModal(true);
+                                      }}
                                     />
                                     {block.alt && (
                                       <div className="p-3 bg-white border-t border-gray-200">
@@ -1753,20 +1814,34 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                                 return (
                                   <div key={block.id || blockIdx} className="rounded-lg overflow-hidden shadow-md">
                                     {embedUrl ? (
-                                      <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                                      <div 
+                                        className="relative w-full cursor-pointer hover:opacity-90 transition-opacity" 
+                                        style={{ paddingBottom: '56.25%' }}
+                                        onClick={() => {
+                                          setModalVideoUrl(embedUrl);
+                                          setShowVideoModal(true);
+                                        }}
+                                      >
                                         <iframe
                                           src={embedUrl}
-                                          className="absolute top-0 left-0 w-full h-full"
+                                          className="absolute top-0 left-0 w-full h-full pointer-events-none"
                                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                           allowFullScreen
                                           frameBorder="0"
                                         />
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-10 transition-all">
+                                          <FiMaximize2 size={48} className="text-white opacity-0 hover:opacity-100 transition-opacity" />
+                                        </div>
                                       </div>
                                     ) : (
                                       <video
                                         src={block.url}
                                         controls
-                                        className="w-full h-auto"
+                                        className="w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => {
+                                          setModalVideoUrl(block.url);
+                                          setShowVideoModal(true);
+                                        }}
                                       />
                                     )}
                                     {block.title && (
@@ -1914,9 +1989,20 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
 
           {/* 요금표 */}
           <div className="mb-6 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">요금표</h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">요금표</h2>
+              {pricingRows && Array.isArray(pricingRows) && pricingRows.length > 0 && (
+                <button
+                  onClick={() => setShowPricingModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <FiMaximize2 size={18} />
+                  <span className="text-sm font-medium">크게 보기</span>
+                </button>
+              )}
+            </div>
             {pricingRows && Array.isArray(pricingRows) && pricingRows.length > 0 ? (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto cursor-pointer" onClick={() => setShowPricingModal(true)}>
                 <table className="w-full border-collapse text-sm md:text-base">
                   <thead>
                     <tr className="bg-gray-100 border-b-2 border-gray-300">
@@ -2148,8 +2234,8 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                 </div>
               )}
               
-              {/* 결제하기 버튼 (항상 표시) */}
-              {product.basePrice && product.basePrice > 0 ? (
+              {/* 결제하기 버튼 */}
+              {contactOptions.payment && product.basePrice && product.basePrice > 0 && (
                 <Link
                   href={getPaymentUrl()}
                   className="w-full px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
@@ -2157,31 +2243,27 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                   <span className="text-xl">💳</span>
                   <span>결제하기</span>
                 </Link>
-              ) : (
-                <Link
-                  href={getInquiryUrl()}
-                  className="w-full px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
-                >
-                  <span className="text-xl">💳</span>
-                  <span>가격 문의</span>
-                </Link>
               )}
               {/* 전화상담 버튼 */}
-              <Link
-                href={getInquiryUrl()}
-                className="w-full px-5 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
-              >
-                <span className="text-xl">📞</span>
-                <span>전화상담</span>
-              </Link>
+              {contactOptions.phoneCall && (
+                <Link
+                  href={getInquiryUrl()}
+                  className="w-full px-5 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
+                >
+                  <span className="text-xl">📞</span>
+                  <span>전화상담</span>
+                </Link>
+              )}
               {/* AI 지니 채팅봇 버튼 */}
-              <Link
-                href={getChatBotUrl()}
-                className="w-full px-5 py-4 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
-              >
-                <span className="text-xl">🤖</span>
-                <span>AI 지니 채팅봇</span>
-              </Link>
+              {contactOptions.aiChatbot && (
+                <Link
+                  href={getChatBotUrl()}
+                  className="w-full px-5 py-4 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
+                >
+                  <span className="text-xl">🤖</span>
+                  <span>AI 지니 채팅봇</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -2231,6 +2313,229 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
           </div>
         </div>
       </div>
+
+      {/* 요금표 모달 - Portal로 렌더링하여 스마트폰 미리보기에서도 작동 */}
+      {typeof window !== 'undefined' && showPricingModal && pricingRows && Array.isArray(pricingRows) && pricingRows.length > 0 && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4" onClick={() => setShowPricingModal(false)}>
+          <div className="bg-white rounded-lg shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+              <h3 className="text-2xl font-bold text-gray-900">요금표</h3>
+              <button
+                onClick={() => setShowPricingModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-base md:text-lg">
+                  <thead>
+                    <tr className="bg-gray-100 border-b-2 border-gray-300">
+                      <th className="px-6 py-4 text-left font-bold text-gray-800 border border-gray-300">객실 타입</th>
+                      <th className="px-6 py-4 text-center font-bold text-gray-800 border border-gray-300">
+                        <span className="text-red-600">1,2번째 성인</span>
+                      </th>
+                      <th className="px-6 py-4 text-center font-bold text-gray-800 border border-gray-300">만 12세 이상</th>
+                      <th className="px-6 py-4 text-center font-bold text-gray-800 border border-gray-300">
+                        만 2-11세
+                        {(product.startDate || layoutData?.departureDate) && (
+                          <div className="text-xs font-normal text-blue-600 mt-1">
+                            {calculateAgeRange(2, 11)}
+                          </div>
+                        )}
+                      </th>
+                      <th className="px-6 py-4 text-center font-bold text-gray-800 border border-gray-300">
+                        만 2세 미만
+                        {(product.startDate || layoutData?.departureDate) && (
+                          <div className="text-xs font-normal text-blue-600 mt-1">
+                            {calculateAgeRange(0, 1)}
+                          </div>
+                        )}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pricingRows.map((row: any, index: number) => (
+                      <tr 
+                        key={row.id || index} 
+                        className={`hover:bg-gray-50 ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
+                      >
+                        <td className="px-6 py-4 font-semibold text-gray-800 border border-gray-300">
+                          {row.roomType || '객실 타입 미설정'}
+                        </td>
+                        <td className="px-6 py-4 text-center font-bold text-red-600 text-xl border border-gray-300">
+                          {formatPricingPrice(row.adult)}
+                        </td>
+                        <td className="px-6 py-4 text-center text-gray-700 border border-gray-300">
+                          {formatPricingPrice(row.adult3rd)}
+                        </td>
+                        <td className="px-6 py-4 text-center text-gray-700 border border-gray-300">
+                          {formatPricingPrice(row.child2to11)}
+                        </td>
+                        <td className="px-6 py-4 text-center text-gray-700 border border-gray-300">
+                          {formatPricingPrice(row.infantUnder2)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {layoutData?.priceTableNote && (
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-700 whitespace-pre-line">
+                    {layoutData.priceTableNote}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 이미지 모달 - Portal로 렌더링 */}
+      {typeof window !== 'undefined' && showImageModal && modalImageUrl && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-[9999] flex items-center justify-center p-4" onClick={() => setShowImageModal(false)}>
+          <div className="max-w-7xl w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowImageModal(false)}
+              className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full z-10"
+            >
+              <FiX size={24} />
+            </button>
+            <img
+              src={modalImageUrl}
+              alt="확대 이미지"
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 동영상 모달 - Portal로 렌더링 */}
+      {typeof window !== 'undefined' && showVideoModal && modalVideoUrl && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-90 z-[9999] flex items-center justify-center p-4" onClick={() => setShowVideoModal(false)}>
+          <div className="max-w-7xl w-full h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowVideoModal(false)}
+              className="absolute top-4 right-4 p-2 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full z-10"
+            >
+              <FiX size={24} />
+            </button>
+            <div className="w-full max-w-5xl" style={{ aspectRatio: '16/9' }}>
+              {modalVideoUrl.includes('youtube.com') || modalVideoUrl.includes('youtu.be') ? (
+                <iframe
+                  src={modalVideoUrl}
+                  className="w-full h-full rounded-lg"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={modalVideoUrl}
+                  controls
+                  autoPlay
+                  className="w-full h-full rounded-lg"
+                />
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 리뷰 미리보기 모달 - Portal로 렌더링 */}
+      {typeof window !== 'undefined' && showReviewModal && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4" onClick={() => setShowReviewModal(false)}>
+          <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b-2 border-gray-300 px-6 py-4 flex items-center justify-between z-10 shadow-sm">
+              <div className="flex items-center gap-3">
+                <FiStar className="text-amber-500 fill-amber-500" size={24} />
+                <h3 className="text-2xl font-bold text-gray-900">
+                  리뷰 {reviewCount > 0 ? `${reviewCount.toLocaleString('ko-KR')}개` : '미리보기'}
+                </h3>
+                <div className="flex items-center gap-1">
+                  <span className="text-xl font-bold text-gray-900">{rating.toFixed(1)}</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md"
+                title="닫기"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {reviewCount > 0 ? (
+                <div className="space-y-4">
+                  {/* 샘플 리뷰 생성 (실제 리뷰가 없을 때 미리보기용) */}
+                  {Array.from({ length: Math.min(reviewCount, 5) }).map((_, index) => {
+                    // 평균 별점에 맞춰 샘플 리뷰 생성
+                    const sampleRatings = [
+                      Math.max(1, Math.min(5, Math.round(rating))),
+                      Math.max(1, Math.min(5, Math.round(rating) + (index % 2 === 0 ? 1 : -1))),
+                      Math.max(1, Math.min(5, Math.round(rating))),
+                    ];
+                    const sampleRating = sampleRatings[index % 3];
+                    const sampleNames = ['김**', '이**', '박**', '최**', '정**'];
+                    const sampleComments = [
+                      '크루즈 여행이 정말 만족스러웠습니다. 객실도 깨끗하고 식사도 훌륭했어요!',
+                      '일정이 알차게 구성되어 있어서 좋았습니다. 다음에도 또 이용하고 싶어요.',
+                      '가이드 분이 친절하시고 설명도 자세해서 여행이 더욱 즐거웠습니다.',
+                      '가격 대비 만족도가 높았습니다. 추천합니다!',
+                      '크루즈 시설이 깨끗하고 편안해서 좋았습니다.',
+                    ];
+                    
+                    return (
+                      <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-800">{sampleNames[index % sampleNames.length]}</span>
+                            <div className="flex items-center gap-1">
+                              {Array.from({ length: 5 }).map((_, starIndex) => (
+                                <FiStar
+                                  key={starIndex}
+                                  className={starIndex < sampleRating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                                  size={16}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {new Date(Date.now() - (index + 1) * 7 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed">
+                          {sampleComments[index % sampleComments.length]}
+                        </p>
+                      </div>
+                    );
+                  })}
+                  {reviewCount > 5 && (
+                    <div className="text-center py-4 text-gray-500">
+                      외 {reviewCount - 5}개의 리뷰가 더 있습니다.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FiStar className="text-amber-500 fill-amber-500 mx-auto mb-4" size={48} />
+                  <p className="text-lg text-gray-600 mb-2">아직 리뷰가 없습니다.</p>
+                  <p className="text-sm text-gray-500">
+                    평균 별점: {rating.toFixed(1)}점
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

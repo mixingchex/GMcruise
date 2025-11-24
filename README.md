@@ -106,6 +106,10 @@ To schedule automatic session cleanup, add to crontab:
 
 **Note:** Sessions automatically expire after 30 days from creation.
 
+## Documentation
+
+- [랜딩페이지 워크플로우 가이드](./docs/LANDING_PAGE_WORKFLOW.md) - 상품과 랜딩페이지 연결 방법
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

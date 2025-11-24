@@ -4,7 +4,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown, FiEdit2, FiX, FiSave } from 'react-icons/fi';
+import AutocompleteInput from './AutocompleteInput';
+import roomTypesData from '@/data/room-types.json';
 
 export interface PricingRow {
   id: string;
@@ -27,6 +29,8 @@ export default function PricingTableEditor({
   departureDate
 }: PricingTableEditorProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [editingRowInModal, setEditingRowInModal] = useState<PricingRow | null>(null);
+  const [modalRowData, setModalRowData] = useState<PricingRow | null>(null);
 
   // 출발일 기준 만나이 계산 및 범위 표시
   const calculateAgeRange = (minAge: number, maxAge: number | null) => {
@@ -73,20 +77,10 @@ export default function PricingTableEditor({
     }
   };
 
-  // 가격 포맷팅 (천원 단위 또는 만원 단위로 표시)
+  // 가격 포맷팅 (천단위 구분 표시: 1,000 형식)
   const formatPrice = (price: number | undefined) => {
     if (!price) return '';
-    // 만원 단위로 나누어떨어지면 만원 단위로 표시
-    if (price % 10000 === 0) {
-      const manwon = Math.floor(price / 10000);
-      return `${manwon.toLocaleString()}만원`;
-    }
-    // 천원 단위로 나누어떨어지면 천원 단위로 표시
-    if (price % 1000 === 0) {
-      const cheonwon = Math.floor(price / 1000);
-      return `${cheonwon.toLocaleString()}천원`;
-    }
-    // 그 외는 원 단위로 표시
+    // 천단위 구분 표시 (예: 1,000원, 10,000원)
     return `${price.toLocaleString()}원`;
   };
 
@@ -114,6 +108,23 @@ export default function PricingTableEditor({
   const updateRow = (id: string, updates: Partial<PricingRow>) => {
     const updated = rows.map(r => r.id === id ? { ...r, ...updates } : r);
     onChange(updated);
+  };
+
+  // 모달에서 행 편집
+  const openEditModal = (row: PricingRow) => {
+    setModalRowData({ ...row });
+    setEditingRowInModal(row);
+  };
+
+  const closeEditModal = () => {
+    setEditingRowInModal(null);
+    setModalRowData(null);
+  };
+
+  const saveModalRow = () => {
+    if (!editingRowInModal || !modalRowData) return;
+    updateRow(editingRowInModal.id, modalRowData);
+    closeEditModal();
   };
 
   const moveRow = (id: string, direction: 'up' | 'down') => {
@@ -248,13 +259,11 @@ export default function PricingTableEditor({
                     {/* 객실타입 */}
                     <td className="px-4 py-3 border-r border-gray-200">
                       {isExpanded ? (
-                        <input
-                          type="text"
+                        <AutocompleteInput
                           value={row.roomType}
-                          onChange={(e) => updateRow(row.id, { roomType: e.target.value })}
-                          placeholder="예: 내측 객실"
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-                          autoFocus
+                          onChange={(value) => updateRow(row.id, { roomType: value })}
+                          options={roomTypesData as string[]}
+                          placeholder="객실 타입 선택 또는 직접 입력"
                         />
                       ) : (
                         <span className="font-medium text-gray-800">
@@ -419,10 +428,11 @@ export default function PricingTableEditor({
                           <FiChevronDown size={16} />
                         </button>
                         <button
-                          onClick={() => setExpandedRow(isExpanded ? null : row.id)}
-                          className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          onClick={() => openEditModal(row)}
+                          className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-1"
                         >
-                          {isExpanded ? '완료' : '편집'}
+                          <FiEdit2 size={14} />
+                          모달 편집
                         </button>
                         <button
                           onClick={() => removeRow(row.id)}
@@ -444,11 +454,168 @@ export default function PricingTableEditor({
       {/* 안내 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          💡 <strong>사용 방법:</strong> 행 추가 버튼을 클릭하여 객실 타입을 추가하고, 편집 버튼을 클릭하여 각 연령대별 요금을 입력하세요. 
+          💡 <strong>사용 방법:</strong> 행 추가 버튼을 클릭하여 객실 타입을 추가하고, 모달 편집 버튼을 클릭하여 각 연령대별 요금을 입력하세요. 
           금액은 원 단위로 입력하세요 (예: 550000원 또는 1000원). 천원 단위와 만원 단위 모두 입력 가능합니다.
           출발일을 설정하면 연령 범위가 자동으로 계산되어 표시됩니다.
         </p>
       </div>
+
+      {/* 요금표 편집 모달 */}
+      {editingRowInModal && modalRowData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+              <h3 className="text-xl font-bold text-gray-900">요금표 편집</h3>
+              <button
+                onClick={closeEditModal}
+                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              {/* 객실 타입 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  객실 타입 *
+                </label>
+                <AutocompleteInput
+                  value={modalRowData.roomType}
+                  onChange={(value) => setModalRowData({ ...modalRowData, roomType: value })}
+                  options={roomTypesData}
+                  placeholder="객실 타입을 선택하거나 입력하세요"
+                  className="w-full"
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  💡 드롭다운에서 선택하거나 직접 입력할 수 있습니다.
+                </p>
+              </div>
+
+              {/* 가격 입력 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-red-50 p-4 rounded-lg border-2 border-red-200">
+                  <label className="block text-sm font-semibold text-red-700 mb-2">
+                    1,2번째 성인 가격 *
+                  </label>
+                  <input
+                    type="number"
+                    value={modalRowData.adult || ''}
+                    onChange={(e) => setModalRowData({ 
+                      ...modalRowData, 
+                      adult: e.target.value ? parseInt(e.target.value) : undefined 
+                    })}
+                    placeholder="원 단위 입력 (예: 550000)"
+                    className="w-full px-4 py-3 border-2 border-red-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 text-base"
+                    min="0"
+                    step="1000"
+                  />
+                  {modalRowData.adult && (
+                    <p className="mt-2 text-lg font-bold text-red-600">
+                      {formatPrice(modalRowData.adult)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-lg border-2 border-blue-200">
+                  <label className="block text-sm font-semibold text-blue-700 mb-2">
+                    만 12세 이상 (3번째)
+                  </label>
+                  <input
+                    type="number"
+                    value={modalRowData.adult3rd || ''}
+                    onChange={(e) => setModalRowData({ 
+                      ...modalRowData, 
+                      adult3rd: e.target.value ? parseInt(e.target.value) : undefined 
+                    })}
+                    placeholder="원 단위 입력 (예: 450000)"
+                    className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                    min="0"
+                    step="1000"
+                  />
+                  {modalRowData.adult3rd && (
+                    <p className="mt-2 text-lg font-bold text-blue-600">
+                      {formatPrice(modalRowData.adult3rd)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-green-50 p-4 rounded-lg border-2 border-green-200">
+                  <label className="block text-sm font-semibold text-green-700 mb-2">
+                    만 2-11세
+                    {departureDate && (
+                      <span className="text-xs font-normal text-green-600 ml-2">
+                        ({calculateAgeRange(2, 11)})
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    value={modalRowData.child2to11 || ''}
+                    onChange={(e) => setModalRowData({ 
+                      ...modalRowData, 
+                      child2to11: e.target.value ? parseInt(e.target.value) : undefined 
+                    })}
+                    placeholder="원 단위 입력 (예: 350000)"
+                    className="w-full px-4 py-3 border-2 border-green-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 text-base"
+                    min="0"
+                    step="1000"
+                  />
+                  {modalRowData.child2to11 && (
+                    <p className="mt-2 text-lg font-bold text-green-600">
+                      {formatPrice(modalRowData.child2to11)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-purple-50 p-4 rounded-lg border-2 border-purple-200">
+                  <label className="block text-sm font-semibold text-purple-700 mb-2">
+                    만 2세 미만
+                    {departureDate && (
+                      <span className="text-xs font-normal text-purple-600 ml-2">
+                        ({calculateAgeRange(0, 1)})
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    value={modalRowData.infantUnder2 || ''}
+                    onChange={(e) => setModalRowData({ 
+                      ...modalRowData, 
+                      infantUnder2: e.target.value ? parseInt(e.target.value) : undefined 
+                    })}
+                    placeholder="원 단위 입력 (예: 100000)"
+                    className="w-full px-4 py-3 border-2 border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
+                    min="0"
+                    step="1000"
+                  />
+                  {modalRowData.infantUnder2 && (
+                    <p className="mt-2 text-lg font-bold text-purple-600">
+                      {formatPrice(modalRowData.infantUnder2)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3">
+              <button
+                onClick={closeEditModal}
+                className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
+              >
+                취소
+              </button>
+              <button
+                onClick={saveModalRow}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2"
+              >
+                <FiSave size={18} />
+                저장하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

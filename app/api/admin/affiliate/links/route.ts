@@ -214,9 +214,10 @@ export async function POST(req: NextRequest) {
       expiresAt, 
       campaignName, 
       description,
-      landingPageId // 랜딩페이지 ID
+      landingPageId // 랜딩페이지 ID (필수: 먼저 랜딩페이지를 생성한 후 여기에 연결)
     } = body;
 
+    // 워크플로우: 1) 랜딩페이지 생성 → 2) 어필리에이트 링크 생성 시 landingPageId로 연결
     // 랜딩페이지 링크인 경우 productCode는 선택사항
     if (!landingPageId && !productCode) {
       return NextResponse.json({
@@ -298,6 +299,9 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     
     // metadata에 랜딩페이지 정보 저장
+    // 이렇게 하면 상품 페이지에서 링크 코드로 접근 시 랜딩페이지로 리다이렉트됨
+    // - 본사 구매몰: /landing/[slug]
+    // - 파트너 구매몰: /store/[affiliateCode]/[slug]
     const metadata: any = {};
     if (landingPageId) {
       metadata.landingPageId = Number(landingPageId);

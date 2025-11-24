@@ -126,6 +126,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
       if (Array.isArray(data.tiers)) {
         await tx.affiliateCommissionTier.deleteMany({ where: { affiliateProductId: productId } });
         if (data.tiers.length) {
+          const now = new Date();
           await tx.affiliateCommissionTier.createMany({
             data: data.tiers.map((tier) => ({
               affiliateProductId: productId,
@@ -141,6 +142,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
               pricingRowId: tier.pricingRowId ?? undefined,
               fareCategory: tier.fareCategory ?? undefined,
               fareLabel: tier.fareLabel ?? undefined,
+              updatedAt: now,
             })),
           });
         }
@@ -164,6 +166,93 @@ export async function PUT(request: Request, { params }: { params: { productId: s
   } catch (error) {
     console.error('[admin/affiliate/products/:id][PUT] error', error);
     const message = error instanceof Error ? error.message : '상품 정보를 저장하는 중 오류가 발생했습니다.';
+    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+  }
+}
+
+/**
+ * DELETE /api/admin/affiliate/products/:productId
+ * 어필리에이트 상품 삭제
+ * 
+ * 삭제 시:
+ * - AffiliateProduct 삭제
+ * - 관련된 AffiliateCommissionTier 삭제
+ * - 관련된 AffiliateLink 삭제 (또는 비활성화)
+ * - 구매몰에서 즉시 노출 중지 (isPublished = false로 설정 후 삭제)
+ */
+export async function DELETE(request: Request, { params }: { params: { productId: string } }) {
+  try {
+    const productId = Number(params.productId);
+    if (!Number.isInteger(productId)) {
+      return NextResponse.json({ ok: false, error: '잘못된 상품 ID 입니다.' }, { status: 400 });
+    }
+
+    // 관리자 권한 확인
+    const { cookies } = await import('next/headers');
+    const SESSION_COOKIE = 'cg.sid.v2';
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
+    
+    if (!sid) {
+      return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
+    }
+
+    const session = await prisma.session.findUnique({
+      where: { id: sid },
+      include: {
+        User: {
+          select: { role: true },
+        },
+      },
+    });
+
+    if (session?.User.role !== 'admin') {
+      return NextResponse.json({ ok: false, error: '관리자 권한이 필요합니다.' }, { status: 403 });
+    }
+
+    // 상품 정보 조회
+    const product = await prisma.affiliateProduct.findUnique({
+      where: { id: productId },
+      select: {
+        id: true,
+        productCode: true,
+        title: true,
+      },
+    });
+
+    if (!product) {
+      return NextResponse.json({ ok: false, error: '상품을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 트랜잭션으로 삭제 처리
+    await prisma.$transaction(async (tx) => {
+      // 1. 관련된 수당 티어 삭제
+      await tx.affiliateCommissionTier.deleteMany({
+        where: { affiliateProductId: productId },
+      });
+
+      // 2. 관련된 어필리에이트 링크 삭제 (또는 비활성화)
+      // 링크는 삭제하지 않고 비활성화하는 것이 안전할 수 있지만, 요구사항에 따라 삭제
+      await tx.affiliateLink.deleteMany({
+        where: { affiliateProductId: productId },
+      });
+
+      // 3. 어필리에이트 상품 삭제
+      await tx.affiliateProduct.delete({
+        where: { id: productId },
+      });
+    });
+
+    console.log(`[Admin Affiliate Products] 상품 삭제 완료: ${product.productCode} (${product.title})`);
+
+    return NextResponse.json({
+      ok: true,
+      message: '상품이 삭제되었습니다.',
+      productCode: product.productCode,
+    });
+  } catch (error) {
+    console.error('[admin/affiliate/products/:id][DELETE] error', error);
+    const message = error instanceof Error ? error.message : '상품을 삭제하는 중 오류가 발생했습니다.';
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }

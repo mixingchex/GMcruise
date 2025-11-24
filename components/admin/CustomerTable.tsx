@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { FiEdit2, FiCheck, FiX, FiFileText } from 'react-icons/fi';
+import { FiEdit2, FiCheck, FiX, FiFileText, FiEye, FiClock } from 'react-icons/fi';
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 import CustomerNoteModal from '@/components/admin/CustomerNoteModal';
+import CustomerDetailModal from '@/components/admin/CustomerDetailModal';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
 
@@ -98,6 +99,8 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
   const [resettingPassword, setResettingPassword] = useState<number | null>(null);
   const [editingField, setEditingField] = useState<EditingField | null>(null);
   const [savingField, setSavingField] = useState<number | null>(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedCustomerForDetail, setSelectedCustomerForDetail] = useState<number | null>(null);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [selectedCustomerForNote, setSelectedCustomerForNote] = useState<{ id: number; name: string | null } | null>(null);
 
@@ -231,10 +234,11 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
     }
     
     // 9. 인증서 딱지 (구매확인서발동/환불인증완료)
+    // 인증서 상태 표시
     if (customer.customerStatus === 'purchase_confirmed') {
-      badges.push({ label: '구매확인서발동', color: 'bg-indigo-100 text-indigo-800 border border-indigo-300' });
+      badges.push({ label: '구매인증서', color: 'bg-indigo-100 text-indigo-800 border border-indigo-300' });
     } else if (customer.customerStatus === 'refunded') {
-      badges.push({ label: '환불인증완료', color: 'bg-red-100 text-red-800 border border-red-300' });
+      badges.push({ label: '환불인증서', color: 'bg-red-100 text-red-800 border border-red-300' });
     }
 
     // 10. 지니 상태 딱지 (크루즈가이드 또는 크루즈몰 고객의 지니 상태)
@@ -557,9 +561,11 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
       await Promise.all(deletePromises);
       alert(`✅ 성공!\n\n${selectedCustomers.size}명의 고객이 삭제되었습니다.`);
       setSelectedCustomers(new Set());
+      // 삭제 후 목록 갱신
       if (onRefresh) {
         await onRefresh();
       } else {
+        // onRefresh가 없으면 페이지 새로고침
         window.location.reload();
       }
     } catch (error) {
@@ -624,7 +630,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
   const someSelected = selectedCustomers.size > 0 && selectedCustomers.size < customers.length;
 
   return (
-    <div className="bg-brand-light-dark rounded-lg shadow-xl overflow-hidden">
+    <div className="bg-white rounded-lg overflow-hidden">
       {selectedCustomers.size > 0 && (
         <div className="bg-blue-600 text-white px-6 py-3 flex items-center justify-between">
           <span className="font-medium">
@@ -641,7 +647,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
       )}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-brand-red text-white">
+          <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <tr>
               <th className="px-6 py-4 text-left font-semibold">
                 <input
@@ -655,21 +661,16 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                 />
               </th>
               <th className="px-6 py-4 text-left font-semibold">ID</th>
+              <th className="px-6 py-4 text-left font-semibold">가입일</th>
               <th className="px-6 py-4 text-left font-semibold">고객 유형</th>
               <th className="px-6 py-4 text-left font-semibold">소속</th>
-              <th className="px-6 py-4 text-left font-semibold">이름</th>
-              <th className="px-6 py-4 text-left font-semibold">핸드폰</th>
-              <th className="px-6 py-4 text-left font-semibold">이메일</th>
+              <th className="px-6 py-4 text-left font-semibold">아이디</th>
               <th className="px-6 py-4 text-left font-semibold">비밀번호</th>
-              <th className="px-6 py-4 text-left font-semibold">카카오 채널</th>
-              <th className="px-6 py-4 text-left font-semibold">PWA 설치</th>
-              <th className="px-6 py-4 text-left font-semibold">가입일</th>
-              <th className="px-6 py-4 text-left font-semibold">상태</th>
+              <th className="px-6 py-4 text-left font-semibold">이름</th>
+              <th className="px-6 py-4 text-left font-semibold">연락처</th>
               <th className="px-6 py-4 text-left font-semibold">구매 정보</th>
               <th className="px-6 py-4 text-left font-semibold">여권 상태</th>
-              <th className="px-6 py-4 text-left font-semibold">여행 횟수</th>
-              <th className="px-6 py-4 text-left font-semibold">현재 여행 종료일</th>
-              <th className="px-6 py-4 text-left font-semibold">최근 여행</th>
+              <th className="px-6 py-4 text-left font-semibold">구매/환불</th>
               <th className="px-6 py-4 text-left font-semibold">관리</th>
             </tr>
           </thead>
@@ -685,6 +686,9 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                   />
                 </td>
                 <td className="px-6 py-4">{customer.id}</td>
+                <td className="px-6 py-4">
+                  {new Date(customer.createdAt).toLocaleDateString('ko-KR')}
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-col gap-1">
                     {customer.customerType === 'test' && (
@@ -703,6 +707,24 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                 </td>
                 <td className="px-6 py-4 align-top">
                   {renderAffiliateOwnership(customer.affiliateOwnership)}
+                </td>
+                <td className="px-6 py-4">
+                  {customer.mallUserId || '-'}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm bg-gray-100 px-2 py-1 rounded">
+                      {customer.currentPassword || '-'}
+                    </span>
+                    <button
+                      onClick={() => handleResetPassword(customer.id, customer.currentPassword || null)}
+                      disabled={resettingPassword === customer.id}
+                      className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="비밀번호 수정"
+                    >
+                      <FiEdit2 size={16} />
+                    </button>
+                  </div>
                 </td>
                 <td className="px-6 py-4 font-medium">
                   {editingField?.customerId === customer.id && editingField?.field === 'name' ? (
@@ -815,166 +837,6 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                     </div>
                   )}
                 </td>
-                <td className="px-6 py-4">
-                  {editingField?.customerId === customer.id && editingField?.field === 'email' ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="email"
-                        value={editingField.value}
-                        onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
-                        className="px-2 py-1 border border-gray-300 rounded text-sm w-40"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleFieldSave(customer.id, 'email', editingField.value);
-                          } else if (e.key === 'Escape') {
-                            handleFieldCancel();
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={() => handleFieldSave(customer.id, 'email', editingField.value)}
-                        disabled={savingField === customer.id}
-                        className="p-1 text-green-600 hover:text-green-700 disabled:opacity-50"
-                        title="저장"
-                      >
-                        <FiCheck size={16} />
-                      </button>
-                      <button
-                        onClick={handleFieldCancel}
-                        className="p-1 text-red-600 hover:text-red-700"
-                        title="취소"
-                      >
-                        <FiX size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group">
-                      <span 
-                        className="cursor-pointer hover:text-blue-400"
-                        onClick={() => handleFieldEdit(customer.id, 'email', customer.email)}
-                      >
-                        {customer.email || '-'}
-                      </span>
-                      <button
-                        onClick={() => handleFieldEdit(customer.id, 'email', customer.email)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-blue-500 hover:text-blue-700"
-                        title="이메일 수정"
-                      >
-                        <FiEdit2 size={14} />
-                      </button>
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm bg-gray-100 px-2 py-1 rounded">
-                      {customer.currentPassword || '-'}
-                    </span>
-                    <button
-                      onClick={() => handleResetPassword(customer.id, customer.currentPassword || null)}
-                      disabled={resettingPassword === customer.id}
-                      className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="비밀번호 수정"
-                    >
-                      <FiEdit2 size={16} />
-                    </button>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  {customer.kakaoChannelAdded ? (
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-300">
-                        ✓ 추가됨
-                      </span>
-                      {customer.kakaoChannelAddedAt && (
-                        <span className="text-xs text-gray-400" title={new Date(customer.kakaoChannelAddedAt).toLocaleString('ko-KR')}>
-                          {new Date(customer.kakaoChannelAddedAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-300">
-                      미추가
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-col gap-1">
-                    {customer.pwaGenieInstalledAt ? (
-                      <div className="flex items-center gap-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-100 text-pink-800 border border-pink-300">
-                          📲 지니
-                        </span>
-                        <span className="text-xs text-gray-400" title={new Date(customer.pwaGenieInstalledAt).toLocaleString('ko-KR')}>
-                          {new Date(customer.pwaGenieInstalledAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    ) : null}
-                    {customer.pwaMallInstalledAt ? (
-                      <div className="flex items-center gap-1">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 border border-blue-300">
-                          📲 몰
-                        </span>
-                        <span className="text-xs text-gray-400" title={new Date(customer.pwaMallInstalledAt).toLocaleString('ko-KR')}>
-                          {new Date(customer.pwaMallInstalledAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
-                        </span>
-                      </div>
-                    ) : null}
-                    {!customer.pwaGenieInstalledAt && !customer.pwaMallInstalledAt && (
-                      <span className="text-xs text-gray-400">미설치</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  {new Date(customer.createdAt).toLocaleDateString('ko-KR')}
-                </td>
-                <td className="px-6 py-4">
-                  {editingField?.customerId === customer.id && editingField?.field === 'status' ? (
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={customer.status || ''}
-                        onChange={(e) => {
-                          const newStatus = e.target.value || null;
-                          handleFieldSave(customer.id, 'status', newStatus);
-                        }}
-                        className="px-2 py-1 border border-gray-300 rounded text-xs"
-                        autoFocus
-                      >
-                        <option value="">상태 없음</option>
-                        <option value="active">활성</option>
-                        <option value="package">패키지</option>
-                        <option value="locked">가이드잠금</option>
-                        <option value="dormant">동면</option>
-                      </select>
-                      <button
-                        onClick={handleFieldCancel}
-                        className="p-1 text-red-600 hover:text-red-700"
-                        title="취소"
-                      >
-                        <FiX size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap gap-1 group">
-                      {renderStatusBadges(customer).map((badge, index) => (
-                        <span
-                          key={index}
-                          className={`px-2 py-1 rounded text-xs font-medium ${badge.color}`}
-                        >
-                          {badge.label}
-                        </span>
-                      ))}
-                      <button
-                        onClick={() => handleFieldEdit(customer.id, 'status', customer.status)}
-                        className="opacity-0 group-hover:opacity-100 ml-1 p-1 text-blue-500 hover:text-blue-700"
-                        title="상태 수정"
-                      >
-                        <FiEdit2 size={12} />
-                      </button>
-                    </div>
-                  )}
-                </td>
                 {/* 구매 정보 컬럼 */}
                 <td className="px-6 py-4">
                   {(() => {
@@ -983,7 +845,8 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                     const refundCount = customer.metadata?.refundCount || 0;
                     
                     return (
-                      <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1.5">
+                        {/* 구매 정보 */}
                         {hasReservation || reservationCount > 0 ? (
                           <>
                             <span className="px-2 py-1 bg-green-100 text-green-800 border border-green-300 rounded text-xs font-medium w-fit">
@@ -996,7 +859,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                         ) : (
                           <span className="text-gray-400 text-sm">-</span>
                         )}
-                        {refundCount > 0 && (
+                        {refundCount > 0 && customer.customerStatus !== 'refunded' && (
                           <div className="mt-1">
                             <span className="px-2 py-1 bg-red-100 text-red-800 border border-red-300 rounded text-xs font-medium w-fit">
                               환불 {refundCount}회
@@ -1011,214 +874,137 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                 <td className="px-6 py-4">
                   {(() => {
                     const passportStatus = (customer as any).passportStatus;
-                    const passportInfo = (customer as any).passportInfo;
+                    let passportInfo = (customer as any).passportInfo;
+                    
+                    // passportInfo가 문자열인 경우 파싱
+                    if (passportInfo && typeof passportInfo === 'string') {
+                      try {
+                        passportInfo = JSON.parse(passportInfo);
+                      } catch (e) {
+                        console.error(`[Passport Debug] Failed to parse passportInfo for customer ${customer.id}:`, e);
+                        passportInfo = null;
+                      }
+                    }
+                    
+                    // 디버깅: 여권 정보 확인
+                    if (process.env.NODE_ENV === 'development' && customer.id) {
+                      console.log(`[Passport Debug Frontend] Customer ${customer.id}:`, {
+                        hasPassportInfo: !!passportInfo,
+                        passportInfoType: typeof passportInfo,
+                        passportInfo,
+                        hasReservation: (customer as any).hasReservation,
+                      });
+                    }
                     
                     if (passportInfo) {
-                      const { totalPeople, travelersWithPassport, missingCount, expiredCount, expiringCount, expiredPassports, expiringPassports } = passportInfo;
+                      const { totalPeople = 0, travelersWithPassport = 0, missingCount = 0, expiredCount = 0, expiringCount = 0 } = passportInfo;
+                      
+                      // 디버깅: 여권 정보 상세 확인
+                      if (process.env.NODE_ENV === 'development' && customer.id) {
+                        console.log(`[Passport Debug Detail] Customer ${customer.id}:`, {
+                          totalPeople,
+                          travelersWithPassport,
+                          missingCount,
+                          expiredCount,
+                          expiringCount,
+                          passportInfoKeys: Object.keys(passportInfo),
+                        });
+                      }
                       
                       // 이미 만료된 여권이 있는 경우 (최우선)
                       if (expiredCount > 0) {
-                        const expiredNames = expiredPassports?.map((p: any) => `${p.name} (${new Date(p.expiryDate).toLocaleDateString('ko-KR')})`).join(', ') || '';
                         return (
-                          <div className="space-y-1">
-                            <span 
-                              className="px-2 py-1 bg-red-100 text-red-800 border border-red-300 rounded text-xs font-bold cursor-help"
-                              title={`만료된 여권: ${expiredNames}`}
-                            >
-                              🚨 여권 만료됨 ({expiredCount}명)
-                            </span>
-                          </div>
+                          <span className="px-2 py-1 bg-red-100 text-red-800 border border-red-300 rounded text-xs font-bold">
+                            🚨 만료됨
+                          </span>
                         );
                       }
                       
                       // 6개월 이내 만료 예정인 여권이 있는 경우
                       if (expiringCount > 0) {
-                        const expiringNames = expiringPassports?.map((p: any) => `${p.name} (${new Date(p.expiryDate).toLocaleDateString('ko-KR')})`).join(', ') || '';
                         return (
-                          <div className="space-y-1">
-                            <span 
-                              className="px-2 py-1 bg-orange-100 text-orange-800 border-2 border-orange-400 rounded text-xs font-bold cursor-help animate-pulse"
-                              title={`6개월 이내 만료: ${expiringNames}`}
-                            >
-                              ⚠️ 만료 임박 ({expiringCount}명)
-                            </span>
-                          </div>
+                          <span className="px-2 py-1 bg-orange-100 text-orange-800 border-2 border-orange-400 rounded text-xs font-bold">
+                            6개월
+                          </span>
                         );
                       }
                       
+                      // totalPeople이 0이거나 없어도 travelersWithPassport가 있으면 표시
                       if (totalPeople > 0) {
                         if (missingCount > 0) {
                           return (
                             <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-medium">
-                              ⚠️ 여권 부족 ({missingCount}명)
+                              부족 ({travelersWithPassport}/{totalPeople})
                             </span>
                           );
                         } else if (travelersWithPassport === totalPeople) {
                           return (
                             <span className="px-2 py-1 bg-green-100 text-green-800 border border-green-300 rounded text-xs font-medium">
-                              ✅ 여권 완료
+                              완료
+                            </span>
+                          );
+                        } else if (travelersWithPassport > 0) {
+                          // 일부만 등록된 경우
+                          return (
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-medium">
+                              부족 ({travelersWithPassport}/{totalPeople})
                             </span>
                           );
                         }
+                      } else if (travelersWithPassport > 0) {
+                        // totalPeople이 없거나 0이지만 여권이 등록된 경우
+                        return (
+                          <span className="px-2 py-1 bg-green-100 text-green-800 border border-green-300 rounded text-xs font-medium">
+                            등록됨 ({travelersWithPassport}명)
+                          </span>
+                        );
                       }
                     }
                     return <span className="text-gray-400 text-sm">-</span>;
                   })()}
                 </td>
+                {/* 구매/환불 인증서 컬럼 */}
                 <td className="px-6 py-4">
-                  {editingField?.customerId === customer.id && editingField?.field === 'tripCount' ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        value={editingField.value}
-                        onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
-                        className="px-2 py-1 border border-gray-300 rounded text-sm w-20"
-                        min="0"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleFieldSave(customer.id, 'tripCount', editingField.value);
-                          } else if (e.key === 'Escape') {
-                            handleFieldCancel();
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={() => handleFieldSave(customer.id, 'tripCount', editingField.value)}
-                        disabled={savingField === customer.id}
-                        className="p-1 text-green-600 hover:text-green-700 disabled:opacity-50"
-                        title="저장"
-                      >
-                        <FiCheck size={16} />
-                      </button>
-                      <button
-                        onClick={handleFieldCancel}
-                        className="p-1 text-red-600 hover:text-red-700"
-                        title="취소"
-                      >
-                        <FiX size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group">
-                      <span 
-                        className="bg-magic-gold text-brand-dark px-3 py-1 rounded-full text-sm font-bold cursor-pointer hover:bg-yellow-400"
-                        onClick={() => handleFieldEdit(customer.id, 'tripCount', customer.tripCount)}
-                      >
-                        {customer.tripCount}회
+                  <div className="flex flex-col gap-1.5">
+                    {customer.customerStatus === 'purchase_confirmed' && (
+                      <span className="px-2.5 py-1 bg-indigo-100 text-indigo-800 border-2 border-indigo-400 rounded text-xs font-bold w-fit">
+                        ✅ 구매인증서
                       </span>
-                      <button
-                        onClick={() => handleFieldEdit(customer.id, 'tripCount', customer.tripCount)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-blue-500 hover:text-blue-700"
-                        title="여행 횟수 수정"
-                      >
-                        <FiEdit2 size={12} />
-                      </button>
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  {editingField?.customerId === customer.id && editingField?.field === 'currentTripEndDate' ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="date"
-                        value={editingField.value ? new Date(editingField.value).toISOString().split('T')[0] : ''}
-                        onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
-                        className="px-2 py-1 border border-gray-300 rounded text-sm"
-                        autoFocus
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleFieldSave(customer.id, 'currentTripEndDate', editingField.value);
-                          } else if (e.key === 'Escape') {
-                            handleFieldCancel();
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={() => handleFieldSave(customer.id, 'currentTripEndDate', editingField.value)}
-                        disabled={savingField === customer.id}
-                        className="p-1 text-green-600 hover:text-green-700 disabled:opacity-50"
-                        title="저장"
-                      >
-                        <FiCheck size={16} />
-                      </button>
-                      <button
-                        onClick={handleFieldCancel}
-                        className="p-1 text-red-600 hover:text-red-700"
-                        title="취소"
-                      >
-                        <FiX size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 group">
-                      {customer.currentTripEndDate ? (
-                        <>
-                          <div className="text-sm cursor-pointer hover:text-blue-400" onClick={() => handleFieldEdit(customer.id, 'currentTripEndDate', customer.currentTripEndDate)}>
-                            <div>{new Date(customer.currentTripEndDate).toLocaleDateString('ko-KR')}</div>
-                            {customer.daysRemaining !== null && customer.daysRemaining !== undefined && (
-                              <div className={`text-xs mt-1 ${
-                                customer.daysRemaining <= 0 
-                                  ? 'text-red-600 font-bold' 
-                                  : customer.daysRemaining <= 7 
-                                  ? 'text-orange-600 font-semibold' 
-                                  : 'text-gray-600'
-                              }`}>
-                                {customer.daysRemaining > 0 
-                                  ? `D-${customer.daysRemaining}` 
-                                  : customer.daysRemaining === 0 
-                                  ? 'D-Day' 
-                                  : `종료됨 (${Math.abs(customer.daysRemaining)}일 전)`}
-                              </div>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleFieldEdit(customer.id, 'currentTripEndDate', customer.currentTripEndDate)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-blue-500 hover:text-blue-700"
-                            title="여행 종료일 수정"
-                          >
-                            <FiEdit2 size={12} />
-                          </button>
-                        </>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  {customer.trips.length > 0 ? (
-                    <div className="text-sm">
-                      <div className="font-medium">{customer.trips[0].cruiseName}</div>
-                      <div className="text-gray-400">
-                        {Array.isArray(customer.trips[0].destination)
-                          ? customer.trips[0].destination.join(', ')
-                          : customer.trips[0].destination}
-                      </div>
-                    </div>
-                  ) : (
-                    <span className="text-gray-400">여행 없음</span>
-                  )}
+                    )}
+                    {customer.customerStatus === 'refunded' && (
+                      <span className="px-2.5 py-1 bg-red-100 text-red-800 border-2 border-red-400 rounded text-xs font-bold w-fit">
+                        💰 환불인증서
+                      </span>
+                    )}
+                    {!customer.customerStatus || (customer.customerStatus !== 'purchase_confirmed' && customer.customerStatus !== 'refunded') ? (
+                      <span className="text-gray-400 text-sm">-</span>
+                    ) : null}
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => {
+                        setSelectedCustomerForDetail(customer.id);
+                        setDetailModalOpen(true);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      title="상세 보기"
+                    >
+                      <FiEye size={16} />
+                      상세 보기
+                    </button>
+                    <button
+                      onClick={() => {
                         setSelectedCustomerForNote({ id: customer.id, name: customer.name });
                         setNoteModalOpen(true);
                       }}
-                      className="flex items-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
                       title="고객 기록 작성"
                     >
                       <FiFileText size={16} />
                       기록
                     </button>
-                    <a
-                      href={`/admin/users/${customer.id}`}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      상세 보기
-                    </a>
                   </div>
                 </td>
               </tr>
@@ -1244,6 +1030,19 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
           }}
         />
       )}
+
+      {/* 상세보기 모달 */}
+      {selectedCustomerForDetail && (
+        <CustomerDetailModal
+          customerId={selectedCustomerForDetail}
+          isOpen={detailModalOpen}
+          onClose={() => {
+            setDetailModalOpen(false);
+            setSelectedCustomerForDetail(null);
+          }}
+        />
+      )}
+
     </div>
   );
 }

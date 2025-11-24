@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
+import bundleAnalyzer from '@next/bundle-analyzer';
+
 const isDev = process.env.NODE_ENV !== 'production';
+
+// 번들 분석기 설정 (ANALYZE=true일 때만 활성화)
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+});
 
 const devCsp = [
   "default-src 'self'",
@@ -135,7 +142,17 @@ const nextConfig = {
   async headers() {
     // 개발 환경에서는 보안 헤더를 완전히 비활성화하여 디버깅 가능하도록 함
     if (isDev) {
-      return []; // 개발 환경에서는 보안 헤더 없음
+      return [
+        {
+          source: '/(.*)',
+          headers: [
+            // 개발 환경에서 캐시 비활성화
+            { key: 'Cache-Control', value: 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0' },
+            { key: 'Pragma', value: 'no-cache' },
+            { key: 'Expires', value: '0' },
+          ],
+        },
+      ];
     }
     
     // 프로덕션 환경에서는 보안 헤더 유지
@@ -175,4 +192,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withBundleAnalyzer(nextConfig);

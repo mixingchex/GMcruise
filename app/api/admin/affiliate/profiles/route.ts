@@ -149,9 +149,21 @@ export async function GET(req: NextRequest) {
     try {
       // Prisma Client는 스키마의 관계 필드명을 그대로 사용하므로 User (PascalCase) 사용
       // User가 null일 수 있으므로 안전하게 처리
+      // 성능 최적화: include 대신 select 사용
       profiles = await prisma.affiliateProfile.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          userId: true,
+          affiliateCode: true,
+          type: true,
+          status: true,
+          displayName: true,
+          branchLabel: true,
+          nickname: true,
+          published: true,
+          createdAt: true,
+          updatedAt: true,
           User: {
             select: {
               id: true,

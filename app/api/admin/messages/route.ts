@@ -55,10 +55,14 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId'); // 특정 고객의 메시지만 조회
+    const messageType = searchParams.get('messageType'); // 메시지 타입 필터
 
     const where: any = {};
     if (userId) {
       where.userId = parseInt(userId);
+    }
+    if (messageType) {
+      where.messageType = messageType;
     }
 
     const messages = await prisma.adminMessage.findMany({

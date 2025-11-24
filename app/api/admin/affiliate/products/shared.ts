@@ -21,6 +21,10 @@ export interface PricingMatrixOption {
   label: string;
   fareCategory?: string | null;
   saleAmount?: number | null;
+  costAmount?: number | null;
+  hqShareAmount?: number | null;
+  branchShareAmount?: number | null;
+  salesShareAmount?: number | null;
 }
 
 export interface PricingMatrixRow {
@@ -50,6 +54,10 @@ export function parseLayoutPricing(layoutValue: any): PricingMatrixRow[] {
       label: column.label,
       fareCategory: column.fareCategory,
       saleAmount: toSafeInt(row?.[column.key]),
+      costAmount: toSafeInt(row?.[`${column.key}_cost`] ?? row?.[`${column.key}Cost`] ?? row?.costAmount),
+      hqShareAmount: toSafeInt(row?.[`${column.key}_hq`] ?? row?.[`${column.key}Hq`] ?? row?.hqShareAmount),
+      branchShareAmount: toSafeInt(row?.[`${column.key}_branch`] ?? row?.[`${column.key}Branch`] ?? row?.branchShareAmount),
+      salesShareAmount: toSafeInt(row?.[`${column.key}_sales`] ?? row?.[`${column.key}Sales`] ?? row?.salesShareAmount),
     }));
 
     return {

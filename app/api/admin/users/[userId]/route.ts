@@ -69,7 +69,7 @@ export async function GET(
         genieStatus: true,
         genieLinkedAt: true,
         role: true,
-        Trip: {  // ✅ 대문자 T로 변경
+        UserTrip: {
           select: {
             id: true,
             cruiseName: true,
@@ -82,31 +82,7 @@ export async function GET(
             visitCount: true,
             status: true,
             createdAt: true,
-            productCode: true,
-            shipName: true,
-            departureDate: true,
-            googleFolderId: true,
-            spreadsheetId: true,
-            Reservation: {
-              select: {
-                id: true,
-                tripId: true,
-                totalPeople: true,
-                passportStatus: true,
-                Traveler: {
-                  select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    passportNo: true,
-                    birthDate: true,
-                    expiryDate: true,
-                  },
-                },
-              },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
-            },
+            productId: true,
           },
           orderBy: { createdAt: 'desc' },
         },
@@ -144,28 +120,162 @@ export async function GET(
         ? 'locked' 
         : user.isHibernated 
         ? 'dormant' 
-        : (user.Trip && user.Trip.length > 0) 
+        : (user.UserTrip && user.UserTrip.length > 0) 
         ? 'package' 
         : 'active'
     );
 
-    // 본인 여행 목록 (Reservation 및 Traveler 정보 포함)
-    const ownTrips = (user.Trip || []).map(trip => ({
-      ...trip,
-      startDate: trip.startDate?.toISOString() || null,
-      endDate: trip.endDate?.toISOString() || null,
-      createdAt: trip.createdAt?.toISOString() || null,
-      departureDate: trip.departureDate?.toISOString() || null,
-      productCode: trip.productCode || null,
-      shipName: trip.shipName || null,
-      googleFolderId: trip.googleFolderId || null,
-      spreadsheetId: trip.spreadsheetId || null,
-      Reservation: trip.Reservation?.map((res: any) => ({
-        ...res,
-        Traveler: res.Traveler || [],
-      })) || [],
-      ownerType: 'own' as const, // 본인 여행 표시
-    }));
+    // 본인 여행 목록 (Reservation 및 Traveler 정보는 별도 조회)
+    let ownTrips: any[] = [];
+    try {
+      ownTrips = await Promise.all((user.UserTrip || []).map(async (trip) => {
+      // UserTrip의 productId로 CruiseProduct를 찾고, 그 productCode로 Trip을 찾아 Reservation 조회
+      let reservations: any[] = [];
+      if (trip.productId) {
+        try {
+          const product = await prisma.cruiseProduct.findUnique({
+            where: { id: trip.productId },
+            select: { productCode: true },
+          });
+          if (product?.productCode) {
+            const tripRecord = await prisma.trip.findFirst({
+              where: { productCode: product.productCode },
+              select: { id: true },
+            });
+            if (tripRecord) {
+              try {
+                // mainUserId로 먼저 시도
+                let res: any[] = [];
+                try {
+                  res = await prisma.reservation.findMany({
+                    where: { 
+                      tripId: tripRecord.id, 
+                      mainUserId: userId 
+                    },
+                    select: {
+                      id: true,
+                      tripId: true,
+                      totalPeople: true,
+                      passportStatus: true,
+                      Traveler: {
+                        select: {
+                          id: true,
+                          engGivenName: true,
+                          engSurname: true,
+                          korName: true,
+                          passportNo: true,
+                          birthDate: true,
+                          expiryDate: true,
+                        },
+                      },
+                    },
+                    orderBy: { id: 'desc' },
+                  });
+                } catch (firstQueryError: any) {
+                  console.warn('[Admin Get User] First reservation query failed for trip:', trip.id, {
+                    error: firstQueryError?.message,
+                    code: firstQueryError?.code,
+                  });
+                  // 첫 번째 쿼리가 실패해도 계속 진행
+                }
+                
+                // mainUserId로 찾지 못한 경우 tripId만으로 조회
+                if (res.length === 0) {
+                  try {
+                    res = await prisma.reservation.findMany({
+                      where: { tripId: tripRecord.id },
+                      select: {
+                        id: true,
+                        tripId: true,
+                        totalPeople: true,
+                        passportStatus: true,
+                        Traveler: {
+                          select: {
+                            id: true,
+                            engGivenName: true,
+                            engSurname: true,
+                            korName: true,
+                            passportNo: true,
+                            birthDate: true,
+                            expiryDate: true,
+                          },
+                        },
+                      },
+                      orderBy: { id: 'desc' },
+                    });
+                  } catch (secondQueryError: any) {
+                    console.warn('[Admin Get User] Second reservation query failed for trip:', trip.id, {
+                      error: secondQueryError?.message,
+                      code: secondQueryError?.code,
+                    });
+                    // 두 번째 쿼리도 실패하면 빈 배열 사용
+                    res = [];
+                  }
+                }
+                
+                reservations = res || [];
+              } catch (reservationError: any) {
+                console.error('[Admin Get User] Reservation query error for trip:', trip.id, {
+                  error: reservationError?.message,
+                  code: reservationError?.code,
+                  meta: reservationError?.meta,
+                  stack: reservationError?.stack?.substring(0, 200),
+                });
+                // 에러가 발생해도 빈 배열로 계속 진행
+                reservations = [];
+              }
+            }
+          }
+        } catch (error) {
+          console.error('[Admin Get User] Failed to fetch reservations for trip:', trip.id, error);
+        }
+      }
+      
+      // Trip 모델에서 googleFolderId와 spreadsheetId 가져오기
+      let tripGoogleFolderId = null;
+      let tripSpreadsheetId = null;
+      if (trip.productId) {
+        try {
+          const product = await prisma.cruiseProduct.findUnique({
+            where: { id: trip.productId },
+            select: { productCode: true },
+          });
+          if (product?.productCode) {
+            const tripRecord = await prisma.trip.findFirst({
+              where: { productCode: product.productCode },
+              select: {
+                googleFolderId: true,
+                spreadsheetId: true,
+              },
+            });
+            if (tripRecord) {
+              tripGoogleFolderId = tripRecord.googleFolderId;
+              tripSpreadsheetId = tripRecord.spreadsheetId;
+            }
+          }
+        } catch (tripInfoError: any) {
+          console.warn('[Admin Get User] Failed to fetch trip info for UserTrip:', trip.id, tripInfoError?.message);
+        }
+      }
+      
+      return {
+        ...trip,
+        startDate: trip.startDate?.toISOString() || null,
+        endDate: trip.endDate?.toISOString() || null,
+        createdAt: trip.createdAt?.toISOString() || null,
+        googleFolderId: tripGoogleFolderId,
+        spreadsheetId: tripSpreadsheetId,
+        Reservation: reservations.map((res: any) => ({
+          ...res,
+          Traveler: res.Traveler || [],
+        })),
+        ownerType: 'own' as const, // 본인 여행 표시
+      };
+      }));
+    } catch (tripsError: any) {
+      console.error('[Admin Get User] Failed to fetch own trips:', tripsError);
+      ownTrips = [];
+    }
 
     // 연동된 사용자의 여행도 조회
     let linkedUserTrips: any[] = [];
@@ -193,7 +303,7 @@ export async function GET(
         }
         
         if (linkedMallUserId) {
-          const linkedTrips = await prisma.trip.findMany({
+          const linkedTrips = await prisma.userTrip.findMany({
             where: { userId: linkedMallUserId },
             select: {
               id: true,
@@ -239,7 +349,7 @@ export async function GET(
         });
         
         if (genieUser) {
-          const linkedTrips = await prisma.trip.findMany({
+          const linkedTrips = await prisma.userTrip.findMany({
             where: { userId: genieUser.id },
             select: {
               id: true,
@@ -271,38 +381,163 @@ export async function GET(
     }
 
     // 본인 여행 + 연동된 사용자 여행 합치기 (날짜순 정렬)
-    const allTrips = [...ownTrips, ...linkedUserTrips].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA; // 최신순
-    });
+    let allTrips: any[] = [];
+    try {
+      allTrips = [...ownTrips, ...linkedUserTrips].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // 최신순
+      });
+    } catch (sortError: any) {
+      console.error('[Admin Get User] Failed to sort trips:', sortError);
+      allTrips = [...ownTrips, ...linkedUserTrips];
+    }
 
-    const ownershipMap = await getAffiliateOwnershipForUsers([{ id: user.id, phone: user.phone }]);
-    const affiliateOwnership = ownershipMap.get(user.id) ?? null;
+    let affiliateOwnership = null;
+    try {
+      const ownershipMap = await getAffiliateOwnershipForUsers([{ id: user.id, phone: user.phone }]);
+      affiliateOwnership = ownershipMap.get(user.id) ?? null;
+    } catch (ownershipError: any) {
+      console.error('[Admin Get User] Failed to fetch ownership:', ownershipError);
+    }
 
-    const userResponse = {
-      ...user,
-      trips: allTrips, // 본인 여행 + 연동된 사용자 여행
-      createdAt: user.createdAt.toISOString(),
-      lastActiveAt: user.lastActiveAt?.toISOString() || null,
-      lockedAt: user.lockedAt?.toISOString() || null,
-      isHibernated: user.isHibernated,
-      hibernatedAt: user.hibernatedAt?.toISOString() || null,
-      testModeStartedAt: user.testModeStartedAt?.toISOString() || null,
-      adminMemo: user.adminMemo || null,
-      currentPassword: currentPassword, // 현재 비밀번호 (평문)
-      resolvedStatus: resolvedStatus, // 해결된 상태 (명시적으로 저장된 상태 우선)
-      kakaoChannelAdded: user.kakaoChannelAdded || false,
-      kakaoChannelAddedAt: user.kakaoChannelAddedAt?.toISOString() || null,
-      genieStatus: user.genieStatus || null,
-      genieLinkedAt: user.genieLinkedAt?.toISOString() || null,
-      role: user.role || 'user',
-      passwordEvents: (user.PasswordEvent || []).map(event => ({
-        ...event,
-        createdAt: event.createdAt.toISOString(),
-      })),
-      affiliateOwnership: affiliateOwnership ? { ...affiliateOwnership } : null,
-    };
+    // APIS 정보 조회 (Trip 모델에서 - UserTrip의 productId로 CruiseProduct를 찾고, 그 productCode로 Trip을 찾음)
+    let apisInfo = null;
+    if (user.UserTrip && user.UserTrip.length > 0) {
+      const latestTrip = user.UserTrip[0];
+      if (latestTrip.productId) {
+        try {
+          // CruiseProduct에서 productCode 가져오기
+          const product = await prisma.cruiseProduct.findUnique({
+            where: { id: latestTrip.productId },
+            select: { productCode: true },
+          });
+          
+          if (product && product.productCode) {
+            // Trip 모델에서 googleFolderId와 spreadsheetId 조회
+            const tripRecord = await prisma.trip.findFirst({
+              where: { productCode: product.productCode },
+              select: {
+                googleFolderId: true,
+                spreadsheetId: true,
+                id: true,
+              },
+            });
+            if (tripRecord) {
+              apisInfo = {
+                spreadsheetId: tripRecord.spreadsheetId,
+                googleFolderId: tripRecord.googleFolderId,
+                tripId: tripRecord.id,
+              };
+            }
+          }
+        } catch (error) {
+          console.error('[Admin Get User] Failed to fetch APIS info:', error);
+        }
+      }
+    }
+
+    // 환불 이력 조회 (CertificateApproval에서 refundAmount가 있는 것들)
+    let refundHistory: any[] = [];
+    try {
+      const refunds = await prisma.certificateApproval.findMany({
+        where: {
+          customerId: user.id,
+          certificateType: 'refund',
+          refundAmount: { not: null },
+        },
+        select: {
+          id: true,
+          refundAmount: true,
+          refundDate: true,
+          productName: true,
+          metadata: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      refundHistory = refunds.map(refund => ({
+        id: refund.id,
+        amount: refund.refundAmount || 0,
+        reason: refund.metadata && typeof refund.metadata === 'object' && 'reason' in refund.metadata 
+          ? String(refund.metadata.reason) 
+          : '환불 처리',
+        createdAt: refund.createdAt.toISOString(),
+        productName: refund.productName,
+        tripId: refund.metadata && typeof refund.metadata === 'object' && 'tripId' in refund.metadata
+          ? Number(refund.metadata.tripId)
+          : null,
+      }));
+    } catch (error) {
+      console.error('[Admin Get User] Failed to fetch refund history:', error);
+    }
+
+    // 모든 trips에서 Reservation을 평탄화하여 reservations 배열 생성
+    let allReservations: any[] = [];
+    try {
+      allTrips.forEach((trip: any) => {
+        if (trip.Reservation && Array.isArray(trip.Reservation)) {
+          allReservations.push(...trip.Reservation);
+        }
+      });
+    } catch (reservationsError: any) {
+      console.error('[Admin Get User] Failed to flatten reservations:', reservationsError);
+      allReservations = [];
+    }
+
+    let userResponse: any;
+    try {
+      userResponse = {
+        ...user,
+        trips: allTrips, // 본인 여행 + 연동된 사용자 여행
+        reservations: allReservations, // 모든 예약 정보 (여권 기록 포함)
+        createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
+        lastActiveAt: user.lastActiveAt?.toISOString() || null,
+        lockedAt: user.lockedAt?.toISOString() || null,
+        isHibernated: user.isHibernated || false,
+        hibernatedAt: user.hibernatedAt?.toISOString() || null,
+        testModeStartedAt: user.testModeStartedAt?.toISOString() || null,
+        adminMemo: user.adminMemo || null,
+        currentPassword: currentPassword, // 현재 비밀번호 (평문)
+        resolvedStatus: resolvedStatus, // 해결된 상태 (명시적으로 저장된 상태 우선)
+        kakaoChannelAdded: user.kakaoChannelAdded || false,
+        kakaoChannelAddedAt: user.kakaoChannelAddedAt?.toISOString() || null,
+        genieStatus: user.genieStatus || null,
+        genieLinkedAt: user.genieLinkedAt?.toISOString() || null,
+        role: user.role || 'user',
+        passwordEvents: (user.PasswordEvent || []).map((event: any) => ({
+          ...event,
+          createdAt: event.createdAt?.toISOString() || new Date().toISOString(),
+        })),
+        affiliateOwnership: affiliateOwnership ? { ...affiliateOwnership } : null,
+        apisInfo,
+        refundHistory,
+      };
+    } catch (responseError: any) {
+      console.error('[Admin Get User] Failed to build user response:', responseError);
+      // 기본 응답 생성
+      userResponse = {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        createdAt: user.createdAt?.toISOString() || new Date().toISOString(),
+        lastActiveAt: user.lastActiveAt?.toISOString() || null,
+        isLocked: user.isLocked || false,
+        isHibernated: user.isHibernated || false,
+        customerStatus: user.customerStatus,
+        role: user.role || 'user',
+        trips: [],
+        reservations: [],
+        currentPassword: currentPassword,
+        resolvedStatus: resolvedStatus,
+        passwordEvents: [],
+        affiliateOwnership: null,
+        apisInfo: null,
+        refundHistory: [],
+      };
+    }
     
     // 크루즈가이드 사용자인 경우 연동된 크루즈몰 사용자 정보 조회
     let linkedMallUser = null;
@@ -449,14 +684,65 @@ export async function GET(
       }
     }
     
+    // PassportSubmission 정보 조회
+    let passportSubmissions: any[] = [];
+    try {
+      const submissions = await prisma.passportSubmission.findMany({
+        where: { userId },
+        include: {
+          PassportSubmissionGuest: {
+            orderBy: { groupNumber: 'asc' },
+          },
+          UserTrip: {
+            select: {
+              id: true,
+              cruiseName: true,
+              startDate: true,
+              endDate: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+      
+      passportSubmissions = submissions.map(sub => ({
+        id: sub.id,
+        token: sub.token,
+        isSubmitted: sub.isSubmitted,
+        submittedAt: sub.submittedAt?.toISOString() || null,
+        driveFolderUrl: sub.driveFolderUrl,
+        createdAt: sub.createdAt.toISOString(),
+        tokenExpiresAt: sub.tokenExpiresAt?.toISOString() || null,
+        guests: sub.PassportSubmissionGuest.map(g => ({
+          id: g.id,
+          groupNumber: g.groupNumber,
+          name: g.name,
+          phone: g.phone,
+          passportNumber: g.passportNumber,
+          nationality: g.nationality,
+          dateOfBirth: g.dateOfBirth?.toISOString() || null,
+          passportExpiryDate: g.passportExpiryDate?.toISOString() || null,
+        })),
+        trip: sub.UserTrip ? {
+          id: sub.UserTrip.id,
+          cruiseName: sub.UserTrip.cruiseName,
+          startDate: sub.UserTrip.startDate?.toISOString() || null,
+          endDate: sub.UserTrip.endDate?.toISOString() || null,
+        } : null,
+      }));
+    } catch (error) {
+      console.error('[Admin Get User] Failed to fetch passport submissions:', error);
+    }
+
     const userResponseWithLinks = {
       ...userResponse,
       linkedMallUser,
       linkedGenieUser,
+      passportSubmissions,
     };
     
-    // Trip 필드 제거 (trips로 변환했으므로)
-    delete (userResponseWithLinks as any).Trip;
+    // UserTrip 필드 제거 (trips로 변환했으므로)
+    delete (userResponseWithLinks as any).UserTrip;
     // PasswordEvent 필드 제거 (passwordEvents로 변환했으므로)
     delete (userResponseWithLinks as any).PasswordEvent;
 
@@ -465,12 +751,31 @@ export async function GET(
     console.error('[Admin Get User] Error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('[Admin Get User] Error details:', { errorMessage, errorStack });
+    const errorCode = (error as any)?.code;
+    const errorMeta = (error as any)?.meta;
+    console.error('[Admin Get User] Error details:', { 
+      errorMessage, 
+      errorStack, 
+      errorCode,
+      errorMeta,
+      userId: params.userId 
+    });
+    
+    // Prisma 에러인 경우 더 자세한 정보 제공
+    if (errorCode) {
+      console.error('[Admin Get User] Prisma error code:', errorCode);
+      console.error('[Admin Get User] Prisma error meta:', errorMeta);
+    }
+    
     return NextResponse.json(
       { 
         ok: false, 
         error: 'Failed to fetch user',
-        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        details: process.env.NODE_ENV === 'development' ? {
+          message: errorMessage,
+          code: errorCode,
+          meta: errorMeta,
+        } : undefined
       },
       { status: 500 }
     );
@@ -510,7 +815,7 @@ export async function PATCH(
         isLocked: true,
         isHibernated: true,
         tripCount: true,
-        Trip: {
+        UserTrip: {
           select: { id: true },
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -538,10 +843,10 @@ export async function PATCH(
     if (mallNickname !== undefined) updateData.mallNickname = mallNickname || null;
     if (currentTripEndDate !== undefined) {
       updateData.currentTripEndDate = currentTripEndDate ? new Date(currentTripEndDate) : null;
-      // 최신 Trip의 endDate도 업데이트
-      if (currentTripEndDate && existingUser.Trip && existingUser.Trip.length > 0) {
-        const latestTripId = existingUser.Trip[0].id;
-        await prisma.trip.update({
+      // 최신 UserTrip의 endDate도 업데이트
+      if (currentTripEndDate && existingUser.UserTrip && existingUser.UserTrip.length > 0) {
+        const latestTripId = existingUser.UserTrip[0].id;
+        await prisma.userTrip.update({
           where: { id: latestTripId },
           data: { endDate: new Date(currentTripEndDate) },
         });
@@ -560,7 +865,7 @@ export async function PATCH(
         ? 'locked' 
         : existingUser.isHibernated 
         ? 'dormant' 
-        : (existingUser.Trip && existingUser.Trip.length > 0) 
+        : (existingUser.UserTrip && existingUser.UserTrip.length > 0) 
         ? 'package' 
         : 'active';
 
@@ -668,7 +973,7 @@ export async function PATCH(
         loginCount: true,
         mallUserId: true,
         mallNickname: true,
-        Trip: {
+        UserTrip: {
           select: {
             id: true,
             cruiseName: true,
@@ -711,14 +1016,14 @@ export async function PATCH(
         ? 'locked' 
         : updatedUser.isHibernated 
         ? 'dormant' 
-        : (updatedUser.Trip && updatedUser.Trip.length > 0) 
+        : (updatedUser.UserTrip && updatedUser.UserTrip.length > 0) 
         ? 'package' 
         : 'active'
     );
 
     const userResponse = {
       ...updatedUser,
-      trips: (updatedUser.Trip || []).map(trip => ({
+      trips: (updatedUser.UserTrip || []).map(trip => ({
         ...trip,
         startDate: trip.startDate?.toISOString() || null,
         endDate: trip.endDate?.toISOString() || null,
@@ -737,8 +1042,8 @@ export async function PATCH(
       testModeStartedAt: updatedUser.testModeStartedAt?.toISOString() || null,
     };
     
-    // Trip, PasswordEvent 필드 제거
-    delete (userResponse as any).Trip;
+    // UserTrip, PasswordEvent 필드 제거
+    delete (userResponse as any).UserTrip;
     delete (userResponse as any).PasswordEvent;
 
     return NextResponse.json({ ok: true, user: userResponse });

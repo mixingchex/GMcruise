@@ -133,3 +133,12 @@ http://localhost:3000/api/cron/community-bot
 - `[COMMUNITY BOT] 부정적 댓글 [ID]에 긍정적 대응 생성 완료`
 - `[COMMUNITY BOT] 봇 실행 완료 ([시간]ms)`
 
+
+
+
+
+
+
+
+
+

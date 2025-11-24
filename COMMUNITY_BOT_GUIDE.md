@@ -189,3 +189,12 @@ node scripts/check-community-data-safe.js
 - 좋아요/뷰는 기존 게시글 중 랜덤으로 선택하여 증가
 - 서버 부하를 고려하여 5분 간격으로 실행
 
+
+
+
+
+
+
+
+
+

@@ -43,7 +43,7 @@ function MallLoginPageContent() {
       headers: { 'content-type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ 
-        phone: trimmedUsername, // 크루즈몰은 phone 필드에 username 저장
+        phone: trimmedUsername, // phone 파라미터명이지만 실제로는 아이디(username)임
         password: trimmedPassword, 
         mode: 'community' // 크루즈몰 로그인 모드
       }),
@@ -77,14 +77,22 @@ function MallLoginPageContent() {
     // 서버가 알려준 next로 이동, 없으면 메인 페이지로
     const nextParam = sp.get('next');
     const decodedNext = nextParam ? decodeURIComponent(nextParam) : null;
-    const next = data.next || decodedNext || '/';
+    let next = data.next || decodedNext || '/';
+    
+    // 로그인 직후임을 표시하기 위해 URL 파라미터 추가 (메인 페이지에서 감지)
+    if (next === '/' || next.startsWith('/?')) {
+      const separator = next.includes('?') ? '&' : '?';
+      next = `${next}${separator}loggedIn=true`;
+    }
+    
     console.log('[MALL LOGIN] Redirecting to:', next);
     
     // 세션 쿠키가 제대로 설정되도록 완전한 페이지 리로드 사용
-    // 약간의 딜레이를 추가하여 쿠키가 브라우저에 저장되도록 보장
+    // 쿠키가 브라우저에 저장되도록 충분한 딜레이 추가 (300ms)
+    // 로그인 직후 세션 쿠키가 서버에서 설정되고 브라우저에 저장되는 시간을 고려
     setTimeout(() => {
       window.location.href = next;
-    }, 100);
+    }, 300);
   }
 
   return (
@@ -155,7 +163,12 @@ function MallLoginPageContent() {
             </Link>
           </div>
           <div className="text-sm text-gray-600 mb-4">
-            비밀번호가 기억나지 않으신가요? <span className="font-semibold text-gray-900">관리자에게 문의하세요.</span>
+            <Link
+              href="/mall/find-password"
+              className="text-blue-600 hover:text-blue-800 underline font-semibold"
+            >
+              비밀번호 찾기
+            </Link>
           </div>
           
           {/* 크루즈가이드 지니 3일 체험 로그인 */}

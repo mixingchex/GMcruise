@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FiAlertCircle, FiCheckCircle, FiRefreshCw, FiSearch, FiSend, FiUserCheck, FiDownload, FiFileText } from 'react-icons/fi';
+import { FiAlertCircle, FiCheckCircle, FiRefreshCw, FiSearch, FiSend, FiUserCheck, FiDownload, FiFileText, FiLink, FiCopy, FiX, FiInfo } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
 interface PassportRequestTemplate {
@@ -148,6 +148,13 @@ export default function PassportRequestPage() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [downloadingApis, setDownloadingApis] = useState<number | null>(null);
   const searchDropdownRef = useRef<HTMLLabelElement | null>(null);
+  const [showManualModal, setShowManualModal] = useState(false);
+  const [selectedCustomerForManual, setSelectedCustomerForManual] = useState<PassportRequestCustomer | null>(null);
+  const [manualTemplateId, setManualTemplateId] = useState<number | null>(null);
+  const [manualMessageBody, setManualMessageBody] = useState('');
+  const [manualExpiresInHours, setManualExpiresInHours] = useState<number>(72);
+  const [isGeneratingManual, setIsGeneratingManual] = useState(false);
+  const [manualResult, setManualResult] = useState<{ link: string; message: string; token: string; submissionId: number; expiresAt: string } | null>(null);
 
   const selectedTemplates = useMemo(() => {
     if (selectedTemplateId === null) return null;
@@ -417,6 +424,93 @@ export default function PassportRequestPage() {
     setIsSearchOpen(false);
   };
 
+  const handleOpenManualModal = (customer: PassportRequestCustomer) => {
+    if (customer.submission && !customer.submission.isSubmitted) {
+      showError('이미 여권 요청이 진행 중입니다.');
+      return;
+    }
+    setSelectedCustomerForManual(customer);
+    setManualResult(null);
+    const defaultTemplate = templates.find((tpl) => tpl.isDefault) ?? templates[0];
+    if (defaultTemplate) {
+      setManualTemplateId(defaultTemplate.id);
+      setManualMessageBody(defaultTemplate.body || '');
+    } else {
+      setManualTemplateId(null);
+      setManualMessageBody('');
+    }
+    setManualExpiresInHours(72);
+    setShowManualModal(true);
+  };
+
+  const handleManualTemplateChange = (templateId: number) => {
+    setManualTemplateId(templateId);
+    const template = templates.find((tpl) => tpl.id === templateId);
+    if (template) {
+      setManualMessageBody(template.body || '');
+    }
+    setManualResult(null);
+  };
+
+  const handleGenerateManualLink = async () => {
+    if (!selectedCustomerForManual) return;
+    if (!manualMessageBody.trim()) {
+      showError('메시지 내용을 입력해주세요.');
+      return;
+    }
+
+    setIsGeneratingManual(true);
+    setManualResult(null);
+    try {
+      const res = await fetch('/api/admin/passport-request/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId: selectedCustomerForManual.id,
+          templateId: manualTemplateId ?? undefined,
+          messageBody: manualMessageBody,
+          expiresInHours: manualExpiresInHours,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        console.error('[PassportRequest] Manual API error response:', {
+          status: res.status,
+          statusText: res.statusText,
+          data,
+          error: data?.error,
+          details: data?.details,
+        });
+        throw new Error(data?.error || data?.message || '여권 제출 링크 생성에 실패했습니다.');
+      }
+
+      setManualResult(data.result);
+      showSuccess('여권 제출 링크가 생성되었습니다. 메시지를 복사해 고객에게 전달하세요.');
+      setRefreshFlag((prev) => prev + 1);
+    } catch (error: any) {
+      console.error('[PassportRequest] Manual error', error);
+      console.error('[PassportRequest] Manual error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+      });
+      showError(error.message || '여권 제출 링크를 생성하지 못했습니다.');
+    } finally {
+      setIsGeneratingManual(false);
+    }
+  };
+
+  const handleCopy = async (value: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      showSuccess(`${label} 복사 완료`);
+    } catch {
+      showError('클립보드에 복사하지 못했습니다. 직접 선택해서 복사해주세요.');
+    }
+  };
+
   const handleSend = async () => {
     if (selectedIds.length === 0) {
       showError('먼저 발송할 고객을 선택해주세요.');
@@ -444,7 +538,14 @@ export default function PassportRequestPage() {
 
       const data = await res.json();
       if (!res.ok || !data.ok) {
-        throw new Error(data?.message || '여권 요청 발송에 실패했습니다.');
+        console.error('[PassportRequest] Send API error response:', {
+          status: res.status,
+          statusText: res.statusText,
+          data,
+          error: data?.error,
+          details: data?.details,
+        });
+        throw new Error(data?.error || data?.message || '여권 요청 발송에 실패했습니다.');
       }
 
       setLastResult(data);
@@ -452,6 +553,11 @@ export default function PassportRequestPage() {
       setRefreshFlag((prev) => prev + 1);
     } catch (error) {
       console.error('[PassportRequest] Send error:', error);
+      console.error('[PassportRequest] Send error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : undefined,
+      });
       showError(error instanceof Error ? error.message : '여권 요청 발송 중 오류가 발생했습니다.');
     } finally {
       setIsSending(false);
@@ -819,52 +925,56 @@ export default function PassportRequestPage() {
                         )}
                       </td>
                       <td className="px-4 py-4">
-                        {submission ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              {submission.isSubmitted ? (
-                                <FiCheckCircle className="text-green-500 text-lg" />
-                              ) : (
-                                <FiAlertCircle className="text-yellow-500 text-lg" />
-                              )}
-                              <span
-                                className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm ${
-                                  submission.isSubmitted
-                                    ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
-                                    : 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-white'
-                                }`}
-                              >
-                                {submission.isSubmitted ? '✅ 제출 완료' : '⏳ 제출 대기'}
-                              </span>
-                            </div>
-                            {submission.isSubmitted && submission.submittedAt && (
-                              <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                                <p className="text-xs font-semibold text-green-700">
-                                  📅 제출 완료일: {new Date(submission.submittedAt).toLocaleDateString('ko-KR', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </p>
+                        <div className="space-y-2">
+                          {!submission && (
+                            <button
+                              onClick={() => handleOpenManualModal(customer)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
+                            >
+                              <FiLink className="text-xs" />
+                              링크 생성
+                            </button>
+                          )}
+                          {submission ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                {submission.isSubmitted ? (
+                                  <FiCheckCircle className="text-green-500 text-lg" />
+                                ) : (
+                                  <FiAlertCircle className="text-yellow-500 text-lg" />
+                                )}
+                                <span
+                                  className={`inline-flex items-center px-4 py-2 rounded-lg text-sm font-bold shadow-sm ${
+                                    submission.isSubmitted
+                                      ? 'bg-gradient-to-r from-green-500 to-green-600 text-white'
+                                      : 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-white'
+                                  }`}
+                                >
+                                  {submission.isSubmitted ? '✅ 제출 완료' : '⏳ 제출 대기'}
+                                </span>
                               </div>
-                            )}
-                            <div className="text-xs text-gray-500 space-y-0.5">
-                              <p>🔗 링크 만료: {new Date(submission.tokenExpiresAt).toLocaleDateString('ko-KR')}</p>
-                              {!submission.isSubmitted && (
-                                <p className="text-yellow-600 font-semibold">⚠️ 아직 제출되지 않았습니다</p>
+                              {submission.isSubmitted && submission.submittedAt && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                                  <p className="text-xs font-semibold text-green-700">
+                                    📅 제출 완료일: {new Date(submission.submittedAt).toLocaleDateString('ko-KR', {
+                                      year: 'numeric',
+                                      month: 'long',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </p>
+                                </div>
                               )}
+                              <div className="text-xs text-gray-500 space-y-0.5">
+                                <p>🔗 링크 만료: {new Date(submission.tokenExpiresAt).toLocaleDateString('ko-KR')}</p>
+                                {!submission.isSubmitted && (
+                                  <p className="text-yellow-600 font-semibold">⚠️ 아직 제출되지 않았습니다</p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <FiUserCheck className="text-gray-400 text-lg" />
-                            <span className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600">
-                              📭 요청 기록 없음
-                            </span>
-                          </div>
-                        )}
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         {lastRequest ? (
@@ -1139,6 +1249,170 @@ export default function PassportRequestPage() {
             </table>
           </div>
         </section>
+      )}
+
+      {/* 수동 링크 생성 모달 */}
+      {showManualModal && selectedCustomerForManual && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">여권 제출 링크 생성</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  메시지를 복사해 고객에게 직접 전달하면 제출 현황이 자동으로 갱신됩니다.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowManualModal(false);
+                  setSelectedCustomerForManual(null);
+                  setManualResult(null);
+                }}
+                className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6 space-y-6">
+              <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+                <div className="flex items-start gap-3 text-sm text-blue-900">
+                  <FiInfo className="text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-2">
+                    <p className="font-semibold">복사해서 보내는 방식</p>
+                    <ul className="list-disc list-inside space-y-1 text-blue-800">
+                      <li>링크를 생성하면 고객별 제출 페이지가 만들어집니다.</li>
+                      <li>완성된 메시지와 링크를 복사해서 카카오톡/문자로 직접 보내주세요.</li>
+                      <li>제출이 완료되면 이 화면에 상태가 자동으로 표시됩니다.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-sm font-semibold text-gray-700 mb-2">📋 고객 정보</p>
+                <div className="space-y-1 text-sm text-gray-600">
+                  <p>
+                    <span className="font-semibold text-gray-800">고객명:</span> {selectedCustomerForManual.name ?? '이름 없음'}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">전화번호:</span> {selectedCustomerForManual.phone ?? '-'}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-gray-800">이메일:</span> {selectedCustomerForManual.email ?? '-'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm font-semibold text-gray-700">사용할 템플릿</span>
+                  <select
+                    value={manualTemplateId ?? ''}
+                    onChange={(e) => handleManualTemplateChange(Number(e.target.value))}
+                    disabled={!templates.length}
+                    className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50"
+                  >
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.title} {template.isDefault ? '(기본)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-2">
+                  <span className="text-sm font-semibold text-gray-700">링크 만료 시간 (최대 14일)</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={336}
+                    value={manualExpiresInHours}
+                    onChange={(e) => setManualExpiresInHours(Math.max(1, Math.min(336, Number(e.target.value) || 1)))}
+                    className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-gray-700">메시지 기본 내용</label>
+                <textarea
+                  value={manualMessageBody}
+                  onChange={(e) => {
+                    setManualMessageBody(e.target.value);
+                    setManualResult(null);
+                  }}
+                  rows={8}
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm leading-relaxed focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="템플릿 내용을 입력하거나 수정하세요."
+                />
+                <p className="text-xs text-gray-500">
+                  사용 가능한 변수: <code>{'{고객명}'}</code>, <code>{'{링크}'}</code>, <code>{'{상품명}'}</code>,{' '}
+                  <code>{'{출발일}'}</code>
+                </p>
+              </div>
+
+              <button
+                onClick={handleGenerateManualLink}
+                disabled={isGeneratingManual || !manualMessageBody.trim()}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-6 py-3 text-base font-semibold text-white shadow hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {isGeneratingManual ? (
+                  <>
+                    <FiRefreshCw className="animate-spin" />
+                    생성 중...
+                  </>
+                ) : (
+                  <>
+                    <FiLink />
+                    링크 생성하기
+                  </>
+                )}
+              </button>
+
+              {manualResult && (
+                <div className="space-y-4 border border-green-200 bg-green-50 rounded-2xl p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-green-800 mb-2">완성된 메시지</p>
+                    <textarea
+                      value={manualResult.message}
+                      readOnly
+                      rows={6}
+                      className="w-full rounded-xl border border-green-200 bg-white px-4 py-3 text-sm text-green-900"
+                    />
+                    <button
+                      onClick={() => handleCopy(manualResult.message, '메시지')}
+                      className="mt-2 inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+                    >
+                      <FiCopy className="text-xs" />
+                      메시지 복사
+                    </button>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-green-800 mb-2">제출 링크</p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input
+                        type="text"
+                        value={manualResult.link}
+                        readOnly
+                        className="flex-1 rounded-xl border border-green-200 bg-white px-4 py-2 text-sm text-green-900"
+                      />
+                      <button
+                        onClick={() => handleCopy(manualResult.link, '링크')}
+                        className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+                      >
+                        <FiCopy />
+                        링크 복사
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-green-700">
+                      만료 예정: {new Date(manualResult.expiresAt).toLocaleString('ko-KR')}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

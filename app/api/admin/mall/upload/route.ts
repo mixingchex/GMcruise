@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
             select: { configValue: true },
           });
 
-          const productsFolderId = productsConfig?.configValue || process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID;
+          const productsFolderId = productsConfig?.configValue || process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID || '18YuEBt313yyKI3F7PSzjFFRF3Af-bVPH';
 
           if (productsFolderId && productsFolderId !== 'root') {
             // 상품 코드별 폴더 생성 또는 찾기

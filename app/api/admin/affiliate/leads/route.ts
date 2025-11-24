@@ -124,12 +124,24 @@ export async function GET(req: NextRequest) {
     // Leads 조회
     try {
       console.log('[admin/affiliate/leads][GET] Fetching leads, skip:', skip, 'take:', limit);
+      // 성능 최적화: include 대신 select 사용
       leads = await prisma.affiliateLead.findMany({
       where,
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       skip,
       take: limit,
-      include: {
+      select: {
+        id: true,
+        customerName: true,
+        customerPhone: true,
+        status: true,
+        passportRequestedAt: true,
+        passportCompletedAt: true,
+        lastContactedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        managerId: true,
+        agentId: true,
         AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
           select: {
             id: true,
@@ -290,6 +302,234 @@ export async function GET(req: NextRequest) {
           }
         } : {})
       },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST: 새 AffiliateLead 생성 (관리자용)
+ */
+export async function POST(req: NextRequest) {
+  try {
+    // 인증 확인
+    let sessionUser: { id: number; role: string | null } | null = null;
+    try {
+      const sid = cookies().get('cg.sid.v2')?.value;
+      if (sid) {
+        const sess = await prisma.session.findUnique({
+          where: { id: sid },
+          select: { User: { select: { id: true, role: true } } },
+        });
+        if (sess?.User) {
+          sessionUser = { id: sess.User.id, role: sess.User.role };
+        }
+      }
+    } catch (authError: any) {
+      console.error('[admin/affiliate/leads][POST] Auth error:', authError);
+      return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    if (!sessionUser) {
+      return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    if (sessionUser.role !== 'admin') {
+      return NextResponse.json({ ok: false, message: '관리자 권한이 필요합니다.' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { customerName, customerPhone, managerId, agentId, status, source, notes } = body;
+
+    // 필수 필드 검증
+    if (!customerName || !customerPhone) {
+      return NextResponse.json(
+        { ok: false, message: '고객 이름과 전화번호는 필수입니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 전화번호 정규화
+    const normalizedPhone = normalizePhone(customerPhone);
+    if (!normalizedPhone || normalizedPhone.length < 10) {
+      return NextResponse.json(
+        { ok: false, message: '유효한 전화번호를 입력해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    // 기존 리드 확인 (중복 방지)
+    const existingLead = await prisma.affiliateLead.findFirst({
+      where: {
+        customerPhone: normalizedPhone,
+        status: { not: 'CANCELLED' },
+      },
+    });
+
+    if (existingLead) {
+      return NextResponse.json(
+        { ok: false, message: '이미 존재하는 고객입니다. 기존 리드를 수정해주세요.', leadId: existingLead.id },
+        { status: 400 }
+      );
+    }
+
+    // 대리점장/판매원 검증
+    if (managerId) {
+      const managerProfile = await prisma.affiliateProfile.findFirst({
+        where: {
+          id: parseInt(String(managerId)),
+          type: 'BRANCH_MANAGER',
+          status: 'ACTIVE',
+        },
+      });
+      if (!managerProfile) {
+        return NextResponse.json({ ok: false, message: 'Invalid manager ID' }, { status: 400 });
+      }
+    }
+
+    if (agentId) {
+      const agentProfile = await prisma.affiliateProfile.findFirst({
+        where: {
+          id: parseInt(String(agentId)),
+          type: 'SALES_AGENT',
+          status: 'ACTIVE',
+        },
+      });
+      if (!agentProfile) {
+        return NextResponse.json({ ok: false, message: 'Invalid agent ID' }, { status: 400 });
+      }
+
+      // 판매원이 선택된 경우 해당 판매원의 대리점장도 자동 설정 (managerId가 없을 때만)
+      if (!managerId) {
+        const relation = await prisma.affiliateRelation.findFirst({
+          where: {
+            agentId: parseInt(String(agentId)),
+            status: 'ACTIVE',
+          },
+          select: { managerId: true },
+        });
+        if (relation) {
+          // managerId를 relation.managerId로 설정
+          const finalManagerId = relation.managerId;
+          const newLead = await prisma.affiliateLead.create({
+            data: {
+              customerName: customerName.trim(),
+              customerPhone: normalizedPhone,
+              managerId: finalManagerId,
+              agentId: parseInt(String(agentId)),
+              status: status || 'NEW',
+              source: source || 'admin-manual',
+              notes: notes || null,
+            },
+            include: {
+              AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  affiliateCode: true,
+                  displayName: true,
+                  branchLabel: true,
+                },
+              },
+              AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  affiliateCode: true,
+                  displayName: true,
+                },
+              },
+            },
+          });
+
+          // 생성 이력 기록
+          await prisma.affiliateInteraction.create({
+            data: {
+              leadId: newLead.id,
+              profileId: null,
+              createdById: sessionUser.id,
+              interactionType: 'UPDATED',
+              note: `리드가 생성되었습니다. 담당 대리점장: ${newLead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile?.displayName || '없음'}, 담당 판매원: ${newLead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || '없음'}`,
+              metadata: {
+                createdBy: 'admin',
+                createdAt: new Date().toISOString(),
+                managerId: finalManagerId,
+                agentId: parseInt(String(agentId)),
+              },
+            },
+          });
+
+          return NextResponse.json({
+            ok: true,
+            lead: {
+              ...newLead,
+              manager: newLead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile,
+              agent: newLead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile,
+            },
+            message: '리드가 생성되었습니다.',
+          });
+        }
+      }
+    }
+
+    // 리드 생성
+    const newLead = await prisma.affiliateLead.create({
+      data: {
+        customerName: customerName.trim(),
+        customerPhone: normalizedPhone,
+        managerId: managerId ? parseInt(String(managerId)) : null,
+        agentId: agentId ? parseInt(String(agentId)) : null,
+        status: status || 'NEW',
+        source: source || 'admin-manual',
+        notes: notes || null,
+      },
+      include: {
+        AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
+          select: {
+            id: true,
+            affiliateCode: true,
+            displayName: true,
+            branchLabel: true,
+          },
+        },
+        AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+          select: {
+            id: true,
+            affiliateCode: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    // 생성 이력 기록
+    await prisma.affiliateInteraction.create({
+      data: {
+        leadId: newLead.id,
+        profileId: null,
+        createdById: sessionUser.id,
+        interactionType: 'UPDATED',
+        note: `리드가 생성되었습니다. 담당 대리점장: ${newLead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile?.displayName || '없음'}, 담당 판매원: ${newLead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || '없음'}`,
+        metadata: {
+          createdBy: 'admin',
+          createdAt: new Date().toISOString(),
+          managerId: managerId ? parseInt(String(managerId)) : null,
+          agentId: agentId ? parseInt(String(agentId)) : null,
+        },
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      lead: {
+        ...newLead,
+        manager: newLead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile,
+        agent: newLead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile,
+      },
+      message: '리드가 생성되었습니다.',
+    });
+  } catch (error: any) {
+    console.error('[admin/affiliate/leads][POST] Error:', error);
+    return NextResponse.json(
+      { ok: false, message: '리드 생성에 실패했습니다.', error: error?.message || String(error) },
       { status: 500 }
     );
   }

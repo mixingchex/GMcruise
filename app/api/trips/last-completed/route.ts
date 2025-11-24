@@ -15,14 +15,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 가장 최근 완료된 여행 조회
-    const lastTrip = await prisma.trip.findFirst({
+    // 가장 최근 완료된 여행 조회 (CORE_RULES: UserTrip 사용)
+    const lastTrip = await prisma.userTrip.findFirst({
       where: {
         userId: session.user.id,
         status: 'Completed',
       },
       include: {
-        itineraries: {
+        Itinerary: {
+          where: { userTripId: { not: null } },
           select: {
             country: true,
           },
@@ -40,14 +41,14 @@ export async function GET(req: NextRequest) {
 
     // 고유한 국가 수 계산
     const uniqueCountries = new Set(
-      lastTrip.itineraries
+      lastTrip.Itinerary
         .map((it) => it.country)
         .filter((c): c is string => c !== null)
     ).size;
 
-    // 지출 합계 계산
+    // 지출 합계 계산 (CORE_RULES: UserTrip 사용)
     const expenses = await prisma.expense.aggregate({
-      where: { tripId: lastTrip.id },
+      where: { userTripId: lastTrip.id },
       _sum: { amount: true },
     });
 

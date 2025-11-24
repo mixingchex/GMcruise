@@ -154,7 +154,7 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
         tags: true,
         createdAt: true,
         updatedAt: true,
-        Trip: {
+        UserTrip: {
           select: { id: true },
         },
         MallProductContent: {
@@ -311,7 +311,7 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
           tags: serializedTags,
           createdAt: toDateString(p.createdAt),
           updatedAt: toDateString(p.updatedAt),
-          tripCount: Array.isArray(p.Trip) ? p.Trip.length : 0,
+          tripCount: Array.isArray(p.UserTrip) ? p.UserTrip.length : 0,
           mallProductContent: p.MallProductContent ? {
             thumbnail: p.MallProductContent.thumbnail ? String(p.MallProductContent.thumbnail) : null,
             images: serializedImages,
@@ -361,7 +361,7 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
           tags: null,
           createdAt: null,
           updatedAt: null,
-          tripCount: Array.isArray(p.Trip) ? p.Trip.length : 0,
+          tripCount: Array.isArray(p.UserTrip) ? p.UserTrip.length : 0,
           mallProductContent: null,
         };
       }

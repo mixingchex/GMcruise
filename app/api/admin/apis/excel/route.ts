@@ -5,9 +5,10 @@ import dayjs from 'dayjs';
 
 /**
  * APIS 엑셀 다운로드 API
- * GET /api/admin/apis/excel?tripId=123
+ * GET /api/admin/apis/excel?productCode=XXX
  * 
- * 관리자 전용 API로, tripId를 받아서 해당 Trip의 여권 데이터를 엑셀로 다운로드합니다.
+ * 관리자 전용 API로, productCode를 받아서 해당 상품의 모든 고객의 여권, 여행정보, PNR 정보를
+ * APIS 양식에 맞게 채워진 엑셀 파일로 다운로드합니다.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -39,159 +40,197 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 쿼리 파라미터에서 tripId 가져오기
+    // 쿼리 파라미터에서 productCode 가져오기
     const { searchParams } = new URL(req.url);
-    const tripIdStr = searchParams.get('tripId');
+    const productCode = searchParams.get('productCode');
 
-    if (!tripIdStr) {
+    if (!productCode) {
       return NextResponse.json(
-        { ok: false, error: 'tripId는 필수입니다.' },
+        { ok: false, error: 'productCode는 필수입니다.' },
         { status: 400 }
       );
     }
 
-    const tripId = parseInt(tripIdStr, 10);
-    if (isNaN(tripId)) {
-      return NextResponse.json(
-        { ok: false, error: 'tripId는 숫자여야 합니다.' },
-        { status: 400 }
-      );
-    }
-
-    // Trip 존재 확인 및 데이터 가져오기
-    const trip = await prisma.trip.findUnique({
-      where: { id: tripId },
+    // 상품 정보 조회
+    const product = await prisma.cruiseProduct.findUnique({
+      where: { productCode },
       select: {
-        id: true,
-        cruiseName: true,
-        departureDate: true,
+        productCode: true,
+        cruiseLine: true,
         shipName: true,
-        User: {
-          select: {
-            name: true,
-            phone: true,
-            email: true,
-          },
-        },
-        PassportSubmission: {
-          select: {
-            id: true,
-            isSubmitted: true,
-            submittedAt: true,
-            passportData: true,
-          },
-        },
+        packageName: true,
+        startDate: true,
+        endDate: true,
       },
     });
 
-    if (!trip) {
+    if (!product) {
       return NextResponse.json(
-        { ok: false, error: '여행을 찾을 수 없습니다.' },
+        { ok: false, error: '상품을 찾을 수 없습니다.' },
         { status: 404 }
       );
     }
 
-    // APIS 데이터 구성
-    const apisData: any[] = [];
+    // Trip 조회
+    const trip = await prisma.trip.findUnique({
+      where: { productCode },
+      select: {
+        id: true,
+      },
+    });
 
-    // 고객 본인 정보
-    const customerData = trip.User;
-    const submission = trip.PassportSubmission;
-    const passportData = submission?.passportData as any;
+    // 여행명 구성 (크루즈 라인 + 선박명 또는 패키지명)
+    const cruiseName = product.packageName || `${product.cruiseLine || ''} ${product.shipName || ''}`.trim();
+    const departureDate = product.startDate ? dayjs(product.startDate).format('YYYY-MM-DD') : '';
+    const arrivalDate = product.endDate ? dayjs(product.endDate).format('YYYY-MM-DD') : '';
 
-    // 본인 데이터 추가
-    if (passportData?.personalInfo) {
-      const personal = passportData.personalInfo;
-      apisData.push({
-        순번: 1,
-        성명한글: customerData.name || '',
-        성명영문: `${personal.lastNameEn || ''} ${personal.firstNameEn || ''}`.trim(),
-        생년월일: personal.birthDate || '',
-        성별: personal.gender === 'M' ? '남성' : personal.gender === 'F' ? '여성' : '',
-        국적: personal.nationality || '',
-        여권번호: personal.passportNumber || '',
-        여권발급일: personal.issueDate || '',
-        여권만료일: personal.expiryDate || '',
-        '제출여부': submission?.isSubmitted ? '제출완료' : '미제출',
-        '제출일시': submission?.submittedAt ? dayjs(submission.submittedAt).format('YYYY-MM-DD HH:mm') : '',
-      });
-    } else {
-      // 기본 정보만 있는 경우
-      apisData.push({
-        순번: 1,
-        성명한글: customerData.name || '',
-        성명영문: '',
-        생년월일: '',
-        성별: '',
-        국적: '',
-        여권번호: '',
-        여권발급일: '',
-        여권만료일: '',
-        '제출여부': submission?.isSubmitted ? '제출완료' : '미제출',
-        '제출일시': submission?.submittedAt ? dayjs(submission.submittedAt).format('YYYY-MM-DD HH:mm') : '',
-      });
-    }
-
-    // 동반자 정보 추가
-    if (passportData?.companions && Array.isArray(passportData.companions)) {
-      passportData.companions.forEach((companion: any, index: number) => {
-        apisData.push({
-          순번: index + 2,
-          성명한글: companion.nameKr || '',
-          성명영문: `${companion.lastNameEn || ''} ${companion.firstNameEn || ''}`.trim(),
-          생년월일: companion.birthDate || '',
-          성별: companion.gender === 'M' ? '남성' : companion.gender === 'F' ? '여성' : '',
-          국적: companion.nationality || '',
-          여권번호: companion.passportNumber || '',
-          여권발급일: companion.issueDate || '',
-          여권만료일: companion.expiryDate || '',
-          '제출여부': submission?.isSubmitted ? '제출완료' : '미제출',
-          '제출일시': submission?.submittedAt ? dayjs(submission.submittedAt).format('YYYY-MM-DD HH:mm') : '',
-        });
-      });
-    }
+    // 해당 상품의 모든 Reservation과 Traveler 조회
+    const reservations = trip
+      ? await prisma.reservation.findMany({
+          where: {
+            tripId: trip.id,
+          },
+          include: {
+            Traveler: {
+              orderBy: [
+                { roomNumber: 'asc' },
+                { id: 'asc' },
+              ],
+            },
+            User: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: {
+            id: 'asc',
+          },
+        })
+      : [];
 
     // 엑셀 워크북 생성
     const workbook = XLSX.utils.book_new();
 
-    // 여행 정보 시트
-    const tripInfoSheet = XLSX.utils.json_to_sheet([
-      {
-        항목: '크루즈명',
-        내용: trip.cruiseName || '',
-      },
-      {
-        항목: '선박명',
-        내용: trip.shipName || '',
-      },
-      {
-        항목: '출발일',
-        내용: trip.departureDate ? dayjs(trip.departureDate).format('YYYY-MM-DD') : '',
-      },
-      {
-        항목: '고객명',
-        내용: customerData.name || '',
-      },
-      {
-        항목: '연락처',
-        내용: customerData.phone || '',
-      },
-      {
-        항목: '이메일',
-        내용: customerData.email || '',
-      },
-    ]);
-    XLSX.utils.book_append_sheet(workbook, tripInfoSheet, '여행정보');
+    // APIS 양식 시트 생성
+    // 정확한 컬럼 헤더 구조
+    const headers = [
+      '순번',
+      'RV',
+      'CABIN',
+      '카테고리',
+      '영문성',
+      '영문이름',
+      '성명',
+      '주민번호',
+      '성별',
+      '생년월일',
+      '여권번호',
+      '발급일',
+      '만료일',
+      '연락처',
+      '항공',
+      '결제일',
+      '결제방법',
+      '결제금액',
+      '담당자',
+      '비고',
+      '비고2',
+      '여권링크',
+    ];
+    
+    // 여행 정보를 첫 번째 행에 추가
+    const worksheetData: any[][] = [];
+    
+    // 여행 정보 행 추가
+    worksheetData.push(['여행명', cruiseName]);
+    worksheetData.push(['출발일', departureDate]);
+    worksheetData.push(['도착일', arrivalDate]);
+    worksheetData.push([]); // 빈 행
+    worksheetData.push(headers); // 헤더 행
+    
+    // 실제 고객 데이터로 채우기
+    let sequence = 1;
+    for (const reservation of reservations) {
+      const userPhone = reservation.User?.phone || '';
+      const paymentDate = reservation.paymentDate
+        ? dayjs(reservation.paymentDate).format('YYYY-MM-DD')
+        : '';
+      const paymentAmount = reservation.paymentAmount
+        ? reservation.paymentAmount.toString()
+        : '';
 
-    // APIS 데이터 시트
-    const apisSheet = XLSX.utils.json_to_sheet(apisData);
+      for (const traveler of reservation.Traveler) {
+        worksheetData.push([
+          sequence++, // 순번
+          reservation.id, // RV (Reservation ID)
+          traveler.roomNumber || '', // CABIN
+          reservation.cabinType || '', // 카테고리
+          traveler.engSurname || '', // 영문성
+          traveler.engGivenName || '', // 영문이름
+          traveler.korName || '', // 성명
+          traveler.residentNum || '', // 주민번호
+          traveler.gender || '', // 성별
+          traveler.birthDate || '', // 생년월일
+          traveler.passportNo || '', // 여권번호
+          traveler.issueDate || '', // 발급일
+          traveler.expiryDate || '', // 만료일
+          userPhone, // 연락처
+          '', // 항공 (데이터 없음)
+          paymentDate, // 결제일
+          reservation.paymentMethod || '', // 결제방법
+          paymentAmount, // 결제금액
+          reservation.agentName || '', // 담당자
+          reservation.remarks || '', // 비고
+          '', // 비고2 (데이터 없음)
+          reservation.passportGroupLink || '', // 여권링크
+        ]);
+      }
+    }
+    
+    // 데이터가 없으면 빈 행 10개 추가 (고객이 직접 입력할 수 있도록)
+    if (sequence === 1) {
+      for (let i = 0; i < 10; i++) {
+        worksheetData.push([
+          i + 1, // 순번
+          '', // RV
+          '', // CABIN
+          '', // 카테고리
+          '', // 영문성
+          '', // 영문이름
+          '', // 성명
+          '', // 주민번호
+          '', // 성별
+          '', // 생년월일
+          '', // 여권번호
+          '', // 발급일
+          '', // 만료일
+          '', // 연락처
+          '', // 항공
+          '', // 결제일
+          '', // 결제방법
+          '', // 결제금액
+          '', // 담당자
+          '', // 비고
+          '', // 비고2
+          '', // 여권링크
+        ]);
+      }
+    }
+
+    // 시트 생성
+    const apisSheet = XLSX.utils.aoa_to_sheet(worksheetData);
     XLSX.utils.book_append_sheet(workbook, apisSheet, 'APIS');
 
     // 엑셀 버퍼 생성
     const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
-    // 파일명 생성
-    const filename = `APIS_${trip.cruiseName || 'Trip'}_${tripId}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+    // 파일명 생성 (여행명 포함)
+    const safeCruiseName = cruiseName.replace(/[\/\\?%*:|"<>]/g, '_').substring(0, 50); // 파일명에 사용할 수 없는 문자 제거
+    const filename = `APIS_${safeCruiseName}_${dayjs().format('YYYY-MM-DD')}.xlsx`;
 
     return new NextResponse(excelBuffer, {
       status: 200,

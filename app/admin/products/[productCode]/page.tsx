@@ -18,9 +18,11 @@ import DateRangePicker from '@/components/admin/DateRangePicker';
 import CountrySelector from '@/components/admin/CountrySelector';
 import FlightInfoEditor, { FlightInfo } from '@/components/admin/FlightInfoEditor';
 import MobilePreview from '@/components/admin/MobilePreview';
+import ProductPreviewModal from '@/components/admin/ProductPreviewModal';
 import { Option } from '@/components/CountrySelect';
 import { getAllCruiseLines, getAllShipNames, searchCruiseLinesAndShips } from '@/lib/cruise-data';
 import { getKoreanCountryName, getCountryCode } from '@/lib/utils/countryMapping';
+import { getKoreanCruiseLineName, getKoreanShipName } from '@/lib/utils/cruiseNames';
 
 interface Product {
   id: number;
@@ -144,37 +146,102 @@ export default function ProductEditPage() {
   const [flightInfo, setFlightInfo] = useState<FlightInfo | null>(null);
   const [rating, setRating] = useState<number>(4.4);
   const [reviewCount, setReviewCount] = useState<number>(0);
+  const [previewProductCode, setPreviewProductCode] = useState<string | null>(null);
+
+  // 8. 문의 옵션 (결제하기, 전화상담, AI 지니 채팅봇) - 각각 활성화/비활성화 가능
+  const [contactOptions, setContactOptions] = useState<{
+    payment: boolean;
+    phoneCall: boolean;
+    aiChatbot: boolean;
+  }>({
+    payment: false,
+    phoneCall: false,
+    aiChatbot: true, // 기본값: AI 지니 채팅봇 활성화
+  });
 
   // 자동저장 키 (localStorage)
   const AUTO_SAVE_KEY = `product_edit_draft_${productCode}`;
 
   // 자동저장 상태
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | null>(null);
+  const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false);
 
-  // 자동저장 함수
+  // 자동저장 타이머
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // 최신 상태를 참조하기 위한 ref
+  const formDataRef = useRef(formData);
+  const selectedCountriesRef = useRef(selectedCountries);
+  const thumbnailRef = useRef(thumbnail);
+  const detailBlocksRef = useRef(detailBlocks);
+  const includedItemsRef = useRef(includedItems);
+  const excludedItemsRef = useRef(excludedItems);
+  const itineraryDaysRef = useRef(itineraryDays);
+  const pricingRowsRef = useRef(pricingRows);
+  const departureDateRef = useRef(departureDate);
+  const refundPolicyRef = useRef(refundPolicy);
+  const selectedTagsRef = useRef(selectedTags);
+  const recommendedKeywordsRef = useRef(recommendedKeywords);
+  const flightInfoRef = useRef(flightInfo);
+  const ratingRef = useRef(rating);
+  const reviewCountRef = useRef(reviewCount);
+  const hasEscortRef = useRef(hasEscort);
+  const hasLocalGuideRef = useRef(hasLocalGuide);
+  const hasCruisedotStaffRef = useRef(hasCruisedotStaff);
+  const hasTravelInsuranceRef = useRef(hasTravelInsurance);
+  const contactOptionsRef = useRef(contactOptions);
+
+  // ref 업데이트
+  useEffect(() => {
+    formDataRef.current = formData;
+    selectedCountriesRef.current = selectedCountries;
+    thumbnailRef.current = thumbnail;
+    detailBlocksRef.current = detailBlocks;
+    includedItemsRef.current = includedItems;
+    excludedItemsRef.current = excludedItems;
+    itineraryDaysRef.current = itineraryDays;
+    pricingRowsRef.current = pricingRows;
+    departureDateRef.current = departureDate;
+    refundPolicyRef.current = refundPolicy;
+    selectedTagsRef.current = selectedTags;
+    recommendedKeywordsRef.current = recommendedKeywords;
+    flightInfoRef.current = flightInfo;
+    ratingRef.current = rating;
+    reviewCountRef.current = reviewCount;
+    hasEscortRef.current = hasEscort;
+    hasLocalGuideRef.current = hasLocalGuide;
+    hasCruisedotStaffRef.current = hasCruisedotStaff;
+    hasTravelInsuranceRef.current = hasTravelInsurance;
+    contactOptionsRef.current = contactOptions;
+  });
+
+  // 자동저장 함수 (ref 사용으로 dependency 없음)
   const saveToLocalStorage = useCallback(() => {
+    if (isLoadingFromStorage) return; // 로딩 중에는 저장하지 않음
+    
     try {
       setAutoSaveStatus('saving');
       const draft = {
-        formData,
-        selectedCountries,
-        thumbnail,
-        detailBlocks,
-        includedItems,
-        excludedItems,
-        itineraryDays,
-        pricingRows,
-        departureDate,
-        refundPolicy,
-        selectedTags,
-        recommendedKeywords,
-        flightInfo,
-        rating,
-        reviewCount,
-        hasEscort,
-        hasLocalGuide,
-        hasCruisedotStaff,
-        hasTravelInsurance,
+        formData: formDataRef.current,
+        selectedCountries: selectedCountriesRef.current,
+        thumbnail: thumbnailRef.current,
+        detailBlocks: detailBlocksRef.current,
+        includedItems: includedItemsRef.current,
+        excludedItems: excludedItemsRef.current,
+        itineraryDays: itineraryDaysRef.current,
+        pricingRows: pricingRowsRef.current,
+        departureDate: departureDateRef.current,
+        refundPolicy: refundPolicyRef.current,
+        selectedTags: selectedTagsRef.current,
+        recommendedKeywords: recommendedKeywordsRef.current,
+        flightInfo: flightInfoRef.current,
+        rating: ratingRef.current,
+        reviewCount: reviewCountRef.current,
+        hasEscort: hasEscortRef.current,
+        hasLocalGuide: hasLocalGuideRef.current,
+        hasCruisedotStaff: hasCruisedotStaffRef.current,
+        hasTravelInsurance: hasTravelInsuranceRef.current,
+        contactOptions: contactOptionsRef.current,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(draft));
@@ -186,11 +253,12 @@ export default function ProductEditPage() {
       console.error('자동저장 실패:', error);
       setAutoSaveStatus(null);
     }
-  }, [formData, selectedCountries, thumbnail, detailBlocks, includedItems, excludedItems, itineraryDays, pricingRows, departureDate, refundPolicy, selectedTags, recommendedKeywords, flightInfo, rating, reviewCount, hasEscort, hasLocalGuide, hasCruisedotStaff, hasTravelInsurance]);
+  }, [isLoadingFromStorage]);
 
-  // localStorage에서 복원
+  // localStorage에서 복원 (한 번만 실행)
   const loadFromLocalStorage = useCallback(() => {
     try {
+      setIsLoadingFromStorage(true);
       const saved = localStorage.getItem(AUTO_SAVE_KEY);
       if (saved) {
         const draft = JSON.parse(saved);
@@ -251,26 +319,33 @@ export default function ProductEditPage() {
         if (draft.hasTravelInsurance !== undefined) {
           setHasTravelInsurance(draft.hasTravelInsurance);
         }
+        if (draft.contactOptions) {
+          setContactOptions(draft.contactOptions);
+        }
+        setTimeout(() => {
+          setIsLoadingFromStorage(false);
+        }, 1000);
         return true;
       }
+      setIsLoadingFromStorage(false);
     } catch (error) {
       console.error('자동저장 복원 실패:', error);
+      setIsLoadingFromStorage(false);
     }
     return false;
   }, []);
 
-  // 자동저장 타이머
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // 자동저장 트리거 (debounce)
+  // 자동저장 트리거 (debounce) - 안정적인 참조
   const triggerAutoSave = useCallback(() => {
+    if (isLoadingFromStorage) return;
+    
     if (autoSaveTimerRef.current) {
       clearTimeout(autoSaveTimerRef.current);
     }
     autoSaveTimerRef.current = setTimeout(() => {
       saveToLocalStorage();
-    }, 1000); // 1초 후 자동저장 (더 빠르게)
-  }, [saveToLocalStorage]);
+    }, 1000);
+  }, [saveToLocalStorage, isLoadingFromStorage]);
 
   // 페이지 언로드 시 자동저장 및 경고
   useEffect(() => {
@@ -300,13 +375,15 @@ export default function ProductEditPage() {
   const recommendedKeywordsStr = useMemo(() => JSON.stringify(recommendedKeywords), [recommendedKeywords]);
   const flightInfoStr = useMemo(() => JSON.stringify(flightInfo), [flightInfo]);
 
-  // formData 변경 시 자동저장
+  // formData 변경 시 자동저장 (로딩 중이 아닐 때만)
   useEffect(() => {
+    if (isLoadingFromStorage) return;
     if (product && formData.productCode) {
       triggerAutoSave();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    product, 
+    product,
     formData.productCode, 
     formData.packageName, 
     formData.cruiseLine, 
@@ -321,24 +398,28 @@ export default function ProductEditPage() {
     formData.isRecommended, 
     formData.startDate, 
     formData.endDate, 
-    selectedCountries.length, 
+    selectedCountriesStr, 
     thumbnail, 
-    detailBlocks.length, 
-    includedItems.length, 
-    excludedItems.length, 
-    itineraryDays.length, 
-    pricingRows.length, 
+    detailBlocksStr, 
+    includedItemsStr, 
+    excludedItemsStr, 
+    itineraryDaysStr, 
+    pricingRowsStr, 
     departureDate, 
     refundPolicy, 
-    selectedTags.length, 
-    recommendedKeywords.length,
+    selectedTagsStr, 
+    recommendedKeywordsStr,
+    flightInfoStr,
     rating,
     reviewCount,
     hasEscort,
     hasLocalGuide,
     hasCruisedotStaff,
     hasTravelInsurance,
-    triggerAutoSave
+    contactOptions.payment,
+    contactOptions.phoneCall,
+    contactOptions.aiChatbot,
+    isLoadingFromStorage,
   ]);
 
   // 여행기간 선택에서 출발일이 변경되면 요금표 출발일에 자동 반영
@@ -377,25 +458,33 @@ export default function ProductEditPage() {
     });
   }, [keywordSearchTerm]);
 
-  // 크루즈 라인 옵션 (검색 시 해당 선박명도 함께 검색)
+  // 크루즈 라인 자동완성 옵션 (AutocompleteInput용) - 한국어로 변환
   const cruiseLineOptions = useMemo(() => {
+    // 크루즈 라인 검색 시 해당 선박명도 함께 검색
     if (formData.cruiseLine.trim()) {
       const result = searchCruiseLinesAndShips(formData.cruiseLine);
-      // 크루즈 라인 우선, 그 다음 선박명
-      return [...result.cruiseLines, ...result.ships];
+      // 크루즈 라인 우선, 그 다음 선박명 - 한국어로 변환
+      const koreanCruiseLines = result.cruiseLines.map(line => getKoreanCruiseLineName(line));
+      const koreanShips = result.ships.map(ship => getKoreanShipName(formData.cruiseLine, ship));
+      return [...koreanCruiseLines, ...koreanShips];
     }
-    return getAllCruiseLines();
+    // 모든 크루즈 라인을 한국어로 변환
+    return getAllCruiseLines().map(line => getKoreanCruiseLineName(line));
   }, [formData.cruiseLine]);
 
-  // 선박명 옵션 (검색 시 해당 크루즈 라인도 함께 검색)
+  // 선박명 자동완성 옵션 (AutocompleteInput용) - 한국어로 변환
   const shipNameOptions = useMemo(() => {
+    // 선박명 검색 시 해당 크루즈 라인도 함께 검색
     if (formData.shipName.trim()) {
       const result = searchCruiseLinesAndShips(formData.shipName);
-      // 선박명 우선, 그 다음 크루즈 라인
-      return [...result.ships, ...result.cruiseLines];
+      // 선박명 우선, 그 다음 크루즈 라인 - 한국어로 변환
+      const koreanShips = result.ships.map(ship => getKoreanShipName(formData.cruiseLine, ship));
+      const koreanCruiseLines = result.cruiseLines.map(line => getKoreanCruiseLineName(line));
+      return [...koreanShips, ...koreanCruiseLines];
     }
-    return getAllShipNames();
-  }, [formData.shipName]);
+    // 모든 선박명을 한국어로 변환
+    return getAllShipNames().map(ship => getKoreanShipName(formData.cruiseLine, ship));
+  }, [formData.shipName, formData.cruiseLine]);
 
   // 외부 클릭 감지
   useEffect(() => {
@@ -602,6 +691,28 @@ export default function ProductEditPage() {
             setHasLocalGuide(parsedLayout.hasLocalGuide || false);
             setHasCruisedotStaff(parsedLayout.hasCruisedotStaff || false);
             setHasTravelInsurance(parsedLayout.hasTravelInsurance || false);
+            // 8번: 문의 옵션 불러오기
+            if (parsedLayout.contactOptions) {
+              setContactOptions({
+                payment: parsedLayout.contactOptions.payment || parsedLayout.contactOptions.priceInquiry || false, // 하위 호환성: priceInquiry도 payment로 변환
+                phoneCall: parsedLayout.contactOptions.phoneCall || false,
+                aiChatbot: parsedLayout.contactOptions.aiChatbot !== false, // 기본값: true
+              });
+            } else if (parsedLayout.contactType) {
+              // 기존 contactType 형식 지원 (하위 호환성)
+              const oldType = parsedLayout.contactType;
+              setContactOptions({
+                payment: oldType === 'priceInquiry' || oldType === 'payment',
+                phoneCall: oldType === 'phoneCall' || oldType === 'phoneConsultation',
+                aiChatbot: oldType === 'aiChatbot' || !oldType,
+              });
+            } else {
+              setContactOptions({
+                payment: false,
+                phoneCall: false,
+                aiChatbot: true, // 기본값
+              });
+            }
           } catch (e) {
             console.error('Failed to parse layout:', e);
             // 파싱 실패 시에도 빈 배열로 초기화
@@ -636,6 +747,11 @@ export default function ProductEditPage() {
             setHasLocalGuide(false);
             setHasCruisedotStaff(false);
             setHasTravelInsurance(false);
+            setContactOptions({
+              payment: false,
+              phoneCall: false,
+              aiChatbot: true, // 기본값
+            });
         }
         
         // 서버에서 불러온 모든 데이터를 자동저장
@@ -733,6 +849,7 @@ export default function ProductEditPage() {
         hasLocalGuide: hasLocalGuide || false,
         hasCruisedotStaff: hasCruisedotStaff || false,
         hasTravelInsurance: hasTravelInsurance || false,
+        contactOptions: contactOptions, // 8번: 문의 옵션 저장
         startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
         destination: selectedCountries.length > 0 ? selectedCountries.map(c => c.value) : [],
@@ -756,6 +873,29 @@ export default function ProductEditPage() {
 
       const data = await res.json();
       if (data.ok) {
+        // MallProductContent 업데이트 (contactOptions 포함)
+        try {
+          const layoutResponse = await fetch(`/api/admin/mall/products/${productCode}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              layout: {
+                rating: rating,
+                reviewCount: reviewCount,
+                recommendedKeywords: recommendedKeywords || [],
+                contactOptions: contactOptions, // 8번: 문의 옵션 저장
+              },
+            }),
+          });
+          
+          if (!layoutResponse.ok) {
+            console.error('Failed to save contactOptions');
+          }
+        } catch (layoutError) {
+          console.error('Error saving contactOptions:', layoutError);
+        }
+
         // 저장 성공 시 서버에서 최신 데이터를 다시 불러와서 상태 업데이트
         // 이렇게 하면 저장된 모든 필드가 제대로 로드됨
         const reloadRes = await fetch(`/api/admin/products/${productCode}`, {
@@ -785,6 +925,28 @@ export default function ProductEditPage() {
                 setHasLocalGuide(parsedLayout.hasLocalGuide || false);
                 setHasCruisedotStaff(parsedLayout.hasCruisedotStaff || false);
                 setHasTravelInsurance(parsedLayout.hasTravelInsurance || false);
+                // 8번: 문의 옵션 불러오기
+                if (parsedLayout.contactOptions) {
+                  setContactOptions({
+                    payment: parsedLayout.contactOptions.payment || parsedLayout.contactOptions.priceInquiry || false, // 하위 호환성
+                    phoneCall: parsedLayout.contactOptions.phoneCall || false,
+                    aiChatbot: parsedLayout.contactOptions.aiChatbot !== false, // 기본값: true
+                  });
+                } else if (parsedLayout.contactType) {
+                  // 기존 contactType 형식 지원 (하위 호환성)
+                  const oldType = parsedLayout.contactType;
+                  setContactOptions({
+                    payment: oldType === 'priceInquiry' || oldType === 'payment',
+                    phoneCall: oldType === 'phoneCall' || oldType === 'phoneConsultation',
+                    aiChatbot: oldType === 'aiChatbot' || !oldType,
+                  });
+                } else {
+                  setContactOptions({
+                    payment: false,
+                    phoneCall: false,
+                    aiChatbot: true, // 기본값
+                  });
+                }
               } catch (e) {
                 console.error('Failed to parse reloaded layout:', e);
               }
@@ -792,9 +954,20 @@ export default function ProductEditPage() {
             setThumbnail(p.mallProductContent?.thumbnail || null);
           }
         }
-        // 자동저장 데이터를 서버 데이터로 업데이트
-        saveToLocalStorage();
+        // 저장 성공 시 자동저장 데이터 업데이트 (최신 상태로 동기화)
+        // 저장 후에도 계속 편집할 수 있으므로 자동저장 데이터 유지
+        setTimeout(() => {
+          saveToLocalStorage();
+        }, 500);
         showSuccess('상품이 저장되었습니다.');
+        
+        // 저장 성공 후 자동으로 미리보기 열기
+        if (productCode) {
+          setTimeout(() => {
+            setPreviewProductCode(productCode);
+          }, 800); // 성공 메시지가 표시된 후 미리보기 열기
+        }
+        
         // 저장 후 현재 페이지에 머물기 (리다이렉트 제거)
       } else {
         throw new Error(data.error || '저장에 실패했습니다.');
@@ -851,10 +1024,11 @@ export default function ProductEditPage() {
           hasLocalGuide: hasLocalGuide,
           hasCruisedotStaff: hasCruisedotStaff,
           hasTravelInsurance: hasTravelInsurance,
+          contactOptions: contactOptions, // 8번: 문의 옵션
         },
       },
     } as any;
-  }, [product, formData, thumbnail, detailBlocks, includedItems, excludedItems, itineraryDays, pricingRows, refundPolicy, flightInfo, rating, reviewCount, recommendedKeywords, selectedCountries, selectedTags, hasEscort, hasLocalGuide, hasCruisedotStaff, hasTravelInsurance]);
+  }, [product, formData, thumbnail, detailBlocks, includedItems, excludedItems, itineraryDays, pricingRows, refundPolicy, flightInfo, rating, reviewCount, recommendedKeywords, selectedCountries, selectedTags, hasEscort, hasLocalGuide, hasCruisedotStaff, hasTravelInsurance, contactOptions]);
 
   if (loading) {
     return (
@@ -921,7 +1095,7 @@ export default function ProductEditPage() {
               <button
                 onClick={() => {
                   if (productCode) {
-                    window.open(`/products/${productCode}`, '_blank');
+                    setPreviewProductCode(productCode);
                   } else {
                     showError('상품 코드가 없어서 미리보기를 할 수 없습니다.');
                   }
@@ -1217,6 +1391,83 @@ export default function ProductEditPage() {
                   </div>
                 </div>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  // 리뷰 모달 열기
+                  const modal = document.createElement('div');
+                  modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4';
+                  const currentRating = rating || 4.4;
+                  const currentReviewCount = reviewCount || 0;
+                  modal.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                      <div class="sticky top-0 bg-white border-b-2 border-gray-300 px-6 py-4 flex items-center justify-between z-10 shadow-sm">
+                        <div class="flex items-center gap-3">
+                          <svg class="w-6 h-6 text-amber-500 fill-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                          </svg>
+                          <h3 class="text-2xl font-bold text-gray-900">리뷰 ${currentReviewCount > 0 ? currentReviewCount.toLocaleString('ko-KR') + '개' : '미리보기'}</h3>
+                          <div class="flex items-center gap-1">
+                            <span class="text-xl font-bold text-gray-900">${currentRating.toFixed(1)}</span>
+                          </div>
+                        </div>
+                        <button onclick="this.closest('.fixed').remove()" class="p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-md">
+                          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                          </svg>
+                        </button>
+                      </div>
+                      <div class="p-6">
+                        ${currentReviewCount > 0 ? Array.from({ length: Math.min(currentReviewCount, 5) }).map((_, index) => {
+                          const sampleRating = Math.max(1, Math.min(5, Math.round(currentRating) + (index % 2 === 0 ? 1 : -1)));
+                          const sampleNames = ['김**', '이**', '박**', '최**', '정**'];
+                          const sampleComments = [
+                            '크루즈 여행이 정말 만족스러웠습니다. 객실도 깨끗하고 식사도 훌륭했어요!',
+                            '일정이 알차게 구성되어 있어서 좋았습니다. 다음에도 또 이용하고 싶어요.',
+                            '가이드 분이 친절하시고 설명도 자세해서 여행이 더욱 즐거웠습니다.',
+                            '가격 대비 만족도가 높았습니다. 추천합니다!',
+                            '크루즈 시설이 깨끗하고 편안해서 좋았습니다.',
+                          ];
+                          return `
+                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+                              <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center gap-2">
+                                  <span class="font-semibold text-gray-800">${sampleNames[index % sampleNames.length]}</span>
+                                  <div class="flex items-center gap-1">
+                                    ${Array.from({ length: 5 }).map((_, starIndex) => `
+                                      <svg class="w-4 h-4 ${starIndex < sampleRating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                      </svg>
+                                    `).join('')}
+                                  </div>
+                                </div>
+                                <span class="text-sm text-gray-500">${new Date(Date.now() - (index + 1) * 7 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')}</span>
+                              </div>
+                              <p class="text-gray-700 text-sm leading-relaxed">${sampleComments[index % sampleComments.length]}</p>
+                            </div>
+                          `;
+                        }).join('') + (currentReviewCount > 5 ? `<div class="text-center py-4 text-gray-500">외 ${currentReviewCount - 5}개의 리뷰가 더 있습니다.</div>` : '') : `
+                          <div class="text-center py-12">
+                            <svg class="w-12 h-12 text-amber-500 fill-amber-500 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                            </svg>
+                            <p class="text-lg text-gray-600 mb-2">아직 리뷰가 없습니다.</p>
+                            <p class="text-sm text-gray-500">평균 별점: ${currentRating.toFixed(1)}점</p>
+                          </div>
+                        `}
+                      </div>
+                    </div>
+                  `;
+                  modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove();
+                  };
+                  document.body.appendChild(modal);
+                }}
+                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm transition-colors flex items-center gap-2"
+              >
+                <FiEye size={16} />
+                미리보기
+              </button>
             </div>
 
             {/* 썸네일 */}
@@ -1335,7 +1586,21 @@ export default function ProductEditPage() {
                 required
                 min="0"
                 value={formData.nights || 0}
-                onChange={(e) => setFormData({ ...formData, nights: parseInt(e.target.value) || 0 })}
+                onChange={(e) => {
+                  const nights = parseInt(e.target.value) || 0;
+                  setFormData(prev => {
+                    const days = nights + 1;
+                    let newEndDate = prev.endDate;
+                    // 종료일 자동 계산 (시작일 + 일수 - 1)
+                    if (prev.startDate && days > 0) {
+                      const start = new Date(prev.startDate);
+                      const end = new Date(start);
+                      end.setDate(end.getDate() + days - 1);
+                      newEndDate = end.toISOString().split('T')[0];
+                    }
+                    return { ...prev, nights, days, endDate: newEndDate };
+                  });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1349,7 +1614,21 @@ export default function ProductEditPage() {
                 required
                 min="0"
                 value={formData.days || 0}
-                onChange={(e) => setFormData({ ...formData, days: parseInt(e.target.value) || 0 })}
+                onChange={(e) => {
+                  const days = parseInt(e.target.value) || 0;
+                  setFormData(prev => {
+                    const nights = days > 0 ? days - 1 : 0;
+                    let newEndDate = prev.endDate;
+                    // 종료일 자동 계산 (시작일 + 일수 - 1)
+                    if (prev.startDate && days > 0) {
+                      const start = new Date(prev.startDate);
+                      const end = new Date(start);
+                      end.setDate(end.getDate() + days - 1);
+                      newEndDate = end.toISOString().split('T')[0];
+                    }
+                    return { ...prev, days, nights, endDate: newEndDate };
+                  });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1470,7 +1749,11 @@ export default function ProductEditPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <span>📅</span>
-                  <span className="font-medium">{formData.nights}박 {formData.days}일</span>
+                  <span className="font-medium">
+                    {formData.startDate && formData.endDate
+                      ? `${new Date(formData.startDate).toLocaleDateString('ko-KR')} ~ ${new Date(formData.endDate).toLocaleDateString('ko-KR')} (${formData.nights}박 ${formData.days}일)`
+                      : `${formData.nights}박 ${formData.days}일`}
+                  </span>
                 </div>
                 {formData.basePrice && (
                   <div className="flex items-center gap-2 flex-wrap">
@@ -1667,9 +1950,95 @@ export default function ProductEditPage() {
             onChange={setRefundPolicy}
           />
         </div>
+
+        {/* 8. 문의 옵션 */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6" id="section-8-contact-options">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">8. 문의 옵션</h2>
+          <p className="text-sm text-gray-600 mb-4">
+            상품 상세 페이지에 표시될 문의 옵션을 선택하세요. 각 옵션을 개별적으로 활성화/비활성화할 수 있습니다.
+          </p>
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={contactOptions.payment}
+                onChange={(e) => setContactOptions({ ...contactOptions, payment: e.target.checked })}
+                className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex-1">
+                <div className="font-semibold text-gray-800">💳 결제하기</div>
+                <div className="text-sm text-gray-600">고객이 직접 결제할 수 있는 버튼을 표시합니다.</div>
+              </div>
+            </label>
+            <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={contactOptions.phoneCall}
+                onChange={(e) => setContactOptions({ ...contactOptions, phoneCall: e.target.checked })}
+                className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex-1">
+                <div className="font-semibold text-gray-800">📞 전화상담</div>
+                <div className="text-sm text-gray-600">고객이 전화로 직접 상담을 받을 수 있습니다.</div>
+              </div>
+            </label>
+            <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={contactOptions.aiChatbot}
+                onChange={(e) => setContactOptions({ ...contactOptions, aiChatbot: e.target.checked })}
+                className="w-5 h-5 text-blue-600 focus:ring-2 focus:ring-blue-500"
+              />
+              <div className="flex-1">
+                <div className="font-semibold text-gray-800 flex items-center gap-2">
+                  <img 
+                    src="/images/ai-cruise-logo.png" 
+                    alt="AI 지니" 
+                    className="w-5 h-5 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  AI 지니 채팅봇
+                </div>
+                <div className="text-sm text-gray-600">AI 지니 채팅봇을 통해 실시간으로 상담을 받을 수 있습니다.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+        
+        {/* 저장하기 버튼 - 8번 섹션 끝에 표시 */}
+        <div className="mt-6 pt-6 border-t-2 border-gray-300">
+          <div className="flex gap-4 justify-end">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold text-base transition-colors"
+            >
+              취소
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiSave size={20} />
+              {saving ? '저장 중...' : '저장하기'}
+            </button>
+          </div>
+        </div>
           </div>
         </div>
       </div>
+
+      {/* 상품 미리보기 모달 */}
+      <ProductPreviewModal
+        isOpen={previewProductCode !== null}
+        onClose={() => setPreviewProductCode(null)}
+        productCode={previewProductCode || ''}
+        product={previewProduct}
+      />
     </div>
   );
 }

@@ -39,6 +39,8 @@ export default function AdminPanelAdminsPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminPanelAdmin | null>(null);
   const [resettingPassword, setResettingPassword] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -207,7 +209,61 @@ export default function AdminPanelAdminsPage() {
 
   const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
+    setSelectedIds(new Set()); // 페이지 변경 시 선택 초기화
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(admins.map(admin => admin.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: number, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBatchDelete = async () => {
+    if (selectedIds.size === 0) {
+      alert('삭제할 관리자를 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedIds.size}명의 관리자를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch('/api/admin/admin-panel-admins/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || '관리자 삭제에 실패했습니다.');
+      }
+
+      alert(`${data.deletedCount || selectedIds.size}명의 관리자가 삭제되었습니다.`);
+      setSelectedIds(new Set());
+      await loadAdmins();
+    } catch (error) {
+      console.error('Failed to delete admins:', error);
+      alert(error instanceof Error ? error.message : '관리자 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -218,16 +274,28 @@ export default function AdminPanelAdminsPage() {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">관리자 패널 관리</h1>
           <p className="text-gray-600">크루즈 가이드 관리자 패널에 접근할 수 있는 관리자 계정을 관리하세요</p>
         </div>
-        <button
-          onClick={() => {
-            setFormData({ name: '', phone: '', email: '', password: '' });
-            setIsCreateModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-        >
-          <FiPlus className="w-5 h-5" />
-          관리자 추가
-        </button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <button
+              onClick={handleBatchDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiTrash2 className="w-5 h-5" />
+              선택 삭제 ({selectedIds.size})
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setFormData({ name: '', phone: '', email: '', password: '' });
+              setIsCreateModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <FiPlus className="w-5 h-5" />
+            관리자 추가
+          </button>
+        </div>
       </div>
 
       {/* 검색 */}
@@ -262,6 +330,14 @@ export default function AdminPanelAdminsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-6 py-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={admins.length > 0 && selectedIds.size === admins.length}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">연락처</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이메일</th>
@@ -274,13 +350,21 @@ export default function AdminPanelAdminsPage() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {admins.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-4 text-center text-gray-500">
                       관리자가 없습니다.
                     </td>
                   </tr>
                 ) : (
                   admins.map((admin) => (
                     <tr key={admin.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(admin.id)}
+                          onChange={(e) => handleSelectOne(admin.id, e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {admin.name || '-'}
                       </td>
@@ -310,21 +394,48 @@ export default function AdminPanelAdminsPage() {
                         {admin.lastActiveAt ? new Date(admin.lastActiveAt).toLocaleDateString('ko-KR') : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => {
-                            setSelectedAdmin(admin);
-                            setFormData({
-                              name: admin.name || '',
-                              phone: admin.phone || '',
-                              email: admin.email || '',
-                              password: '',
-                            });
-                            setIsEditModalOpen(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 mr-4"
-                        >
-                          <FiEdit className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedAdmin(admin);
+                              setFormData({
+                                name: admin.name || '',
+                                phone: admin.phone || '',
+                                email: admin.email || '',
+                                password: '',
+                              });
+                              setIsEditModalOpen(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="수정"
+                          >
+                            <FiEdit className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('정말로 이 관리자를 삭제하시겠습니까?')) return;
+                              try {
+                                const response = await fetch(`/api/admin/admin-panel-admins/${admin.id}`, {
+                                  method: 'DELETE',
+                                  credentials: 'include',
+                                });
+                                const data = await response.json();
+                                if (!response.ok || !data.ok) {
+                                  throw new Error(data.error || '관리자 삭제에 실패했습니다.');
+                                }
+                                alert('관리자가 삭제되었습니다.');
+                                await loadAdmins();
+                              } catch (error) {
+                                console.error('Failed to delete admin:', error);
+                                alert(error instanceof Error ? error.message : '관리자 삭제 중 오류가 발생했습니다.');
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                            title="삭제"
+                          >
+                            <FiTrash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

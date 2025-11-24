@@ -13,12 +13,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const trips = await prisma.trip.findMany({
+    // CORE_RULES: UserTrip 사용
+    const trips = await prisma.userTrip.findMany({
       where: {
         userId: user.id,
       },
       include: {
-        product: {
+        CruiseProduct: {
           select: {
             cruiseLine: true,
             shipName: true,

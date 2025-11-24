@@ -47,7 +47,16 @@ export default async function ProfilePage() {
 
     user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, phone: true, role: true },
+      select: { 
+        id: true, 
+        name: true, 
+        phone: true, 
+        role: true,
+        mallUserId: true,
+        mallNickname: true,
+        customerSource: true,
+        email: true,
+      },
     });
 
     console.log('[Profile Page] Found user:', user ? { id: user.id, name: user.name, phone: user.phone } : 'null');
@@ -229,8 +238,92 @@ export default async function ProfilePage() {
                     <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
                     <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.phone ?? '정보 없음'}</span>
                   </div>
+                  {user.email && (
+                    <div className="flex items-center gap-4 p-4 md:p-5 bg-gray-50 rounded-lg">
+                      <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이메일:</span>
+                      <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.email}</span>
+                    </div>
+                  )}
+                  {user.mallUserId && (
+                    <div className="flex items-center gap-4 p-4 md:p-5 bg-gray-50 rounded-lg">
+                      <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">아이디:</span>
+                      <span className="font-bold text-gray-900 text-base md:text-lg">{user.mallUserId}</span>
+                    </div>
+                  )}
                 </div>
               </section>
+
+              {/* 서비스 이용 여부 섹션 */}
+              {(() => {
+                const isMallUser = user.role === 'community' || user.customerSource === 'mall-signup' || !!user.mallUserId;
+                const isGenieUser = user.role === 'user' && user.customerSource !== 'mall-signup';
+                const isTestUser = user.customerSource === 'test-guide' || user.role === 'user';
+                
+                // 크루즈가이드 지니 사용자 찾기 (이름과 연락처로)
+                let linkedGenieUser = null;
+                if (isMallUser && user.name && user.phone) {
+                  // 서버 컴포넌트이므로 직접 DB 조회
+                  linkedGenieUser = await prisma.user.findFirst({
+                    where: {
+                      role: 'user',
+                      name: user.name,
+                      phone: user.phone,
+                      customerSource: { not: 'mall-signup' },
+                    },
+                    select: {
+                      id: true,
+                      name: true,
+                      phone: true,
+                    },
+                  });
+                }
+                
+                const hasGenieAccount = !!linkedGenieUser;
+                
+                return (
+                  <section className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-green-200 mb-6">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3 leading-tight">
+                      <span className="text-4xl md:text-5xl">🔗</span>
+                      서비스 이용 현황
+                    </h2>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4 p-4 md:p-5 bg-green-50 rounded-lg border border-green-200">
+                        <span className="text-gray-700 font-semibold text-base md:text-lg min-w-[120px]">크루즈몰:</span>
+                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                          isMallUser 
+                            ? 'bg-green-500 text-white' 
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {isMallUser ? '✅ 이용 중' : '❌ 미이용'}
+                        </span>
+                        {isMallUser && user.mallUserId && (
+                          <span className="text-sm text-gray-600">(아이디: {user.mallUserId})</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-4 p-4 md:p-5 bg-blue-50 rounded-lg border border-blue-200">
+                        <span className="text-gray-700 font-semibold text-base md:text-lg min-w-[120px]">크루즈가이드 지니:</span>
+                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                          hasGenieAccount || isGenieUser
+                            ? 'bg-blue-500 text-white' 
+                            : 'bg-gray-200 text-gray-600'
+                        }`}>
+                          {hasGenieAccount || isGenieUser ? '✅ 이용 중' : '❌ 미이용'}
+                        </span>
+                        {hasGenieAccount && (
+                          <span className="text-sm text-gray-600">(통합 계정)</span>
+                        )}
+                      </div>
+                      {(isMallUser && (hasGenieAccount || isGenieUser)) && (
+                        <div className="mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                          <p className="text-sm text-purple-800 font-semibold">
+                            🎉 통합 계정: 크루즈몰과 크루즈가이드 지니를 모두 이용하고 있습니다!
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                );
+              })()}
 
               {/* 설정 섹션 */}
               <section className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-blue-200 mb-6">

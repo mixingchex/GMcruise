@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { isMallAdmin, getMallAdminFeatureSettings } from '@/lib/mall-admin-permissions';
 // Google Sheets 저장은 배치 작업으로 처리되므로 import 제거
 
 // 한글 아이디 목록
@@ -688,8 +689,9 @@ export async function PATCH(req: Request) {
       );
     }
 
+    const userId = parseInt(session.userId);
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(session.userId) },
+      where: { id: userId },
       select: {
         role: true,
         mallUserId: true
@@ -700,7 +702,8 @@ export async function PATCH(req: Request) {
     const normalizedMallUserId = (user?.mallUserId || '').toLowerCase();
     const isAdmin = normalizedRole === 'admin';
     const isAllowedNewsWriter = CRUISEDOT_NEWS_ALLOWED_MALL_IDS.has(normalizedMallUserId);
-    const isAuthor = existingPost.userId === parseInt(session.userId);
+    const isAuthor = existingPost.userId === userId;
+    const isMallAdminUser = await isMallAdmin(userId);
 
     if (existingPost.category === 'cruisedot-news') {
       if (!(isAdmin || isAllowedNewsWriter)) {
@@ -710,11 +713,24 @@ export async function PATCH(req: Request) {
         );
       }
     } else {
-      if (!(isAdmin || isAuthor)) {
+      // 본인 게시글이거나 관리자이거나 크루즈몰 관리자면 수정 가능
+      if (!(isAdmin || isAuthor || isMallAdminUser)) {
         return NextResponse.json(
           { ok: false, error: '게시글을 수정할 권한이 없습니다.' },
           { status: 403 }
         );
+      }
+      
+      // 크루즈몰 관리자인 경우 기능 설정 확인
+      if (isMallAdminUser && !isAuthor) {
+        const featureSettings = await getMallAdminFeatureSettings(userId);
+        // canEditPosts 기능이 없으면 canDeletePosts로 대체 (기본값 true)
+        if (featureSettings.canDeletePosts === false) {
+          return NextResponse.json(
+            { ok: false, error: '커뮤니티 글 수정 권한이 없습니다.' },
+            { status: 403 }
+          );
+        }
       }
     }
 

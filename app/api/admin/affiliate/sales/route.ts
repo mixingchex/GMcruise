@@ -38,9 +38,21 @@ export async function GET(req: NextRequest) {
     if (agentId) where.agentId = agentId;
     if (status) where.status = status;
 
+    // 성능 최적화: include 대신 select 사용
     const sales = await prisma.affiliateSale.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        productCode: true,
+        saleAmount: true,
+        netRevenue: true,
+        saleDate: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        managerId: true,
+        agentId: true,
+        leadId: true,
         AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
           select: {
             id: true,

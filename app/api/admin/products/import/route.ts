@@ -5,6 +5,9 @@ import prisma from '@/lib/prisma';
 /**
  * POST /api/admin/products/import
  * 외부 API에서 크루즈 상품 수집 (관리자 전용)
+ * 
+ * 주의: 이 API는 상품만 수집하며, 랜딩페이지는 자동으로 생성하지 않습니다.
+ * 랜딩페이지가 필요한 경우 별도로 생성하고 어필리에이트 링크로 연결하세요.
  */
 
 interface ImportSourceConfig {

@@ -234,8 +234,15 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   );
 
   const handleFileUpload = async (index: number, file: File, type: 'image' | 'video') => {
-    // 이미지인 경우 카테고리 모달 표시
-    if (type === 'image') {
+    // productCode가 있으면 자동으로 구글 드라이브 상품 폴더에 저장 (카테고리 모달 없이)
+    if (type === 'image' && productCode) {
+      // 파일명에서 확장자 제거
+      const baseFilename = file.name.replace(/\.[^/.]+$/, '');
+      // 자동 카테고리: "상품이미지" 또는 기본값
+      const autoCategory = '상품이미지';
+      await uploadFile(index, file, type, autoCategory, baseFilename);
+    } else if (type === 'image') {
+      // productCode가 없는 경우에만 카테고리 모달 표시 (하위 호환성)
       setPendingUpload({ index, file, type: 'single', files: undefined });
       setCategoryInput('');
       setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
@@ -413,11 +420,17 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
               const files = e.target.files;
               if (files && files.length > 0) {
                 console.log(`[Image Upload] Selected ${files.length} files`);
-                // 카테고리 모달 표시
-                setPendingUpload({ type: 'multiple', files });
-                setCategoryInput('');
-                setFilenameInput('');
-                setShowCategoryModal(true);
+                // productCode가 있으면 자동으로 구글 드라이브 상품 폴더에 저장 (카테고리 모달 없이)
+                if (productCode) {
+                  const autoCategory = '상품이미지';
+                  handleMultipleImageUploadWithCategory(files, autoCategory, '이미지');
+                } else {
+                  // productCode가 없는 경우에만 카테고리 모달 표시 (하위 호환성)
+                  setPendingUpload({ type: 'multiple', files });
+                  setCategoryInput('');
+                  setFilenameInput('');
+                  setShowCategoryModal(true);
+                }
                 // 같은 파일 다시 선택 가능하도록 리셋 (비동기로 처리)
                 setTimeout(() => {
                   if (e.target) {

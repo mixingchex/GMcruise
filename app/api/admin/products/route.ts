@@ -97,6 +97,11 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/admin/products
  * 새 크루즈 상품 등록
+ * 
+ * 주의: 이 API는 상품만 생성하며, 랜딩페이지는 자동으로 생성하지 않습니다.
+ * 랜딩페이지가 필요한 경우:
+ * 1. 별도로 랜딩페이지를 생성하세요 (/api/admin/landing-pages 또는 /api/partner/landing-pages)
+ * 2. 어필리에이트 링크를 생성할 때 metadata.landingPageId로 상품과 연결하세요
  */
 export async function POST(req: NextRequest) {
   try {
@@ -150,6 +155,7 @@ export async function POST(req: NextRequest) {
       hasLocalGuide,
       hasCruisedotStaff,
       hasTravelInsurance,
+      contactType, // 8번: 문의 옵션 (가격문의, 전화상담, AI 지니 채팅봇)
     } = await req.json();
 
     // 필수 필드 검증
@@ -277,6 +283,11 @@ export async function POST(req: NextRequest) {
     
     if (hasTravelInsurance !== undefined) {
       layoutData.hasTravelInsurance = hasTravelInsurance || false;
+    }
+
+    // 8번: 문의 옵션 저장
+    if (contactType !== undefined) {
+      layoutData.contactType = contactType || 'aiChatbot'; // 기본값: AI 지니 채팅봇
     }
 
     // destination이 있으면 layout에 저장

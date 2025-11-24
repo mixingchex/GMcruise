@@ -469,3 +469,12 @@ export default function PartnerCertificate({ type }: PartnerCertificateProps) {
 
 
 
+
+
+
+
+
+
+
+
+

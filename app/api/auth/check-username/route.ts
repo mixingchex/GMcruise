@@ -17,12 +17,18 @@ export async function GET(req: Request) {
       });
     }
 
-    // 크루즈몰 회원가입용 아이디 확인 (role이 'community'인 사용자만 확인)
-    // phone 필드에 username이 저장되므로 phone으로 조회
+    // 크루즈몰 회원가입용 아이디 확인
+    // role='community' AND customerSource='mall-signup'인 사용자만 확인 (기존 고객과 완전히 격리)
+    // mallUserId 필드 또는 phone 필드(레거시)로 조회
+    const trimmedUsername = username.trim();
     const existingUser = await prisma.user.findFirst({
       where: {
-        phone: username.trim(),
-        role: 'community' // 크루즈몰 회원가입 사용자는 role이 'community'
+        OR: [
+          { mallUserId: trimmedUsername }, // 새로운 방식: mallUserId 필드
+          { phone: trimmedUsername } // 레거시 지원: phone 필드 (기존 회원)
+        ],
+        role: 'community', // 크루즈몰 회원가입 사용자는 role이 'community'
+        customerSource: 'mall-signup' // 크루즈몰 회원가입 사용자만 확인
       }
     });
 

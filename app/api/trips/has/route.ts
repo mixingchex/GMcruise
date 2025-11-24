@@ -9,8 +9,8 @@ export async function GET() {
       return NextResponse.json({ hasTrip: false }, { status: 200 });
     }
 
-    // 사용자의 여행 정보 확인
-    const tripCount = await prisma.trip.count({
+    // 사용자의 여행 정보 확인 (CORE_RULES: UserTrip 사용)
+    const tripCount = await prisma.userTrip.count({
       where: { userId: user.id },
     });
 

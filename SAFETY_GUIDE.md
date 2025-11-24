@@ -344,3 +344,12 @@ npx prisma migrate resolve --rolled-back MIGRATION_NAME
 
 **안전한 배포를 위해 이 가이드를 참고하세요!** 🛡️
 
+
+
+
+
+
+
+
+
+

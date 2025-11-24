@@ -71,25 +71,26 @@ export default function AdminLayout({
     { href: '/admin/customers?customerGroup=manager-customers', label: '대리점장 고객', icon: '🏢' },
     { href: '/admin/customers?customerGroup=agent-customers', label: '판매원 고객', icon: '👤' },
     { href: '/admin/customers?customerGroup=prospects', label: '잠재고객', icon: '📄' },
-    { href: '/admin/mall-admins', label: '크루즈몰 관리자 관리', icon: '🛍️👑' },
     { href: '/admin/admin-panel-admins', label: '관리자 패널 관리', icon: '⚙️👑' },
   ];
 
   const menuItems = [
+    { href: '/admin/apis', label: 'APIS 확인하기', icon: '📋' },
     { href: '/admin/dashboard', label: '대시보드', icon: '📊' },
     { href: '/admin/pwa-stats', label: 'PWA 설치 통계', icon: '📲' },
     // { href: '/admin/video-meetings', label: '화상 회의', icon: '📹' }, // 화상회의 기능 비활성화
     { href: '/admin/messages', label: '고객 메시지', icon: '💬', section: 'marketing' },
+    { href: '/admin/team-dashboard-messages', label: '팀 대시보드 메시지함', icon: '📨', section: 'marketing' },
     { href: '/admin/scheduled-messages', label: '예약 메시지', icon: '📅', section: 'marketing' },
     { href: '/admin/customer-groups', label: '고객 그룹 관리', icon: '👥', section: 'marketing' },
+    { href: '/admin/manual-passport-request', label: '수동 여권 요청', icon: '🛂' },
     { href: '/admin/passport-request', label: '여권 요청 관리', icon: '🛂' },
-    { href: '/admin/analytics', label: '데이터 분석', icon: '📈' },
-    { href: '/admin/insights', label: '마케팅 인사이트', icon: '💡' },
-    { href: '/admin/rePurchase', label: '재구매 추적', icon: '🔄' },
+    { href: '/admin/data-analysis', label: '데이터분석', icon: '📊' },
     { href: '/admin/feedback', label: '후기 관리', icon: '💬' },
     { href: '/admin/documents', label: '서류관리', icon: '📄' },
-    { href: '/admin/assign-trip', label: '여행 배정', icon: '✈️', section: 'guide' },
+    { href: '/admin/assign-trip', label: '여행 배정', icon: '✈️' },
     { href: '/admin/mall', label: '메인몰 관리', icon: '🛍️', section: 'mall' },
+    { href: '/admin/images', label: '이미지 라이브러리', icon: '🖼️', section: 'mall' },
     { href: '/admin/products', label: '크루즈 상품 관리', icon: '📦', section: 'mall' },
     { href: '/admin/inquiries', label: '구매 문의 관리', icon: '📋', section: 'mall' },
     { href: '/admin/mall-analytics', label: '메인몰 데이터 분석', icon: '📊', section: 'mall' },
@@ -116,17 +117,16 @@ export default function AdminLayout({
     { href: '/admin/pages', label: '페이지 콘텐츠 관리', icon: '📝', section: 'marketing' },
     { href: '/admin/landing-pages', label: '랜딩페이지 관리', icon: '📄', section: 'marketing' },
     { href: '/admin/chat-bot', label: 'AI 지니 채팅봇(구매)', icon: '🤖' },
-    { href: '/admin/knowledge', label: '지식 관리', icon: '📚' },
+    { href: '/admin/community', label: '커뮤니티 관리', icon: '💬' },
     // 마케팅 자동화
     { href: '/admin/marketing/dashboard', label: '마케팅 대시보드', icon: '📊', section: 'marketing' },
     { href: '/admin/funnel', label: '퍼널 메시지', icon: '📊', section: 'marketing' },
     { href: '/admin/marketing/customers', label: '고객 관리 (99K)', icon: '👥', section: 'marketing' },
-    { href: '/admin/settings', label: '관리자 정보', icon: '⚙️' },
+    { href: '/admin/settings', label: '관리자 정보', icon: '⚙️', section: 'system' },
   ];
 
   const sectionConfigs = [
     { key: 'general', label: '기본 메뉴', icon: '📂' },
-    { key: 'guide', label: '가이드 운영', icon: '✈️' },
     { key: 'marketing', label: '마케팅 자동화', icon: '🚀' },
     { key: 'mall', label: '메인몰', icon: '🛍️' },
     { key: 'affiliate', label: '어필리에이트', icon: '🤝' },

@@ -220,3 +220,12 @@ export default function PayslipsClient({ partnerId }: { partnerId: string }) {
 
 
 
+
+
+
+
+
+
+
+
+

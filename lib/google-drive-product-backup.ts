@@ -63,7 +63,7 @@ export async function backupImageToGoogleDrive(
       select: { configValue: true },
     });
 
-    const productsFolderId = config?.configValue || process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID;
+    const productsFolderId = config?.configValue || process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID || '18YuEBt313yyKI3F7PSzjFFRF3Af-bVPH';
 
     if (!productsFolderId) {
       console.warn('[Product Backup] Google Drive products folder ID not configured');

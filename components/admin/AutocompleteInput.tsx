@@ -31,19 +31,38 @@ export default function AutocompleteInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // 입력값 변경 시 필터링
+  // 초기화 시 모든 옵션 표시
+  useEffect(() => {
+    if (options.length > 0) {
+      setFilteredOptions(options.slice(0, 100));
+    }
+  }, [options]);
+
+  // 입력값 변경 시 필터링 (즉시 반응하도록 개선)
   useEffect(() => {
     if (inputValue.trim() === '') {
-      setFilteredOptions(options.slice(0, 10)); // 처음 10개만 표시
+      // 빈 값일 때 모든 옵션 표시 (최대 100개)
+      setFilteredOptions(options.slice(0, 100));
     } else {
       // 검색어 정규화 (공백 제거, 소문자 변환)
       const normalizedQuery = inputValue.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9가-힣]/g, '');
-      const filtered = options.filter(option => {
-        // 옵션도 정규화하여 비교
-        const normalizedOption = option.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9가-힣]/g, '');
-        return normalizedOption.includes(normalizedQuery);
-      });
-      setFilteredOptions(filtered.slice(0, 10)); // 최대 10개만 표시
+      // 연관검색: 부분 일치뿐만 아니라 시작 부분 일치도 우선 표시
+      const filtered = options
+        .map(option => {
+          const normalizedOption = option.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9가-힣]/g, '');
+          const includes = normalizedOption.includes(normalizedQuery);
+          const startsWith = normalizedOption.startsWith(normalizedQuery);
+          return { option, includes, startsWith };
+        })
+        .filter(item => item.includes)
+        .sort((a, b) => {
+          // 시작 부분 일치를 우선 표시
+          if (a.startsWith && !b.startsWith) return -1;
+          if (!a.startsWith && b.startsWith) return 1;
+          return 0;
+        })
+        .map(item => item.option);
+      setFilteredOptions(filtered); // 모든 필터링된 항목 표시
     }
   }, [inputValue, options]);
 
@@ -74,13 +93,23 @@ export default function AutocompleteInput({
   };
 
   const handleFocus = () => {
+    // 포커스 시 빈 값이면 모든 옵션 표시 (최대 100개)
+    if (inputValue.trim() === '') {
+      setFilteredOptions(options.slice(0, 100));
+    }
+    // 포커스 시 항상 드롭다운 열기
     setIsOpen(true);
   };
 
   const handleToggleDropdown = () => {
-    setIsOpen(!isOpen);
-    if (!isOpen) {
+    const willBeOpen = !isOpen;
+    setIsOpen(willBeOpen);
+    if (willBeOpen) {
       inputRef.current?.focus();
+      // 드롭다운 열 때 빈 값이면 모든 옵션 표시 (최대 100개)
+      if (inputValue.trim() === '') {
+        setFilteredOptions(options.slice(0, 100));
+      }
     }
   };
 
@@ -113,8 +142,8 @@ export default function AutocompleteInput({
 
       {/* 드롭다운 목록 */}
       {isOpen && filteredOptions.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
-          {filteredOptions.map((option, index) => (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-96 overflow-auto">
+          {(inputValue.trim() === '' ? filteredOptions.slice(0, 100) : filteredOptions).map((option, index) => (
             <button
               key={index}
               type="button"
@@ -124,9 +153,9 @@ export default function AutocompleteInput({
               {option}
             </button>
           ))}
-          {filteredOptions.length === 10 && options.length > 10 && (
+          {inputValue.trim() === '' && filteredOptions.length > 100 && (
             <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-200">
-              더 많은 결과가 있습니다. 검색어를 입력하세요.
+              총 {filteredOptions.length}개 항목 중 100개 표시 중. 검색어를 입력하여 필터링하세요.
             </div>
           )}
         </div>

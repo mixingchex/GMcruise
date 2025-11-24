@@ -21,3 +21,12 @@ export default async function PayslipsPage({ params }: { params: { partnerId: st
 
 
 
+
+
+
+
+
+
+
+
+

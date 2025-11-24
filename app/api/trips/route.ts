@@ -21,8 +21,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, message: 'UNAUTHORIZED' }, { status: 401 });
     }
 
-    // 사용자의 모든 여행 기록 조회
-    const trips = await prisma.trip.findMany({
+    // 사용자의 모든 여행 기록 조회 (CORE_RULES: UserTrip 사용)
+    const trips = await prisma.userTrip.findMany({
       where: { userId: sess.userId },
       orderBy: { createdAt: 'desc' },
       select: {

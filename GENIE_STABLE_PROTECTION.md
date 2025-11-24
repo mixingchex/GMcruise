@@ -91,3 +91,12 @@ git checkout v1.0.0-genie-stable -- app/onboarding/page.tsx components/LogoutBut
 - **2025-11-23**: 로그아웃 후 크루즈몰 이동 보장
 - **2025-11-23**: 로그인 후 온보딩 리다이렉트 차단
 
+
+
+
+
+
+
+
+
+

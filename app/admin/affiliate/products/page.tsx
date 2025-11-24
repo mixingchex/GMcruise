@@ -8,8 +8,12 @@ import {
   FiSave,
   FiX,
   FiTrash2,
+  FiEye,
+  FiCheckSquare,
+  FiSquare,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
+import ProductPreviewModal from '@/components/admin/ProductPreviewModal';
 
 const DEFAULT_ROOMS = ['발코니', '오션뷰', '인사이드'];
 const STATUS_OPTIONS = [
@@ -45,6 +49,10 @@ type PricingMatrixOption = {
   label: string;
   fareCategory?: string | null;
   saleAmount?: number | null;
+  costAmount?: number | null;
+  hqShareAmount?: number | null;
+  branchShareAmount?: number | null;
+  salesShareAmount?: number | null;
 };
 
 type PricingMatrixRow = {
@@ -156,26 +164,42 @@ function formatCurrency(value?: number | null) {
 function calculateScenario(tier: TierForm) {
   const sale = Math.max(parseNumber(tier.saleAmount) ?? 0, 0);
   const cost = Math.max(parseNumber(tier.costAmount) ?? 0, 0);
-  const net = Math.max(sale - cost, 0);
+  const net = Math.max(sale - cost, 0); // 본사 수당 = 판매가 - 입금가
   const branchDirect = Math.max(parseNumber(tier.branchShareAmount) ?? 0, 0);
   const salesCommission = Math.max(parseNumber(tier.salesShareAmount) ?? 0, 0);
-  const override = Math.max(branchDirect - salesCommission, 0);
-  const branchTeam = override;
+  
+  // 시나리오별 계산:
+  // 1. 대리점장 직접 판매: 본사가 대리점장에게 50원을 줌
+  //    본사 최종 수당 = 본사수당 - 대리점장 수당
   const hqDirect = Math.max(net - branchDirect, 0);
-  const hqTeam = Math.max(net - branchTeam - salesCommission, 0);
+  
+  // 2. 대리점 팀 판매 (대리점장 소속 판매원이 판매):
+  //    - 본사가 대리점장에게 이미 50원을 줬으므로, 본사는 무조건 50원
+  //    - 판매원이 10원을 가져가면, 대리점장은 자신의 50원에서 10원을 주고 40원 오버라이딩을 받음
+  //    본사 최종 수당 = 본사수당 - 대리점장 수당 (판매원 수당은 대리점장이 자신의 수당에서 지급하므로 본사는 영향받지 않음)
+  const hqTeam = Math.max(net - branchDirect, 0);
+  
+  // 3. 본사 판매 (본사 소속 판매원이 판매):
+  //    - 본사가 판매원에게 10원을 주고 나머지 90원을 가져감
+  //    본사 최종 수당 = 본사수당 - 판매원 수당 (본사 오버라이딩)
   const hqCompany = Math.max(net - salesCommission, 0);
+  const hqOverride = Math.max(net - salesCommission, 0); // 본사 오버라이딩
+  
+  // 대리점장 오버라이딩 = 대리점장 수당 - 판매원 수당 (대리점장이 자신의 수당에서 판매원에게 준 차액)
+  const override = Math.max(branchDirect - salesCommission, 0);
 
   return {
     sale,
     cost,
     net,
     branchDirect,
-    branchTeam,
+    branchTeam: override, // 대리점장 오버라이딩
     salesCommission,
-    override,
+    override, // 대리점장 오버라이딩
     hqDirect,
     hqTeam,
     hqCompany,
+    hqOverride, // 본사 오버라이딩
   };
 }
 
@@ -258,19 +282,31 @@ function createFormState(product?: AffiliateProduct): ProductFormState {
             const salesValue = existing?.salesShareAmount ?? null;
             const overrideValue = branchValue != null && salesValue != null ? Math.max(branchValue - salesValue, 0) : null;
 
+            // 요금표에서 가져온 값 우선, 기존 저장된 값이 있으면 그것을 사용
+            const finalSaleAmount = existing?.saleAmount ?? option.saleAmount ?? null;
+            const finalCostAmount = existing?.costAmount ?? option.costAmount ?? null;
+            const finalHqShareAmount = existing?.hqShareAmount ?? option.hqShareAmount ?? null;
+            const finalBranchShareAmount = existing?.branchShareAmount ?? option.branchShareAmount ?? null;
+            const finalSalesShareAmount = existing?.salesShareAmount ?? option.salesShareAmount ?? null;
+            
+            // 오버라이딩 자동 계산
+            const calculatedOverride = finalBranchShareAmount != null && finalSalesShareAmount != null 
+              ? Math.max(finalBranchShareAmount - finalSalesShareAmount, 0) 
+              : (existing?.overrideAmount ?? null);
+
             tiers.push({
               id: existing?.id,
               roomType,
               pricingRowId: row.pricingRowId ?? existing?.pricingRowId ?? undefined,
               fareCategory: existing?.fareCategory ?? option.fareCategory ?? option.key,
               fareLabel: existing?.fareLabel ?? option.label ?? option.key,
-              saleAmount: numberToString(existing?.saleAmount ?? option.saleAmount ?? null),
+              saleAmount: numberToString(finalSaleAmount),
               baseSaleAmount: option.saleAmount ?? null,
-              costAmount: numberToString(existing?.costAmount ?? null),
-              hqShareAmount: numberToString(existing?.hqShareAmount ?? null),
-              branchShareAmount: numberToString(branchValue),
-              salesShareAmount: numberToString(salesValue),
-              overrideAmount: numberToString(overrideValue),
+              costAmount: numberToString(finalCostAmount),
+              hqShareAmount: numberToString(finalHqShareAmount),
+              branchShareAmount: numberToString(finalBranchShareAmount),
+              salesShareAmount: numberToString(finalSalesShareAmount),
+              overrideAmount: numberToString(calculatedOverride),
               currency: existing?.currency ?? product.currency ?? 'KRW',
             });
           });
@@ -365,6 +401,9 @@ export default function AffiliateProductsPage() {
   const [sourcesLoaded, setSourcesLoaded] = useState(false);
   const [selectedSourceCode, setSelectedSourceCode] = useState('');
   const [sourceError, setSourceError] = useState<string | null>(null);
+  const [previewProductCode, setPreviewProductCode] = useState<string | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredProducts = useMemo(() => {
     const keyword = searchKeyword.trim().toLowerCase();
@@ -428,6 +467,9 @@ export default function AffiliateProductsPage() {
     setFormState((prev) => {
       const tiers = [...prev.tiers];
       const updatedTier = { ...tiers[index], [field]: value };
+      
+      // 대리점장 수당 또는 판매원 수당 변경 시 오버라이딩 자동 계산
+      // 오버라이딩 = 대리점장 수당 - 판매원 수당 (차액)
       if (field === 'branchShareAmount' || field === 'salesShareAmount') {
         const branchValue = parseNumber(updatedTier.branchShareAmount);
         const salesValue = parseNumber(updatedTier.salesShareAmount);
@@ -437,6 +479,55 @@ export default function AffiliateProductsPage() {
           updatedTier.overrideAmount = '';
         }
       }
+      
+      // 본사 수당 자동 계산 함수
+      const recalculateHqShare = () => {
+        const saleValue = parseNumber(updatedTier.saleAmount);
+        const costValue = parseNumber(updatedTier.costAmount);
+        const branchValue = parseNumber(updatedTier.branchShareAmount);
+        const salesValue = parseNumber(updatedTier.salesShareAmount);
+        const currentHqValue = parseNumber(updatedTier.hqShareAmount);
+        
+        // 본사 수당 필드가 수동으로 입력되어 있으면 자동 계산하지 않음 (수동 입력 값 보호)
+        // 단, 필드가 비어있거나 수동 입력 모드가 아닐 때만 자동 계산
+        const isManualMode = currentHqValue !== null && field !== 'hqShareAmount';
+        
+        if (!isManualMode && saleValue !== null && costValue !== null) {
+          // 1단계: 본사 수당 = 판매가 - 입금가
+          const baseHqShare = Math.max(saleValue - costValue, 0);
+          
+          // 2단계: 대리점장 수당과 판매원 수당이 입력되어 있으면 차감
+          // 최종 본사 수당 = (판매가 - 입금가) - 대리점장 수당 - 판매원 수당
+          if (branchValue !== null && salesValue !== null) {
+            const finalHqShare = Math.max(baseHqShare - branchValue - salesValue, 0);
+            updatedTier.hqShareAmount = String(finalHqShare);
+          } else {
+            // 대리점장 수당이나 판매원 수당이 아직 입력되지 않은 경우
+            // 본사 수당 = 판매가 - 입금가 (나중에 대리점장/판매원 수당 입력 시 재계산됨)
+            updatedTier.hqShareAmount = String(baseHqShare);
+          }
+        } else if (!isManualMode && (saleValue === null || costValue === null)) {
+          // 판매가나 입금가가 비어있으면 본사 수당도 비우기
+          updatedTier.hqShareAmount = '';
+        }
+      };
+      
+      // 판매가 또는 입금가 변경 시 본사 수당 자동 계산
+      if (field === 'saleAmount' || field === 'costAmount') {
+        recalculateHqShare();
+      }
+      
+      // 대리점장 수당 또는 판매원 수당 변경 시 본사 수당 재계산
+      // 본사 수당에서 대리점장 수당과 판매원 수당을 빼야 함
+      if (field === 'branchShareAmount' || field === 'salesShareAmount') {
+        recalculateHqShare();
+      }
+      
+      // 본사 수당 필드를 비우면 자동 계산 모드로 전환
+      if (field === 'hqShareAmount' && (!value || value.trim() === '')) {
+        recalculateHqShare();
+      }
+      
       tiers[index] = updatedTier;
       return { ...prev, tiers };
     });
@@ -722,15 +813,39 @@ export default function AffiliateProductsPage() {
   };
 
   const applyProductSource = (source: ProductSource) => {
+    // 이미 저장된 어필리에이트 상품이 있는지 확인
+    const existingProduct = products.find((p) => p.productCode === source.productCode);
+    
+    if (existingProduct) {
+      // 저장된 상품이 있으면 저장된 값을 불러오기
+      setActiveProduct(existingProduct);
+      const savedFormState = createFormState(existingProduct);
+      setFormState({
+        ...savedFormState,
+        id: undefined, // 새로 등록하는 것이므로 id는 undefined
+      });
+      return;
+    }
+
+    // 저장된 상품이 없으면 빈 칸으로 표시 (요금표 정보만 불러오기)
+    // 요금표에서 기본 판매가와 입금가 계산 (첫 번째 객실의 첫 번째 연령대 기준)
+    const firstRow = source.pricingMatrix?.[0];
+    const firstOption = firstRow?.options?.[0];
+    const defaultSaleAmount = firstOption?.saleAmount ?? null;
+    const defaultCostAmount = firstOption?.costAmount ?? null;
+    const defaultNetRevenue = defaultSaleAmount != null && defaultCostAmount != null 
+      ? Math.max(defaultSaleAmount - defaultCostAmount, 0) 
+      : null;
+
     const pseudoProduct: AffiliateProduct = {
       id: source.cruiseProductId,
       productCode: source.productCode,
       title: source.packageName ?? source.productCode,
       status: source.saleStatus ?? 'active',
       currency: 'KRW',
-      defaultSaleAmount: source.pricingMatrix?.[0]?.options?.[0]?.saleAmount ?? null,
-      defaultCostAmount: null,
-      defaultNetRevenue: null,
+      defaultSaleAmount,
+      defaultCostAmount,
+      defaultNetRevenue,
       isPublished: true,
       publishedAt: new Date().toISOString(),
       effectiveFrom: new Date().toISOString(),
@@ -766,12 +881,9 @@ export default function AffiliateProductsPage() {
       cruiseProductId: String(source.cruiseProductId),
       status: 'active',
       currency: initial.currency || 'KRW',
-      defaultNetRevenue: (() => {
-        const sale = parseNumber(initial.defaultSaleAmount);
-        const cost = parseNumber(initial.defaultCostAmount);
-        if (sale != null && cost != null) return String(Math.max(sale - cost, 0));
-        return '';
-      })(),
+      defaultSaleAmount: numberToString(defaultSaleAmount),
+      defaultCostAmount: numberToString(defaultCostAmount),
+      defaultNetRevenue: numberToString(defaultNetRevenue),
       isPublished: true,
     });
   };
@@ -808,6 +920,60 @@ export default function AffiliateProductsPage() {
     });
   };
 
+  // 선택 삭제 기능
+  const handleToggleSelect = (productId: number) => {
+    setSelectedProductIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProductIds.size === filteredProducts.length) {
+      setSelectedProductIds(new Set());
+    } else {
+      setSelectedProductIds(new Set(filteredProducts.map((p) => p.id)));
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedProductIds.size === 0) {
+      showError('삭제할 상품을 선택해주세요.');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const deletePromises = Array.from(selectedProductIds).map(async (productId) => {
+        const res = await fetch(`/api/admin/affiliate/products/${productId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        const json = await res.json();
+        if (!json.ok) {
+          throw new Error(json.error || `상품 ID ${productId} 삭제 실패`);
+        }
+        return json;
+      });
+
+      await Promise.all(deletePromises);
+      
+      showSuccess(`${selectedProductIds.size}개의 상품이 삭제되었습니다.`);
+      setSelectedProductIds(new Set());
+      await fetchProducts();
+    } catch (error: any) {
+      console.error('[Delete Selected] Error:', error);
+      showError(error.message || '상품 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -818,6 +984,16 @@ export default function AffiliateProductsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {selectedProductIds.size > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              disabled={isDeleting}
+              className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiTrash2 />
+              {isDeleting ? '삭제 중...' : `선택 삭제 (${selectedProductIds.size}개)`}
+            </button>
+          )}
           <button
             onClick={fetchProducts}
             className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
@@ -852,6 +1028,19 @@ export default function AffiliateProductsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left">
+                  <button
+                    onClick={handleSelectAll}
+                    className="flex items-center justify-center text-gray-600 hover:text-gray-900"
+                    title={selectedProductIds.size === filteredProducts.length ? '전체 선택 해제' : '전체 선택'}
+                  >
+                    {selectedProductIds.size === filteredProducts.length && filteredProducts.length > 0 ? (
+                      <FiCheckSquare size={20} className="text-blue-600" />
+                    ) : (
+                      <FiSquare size={20} />
+                    )}
+                  </button>
+                </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">상품명</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">상품 코드</th>
                 <th className="px-4 py-3 text-sm font-semibold text-gray-600">기본 판매가</th>
@@ -866,19 +1055,32 @@ export default function AffiliateProductsPage() {
             <tbody className="divide-y divide-gray-100 bg-white">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
                     데이터를 불러오는 중입니다...
                   </td>
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
                     등록된 어필리에이트 상품이 없습니다. &quot;새 상품 등록&quot;을 눌러 추가해 주세요.
                   </td>
                 </tr>
               ) : (
                 filteredProducts.map((product) => (
                   <tr key={product.id} className="hover:bg-blue-50/30">
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleToggleSelect(product.id)}
+                        className="flex items-center justify-center text-gray-600 hover:text-gray-900"
+                        title={selectedProductIds.has(product.id) ? '선택 해제' : '선택'}
+                      >
+                        {selectedProductIds.has(product.id) ? (
+                          <FiCheckSquare size={20} className="text-blue-600" />
+                        ) : (
+                          <FiSquare size={20} />
+                        )}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
                       <div className="font-semibold text-gray-900">{product.title}</div>
                       <div className="text-xs text-gray-500">
@@ -1102,18 +1304,74 @@ export default function AffiliateProductsPage() {
             </section>
 
             <section className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-inner lg:col-span-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-blue-900">객실 타입 관리</h3>
-                <button
-                  onClick={addRoom}
-                  className="rounded-full border border-blue-300 bg-white px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm hover:bg-blue-100"
-                >
-                  객실 추가
-                </button>
-              </div>
-              <p className="text-xs text-blue-700">
-                요금표에 등록된 객실이 자동으로 불러와집니다. 필요 시 객실이나 커스텀 항목을 추가하여 수당을 입력하세요.
-              </p>
+              {formState.productCode ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-blue-900">📱 스마트폰 미리보기</h3>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPreviewProductCode(formState.productCode)}
+                        className="flex items-center gap-2 rounded-full border border-blue-300 bg-white px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm hover:bg-blue-100"
+                      >
+                        <FiEye size={14} />
+                        미리보기
+                      </button>
+                      <a
+                        href={`/products/${formState.productCode}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-blue-300 bg-white px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm hover:bg-blue-100"
+                      >
+                        새 창에서 열기
+                      </a>
+                    </div>
+                  </div>
+                  <div className="relative w-full overflow-hidden rounded-lg border border-blue-200 bg-white flex items-center justify-center p-4" style={{ height: '500px' }}>
+                    <div className="bg-gray-800 rounded-[2.5rem] p-2 shadow-2xl" style={{ width: '300px', maxWidth: '100%' }}>
+                      {/* 아이폰 노치 */}
+                      <div className="bg-gray-800 rounded-t-[2rem] h-6 flex items-center justify-center">
+                        <div className="w-24 h-4 bg-black rounded-full"></div>
+                      </div>
+                      
+                      {/* 화면 */}
+                      <div className="bg-white rounded-[1.5rem] overflow-hidden relative" style={{ height: '600px', maxHeight: '100%' }}>
+                        <iframe
+                          src={`/products/${formState.productCode}`}
+                          className="w-full h-full border-0"
+                          style={{ border: 'none' }}
+                          title="상품 미리보기"
+                        />
+                      </div>
+                      
+                      {/* 홈 인디케이터 */}
+                      <div className="bg-gray-800 rounded-b-[2rem] h-4 flex items-center justify-center">
+                        <div className="w-24 h-0.5 bg-gray-600 rounded-full"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-blue-700 text-center mt-2">
+                    📱 스마트폰 미리보기 (아이폰/삼성폰 기준)
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold text-blue-900">객실 타입 관리</h3>
+                    <button
+                      onClick={addRoom}
+                      className="rounded-full border border-blue-300 bg-white px-3 py-1 text-xs font-semibold text-blue-600 shadow-sm hover:bg-blue-100"
+                    >
+                      객실 추가
+                    </button>
+                  </div>
+                  <p className="text-xs text-blue-700">
+                    요금표에 등록된 객실이 자동으로 불러와집니다. 필요 시 객실이나 커스텀 항목을 추가하여 수당을 입력하세요.
+                  </p>
+                  <div className="mt-4 rounded-lg border border-blue-200 bg-white p-8 text-center text-sm text-gray-500">
+                    상품을 불러오면 상품 상세페이지 미리보기가 표시됩니다.
+                  </div>
+                </>
+              )}
             </section>
           </div>
 
@@ -1213,16 +1471,53 @@ export default function AffiliateProductsPage() {
                       </tr>
                       <tr className="border-t">
                         <td className="px-4 py-3 text-xs font-semibold text-gray-700">본사 수당 (고정 입력 시 우선)</td>
-                        {room.columns && room.columns.length > 0 ? room.columns.map((column, idx) => (
-                          <td key={`hq-${room.roomType}-${idx}`} className="px-4 py-3 text-center">
-                            <input
-                              value={column?.entry?.tier?.hqShareAmount || ''}
-                              onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'hqShareAmount', e.target.value)}
-                              placeholder="자동 계산"
-                              className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            />
-                          </td>
-                        )) : (
+                        {room.columns && room.columns.length > 0 ? room.columns.map((column, idx) => {
+                          const tier = column?.entry?.tier;
+                          const hqValue = parseNumber(tier?.hqShareAmount);
+                          const saleValue = parseNumber(tier?.saleAmount);
+                          const costValue = parseNumber(tier?.costAmount);
+                          const branchValue = parseNumber(tier?.branchShareAmount);
+                          const salesValue = parseNumber(tier?.salesShareAmount);
+                          const isAutoMode = hqValue === null;
+                          
+                          // 자동 계산된 값 표시용
+                          let autoCalculatedValue = null;
+                          if (saleValue !== null && costValue !== null) {
+                            const netProfit = Math.max(saleValue - costValue, 0);
+                            if (branchValue !== null && salesValue !== null) {
+                              autoCalculatedValue = Math.max(netProfit - branchValue - salesValue, 0);
+                            } else {
+                              autoCalculatedValue = netProfit;
+                            }
+                          }
+                          
+                          return (
+                            <td key={`hq-${room.roomType}-${idx}`} className="px-4 py-3 text-center">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  value={tier?.hqShareAmount || ''}
+                                  onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'hqShareAmount', e.target.value)}
+                                  placeholder="자동 계산"
+                                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                />
+                                {isAutoMode && autoCalculatedValue !== null && (
+                                  <span className="text-xs font-semibold text-blue-600 whitespace-nowrap">
+                                    자동 {formatCurrency(autoCalculatedValue)}
+                                  </span>
+                                )}
+                                {!isAutoMode && (
+                                  <button
+                                    onClick={() => updateTierField(column?.entry?.index ?? 0, 'hqShareAmount', '')}
+                                    className="text-xs text-blue-600 hover:text-blue-800 font-semibold whitespace-nowrap px-2 py-1 rounded hover:bg-blue-50"
+                                    title="자동 계산 모드로 전환"
+                                  >
+                                    자동
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        }) : (
                           <td colSpan={1} className="px-4 py-3 text-center text-sm text-gray-400">항목 없음</td>
                         )}
                       </tr>
@@ -1283,20 +1578,29 @@ export default function AffiliateProductsPage() {
                               <div className="space-y-2">
                                 <div>
                                   <div className="font-semibold text-blue-800">대리점 팀 판매</div>
-                                  <div>
-                                    본사 {formatCurrency(scenario.hqTeam)} · 대리점장 {formatCurrency(scenario.branchTeam)} · 판매원 {formatCurrency(scenario.salesCommission)}
+                                  <div className="text-xs">
+                                    본사 {formatCurrency(scenario.hqTeam)} · 대리점장 {formatCurrency(scenario.branchDirect)} (오버라이딩 {formatCurrency(scenario.override)}) · 판매원 {formatCurrency(scenario.salesCommission)}
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    본사 수당 {formatCurrency(scenario.net)}에서 대리점장 수당 {formatCurrency(scenario.branchDirect)} 차감 = 본사 {formatCurrency(scenario.hqTeam)}. 대리점장은 자신의 수당 {formatCurrency(scenario.branchDirect)}에서 판매원 수당 {formatCurrency(scenario.salesCommission)}을 주고 오버라이딩 {formatCurrency(scenario.override)}을 받음
                                   </div>
                                 </div>
                                 <div>
                                   <div className="font-semibold text-blue-800">대리점장 직접 판매</div>
-                                  <div>
+                                  <div className="text-xs">
                                     본사 {formatCurrency(scenario.hqDirect)} · 대리점장 {formatCurrency(scenario.branchDirect)}
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    본사 수당 {formatCurrency(scenario.net)}에서 대리점장 수당 {formatCurrency(scenario.branchDirect)} 차감
                                   </div>
                                 </div>
                                 <div>
                                   <div className="font-semibold text-blue-800">본사 판매</div>
-                                  <div>
-                                    본사 {formatCurrency(scenario.hqCompany)} · 판매원 {formatCurrency(scenario.salesCommission)}
+                                  <div className="text-xs">
+                                    본사 {formatCurrency(scenario.hqCompany)} (오버라이딩 포함) · 판매원 {formatCurrency(scenario.salesCommission)}
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    본사 수당 {formatCurrency(scenario.net)}에서 판매원 수당 {formatCurrency(scenario.salesCommission)} 차감 = 본사 오버라이딩 {formatCurrency(scenario.hqOverride)}
                                   </div>
                                 </div>
                               </div>
@@ -1330,6 +1634,13 @@ export default function AffiliateProductsPage() {
           </div>
         </div>
       </Modal>
+
+      {/* 상품 미리보기 모달 */}
+      <ProductPreviewModal
+        isOpen={previewProductCode !== null}
+        onClose={() => setPreviewProductCode(null)}
+        productCode={previewProductCode || ''}
+      />
     </div>
   );
 }

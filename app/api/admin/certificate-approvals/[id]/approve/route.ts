@@ -121,6 +121,18 @@ export async function POST(
       },
     });
 
+    // 환불 인증서인 경우 고객의 환불 인증 카운터 증가 (업데이트 시마다 증가)
+    if (approval.certificateType === 'refund') {
+      await prisma.user.update({
+        where: { id: approval.customerId },
+        data: {
+          refundCertificateCount: {
+            increment: 1,
+          },
+        },
+      });
+    }
+
     console.log('[Certificate Approval] Approved:', {
       id: approvalId,
       type: approval.certificateType,

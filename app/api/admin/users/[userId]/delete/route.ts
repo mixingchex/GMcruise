@@ -105,130 +105,89 @@ export async function DELETE(
 
     console.log('[Delete User] Starting deletion process...');
     
-    // 완전한 데이터베이스 삭제를 위해 트랜잭션을 사용하여 모든 관련 데이터를 명시적으로 삭제
-    // SQLite에서는 foreign_keys를 비활성화하기 어려우므로, 모든 관련 데이터를 순서대로 삭제합니다.
+    // 모든 관련 데이터 삭제 (트랜잭션 없이 개별 실행)
     try {
-      // 트랜잭션으로 모든 삭제 작업을 묶어서 실행
-      await prisma.$transaction(async (tx) => {
-        // Foreign keys를 비활성화 (SQLite에서는 연결별로 설정)
-        await tx.$executeRaw`PRAGMA foreign_keys = OFF`;
-        console.log('[Delete User] Foreign keys disabled');
-        
-        // 모든 관련 데이터 삭제 (Cascade delete가 없는 관계들)
-        // 주의: 삭제 순서가 중요합니다. 자식 테이블을 먼저 삭제하고 부모 테이블을 나중에 삭제해야 합니다.
-        const deleteQueries = [
-        // 1. 가장 깊은 자식 테이블부터 삭제
-        
-        // Affiliate 관련 (깊은 자식부터)
-        `DELETE FROM AffiliateMedia WHERE uploadedById = ${userId}`,
-        `DELETE FROM AffiliateLinkEvent WHERE actorId = ${userId}`,
-        `DELETE FROM AffiliateInteraction WHERE createdById = ${userId}`,
-        `DELETE FROM AffiliateDocument WHERE uploadedById = ${userId} OR approvedById = ${userId}`,
-        `UPDATE AffiliateContract SET reviewerId = NULL WHERE reviewerId = ${userId}`,
-        `UPDATE AffiliateContract SET userId = NULL WHERE userId = ${userId}`,
-        `DELETE FROM AffiliateLink WHERE issuedById = ${userId}`,
-        `DELETE FROM AffiliateProfile WHERE userId = ${userId}`,
-        
-        // Commission 관련
-        `UPDATE CommissionAdjustment SET approvedById = NULL WHERE approvedById = ${userId}`,
-        `DELETE FROM CommissionAdjustment WHERE requestedById = ${userId}`,
-        
-        // CustomerGroup 관련
-        `DELETE FROM CustomerGroupMember WHERE userId = ${userId} OR addedBy = ${userId}`,
-        `DELETE FROM CustomerGroup WHERE adminId = ${userId}`,
-        
-        // LandingPage 관련
-        `UPDATE LandingPageView SET userId = NULL WHERE userId = ${userId}`,
-        `UPDATE LandingPageFunnel SET userId = NULL WHERE userId = ${userId}`,
-        `UPDATE LandingPageRegistration SET userId = NULL WHERE userId = ${userId}`,
-        `DELETE FROM LandingPage WHERE adminId = ${userId}`,
-        
-        // Marketing 관련
-        `DELETE FROM MarketingAccount WHERE ownerId = ${userId}`,
-        
-        // Meeting 관련
-        `DELETE FROM MeetingParticipant WHERE userId = ${userId}`,
-        `DELETE FROM MeetingRoom WHERE hostId = ${userId}`,
-        
-        // Passport 관련
-        `DELETE FROM PassportRequestLog WHERE adminId = ${userId} OR userId = ${userId}`,
-        `UPDATE PassportRequestTemplate SET updatedById = NULL WHERE updatedById = ${userId}`,
-        `DELETE FROM PassportSubmission WHERE userId = ${userId}`,
-        
-        // Settlement 관련
-        `UPDATE MonthlySettlement SET approvedById = NULL WHERE approvedById = ${userId}`,
-        `UPDATE SettlementEvent SET userId = NULL WHERE userId = ${userId}`,
-        
-        // FunnelMessage 관련
-        `DELETE FROM FunnelMessage WHERE adminId = ${userId}`,
-        
-        // Admin 관련
-        `DELETE FROM AdminActionLog WHERE adminId = ${userId} OR targetUserId = ${userId}`,
-        `DELETE FROM AdminMessage WHERE adminId = ${userId}`,
-        `UPDATE AdminMessage SET userId = NULL WHERE userId = ${userId}`,
-        
-        // 사용자 활동 데이터
-        `DELETE FROM RePurchaseTrigger WHERE userId = ${userId}`,
-        `DELETE FROM ChatHistory WHERE userId = ${userId}`,
-        `DELETE FROM ChecklistItem WHERE userId = ${userId}`,
-        `DELETE FROM Expense WHERE userId = ${userId}`,
-        `DELETE FROM FeatureUsage WHERE userId = ${userId}`,
-        `DELETE FROM UserActivity WHERE userId = ${userId}`,
-        `DELETE FROM UserSchedule WHERE userId = ${userId}`,
-        `DELETE FROM VisitedCountry WHERE userId = ${userId}`,
-        `DELETE FROM MapTravelRecord WHERE userId = ${userId}`,
-        `DELETE FROM MarketingInsight WHERE userId = ${userId}`,
-        `DELETE FROM PushSubscription WHERE userId = ${userId}`,
-        `DELETE FROM NotificationLog WHERE userId = ${userId}`,
-        `DELETE FROM UserMessageRead WHERE userId = ${userId}`,
-        `DELETE FROM LoginLog WHERE userId = ${userId}`,
-        `DELETE FROM PasswordEvent WHERE userId = ${userId}`,
-        `DELETE FROM Session WHERE userId = ${userId}`,
-        `DELETE FROM TravelDiaryEntry WHERE userId = ${userId}`,
-        
-        // 여행 관련 (Cascade delete가 설정되어 있지만 명시적으로 삭제)
-        `DELETE FROM Trip WHERE userId = ${userId}`,
-        
-        // 관리자 메시지 및 예약 메시지
-        `DELETE FROM ScheduledMessage WHERE adminId = ${userId}`,
-        `DELETE FROM EmailAddressBook WHERE adminId = ${userId}`,
-        
-        // 크루즈몰 컨텐츠는 userId를 null로 설정하여 보존
-        `UPDATE ProductInquiry SET userId = NULL WHERE userId = ${userId}`,
-        `UPDATE ProductView SET userId = NULL WHERE userId = ${userId}`,
-        `UPDATE CommunityPost SET userId = NULL WHERE userId = ${userId}`,
-        `UPDATE CommunityComment SET userId = NULL WHERE userId = ${userId}`,
-        `UPDATE CruiseReview SET userId = NULL WHERE userId = ${userId}`,
-        `UPDATE ChatBotSession SET userId = NULL WHERE userId = ${userId}`,
-      ];
-      
-        let successCount = 0;
-        let failCount = 0;
-        
-        // 모든 삭제 쿼리 실행
-        for (const query of deleteQueries) {
-          try {
-            await tx.$executeRawUnsafe(query);
-            successCount++;
-          } catch (e: any) {
-            // 일부 테이블이 존재하지 않을 수 있으므로 에러를 무시하고 계속 진행
-            failCount++;
-            console.warn(`[Delete User] Query warning: ${query.substring(0, 60)}... - ${e?.message}`);
-          }
+      const executeDelete = async (query: string) => {
+        try {
+          await prisma.$executeRawUnsafe(query);
+        } catch (e) {
+          // 개별 쿼리 실패는 무시하고 계속 진행
         }
-        
-        console.log(`[Delete User] Queries executed: ${successCount} success, ${failCount} failed`);
-        
-        // 사용자 삭제
-        await tx.$executeRawUnsafe(`DELETE FROM User WHERE id = ${userId}`);
-        console.log(`[Delete User] User ${userId} deleted`);
-        
-        // Foreign Key 제약 조건 재활성화
-        await tx.$executeRaw`PRAGMA foreign_keys = ON`;
-        console.log('[Delete User] Foreign keys re-enabled');
-      }, {
-        timeout: 30000, // 30초 타임아웃
-      });
+      };
+
+      // 관련 데이터 삭제 (NULL로 설정해야 하는 것들)
+      await executeDelete(`UPDATE "AffiliatePayslip" SET "approvedBy" = NULL WHERE "approvedBy" = ${userId}`);
+      await executeDelete(`UPDATE "AffiliateContract" SET "reviewerId" = NULL WHERE "reviewerId" = ${userId}`);
+      await executeDelete(`UPDATE "AffiliateContract" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "CommissionAdjustment" SET "approvedById" = NULL WHERE "approvedById" = ${userId}`);
+      await executeDelete(`UPDATE "LandingPageView" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "LandingPageFunnel" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "LandingPageRegistration" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "PassportRequestTemplate" SET "updatedById" = NULL WHERE "updatedById" = ${userId}`);
+      await executeDelete(`UPDATE "MonthlySettlement" SET "approvedById" = NULL WHERE "approvedById" = ${userId}`);
+      await executeDelete(`UPDATE "SettlementEvent" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "AdminMessage" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "ProductInquiry" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "ProductView" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "CommunityPost" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "CommunityComment" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "CruiseReview" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      await executeDelete(`UPDATE "ChatBotSession" SET "userId" = NULL WHERE "userId" = ${userId}`);
+      
+      // 관련 데이터 삭제
+      await executeDelete(`DELETE FROM "AffiliateMedia" WHERE "uploadedById" = ${userId}`);
+      await executeDelete(`DELETE FROM "AffiliateLinkEvent" WHERE "actorId" = ${userId}`);
+      await executeDelete(`DELETE FROM "AffiliateInteraction" WHERE "createdById" = ${userId}`);
+      await executeDelete(`DELETE FROM "AffiliateDocument" WHERE "uploadedById" = ${userId} OR "approvedById" = ${userId}`);
+      await executeDelete(`DELETE FROM "AffiliateLink" WHERE "issuedById" = ${userId}`);
+      await executeDelete(`DELETE FROM "AffiliateProfile" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "CommissionAdjustment" WHERE "requestedById" = ${userId}`);
+      await executeDelete(`DELETE FROM "CustomerGroupMember" WHERE "userId" = ${userId} OR "addedBy" = ${userId}`);
+      await executeDelete(`DELETE FROM "CustomerGroup" WHERE "adminId" = ${userId}`);
+      await executeDelete(`DELETE FROM "LandingPage" WHERE "adminId" = ${userId}`);
+      await executeDelete(`DELETE FROM "MarketingAccount" WHERE "ownerId" = ${userId}`);
+      await executeDelete(`DELETE FROM "MeetingParticipant" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "MeetingRoom" WHERE "hostId" = ${userId}`);
+      await executeDelete(`DELETE FROM "PassportRequestLog" WHERE "adminId" = ${userId} OR "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "PassportSubmission" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "FunnelMessage" WHERE "adminId" = ${userId}`);
+      await executeDelete(`DELETE FROM "CertificateApproval" WHERE "customerId" = ${userId} OR "requesterId" = ${userId} OR "approvedBy" = ${userId}`);
+      await executeDelete(`DELETE FROM "CustomerNote" WHERE "customerId" = ${userId} OR "createdBy" = ${userId}`);
+      await executeDelete(`DELETE FROM "AdminSmsConfig" WHERE "adminId" = ${userId}`);
+      await executeDelete(`DELETE FROM "AdminActionLog" WHERE "adminId" = ${userId} OR "targetUserId" = ${userId}`);
+      await executeDelete(`DELETE FROM "AdminMessage" WHERE "adminId" = ${userId}`);
+      await executeDelete(`DELETE FROM "AdminNotification" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "CustomerJourney" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "RePurchaseTrigger" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "ChatHistory" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "ChecklistItem" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "Expense" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "FeatureUsage" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "UserActivity" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "UserSchedule" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "VisitedCountry" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "MapTravelRecord" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "MarketingInsight" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "PushSubscription" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "NotificationLog" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "UserMessageRead" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "LoginLog" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "PasswordEvent" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "Session" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "TravelDiaryEntry" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "Traveler" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "Traveler" WHERE "reservationId" IN (SELECT id FROM "Reservation" WHERE "mainUserId" = ${userId})`);
+      await executeDelete(`DELETE FROM "Reservation" WHERE "mainUserId" = ${userId}`);
+      await executeDelete(`DELETE FROM "UserTrip" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "Trip" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "ScheduledMessageLog" WHERE "userId" = ${userId}`);
+      await executeDelete(`DELETE FROM "ScheduledMessage" WHERE "adminId" = ${userId}`);
+      await executeDelete(`DELETE FROM "EmailAddressBook" WHERE "adminId" = ${userId}`);
+      
+      // 마지막으로 User 삭제
+      await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE "id" = ${userId}`);
+      
+      console.log(`[Delete User] User ${userId} deleted`);
       
       const duration = Date.now() - startTime;
       console.log(`[Delete User] SUCCESS - Duration: ${duration}ms`);
@@ -243,9 +202,8 @@ export async function DELETE(
       });
       
     } catch (deleteError: any) {
-      // 트랜잭션이 실패하면 자동으로 롤백되므로 별도 처리가 필요 없습니다.
-      // Foreign Key 제약 조건은 트랜잭션 내에서 처리되므로 여기서는 로깅만 합니다.
-      console.error('[Delete User] Transaction failed, all changes rolled back');
+      // 삭제 중 에러 발생
+      console.error('[Delete User] Deletion failed');
       
       const errorMsg = deleteError?.message || String(deleteError);
       const errorCode = deleteError?.code || 'UNKNOWN';

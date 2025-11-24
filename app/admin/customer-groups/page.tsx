@@ -627,6 +627,47 @@ export default function CustomerGroupsPage() {
     });
   };
 
+  // 상품별 APIS 상태
+  const [showProductApisModal, setShowProductApisModal] = useState(false);
+  const [productApisData, setProductApisData] = useState<Array<{
+    productCode: string;
+    cruiseLine: string;
+    shipName: string;
+    packageName: string;
+    customerCount: number;
+    folderUrl: string | null;
+    spreadsheetUrl: string | null;
+    tripId: number | null;
+  }>>([]);
+  const [loadingProductApis, setLoadingProductApis] = useState(false);
+
+  // 상품별 구매고객 APIS 모달 열기
+  const handleShowProductApis = async () => {
+    setShowProductApisModal(true);
+    setLoadingProductApis(true);
+    setProductApisData([]);
+
+    try {
+      // 상품별 APIS 목록 조회
+      const response = await fetch('/api/admin/apis/product-apis-list', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (!data.ok) {
+        showError(data.message || 'APIS 목록을 불러오는데 실패했습니다.');
+        return;
+      }
+
+      setProductApisData(data.apisData || []);
+    } catch (error) {
+      console.error('Failed to load product APIS:', error);
+      showError('상품별 APIS 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoadingProductApis(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -634,26 +675,35 @@ export default function CustomerGroupsPage() {
           <h1 className="text-3xl font-bold text-gray-900">고객 그룹 관리</h1>
           <p className="text-gray-600 mt-1">고객을 그룹으로 묶어 예약 메시지를 발송할 수 있습니다.</p>
         </div>
-        <button
-          onClick={() => {
-            setEditingGroup(null);
-            setFormData({ 
-              name: '', 
-              description: '', 
-              color: '#3B82F6',
-              funnelTalkIds: [],
-              funnelSmsIds: [],
-              funnelEmailIds: [],
-              reEntryHandling: 'time_change_info_change',
-              autoMoveEnabled: false,
-            });
-            setShowModal(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <FiPlus className="text-lg" />
-          그룹 생성
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleShowProductApis}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+          >
+            <FiDownload className="text-lg" />
+            상품별 구매고객 APIS
+          </button>
+          <button
+            onClick={() => {
+              setEditingGroup(null);
+              setFormData({ 
+                name: '', 
+                description: '', 
+                color: '#3B82F6',
+                funnelTalkIds: [],
+                funnelSmsIds: [],
+                funnelEmailIds: [],
+                reEntryHandling: 'time_change_info_change',
+                autoMoveEnabled: false,
+              });
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <FiPlus className="text-lg" />
+            그룹 생성
+          </button>
+        </div>
       </div>
 
       {/* 점장별 필터링 */}
@@ -1814,6 +1864,112 @@ export default function CustomerGroupsPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 상품별 구매고객 APIS 모달 */}
+      {showProductApisModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">상품별 구매고객 APIS</h2>
+                <p className="text-sm text-gray-500 mt-1">판매 활성화된 상품별로 APIS 다운로드 링크를 확인할 수 있습니다.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowProductApisModal(false);
+                  setProductApisData([]);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* 상품별 APIS 목록 */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingProductApis ? (
+                <div className="text-center py-12">
+                  <FiLoader className="inline-block animate-spin text-3xl text-emerald-600 mb-4" />
+                  <p className="text-gray-600">APIS 정보를 불러오는 중...</p>
+                </div>
+              ) : productApisData.length === 0 ? (
+                <div className="text-center py-12">
+                  <FiDownload className="mx-auto text-4xl text-gray-400 mb-4" />
+                  <p className="text-gray-600">APIS 정보가 없습니다.</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    대시보드에서 먼저 APIS 엑셀을 생성해주세요.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {productApisData.map((product) => (
+                    <div
+                      key={product.productCode}
+                      className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200 p-5 hover:shadow-lg transition-all"
+                    >
+                      <div className="mb-3">
+                        <h3 className="text-lg font-bold text-gray-900 mb-1">
+                          {product.cruiseLine}
+                        </h3>
+                        <p className="text-sm font-semibold text-gray-700 mb-1">
+                          {product.shipName}
+                        </p>
+                        <p className="text-xs text-gray-600 mb-2">
+                          {product.packageName}
+                        </p>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            구매 고객 {product.customerCount}명
+                          </span>
+                          {product.folderUrl && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              APIS 생성됨
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        {product.folderUrl ? (
+                          <>
+                            <a
+                              href={product.folderUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-sm transition-colors text-center"
+                            >
+                              📁 구글 드라이브 폴더 열기
+                            </a>
+                            {product.spreadsheetUrl && (
+                              <a
+                                href={product.spreadsheetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-semibold text-sm transition-colors text-center"
+                              >
+                                📊 구글 시트 열기
+                              </a>
+                            )}
+                          </>
+                        ) : (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p className="text-xs text-yellow-900 text-center">
+                              ⚠️ APIS가 아직 생성되지 않았습니다.
+                              <br />
+                              대시보드에서 생성해주세요.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

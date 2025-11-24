@@ -350,7 +350,9 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
       console.log('[ReservationForm] 사용 가능한 Trip 개수:', trips.length);
       console.log('[ReservationForm] 사용 가능한 Trip 목록:', trips.map(t => ({
         id: t.id,
-        productCode: t.product?.productCode,
+        rootProductCode: (t as any).productCode,
+        nestedProductCode: t.product?.productCode,
+        productCode: t.product?.productCode || (t as any).productCode,
         shipName: t.shipName,
         cruiseLine: t.product?.cruiseLine,
       })));
@@ -365,15 +367,35 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
         // ⚠️ return하지 않음: 다른 섹션(대표자 정보, 결제 정보 등)은 계속 채움
       }
       
+      // ⚠️ 개선: 더 명확한 매칭 로직 (루트 레벨과 product.productCode 모두 확인)
       matchingTrip = trips.find(
         (t) => {
-          const tripProductCode = t.product?.productCode || (t as any).productCode;
+          // 루트 레벨 productCode 확인
+          const rootProductCode = (t as any).productCode;
+          // product.productCode 확인
+          const nestedProductCode = t.product?.productCode;
+          // 둘 중 하나라도 일치하면 매칭
+          const tripProductCode = nestedProductCode || rootProductCode;
           const match = tripProductCode === payment.productCode;
-          if (match) {
-            console.log('[ReservationForm] 🔍 매칭 성공:', {
+          
+          // 디버깅: 모든 trip의 productCode 출력
+          if (!match) {
+            console.log('[ReservationForm] 🔍 매칭 시도:', {
               tripId: t.id,
+              rootProductCode,
+              nestedProductCode,
               tripProductCode,
               paymentProductCode: payment.productCode,
+              match: false,
+            });
+          } else {
+            console.log('[ReservationForm] 🔍 매칭 성공:', {
+              tripId: t.id,
+              rootProductCode,
+              nestedProductCode,
+              tripProductCode,
+              paymentProductCode: payment.productCode,
+              match: true,
             });
           }
           return match;
@@ -409,7 +431,9 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
           console.log('[ReservationForm] ✅ trips 배열 확인:', trips.map(t => ({ 
             id: t.id, 
             idType: typeof t.id,
-            productCode: t.product?.productCode || (t as any).productCode 
+            rootProductCode: (t as any).productCode,
+            nestedProductCode: t.product?.productCode,
+            productCode: t.product?.productCode || (t as any).productCode
           })));
           // 에러 메시지 제거 (성공적으로 매칭된 경우)
           setError('');
@@ -420,7 +444,9 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
         console.warn('[ReservationForm] ⚠️ trips 개수:', trips.length);
         console.warn('[ReservationForm] ⚠️ 사용 가능한 상품 코드들:', trips.map(t => ({
           id: t.id,
-          productCode: t.product?.productCode,
+          rootProductCode: (t as any).productCode,
+          nestedProductCode: t.product?.productCode,
+          productCode: t.product?.productCode || (t as any).productCode,
           shipName: t.shipName,
         })));
         // ⚠️ 중요: matchingTrip을 찾지 못하면 selectedTripId를 설정하지 않음 (저장 불가)
@@ -497,17 +523,13 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
         if (purchases.length > 0) {
           console.log('[ReservationForm] ✅ metadata에서 객실 정보 설정:', purchases);
           
-          // ⚠️ 중요: selectedTripId가 설정된 후에만 cabinPurchases를 업데이트하여 UI 섹션이 보이도록 보장
-          // React의 상태 업데이트는 비동기이므로, selectedTripId가 설정되면 useEffect가 자동으로 처리하지만
-          // 여기서도 즉시 설정하여 빠른 반영 보장
-          if (matchingTrip) {
-            // matchingTrip이 있으면 즉시 cabinPurchases 설정 (selectedTripId는 이미 위에서 설정됨)
-            setCabinPurchases(purchases);
-            console.log('[ReservationForm] ✅ cabinPurchases 상태 업데이트 완료 (matchingTrip 있음):', purchases);
-          } else {
-            // matchingTrip이 없어도 cabinPurchases는 설정 (나중에 Trip 선택 시 useEffect가 처리)
-            setCabinPurchases(purchases);
-            console.log('[ReservationForm] ✅ cabinPurchases 상태 업데이트 완료 (matchingTrip 없음, useEffect가 처리):', purchases);
+          // ⚠️ 중요: matchingTrip이 없어도 객실 정보는 설정 (대표자 정보는 이미 설정되었으므로)
+          // selectedTripId가 설정되면 useEffect가 자동으로 처리하지만, 여기서도 즉시 설정하여 빠른 반영 보장
+          setCabinPurchases(purchases);
+          console.log('[ReservationForm] ✅ cabinPurchases 상태 업데이트 완료:', purchases);
+          
+          if (!matchingTrip) {
+            console.warn('[ReservationForm] ⚠️ matchingTrip이 없지만 객실 정보는 설정했습니다. 상품을 수동으로 선택해야 합니다.');
           }
           
           // matchingTrip이 있으면 방 그룹도 생성
@@ -2322,16 +2344,18 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
                       </div>
                       {pricingInfo && (
                         <div className="mt-2 text-xs text-gray-600">
-                          <span className="font-medium">
-                            성인: {pricingInfo.adultPrice.toLocaleString()}원
-                          </span>
+                          {pricingInfo.adultPrice && (
+                            <span className="font-medium">
+                              성인: {pricingInfo.adultPrice.toLocaleString()}원
+                            </span>
+                          )}
                           {pricingInfo.childPrice && (
                             <span className="ml-2">
                               아동: {pricingInfo.childPrice.toLocaleString()}원
                             </span>
-          )}
-        </div>
-      )}
+                          )}
+                        </div>
+                      )}
 
       {/* 고객별 일괄 발송 모달 */}
       {showBulkSendModal && (

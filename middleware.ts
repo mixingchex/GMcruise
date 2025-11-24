@@ -10,11 +10,14 @@ const PUBLIC = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/public', // 공개 쇼핑몰 API
-  '/products', // 상품 페이지 (공개)
+  '/product', // 상품 페이지 (공개, 단수형)
+  '/products', // 상품 페이지 (공개, 복수형)
   '/youtube', // 유튜브 페이지 (공개)
   '/reviews', // 후기 페이지 (공개)
   '/community', // 커뮤니티 페이지 (공개)
   '/p', // 숏링크 리다이렉트 (공개)
+  '/passport', // 여권 제출 페이지 (공개)
+  '/customer/passport', // 고객 여권 페이지 (공개)
   '/favicon.ico',
   '/assets',
   '/public',
@@ -31,6 +34,11 @@ export async function middleware(req: NextRequest) {
 
   // API Rate Limiting (AI 요청은 더 엄격하게)
   if (pathname.startsWith('/api/')) {
+    // 공개 API는 rate limiting 제외
+    if (pathname.startsWith('/api/passport') || pathname.startsWith('/api/public')) {
+      return NextResponse.next();
+    }
+    
     // Rate limiting에서 제외할 API (자주 호출되지만 보안상 위험하지 않은 API)
     const excludedFromRateLimit = [
       '/api/auth/me', // 인증 확인 API (자주 호출됨)

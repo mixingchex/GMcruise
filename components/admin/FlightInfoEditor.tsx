@@ -161,7 +161,7 @@ export default function FlightInfoEditor({
 
   // 시간 차이 계산 함수 (시차 고려)
   const calculateDuration = (departureTime: string, arrivalTime: string, departureDate: string, departureAirport: string, arrivalAirport: string, arrivalDate?: string): string => {
-    if (!departureTime || !arrivalTime || !departureAirport || !arrivalAirport) return '';
+    if (!departureTime || !arrivalTime || !departureAirport || !arrivalAirport || !departureDate) return '';
     
     try {
       // 출발지와 도착지의 UTC 오프셋 가져오기
@@ -172,9 +172,27 @@ export default function FlightInfoEditor({
       const [depHours, depMinutes] = departureTime.split(':').map(Number);
       const [arrHours, arrMinutes] = arrivalTime.split(':').map(Number);
       
-      // 날짜 파싱
-      const depDate = departureDate ? new Date(departureDate + 'T00:00:00') : new Date();
-      let arrDate = arrivalDate ? new Date(arrivalDate + 'T00:00:00') : new Date(departureDate + 'T00:00:00');
+      // 유효성 검사
+      if (isNaN(depHours) || isNaN(depMinutes) || isNaN(arrHours) || isNaN(arrMinutes)) {
+        return '';
+      }
+      
+      // 날짜 파싱 및 유효성 검사
+      const depDate = new Date(departureDate + 'T00:00:00');
+      if (isNaN(depDate.getTime())) {
+        return '';
+      }
+      
+      let arrDate: Date;
+      if (arrivalDate) {
+        arrDate = new Date(arrivalDate + 'T00:00:00');
+        if (isNaN(arrDate.getTime())) {
+          // arrivalDate가 유효하지 않으면 departureDate 사용
+          arrDate = new Date(depDate);
+        }
+      } else {
+        arrDate = new Date(depDate);
+      }
       
       // 출발 시간이 오후(12시 이후)이고 도착 시간이 오전(12시 이전)이면 하루 추가
       // 이는 일반적으로 다음날 도착을 의미함
@@ -203,6 +221,11 @@ export default function FlightInfoEditor({
         0,
         0
       ));
+      
+      // 유효성 검사
+      if (isNaN(testDepUTC.getTime()) || isNaN(testArrUTC.getTime())) {
+        return '';
+      }
       
       // 테스트 계산으로 음수가 나오면 하루 추가
       if (testArrUTC.getTime() < testDepUTC.getTime()) {
@@ -235,6 +258,11 @@ export default function FlightInfoEditor({
         0
       ));
       
+      // 유효성 검사
+      if (isNaN(depUTC.getTime()) || isNaN(arrUTC.getTime())) {
+        return '';
+      }
+      
       // UTC 기준 시간 차이 계산 (밀리초)
       let diffMs = arrUTC.getTime() - depUTC.getTime();
       
@@ -244,10 +272,19 @@ export default function FlightInfoEditor({
         // 하루 추가
         arrUTC.setUTCDate(arrUTC.getUTCDate() + 1);
         diffMs = arrUTC.getTime() - depUTC.getTime();
+        
+        // 여전히 유효하지 않으면 빈 문자열 반환
+        if (diffMs < 0 || isNaN(arrUTC.getTime())) {
+          return '';
+        }
       }
       
       // 분 단위로 변환
       const totalMinutes = Math.floor(diffMs / (1000 * 60));
+      if (totalMinutes < 0) {
+        return '';
+      }
+      
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       

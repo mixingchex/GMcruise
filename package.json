@@ -22,7 +22,9 @@
     "test:type": "tsc --noEmit",
     "test:build": "npm run build",
     "test:contract-pdf": "tsx scripts/test-contract-pdf.ts",
-    "generate-embeddings": "tsx scripts/generate-knowledge-embeddings.ts"
+    "generate-embeddings": "tsx scripts/generate-knowledge-embeddings.ts",
+    "analyze": "ANALYZE=true npm run build",
+    "create:sample-products": "tsx scripts/create-sample-products.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.23",
@@ -87,6 +89,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.0.3",
     "@types/bcrypt": "^6.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/d3-scale": "^4.0.9",

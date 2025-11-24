@@ -38,6 +38,70 @@ const CATEGORIES = ['travel-tip', 'qna', 'destination'];
 const BOT_USER_ID = 1; // 관리자 계정 또는 봇 전용 계정 ID
 
 /**
+ * 2023년 6월 1일부터 현재까지 랜덤 날짜 생성
+ */
+function getRandomPostDate(): Date {
+  const startDate = new Date('2023-06-01T00:00:00.000Z');
+  const endDate = new Date();
+  const timeDiff = endDate.getTime() - startDate.getTime();
+  const randomTime = Math.random() * timeDiff;
+  return new Date(startDate.getTime() + randomTime);
+}
+
+/**
+ * 게시글 날짜 기준 7일 이내 랜덤 댓글 날짜 생성
+ */
+function getRandomCommentDate(postDate: Date): Date {
+  const maxDaysAfter = 7;
+  const randomDays = Math.random() * maxDaysAfter; // 0~7일 사이
+  const randomHours = Math.random() * 24; // 0~24시간 사이
+  const randomMinutes = Math.random() * 60; // 0~60분 사이
+  
+  const commentDate = new Date(postDate);
+  commentDate.setDate(commentDate.getDate() + randomDays);
+  commentDate.setHours(commentDate.getHours() + randomHours);
+  commentDate.setMinutes(commentDate.getMinutes() + randomMinutes);
+  
+  // 현재 날짜를 넘지 않도록 제한
+  const now = new Date();
+  if (commentDate > now) {
+    return now;
+  }
+  
+  return commentDate;
+}
+
+/**
+ * 댓글 날짜 기준 랜덤 대댓글 날짜 생성 (댓글 날짜 이후, 게시글 기준 7일 이내)
+ */
+function getRandomReplyDate(commentDate: Date, postDate: Date): Date {
+  const maxDaysAfterPost = 7;
+  const postMaxDate = new Date(postDate);
+  postMaxDate.setDate(postMaxDate.getDate() + maxDaysAfterPost);
+  
+  // 댓글 날짜 이후, 게시글 기준 7일 이내
+  const endDate = postMaxDate > new Date() ? new Date() : postMaxDate;
+  const timeDiff = endDate.getTime() - commentDate.getTime();
+  
+  if (timeDiff <= 0) {
+    // 댓글 날짜가 이미 게시글 기준 7일을 넘었으면 댓글 날짜 + 1시간
+    const replyDate = new Date(commentDate);
+    replyDate.setHours(replyDate.getHours() + 1);
+    return replyDate > new Date() ? new Date() : replyDate;
+  }
+  
+  const randomTime = Math.random() * timeDiff;
+  const replyDate = new Date(commentDate.getTime() + randomTime);
+  
+  // 현재 날짜를 넘지 않도록 제한
+  if (replyDate > new Date()) {
+    return new Date();
+  }
+  
+  return replyDate;
+}
+
+/**
  * 게시글 길이 범위 선택 (비율에 따라)
  */
 function selectPostLengthRange(): { min: number; max: number } {
@@ -454,8 +518,8 @@ export async function POST(req: Request) {
 
     console.log('[COMMUNITY BOT] 게시글 생성 완료:', postData.title);
 
-    // 2. 게시글 저장
-    const now = new Date();
+    // 2. 게시글 저장 (2023년 6월 1일부터 현재까지 랜덤 날짜)
+    const postDate = getRandomPostDate();
     const post = await prisma.communityPost.create({
       data: {
         userId: botUser.id,
@@ -463,9 +527,12 @@ export async function POST(req: Request) {
         content: postData.content,
         category: postData.category,
         authorName: KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)],
-        updatedAt: now
+        createdAt: postDate,
+        updatedAt: postDate
       }
     });
+    
+    console.log(`[COMMUNITY BOT] 게시글 날짜: ${postDate.toISOString()}`);
 
     console.log('[COMMUNITY BOT] 게시글 저장 완료:', post.id);
 
@@ -476,6 +543,8 @@ export async function POST(req: Request) {
     if (commentContent) {
       // 댓글 작성자 (봇이 아닌 다른 사용자처럼 보이게)
       const commentAuthor = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
+      // 게시글 날짜 기준 7일 이내 랜덤 날짜
+      const commentDate = getRandomCommentDate(postDate);
       
       await prisma.communityComment.create({
         data: {
@@ -483,9 +552,12 @@ export async function POST(req: Request) {
           userId: botUser.id, // 봇 계정이지만 다른 닉네임 사용
           content: commentContent,
           authorName: commentAuthor,
-          updatedAt: now
+          createdAt: commentDate,
+          updatedAt: commentDate
         }
       });
+      
+      console.log(`[COMMUNITY BOT] 댓글 날짜: ${commentDate.toISOString()}`);
 
       // 게시글 댓글 수 업데이트
       await prisma.communityPost.update({
@@ -511,7 +583,8 @@ export async function POST(req: Request) {
           id: true,
           title: true,
           content: true,
-          category: true
+          category: true,
+          createdAt: true // 게시글 날짜 필요
         },
         take: 50, // 최근 50개 중에서 선택
         orderBy: {
@@ -538,6 +611,9 @@ export async function POST(req: Request) {
 
             if (commentContent) {
               const commentAuthor = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
+              // 게시글 날짜 기준 7일 이내 랜덤 날짜
+              const postCreatedAt = selectedPost.createdAt ? new Date(selectedPost.createdAt) : new Date();
+              const commentDate = getRandomCommentDate(postCreatedAt);
               
               const newComment = await prisma.communityComment.create({
                 data: {
@@ -545,7 +621,8 @@ export async function POST(req: Request) {
                   userId: botUser.id,
                   content: commentContent,
                   authorName: commentAuthor,
-                  updatedAt: now
+                  createdAt: commentDate,
+                  updatedAt: commentDate
                 }
               });
 
@@ -571,6 +648,8 @@ export async function POST(req: Request) {
 
                 if (replyContent) {
                   const replyAuthor = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
+                  // 댓글 날짜 기준, 게시글 기준 7일 이내 랜덤 날짜
+                  const replyDate = getRandomReplyDate(commentDate, postCreatedAt);
                   
                   await prisma.communityComment.create({
                     data: {
@@ -579,7 +658,8 @@ export async function POST(req: Request) {
                       content: replyContent,
                       authorName: replyAuthor,
                       parentCommentId: newComment.id,
-                      updatedAt: now
+                      createdAt: replyDate,
+                      updatedAt: replyDate
                     }
                   });
 
@@ -622,7 +702,8 @@ export async function POST(req: Request) {
             select: {
               id: true,
               title: true,
-              content: true
+              content: true,
+              createdAt: true // 게시글 날짜 필요
             }
           }
         },
@@ -666,6 +747,11 @@ export async function POST(req: Request) {
 
               if (positiveResponse) {
                 const responseAuthor = KOREAN_NICKNAMES[Math.floor(Math.random() * KOREAN_NICKNAMES.length)];
+                // 부정적 댓글 날짜 기준, 게시글 기준 7일 이내 랜덤 날짜
+                const commentCreatedAt = comment.createdAt ? new Date(comment.createdAt) : new Date();
+                // 게시글 날짜 가져오기
+                const postCreatedAt = comment.Post?.createdAt ? new Date(comment.Post.createdAt) : commentCreatedAt;
+                const responseDate = getRandomReplyDate(commentCreatedAt, postCreatedAt);
                 
                 await prisma.communityComment.create({
                   data: {
@@ -674,7 +760,8 @@ export async function POST(req: Request) {
                     content: positiveResponse,
                     authorName: responseAuthor,
                     parentCommentId: comment.id,
-                    updatedAt: now
+                    createdAt: responseDate,
+                    updatedAt: responseDate
                   }
                 });
 

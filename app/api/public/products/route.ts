@@ -66,7 +66,14 @@ export async function GET(req: NextRequest) {
         break;
     }
 
-    // 어필리에이트 수당이 완료된 상품만 조회 (AffiliateProduct가 있고 isPublished: true, status: 'active')
+    // 어필리에이트 수당이 완료된 상품만 조회
+    // 필터링 조건:
+    // 1. status: 'active' - 활성 상태인 상품만
+    // 2. isPublished: true - 게시된 상품만
+    // 3. effectiveFrom <= now - 적용 시작일이 현재보다 이전이어야 함
+    // 4. effectiveTo IS NULL OR effectiveTo >= now - 적용 종료일이 없거나, 현재보다 이후여야 함
+    //    (적용 종료일이 지난 상품은 자동으로 제외됨)
+    // 5. 삭제된 상품은 데이터베이스에서 제거되므로 자동으로 필터링됨
     const now = new Date();
     
     let activeAffiliateProducts;
@@ -76,13 +83,13 @@ export async function GET(req: NextRequest) {
       activeAffiliateProducts = await prisma.affiliateProduct.findMany({
         where: {
           AND: [
-            { status: 'active' },
-            { isPublished: true },
-            { effectiveFrom: { lte: now } },
+            { status: 'active' }, // 활성 상태만
+            { isPublished: true }, // 게시된 상품만
+            { effectiveFrom: { lte: now } }, // 적용 시작일이 현재보다 이전이어야 함
             {
               OR: [
-                { effectiveTo: null },
-                { effectiveTo: { gte: now } },
+                { effectiveTo: null }, // 적용 종료일이 없으면 계속 유효
+                { effectiveTo: { gte: now } }, // 적용 종료일이 현재보다 이후여야 함 (종료일이 지난 상품은 제외)
               ],
             },
           ],
@@ -153,10 +160,19 @@ export async function GET(req: NextRequest) {
             },
           },
           {
-            // saleStatus가 '판매중지'가 아닌 상품만 포함
-            NOT: {
-              saleStatus: '판매중지',
-            },
+            // saleStatus가 '판매중지' 또는 '3일체험'이 아닌 상품만 포함
+            AND: [
+              {
+                NOT: {
+                  saleStatus: '판매중지',
+                },
+              },
+              {
+                NOT: {
+                  saleStatus: '3일체험',
+                },
+              },
+            ],
           },
         ],
       },

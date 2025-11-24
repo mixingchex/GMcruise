@@ -7,11 +7,19 @@ import { showSuccess, showError } from '@/components/ui/Toast';
 /**
  * 여행 배정 관리 페이지
  * 관리자가 사용자에게 크루즈 여행을 배정 (온보딩과 동일한 기능)
- * - 첫 번째 칸: 크루즈 가이드 사용자 검색 (필수)
- * - 두 번째 칸: 크루즈몰 닉네임 검색 (선택사항)
- * - 크루즈몰 상품 검색 (필수)
+ * - 첫 번째 칸: 구매 고객 검색 (구매 고객 선택 시 자동으로 여행 상품 정보 로드)
+ * - 두 번째 칸: 크루즈 가이드 사용자 검색 (필수)
+ * - 세 번째 칸: 크루즈몰 닉네임 검색 (선택사항)
+ * - 크루즈몰 상품 검색 (필수, 구매 고객 선택 시 자동 로드)
  * - 상품 선택 시 여행 정보 자동 표시 (시작일, 종료일, 박/일, D-day)
  */
+
+interface PurchaseCustomer {
+  id: number;
+  name: string | null;
+  phone: string | null;
+  customerStatus: string | null;
+}
 
 interface GenieUser {
   id: number;
@@ -45,6 +53,15 @@ interface Product {
 
 export default function AssignTripPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 구매 고객 검색 (새로 추가)
+  const [purchaseSearchTerm, setPurchaseSearchTerm] = useState('');
+  const [purchaseSearchResults, setPurchaseSearchResults] = useState<PurchaseCustomer[]>([]);
+  const [purchaseSearchLoading, setPurchaseSearchLoading] = useState(false);
+  const [purchaseSearchDropdownOpen, setPurchaseSearchDropdownOpen] = useState(false);
+  const [selectedPurchaseUserId, setSelectedPurchaseUserId] = useState<number | null>(null);
+  const purchaseSearchRef = useRef<HTMLDivElement>(null);
+  const selectedPurchaseCustomer = purchaseSearchResults.find(u => u.id === selectedPurchaseUserId);
 
   // 크루즈 가이드 사용자 검색 (필수)
   const [genieSearchTerm, setGenieSearchTerm] = useState('');
@@ -95,6 +112,15 @@ export default function AssignTripPage() {
     return diffDays;
   };
 
+  // 구매 고객 검색 디바운싱
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchPurchaseCustomers(purchaseSearchTerm);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [purchaseSearchTerm]);
+
   // 크루즈 가이드 사용자 검색 디바운싱
   useEffect(() => {
     // 검색어가 변경될 때마다 검색 실행 (빈 검색어도 포함)
@@ -133,6 +159,9 @@ export default function AssignTripPage() {
   // 클릭 외부 감지
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      if (purchaseSearchRef.current && !purchaseSearchRef.current.contains(event.target as Node)) {
+        setPurchaseSearchDropdownOpen(false);
+      }
       if (genieSearchRef.current && !genieSearchRef.current.contains(event.target as Node)) {
         setGenieSearchDropdownOpen(false);
       }
@@ -148,7 +177,46 @@ export default function AssignTripPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const searchGenieUsers = async (query: string) => {
+  const searchPurchaseCustomers = async (query: string) => {
+    try {
+      setPurchaseSearchLoading(true);
+      setPurchaseSearchDropdownOpen(true);
+      
+      const params = new URLSearchParams({ 
+        customerGroup: 'purchase' // 구매 고객만 검색
+      });
+      
+      if (query.trim()) {
+        params.append('search', query.trim());
+      }
+      
+      const response = await fetch(`/api/admin/customers?${params.toString()}`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (data.ok && data.customers) {
+        setPurchaseSearchResults(data.customers.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          customerStatus: c.customerStatus,
+        })));
+        setPurchaseSearchDropdownOpen(true);
+      } else {
+        setPurchaseSearchResults([]);
+        setPurchaseSearchDropdownOpen(true);
+      }
+    } catch (error) {
+      console.error('Error searching purchase customers:', error);
+      setPurchaseSearchResults([]);
+      setPurchaseSearchDropdownOpen(true);
+    } finally {
+      setPurchaseSearchLoading(false);
+    }
+  };
+
+  const searchGenieUsers = async (query: string): Promise<GenieUser[]> => {
     try {
       setGenieSearchLoading(true);
       setGenieSearchDropdownOpen(true); // 검색 시작 시 드롭다운 열기
@@ -169,14 +237,17 @@ export default function AssignTripPage() {
       if (data.ok && data.users) {
         setGenieSearchResults(data.users);
         setGenieSearchDropdownOpen(true); // 결과가 있든 없든 드롭다운 열기
+        return data.users;
       } else {
         setGenieSearchResults([]);
         setGenieSearchDropdownOpen(true); // 에러 시에도 드롭다운 열기
+        return [];
       }
     } catch (error) {
       console.error('Error searching genie users:', error);
       setGenieSearchResults([]);
       setGenieSearchDropdownOpen(true); // 에러 시에도 드롭다운 열기
+      return [];
     } finally {
       setGenieSearchLoading(false);
     }
@@ -249,6 +320,85 @@ export default function AssignTripPage() {
       setProductSearchDropdownOpen(true); // 에러 시에도 드롭다운 열기
     } finally {
       setProductSearchLoading(false);
+    }
+  };
+
+  const handleSelectPurchaseCustomer = async (customer: PurchaseCustomer) => {
+    setSelectedPurchaseUserId(customer.id);
+    setPurchaseSearchTerm(customer.name || customer.phone || '');
+    setPurchaseSearchDropdownOpen(false);
+
+    // 구매 고객 선택 시 여행 상품 정보 자동 로드
+    try {
+      const response = await fetch(`/api/admin/purchase-customers/${customer.id}/trip-info`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (data.ok && data.hasReservation && data.hasProduct) {
+        // 상품 정보 자동 설정
+        const product = data.product;
+        const trip = data.trip;
+
+        // Product 객체 생성
+        const productObj: Product = {
+          id: product.id,
+          productCode: product.productCode,
+          cruiseLine: product.cruiseLine,
+          shipName: product.shipName,
+          packageName: product.packageName,
+          nights: product.nights,
+          days: product.days,
+          itineraryPattern: product.itineraryPattern,
+        };
+
+        setSelectedProduct(productObj);
+        setProductSearchTerm(product.packageName);
+
+        // 온보딩 폼 자동 채우기
+        setOnboardingForm({
+          productCode: product.productCode,
+          productId: product.id,
+          cruiseName: trip.cruiseName,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          companionType: trip.companionType as '친구' | '커플' | '가족' | '혼자' | null,
+          destination: trip.destination,
+        });
+
+        // 크루즈 가이드 사용자 자동 검색 (이름과 전화번호로)
+        if (data.user.name && data.user.phone) {
+          setGenieSearchTerm(data.user.name);
+          // 자동으로 크루즈 가이드 사용자 검색
+          const searchQuery = data.user.name || data.user.phone || '';
+          try {
+            const searchResults = await searchGenieUsers(searchQuery);
+            // 검색 결과에서 이름과 전화번호가 일치하는 사용자 자동 선택
+            const matchingUser = searchResults.find(
+              u => (u.name === data.user.name || u.phone === data.user.phone)
+            );
+            if (matchingUser) {
+              handleSelectGenieUser(matchingUser);
+            } else if (data.user.phone) {
+              // 이름으로 찾지 못하면 전화번호로 다시 검색 시도
+              const phoneResults = await searchGenieUsers(data.user.phone);
+              const phoneMatch = phoneResults.find(
+                u => u.phone === data.user.phone
+              );
+              if (phoneMatch) {
+                handleSelectGenieUser(phoneMatch);
+              }
+            }
+          } catch (error) {
+            console.error('Error auto-searching genie user:', error);
+          }
+        }
+      } else {
+        showError(data.message || '구매 고객의 여행 상품 정보를 찾을 수 없습니다.');
+      }
+    } catch (error) {
+      console.error('Error loading purchase customer trip info:', error);
+      showError('구매 고객의 여행 상품 정보를 불러오는 중 오류가 발생했습니다.');
     }
   };
 
@@ -326,8 +476,9 @@ export default function AssignTripPage() {
   const handleStartDateChange = (date: string) => {
     setOnboardingForm({ ...onboardingForm, startDate: date });
     
-    // 종료일 자동 계산
-    if (selectedProduct && date) {
+    // 종료일 자동 계산 (상품에 days가 있고, 상품에 startDate가 없을 때만 자동 계산)
+    // 상품에 startDate가 있으면 이미 endDate가 계산되어 있으므로 다시 계산하지 않음
+    if (selectedProduct && date && selectedProduct.days && !selectedProduct.startDate) {
       const start = new Date(date);
       const end = new Date(start);
       end.setDate(end.getDate() + selectedProduct.days - 1);
@@ -392,12 +543,15 @@ export default function AssignTripPage() {
       if (response.ok && data.ok) {
         showSuccess('여행이 배정되었습니다! 크루즈 가이드 지니가 활성화되었습니다.');
         // 폼 초기화
+        setSelectedPurchaseUserId(null);
         setSelectedGenieUserId(null);
         setSelectedMallUserId(null);
         setSelectedProduct(null);
+        setPurchaseSearchTerm('');
         setGenieSearchTerm('');
         setMallSearchTerm('');
         setProductSearchTerm('');
+        setPurchaseSearchResults([]);
         setGenieSearchResults([]);
         setMallSearchResults([]);
         setProductSearchResults([]);
@@ -433,6 +587,115 @@ export default function AssignTripPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6">
+          {/* 구매 고객 검색 (새로 추가) */}
+          <div className="purchase-customer-search-container relative" ref={purchaseSearchRef}>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+              <FiUser />
+              구매 고객 검색 <span className="text-blue-600 text-xs">(선택사항 - 선택 시 자동으로 여행 상품 정보 로드)</span>
+            </label>
+            <div className="relative">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                <input
+                  type="text"
+                  value={purchaseSearchTerm}
+                  onChange={(e) => {
+                    setPurchaseSearchTerm(e.target.value);
+                    setPurchaseSearchDropdownOpen(true);
+                    if (!e.target.value) {
+                      setSelectedPurchaseUserId(null);
+                      setPurchaseSearchResults([]);
+                    }
+                  }}
+                  onFocus={() => {
+                    setPurchaseSearchDropdownOpen(true);
+                    searchPurchaseCustomers(purchaseSearchTerm);
+                  }}
+                  onClick={() => {
+                    setPurchaseSearchDropdownOpen(true);
+                    searchPurchaseCustomers(purchaseSearchTerm);
+                  }}
+                  placeholder="구매 고객 이름 또는 전화번호로 검색"
+                  className="w-full pl-10 pr-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                />
+                {purchaseSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPurchaseSearchTerm('');
+                      setSelectedPurchaseUserId(null);
+                      setPurchaseSearchResults([]);
+                      setPurchaseSearchDropdownOpen(false);
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <FiX size={20} />
+                  </button>
+                )}
+              </div>
+              
+              {/* 검색 결과 드롭다운 */}
+              {purchaseSearchDropdownOpen && (
+                <div className="absolute z-[9999] w-full mt-2 bg-white border-2 border-blue-500 rounded-lg shadow-2xl max-h-72 overflow-y-auto" style={{ position: 'absolute', top: '100%', left: 0, right: 0 }}>
+                  {purchaseSearchLoading ? (
+                    <div className="p-4 text-center text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                      로딩 중...
+                    </div>
+                  ) : purchaseSearchResults.length > 0 ? (
+                    <>
+                      {!purchaseSearchTerm && (
+                        <div className="p-3 bg-orange-50 border-b border-orange-200">
+                          <div className="text-sm font-semibold text-orange-800">구매 고객 목록</div>
+                          <div className="text-xs text-orange-600 mt-1">검색어를 입력하면 필터링됩니다</div>
+                        </div>
+                      )}
+                      {purchaseSearchResults.map((customer) => (
+                        <div
+                          key={customer.id}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSelectPurchaseCustomer(customer)}
+                          className={`p-4 border-b border-gray-100 hover:bg-orange-50 cursor-pointer transition-colors ${
+                            selectedPurchaseUserId === customer.id ? 'bg-orange-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900">
+                                {customer.name || '이름 없음'}
+                                <span className="ml-2 text-xs px-2 py-0.5 rounded bg-orange-100 text-orange-700">
+                                  구매 고객
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-600 mt-1">
+                                {customer.phone ? `📞 ${customer.phone}` : '연락처 없음'}
+                              </div>
+                            </div>
+                            {selectedPurchaseUserId === customer.id && (
+                              <FiCheckCircle className="text-green-500 flex-shrink-0" size={20} />
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : purchaseSearchTerm ? (
+                    <div className="p-4 text-center text-gray-500">검색 결과가 없습니다</div>
+                  ) : (
+                    <div className="p-4 text-center text-gray-500">구매 고객 목록을 불러오는 중...</div>
+                  )}
+                </div>
+              )}
+            </div>
+            {selectedPurchaseCustomer && (
+              <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="text-sm font-semibold text-orange-800">선택된 구매 고객:</div>
+                <div className="text-sm text-orange-700 mt-1">
+                  {selectedPurchaseCustomer.name || '이름 없음'} ({selectedPurchaseCustomer.phone || '연락처 없음'})
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* 크루즈 가이드 사용자 검색 (필수) */}
           <div className="genie-user-search-container relative" ref={genieSearchRef}>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
@@ -846,7 +1109,17 @@ export default function AssignTripPage() {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
               />
-              {selectedProduct && (
+              {selectedProduct && selectedProduct.startDate && (
+                <p className="text-xs text-gray-500 mt-1">
+                  상품 정보에서 자동으로 가져왔습니다
+                </p>
+              )}
+              {selectedProduct && !selectedProduct.startDate && (
+                <p className="text-xs text-blue-600 mt-1">
+                  상품에 날짜 정보가 없어 수동으로 입력해주세요
+                </p>
+              )}
+              {selectedProduct && !selectedProduct.startDate && selectedProduct.days && (
                 <p className="text-xs text-gray-500 mt-1">
                   {selectedProduct.days}일 일정으로 종료일이 자동 계산됩니다
                 </p>
@@ -862,11 +1135,16 @@ export default function AssignTripPage() {
                 onChange={(e) => setOnboardingForm({ ...onboardingForm, endDate: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 required
-                readOnly={!!selectedProduct && !!onboardingForm.startDate}
+                readOnly={!!selectedProduct && !!selectedProduct.startDate && !!onboardingForm.startDate}
               />
-              {selectedProduct && onboardingForm.startDate && (
+              {selectedProduct && selectedProduct.startDate && onboardingForm.startDate && (
                 <p className="text-xs text-gray-500 mt-1">
                   상품 일정에 따라 자동 계산됨
+                </p>
+              )}
+              {selectedProduct && !selectedProduct.startDate && (
+                <p className="text-xs text-blue-600 mt-1">
+                  상품에 날짜 정보가 없어 수동으로 입력해주세요
                 </p>
               )}
             </div>

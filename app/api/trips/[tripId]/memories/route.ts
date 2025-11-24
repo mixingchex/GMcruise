@@ -18,14 +18,14 @@ export async function GET(
 
     const tripId = parseInt(params.tripId);
 
-    // 여행 정보 조회 (본인 여행인지 확인)
-    const trip = await prisma.trip.findFirst({
+    // 여행 정보 조회 (본인 여행인지 확인) - CORE_RULES: UserTrip 사용
+    const trip = await prisma.userTrip.findFirst({
       where: {
         id: tripId,
         userId: user.id,
       },
       include: {
-        itineraries: {
+        Itinerary: {
           orderBy: { day: 'asc' },
         },
       },
@@ -42,7 +42,7 @@ export async function GET(
     const expenses = await prisma.expense.findMany({
       where: {
         userId: user.id,
-        tripId: tripId,
+        userTripId: tripId,
       },
     });
 
@@ -64,7 +64,7 @@ export async function GET(
     const diaries = await prisma.travelDiaryEntry.findMany({
       where: {
         userId: user.id,
-        tripId: tripId,
+        userTripId: tripId,
       },
       orderBy: { date: 'asc' },
       select: {
@@ -78,13 +78,13 @@ export async function GET(
 
     // 방문 국가 목록
     const visitedCountries = [...new Set(
-      trip.itineraries
+      trip.Itinerary
         .filter(it => it.country)
         .map(it => it.country)
     )];
 
     // 기항지 목록 (Cruising 제외)
-    const ports = trip.itineraries
+    const ports = trip.Itinerary
       .filter(it => it.type === 'PortVisit')
       .map(it => ({
         day: it.day,

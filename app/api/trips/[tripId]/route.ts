@@ -26,7 +26,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return new NextResponse(JSON.stringify({ error: '필수 입력 항목이 누락되었습니다.' }), { status: 400 });
     }
 
-    const updatedTrip = await prisma.trip.update({
+    // CORE_RULES: UserTrip 사용
+    const updatedTrip = await prisma.userTrip.update({
       where: {
         id: tripId,
         userId: userId, // 사용자의 여행만 수정할 수 있도록 확인
@@ -37,7 +38,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         companionType,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
-        impressions,
+        updatedAt: new Date(),
       },
     });
 

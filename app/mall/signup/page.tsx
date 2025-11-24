@@ -14,12 +14,14 @@ function MallSignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    passwordConfirm: '',
     nickname: '',
+    name: '',
+    phone: '',
+    username: '',
     email: '',
-    emailDomain: ''
+    emailDomain: '',
+    password: '',
+    passwordConfirm: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -225,32 +227,28 @@ function MallSignupPageContent() {
   };
 
   const validate = () => {
-    if (!formData.username.trim()) {
-      setError('아이디를 입력해주세요.');
-      return false;
-    }
-    if (validation.username.available === false) {
-      setError('사용할 수 없는 아이디입니다.');
-      return false;
-    }
-    if (!formData.password) {
-      setError('비밀번호를 입력해주세요.');
-      return false;
-    }
-    if (formData.password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
-      return false;
-    }
-    if (formData.password !== formData.passwordConfirm) {
-      setError('비밀번호가 일치하지 않습니다.');
-      return false;
-    }
     if (!formData.nickname.trim()) {
       setError('닉네임을 입력해주세요.');
       return false;
     }
     if (validation.nickname.available === false) {
       setError('사용할 수 없는 닉네임입니다.');
+      return false;
+    }
+    if (!formData.name.trim()) {
+      setError('이름을 입력해주세요.');
+      return false;
+    }
+    if (!formData.phone.trim()) {
+      setError('연락처를 입력해주세요.');
+      return false;
+    }
+    if (!formData.username.trim()) {
+      setError('아이디를 입력해주세요.');
+      return false;
+    }
+    if (validation.username.available === false) {
+      setError('사용할 수 없는 아이디입니다.');
       return false;
     }
     
@@ -264,6 +262,18 @@ function MallSignupPageContent() {
     }
     if (validation.email.valid === false) {
       setError('올바른 이메일 형식이 아닙니다.');
+      return false;
+    }
+    if (!formData.password) {
+      setError('비밀번호를 입력해주세요.');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('비밀번호는 6자 이상이어야 합니다.');
+      return false;
+    }
+    if (formData.password !== formData.passwordConfirm) {
+      setError('비밀번호가 일치하지 않습니다.');
       return false;
     }
     return true;
@@ -291,10 +301,12 @@ function MallSignupPageContent() {
         },
         credentials: 'include',
         body: JSON.stringify({
-          username: formData.username.trim(),
-          password: formData.password,
           nickname: formData.nickname.trim(),
+          name: formData.name.trim(),
+          phone: formData.phone.trim(),
+          username: formData.username.trim(),
           email: fullEmail.trim(),
+          password: formData.password,
         }),
       });
 
@@ -356,6 +368,85 @@ function MallSignupPageContent() {
             </div>
           )}
 
+          {/* 닉네임 */}
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              닉네임 <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                name="nickname"
+                value={formData.nickname}
+                onChange={handleChange}
+                placeholder="2자 이상 입력해주세요"
+                autoComplete="off"
+                className={`w-full rounded-xl border px-4 py-3 pr-10 text-lg focus:ring-2 focus:outline-none ${
+                  validation.nickname.available === false
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                    : validation.nickname.available === true
+                    ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                }`}
+                required
+              />
+              {formData.nickname && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {validation.nickname.checking ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  ) : validation.nickname.available === true ? (
+                    <FiCheck className="text-green-600" size={20} />
+                  ) : validation.nickname.available === false ? (
+                    <FiX className="text-red-600" size={20} />
+                  ) : null}
+                </div>
+              )}
+            </div>
+            {validation.nickname.message && (
+              <p className={`text-sm mt-1 ${
+                validation.nickname.available === true ? 'text-green-600' : 
+                validation.nickname.available === false ? 'text-red-600' : 
+                'text-gray-500'
+              }`}>
+                {validation.nickname.message}
+              </p>
+            )}
+          </div>
+
+          {/* 이름 */}
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              이름 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              placeholder="이름을 입력해주세요"
+              autoComplete="name"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            />
+          </div>
+
+          {/* 연락처 */}
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              연락처 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="010-1234-5678"
+              autoComplete="tel"
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              required
+            />
+          </div>
+
           {/* 아이디 */}
           <div>
             <label className="block text-base font-semibold text-gray-800 mb-2">
@@ -368,7 +459,7 @@ function MallSignupPageContent() {
                 value={formData.username}
                 onChange={handleChange}
                 placeholder="4자 이상 입력해주세요"
-                autoComplete="off"
+                autoComplete="username"
                 className={`w-full rounded-xl border px-4 py-3 pr-10 text-lg focus:ring-2 focus:outline-none ${
                   validation.username.available === false
                     ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
@@ -397,6 +488,53 @@ function MallSignupPageContent() {
                 'text-gray-500'
               }`}>
                 {validation.username.message}
+              </p>
+            )}
+          </div>
+
+          {/* 이메일 */}
+          <div>
+            <label className="block text-base font-semibold text-gray-800 mb-2">
+              이메일 <span className="text-red-500">*</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                name="email"
+                value={formData.email}
+                onChange={handleEmailInput}
+                placeholder="이메일"
+                autoComplete="email"
+                className={`flex-1 rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:outline-none ${
+                  validation.email.valid === false
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                    : validation.email.valid === true
+                    ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                }`}
+                required
+              />
+              <span className="flex items-center px-2 text-gray-600">@</span>
+              <select
+                name="emailDomain"
+                value={formData.emailDomain}
+                onChange={e => handleEmailDomainSelect(e.target.value)}
+                className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                required
+              >
+                <option value="">직접 입력</option>
+                {emailDomains.map(domain => (
+                  <option key={domain} value={domain}>{domain}</option>
+                ))}
+              </select>
+            </div>
+            {validation.email.message && (
+              <p className={`text-sm mt-1 ${
+                validation.email.valid === true ? 'text-green-600' : 
+                validation.email.valid === false ? 'text-red-600' : 
+                'text-gray-500'
+              }`}>
+                {validation.email.message}
               </p>
             )}
           </div>
@@ -457,98 +595,6 @@ function MallSignupPageContent() {
                 'text-gray-500'
               }`}>
                 {validation.password.message}
-              </p>
-            )}
-          </div>
-
-          {/* 닉네임 */}
-          <div>
-            <label className="block text-base font-semibold text-gray-800 mb-2">
-              닉네임 <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                name="nickname"
-                value={formData.nickname}
-                onChange={handleChange}
-                placeholder="2자 이상 입력해주세요"
-                autoComplete="off"
-                className={`w-full rounded-xl border px-4 py-3 pr-10 text-lg focus:ring-2 focus:outline-none ${
-                  validation.nickname.available === false
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                    : validation.nickname.available === true
-                    ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
-                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }`}
-                required
-              />
-              {formData.nickname && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {validation.nickname.checking ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  ) : validation.nickname.available === true ? (
-                    <FiCheck className="text-green-600" size={20} />
-                  ) : validation.nickname.available === false ? (
-                    <FiX className="text-red-600" size={20} />
-                  ) : null}
-                </div>
-              )}
-            </div>
-            {validation.nickname.message && (
-              <p className={`text-sm mt-1 ${
-                validation.nickname.available === true ? 'text-green-600' : 
-                validation.nickname.available === false ? 'text-red-600' : 
-                'text-gray-500'
-              }`}>
-                {validation.nickname.message}
-              </p>
-            )}
-          </div>
-
-          {/* 이메일 */}
-          <div>
-            <label className="block text-base font-semibold text-gray-800 mb-2">
-              이메일 <span className="text-red-500">*</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                name="email"
-                value={formData.email}
-                onChange={handleEmailInput}
-                placeholder="이메일"
-                autoComplete="email"
-                className={`flex-1 rounded-xl border px-4 py-3 text-lg focus:ring-2 focus:outline-none ${
-                  validation.email.valid === false
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                    : validation.email.valid === true
-                    ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
-                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }`}
-                required
-              />
-              <span className="flex items-center px-2 text-gray-600">@</span>
-              <select
-                name="emailDomain"
-                value={formData.emailDomain}
-                onChange={e => handleEmailDomainSelect(e.target.value)}
-                className="flex-1 rounded-xl border border-gray-300 px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                required
-              >
-                <option value="">직접 입력</option>
-                {emailDomains.map(domain => (
-                  <option key={domain} value={domain}>{domain}</option>
-                ))}
-              </select>
-            </div>
-            {validation.email.message && (
-              <p className={`text-sm mt-1 ${
-                validation.email.valid === true ? 'text-green-600' : 
-                validation.email.valid === false ? 'text-red-600' : 
-                'text-gray-500'
-              }`}>
-                {validation.email.message}
               </p>
             )}
           </div>

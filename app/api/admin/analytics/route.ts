@@ -177,31 +177,44 @@ export async function GET(req: NextRequest) {
     
     const tripsThisWeek = await prisma.trip.count({
       where: {
-        createdAt: { gte: weekStart },
+        departureDate: { gte: weekStart },
       },
     });
 
     const trips = await prisma.trip.findMany({
       where: {
-        createdAt: { gte: startDate },
+        departureDate: { gte: startDate },
       },
       select: {
-        days: true,
-        destination: true,
+        departureDate: true,
+        endDate: true,
+        Itinerary: {
+          select: {
+            location: true,
+            country: true,
+          },
+        },
       },
     });
 
-    const avgDuration = trips.length > 0
-      ? Math.round(trips.reduce((sum, t) => sum + (t.days || 0), 0) / trips.length)
-      : 0;
+    // 평균 기간 계산 (departureDate와 endDate로)
+    let totalDays = 0;
+    trips.forEach(trip => {
+      if (trip.departureDate && trip.endDate) {
+        const days = Math.ceil((trip.endDate.getTime() - trip.departureDate.getTime()) / (1000 * 60 * 60 * 24));
+        totalDays += days;
+      }
+    });
+    const avgDuration = trips.length > 0 ? Math.round(totalDays / trips.length) : 0;
 
     // 목적지 통계 (온보딩 + 다이어리 통합)
     const destinationCounts = new Map<string, number>();
     
-    // 온보딩 여행지 (Trip)
+    // 온보딩 여행지 (Trip의 Itinerary에서)
     trips.forEach(trip => {
-      if (Array.isArray(trip.destination)) {
-        trip.destination.forEach(dest => {
+      if (trip.Itinerary && Array.isArray(trip.Itinerary)) {
+        trip.Itinerary.forEach((itinerary: any) => {
+          const dest = itinerary.location || itinerary.country;
           if (dest) {
             destinationCounts.set(dest, (destinationCounts.get(dest) || 0) + 1);
           }
@@ -351,7 +364,7 @@ export async function GET(req: NextRequest) {
 
       const newTrips = await prisma.trip.count({
         where: {
-          createdAt: {
+          departureDate: {
             gte: date,
             lt: nextDay,
           },

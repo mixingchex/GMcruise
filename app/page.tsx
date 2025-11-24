@@ -5,15 +5,27 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+// 성능 최적화: 무거운 컴포넌트 동적 임포트
+import dynamic from 'next/dynamic';
 import HeroSection from '@/components/mall/HeroSection';
 import ProductList from '@/components/mall/ProductList';
 import ReviewSlider from '@/components/mall/ReviewSlider';
 import CruiseSearchBlock from '@/components/mall/CruiseSearchBlock';
-import YoutubeShortsSlider from '@/components/mall/YoutubeShortsSlider';
-import YoutubeVideosSlider from '@/components/mall/YoutubeVideosSlider';
-import YoutubeLiveSection from '@/components/mall/YoutubeLiveSection';
-import PromotionBannerCarousel from '@/components/mall/PromotionBannerCarousel';
 import PublicFooter from '@/components/layout/PublicFooter';
+
+// YouTube 관련 컴포넌트는 동적 임포트 (필요할 때만 로드)
+const YoutubeShortsSlider = dynamic(() => import('@/components/mall/YoutubeShortsSlider'), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const YoutubeVideosSlider = dynamic(() => import('@/components/mall/YoutubeVideosSlider'), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const YoutubeLiveSection = dynamic(() => import('@/components/mall/YoutubeLiveSection'), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const PromotionBannerCarousel = dynamic(() => import('@/components/mall/PromotionBannerCarousel'), {
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />,
+});
 import CompanyStatsSection from '@/components/mall/CompanyStatsSection';
 import CommunitySection from '@/components/mall/CommunitySection';
 import ThemeProductSection from '@/components/mall/ThemeProductSection';
@@ -35,6 +47,16 @@ export default function HomePage() {
     // 로딩 상태를 즉시 false로 설정하여 페이지를 먼저 표시
     // API 응답은 백그라운드에서 처리
     setLoading(false);
+    
+    // URL 파라미터에서 로그인 직후인지 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const isJustLoggedIn = urlParams.get('loggedIn') === 'true';
+    
+    // 로그인 직후인 경우 URL에서 파라미터 제거 (히스토리 정리)
+    if (isJustLoggedIn) {
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
 
     // 페이지 설정 로드 함수 (비동기, 실패해도 페이지는 표시)
     const loadPageConfig = async () => {
@@ -81,8 +103,9 @@ export default function HomePage() {
     // 로그인 직후일 수 있으므로 약간의 딜레이 후 사용자 정보 조회
     const checkAuth = async () => {
       try {
-        // 로그인 직후일 수 있으므로 200ms 대기
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // 로그인 직후인 경우 더 긴 대기 시간 (800ms), 아닌 경우 기본 대기 (300ms)
+        const delay = isJustLoggedIn ? 800 : 300;
+        await new Promise(resolve => setTimeout(resolve, delay));
         
         const res = await fetch('/api/auth/me', { 
           credentials: 'include',
@@ -102,8 +125,34 @@ export default function HomePage() {
           console.log('[HomePage] 사용자 정보 로드 성공:', data.user.name);
           setUser(data.user);
         } else {
-          console.log('[HomePage] 사용자 정보 없음');
-          setUser(null);
+          // 로그인 직후인 경우 한 번 더 재시도
+          if (isJustLoggedIn && !user) {
+            console.log('[HomePage] 로그인 직후 사용자 정보 없음, 재시도...');
+            setTimeout(async () => {
+              if (!isMounted) return;
+              try {
+                const retryRes = await fetch('/api/auth/me', { 
+                  credentials: 'include',
+                  signal: authAbortController.signal
+                });
+                if (retryRes.ok) {
+                  const retryData = await retryRes.json();
+                  if (retryData.ok && retryData.user) {
+                    console.log('[HomePage] 재시도 성공:', retryData.user.name);
+                    setUser(retryData.user);
+                    return;
+                  }
+                }
+              } catch (retryError) {
+                console.warn('[HomePage] 재시도 실패:', retryError);
+              }
+              if (!isMounted) return;
+              setUser(null);
+            }, 500);
+          } else {
+            console.log('[HomePage] 사용자 정보 없음');
+            setUser(null);
+          }
         }
       } catch (error: any) {
         clearTimeout(authTimeoutId);
@@ -111,7 +160,32 @@ export default function HomePage() {
         if (error.name !== 'AbortError') {
           console.warn('[HomePage] 로그인 상태 확인 실패:', error);
         }
-        setUser(null);
+        // 로그인 직후인 경우 재시도
+        if (isJustLoggedIn && !user) {
+          setTimeout(async () => {
+            if (!isMounted) return;
+            try {
+              const retryRes = await fetch('/api/auth/me', { 
+                credentials: 'include',
+                signal: authAbortController.signal
+              });
+              if (retryRes.ok) {
+                const retryData = await retryRes.json();
+                if (retryData.ok && retryData.user) {
+                  console.log('[HomePage] 재시도 성공:', retryData.user.name);
+                  setUser(retryData.user);
+                  return;
+                }
+              }
+            } catch (retryError) {
+              console.warn('[HomePage] 재시도 실패:', retryError);
+            }
+            if (!isMounted) return;
+            setUser(null);
+          }, 500);
+        } else {
+          setUser(null);
+        }
       }
     };
     
@@ -123,25 +197,29 @@ export default function HomePage() {
     // 페이지 포커스 시 사용자 정보 다시 확인 (로그인 후 리다이렉트 대응)
     const handleFocus = () => {
       if (!isMounted) return;
-      const focusAbortController = new AbortController();
-      fetch('/api/auth/me', { 
-        credentials: 'include',
-        signal: focusAbortController.signal
-      })
-        .then(res => {
-          if (!res.ok) return null;
-          return res.json();
+      // 포커스 시에도 약간의 딜레이를 주어 쿠키가 설정될 시간을 확보
+      setTimeout(() => {
+        if (!isMounted) return;
+        const focusAbortController = new AbortController();
+        fetch('/api/auth/me', { 
+          credentials: 'include',
+          signal: focusAbortController.signal
         })
-        .then(data => {
-          if (!isMounted) return;
-          if (data?.ok && data?.user) {
-            console.log('[HomePage] 포커스 시 사용자 정보 확인:', data.user.name);
-            setUser(data.user);
-          }
-        })
-        .catch(() => {
-          // 포커스 시 에러는 무시
-        });
+          .then(res => {
+            if (!res.ok) return null;
+            return res.json();
+          })
+          .then(data => {
+            if (!isMounted) return;
+            if (data?.ok && data?.user) {
+              console.log('[HomePage] 포커스 시 사용자 정보 확인:', data.user.name);
+              setUser(data.user);
+            }
+          })
+          .catch(() => {
+            // 포커스 시 에러는 무시
+          });
+      }, 200);
     };
 
     window.addEventListener('focus', handleFocus);

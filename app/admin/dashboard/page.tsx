@@ -4,138 +4,20 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiAlertCircle, FiUsers, FiTrendingUp, FiClock, FiRefreshCw, FiArrowRight } from 'react-icons/fi';
 
-// APIS 엑셀 생성 테스트 컴포넌트
-function APISGenerateTest() {
-  const [tripId, setTripId] = useState<string>('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [result, setResult] = useState<{ ok: boolean; message?: string; data?: any } | null>(null);
+// 성능 최적화: 차트 컴포넌트를 별도 파일로 분리하여 동적 임포트
+import dynamic from 'next/dynamic';
 
-  const handleGenerate = async () => {
-    if (!tripId || isNaN(Number(tripId))) {
-      alert('올바른 tripId를 입력해주세요.');
-      return;
-    }
-
-    setIsGenerating(true);
-    setResult(null);
-
-    try {
-      const response = await fetch('/api/admin/apis/generate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ tripId: Number(tripId) }),
-      });
-
-      const data = await response.json();
-      setResult(data);
-
-      if (data.ok && data.data) {
-        // 성공 메시지와 링크 표시
-        const folderUrl = data.data.folderUrl;
-        const spreadsheetUrl = data.data.spreadsheetUrl;
-        
-        if (folderUrl) {
-          window.open(folderUrl, '_blank');
-        }
-        if (spreadsheetUrl) {
-          setTimeout(() => window.open(spreadsheetUrl, '_blank'), 500);
-        }
-      }
-    } catch (error: any) {
-      setResult({
-        ok: false,
-        message: error.message || 'APIS 생성 중 오류가 발생했습니다.',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        <input
-          type="number"
-          value={tripId}
-          onChange={(e) => setTripId(e.target.value)}
-          placeholder="Trip ID 입력"
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-        />
-        <button
-          onClick={handleGenerate}
-          disabled={isGenerating || !tripId}
-          className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg font-bold transition-all shadow-md hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isGenerating ? '생성 중...' : 'APIS 엑셀 생성'}
-        </button>
+const DashboardCharts = dynamic(
+  () => import('@/components/admin/DashboardCharts'),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl shadow-lg border-2 border-blue-100 p-6">
+        <div className="h-[300px] bg-gray-100 animate-pulse rounded-lg" />
       </div>
-
-      {result && (
-        <div
-          className={`p-4 rounded-lg border-2 ${
-            result.ok
-              ? 'bg-green-50 border-green-300 text-green-800'
-              : 'bg-red-50 border-red-300 text-red-800'
-          }`}
-        >
-          <p className="font-semibold">{result.ok ? '✅ 성공' : '❌ 실패'}</p>
-          <p className="text-sm mt-1">{result.message || result.data?.message}</p>
-          {result.ok && result.data && (
-            <div className="mt-3 space-y-2 text-sm">
-              {result.data.folderUrl && (
-                <div>
-                  <span className="font-semibold">구글 드라이브 폴더: </span>
-                  <a
-                    href={result.data.folderUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {result.data.folderUrl}
-                  </a>
-                </div>
-              )}
-              {result.data.spreadsheetUrl && (
-                <div>
-                  <span className="font-semibold">구글 시트: </span>
-                  <a
-                    href={result.data.spreadsheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    {result.data.spreadsheetUrl}
-                  </a>
-                </div>
-              )}
-              {result.data.rowCount !== undefined && (
-                <div>
-                  <span className="font-semibold">동기화된 행 수: </span>
-                  {result.data.rowCount}개
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+    ),
+  }
+);
 
 interface DashboardData {
   users: {
@@ -671,133 +553,11 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 트렌드 차트 */}
-      {dashboardData.trends && dashboardData.trends.length > 0 && (
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-              <FiTrendingUp className="text-blue-500 text-2xl" />
-              최근 7일 트렌드
-            </h2>
-            <span className="text-xs font-bold px-3 py-1 rounded bg-blue-100 text-blue-700 border border-blue-300">
-              지니AI 가이드
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={dashboardData.trends.map(t => ({
-              ...t,
-              date: new Date(t.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
-            }))}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="users" 
-                stroke="#0088FE" 
-                strokeWidth={3}
-                name="신규 사용자"
-                dot={{ fill: '#0088FE', r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-              <Line 
-                type="monotone" 
-                dataKey="trips" 
-                stroke="#00C49F" 
-                strokeWidth={3}
-                name="신규 여행"
-                dot={{ fill: '#00C49F', r: 4 }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* 상품 조회 통계 차트 */}
-      {dashboardData.productViews && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 인기 크루즈 조회 차트 */}
-          {dashboardData.productViews.topCruises.length > 0 && (
-            <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                  <span className="text-3xl">🚢</span>
-                  인기 크루즈 조회
-                </h2>
-                <span className="text-xs font-bold px-3 py-1 rounded bg-purple-100 text-purple-700 border border-purple-300">
-                  크루즈몰
-                </span>
-              </div>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart 
-                  data={dashboardData.productViews.topCruises}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
-                    width={90}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip />
-                  <Legend />
-                  <Bar 
-                    dataKey="count" 
-                    fill="#0088FE" 
-                    name="조회 수"
-                    radius={[0, 8, 8, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
-          {/* 인기 국가 조회 차트 */}
-          {dashboardData.productViews.topCountries.length > 0 && (
-            <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                  <span className="text-3xl">🌍</span>
-                  인기 국가 조회
-                </h2>
-                <span className="text-xs font-bold px-3 py-1 rounded bg-purple-100 text-purple-700 border border-purple-300">
-                  크루즈몰
-                </span>
-              </div>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart 
-                  data={dashboardData.productViews.topCountries}
-                  layout="vertical"
-                  margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
-                    width={70}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <Tooltip />
-                  <Legend />
-                  <Bar 
-                    dataKey="count" 
-                    fill="#00C49F" 
-                    name="조회 수"
-                    radius={[0, 8, 8, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      )}
+      {/* 차트 섹션 (동적 임포트) */}
+      <DashboardCharts 
+        trends={dashboardData.trends || []} 
+        productViews={dashboardData.productViews}
+      />
 
       {/* 최근 활동 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1107,19 +867,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* APIS 엑셀 생성 테스트 */}
-      <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl shadow-lg border-2 border-emerald-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-          <span className="text-3xl">📊</span>
-          APIS 엑셀 생성 테스트
-        </h2>
-        <div className="bg-white rounded-lg p-4 mb-4">
-          <p className="text-sm text-gray-700 mb-4">
-            예약 완료 후, 해당 여행의 tripId를 입력하여 APIS 구글시트 및 드라이브 폴더를 생성할 수 있습니다.
-          </p>
-          <APISGenerateTest />
-        </div>
-      </div>
     </div>
   );
 }

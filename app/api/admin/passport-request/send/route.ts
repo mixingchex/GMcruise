@@ -9,7 +9,7 @@ import {
   fillTemplate,
   sanitizeLegacyTemplateBody,
 } from '../_utils';
-import { sendSms, fetchRemain, parseCashValue, AligoSendResponse, AligoRemainResponse } from '@/lib/aligo/client';
+import { fetchRemain, parseCashValue, AligoSendResponse, AligoRemainResponse } from '@/lib/aligo/client';
 
 export const runtime = 'nodejs';
 
@@ -42,13 +42,12 @@ type PassportSendUser = {
   name: string | null;
   phone: string | null;
   role: string;
-  Trip: Array<{
+  UserTrip: Array<{
     id: number;
     cruiseName: string | null;
     startDate: Date | null;
     endDate: Date | null;
     reservationCode: string | null;
-    productId: number | null;
   }>;
   PassportSubmissions: Array<{
     id: number;
@@ -58,7 +57,8 @@ type PassportSendUser = {
 };
 
 function generateToken() {
-  return randomBytes(24).toString('hex');
+  // 16바이트로 줄여서 base62 인코딩 시 약 22자 정도로 짧게 만듦
+  return randomBytes(16).toString('hex');
 }
 
 function formatDate(value: Date | null | undefined) {
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
         phone: true,
         email: true,
         role: true,
-        Trip: {
+        UserTrip: {
           orderBy: { startDate: 'desc' },
           take: 1,
           select: {
@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
       }
 
       try {
-        const latestTrip = user.Trip[0] ?? null;
+        const latestTrip = user.UserTrip[0] ?? null;
         const existingSubmission = user.PassportSubmissions[0] ?? null;
         const token = generateToken();
         const tokenExpiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
@@ -274,33 +274,69 @@ export async function POST(req: NextRequest) {
           });
           submissionId = updated.id;
         } else {
+          const now = new Date();
+          const createData: any = {
+            User: { connect: { id: user.id } },
+            token,
+            tokenExpiresAt,
+            isSubmitted: false,
+            driveFolderUrl: null,
+            extraData: Prisma.JsonNull,
+            updatedAt: now,
+          };
+          
+          if (latestTrip?.id) {
+            createData.UserTrip = { connect: { id: latestTrip.id } };
+          }
+          
           const created = await prisma.passportSubmission.create({
-            data: {
-              user: { connect: { id: user.id } },
-              trip: latestTrip ? { connect: { id: latestTrip.id } } : undefined,
-              token,
-              tokenExpiresAt,
-              isSubmitted: false,
-              driveFolderUrl: null,
-              extraData: Prisma.JsonNull,
-            },
+            data: createData,
           });
           submissionId = created.id;
         }
 
-        const messageByteLength = new TextEncoder().encode(personalizedMessage).length;
+        const messageByteLength = new Blob([personalizedMessage]).size;
         const msgType: 'SMS' | 'LMS' = messageByteLength > 90 ? 'LMS' : 'SMS';
 
         let sendResponse: AligoSendResponse | null = null;
         let sendError: string | null = null;
 
         try {
-          sendResponse = await sendSms({
-            receiver: normalizedPhone,
-            msg: personalizedMessage,
-            msgType,
-            title: template?.title || '여권 제출 안내',
+          // 대리점장 대시보드와 동일한 방식으로 알리고 API 호출
+          const ALIGO_BASE_URL = 'https://apis.aligo.in';
+          const apiKey = process.env.ALIGO_API_KEY;
+          const userId = process.env.ALIGO_USER_ID;
+          const sender = process.env.ALIGO_SENDER_PHONE;
+
+          if (!apiKey || !userId || !sender) {
+            throw new Error('알리고 API 설정이 완료되지 않았습니다. 환경 변수를 확인해주세요.');
+          }
+
+          const formData = new URLSearchParams();
+          formData.append('key', apiKey);
+          formData.append('user_id', userId);
+          formData.append('sender', sender);
+          formData.append('receiver', normalizedPhone);
+          formData.append('msg', personalizedMessage);
+          formData.append('msg_type', msgType);
+          if (msgType === 'LMS' && template?.title) {
+            formData.append('title', template.title);
+          }
+
+          const aligoResponse = await fetch(`${ALIGO_BASE_URL}/send/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            },
+            body: formData.toString(),
           });
+
+          if (!aligoResponse.ok) {
+            const text = await aligoResponse.text();
+            throw new Error(`알리고 API 요청이 실패했습니다. (${aligoResponse.status}) ${text}`);
+          }
+
+          sendResponse = await aligoResponse.json();
 
           if (String(sendResponse.result_code) !== '1') {
             sendError = sendResponse.message
@@ -325,10 +361,14 @@ export async function POST(req: NextRequest) {
           errorReason: sendError,
         });
 
+        // SMS 발송 실패해도 토큰은 이미 생성되었으므로 링크는 포함
         if (sendError) {
           results.push({
             userId: user.id,
             success: false,
+            link, // 토큰은 생성되었으므로 링크 포함
+            token, // 토큰 포함
+            submissionId, // submission ID 포함
             error: sendError,
             resultCode: sendResponse?.result_code,
           });
@@ -348,6 +388,20 @@ export async function POST(req: NextRequest) {
       } catch (error) {
         console.error(`[PassportRequest] send error for user ${user.id}:`, error);
         const message = error instanceof Error ? error.message : 'Unknown error';
+        
+        // 토큰이 생성되었는지 확인 (submissionId가 있으면 토큰도 생성됨)
+        let errorResult: SendResultItem = { userId: user.id, success: false, error: message };
+        try {
+          // submissionId가 정의되어 있으면 토큰도 생성되었을 가능성이 높음
+          if (typeof submissionId !== 'undefined') {
+            errorResult.link = link;
+            errorResult.token = token;
+            errorResult.submissionId = submissionId;
+          }
+        } catch {
+          // submissionId가 없거나 에러 발생 시 무시
+        }
+        
         await recordPassportLog({
           userId: user.id,
           adminId: admin.id,
@@ -357,7 +411,7 @@ export async function POST(req: NextRequest) {
           status: 'FAILED',
           errorReason: message,
         });
-        results.push({ userId: user.id, success: false, error: message });
+        results.push(errorResult);
       }
     }
 
@@ -384,8 +438,18 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error('[PassportRequest] POST /send error:', error);
+    console.error('[PassportRequest] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return NextResponse.json(
-      { ok: false, message: 'Failed to send passport request.' },
+      { 
+        ok: false, 
+        message: 'Failed to send passport request.',
+        error: error instanceof Error ? error.message : String(error),
+        details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined,
+      },
       { status: 500 }
     );
   }

@@ -949,37 +949,65 @@ export async function POST(req: Request) {
     // 커뮤니티 로그인 처리 (크루즈몰 회원 로그인)
     if (mode === 'community') {
       try {
-        // 크루즈몰 회원 찾기 (phone 필드에 username이 저장됨)
-        const communityUser = await prisma.user.findFirst({
+        // 크루즈몰 회원 찾기
+        // phone 파라미터는 실제로는 username(아이디)임
+        // 1. 먼저 mallUserId 필드로 찾기 (새로운 방식)
+        // 2. 없으면 phone 필드로 찾기 (레거시 지원 - 기존 회원)
+        // role='community' AND customerSource='mall-signup'으로 필터링하여 기존 고객과 완전히 격리
+        const trimmedUsername = phone.trim();
+        
+        let communityUser = await prisma.user.findFirst({
           where: {
-            phone: phone.trim(), // phone 필드에 username이 저장됨
+            OR: [
+              { mallUserId: trimmedUsername }, // 새로운 방식: mallUserId 필드
+              { phone: trimmedUsername } // 레거시 지원: phone 필드 (기존 회원)
+            ],
             role: 'community', // 크루즈몰 회원은 role이 'community'
+            customerSource: 'mall-signup' // 크루즈몰 회원가입 사용자만 (기존 고객과 격리)
           },
-          select: { id: true, name: true, role: true, password: true, phone: true }
+          select: { id: true, name: true, role: true, password: true, mallUserId: true, mallNickname: true, phone: true }
         });
 
         if (!communityUser) {
-          console.log('[Auth Login] Community user not found:', { phone: phone.trim() });
+          console.log('[Auth Login] Community user not found:', { username: trimmedUsername });
           return NextResponse.json({
             ok: false,
             error: '아이디 또는 비밀번호가 올바르지 않습니다.'
           }, { status: 401 });
         }
+        
+        // 레거시 사용자 마이그레이션: phone 필드에 아이디가 저장된 경우 mallUserId로 마이그레이션
+        if (!communityUser.mallUserId && communityUser.phone === trimmedUsername) {
+          console.log('[Auth Login] 레거시 사용자 마이그레이션:', { userId: communityUser.id, phone: communityUser.phone });
+          await prisma.user.update({
+            where: { id: communityUser.id },
+            data: { mallUserId: trimmedUsername }
+          });
+          communityUser.mallUserId = trimmedUsername;
+        }
 
         // 비밀번호 확인 (bcrypt 해시 또는 평문 비교)
         let isPasswordValid = false;
-        try {
-          const bcrypt = await import('bcryptjs');
-          const bcryptCompare = await bcrypt.default.compare(password, communityUser.password);
-          isPasswordValid = bcryptCompare || communityUser.password === password;
-        } catch (bcryptError) {
-          console.warn('[Auth Login] bcrypt 비교 중 오류:', bcryptError);
-          // bcrypt 비교 실패 시 평문 비교
-          isPasswordValid = communityUser.password === password;
+        const storedPassword = communityUser.password || '';
+        
+        // bcrypt 해시인지 확인 ($2로 시작)
+        if (storedPassword.startsWith('$2')) {
+          try {
+            const bcrypt = await import('bcryptjs');
+            isPasswordValid = await bcrypt.default.compare(password, storedPassword);
+            console.log('[Auth Login] Community bcrypt 비교 결과:', { userId: communityUser.id, isValid: isPasswordValid });
+          } catch (bcryptError) {
+            console.warn('[Auth Login] bcrypt 비교 중 오류:', bcryptError);
+            isPasswordValid = false;
+          }
+        } else if (storedPassword.length > 0) {
+          // 평문 비밀번호인 경우 (레거시 지원)
+          isPasswordValid = storedPassword === password;
+          console.log('[Auth Login] Community 평문 비밀번호 비교 결과:', { userId: communityUser.id, isValid: isPasswordValid });
         }
         
         if (!isPasswordValid) {
-          console.log('[Auth Login] Invalid password for community user:', { userId: communityUser.id, phone: communityUser.phone });
+          console.log('[Auth Login] Invalid password for community user:', { userId: communityUser.id, mallUserId: communityUser.mallUserId });
           return NextResponse.json({
             ok: false,
             error: '아이디 또는 비밀번호가 올바르지 않습니다.'
@@ -1031,7 +1059,7 @@ export async function POST(req: Request) {
         // 로그인 성공 로그
         authLogger.loginSuccess(userId, clientIp);
 
-        console.log('[Auth Login] Community login success:', { userId, phone: communityUser.phone });
+        console.log('[Auth Login] Community login success:', { userId, mallUserId: communityUser.mallUserId });
 
         return NextResponse.json({
           ok: true,

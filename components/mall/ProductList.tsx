@@ -75,17 +75,24 @@ type PartnerContext = {
   welcomeMessage?: string | null;
   profileImage?: string | null;
   coverImage?: string | null;
+  featuredProductCodes?: string[]; // 개인 링크로 등록된 상품 코드 목록
 };
 
 type ProductListProps = {
   partnerContext?: PartnerContext | null;
+  featuredProductCodes?: string[]; // 개인 링크로 등록된 상품 코드 목록 (직접 전달도 가능)
 };
 
-export default function ProductList({ partnerContext = null }: ProductListProps) {
+export default function ProductList({ partnerContext = null, featuredProductCodes: featuredProductCodesProp }: ProductListProps) {
   const [products, setProducts] = useState<Product[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]); // 개인 링크 상품
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingFeatured, setIsLoadingFeatured] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<MallSettings>({});
+  
+  // featuredProductCodes는 prop 또는 partnerContext에서 가져옴
+  const featuredProductCodes = featuredProductCodesProp || partnerContext?.featuredProductCodes || [];
   const [filters, setFilters] = useState({
     region: 'all', // 나라별 필터
     type: 'all', // 'all', 'popular', 'recommended'
@@ -104,6 +111,7 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
   const videoRef = useRef<HTMLVideoElement>(null);
   const popularScrollRef = useRef<HTMLDivElement>(null);
   const recommendedScrollRef = useRef<HTMLDivElement>(null);
+  const featuredScrollRef = useRef<HTMLDivElement>(null); // 개인 링크 상품 스크롤용
   const allProductsScrollRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -256,7 +264,21 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
     loadSettings();
     // 판매 중인 상품이 있는 지역 확인
     loadAvailableRegions();
+    // 개인 링크 상품 로드
+    if (featuredProductCodes.length > 0) {
+      loadFeaturedProducts();
+    }
   }, []);
+  
+  // featuredProductCodes가 변경되면 다시 로드
+  useEffect(() => {
+    if (featuredProductCodes.length > 0) {
+      loadFeaturedProducts();
+    } else {
+      setFeaturedProducts([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [featuredProductCodes.length]); // 길이만 추적 (실제 값 변경은 초기 로드에서만)
 
   useEffect(() => {
     loadProducts();
@@ -354,6 +376,91 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
   const scrollRight = (ref: React.RefObject<HTMLDivElement>) => {
     if (ref.current) {
       ref.current.scrollBy({ left: 400, behavior: 'smooth' });
+    }
+  };
+
+  // 개인 링크 상품 로드
+  const loadFeaturedProducts = async () => {
+    const codesToLoad = featuredProductCodesProp || partnerContext?.featuredProductCodes || [];
+    
+    console.log('[ProductList] loadFeaturedProducts 호출:', {
+      codesToLoad,
+      codesToLoadLength: codesToLoad.length,
+      featuredProductCodesProp,
+      partnerContextFeaturedCodes: partnerContext?.featuredProductCodes,
+    });
+    
+    if (codesToLoad.length === 0) {
+      console.log('[ProductList] featuredProductCodes가 비어있어서 상품을 로드하지 않습니다.');
+      setFeaturedProducts([]);
+      return;
+    }
+
+    try {
+      setIsLoadingFeatured(true);
+      
+      console.log('[ProductList] 상품 로드 시작:', codesToLoad);
+      
+      // 각 상품 코드에 대해 상품 정보 조회
+      const productPromises = codesToLoad.map(async (productCode) => {
+        try {
+          const response = await fetch(`/api/public/products/${productCode}`);
+          const data = await response.json();
+          
+          if (data.ok && data.product) {
+            const p = data.product;
+            const {
+              MallProductContent,
+              mallProductContent: existingMallContent,
+              ...rest
+            } = p;
+
+            const mallContent = existingMallContent ?? MallProductContent ?? null;
+            const layout = mallContent?.layout
+              ? (typeof mallContent.layout === 'string'
+                  ? JSON.parse(mallContent.layout)
+                  : mallContent.layout)
+              : null;
+            const rating = layout?.rating || p.rating || 4.0 + Math.random() * 1.0;
+            const reviewCount = layout?.reviewCount || p.reviewCount || Math.floor(Math.random() * 500) + 50;
+
+            return {
+              ...rest,
+              mallProductContent: mallContent,
+              rating,
+              reviewCount,
+              isPopular: Boolean(p.isPopular),
+              isRecommended: Boolean(p.isRecommended),
+              isPremium: Boolean(p.isPremium),
+              isGeniePack: Boolean(p.isGeniePack),
+              isDomestic: Boolean(p.isDomestic),
+              isJapan: Boolean(p.isJapan),
+              isBudget: Boolean(p.isBudget),
+            } as Product;
+          }
+          return null;
+        } catch (error) {
+          console.error(`Failed to load product ${productCode}:`, error);
+          return null;
+        }
+      });
+
+      const loadedProducts = (await Promise.all(productPromises)).filter(
+        (p): p is Product => p !== null
+      );
+
+      console.log('[ProductList] 상품 로드 완료:', {
+        requestedCount: codesToLoad.length,
+        loadedCount: loadedProducts.length,
+        loadedProductCodes: loadedProducts.map(p => p.productCode),
+      });
+
+      setFeaturedProducts(loadedProducts);
+    } catch (error) {
+      console.error('Failed to load featured products:', error);
+      setFeaturedProducts([]);
+    } finally {
+      setIsLoadingFeatured(false);
     }
   };
 
@@ -635,10 +742,119 @@ export default function ProductList({ partnerContext = null }: ProductListProps)
     recommendedRows: 1,
   };
 
+  // 개인 링크 상품 섹션 렌더링
+  const renderFeaturedProducts = () => {
+    // 디버깅: featuredProductCodes와 featuredProducts 상태 확인
+    const codesToCheck = featuredProductCodesProp || partnerContext?.featuredProductCodes || [];
+    console.log('[ProductList] renderFeaturedProducts:', {
+      codesToCheck,
+      codesToCheckLength: codesToCheck.length,
+      featuredProductsLength: featuredProducts.length,
+      isLoadingFeatured,
+      isPartnerMall,
+    });
+    
+    // 파트너몰이고 featuredProductCodes가 있으면 항상 섹션 표시 (로딩 중이거나 상품이 없어도)
+    if (isPartnerMall && codesToCheck.length > 0) {
+      if (isLoadingFeatured) {
+        return (
+          <section className="mb-12">
+            <div className="mb-6">
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+                나의 추천 상품
+              </h2>
+              <p className="text-gray-600 text-sm md:text-base">
+                개인 링크로 등록된 특별 상품을 확인하세요
+              </p>
+            </div>
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+            </div>
+          </section>
+        );
+      }
+      
+      if (featuredProducts.length === 0) {
+        return (
+          <section className="mb-12">
+            <div className="mb-6">
+              <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+                나의 추천 상품
+              </h2>
+              <p className="text-gray-600 text-sm md:text-base">
+                개인 링크로 등록된 특별 상품을 확인하세요
+              </p>
+            </div>
+            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 text-center">
+              <p className="text-lg text-yellow-800 font-semibold mb-2">
+                등록된 상품 코드: {codesToCheck.join(', ')}
+              </p>
+              <p className="text-sm text-yellow-700">
+                상품을 불러오는 중이거나 상품 정보를 찾을 수 없습니다.
+              </p>
+            </div>
+          </section>
+        );
+      }
+    }
+    
+    if (featuredProducts.length === 0) {
+      return null;
+    }
+
+    return (
+      <section className="mb-12">
+        <div className="mb-6">
+          <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+            나의 추천 상품
+          </h2>
+          <p className="text-gray-600 text-sm md:text-base">
+            개인 링크로 등록된 특별 상품을 확인하세요
+          </p>
+        </div>
+        {isLoadingFeatured ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-blue-600"></div>
+          </div>
+        ) : (
+          <div className="relative">
+            <button
+              onClick={() => scrollLeft(featuredScrollRef)}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-blue-500 transition-all transform hover:scale-110"
+              aria-label="이전 상품"
+            >
+              <FiChevronLeft className="w-6 h-6 text-gray-700" />
+            </button>
+            <div
+              ref={featuredScrollRef}
+              className="flex gap-4 md:gap-5 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+            >
+              {featuredProducts.map((product) => (
+                <div key={product.id} className="flex-shrink-0 w-[280px] sm:w-[320px] md:w-[340px] h-full">
+                  <ProductCard product={product} partnerId={partnerId} />
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => scrollRight(featuredScrollRef)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-blue-500 transition-all transform hover:scale-110"
+              aria-label="다음 상품"
+            >
+              <FiChevronRight className="w-6 h-6 text-gray-700" />
+            </button>
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
     <div className="space-y-8">
       {isPartnerMall ? (
-        renderPartnerHero()
+        <>
+          {renderPartnerHero()}
+          {renderFeaturedProducts()}
+        </>
       ) : (
         <>
           {/* 크루즈 쇼케이스 비디오 */}

@@ -127,6 +127,23 @@ export default function AdminAdjustmentsPage() {
     }
   }, [filters.status]);
 
+  const loadPendingApprovals = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/admin/affiliate/sales/pending-approval');
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '구매 완료 승인 목록을 불러오지 못했습니다.');
+      }
+      setPendingApprovals(json.pendingApprovals ?? []);
+    } catch (error: any) {
+      console.error('[AdminAdjustments] load pending approvals error', error);
+      showError(error.message || '구매 완료 승인 목록을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === 'adjustments') {
       loadAdjustments();
@@ -191,23 +208,6 @@ export default function AdminAdjustmentsPage() {
       setProcessingId(null);
     }
   };
-
-  const loadPendingApprovals = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const res = await fetch('/api/admin/affiliate/sales/pending-approval');
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
-        throw new Error(json.message || '구매 완료 승인 목록을 불러오지 못했습니다.');
-      }
-      setPendingApprovals(json.pendingApprovals ?? []);
-    } catch (error: any) {
-      console.error('[AdminAdjustments] load pending approvals error', error);
-      showError(error.message || '구매 완료 승인 목록을 불러오는 중 오류가 발생했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   const handleApprovePurchase = async (saleId: number) => {
     if (!confirm('이 구매 완료를 승인하고 수당을 확정하시겠습니까?')) {

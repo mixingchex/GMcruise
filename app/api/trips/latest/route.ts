@@ -9,8 +9,8 @@ export async function GET() {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    // 사용자의 최신 여행 정보 가져오기
-    const latestTrip = await prisma.trip.findFirst({
+    // 사용자의 최신 여행 정보 가져오기 (CORE_RULES: UserTrip 사용)
+    const latestTrip = await prisma.userTrip.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       select: {

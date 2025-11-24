@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import {
   FiPlus,
   FiEdit2,
@@ -396,6 +396,9 @@ export default function AffiliateProfilesPage() {
   const [generatingSampleData, setGeneratingSampleData] = useState<number | null>(null);
   const [selectedAgentForSample, setSelectedAgentForSample] = useState<number | null>(null);
   const [showSampleDataModal, setShowSampleDataModal] = useState(false);
+  const [showBranchLabelSelector, setShowBranchLabelSelector] = useState(false);
+  const [branchLabelOptions, setBranchLabelOptions] = useState<Array<{ label: string; managerId: number; managerName: string; affiliateCode: string }>>([]);
+  const branchLabelSelectorRef = useRef<HTMLDivElement>(null);
 
   const selectedProfile = useMemo(
     () => (selectedProfileId ? profiles.find((profile) => profile.id === selectedProfileId) ?? null : null),
@@ -502,6 +505,23 @@ export default function AffiliateProfilesPage() {
           affiliateCode: manager.affiliateCode,
         }));
         setBranchManagers(options);
+        
+        // 지점명/팀명 옵션 생성 (중복 제거)
+        const branchLabelMap = new Map<string, { label: string; managerId: number; managerName: string; affiliateCode: string }>();
+        (json.profiles ?? []).forEach((manager: any) => {
+          if (manager.branchLabel) {
+            const key = manager.branchLabel.trim();
+            if (key && !branchLabelMap.has(key)) {
+              branchLabelMap.set(key, {
+                label: key,
+                managerId: manager.id,
+                managerName: manager.nickname || manager.displayName || `ID #${manager.id}`,
+                affiliateCode: manager.affiliateCode,
+              });
+            }
+          }
+        });
+        setBranchLabelOptions(Array.from(branchLabelMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'ko')));
       } catch (error: any) {
         console.error('[AffiliateProfiles] manager load error', error);
       } finally {
@@ -511,6 +531,23 @@ export default function AffiliateProfilesPage() {
 
     loadManagers();
   }, []);
+
+  // 외부 클릭 시 지점명 선택 드롭다운 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (branchLabelSelectorRef.current && !branchLabelSelectorRef.current.contains(event.target as Node)) {
+        setShowBranchLabelSelector(false);
+      }
+    };
+
+    if (showBranchLabelSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showBranchLabelSelector]);
 
   const handleCheckRelations = async () => {
     try {
@@ -1353,13 +1390,82 @@ export default function AffiliateProfilesPage() {
                   </label>
 
                   <label className="flex flex-col gap-1 text-sm text-gray-700">
-                    <span className="font-semibold">지점명 / 팀명</span>
-                    <input
-                      value={formState.branchLabel}
-                      onChange={(e) => setFormState((prev) => ({ ...prev, branchLabel: e.target.value }))}
-                      placeholder="예: 부산 서면 대리점"
-                      className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    />
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">지점명 / 팀명</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowBranchLabelSelector(!showBranchLabelSelector)}
+                        className="text-xs px-2 py-1 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100 font-medium"
+                      >
+                        기존 지점 불러오기
+                      </button>
+                    </div>
+                    <div className="relative" ref={branchLabelSelectorRef}>
+                      <input
+                        value={formState.branchLabel}
+                        onChange={(e) => setFormState((prev) => ({ ...prev, branchLabel: e.target.value }))}
+                        placeholder="예: 부산 서면 대리점"
+                        className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100 w-full"
+                      />
+                      {showBranchLabelSelector && branchLabelOptions.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                          <div className="p-2">
+                            <div className="text-xs text-gray-500 mb-2 px-2">기존 지점명/팀명 선택</div>
+                            {branchLabelOptions.map((option, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={async () => {
+                                  // 지점명 설정
+                                  setFormState((prev) => ({ ...prev, branchLabel: option.label }));
+                                  setShowBranchLabelSelector(false);
+                                  
+                                  // 해당 대리점장의 상세 정보 자동 불러오기
+                                  try {
+                                    const res = await fetch(`/api/admin/affiliate/profiles/${option.managerId}`);
+                                    const json = await res.json();
+                                    if (res.ok && json.ok && json.profile) {
+                                      const profile = json.profile;
+                                      // 대리점장 정보를 폼에 자동 채우기 (기존 값이 없을 때만)
+                                      setFormState((prev) => ({
+                                        ...prev,
+                                        branchLabel: option.label,
+                                        displayName: prev.displayName || profile.displayName || '',
+                                        nickname: prev.nickname || profile.nickname || '',
+                                        contactPhone: prev.contactPhone || profile.contactPhone || '',
+                                        contactEmail: prev.contactEmail || profile.contactEmail || '',
+                                        profileTitle: prev.profileTitle || profile.profileTitle || '',
+                                        bio: prev.bio || profile.bio || '',
+                                        profileImage: prev.profileImage || profile.profileImage || '',
+                                        coverImage: prev.coverImage || profile.coverImage || '',
+                                        kakaoLink: prev.kakaoLink || profile.kakaoLink || '',
+                                        homepageUrl: prev.homepageUrl || profile.homepageUrl || '',
+                                        bankName: prev.bankName || profile.bankName || '',
+                                        bankAccount: prev.bankAccount || profile.bankAccount || '',
+                                        bankAccountHolder: prev.bankAccountHolder || profile.bankAccountHolder || '',
+                                      }));
+                                      showSuccess(`지점명 "${option.label}"을(를) 불러왔습니다. 대리점장 정보가 자동으로 채워졌습니다.`);
+                                    }
+                                  } catch (error) {
+                                    console.error('Failed to load manager details:', error);
+                                    // 에러가 나도 지점명은 설정됨
+                                  }
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-blue-50 rounded-lg transition-colors"
+                              >
+                                <div className="font-medium text-gray-900">{option.label}</div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {option.managerName} ({option.affiliateCode})
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      기존 지점명을 선택하면 해당 대리점장의 상세 정보(이름, 연락처, 계좌 등)가 자동으로 불러와집니다. 본사에서도 수정 가능합니다.
+                    </span>
                   </label>
 
                   <label className="flex flex-col gap-1 text-sm text-gray-700">

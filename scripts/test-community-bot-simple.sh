@@ -44,3 +44,12 @@ echo "   curl -X POST http://localhost:3000/api/cron/community-bot \\"
 echo "     -H 'Authorization: Bearer your-secret-key-here'"
 echo ""
 
+
+
+
+
+
+
+
+
+

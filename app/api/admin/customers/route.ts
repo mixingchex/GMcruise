@@ -81,52 +81,95 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
     const userType = searchParams.get('userType') || 'all'; // all, trial, regular - 3일 체험 사용자와 일반 사용자 구분
     const managerProfileId = searchParams.get('managerProfileId'); // 점장별 필터링
-    const customerGroup = searchParams.get('customerGroup') as CustomerGroup | null; // 고객 그룹 필터: prospects, trial, mall, purchase, refund, passport, manager-customers, agent-customers
+    const customerGroupRaw = searchParams.get('customerGroup');
+    const customerGroup: CustomerGroup | 'all' | null = customerGroupRaw === 'all' ? 'all' : (customerGroupRaw as CustomerGroup | null); // 고객 그룹 필터: all, prospects, trial, mall, purchase, refund, passport, manager-customers, agent-customers
 
-    // 연동된 크루즈몰 고객 ID 목록 조회 (중복 제거용)
+    // 연동된 크루즈몰 고객 ID 목록 조회 (중복 제거용) - 성능 최적화: 필요할 때만 조회
     // 크루즈 가이드 고객 중 mallUserId가 설정된 고객들의 mallUserId 목록
-    const linkedMallUserIds = await prisma.user.findMany({
-      where: {
-        role: 'user',
-        mallUserId: { not: null },
-      },
-      select: {
-        mallUserId: true,
-      },
-    }).then(users => 
-      users
-        .map(u => u.mallUserId)
-        .filter((id): id is string => id !== null)
-        .map(id => parseInt(id, 10))
-        .filter(id => !isNaN(id))
-    );
+    let linkedMallUserIds: number[] = [];
+    if (customerGroup !== 'mall' && customerGroup !== 'all') {
+      // mall이나 all이 아닐 때만 조회 (필터링에 필요할 때만)
+      linkedMallUserIds = await prisma.user.findMany({
+        where: {
+          role: 'user',
+          mallUserId: { not: null },
+        },
+        select: {
+          mallUserId: true,
+        },
+      }).then(users => 
+        users
+          .map(u => u.mallUserId)
+          .filter((id): id is string => id !== null)
+          .map(id => parseInt(id, 10))
+          .filter(id => !isNaN(id))
+      );
+    }
 
     // 검색 조건 - AND 구조로 시작
     const whereConditions: any[] = [
       // role이 'admin'이 아닌 모든 사용자 표시
       { role: { not: 'admin' } },
-      // customerSource 필터링 제거 - 모든 고객 조회 (본사, 대리점장, 랜딩페이지 등 모든 유입 경로 포함)
     ];
 
-    // 3일 체험 사용자와 일반 사용자 구분
-    if (userType === 'trial') {
-      // 3일 체험 사용자만 조회 (testModeStartedAt이 있는 사용자)
-      whereConditions.push({
-        testModeStartedAt: { not: null },
-      });
-    } else if (userType === 'regular') {
-      // 일반 사용자만 조회 (testModeStartedAt이 null인 사용자)
-      whereConditions.push({
-        OR: [
-          { testModeStartedAt: null },
-          { testModeStartedAt: undefined },
-        ],
-      });
+    // customerGroup에 따른 초기 필터링 (DB 쿼리 최적화)
+    // customerGroup이 없거나 'all'이면 필터링하지 않음 (전체 고객 조회)
+    if (customerGroup && customerGroup !== 'all') {
+      if (customerGroup === 'mall') {
+        // 크루즈몰 고객만 조회: role이 'community'이고 customerSource가 'mall-signup'
+        whereConditions.push({
+          role: 'community',
+          customerSource: 'mall-signup',
+        });
+      } else if (customerGroup === 'trial') {
+        // 3일 체험 고객만 조회
+        whereConditions.push({
+          OR: [
+            { customerSource: 'test-guide' },
+            { testModeStartedAt: { not: null } },
+          ],
+        });
+      } else if (customerGroup === 'purchase') {
+        // 구매 고객만 조회 (카운트 조건과 동일하게)
+        // customerStatus가 'purchase_confirmed'이거나 Reservation이 있거나 customerSource가 'cruise-guide'인 고객
+        whereConditions.push({
+          OR: [
+            { customerStatus: 'purchase_confirmed' },
+            { Reservation: { some: {} } },
+            { customerSource: 'cruise-guide' },
+          ],
+        });
+      } else if (customerGroup === 'refund') {
+        // 환불 고객만 조회
+        whereConditions.push({
+          customerStatus: 'refunded',
+        });
+      }
+      // 다른 customerGroup들 (passport, manager-customers, agent-customers, prospects)은
+      // getCurrentCustomerGroup 함수에서 처리되므로 여기서는 필터링하지 않음
+    }
+
+    // 3일 체험 사용자와 일반 사용자 구분 (customerGroup이 'trial', 'mall', 'all'이 아닐 때만 적용)
+    if (customerGroup && customerGroup !== 'trial' && customerGroup !== 'mall' && customerGroup !== 'all') {
+      if (userType === 'trial') {
+        // 3일 체험 사용자만 조회 (testModeStartedAt이 있는 사용자)
+        whereConditions.push({
+          testModeStartedAt: { not: null },
+        });
+      } else if (userType === 'regular') {
+        // 일반 사용자만 조회 (testModeStartedAt이 null인 사용자)
+        whereConditions.push({
+          OR: [
+            { testModeStartedAt: null },
+            { testModeStartedAt: undefined },
+          ],
+        });
+      }
     }
     // userType === 'all'이면 필터링하지 않음
 
-    // 연동된 크루즈몰 고객은 제외
-    if (linkedMallUserIds.length > 0) {
+    // 연동된 크루즈몰 고객은 제외 (단, customerGroup이 'mall'이거나 'all'일 때는 제외하지 않음)
+    if (customerGroup !== 'mall' && customerGroup !== 'all' && linkedMallUserIds.length > 0) {
       whereConditions.push({
         NOT: {
           AND: [
@@ -197,7 +240,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 월별 필터 (인증서 처리 날짜 기준)
+    // 월별 필터 (가입 월 기준 - createdAt)
     if (monthFilter && monthFilter.trim() !== '') {
       try {
         const [year, month] = monthFilter.split('-').map(Number);
@@ -205,22 +248,13 @@ export async function GET(req: NextRequest) {
           const startDate = new Date(year, month - 1, 1);
           const endDate = new Date(year, month, 0, 23, 59, 59, 999);
           
-          console.log('[Admin Customers API] Month filter applied:', {
-            monthFilter,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-          });
-          
-          // metadata에서 인증서 처리 날짜 확인하거나, updatedAt 기준으로 필터링
-          // 일단 updatedAt 기준으로 필터링 (인증서 처리 시 updatedAt이 갱신되므로)
+          // createdAt 기준으로 필터링 (가입 월 기준)
           whereConditions.push({
-            updatedAt: {
+            createdAt: {
               gte: startDate,
               lte: endDate,
             },
           });
-        } else {
-          console.warn('[Admin Customers API] Invalid monthFilter format:', monthFilter);
         }
       } catch (monthFilterError: any) {
         console.error('[Admin Customers API] Month filter error:', monthFilterError);
@@ -245,24 +279,9 @@ export async function GET(req: NextRequest) {
     // 전체 개수 조회
     let total = 0;
     try {
-      console.log('[Admin Customers API] Where conditions:', JSON.stringify(where, null, 2));
       total = await prisma.user.count({ where });
-      console.log('[Admin Customers API] Total customers found:', total);
-      
-      // 필터 조건이 너무 엄격한지 확인
-      if (total === 0 && whereConditions.length > 1) {
-        console.warn('[Admin Customers API] No customers found. Checking without filters...');
-        const totalWithoutFilters = await prisma.user.count({
-          where: { role: { not: 'admin' } },
-        });
-        console.log('[Admin Customers API] Total customers without filters:', totalWithoutFilters);
-      }
     } catch (countError: any) {
       console.error('[Admin Customers API] Count query error:', countError);
-      console.error('[Admin Customers API] Count error details:', {
-        message: countError?.message,
-        code: countError?.code,
-      });
       // count 실패 시 기본값 사용
       total = 0;
     }
@@ -270,7 +289,6 @@ export async function GET(req: NextRequest) {
     // 데이터 조회
     let customers: any[] = [];
     try {
-      console.log('[Admin Customers API] Fetching customers with where:', JSON.stringify(where, null, 2));
       customers = await prisma.user.findMany({
       where,
       select: {
@@ -290,7 +308,7 @@ export async function GET(req: NextRequest) {
         testModeStartedAt: true, // 테스트 모드 시작 시간
         currentTripEndDate: true,
         updatedAt: true, // 인증서 처리 날짜 확인용
-        metadata: true, // 환불 횟수 등 메타데이터
+        // metadata: true, // User 모델에 없으므로 제거
         mallUserId: true, // 크루즈몰 사용자 ID
         mallNickname: true, // 크루즈몰 닉네임
         kakaoChannelAdded: true, // 카카오 채널 추가 여부
@@ -335,15 +353,7 @@ export async function GET(req: NextRequest) {
       skip,
       take: limit,
       });
-      console.log('[Admin Customers API] Found customers:', customers.length);
-      if (customers.length > 0) {
-        console.log('[Admin Customers API] Sample customer:', {
-          id: customers[0].id,
-          name: customers[0].name,
-          phone: customers[0].phone,
-          role: customers[0].role,
-        });
-      }
+      // 성능 최적화: 불필요한 로그 제거
     } catch (findManyError: any) {
       console.error('[Admin Customers API] FindMany query error:', findManyError);
       console.error('[Admin Customers API] FindMany error details:', {
@@ -382,7 +392,8 @@ export async function GET(req: NextRequest) {
     );
 
     // 크루즈몰 고객(role: 'community')이 크루즈가이드와 연동되었는지 확인
-    // 크루즈몰 고객 ID를 mallUserId로 가진 크루즈가이드 사용자 찾기
+    // 1. mallUserId로 연결된 경우
+    // 2. 이름과 연락처가 같은 경우 (통합 고객)
     const mallCustomerIds = customers
       .filter(c => c.role === 'community')
       .map(c => c.id.toString());
@@ -391,12 +402,26 @@ export async function GET(req: NextRequest) {
       .filter(c => c.role === 'community' && c.phone)
       .map(c => c.phone!);
     
-    const linkedGenieUsers = (mallCustomerIds.length > 0 || mallCustomerPhones.length > 0)
+    const mallCustomerNames = customers
+      .filter(c => c.role === 'community' && c.name)
+      .map(c => c.name!);
+    
+    // 이름과 연락처로 통합 고객 찾기
+    const linkedGenieUsers = (mallCustomerIds.length > 0 || mallCustomerPhones.length > 0 || mallCustomerNames.length > 0)
       ? await prisma.user.findMany({
           where: {
+            role: 'user',
             OR: [
-              { mallUserId: { in: mallCustomerIds }, role: 'user' },
-              { mallUserId: { in: mallCustomerPhones }, role: 'user' },
+              // mallUserId로 연결
+              { mallUserId: { in: mallCustomerIds } },
+              { mallUserId: { in: mallCustomerPhones } },
+              // 이름과 연락처가 같은 경우 (통합 고객)
+              ...(mallCustomerNames.length > 0 && mallCustomerPhones.length > 0 ? [{
+                AND: [
+                  { name: { in: mallCustomerNames } },
+                  { phone: { in: mallCustomerPhones } },
+                ]
+              }] : []),
             ],
           },
           select: {
@@ -415,6 +440,8 @@ export async function GET(req: NextRequest) {
     
     // 크루즈몰 고객 ID -> 크루즈가이드 사용자 매핑 생성
     const genieUsersMapByMallId = new Map<string, any>();
+    const genieUsersMapByNamePhone = new Map<string, any>(); // 이름+연락처로 매핑
+    
     linkedGenieUsers.forEach(genieUser => {
       if (genieUser.mallUserId) {
         // ID로 매핑
@@ -424,6 +451,11 @@ export async function GET(req: NextRequest) {
         }
         // phone으로도 매핑 (mallUserId가 phone인 경우)
         genieUsersMapByMallId.set(genieUser.mallUserId, genieUser);
+      }
+      // 이름과 연락처로 매핑 (통합 고객)
+      if (genieUser.name && genieUser.phone) {
+        const key = `${genieUser.name}|${genieUser.phone}`;
+        genieUsersMapByNamePhone.set(key, genieUser);
       }
     });
     
@@ -457,9 +489,15 @@ export async function GET(req: NextRequest) {
       let isLinkedForMallCustomer = false;
       let linkedGenieUser = null;
       if (mergedCustomer.role === 'community') {
+        // 1. mallUserId로 연결 확인
         linkedGenieUser = genieUsersMapByMallId.get(mergedCustomer.id.toString());
         if (!linkedGenieUser && mergedCustomer.phone) {
           linkedGenieUser = genieUsersMapByMallId.get(mergedCustomer.phone);
+        }
+        // 2. 이름과 연락처로 통합 고객 확인 (같은 고객이 크루즈몰과 크루즈가이드 지니를 모두 이용하는 경우)
+        if (!linkedGenieUser && mergedCustomer.name && mergedCustomer.phone) {
+          const namePhoneKey = `${mergedCustomer.name}|${mergedCustomer.phone}`;
+          linkedGenieUser = genieUsersMapByNamePhone.get(namePhoneKey) || null;
         }
         isLinkedForMallCustomer = !!linkedGenieUser;
       }
@@ -609,60 +647,82 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // 각 고객의 Reservation 정보 조회 (구매 정보 및 여권 상태)
+    // 각 고객의 Reservation 정보 조회 (구매 정보 및 여권 상태) - 성능 최적화: 병렬 처리
     const customerIds = preparedCustomers.map(c => c.id);
     
-    // 방법 1: mainUserId로 직접 조회
-    let reservations = customerIds.length > 0 ? await prisma.reservation.findMany({
-      where: { mainUserId: { in: customerIds } },
-      select: {
-        id: true,
-        mainUserId: true,
-        tripId: true,
-        totalPeople: true,
-        passportStatus: true,
-        createdAt: true,
-        Traveler: {
-          select: {
-            id: true,
-            passportNo: true,
-            birthDate: true,
-            expiryDate: true,
-            firstName: true,
-            lastName: true,
+    // Reservation 조회와 소유권 조회를 병렬로 실행
+    const [reservations, ownershipMap] = await Promise.all([
+      // Reservation 조회
+      customerIds.length > 0 ? prisma.reservation.findMany({
+        where: { mainUserId: { in: customerIds } },
+        select: {
+          id: true,
+          mainUserId: true,
+          tripId: true,
+          totalPeople: true,
+          passportStatus: true,
+          Traveler: {
+            select: {
+              id: true,
+              passportNo: true,
+              birthDate: true,
+              expiryDate: true,
+              engGivenName: true,
+              engSurname: true,
+              korName: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' }, // 최신 순으로 정렬
-    }).catch((error) => {
-      console.error('[Admin Customers API] Reservation query error:', error);
-      return [];
-    }) : [];
+        orderBy: { id: 'desc' },
+      }).catch((error) => {
+        console.error('[Admin Customers API] Reservation query error:', error);
+        return [];
+      }) : Promise.resolve([]),
+      
+      // 소유권 정보 조회 (병렬 처리)
+      getAffiliateOwnershipForUsers(
+        preparedCustomers.map((customer) => ({
+          id: customer.id,
+          phone: customer.phone || null,
+        })),
+      ).catch((error: any) => {
+        console.error('[Admin Customers API] Ownership query error:', error);
+        return new Map();
+      }),
+    ]);
     
     // 방법 2는 제거: Reservation은 mainUserId로 직접 조회하는 것이 가장 안정적
     // APIS 관련 로직은 유지하되, Trip 모델 직접 조회는 제거
     
-    console.log('[Admin Customers API] Reservations found:', {
-      count: reservations.length,
-      sample: reservations.slice(0, 3).map(r => ({
-        id: r.id,
-        mainUserId: r.mainUserId,
-        totalPeople: r.totalPeople,
-        travelersCount: r.Traveler?.length || 0,
-        travelersWithPassport: r.Traveler?.filter(t => t.passportNo)?.length || 0,
-      })),
-    });
+      // 성능 최적화: 불필요한 로그 제거
 
     // 고객별 Reservation 정보 매핑 (최신 예약 기준)
     const reservationMap = new Map<number, any>();
     reservations.forEach(res => {
       // mainUserId가 없는 예약은 건너뜀
-      if (!res.mainUserId) return;
+      if (!res.mainUserId) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[Reservation Debug] Reservation ${res.id} has no mainUserId`);
+        }
+        return;
+      }
       // 이미 있는 경우는 무시 (최신 것만 유지)
       if (!reservationMap.has(res.mainUserId)) {
         reservationMap.set(res.mainUserId, res);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Reservation Debug] Mapped reservation ${res.id} to customer ${res.mainUserId}`, {
+            totalPeople: res.totalPeople,
+            travelersCount: res.Traveler?.length || 0,
+            travelersWithPassport: res.Traveler?.filter(t => t.passportNo && t.passportNo.trim() !== '')?.length || 0,
+          });
+        }
       }
     });
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Reservation Debug] Total reservations: ${reservations.length}, Mapped to ${reservationMap.size} customers`);
+      console.log(`[Reservation Debug] Customer IDs with reservations:`, Array.from(reservationMap.keys()));
+    }
 
     // 고객별 예약 개수 계산
     const reservationCountMap = new Map<number, number>();
@@ -679,6 +739,15 @@ export async function GET(req: NextRequest) {
       
       let passportInfo = null;
       if (latestReservation) {
+        // 디버깅: 여권 정보 확인
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Passport Debug] Customer ${customer.id}:`, {
+            hasReservation: true,
+            totalPeople: latestReservation.totalPeople,
+            travelersCount: latestReservation.Traveler?.length || 0,
+            travelersWithPassportNo: latestReservation.Traveler?.filter(t => t.passportNo && t.passportNo.trim() !== '').length || 0,
+          });
+        }
         const totalPeople = latestReservation.totalPeople || 0;
         const travelersWithPassport = latestReservation.Traveler?.filter(t => t.passportNo && t.passportNo.trim() !== '')?.length || 0;
         const missingCount = Math.max(0, totalPeople - travelersWithPassport);
@@ -706,11 +775,11 @@ export async function GET(req: NextRequest) {
           expiringCount: expiringPassports.length, // 6개월 이내 만료
           expiredCount: expiredPassports.length, // 이미 만료됨
           expiringPassports: expiringPassports.map(t => ({
-            name: `${t.lastName || ''} ${t.firstName || ''}`.trim() || '이름 없음',
+            name: t.korName || `${t.engSurname || ''} ${t.engGivenName || ''}`.trim() || '이름 없음',
             expiryDate: t.expiryDate,
           })),
           expiredPassports: expiredPassports.map(t => ({
-            name: `${t.lastName || ''} ${t.firstName || ''}`.trim() || '이름 없음',
+            name: t.korName || `${t.engSurname || ''} ${t.engGivenName || ''}`.trim() || '이름 없음',
             expiryDate: t.expiryDate,
           })),
         };
@@ -724,25 +793,7 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    // 어필리에이트 소유권 정보 조회 (에러 발생 시 빈 Map 반환)
-    let ownershipMap = new Map<number, any>();
-    try {
-      ownershipMap = await getAffiliateOwnershipForUsers(
-        customersWithPurchaseInfo.map((customer) => ({
-          id: customer.id,
-          phone: customer.phone || null,
-        })),
-      );
-    } catch (ownershipError: any) {
-      console.error('[Admin Customers API] Ownership query error:', ownershipError);
-      console.error('[Admin Customers API] Ownership error details:', {
-        message: ownershipError?.message,
-        code: ownershipError?.code,
-        meta: ownershipError?.meta,
-      });
-      // 에러 발생 시 빈 Map 사용 (소유권 정보 없이 계속 진행)
-      ownershipMap = new Map();
-    }
+    // ownershipMap은 이미 위에서 병렬로 조회됨
 
     // 랜딩페이지로 유입된 고객의 점장 소유권 정보 조회
     const customerPhones = customersWithPurchaseInfo
@@ -781,35 +832,52 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      // 각 등록에 대해 점장 소유권 확인
+      // 성능 최적화: 랜딩페이지 ID 목록을 먼저 수집한 후 배치로 조회
+      const landingPageIds = [...new Set(landingPageRegistrations.map(r => r.landingPageId))];
+      
+      // 모든 랜딩페이지의 공유 정보를 한 번에 조회
+      const allSharedLandingPages = landingPageIds.length > 0
+        ? await prisma.sharedLandingPage.findMany({
+            where: {
+              landingPageId: { in: landingPageIds },
+            },
+            include: {
+              AffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  branchLabel: true,
+                },
+              },
+            },
+          })
+        : [];
+      
+      // 랜딩페이지 ID별로 공유 정보 매핑
+      const sharedByLandingPageId = new Map<number, typeof allSharedLandingPages>();
+      for (const shared of allSharedLandingPages) {
+        if (!sharedByLandingPageId.has(shared.landingPageId)) {
+          sharedByLandingPageId.set(shared.landingPageId, []);
+        }
+        sharedByLandingPageId.get(shared.landingPageId)!.push(shared);
+      }
+      
+      // 각 등록에 대해 점장 소유권 확인 (이미 조회한 데이터 사용)
       for (const registration of landingPageRegistrations) {
         if (!registration.User) continue;
 
-        // 해당 랜딩페이지가 공유된 점장들 조회
-        const sharedLandingPages = await prisma.sharedLandingPage.findMany({
-          where: {
-            landingPageId: registration.landingPageId,
-          },
-          include: {
-            ManagerProfile: {
-              select: {
-                id: true,
-                displayName: true,
-                branchLabel: true,
-              },
-            },
-          },
-        });
-
+        const sharedLandingPages = sharedByLandingPageId.get(registration.landingPageId) || [];
+        
         for (const shared of sharedLandingPages) {
           if (!landingPageOwnershipMap.has(registration.User.id)) {
             landingPageOwnershipMap.set(registration.User.id, {
               managerProfileId: shared.managerProfileId,
-              managerDisplayName: shared.ManagerProfile?.displayName || null,
-              managerBranchLabel: shared.ManagerProfile?.branchLabel || null,
+              managerDisplayName: shared.AffiliateProfile?.displayName || null,
+              managerBranchLabel: shared.AffiliateProfile?.branchLabel || null,
               landingPageId: registration.landingPageId,
               landingPageTitle: registration.LandingPage?.title || null,
             });
+            break; // 첫 번째 매칭만 사용
           }
         }
       }
@@ -842,58 +910,111 @@ export async function GET(req: NextRequest) {
     }
 
     // 각 고객의 현재 그룹 계산 및 그룹 필터링
-    const customersWithGroup = await Promise.all(
-      filteredCustomers.map(async (customer) => {
-        const ownership = ownershipMap.get(customer.id) || null;
-        const landingOwnership = landingPageOwnershipMap.get(customer.id) || null;
-        
-        // 랜딩페이지 소유권 정보를 affiliateOwnership에 통합
-        let finalOwnership = ownership;
-        if (landingOwnership && !ownership) {
-          // 랜딩페이지로만 유입된 경우
-          finalOwnership = {
-            ownerType: 'BRANCH_MANAGER' as const,
-            ownerProfileId: landingOwnership.managerProfileId,
-            ownerName: landingOwnership.managerDisplayName,
-            ownerNickname: null,
-            ownerAffiliateCode: null,
-            ownerBranchLabel: landingOwnership.managerBranchLabel,
-            ownerStatus: null,
-            ownerPhone: null,
-            source: 'landing-page' as const,
-            managerProfile: null,
-            leadId: null,
-            leadStatus: null,
-          };
-        } else if (landingOwnership && ownership) {
-          // 둘 다 있는 경우 랜딩페이지 정보를 우선
-          finalOwnership = {
-            ...ownership,
-            ownerProfileId: landingOwnership.managerProfileId,
-            ownerName: landingOwnership.managerDisplayName,
-            ownerBranchLabel: landingOwnership.managerBranchLabel,
-            source: 'landing-page' as const,
-          };
-        }
+    let customersWithGroup: any[] = [];
+    try {
+      customersWithGroup = await Promise.all(
+        filteredCustomers.map(async (customer) => {
+          try {
+            const ownership = ownershipMap.get(customer.id) || null;
+            const landingOwnership = landingPageOwnershipMap.get(customer.id) || null;
+            
+            // 랜딩페이지 소유권 정보를 affiliateOwnership에 통합
+            let finalOwnership = ownership;
+            if (landingOwnership && !ownership) {
+              // 랜딩페이지로만 유입된 경우
+              finalOwnership = {
+                ownerType: 'BRANCH_MANAGER' as const,
+                ownerProfileId: landingOwnership.managerProfileId,
+                ownerName: landingOwnership.managerDisplayName,
+                ownerNickname: null,
+                ownerAffiliateCode: null,
+                ownerBranchLabel: landingOwnership.managerBranchLabel,
+                ownerStatus: null,
+                ownerPhone: null,
+                source: 'landing-page' as const,
+                managerProfile: null,
+                leadId: null,
+                leadStatus: null,
+              };
+            } else if (landingOwnership && ownership) {
+              // 둘 다 있는 경우 랜딩페이지 정보를 우선
+              finalOwnership = {
+                ...ownership,
+                ownerProfileId: landingOwnership.managerProfileId,
+                ownerName: landingOwnership.managerDisplayName,
+                ownerBranchLabel: landingOwnership.managerBranchLabel,
+                source: 'landing-page' as const,
+              };
+            }
 
-        // 현재 고객 그룹 계산 (에러 처리 포함)
-        let currentGroup: CustomerGroup | null = null;
-        try {
-          currentGroup = await getCurrentCustomerGroup(customer.id);
-        } catch (groupError: any) {
-          console.error(`[Admin Customers API] Failed to get current group for user ${customer.id}:`, groupError);
-          // 그룹 계산 실패 시 기본값 사용
-          currentGroup = null;
-        }
+            // 현재 고객 그룹 계산 (성능 최적화: 이미 가져온 데이터로 직접 계산, DB 쿼리 없음)
+            let currentGroup: CustomerGroup | 'landing-page' | null = null;
+            try {
+              // getCurrentCustomerGroup 로직을 인라인으로 구현 (이미 데이터가 있으므로 추가 쿼리 불필요)
+              // 1. 환불고객 (최우선)
+              if (customer.customerStatus === 'refunded') {
+                currentGroup = 'refund';
+              }
+              // 2. 구매고객
+              else if (customer.customerStatus === 'purchase_confirmed' || customer.hasReservation) {
+                currentGroup = 'purchase';
+              }
+              // 3. 3일 체험 고객
+              else if (customer.customerSource === 'test-guide' || customer.testModeStartedAt) {
+                currentGroup = 'trial';
+              }
+              // 4. 크루즈몰 고객 (정확한 조건)
+              else if (customer.role === 'community' && customer.customerSource === 'mall-signup') {
+                currentGroup = 'mall';
+              }
+              // 5. 랜딩페이지 고객 (prospects로 매핑)
+              else if (customer.customerSource === 'landing-page') {
+                currentGroup = 'landing-page'; // 나중에 prospects로 매핑됨
+              }
+              
+              // customerGroup이 'mall'이고 role이 'community', customerSource가 'mall-signup'이면 강제로 'mall' 그룹 설정
+              if (customerGroup === 'mall' && customer.role === 'community' && customer.customerSource === 'mall-signup') {
+                currentGroup = 'mall';
+              }
+            } catch (groupError: any) {
+              console.error(`[Admin Customers API] Failed to get current group for user ${customer.id}:`, groupError);
+              // 그룹 계산 실패 시 customerGroup이 'mall'이면 'mall'로 설정
+              if (customerGroup === 'mall' && customer.role === 'community' && customer.customerSource === 'mall-signup') {
+                currentGroup = 'mall';
+              } else {
+                currentGroup = null;
+              }
+            }
 
-        return {
-          ...customer,
-          affiliateOwnership: finalOwnership ? { ...finalOwnership } : null,
-          landingPageOwnership: landingOwnership,
-          currentGroup, // 현재 그룹 추가
-        };
-      })
-    );
+            return {
+              ...customer,
+              affiliateOwnership: finalOwnership ? { ...finalOwnership } : null,
+              landingPageOwnership: landingOwnership,
+              currentGroup: currentGroup === 'landing-page' ? null : currentGroup, // landing-page는 null로 변환 (prospects로 처리)
+            };
+          } catch (customerError: any) {
+            console.error(`[Admin Customers API] Error processing customer ${customer.id}:`, customerError);
+            // 에러가 발생해도 기본 정보는 반환
+            return {
+              ...customer,
+              affiliateOwnership: null,
+              landingPageOwnership: null,
+              currentGroup: null,
+            };
+          }
+        })
+      );
+      // 성능 최적화: 불필요한 로그 제거
+    } catch (groupProcessingError: any) {
+      console.error('[Admin Customers API] Error processing customers for group calculation:', groupProcessingError);
+      // 에러 발생 시 기본 정보만으로 반환
+      customersWithGroup = filteredCustomers.map(customer => ({
+        ...customer,
+        affiliateOwnership: null,
+        landingPageOwnership: null,
+        currentGroup: null,
+      }));
+    }
 
     // 고객 그룹 필터링 (passport는 구매고객 중 여권 정보가 있는/없는 고객)
     // customerGroup이 없거나 'all'이면 필터링하지 않음 (전체 고객 표시)
@@ -960,6 +1081,19 @@ export async function GET(req: NextRequest) {
               }
             }
           );
+        } else if (effectiveGroup === 'mall') {
+          // 크루즈몰 고객: DB에서 이미 필터링했지만, 안전을 위해 다시 확인
+          customersWithOwnership = customersWithGroup.filter(
+            (c) => {
+              try {
+                // role과 customerSource로 명확하게 필터링
+                return c.role === 'community' && c.customerSource === 'mall-signup';
+              } catch (e) {
+                console.error(`[Admin Customers API] Error filtering mall customer ${c.id}:`, e);
+                return false;
+              }
+            }
+          );
         } else {
           // 일반 그룹 필터링
           customersWithOwnership = customersWithGroup.filter(
@@ -996,7 +1130,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // 그룹별 고객 수 계산 (전체 고객 기준 - 페이지네이션 없이)
+    // 그룹별 고객 수 계산 (성능 최적화: DB 집계 쿼리 사용)
     // 주의: groupCounts는 전체 고객을 기준으로 계산해야 하므로, 페이지네이션된 결과가 아닌 전체 고객을 기준으로 계산
     let groupCounts: Record<string, number> = {
       'all': 0,
@@ -1011,57 +1145,91 @@ export async function GET(req: NextRequest) {
     };
     
     try {
-      // 전체 고객 조회 (페이지네이션 없이, 그룹 계산용)
-      const allCustomersForCount = await prisma.user.findMany({
-        where: {
-          role: { not: 'admin' },
-        },
-        select: {
-          id: true,
-          customerStatus: true,
-          customerSource: true,
-          testModeStartedAt: true,
-          role: true,
-          mallUserId: true,
-          Reservation: {
-            select: { id: true },
-            take: 1,
+      // 성능 최적화: 모든 count 쿼리를 병렬로 실행하여 대기 시간 최소화
+      const [
+        totalCount,
+        refundCount,
+        purchaseCount,
+        trialCount,
+        mallCount,
+        prospectsCount,
+      ] = await Promise.all([
+        // 전체 고객 수
+        prisma.user.count({
+          where: { role: { not: 'admin' } },
+        }),
+        // 환불 고객 수
+        prisma.user.count({
+          where: {
+            role: { not: 'admin' },
+            customerStatus: 'refunded',
           },
-        },
-      });
+        }),
+        // 구매 고객 수 (customerStatus가 'purchase_confirmed'이거나 Reservation이 있는 고객, 또는 customerSource가 'cruise-guide'인 고객)
+        prisma.user.count({
+          where: {
+            role: { not: 'admin' },
+            OR: [
+              { customerStatus: 'purchase_confirmed' },
+              { Reservation: { some: {} } },
+              { customerSource: 'cruise-guide' }, // 크루즈가이드 고객 = 구매 고객
+            ],
+          },
+        }),
+        // 3일 체험 고객 수
+        prisma.user.count({
+          where: {
+            role: { not: 'admin' },
+            OR: [
+              { customerSource: 'test-guide' },
+              { testModeStartedAt: { not: null } },
+            ],
+          },
+        }),
+        // 크루즈몰 고객 수 (정확한 조건: role이 'community'이고 customerSource가 'mall-signup')
+        prisma.user.count({
+          where: {
+            role: 'community',
+            customerSource: 'mall-signup',
+          },
+        }),
+        // prospects는 랜딩페이지 고객 + 그룹이 없는 고객
+        prisma.user.count({
+          where: {
+            role: { not: 'admin' },
+            OR: [
+              { customerSource: 'landing-page' },
+              {
+                AND: [
+                  { customerSource: { notIn: ['test-guide', 'mall-signup'] } },
+                  { customerSource: null },
+                ],
+              },
+            ],
+            customerStatus: { notIn: ['purchase_confirmed', 'refunded'] },
+            testModeStartedAt: null,
+            NOT: {
+              AND: [
+                { role: 'community' },
+                { customerSource: 'mall-signup' },
+              ],
+            },
+            Reservation: { none: {} },
+          },
+        }),
+      ]);
       
-      console.log('[Admin Customers API] Calculating group counts for', allCustomersForCount.length, 'total customers');
-      
-      // 각 고객의 그룹 계산 및 카운트
-      for (const customer of allCustomersForCount) {
-        try {
-          const group = await getCurrentCustomerGroup(customer.id);
-          
-          if (group) {
-            // 'landing-page'는 CustomerGroup 타입에 없지만 getCurrentCustomerGroup에서 반환할 수 있음
-            // 타입 단언을 사용하여 비교
-            const groupValue = group as CustomerGroup | 'landing-page';
-            if (groupValue === 'landing-page') {
-              groupCounts['prospects'] = (groupCounts['prospects'] || 0) + 1;
-            } else if (groupCounts.hasOwnProperty(group)) {
-              groupCounts[group] = (groupCounts[group] || 0) + 1;
-              if (group === 'trial') {
-                console.log(`[Admin Customers API] Trial customer found: ID ${customer.id}`);
-              }
-            }
-          } else {
-            groupCounts['prospects'] = (groupCounts['prospects'] || 0) + 1;
-          }
-        } catch (groupError) {
-          console.error(`[Admin Customers API] Error calculating group for customer ${customer.id}:`, groupError);
-        }
-      }
-      
-      // 전체 고객 수는 모든 그룹의 합
-      groupCounts['all'] = allCustomersForCount.length;
+      groupCounts['all'] = totalCount;
+      groupCounts['refund'] = refundCount;
+      groupCounts['purchase'] = purchaseCount;
+      groupCounts['trial'] = trialCount;
+      groupCounts['mall'] = mallCount;
+      groupCounts['prospects'] = prospectsCount;
       
       // 소유권 기반 그룹 카운트는 별도로 계산 (성능 최적화를 위해 나중에 추가 가능)
       // 현재는 기본 그룹 카운트만 계산
+      
+      // 성능 최적화: 불필요한 로그 제거
       
     } catch (countError) {
       console.error('[Admin Customers API] Error calculating group counts:', countError);
@@ -1069,18 +1237,24 @@ export async function GET(req: NextRequest) {
       groupCounts['all'] = customersWithGroup.length;
     }
     
-    console.log('[Admin Customers API] Final group counts:', groupCounts);
-    
     // 페이지네이션 적용 (필터링된 고객 목록 기준)
     // 그룹 필터링 후에는 이미 메모리에서 필터링되었으므로 slice만 적용
+    if (!Array.isArray(customersWithOwnership)) {
+      console.error('[Admin Customers API] customersWithOwnership is not an array:', typeof customersWithOwnership);
+      customersWithOwnership = [];
+    }
     const paginatedCustomers = customersWithOwnership.slice(skip, skip + limit);
     
     // 총 개수는 필터링된 고객 목록의 길이
     const filteredTotal = customersWithOwnership.length;
     
+    // 성능 최적화: 불필요한 로그 제거
+    
     return NextResponse.json({
       ok: true,
       customers: paginatedCustomers,
+      customersCount: paginatedCustomers.length, // 현재 페이지의 고객 수
+      total: filteredTotal, // 필터링된 전체 고객 수
       managers: managers.map(m => ({
         id: m.id,
         displayName: m.displayName,

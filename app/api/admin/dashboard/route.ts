@@ -121,9 +121,16 @@ export async function GET() {
       inProgressTrips = tripsByStatus.find(s => s.status === 'InProgress')?._count || 0;
       completedTrips = tripsByStatus.find(s => s.status === 'Completed')?._count || 0;
       
+      // 현재 진행 중인 여행 (최대 10개만)
       currentTrips = await prisma.trip.findMany({
         where: { status: 'InProgress' },
-        include: {
+        take: 10, // 성능 최적화: 최대 10개만 가져오기
+        select: {
+          id: true,
+          cruiseName: true,
+          startDate: true,
+          endDate: true,
+          destination: true,
           User: {
             select: { name: true, phone: true },
           },
@@ -304,11 +311,12 @@ export async function GET() {
       });
     }
 
-    // 10. 상품 조회 통계 (크루즈별, 국가별)
+    // 10. 상품 조회 통계 (크루즈별, 국가별) - 최적화: 필요한 필드만 선택
     let productViews: any[] = [];
     try {
       productViews = await prisma.productView.findMany({
-        include: {
+        select: {
+          id: true,
           CruiseProduct: {
             select: {
               cruiseLine: true,
@@ -440,11 +448,16 @@ export async function GET() {
       totalCommissionPending = commissionStats.find(s => s.isSettled === false)?._sum.amount || 0;
       totalCommissionSettled = commissionStats.find(s => s.isSettled === true)?._sum.amount || 0;
 
-      // 최근 판매 5건
+      // 최근 판매 5건 - 최적화: 필요한 필드만 선택
       recentAffiliateSales = await prisma.affiliateSale.findMany({
         take: 5,
         orderBy: { saleDate: 'desc' },
-        include: {
+        select: {
+          id: true,
+          productCode: true,
+          saleAmount: true,
+          saleDate: true,
+          status: true,
           AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
             select: { displayName: true, nickname: true },
           },

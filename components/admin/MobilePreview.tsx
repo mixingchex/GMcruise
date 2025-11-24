@@ -34,11 +34,23 @@ interface MobilePreviewProps {
 
 export default function MobilePreview({ product }: MobilePreviewProps) {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [forceRefresh, setForceRefresh] = useState(0);
 
-  // product가 변경될 때마다 새로고침
+  // product가 변경될 때마다 새로고침 (모든 변경사항 감지)
   useEffect(() => {
     setRefreshKey(prev => prev + 1);
-  }, [product.productCode]);
+    setForceRefresh(prev => prev + 1);
+  }, [
+    product.productCode,
+    product.packageName,
+    product.cruiseLine,
+    product.shipName,
+    product.nights,
+    product.days,
+    product.basePrice,
+    product.mallProductContent,
+    JSON.stringify(product.mallProductContent?.layout),
+  ]);
 
   const productUrl = product.productCode 
     ? `/products/${product.productCode}`
@@ -55,7 +67,7 @@ export default function MobilePreview({ product }: MobilePreviewProps) {
         {/* 화면 */}
         <div className="bg-white rounded-[1.5rem] overflow-hidden relative" style={{ height: '812px', maxHeight: '90vh' }}>
           <div 
-            key={refreshKey}
+            key={`${refreshKey}-${forceRefresh}`}
             className="w-full h-full overflow-y-auto"
             style={{
               width: '100%',
@@ -65,7 +77,7 @@ export default function MobilePreview({ product }: MobilePreviewProps) {
             }}
           >
             <div className="min-h-screen bg-gray-50" style={{ maxWidth: '375px' }}>
-              <div className="mobile-preview-wrapper">
+              <div className="mobile-preview-wrapper" key={`preview-${refreshKey}-${forceRefresh}`}>
                 <ProductDetail product={product} />
               </div>
             </div>
@@ -84,11 +96,13 @@ export default function MobilePreview({ product }: MobilePreviewProps) {
         <p className="text-xs text-gray-500">아이폰/삼성폰 기준</p>
         <button
           onClick={() => {
-            setRefreshKey(prev => prev + 1);
+            // 강제 새로고침을 위해 타임스탬프 추가
+            setRefreshKey(Date.now());
+            setForceRefresh(Date.now());
           }}
           className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
         >
-          새로고침
+          새로고침 (캐시 무시)
         </button>
         {product.productCode && (
           <div className="mt-2">

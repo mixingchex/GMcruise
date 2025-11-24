@@ -84,8 +84,8 @@ export async function POST(req: Request) {
     // 7) 예약번호 자동 생성
     const reservationCode = generateReservationCode(productCode, session.userId);
 
-    // 8) Trip 생성
-    const trip = await prisma.trip.create({
+    // 8) UserTrip 생성
+    const trip = await prisma.userTrip.create({
       data: {
         userId: session.userId,
         productId: product.id,
@@ -99,6 +99,7 @@ export async function POST(req: Request) {
         days: product.days,
         visitCount: destinations.length,
         status: 'Upcoming',
+        updatedAt: new Date(),
       },
     });
 
@@ -109,7 +110,7 @@ export async function POST(req: Request) {
       dayDate.setDate(dayDate.getDate() + pattern.day - 1);
 
       itineraries.push({
-        tripId: trip.id,
+        userTripId: trip.id,
         day: pattern.day,
         date: dayDate,
         type: pattern.type,

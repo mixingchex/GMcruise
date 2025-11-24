@@ -69,6 +69,17 @@ export default function MarketingCustomersPage() {
   // 그룹문자 보내기 상태
   const [messageTitle, setMessageTitle] = useState('');
   const [messageContent, setMessageContent] = useState('');
+  const [sendMethod, setSendMethod] = useState<'cruise-guide' | 'email' | 'sms' | 'team-dashboard'>('sms');
+  const [targetCustomerGroups, setTargetCustomerGroups] = useState<string[]>(['prospects']); // 기본값: 잠재고객
+  const [showRecipientSelectModal, setShowRecipientSelectModal] = useState(false);
+  const [showEmailRecipientModal, setShowEmailRecipientModal] = useState(false);
+  const [recipientCustomers, setRecipientCustomers] = useState<Array<{id: number; name: string | null; phone: string | null; email: string | null}>>([]);
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<Set<number>>(new Set());
+  const [emailRecipients, setEmailRecipients] = useState<Array<{id: number; name: string | null; phone: string | null; email: string}>>([]);
+  const [selectedEmailRecipientIds, setSelectedEmailRecipientIds] = useState<Set<number>>(new Set());
+  const [recipientSearch, setRecipientSearch] = useState('');
+  const [emailRecipientSearch, setEmailRecipientSearch] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
   
   // 엑셀 입력 상태
   const [excelGroupId, setExcelGroupId] = useState<number | null>(null);
@@ -223,15 +234,87 @@ export default function MarketingCustomersPage() {
       e.stopPropagation();
     }
     
-    console.log('[GroupMessage] Button clicked, selectedIds:', selectedIds.size, Array.from(selectedIds));
-    
-    if (selectedIds.size === 0) {
-      showWarning('메시지를 보낼 고객을 선택해주세요.');
+    // 모달 열기 (고객 선택은 모달 내에서 진행)
+    setShowGroupMessageModal(true);
+  };
+
+  // 수신자 선택 모달 열기
+  const handleOpenRecipientSelect = async () => {
+    if (targetCustomerGroups.length === 0) {
+      showWarning('대상 고객 그룹을 선택해주세요.');
       return;
     }
-    
-    console.log('[GroupMessage] Opening modal');
-    setShowGroupMessageModal(true);
+
+    try {
+      // 선택된 그룹의 고객들 조회
+      const allCustomers: Array<{id: number; name: string | null; phone: string | null; email: string | null}> = [];
+      
+      for (const group of targetCustomerGroups) {
+        const response = await fetch(`/api/admin/marketing/customers/by-group?customerGroup=${group}`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (data.ok && data.customers) {
+          allCustomers.push(...data.customers);
+        }
+      }
+
+      // 중복 제거 (id 기준)
+      const uniqueCustomers = Array.from(
+        new Map(allCustomers.map(c => [c.id, c])).values()
+      );
+
+      setRecipientCustomers(uniqueCustomers);
+      setSelectedRecipientIds(new Set());
+      setShowRecipientSelectModal(true);
+    } catch (error) {
+      console.error('Failed to load recipients:', error);
+      showError('수신자 목록을 불러오는 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 이메일 수신자 선택 모달 열기
+  const handleOpenEmailRecipientSelect = async () => {
+    if (targetCustomerGroups.length === 0) {
+      showWarning('대상 고객 그룹을 선택해주세요.');
+      return;
+    }
+
+    try {
+      // 선택된 그룹의 이메일이 있는 고객들만 조회
+      const allCustomers: Array<{id: number; name: string | null; phone: string | null; email: string}> = [];
+      
+      for (const group of targetCustomerGroups) {
+        const response = await fetch(`/api/admin/marketing/customers/by-group?customerGroup=${group}&hasEmail=true`, {
+          credentials: 'include',
+        });
+        const data = await response.json();
+        if (data.ok && data.customers) {
+          // 이메일이 있는 고객만 필터링
+          const customersWithEmail = data.customers
+            .filter((c: any) => c.email)
+            .map((c: any) => ({
+              id: c.id,
+              name: c.name,
+              phone: c.phone,
+              email: c.email,
+            }));
+          allCustomers.push(...customersWithEmail);
+        }
+      }
+
+      // 중복 제거 (id 기준)
+      const uniqueCustomers = Array.from(
+        new Map(allCustomers.map(c => [c.id, c])).values()
+      );
+
+      setEmailRecipients(uniqueCustomers);
+      setSelectedEmailRecipientIds(new Set());
+      setShowEmailRecipientModal(true);
+    } catch (error) {
+      console.error('Failed to load email recipients:', error);
+      showError('이메일 수신자 목록을 불러오는 중 오류가 발생했습니다.');
+    }
   };
 
   const handleSendGroupMessage = async () => {
@@ -240,55 +323,144 @@ export default function MarketingCustomersPage() {
       return;
     }
 
-    if (selectedIds.size === 0) {
-      showWarning('메시지를 보낼 고객을 선택해주세요.');
-      return;
-    }
-
     try {
-      // 선택된 고객의 전화번호 가져오기 (이미 로드된 customers 배열에서)
-      const customerIds = Array.from(selectedIds);
-      const selectedCustomers = customers.filter((c) => customerIds.includes(c.id));
+      if (sendMethod === 'sms') {
+        // SMS 발송
+        if (selectedRecipientIds.size === 0) {
+          showWarning('수신자를 선택해주세요.');
+          return;
+        }
 
-      if (selectedCustomers.length === 0) {
-        throw new Error('선택된 고객을 찾을 수 없습니다.');
-      }
+        const selectedCustomers = recipientCustomers.filter(c => selectedRecipientIds.has(c.id));
+        const phones = selectedCustomers
+          .map((c) => c.phone)
+          .filter((phone): phone is string => Boolean(phone && phone.trim()));
 
-      const phones = selectedCustomers
-        .map((c) => c.phone)
-        .filter((phone): phone is string => Boolean(phone && phone.trim()));
+        if (phones.length === 0) {
+          throw new Error('전화번호가 있는 고객이 없습니다.');
+        }
 
-      if (phones.length === 0) {
-        throw new Error('전화번호가 있는 고객이 없습니다.');
-      }
+        const smsResponse = await fetch('/api/admin/marketing/customers/send-sms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            phones,
+            title: messageTitle,
+            content: messageContent,
+          }),
+        });
 
-      // SMS 발송 API 호출
-      const smsResponse = await fetch('/api/admin/marketing/customers/send-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          phones,
-          title: messageTitle,
-          content: messageContent,
-        }),
-      });
+        if (!smsResponse.ok) {
+          const errorData = await smsResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || '메시지 전송에 실패했습니다.');
+        }
+        
+        const result = await smsResponse.json();
+        
+        if (result.ok) {
+          showSuccess(`${result.sentCount || phones.length}명에게 SMS가 전송되었습니다.`);
+          setShowGroupMessageModal(false);
+          setMessageTitle('');
+          setMessageContent('');
+          setSelectedRecipientIds(new Set());
+        } else {
+          throw new Error(result.error || '메시지 전송에 실패했습니다.');
+        }
+      } else if (sendMethod === 'email') {
+        // 이메일 발송
+        if (selectedEmailRecipientIds.size === 0) {
+          showWarning('이메일 수신자를 선택해주세요.');
+          return;
+        }
 
-      if (!smsResponse.ok) {
-        const errorData = await smsResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || '메시지 전송에 실패했습니다.');
-      }
-      
-      const result = await smsResponse.json();
-      
-      if (result.ok) {
-        showSuccess(`${result.sentCount || phones.length}명에게 메시지가 전송되었습니다.`);
-        setShowGroupMessageModal(false);
-        setMessageTitle('');
-        setMessageContent('');
-        setSelectedIds(new Set());
-      } else {
-        throw new Error(result.error || '메시지 전송에 실패했습니다.');
+        if (!senderEmail || !senderEmail.includes('@')) {
+          showWarning('발신 이메일 주소를 입력해주세요.');
+          return;
+        }
+
+        const selectedCustomers = emailRecipients.filter(c => selectedEmailRecipientIds.has(c.id));
+        const emails = selectedCustomers
+          .map((c) => c.email)
+          .filter((email): email is string => Boolean(email && email.trim()));
+
+        if (emails.length === 0) {
+          throw new Error('이메일 주소가 있는 고객이 없습니다.');
+        }
+
+        const emailResponse = await fetch('/api/admin/marketing/customers/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            emails,
+            title: messageTitle,
+            content: messageContent,
+            senderEmail,
+          }),
+        });
+
+        if (!emailResponse.ok) {
+          const errorData = await emailResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || '이메일 전송에 실패했습니다.');
+        }
+        
+        const result = await emailResponse.json();
+        
+        if (result.ok) {
+          showSuccess(`${result.sentCount || emails.length}명에게 이메일이 전송되었습니다.`);
+          setShowGroupMessageModal(false);
+          setMessageTitle('');
+          setMessageContent('');
+          setSelectedEmailRecipientIds(new Set());
+          setSenderEmail('');
+        } else {
+          throw new Error(result.error || '이메일 전송에 실패했습니다.');
+        }
+      } else if (sendMethod === 'cruise-guide') {
+        // 크루즈가이드 메시지 발송 (추후 구현)
+        showWarning('크루즈가이드 메시지 발송 기능은 준비 중입니다.');
+      } else if (sendMethod === 'team-dashboard') {
+        // 팀 대시보드 메시지 발송
+        if (selectedRecipientIds.size === 0) {
+          showWarning('수신자를 선택해주세요.');
+          return;
+        }
+
+        const selectedCustomers = recipientCustomers.filter(c => selectedRecipientIds.has(c.id));
+        const userIds = selectedCustomers.map(c => c.id).filter(id => id > 0);
+
+        if (userIds.length === 0) {
+          throw new Error('유효한 수신자가 없습니다.');
+        }
+
+        const teamMessageResponse = await fetch('/api/admin/marketing/customers/send-team-dashboard', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            userIds,
+            title: messageTitle,
+            content: messageContent,
+          }),
+        });
+
+        if (!teamMessageResponse.ok) {
+          const errorData = await teamMessageResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || '팀 대시보드 메시지 전송에 실패했습니다.');
+        }
+        
+        const result = await teamMessageResponse.json();
+        
+        if (result.ok) {
+          showSuccess(`${result.sentCount || userIds.length}명에게 팀 대시보드 메시지가 전송되었습니다.`);
+          setShowGroupMessageModal(false);
+          setMessageTitle('');
+          setMessageContent('');
+          setSelectedRecipientIds(new Set());
+        } else {
+          throw new Error(result.error || '팀 대시보드 메시지 전송에 실패했습니다.');
+        }
       }
     } catch (err) {
       console.error('Group message error:', err);
@@ -519,17 +691,12 @@ export default function MarketingCustomersPage() {
             <button
               type="button"
               onClick={(e) => {
-                console.log('[GroupMessage] Button onClick fired');
                 handleGroupMessage(e);
               }}
-              className={`px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-colors shadow-sm active:scale-95 ${
-                selectedIds.size === 0
-                  ? 'bg-gray-400 text-white cursor-not-allowed opacity-60'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
+              className="px-5 py-2.5 rounded-lg flex items-center gap-2 font-medium transition-colors shadow-sm active:scale-95 bg-blue-600 text-white hover:bg-blue-700"
             >
               <FiMessageSquare className="text-lg" />
-              그룹문자보내기 {selectedIds.size > 0 && `(${selectedIds.size}명)`}
+              고객 메시지 관리
             </button>
             <button
               type="button"
@@ -937,16 +1104,19 @@ export default function MarketingCustomersPage() {
           }}
         >
           <div 
-            className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl"
+            className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">그룹문자 보내기</h2>
+              <h2 className="text-xl font-bold">고객 메시지 관리</h2>
               <button 
                 type="button"
                 onClick={() => {
-                  console.log('[GroupMessage] Modal close button clicked');
                   setShowGroupMessageModal(false);
+                  setMessageTitle('');
+                  setMessageContent('');
+                  setSelectedRecipientIds(new Set());
+                  setSelectedEmailRecipientIds(new Set());
                 }} 
                 className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded"
               >
@@ -954,6 +1124,126 @@ export default function MarketingCustomersPage() {
               </button>
             </div>
             <div className="space-y-4">
+              {/* 발송 방식 선택 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">발송 방식</label>
+                <div className="flex gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sendMethod"
+                      value="cruise-guide"
+                      checked={sendMethod === 'cruise-guide'}
+                      onChange={(e) => setSendMethod(e.target.value as 'cruise-guide')}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm">크루즈가이드</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sendMethod"
+                      value="email"
+                      checked={sendMethod === 'email'}
+                      onChange={(e) => setSendMethod(e.target.value as 'email')}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm">이메일</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sendMethod"
+                      value="sms"
+                      checked={sendMethod === 'sms'}
+                      onChange={(e) => setSendMethod(e.target.value as 'sms')}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm">SMS</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="sendMethod"
+                      value="team-dashboard"
+                      checked={sendMethod === 'team-dashboard'}
+                      onChange={(e) => setSendMethod(e.target.value as 'team-dashboard')}
+                      className="w-4 h-4 text-blue-600"
+                    />
+                    <span className="text-sm">팀 대시보드</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* 대상 고객 그룹 선택 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">대상 고객 그룹</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'prospects', label: '잠재고객' },
+                    { value: 'trial', label: '크루즈가이드3일체험' },
+                    { value: 'genie', label: '크루즈가이드지니' },
+                    { value: 'mall', label: '크루즈몰' },
+                    { value: 'agent', label: '판매원' },
+                    { value: 'manager', label: '대리점장' },
+                  ].map((group) => (
+                    <label key={group.value} className="flex items-center gap-2 cursor-pointer p-2 border rounded hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={targetCustomerGroups.includes(group.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setTargetCustomerGroups([...targetCustomerGroups, group.value]);
+                          } else {
+                            setTargetCustomerGroups(targetCustomerGroups.filter(g => g !== group.value));
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600"
+                      />
+                      <span className="text-sm">{group.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 수신자 선택 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">수신자 선택</label>
+                <div className="flex gap-2 items-center">
+                  <button
+                    type="button"
+                    onClick={sendMethod === 'email' ? handleOpenEmailRecipientSelect : handleOpenRecipientSelect}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm border border-gray-300"
+                  >
+                    찾아보기
+                  </button>
+                  {sendMethod === 'email' ? (
+                    <span className="text-sm text-gray-600 flex items-center">
+                      {selectedEmailRecipientIds.size}명 선택됨
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-600 flex items-center">
+                      {selectedRecipientIds.size}명 선택됨
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* 발신 이메일 (이메일 발송 시) */}
+              {sendMethod === 'email' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">발신 이메일 주소</label>
+                  <input
+                    type="email"
+                    value={senderEmail}
+                    onChange={(e) => setSenderEmail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded"
+                    placeholder="발신 이메일 주소를 입력하세요"
+                  />
+                </div>
+              )}
+
+              {/* 제목 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">제목</label>
                 <input
@@ -964,6 +1254,8 @@ export default function MarketingCustomersPage() {
                   placeholder="메시지 제목"
                 />
               </div>
+
+              {/* 내용 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">내용</label>
                 <textarea
@@ -974,13 +1266,16 @@ export default function MarketingCustomersPage() {
                   placeholder="메시지 내용"
                 />
               </div>
-              <div className="text-sm text-gray-600">
-                {selectedIds.size}명에게 발송됩니다.
-              </div>
             </div>
             <div className="flex gap-2 mt-6">
               <button
-                onClick={() => setShowGroupMessageModal(false)}
+                onClick={() => {
+                  setShowGroupMessageModal(false);
+                  setMessageTitle('');
+                  setMessageContent('');
+                  setSelectedRecipientIds(new Set());
+                  setSelectedEmailRecipientIds(new Set());
+                }}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
                 취소
@@ -1312,6 +1607,248 @@ export default function MarketingCustomersPage() {
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수신자 선택 모달 */}
+      {showRecipientSelectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]" onClick={() => setShowRecipientSelectModal(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">수신자 선택</h2>
+              <button 
+                type="button"
+                onClick={() => setShowRecipientSelectModal(false)} 
+                className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+            
+            {/* 검색 */}
+            <div className="mb-4">
+              <input
+                type="text"
+                value={recipientSearch}
+                onChange={(e) => setRecipientSearch(e.target.value)}
+                placeholder="이름, 연락처로 검색..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+
+            {/* 전체 선택/해제 */}
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedRecipientIds.size === recipientCustomers.length) {
+                    setSelectedRecipientIds(new Set());
+                  } else {
+                    setSelectedRecipientIds(new Set(recipientCustomers.map(c => c.id)));
+                  }
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+              >
+                {selectedRecipientIds.size === recipientCustomers.length ? '전체 해제' : '전체 선택'}
+              </button>
+              <span className="text-sm text-gray-600">
+                {selectedRecipientIds.size} / {recipientCustomers.length}명 선택됨
+              </span>
+            </div>
+
+            {/* 수신자 목록 */}
+            <div className="flex-1 overflow-y-auto mb-4 border rounded-lg">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedRecipientIds.size === recipientCustomers.length && recipientCustomers.length > 0}
+                        onChange={() => {
+                          if (selectedRecipientIds.size === recipientCustomers.length) {
+                            setSelectedRecipientIds(new Set());
+                          } else {
+                            setSelectedRecipientIds(new Set(recipientCustomers.map(c => c.id)));
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">연락처</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이메일</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {recipientCustomers
+                    .filter(c => {
+                      if (!recipientSearch) return true;
+                      const search = recipientSearch.toLowerCase();
+                      return (
+                        (c.name && c.name.toLowerCase().includes(search)) ||
+                        (c.phone && c.phone.includes(search)) ||
+                        (c.email && c.email.toLowerCase().includes(search))
+                      );
+                    })
+                    .map((customer) => (
+                      <tr key={customer.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedRecipientIds.has(customer.id)}
+                            onChange={(e) => {
+                              const newSelected = new Set(selectedRecipientIds);
+                              if (e.target.checked) {
+                                newSelected.add(customer.id);
+                              } else {
+                                newSelected.delete(customer.id);
+                              }
+                              setSelectedRecipientIds(newSelected);
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-sm">{customer.name || '-'}</td>
+                        <td className="px-4 py-3 text-sm font-mono">{customer.phone || '-'}</td>
+                        <td className="px-4 py-3 text-sm">{customer.email || '-'}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-2 pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setShowRecipientSelectModal(false)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                확인 ({selectedRecipientIds.size}명)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 이메일 수신자 선택 모달 */}
+      {showEmailRecipientModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10000]" onClick={() => setShowEmailRecipientModal(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">이메일 수신자 선택</h2>
+              <button 
+                type="button"
+                onClick={() => setShowEmailRecipientModal(false)} 
+                className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+            
+            {/* 검색 */}
+            <div className="mb-4">
+              <input
+                type="text"
+                value={emailRecipientSearch}
+                onChange={(e) => setEmailRecipientSearch(e.target.value)}
+                placeholder="이름, 연락처, 이메일로 검색..."
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              />
+            </div>
+
+            {/* 전체 선택/해제 */}
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedEmailRecipientIds.size === emailRecipients.length) {
+                    setSelectedEmailRecipientIds(new Set());
+                  } else {
+                    setSelectedEmailRecipientIds(new Set(emailRecipients.map(c => c.id)));
+                  }
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm"
+              >
+                {selectedEmailRecipientIds.size === emailRecipients.length ? '전체 해제' : '전체 선택'}
+              </button>
+              <span className="text-sm text-gray-600">
+                {selectedEmailRecipientIds.size} / {emailRecipients.length}명 선택됨
+              </span>
+            </div>
+
+            {/* 이메일 수신자 목록 */}
+            <div className="flex-1 overflow-y-auto mb-4 border rounded-lg">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50 sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
+                      <input
+                        type="checkbox"
+                        checked={selectedEmailRecipientIds.size === emailRecipients.length && emailRecipients.length > 0}
+                        onChange={() => {
+                          if (selectedEmailRecipientIds.size === emailRecipients.length) {
+                            setSelectedEmailRecipientIds(new Set());
+                          } else {
+                            setSelectedEmailRecipientIds(new Set(emailRecipients.map(c => c.id)));
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                      />
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">연락처</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이메일</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {emailRecipients
+                    .filter(c => {
+                      if (!emailRecipientSearch) return true;
+                      const search = emailRecipientSearch.toLowerCase();
+                      return (
+                        (c.name && c.name.toLowerCase().includes(search)) ||
+                        (c.phone && c.phone && c.phone.includes(search)) ||
+                        (c.email && c.email.toLowerCase().includes(search))
+                      );
+                    })
+                    .map((customer) => (
+                      <tr key={customer.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedEmailRecipientIds.has(customer.id)}
+                            onChange={(e) => {
+                              const newSelected = new Set(selectedEmailRecipientIds);
+                              if (e.target.checked) {
+                                newSelected.add(customer.id);
+                              } else {
+                                newSelected.delete(customer.id);
+                              }
+                              setSelectedEmailRecipientIds(newSelected);
+                            }}
+                            className="w-4 h-4 rounded border-gray-300 text-blue-600"
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-sm">{customer.name || '-'}</td>
+                        <td className="px-4 py-3 text-sm font-mono">{customer.phone || '-'}</td>
+                        <td className="px-4 py-3 text-sm">{customer.email}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex gap-2 pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setShowEmailRecipientModal(false)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                확인 ({selectedEmailRecipientIds.size}명)
               </button>
             </div>
           </div>

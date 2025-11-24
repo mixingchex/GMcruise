@@ -14,6 +14,7 @@ export async function register() {
     const { startScheduledMessageSender } = await import('./lib/scheduler/scheduledMessageSender');
     const { startDatabaseBackupScheduler } = await import('./lib/scheduler/databaseBackup');
     const { startPayslipSenderScheduler } = await import('./lib/scheduler/payslipSender');
+    const { startSpreadsheetBackupScheduler } = await import('./lib/scheduler/spreadsheetBackup');
 
     // 스케줄러 시작
     try {
@@ -42,6 +43,9 @@ export async function register() {
       
       // 8. Payslip Sender Scheduler 시작 (매월 1일 오전 9시)
       startPayslipSenderScheduler();
+      
+      // 9. Spreadsheet Backup Scheduler 시작 (매일 오전 12시)
+      startSpreadsheetBackupScheduler();
       
       console.log('✅ [Instrumentation] All schedulers started successfully');
       

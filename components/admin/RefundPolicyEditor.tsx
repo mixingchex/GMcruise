@@ -121,6 +121,32 @@ export default function RefundPolicyEditor({
     }
   };
 
+  const deleteGroup = async (groupId: number) => {
+    if (!confirm('이 그룹을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/refund-policy-groups/${groupId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          alert('그룹이 삭제되었습니다.');
+          loadGroups();
+        } else {
+          alert(`삭제 실패: ${data.error}`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      alert('그룹 삭제에 실패했습니다.');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* 헤더 */}
@@ -184,12 +210,20 @@ export default function RefundPolicyEditor({
                             저장일: {new Date(group.createdAt).toLocaleDateString('ko-KR')}
                           </p>
                         </div>
-                        <button
-                          onClick={() => loadGroup(group.id)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm ml-4"
-                        >
-                          불러오기
-                        </button>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => loadGroup(group.id)}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                          >
+                            불러오기
+                          </button>
+                          <button
+                            onClick={() => deleteGroup(group.id)}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                          >
+                            삭제
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

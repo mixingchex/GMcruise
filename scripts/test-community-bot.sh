@@ -45,3 +45,12 @@ node scripts/check-community-data-safe.js
 echo ""
 echo "✅ 모든 테스트 완료!"
 
+
+
+
+
+
+
+
+
+

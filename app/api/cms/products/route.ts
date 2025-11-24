@@ -50,6 +50,8 @@ export async function GET() {
 }
 
 // POST: 상품 생성
+// 주의: 이 API는 상품만 생성하며, 랜딩페이지는 자동으로 생성하지 않습니다.
+// 랜딩페이지가 필요한 경우 별도로 생성하고 어필리에이트 링크로 연결하세요.
 export async function POST(req: Request) {
   try {
     // 관리자 권한 확인

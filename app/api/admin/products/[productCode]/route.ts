@@ -211,6 +211,7 @@ export async function PUT(
       hasLocalGuide,
       hasCruisedotStaff,
       hasTravelInsurance,
+      contactOptions,
     } = body;
 
     // 상품 코드 변경 처리
@@ -517,6 +518,11 @@ export async function PUT(
       layoutData.hasTravelInsurance = hasTravelInsurance || false;
     }
 
+    // 문의 옵션 업데이트
+    if (contactOptions !== undefined) {
+      layoutData.contactOptions = contactOptions;
+    }
+
     // 구글 드라이브에 이미지 백업 (로컬 이미지만)
     let finalThumbnail = thumbnail;
     let finalDetailBlocks = layoutData.blocks || [];
@@ -559,7 +565,8 @@ export async function PUT(
         productCode: targetProductCode,
         thumbnail: finalThumbnail || null,
         layout: layoutData,
-        isActive: true
+        isActive: true,
+        updatedAt: new Date()
       }
     });
 

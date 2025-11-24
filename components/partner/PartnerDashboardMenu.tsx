@@ -94,6 +94,13 @@ export default function PartnerDashboardMenu({
           <span className="text-xs font-semibold text-purple-700 md:text-sm">예약 메시지<br />관리</span>
         </Link>
         <Link 
+          href={`${partnerBase}/passport-requests`} 
+          className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
+        >
+          <span className="text-2xl md:text-3xl">🛂</span>
+          <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
+        </Link>
+        <Link 
           href={`${partnerBase}/customers?action=sms`} 
           className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-emerald-200 hover:shadow-md md:p-6"
         >

@@ -264,13 +264,26 @@ export async function PUT(
       return NextResponse.json({ ok: false, message: 'User not found' }, { status: 404 });
     }
 
-    // 기존 Lead 조회
+    // 기존 Lead 조회 (이력 기록을 위해 상세 정보 포함)
     const existingLead = await prisma.affiliateLead.findUnique({
       where: { id: leadId },
-      select: {
-        id: true,
-        managerId: true,
-        agentId: true,
+      include: {
+        AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            nickname: true,
+            affiliateCode: true,
+          },
+        },
+        AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            nickname: true,
+            affiliateCode: true,
+          },
+        },
       },
     });
 
@@ -319,6 +332,8 @@ export async function PUT(
       lastContactedAt,
       nextActionAt,
       metadata,
+      managerId, // 담당 대리점장 변경 (관리자만)
+      agentId,   // 담당 판매원 변경 (관리자만)
     } = body;
 
     // 업데이트 데이터 준비
@@ -335,6 +350,68 @@ export async function PUT(
     }
     if (metadata !== undefined) {
       updateData.metadata = metadata;
+    }
+
+    // 관리자만 담당자 변경 가능
+    if (user.role === 'admin') {
+      if (managerId !== undefined) {
+        if (managerId === null || managerId === '') {
+          updateData.managerId = null;
+        } else {
+          const managerIdNum = parseInt(String(managerId));
+          if (!isNaN(managerIdNum)) {
+            // 대리점장 프로필 확인
+            const managerProfile = await prisma.affiliateProfile.findFirst({
+              where: {
+                id: managerIdNum,
+                type: 'BRANCH_MANAGER',
+                status: 'ACTIVE',
+              },
+            });
+            if (managerProfile) {
+              updateData.managerId = managerIdNum;
+            } else {
+              return NextResponse.json({ ok: false, message: 'Invalid manager ID' }, { status: 400 });
+            }
+          }
+        }
+      }
+
+      if (agentId !== undefined) {
+        if (agentId === null || agentId === '') {
+          updateData.agentId = null;
+        } else {
+          const agentIdNum = parseInt(String(agentId));
+          if (!isNaN(agentIdNum)) {
+            // 판매원 프로필 확인
+            const agentProfile = await prisma.affiliateProfile.findFirst({
+              where: {
+                id: agentIdNum,
+                type: 'SALES_AGENT',
+                status: 'ACTIVE',
+              },
+            });
+            if (agentProfile) {
+              updateData.agentId = agentIdNum;
+              // 판매원이 변경되면 해당 판매원의 대리점장도 자동 설정
+              if (!updateData.managerId) {
+                const relation = await prisma.affiliateRelation.findFirst({
+                  where: {
+                    agentId: agentIdNum,
+                    status: 'ACTIVE',
+                  },
+                  select: { managerId: true },
+                });
+                if (relation) {
+                  updateData.managerId = relation.managerId;
+                }
+              }
+            } else {
+              return NextResponse.json({ ok: false, message: 'Invalid agent ID' }, { status: 400 });
+            }
+          }
+        }
+      }
     }
 
     // Lead 수정
@@ -382,17 +459,104 @@ export async function PUT(
 
     // 상호작용 기록 생성 (변경 사항이 있는 경우)
     if (Object.keys(updateData).length > 0) {
+      // 소속 변경 이력 상세 기록
+      const changeDetails: string[] = [];
+      const changeMetadata: any = {
+        changes: updateData,
+        updatedAt: new Date().toISOString(),
+        changedBy: user.name || `Admin (${user.id})`,
+      };
+
+      // 대리점장 변경 이력
+      if (updateData.managerId !== undefined) {
+        const oldManager = existingLead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile;
+        const newManagerId = updateData.managerId;
+        
+        let newManager = null;
+        if (newManagerId) {
+          newManager = await prisma.affiliateProfile.findUnique({
+            where: { id: newManagerId },
+            select: { displayName: true, nickname: true, affiliateCode: true },
+          });
+        }
+
+        const oldManagerName = oldManager 
+          ? (oldManager.nickname || oldManager.displayName || '이름 없음') + (oldManager.affiliateCode ? ` (${oldManager.affiliateCode})` : '')
+          : '본사 직속';
+        const newManagerName = newManager 
+          ? (newManager.nickname || newManager.displayName || '이름 없음') + (newManager.affiliateCode ? ` (${newManager.affiliateCode})` : '')
+          : '본사 직속';
+
+        if (existingLead.managerId !== newManagerId) {
+          changeDetails.push(`담당 대리점장: ${oldManagerName} → ${newManagerName}`);
+          changeMetadata.managerChange = {
+            from: {
+              id: existingLead.managerId,
+              name: oldManagerName,
+            },
+            to: {
+              id: newManagerId,
+              name: newManagerName,
+            },
+          };
+        }
+      }
+
+      // 판매원 변경 이력
+      if (updateData.agentId !== undefined) {
+        const oldAgent = existingLead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile;
+        const newAgentId = updateData.agentId;
+        
+        let newAgent = null;
+        if (newAgentId) {
+          newAgent = await prisma.affiliateProfile.findUnique({
+            where: { id: newAgentId },
+            select: { displayName: true, nickname: true, affiliateCode: true },
+          });
+        }
+
+        const oldAgentName = oldAgent 
+          ? (oldAgent.nickname || oldAgent.displayName || '이름 없음') + (oldAgent.affiliateCode ? ` (${oldAgent.affiliateCode})` : '')
+          : '없음';
+        const newAgentName = newAgent 
+          ? (newAgent.nickname || newAgent.displayName || '이름 없음') + (newAgent.affiliateCode ? ` (${newAgent.affiliateCode})` : '')
+          : '없음';
+
+        if (existingLead.agentId !== newAgentId) {
+          changeDetails.push(`담당 판매원: ${oldAgentName} → ${newAgentName}`);
+          changeMetadata.agentChange = {
+            from: {
+              id: existingLead.agentId,
+              name: oldAgentName,
+            },
+            to: {
+              id: newAgentId,
+              name: newAgentName,
+            },
+          };
+        }
+      }
+
+      // 기타 변경 사항
+      const otherChanges = Object.keys(updateData).filter(
+        key => key !== 'managerId' && key !== 'agentId'
+      );
+      if (otherChanges.length > 0) {
+        changeDetails.push(`기타 변경: ${otherChanges.join(', ')}`);
+      }
+
+      const note = changeDetails.length > 0
+        ? changeDetails.join(' | ')
+        : `고객 정보가 수정되었습니다: ${Object.keys(updateData).join(', ')}`;
+
       await prisma.affiliateInteraction.create({
         data: {
           leadId: leadId,
           profileId: user.AffiliateProfile?.id || null,
           createdById: user.id,
           interactionType: 'UPDATED',
-          note: `고객 정보가 수정되었습니다: ${Object.keys(updateData).join(', ')}`,
-          metadata: {
-            changes: updateData,
-            updatedAt: new Date().toISOString(),
-          },
+          note: note,
+          metadata: changeMetadata,
         },
       });
     }

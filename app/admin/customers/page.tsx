@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FiSearch, FiFilter, FiArrowUp, FiArrowDown, FiChevronLeft, FiChevronRight, FiUser, FiPlus, FiX, FiInfo } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiArrowUp, FiArrowDown, FiChevronLeft, FiChevronRight, FiUser, FiPlus, FiX, FiInfo, FiDownload } from 'react-icons/fi';
 import CustomerTable from '@/components/admin/CustomerTable';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
@@ -94,9 +94,10 @@ export default function CustomersPage() {
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     page: 1,
-    limit: 20,
+    limit: 50, // 기본값을 50으로 증가 (성능 최적화)
     totalPages: 1,
   });
+  const [pageSize, setPageSize] = useState<number>(50); // 페이지 크기 선택
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -141,7 +142,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     loadCustomers();
-  }, [search, status, certificateType, monthFilter, sortBy, sortOrder, pagination.page, selectedManagerId, customerGroup]);
+  }, [search, status, certificateType, monthFilter, sortBy, sortOrder, pagination.page, selectedManagerId, customerGroup, pageSize]);
 
   const loadCustomers = async () => {
     try {
@@ -154,11 +155,11 @@ export default function CustomersPage() {
         sortBy,
         sortOrder,
         page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
+        limit: pageSize.toString(), // 동적 페이지 크기 사용
         ...(selectedManagerId && { managerProfileId: selectedManagerId }),
         ...(certificateType !== 'all' && { certificateType }),
         ...(monthFilter && { monthFilter }),
-        ...(customerGroup && customerGroup !== 'all' && { customerGroup }), // 'all'일 때는 파라미터 전달 안 함
+        ...(customerGroup && { customerGroup }), // customerGroup 파라미터 전달 (all 포함)
       });
 
       const response = await fetch(`/api/admin/customers?${params.toString()}`, {
@@ -188,7 +189,10 @@ export default function CustomersPage() {
 
       console.log('[Customers Page] Setting customers:', data.customers?.length || 0);
       setCustomers(data.customers || []);
-      setPagination(data.pagination || pagination);
+      setPagination({
+        ...(data.pagination || pagination),
+        limit: pageSize, // 페이지 크기 동기화
+      });
       if (data.managers) {
         setManagers(data.managers);
       }
@@ -271,17 +275,50 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">전체 고객 관리</h1>
           <p className="text-gray-600">모든 고객을 조회하고 관리하세요</p>
         </div>
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
-        >
-          <FiPlus className="w-5 h-5" />
-          고객 추가
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={async () => {
+              try {
+                const url = `/api/admin/customers/export?customerGroup=${customerGroup}`;
+                const response = await fetch(url, {
+                  credentials: 'include',
+                });
+                
+                if (!response.ok) {
+                  throw new Error('다운로드 실패');
+                }
+                
+                const blob = await response.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `고객목록_${customerGroup}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(downloadUrl);
+              } catch (error) {
+                console.error('엑셀 다운로드 실패:', error);
+                alert('엑셀 다운로드 중 오류가 발생했습니다.');
+              }
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <FiDownload className="w-5 h-5" />
+            엑셀 다운로드
+          </button>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          >
+            <FiPlus className="w-5 h-5" />
+            고객 추가
+          </button>
+        </div>
       </div>
 
-      {/* 전체 고객 관리 - 카테고리 섹션 */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      {/* 전체 고객 관리 - 카테고리 섹션 - 개선된 디자인 */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-800 mb-2">전체 고객 관리</h2>
           <p className="text-sm text-gray-600">고객 유입 경로와 상태에 따라 그룹을 선택하여 관리하세요</p>
@@ -299,28 +336,28 @@ export default function CustomersPage() {
               color: 'gray'
             },
             { 
-              value: 'trial', 
-              label: '크루즈가이드 3일 체험', 
-              description: '3일 무료 체험을 시작한 잠재고객 (테스트 고객관리 통합)',
-              icon: '🧪',
-              countKey: 'trial',
-              color: 'orange'
-            },
-            { 
-              value: 'mall', 
-              label: '크루즈몰 고객', 
-              description: '크루즈몰에서 가입한 잠재고객 (메인몰 고객관리 통합)',
-              icon: '🛍️',
-              countKey: 'mall',
-              color: 'green'
-            },
-            { 
               value: 'purchase', 
               label: '구매 고객', 
-              description: '크루즈가이드 지니를 구매한 고객 (동행인 포함, 크루즈가이드 고객 통합)',
+              description: '크루즈가이드 지니를 구매한 고객',
               icon: '✅',
               countKey: 'purchase',
               color: 'blue'
+            },
+            { 
+              value: 'manager-customers', 
+              label: '대리점장 고객', 
+              description: '대리점장 소유 고객',
+              icon: '🏢',
+              countKey: 'manager-customers',
+              color: 'indigo'
+            },
+            { 
+              value: 'trial', 
+              label: '크루즈가이드 3일 체험', 
+              description: '3일 무료 체험을 시작한 고객',
+              icon: '🧪',
+              countKey: 'trial',
+              color: 'orange'
             },
             { 
               value: 'refund', 
@@ -331,28 +368,28 @@ export default function CustomersPage() {
               color: 'red'
             },
             { 
+              value: 'agent-customers', 
+              label: '판매원 고객', 
+              description: '판매원 소유 고객',
+              icon: '👤',
+              countKey: 'agent-customers',
+              color: 'teal'
+            },
+            { 
+              value: 'mall', 
+              label: '크루즈몰 고객', 
+              description: '크루즈몰에서 가입한 고객',
+              icon: '🛍️',
+              countKey: 'mall',
+              color: 'green'
+            },
+            { 
               value: 'passport', 
               label: '여권 관리', 
               description: '구매 고객 중 여권 정보 관리 대상',
               icon: '🛂',
               countKey: 'passport',
               color: 'purple'
-            },
-            { 
-              value: 'manager-customers', 
-              label: '대리점장 고객', 
-              description: '대리점장 소유 고객 (충돌 없이 별도 관리)',
-              icon: '🏢',
-              countKey: 'manager-customers',
-              color: 'indigo'
-            },
-            { 
-              value: 'agent-customers', 
-              label: '판매원 고객', 
-              description: '판매원 소유 고객 (충돌 없이 별도 관리)',
-              icon: '👤',
-              countKey: 'agent-customers',
-              color: 'teal'
             },
             { 
               value: 'prospects', 
@@ -384,28 +421,30 @@ export default function CustomersPage() {
                   setCustomerGroup(category.value);
                   setPagination(prev => ({ ...prev, page: 1 }));
                 }}
-                className={`relative p-4 rounded-lg border-2 transition-all text-left ${colorClasses[category.color as keyof typeof colorClasses]}`}
+                className={`relative p-5 rounded-xl border-2 transition-all text-left transform hover:scale-[1.02] hover:shadow-md ${colorClasses[category.color as keyof typeof colorClasses]}`}
                 title={category.description}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{category.icon}</span>
-                    <h3 className="font-semibold text-gray-800 text-sm">{category.label}</h3>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{category.icon}</span>
+                    <div>
+                      <h3 className="font-bold text-gray-900 text-base">{category.label}</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">{category.description}</p>
+                    </div>
                   </div>
                   {count !== null && count !== undefined && (
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    <span className={`px-3 py-1.5 rounded-full text-sm font-bold shadow-sm ${
                       isActive
-                        ? 'bg-white text-gray-800'
+                        ? 'bg-white text-gray-900 shadow-md'
                         : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {count}
+                      {count.toLocaleString()}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-600 mt-1">{category.description}</p>
                 {isActive && (
-                  <div className="absolute top-2 right-2">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                  <div className="absolute top-3 right-3">
+                    <div className="w-3 h-3 bg-blue-600 rounded-full shadow-lg animate-pulse"></div>
                   </div>
                 )}
               </button>
@@ -448,8 +487,8 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* 검색 및 필터 */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      {/* 검색 및 필터 - 개선된 디자인 */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           {/* 검색 */}
           <div className="md:col-span-2">
@@ -525,16 +564,32 @@ export default function CustomersPage() {
 
           {/* 월별 필터 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">월별 필터</label>
-            <input
-              type="month"
+            <label className="block text-sm font-medium text-gray-700 mb-2">가입 월별 필터</label>
+            <select
               value={monthFilter}
               onChange={(e) => {
                 setMonthFilter(e.target.value);
                 setPagination(prev => ({ ...prev, page: 1 }));
               }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+            >
+              <option value="">전체 기간</option>
+              {(() => {
+                const months = [];
+                const now = new Date();
+                for (let i = 0; i < 12; i++) {
+                  const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                  const year = date.getFullYear();
+                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                  const value = `${year}-${month}`;
+                  const label = `${year}년 ${month}월`;
+                  months.push({ value, label });
+                }
+                return months;
+              })().map(({ value, label }) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
           </div>
 
           {/* 정렬 */}
@@ -561,79 +616,202 @@ export default function CustomersPage() {
             </select>
           </div>
         </div>
+
+        {/* 페이지 크기 선택 및 엑셀 다운로드 */}
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">페이지당 표시:</label>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const newSize = parseInt(e.target.value);
+                setPageSize(newSize);
+                setPagination(prev => ({ ...prev, page: 1, limit: newSize }));
+              }}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            >
+              <option value="20">20개</option>
+              <option value="50">50개</option>
+              <option value="100">100개</option>
+              <option value="200">200개</option>
+            </select>
+            <button
+              onClick={async () => {
+                try {
+                  const url = `/api/admin/customers/export?customerGroup=${customerGroup}`;
+                  const response = await fetch(url, {
+                    credentials: 'include',
+                  });
+                  
+                  if (!response.ok) {
+                    throw new Error('다운로드 실패');
+                  }
+                  
+                  const blob = await response.blob();
+                  const downloadUrl = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = downloadUrl;
+                  link.download = `고객목록_${customerGroup}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(downloadUrl);
+                } catch (error) {
+                  console.error('엑셀 다운로드 실패:', error);
+                  alert('엑셀 다운로드 중 오류가 발생했습니다.');
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors text-sm"
+            >
+              <FiDownload className="w-4 h-4" />
+              엑셀 다운로드
+            </button>
+          </div>
+          {pagination.total > 0 && (
+            <div className="text-sm text-gray-600">
+              전체 <span className="font-semibold text-gray-800">{pagination.total.toLocaleString()}</span>명 중{' '}
+              <span className="font-semibold text-gray-800">
+                {((pagination.page - 1) * pageSize + 1).toLocaleString()}
+              </span>
+              {' - '}
+              <span className="font-semibold text-gray-800">
+                {Math.min(pagination.page * pageSize, pagination.total).toLocaleString()}
+              </span>
+              명 표시
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* 에러 메시지 */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">{error}</p>
+      {/* 고객 목록 - 개선된 로딩 및 에러 처리 */}
+      {isLoading ? (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-8 w-8 bg-blue-600 rounded-full animate-pulse"></div>
+              </div>
+            </div>
+            <p className="mt-6 text-gray-600 font-medium">고객 목록을 불러오는 중...</p>
+            <p className="mt-2 text-sm text-gray-500">잠시만 기다려주세요</p>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-200 rounded-xl p-6 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+              <FiX className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-red-900 mb-1">오류 발생</h3>
+              <p className="text-red-800">{error}</p>
+              <button
+                onClick={loadCustomers}
+                className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              >
+                다시 시도
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : customers.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12">
+          <div className="text-center py-12">
+            <div className="w-24 h-24 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
+              <FiUser className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">고객이 없습니다</h3>
+            <p className="text-gray-600 mb-6">검색 조건이나 필터를 변경해보세요</p>
+            <button
+              onClick={() => {
+                setSearch('');
+                setStatus('all');
+                setCertificateType('all');
+                setMonthFilter('');
+                setCustomerGroup('all');
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            >
+              필터 초기화
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <CustomerTable customers={customers} onRefresh={loadCustomers} />
         </div>
       )}
 
-      {/* 고객 테이블 */}
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-red"></div>
-        </div>
-      ) : (
-        <>
-          <CustomerTable customers={customers} onRefresh={loadCustomers} />
-          
-          {/* 페이지네이션 */}
-          {pagination.totalPages > 1 && (
-            <div className="bg-white rounded-lg shadow-sm border p-4">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  총 {pagination.total}명 중 {((pagination.page - 1) * pagination.limit) + 1}-
-                  {Math.min(pagination.page * pagination.limit, pagination.total)}명 표시
-                </div>
+      {/* 페이지네이션 - 개선된 디자인 */}
+      {!isLoading && !error && customers.length > 0 && pagination.totalPages > 1 && (
+        <div className="bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="text-sm text-gray-600">
+              {pagination.total > 0 && (
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePageChange(pagination.page - 1)}
-                    disabled={pagination.page === 1}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FiChevronLeft className="w-5 h-5" />
-                  </button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (pagination.totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (pagination.page <= 3) {
-                        pageNum = i + 1;
-                      } else if (pagination.page >= pagination.totalPages - 2) {
-                        pageNum = pagination.totalPages - 4 + i;
-                      } else {
-                        pageNum = pagination.page - 2 + i;
-                      }
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => handlePageChange(pageNum)}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                            pagination.page === pageNum
-                              ? 'bg-brand-red text-white'
-                              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button
-                    onClick={() => handlePageChange(pagination.page + 1)}
-                    disabled={pagination.page === pagination.totalPages}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FiChevronRight className="w-5 h-5" />
-                  </button>
+                  <span className="font-medium text-gray-700">총</span>
+                  <span className="font-bold text-blue-600 text-lg">{pagination.total.toLocaleString()}</span>
+                  <span className="font-medium text-gray-700">명</span>
+                  <span className="mx-2 text-gray-400">|</span>
+                  <span className="text-gray-600">
+                    {((pagination.page - 1) * pageSize + 1).toLocaleString()}
+                    {' - '}
+                    {Math.min(pagination.page * pageSize, pagination.total).toLocaleString()}
+                    {' '}명 표시
+                  </span>
                 </div>
-              </div>
+              )}
             </div>
-          )}
-        </>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={pagination.page === 1}
+                className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium text-gray-700"
+              >
+                <FiChevronLeft className="w-5 h-5" />
+                이전
+              </button>
+              <div className="flex items-center gap-2 px-4">
+                {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.page <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.page >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.page - 2 + i;
+                  }
+                  
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      className={`w-10 h-10 rounded-lg font-medium transition-all ${
+                        pagination.page === pageNum
+                          ? 'bg-blue-600 text-white shadow-lg scale-110'
+                          : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={pagination.page === pagination.totalPages}
+                className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all font-medium text-gray-700"
+              >
+                다음
+                <FiChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 지니가이드 고객 추가 모달 */}

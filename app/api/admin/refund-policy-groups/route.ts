@@ -69,7 +69,8 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         description: description || null,
-        content: content
+        content: content,
+        updatedAt: new Date()
       }
     });
 

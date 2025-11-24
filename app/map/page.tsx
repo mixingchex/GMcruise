@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft, FiMap, FiGlobe, FiTag, FiCalendar, FiMapPin } from 'react-icons/fi';
 import { trackFeature } from '@/lib/analytics';
-import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps';
+// 성능 최적화: 무거운 지도 라이브러리는 그대로 사용 (복잡도가 높아서 나중에 최적화)
+// 동적 임포트는 컴포넌트 분리 후 적용 예정
+import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
 import { scaleQuantile } from 'd3-scale';
-import { geoCentroid } from 'd3-geo'; // d3-geo에서 geoCentroid 임포트
-import Image from 'next/image'; // Added missing import for Image
-// import LogoutButton from '@/components/LogoutButton';
-import { ZoomableGroup } from "react-simple-maps"; // ZoomableGroup 임포트
-import * as topojson from 'topojson-client'; // topojson-client 임포트
+import { geoCentroid } from 'd3-geo';
+import * as topojson from 'topojson-client';
+import Image from 'next/image';
 // import { FeatureCollection } from 'geojson'; // FeatureCollection 임포트 제거
 import TripFormModal from '@/components/TripFormModal'; // TripFormModal 임포트
 import VisitedCountryModal from '@/components/VisitedCountryModal'; // VisitedCountryModal 임포트

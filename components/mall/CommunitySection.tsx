@@ -46,7 +46,6 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
   const [loading, setLoading] = useState(true);
   const [newsPosts, setNewsPosts] = useState<CommunityNewsPost[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
   const recentScrollRef = useRef<HTMLDivElement>(null);
   const popularScrollRef = useRef<HTMLDivElement>(null);
   const newsScrollRef = useRef<HTMLDivElement>(null);
@@ -71,8 +70,8 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       .then(res => res.json())
       .then(data => {
         clearTimeout(authTimeoutId);
-        const role = (data?.user?.role ?? '').toLowerCase();
-        setIsLoggedIn(data.ok && data.user && (role === 'community' || role === 'admin'));
+        // 모든 로그인한 사용자가 게시글을 볼 수 있도록 변경
+        setIsLoggedIn(data.ok && !!data.user);
       })
       .catch(() => {
         clearTimeout(authTimeoutId);
@@ -277,7 +276,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
         </Link>
       </div>
 
-      {/* 최근 게시글 섹션 - 모든 사용자가 볼 수 있음 (클릭 시 로그인 필요) */}
+      {/* 최근 게시글 섹션 - 모든 사용자가 볼 수 있음 */}
       {recentPosts.length > 0 && (
         <div className="mb-12 md:mb-16">
           <div className="flex items-center justify-between mb-6 md:mb-8">
@@ -354,7 +353,8 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                   </>
                 );
 
-                return isLoggedIn ? (
+                // 모든 사용자가 게시글을 볼 수 있도록 변경 (로그인 불필요)
+                return (
                   <Link
                     key={post.id}
                     href={`/community/posts/${post.id}`}
@@ -362,14 +362,6 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                   >
                     {postContent}
                   </Link>
-                ) : (
-                  <div
-                    key={post.id}
-                    onClick={() => setShowLoginModal(true)}
-                    className="flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 border-gray-200 hover:border-blue-500 cursor-pointer"
-                  >
-                    {postContent}
-                  </div>
                 );
               })}
             </div>
@@ -384,7 +376,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
         </div>
       )}
 
-      {/* 인기 게시글 섹션 - 모든 사용자가 볼 수 있음 (클릭 시 로그인 필요) */}
+      {/* 인기 게시글 섹션 - 모든 사용자가 볼 수 있음 */}
       {popularPosts.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-6 md:mb-8">
@@ -461,7 +453,8 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                   </>
                 );
 
-                return isLoggedIn ? (
+                // 모든 사용자가 게시글을 볼 수 있도록 변경 (로그인 불필요)
+                return (
                   <Link
                     key={post.id}
                     href={`/community/posts/${post.id}`}
@@ -469,14 +462,6 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                   >
                     {postContent}
                   </Link>
-                ) : (
-                  <div
-                    key={post.id}
-                    onClick={() => setShowLoginModal(true)}
-                    className="flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 border-gray-200 hover:border-red-500 cursor-pointer"
-                  >
-                    {postContent}
-                  </div>
                 );
               })}
             </div>
@@ -603,54 +588,6 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
         </div>
       )}
 
-      {/* 로그인 필요 모달 */}
-      {showLoginModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowLoginModal(false)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full relative border-2 border-blue-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setShowLoginModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <span className="text-3xl">🔒</span>
-              </div>
-              <h3 className="text-2xl font-extrabold text-gray-900 mb-2">
-                로그인이 필요합니다
-              </h3>
-              <p className="text-gray-600 text-base">
-                게시글을 보려면 회원가입 또는 로그인이 필요합니다.
-              </p>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Link
-                href="/mall/signup"
-                onClick={() => setShowLoginModal(false)}
-                className="w-full px-6 py-3 bg-blue-600 text-white font-bold text-lg rounded-lg hover:bg-blue-700 transition-all shadow-lg transform hover:scale-105 text-center"
-              >
-                회원가입
-              </Link>
-              <Link
-                href="/mall/login"
-                onClick={() => setShowLoginModal(false)}
-                className="w-full px-6 py-3 bg-white text-blue-600 font-bold text-lg rounded-lg border-2 border-blue-600 hover:bg-blue-50 transition-all shadow-lg transform hover:scale-105 text-center"
-              >
-                로그인
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

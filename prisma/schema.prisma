@@ -310,7 +310,7 @@ model AffiliateProduct {
   effectiveFrom           DateTime
   effectiveTo             DateTime?
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime                  @updatedAt
   AffiliateCommissionTier AffiliateCommissionTier[]
   AffiliateLink           AffiliateLink[]
   CruiseProduct           CruiseProduct?            @relation(fields: [cruiseProductId], references: [id])
@@ -457,11 +457,17 @@ model AffiliateSale {
   CommissionLedger                                           CommissionLedger[]
   Payment                                                    Payment?
   AffiliateLedger                                            AffiliateLedger[]
+  Reservation                                                Reservation[]
 
   @@index([agentId])
   @@index([managerId])
   @@index([saleDate])
   @@index([status])
+  // 성능 최적화: 파트너 대시보드 및 판매 조회용 복합 인덱스
+  @@index([managerId, status, saleDate]) // 대리점장 판매 조회
+  @@index([agentId, status, saleDate]) // 판매원 판매 조회
+  @@index([managerId, saleDate]) // 대리점장 월별 통계
+  @@index([agentId, saleDate]) // 판매원 월별 통계
 }
 
 model AffiliateSmsConfig {
@@ -1841,8 +1847,10 @@ model Reservation {
   remarks           String?
   passportGroupLink String?
   passportStatus    String     @default("PENDING")
+  affiliateSaleId   Int?
   User              User       @relation(fields: [mainUserId], references: [id])
   Trip              Trip       @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  AffiliateSale     AffiliateSale? @relation(fields: [affiliateSaleId], references: [id])
   Traveler          Traveler[]
 
   @@index([mainUserId])
@@ -2103,6 +2111,7 @@ model User {
   loginCount                                                    Int                       @default(0)
   tripCount                                                     Int                       @default(0)
   totalTripCount                                                Int                       @default(0)
+  refundCertificateCount                                        Int                       @default(0)
   currentTripEndDate                                            DateTime?
   role                                                          String                    @default("user")
   onboardingUpdatedAt                                           DateTime?
@@ -2201,6 +2210,11 @@ model User {
   @@index([lastActiveAt])
   @@index([role, customerStatus])
   @@index([role])
+  // 성능 최적화: 관리자 고객 목록 조회용 복합 인덱스
+  @@index([role, isHibernated, customerStatus]) // 활성/동면 필터링
+  @@index([role, updatedAt]) // 월별 필터링
+  @@index([role, customerStatus, updatedAt]) // 인증서 처리 날짜 필터
+  @@index([role, createdAt]) // 역할별 가입일 정렬
 }
 
 model UserActivity {
@@ -2229,31 +2243,31 @@ model UserMessageRead {
 }
 
 model CertificateApproval {
-  id                Int      @id @default(autoincrement())
-  certificateType   String   // 'purchase' | 'refund'
-  requesterId       Int      // 요청자 ID (판매원 또는 대리점장)
-  requesterType     String   // 'SALES_AGENT' | 'BRANCH_MANAGER'
-  customerId        Int      // 고객 ID
-  customerName      String
-  customerEmail     String?
-  birthDate         String?
-  productName       String
-  paymentAmount     Int
-  paymentDate       String
-  refundAmount      Int?     // 환불인증서인 경우
-  refundDate        String?  // 환불인증서인 경우
-  status            String   @default("pending") // 'pending' | 'approved' | 'rejected'
-  approvedBy        Int?     // 승인자 ID (본사 또는 대리점장)
-  approvedByType    String?  // 'ADMIN' | 'BRANCH_MANAGER'
-  approvedAt        DateTime?
-  rejectedReason    String?
-  metadata          Json?    // 추가 정보 (상품 상세 등)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  Requester         User     @relation("CertificateApprovalRequester", fields: [requesterId], references: [id])
-  Customer          User     @relation("CertificateApprovalCustomer", fields: [customerId], references: [id])
-  Approver          User?    @relation("CertificateApprovalApprover", fields: [approvedBy], references: [id])
+  id              Int       @id @default(autoincrement())
+  certificateType String // 'purchase' | 'refund'
+  requesterId     Int // 요청자 ID (판매원 또는 대리점장)
+  requesterType   String // 'SALES_AGENT' | 'BRANCH_MANAGER'
+  customerId      Int // 고객 ID
+  customerName    String
+  customerEmail   String?
+  birthDate       String?
+  productName     String
+  paymentAmount   Int
+  paymentDate     String
+  refundAmount    Int? // 환불인증서인 경우
+  refundDate      String? // 환불인증서인 경우
+  status          String    @default("pending") // 'pending' | 'approved' | 'rejected'
+  approvedBy      Int? // 승인자 ID (본사 또는 대리점장)
+  approvedByType  String? // 'ADMIN' | 'BRANCH_MANAGER'
+  approvedAt      DateTime?
+  rejectedReason  String?
+  metadata        Json? // 추가 정보 (상품 상세 등)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  Requester User  @relation("CertificateApprovalRequester", fields: [requesterId], references: [id])
+  Customer  User  @relation("CertificateApprovalCustomer", fields: [customerId], references: [id])
+  Approver  User? @relation("CertificateApprovalApprover", fields: [approvedBy], references: [id])
 
   @@index([requesterId, status, createdAt])
   @@index([customerId, certificateType])
@@ -2291,6 +2305,8 @@ model UserTrip {
   days               Int                  @default(0)
   visitCount         Int                  @default(0)
   status             String               @default("Upcoming")
+  googleFolderId     String?
+  spreadsheetId      String?
   createdAt          DateTime             @default(now())
   updatedAt          DateTime
   userTripFeedbackId Int?
@@ -2307,6 +2323,8 @@ model UserTrip {
   @@index([createdAt])
   @@index([startDate])
   @@index([userId, status])
+  // 성능 최적화: 관리자 대시보드 현재 여행 조회용
+  @@index([status, startDate]) // 상태별 날짜 정렬
 }
 
 model UserTripFeedback {
@@ -2364,25 +2382,25 @@ model VisitedCountry {
 }
 
 model AffiliatePayslip {
-  id                  Int               @id @default(autoincrement())
-  profileId           Int
-  period              String            // YYYY-MM 형식
-  type                String            // 'BRANCH_MANAGER' | 'SALES_AGENT'
-  totalSales          Int               @default(0)
-  totalCommission     Int               @default(0)
-  totalWithholding    Int               @default(0)
-  netPayment          Int               @default(0)
-  status              String            @default("PENDING") // 'PENDING' | 'APPROVED' | 'SENT'
-  approvedAt          DateTime?
-  approvedBy          Int?
-  sentAt              DateTime?
-  pdfUrl              String?
-  details             Json?             // 상세 판매 내역
-  metadata            Json?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime
-  AffiliateProfile    AffiliateProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  ApprovedBy          User?             @relation("PayslipApprovedBy", fields: [approvedBy], references: [id])
+  id               Int              @id @default(autoincrement())
+  profileId        Int
+  period           String // YYYY-MM 형식
+  type             String // 'BRANCH_MANAGER' | 'SALES_AGENT'
+  totalSales       Int              @default(0)
+  totalCommission  Int              @default(0)
+  totalWithholding Int              @default(0)
+  netPayment       Int              @default(0)
+  status           String           @default("PENDING") // 'PENDING' | 'APPROVED' | 'SENT'
+  approvedAt       DateTime?
+  approvedBy       Int?
+  sentAt           DateTime?
+  pdfUrl           String?
+  details          Json? // 상세 판매 내역
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  AffiliateProfile AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  ApprovedBy       User?            @relation("PayslipApprovedBy", fields: [approvedBy], references: [id])
 
   @@unique([profileId, period])
   @@index([profileId, period])
@@ -2391,21 +2409,21 @@ model AffiliatePayslip {
 }
 
 model AffiliateLedger {
-  id                  Int               @id @default(autoincrement())
-  saleId              Int
-  profileId           Int
-  type                String            // 'HQ_REVENUE' | 'BRANCH_COMMISSION' | 'SALES_COMMISSION' | 'OVERRIDE_COMMISSION'
-  amount              Int
-  withholdingAmount   Int               @default(0)
-  netAmount           Int
-  isSettled           Boolean           @default(false)
-  settledAt           DateTime?
-  description         String?
-  metadata            Json?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime
-  AffiliateSale       AffiliateSale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  AffiliateProfile    AffiliateProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  id                Int              @id @default(autoincrement())
+  saleId            Int
+  profileId         Int
+  type              String // 'HQ_REVENUE' | 'BRANCH_COMMISSION' | 'SALES_COMMISSION' | 'OVERRIDE_COMMISSION'
+  amount            Int
+  withholdingAmount Int              @default(0)
+  netAmount         Int
+  isSettled         Boolean          @default(false)
+  settledAt         DateTime?
+  description       String?
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime
+  AffiliateSale     AffiliateSale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  AffiliateProfile  AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([saleId])
   @@index([profileId, createdAt])

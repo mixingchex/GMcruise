@@ -50,10 +50,10 @@ async function suggestAlternatives(
 
 export async function POST(req: Request) {
   try {
-    const { username, password, nickname, email } = await req.json();
+    const { nickname, name, phone, username, email, password } = await req.json();
 
     // 필수 필드 검증
-    if (!username || !password || !nickname || !email) {
+    if (!nickname || !name || !phone || !username || !email || !password) {
       return NextResponse.json(
         { ok: false, error: '모든 필드를 입력해주세요.' },
         { status: 400 }
@@ -85,18 +85,34 @@ export async function POST(req: Request) {
       );
     }
 
-    // 아이디 중복 확인 (phone 필드에 username 저장)
-    const existingUserByPhone = await prisma.user.findFirst({
-      where: { phone: username }
+    // 아이디 중복 확인 (mallUserId 필드 또는 phone 필드(레거시)로 확인)
+    // role='community' AND customerSource='mall-signup'인 사용자만 확인 (기존 고객과 완전히 격리)
+    const trimmedUsername = username.trim();
+    const existingUserByMallUserId = await prisma.user.findFirst({
+      where: { 
+        OR: [
+          { mallUserId: trimmedUsername }, // 새로운 방식: mallUserId 필드
+          { phone: trimmedUsername } // 레거시 지원: phone 필드 (기존 회원)
+        ],
+        role: 'community',
+        customerSource: 'mall-signup' // 크루즈몰 회원가입 사용자만 확인
+      }
     });
 
-    if (existingUserByPhone) {
+    if (existingUserByMallUserId) {
       // 사용 가능한 아이디 추천
       const usernameSuggestions = await suggestAlternatives(
         username,
         async (candidate) => {
           const existing = await prisma.user.findFirst({
-            where: { phone: candidate }
+            where: { 
+              OR: [
+                { mallUserId: candidate.trim() }, // 새로운 방식
+                { phone: candidate.trim() } // 레거시 지원
+              ],
+              role: 'community',
+              customerSource: 'mall-signup'
+            }
           });
           return !existing;
         },
@@ -114,18 +130,34 @@ export async function POST(req: Request) {
       );
     }
 
-    // 닉네임 중복 확인 (name 필드에 nickname 저장)
-    const existingUserByName = await prisma.user.findFirst({
-      where: { name: nickname }
+    // 닉네임 중복 확인 (mallNickname 필드 또는 name 필드(레거시)로 확인)
+    // role='community' AND customerSource='mall-signup'인 사용자만 확인 (기존 고객과 완전히 격리)
+    const trimmedNickname = nickname.trim();
+    const existingUserByMallNickname = await prisma.user.findFirst({
+      where: { 
+        OR: [
+          { mallNickname: trimmedNickname }, // 새로운 방식: mallNickname 필드
+          { name: trimmedNickname } // 레거시 지원: name 필드 (기존 회원)
+        ],
+        role: 'community',
+        customerSource: 'mall-signup' // 크루즈몰 회원가입 사용자만 확인
+      }
     });
 
-    if (existingUserByName) {
+    if (existingUserByMallNickname) {
       // 사용 가능한 닉네임 추천
       const nicknameSuggestions = await suggestAlternatives(
         nickname,
         async (candidate) => {
           const existing = await prisma.user.findFirst({
-            where: { name: candidate }
+            where: { 
+              OR: [
+                { mallNickname: candidate.trim() }, // 새로운 방식
+                { name: candidate.trim() } // 레거시 지원
+              ],
+              role: 'community',
+              customerSource: 'mall-signup'
+            }
           });
           return !existing;
         },
@@ -177,10 +209,12 @@ export async function POST(req: Request) {
     const now = new Date();
     const user = await prisma.user.create({
       data: {
-        phone: username, // username을 phone 필드에 저장
+        mallUserId: username.trim(), // 아이디를 mallUserId 필드에 저장
+        mallNickname: nickname.trim(), // 닉네임을 mallNickname 필드에 저장
+        name: name.trim(), // 이름을 name 필드에 저장
+        phone: phone.trim(), // 연락처를 phone 필드에 저장
         password: hashedPassword,
-        name: nickname, // nickname을 name 필드에 저장
-        email: email,
+        email: email.trim(),
         onboarded: false,
         role: 'community', // 커뮤니티 전용 사용자
         customerSource: 'mall-signup', // 크루즈몰 회원가입
@@ -203,8 +237,10 @@ export async function POST(req: Request) {
       message: '회원가입이 완료되었습니다.',
       user: {
         id: user.id,
-        username: user.phone,
-        nickname: user.name,
+        nickname: user.mallNickname,
+        name: user.name,
+        phone: user.phone,
+        username: user.mallUserId,
         email: user.email
       }
     });

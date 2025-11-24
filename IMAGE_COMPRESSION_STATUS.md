@@ -80,3 +80,12 @@ done
 현재 Next.js Image 컴포넌트만으로도 충분한 최적화가 이루어지고 있습니다.  
 추가 압축은 선택사항이며, 필요시 `IMAGE_OPTIMIZATION_GUIDE.md`를 참고하세요.
 
+
+
+
+
+
+
+
+
+

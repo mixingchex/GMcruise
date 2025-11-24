@@ -27,7 +27,8 @@ type ManualRequestBody = {
 };
 
 function generateToken() {
-  return randomBytes(24).toString('hex');
+  // 16바이트로 줄여서 base62 인코딩 시 약 22자 정도로 짧게 만듦
+  return randomBytes(16).toString('hex');
 }
 
 function clampExpires(hours?: number) {
@@ -130,16 +131,23 @@ async function upsertSubmission(params: {
     return updated.id;
   }
 
+  const now = new Date();
+  const createData: any = {
+    User: { connect: { id: userId } },
+    token,
+    tokenExpiresAt,
+    isSubmitted: false,
+    driveFolderUrl: null,
+    extraData: Prisma.JsonNull,
+    updatedAt: now,
+  };
+  
+  if (tripId) {
+    createData.UserTrip = { connect: { id: tripId } };
+  }
+  
   const created = await prisma.passportSubmission.create({
-    data: {
-      user: { connect: { id: userId } },
-      trip: tripId ? { connect: { id: tripId } } : undefined,
-      token,
-      tokenExpiresAt,
-      isSubmitted: false,
-      driveFolderUrl: null,
-      extraData: Prisma.JsonNull,
-    },
+    data: createData,
   });
   return created.id;
 }

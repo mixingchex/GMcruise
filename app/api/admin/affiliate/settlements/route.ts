@@ -223,10 +223,22 @@ export async function GET(req: NextRequest) {
       audioFileGoogleDriveId: { not: null },
     };
 
+    // 성능 최적화: include 대신 select 사용
     const sales = await prisma.affiliateSale.findMany({
       where: saleWhere,
       orderBy: [{ confirmedAt: 'asc' }, { id: 'asc' }],
-      include: {
+      select: {
+        id: true,
+        productCode: true,
+        saleAmount: true,
+        netRevenue: true,
+        saleDate: true,
+        confirmedAt: true,
+        headcount: true,
+        costAmount: true,
+        audioFileType: true,
+        audioFileGoogleDriveUrl: true,
+        audioFileGoogleDriveId: true,
         AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
           select: {
             id: true,

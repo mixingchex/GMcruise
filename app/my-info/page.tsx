@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { FiArrowLeft, FiEdit2, FiTrash2, FiEye, FiMessageCircle, FiHeart, FiStar } from 'react-icons/fi';
+import { FiArrowLeft, FiEdit2, FiTrash2, FiEye, FiMessageCircle, FiHeart, FiStar, FiSave, FiX } from 'react-icons/fi';
 
 interface Post {
   id: number;
@@ -67,6 +67,12 @@ export default function MyInfoPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [error, setError] = useState('');
+  
+  // 편집 모드
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchMyInfo();
@@ -90,6 +96,8 @@ export default function MyInfoPage() {
       }
 
       setUser(data.user);
+      setEditName(data.user.name || '');
+      setEditPhone(data.user.phone || '');
       setPosts(data.posts || []);
       setReviews(data.reviews || []);
       // API 응답의 comments를 프론트엔드 형식으로 변환
@@ -184,6 +192,43 @@ export default function MyInfoPage() {
     }
   };
 
+  const handleSave = async () => {
+    if (!editName.trim() || !editPhone.trim()) {
+      alert('이름과 연락처를 모두 입력해주세요.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch('/api/community/my-info/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: editName.trim(),
+          phone: editPhone.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        alert(data.error || '정보 저장에 실패했습니다.');
+        return;
+      }
+
+      alert('정보가 저장되었습니다.');
+      setIsEditing(false);
+      fetchMyInfo();
+    } catch (err) {
+      alert('정보 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const getCategoryLabel = (category: string) => {
     const labels: Record<string, { label: string; color: string }> = {
       'travel-tip': { label: '여행팁', color: 'bg-blue-100 text-blue-800' },
@@ -243,13 +288,96 @@ export default function MyInfoPage() {
                 <p className="text-xl text-gray-600">
                   {user.name || '사용자'}님의 활동 내역입니다.
                 </p>
-                <Link
-                  href="/community/profile"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              </div>
+            )}
+          </div>
+
+          {/* 사용자 정보 섹션 - 항상 표시 */}
+          <div className="mb-12 bg-white rounded-xl shadow-lg p-8 border-2 border-blue-200">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">👤 사용자 정보</h2>
+              </div>
+              {user && !isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <FiEdit2 size={18} />
-                  내 정보 수정
-                </Link>
+                  수정
+                </button>
+              )}
+            </div>
+
+            {!user ? (
+              <div className="text-center py-8">
+                <p className="text-gray-600 mb-4">사용자 정보를 불러오는 중...</p>
+              </div>
+            ) : isEditing ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    이름 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-base"
+                    placeholder="이름을 입력하세요 (예: 홍길동)"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    연락처 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-base"
+                    placeholder="연락처를 입력하세요 (예: 010-1234-5678)"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">하이픈(-) 없이 숫자만 입력해도 됩니다.</p>
+                </div>
+                <div className="flex items-center gap-2 pt-4">
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditName(user.name || '');
+                      setEditPhone(user.phone || '');
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    <FiX size={18} />
+                    취소
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  >
+                    <FiSave size={18} />
+                    {saving ? '저장 중...' : '저장하기'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이름:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg">{user.name || '미입력'}</span>
+                </div>
+                <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
+                  <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.phone || '미입력'}</span>
+                </div>
+                {user.email && (
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
+                    <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">이메일:</span>
+                    <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.email}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

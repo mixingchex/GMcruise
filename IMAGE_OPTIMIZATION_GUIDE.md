@@ -252,3 +252,12 @@ chmod +x scripts/optimize-images.sh
 
 **참고**: 이미지 최적화는 선택사항입니다. Next.js Image 컴포넌트만으로도 충분한 최적화가 이루어집니다! 🚀
 
+
+
+
+
+
+
+
+
+
