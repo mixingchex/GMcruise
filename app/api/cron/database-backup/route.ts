@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { manualRunDatabaseBackup } from '@/lib/scheduler/databaseBackup';
 
 /**
- * Vercel Cron Job: 매일 새벽 3시 데이터베이스 백업
+ * Vercel Cron Job: 매일 오전 12시 (한국 시간) 데이터베이스 백업
  * 
  * Vercel Cron 설정:
  * {
  *   "path": "/api/cron/database-backup",
- *   "schedule": "0 3 * * *"
+ *   "schedule": "0 3 * * *"  // UTC 오전 3시 = KST 오전 12시
  * }
  */
 export async function GET(request: Request) {
@@ -41,6 +41,9 @@ export async function GET(request: Request) {
     );
   }
 }
+
+
+
 
 
 

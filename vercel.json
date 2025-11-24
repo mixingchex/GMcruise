@@ -2,19 +2,19 @@
   "crons": [
     {
       "path": "/api/cron/database-backup",
-      "schedule": "0 0 * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/expire-trips",
-      "schedule": "0 2 * * *"
+      "schedule": "0 5 * * *"
     },
     {
       "path": "/api/cron/payslip-sender",
-      "schedule": "0 0 1 * *"
+      "schedule": "0 3 1 * *"
     },
     {
       "path": "/api/cron/community-bot",
-      "schedule": "0 8 * * *"
+      "schedule": "0 17 * * *"
     }
   ]
 }
