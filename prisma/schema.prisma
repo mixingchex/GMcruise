@@ -2085,6 +2085,8 @@ model Trip {
   spreadsheetId    String?
   status           String            @default("Upcoming")
   endDate          DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @default(now()) @updatedAt
   ChecklistItem    ChecklistItem[]
   Reservation      Reservation[]
   UserTripFeedback UserTripFeedback?
