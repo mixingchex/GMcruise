@@ -28,8 +28,8 @@ const devCsp = [
 
 const prodCsp = [
   "default-src 'self'",
-  // ❗prod에서는 inline/eval 금지 (보안)
-  "script-src 'self' https://developers.kakao.com https://t1.kakaocdn.net",
+  // Next.js 정상 작동을 위해 unsafe-inline 허용 (hydration에 필요)
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://developers.kakao.com https://t1.kakaocdn.net",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
