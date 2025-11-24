@@ -6,7 +6,7 @@ import { randomBytes } from 'crypto';
 import { generateCsrfToken } from '@/lib/csrf';
 import { checkRateLimit, RateLimitPolicies } from '@/lib/rate-limiter';
 import { getClientIpFromRequest } from '@/lib/ip-utils';
-import { authLogger, securityLogger } from '@/lib/logger';
+import { authLogger, securityLogger, logger } from '@/lib/logger';
 import { reactivateUser, updateLastActive } from '@/lib/scheduler/lifecycleManager';
 import { normalizeItineraryPattern, extractVisitedCountriesFromItineraryPattern, extractDestinationsFromItineraryPattern } from '@/lib/utils/itineraryPattern';
 
@@ -47,11 +47,11 @@ export async function POST(req: Request) {
     password = password?.trim() || '';
     name = name?.trim() || '';
 
-    console.log('[Login API] 요청 받음:', { phone: phone ? `${phone.substring(0, 3)}***` : 'empty', password: password ? '***' : 'empty', name: name ? `${name.substring(0, 1)}***` : 'empty', mode });
+    logger.log('[Login API] 요청 받음:', { phone: phone ? `${phone.substring(0, 3)}***` : 'empty', password: password ? '***' : 'empty', name: name ? `${name.substring(0, 1)}***` : 'empty', mode });
 
     const isPartnerLogin = mode === 'partner' || password === 'qwe1';
     
-    console.log('[Login API] 파트너 로그인 여부:', { isPartnerLogin, mode, passwordIsQwe1: password === 'qwe1' });
+    logger.log('[Login API] 파트너 로그인 여부:', { isPartnerLogin, mode, passwordIsQwe1: password === 'qwe1' });
 
     if (isPartnerLogin) {
       const identifier = phone?.trim() || '';

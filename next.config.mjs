@@ -53,6 +53,11 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // useSearchParams를 Suspense 없이 사용 가능하도록 설정 (동적 라우팅 자동 적용)
+  experimental: {
+    missingSuspenseWithCSRBailout: false,
+  },
+
   // 프로덕션 빌드 시 console.log/warn/debug/info 제거 (에러는 유지)
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production' ? {
