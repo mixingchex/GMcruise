@@ -12,6 +12,7 @@ const PUBLIC = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/public', // 공개 쇼핑몰 API
+  '/api/community', // 커뮤니티 API (공개)
   '/product', // 상품 페이지 (공개, 단수형)
   '/products', // 상품 페이지 (공개, 복수형)
   '/youtube', // 유튜브 페이지 (공개)
