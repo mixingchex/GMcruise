@@ -1,3 +1,7 @@
+// ⬇️ 절대법칙: Prisma 사용 API는 반드시 nodejs runtime과 force-dynamic 필요
+export const runtime = 'nodejs';        // Edge Runtime 금지 (Prisma 사용)
+export const dynamic = 'force-dynamic'; // 동적 데이터는 캐시 X
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';

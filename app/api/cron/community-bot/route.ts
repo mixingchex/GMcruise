@@ -1,9 +1,10 @@
 // app/api/cron/community-bot/route.ts
-// 커뮤니티 자동 게시글/댓글 생성 봇 (5분마다 실행)
+// 커뮤니티 자동 게시글/댓글 생성 봇 (1시간마다 실행)
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { askGemini } from '@/lib/gemini';
+import { buildNewsHtml, type NewsBlock, type NewsIntroBlock, type NewsSectionBlock, type NewsImageBlock, type NewsSummaryBlock, type NewsInfoBlock } from '@/lib/cruisedot-news-template';
 
 // 한글 아이디 목록 (유튜브 댓글 스타일 - 다양하고 자연스러운 닉네임)
 const KOREAN_NICKNAMES = [
@@ -33,6 +34,14 @@ const KOREAN_NICKNAMES = [
 
 // 카테고리 목록 (여행팁, 질문답변, 관광지추천)
 const CATEGORIES = ['travel-tip', 'qna', 'destination'];
+
+// 크루즈뉘우스 주제 목록
+const NEWS_TOPICS = [
+  { name: '세계 여행 정보', keyword: 'world travel cruise', emoji: '🌍' },
+  { name: '세계 여행 뉴스', keyword: 'cruise travel news', emoji: '📰' },
+  { name: '세계 크루즈뉴스', keyword: 'cruise ship news', emoji: '🚢' },
+  { name: '크루즈 꿀팁정보', keyword: 'cruise tips advice', emoji: '💡' }
+];
 
 // 봇 사용자 ID (봇 전용 계정)
 const BOT_USER_ID = 1; // 관리자 계정 또는 봇 전용 계정 ID
@@ -127,6 +136,370 @@ function selectPostLengthRange(): { min: number; max: number } {
  */
 function shouldUseEmoji(): boolean {
   return Math.random() < 0.1; // 10% 확률
+}
+
+/**
+ * 크루즈정보사진 폴더에서 크루즈 관련 이미지 URL 가져오기
+ */
+async function getCruiseImage(keyword: string): Promise<string> {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    
+    // 크루즈정보사진 폴더 경로
+    const cruisePhotoDir = path.join(process.cwd(), 'public', '크루즈정보사진');
+    
+    // 크루즈 관련 폴더 목록
+    const cruiseFolders = [
+      '코스타세레나',
+      'MSC벨리시마',
+      'MSC그란디오사',
+      'MSC유리비아호',
+      '로얄캐리비안 스펙트럼',
+      '로얄캐리비안 퀀텀',
+      '로얄 브릴리앙스호',
+      '로얄 얼루어호',
+      '크루즈배경이미지',
+      '상품이미지'
+    ];
+    
+    // 랜덤으로 폴더 선택
+    const selectedFolder = cruiseFolders[Math.floor(Math.random() * cruiseFolders.length)];
+    const folderPath = path.join(cruisePhotoDir, selectedFolder);
+    
+    if (fs.existsSync(folderPath)) {
+      const files = fs.readdirSync(folderPath);
+      const imageFiles = files.filter((file: string) => {
+        const ext = path.extname(file).toLowerCase();
+        return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+      });
+      
+      if (imageFiles.length > 0) {
+        const randomImage = imageFiles[Math.floor(Math.random() * imageFiles.length)];
+        return `/크루즈정보사진/${selectedFolder}/${randomImage}`;
+      }
+    }
+    
+    // 폴더가 없거나 이미지가 없으면 다른 폴더 시도
+    for (const folder of cruiseFolders) {
+      const testPath = path.join(cruisePhotoDir, folder);
+      if (fs.existsSync(testPath)) {
+        const files = fs.readdirSync(testPath);
+        const imageFiles = files.filter((file: string) => {
+          const ext = path.extname(file).toLowerCase();
+          return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+        });
+        
+        if (imageFiles.length > 0) {
+          const randomImage = imageFiles[Math.floor(Math.random() * imageFiles.length)];
+          return `/크루즈정보사진/${folder}/${randomImage}`;
+        }
+      }
+    }
+    
+    // 모든 시도 실패 시 기본 이미지
+    return '/images/ai-cruise-logo.png';
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 크루즈정보사진 이미지 가져오기 실패:', error);
+    return '/images/ai-cruise-logo.png';
+  }
+}
+
+/**
+ * 날씨 정보 가져오기 (서울 기준)
+ */
+async function getWeatherInfo(): Promise<{ temp: number; description: string; icon: string } | null> {
+  try {
+    const apiKey = process.env.OPENWEATHER_API_KEY;
+    if (!apiKey) {
+      console.warn('[COMMUNITY BOT] OpenWeather API 키가 없습니다.');
+      return null;
+    }
+    
+    const response = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?q=Seoul,kr&appid=${apiKey}&units=metric&lang=kr`,
+      { next: { revalidate: 3600 } } // 1시간 캐시
+    );
+    
+    if (!response.ok) {
+      throw new Error(`날씨 API 요청 실패: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const weatherEmoji: { [key: string]: string } = {
+      'Clear': '☀️',
+      'Clouds': '☁️',
+      'Rain': '🌧️',
+      'Drizzle': '🌦️',
+      'Thunderstorm': '⛈️',
+      'Snow': '❄️',
+      'Mist': '🌫️',
+      'Fog': '🌫️'
+    };
+    
+    return {
+      temp: Math.round(data.main.temp),
+      description: data.weather[0].description,
+      icon: weatherEmoji[data.weather[0].main] || '🌤️'
+    };
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 날씨 정보 가져오기 실패:', error);
+    return null;
+  }
+}
+
+/**
+ * 환율 정보 가져오기
+ */
+async function getExchangeRate(): Promise<{ usd: number; eur: number; jpy: number } | null> {
+  try {
+    const response = await fetch(
+      'https://api.exchangerate-api.com/v4/latest/USD',
+      { next: { revalidate: 3600 } } // 1시간 캐시
+    );
+    
+    if (!response.ok) {
+      throw new Error(`환율 API 요청 실패: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    const krwRate = data.rates?.KRW || 1380;
+    const eurRate = data.rates?.EUR || 0.92;
+    const jpyRate = data.rates?.JPY || 150;
+    
+    return {
+      usd: Math.round(krwRate),
+      eur: Math.round(krwRate / eurRate),
+      jpy: Number((krwRate / jpyRate).toFixed(2))
+    };
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 환율 정보 가져오기 실패:', error);
+    // 기본값 반환
+    return {
+      usd: 1380,
+      eur: 1500,
+      jpy: 9.2
+    };
+  }
+}
+
+/**
+ * 주식시장 정보 가져오기
+ */
+async function getStockMarketInfo(): Promise<{ kospi: number; kosdaq: number; nasdaq: number } | null> {
+  try {
+    // Alpha Vantage API 또는 다른 무료 API 사용
+    // 여기서는 기본값 반환 (실제 API 연동 필요 시 추가)
+    // 참고: 실제 주식 API는 API 키가 필요하며, 무료 티어가 제한적입니다.
+    
+    // 기본값 반환 (실제로는 API에서 가져와야 함)
+    return {
+      kospi: 2650,
+      kosdaq: 850,
+      nasdaq: 15500
+    };
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 주식시장 정보 가져오기 실패:', error);
+    return null;
+  }
+}
+
+/**
+ * 크루즈뉘우스 형식의 게시글 생성
+ */
+async function generateCruisedotNews(): Promise<{ title: string; highlight: string; html: string; category: string } | null> {
+  try {
+    // 주제 랜덤 선택
+    const topic = NEWS_TOPICS[Math.floor(Math.random() * NEWS_TOPICS.length)];
+    
+    // 날씨, 환율, 증시 정보 가져오기
+    const [weatherInfo, exchangeRate, stockMarket] = await Promise.all([
+      getWeatherInfo(),
+      getExchangeRate(),
+      getStockMarketInfo()
+    ]);
+    
+    const prompt = `크루즈뉘우스 본사에서 발행하는 크루즈 뉴스 기사를 카피라이터처럼 소통하듯이 작성해주세요.
+
+주제: ${topic.name}
+이모지: ${topic.emoji}
+
+글쓰기 스타일:
+- 독자와 대화하듯이 친근하고 자연스러운 톤
+- 카피라이터처럼 설득력 있고 읽기 쉬운 문장
+- 블로그 형식: 문장은 간결하게 2-3줄씩 구성
+- 행간을 넓게 하여 가독성 좋게 작성
+- 이모티콘을 적절히 사용하여 친근함 표현
+- 강조할 부분은 형광펜 효과나 색깔로 표시
+
+요구사항:
+- 총 글자수: 약 5000자 정도
+- 제목: 20-40자, 이모티콘 포함, 매력적이고 정보성 있는 제목
+- 핵심 문장(highlight): 50-80자, 독자가 가장 먼저 알아야 할 핵심 정보
+- 본문: 5-7개의 섹션으로 구성
+- 각 섹션: 제목 + 본문 (본문은 2-3줄씩 나누어 작성, 각 문단은 간결하게)
+- 강조 효과: 중요한 숫자나 키워드는 형광펜 효과나 색깔로 표시
+  - 빨간색 강조: <span class="highlight-red">텍스트</span>
+  - 파란색 강조: <span class="highlight-blue">텍스트</span>
+  - 노란색 강조: <span class="highlight-yellow">텍스트</span>
+  - 빨간색 텍스트: <span class="text-red">텍스트</span>
+  - 파란색 텍스트: <span class="text-blue">텍스트</span>
+- 이미지 설명: 각 이미지에 대한 적절한 설명 작성 (이모티콘 포함)
+- 이모티콘: 각 섹션 제목과 본문에 적절히 사용
+
+응답 형식:
+제목: [제목 이모티콘 포함]
+핵심문장: [핵심 문장]
+섹션1제목: [첫 번째 섹션 제목 이모티콘 포함]
+섹션1내용: [첫 번째 섹션 내용, 2-3줄씩 나누어 작성\n각 문단은 간결하게\n강조할 부분은 HTML 태그로 표시]
+이미지1설명: [첫 번째 이미지 설명 이모티콘 포함]
+섹션2제목: [두 번째 섹션 제목 이모티콘 포함]
+섹션2내용: [두 번째 섹션 내용, 2-3줄씩 나누어 작성\n각 문단은 간결하게]
+이미지2설명: [두 번째 이미지 설명 이모티콘 포함]
+섹션3제목: [세 번째 섹션 제목 이모티콘 포함]
+섹션3내용: [세 번째 섹션 내용, 2-3줄씩 나누어 작성]
+섹션4제목: [네 번째 섹션 제목 이모티콘 포함]
+섹션4내용: [네 번째 섹션 내용, 2-3줄씩 나누어 작성]
+섹션5제목: [다섯 번째 섹션 제목 이모티콘 포함]
+섹션5내용: [다섯 번째 섹션 내용, 2-3줄씩 나누어 작성]
+마무리: [마무리 문장, 2-3문장 이모티콘 포함]`;
+
+    const response = await askGemini([
+      { role: 'user', content: prompt }
+    ], 0.8);
+
+    if (!response || !response.text) {
+      console.error('[COMMUNITY BOT] 크루즈뉘우스 AI 응답 없음');
+      return null;
+    }
+
+    const text = response.text.trim();
+    
+    // 응답 파싱
+    const titleMatch = text.match(/제목:\s*(.+?)(?:\n|$)/);
+    const highlightMatch = text.match(/핵심문장:\s*(.+?)(?:\n|$)/);
+    const section1TitleMatch = text.match(/섹션1제목:\s*(.+?)(?:\n|$)/);
+    const section1ContentMatch = text.match(/섹션1내용:\s*(.+?)(?:\n|섹션2제목|이미지1설명)/s);
+    const image1DescMatch = text.match(/이미지1설명:\s*(.+?)(?:\n|$)/);
+    const section2TitleMatch = text.match(/섹션2제목:\s*(.+?)(?:\n|$)/);
+    const section2ContentMatch = text.match(/섹션2내용:\s*(.+?)(?:\n|섹션3제목|이미지2설명)/s);
+    const image2DescMatch = text.match(/이미지2설명:\s*(.+?)(?:\n|$)/);
+    const section3TitleMatch = text.match(/섹션3제목:\s*(.+?)(?:\n|$)/);
+    const section3ContentMatch = text.match(/섹션3내용:\s*(.+?)(?:\n|마무리)/s);
+    const summaryMatch = text.match(/마무리:\s*(.+?)(?:\n|$)/s);
+
+    if (!titleMatch || !highlightMatch) {
+      console.error('[COMMUNITY BOT] 크루즈뉘우스 파싱 실패');
+      return null;
+    }
+
+    const title = titleMatch[1].trim();
+    const highlight = highlightMatch[1].trim();
+    
+    // 이미지 가져오기
+    const image1 = await getCruiseImage(topic.keyword);
+    const image2 = await getCruiseImage(topic.keyword);
+    
+    // 블록 구성: 이미지-글-이미지-글 형식
+    const blocks: NewsBlock[] = [];
+    
+    // 날씨/환율/증시 정보 블록 (상단)
+    if (weatherInfo || exchangeRate || stockMarket) {
+      blocks.push({
+        id: `info-${Date.now()}`,
+        type: 'info',
+        weather: weatherInfo || undefined,
+        exchangeRate: exchangeRate || undefined,
+        stockMarket: stockMarket || undefined
+      } as NewsInfoBlock);
+    }
+    
+    // Intro 블록
+    blocks.push({
+      id: `intro-${Date.now()}`,
+      type: 'intro',
+      kicker: `${topic.emoji} ${topic.name.toUpperCase()}`,
+      lead: highlight
+    } as NewsIntroBlock);
+    
+    // 첫 번째 섹션
+    if (section1TitleMatch && section1ContentMatch) {
+      blocks.push({
+        id: `section-1-${Date.now()}`,
+        type: 'section',
+        heading: section1TitleMatch[1].trim(),
+        body: section1ContentMatch[1].trim(),
+        listItems: []
+      } as NewsSectionBlock);
+    }
+    
+    // 첫 번째 이미지
+    blocks.push({
+      id: `image-1-${Date.now()}`,
+      type: 'image',
+      src: image1,
+      alt: image1DescMatch?.[1]?.trim() || '크루즈 여행 이미지',
+      caption: image1DescMatch?.[1]?.trim() || '크루즈 여행의 아름다운 순간'
+    } as NewsImageBlock);
+    
+    // 두 번째 섹션
+    if (section2TitleMatch && section2ContentMatch) {
+      blocks.push({
+        id: `section-2-${Date.now()}`,
+        type: 'section',
+        heading: section2TitleMatch[1].trim(),
+        body: section2ContentMatch[1].trim(),
+        listItems: []
+      } as NewsSectionBlock);
+    }
+    
+    // 두 번째 이미지
+    blocks.push({
+      id: `image-2-${Date.now()}`,
+      type: 'image',
+      src: image2,
+      alt: image2DescMatch?.[1]?.trim() || '크루즈 여행 이미지',
+      caption: image2DescMatch?.[1]?.trim() || '크루즈 여행의 특별한 경험'
+    } as NewsImageBlock);
+    
+    // 세 번째 섹션
+    if (section3TitleMatch && section3ContentMatch) {
+      blocks.push({
+        id: `section-3-${Date.now()}`,
+        type: 'section',
+        heading: section3TitleMatch[1].trim(),
+        body: section3ContentMatch[1].trim(),
+        listItems: []
+      } as NewsSectionBlock);
+    }
+    
+    // 마무리
+    if (summaryMatch) {
+      blocks.push({
+        id: `summary-${Date.now()}`,
+        type: 'summary',
+        title: '마무리',
+        body: summaryMatch[1].trim()
+      } as NewsSummaryBlock);
+    }
+    
+    // HTML 생성
+    const html = buildNewsHtml({
+      title,
+      highlight,
+      blocks
+    });
+    
+    return {
+      title,
+      highlight,
+      html,
+      category: 'cruisedot-news'
+    };
+  } catch (error) {
+    console.error('[COMMUNITY BOT] 크루즈뉘우스 생성 실패:', error);
+    return null;
+  }
 }
 
 /**
@@ -509,7 +882,57 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: '봇 사용자 확인 실패' }, { status: 500 });
     }
 
-    // 1. 게시글 생성
+    // 크루즈뉘우스 생성 (하루 1개씩)
+    let newsCreated = false;
+    try {
+      checkTimeout();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // 오늘 이미 크루즈뉘우스가 생성되었는지 확인
+      const existingNews = await prisma.communityPost.findFirst({
+        where: {
+          userId: botUser.id,
+          category: 'cruisedot-news',
+          createdAt: {
+            gte: today,
+            lt: tomorrow
+          }
+        }
+      });
+      
+      if (!existingNews) {
+        console.log('[COMMUNITY BOT] 크루즈뉘우스 생성 시작...');
+        const newsData = await generateCruisedotNews();
+        
+        if (newsData) {
+          const newsPost = await prisma.communityPost.create({
+            data: {
+              userId: botUser.id,
+              title: newsData.title,
+              content: newsData.html,
+              category: newsData.category,
+              authorName: '크루즈뉘우스 본사',
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          });
+          
+          newsCreated = true;
+          console.log('[COMMUNITY BOT] 크루즈뉘우스 생성 완료:', newsPost.id);
+        } else {
+          console.log('[COMMUNITY BOT] 크루즈뉘우스 생성 실패');
+        }
+      } else {
+        console.log('[COMMUNITY BOT] 오늘 이미 크루즈뉘우스가 생성되어 있음');
+      }
+    } catch (error) {
+      console.error('[COMMUNITY BOT] 크루즈뉘우스 생성 중 오류 (무시):', error);
+    }
+
+    // 1. 일반 게시글 생성
     checkTimeout();
     const postData = await generatePost();
     if (!postData) {
@@ -825,6 +1248,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       message: '게시글과 댓글이 생성되었습니다.',
+      newsCreated,
       post: {
         id: post.id,
         title: post.title,

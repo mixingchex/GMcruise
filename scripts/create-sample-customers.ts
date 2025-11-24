@@ -65,6 +65,73 @@ const sampleCustomers = [
     source: 'partner-manual',
     notes: '비즈니스 클래스 문의. 프리미엄 크루즈 관심.',
   },
+  // 전화 상담 신청 고객 (phone-consultation)
+  {
+    customerName: '홍길동',
+    customerPhone: '010-9999-0001',
+    status: 'NEW' as const,
+    source: 'phone-consultation',
+    notes: '크루즈몰에서 전화상담 신청. 로얄캐리비안 관심.',
+    nextActionAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1일 후
+  },
+  {
+    customerName: '김영희',
+    customerPhone: '010-9999-0002',
+    status: 'NEW' as const,
+    source: 'phone-consultation',
+    notes: '크루즈몰에서 전화상담 신청. MSC 벨리시마 문의.',
+    nextActionAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1일 후
+  },
+  {
+    customerName: '이철수',
+    customerPhone: '010-9999-0003',
+    status: 'NEW' as const,
+    source: 'phone-consultation',
+    notes: '크루즈몰에서 전화상담 신청. 일본 크루즈 문의.',
+    nextActionAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2일 후
+  },
+  // 상품 문의 고객 (product-inquiry)
+  {
+    customerName: '박지민',
+    customerPhone: '010-8888-0001',
+    status: 'NEW' as const,
+    source: 'product-inquiry',
+    notes: '상품 상세페이지에서 상담 신청. 코스타 베네치아 문의.',
+    nextActionAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1일 후
+  },
+  {
+    customerName: '최민지',
+    customerPhone: '010-8888-0002',
+    status: 'NEW' as const,
+    source: 'product-inquiry',
+    notes: '상품 상세페이지에서 상담 신청. 대만 크루즈 관심.',
+    nextActionAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1일 후
+  },
+  {
+    customerName: '정수현',
+    customerPhone: '010-8888-0003',
+    status: 'NEW' as const,
+    source: 'product-inquiry',
+    notes: '상품 상세페이지에서 상담 신청. 가족 여행 문의.',
+    nextActionAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2일 후
+  },
+  // 크루즈몰에서 온 고객 (mall-로 시작하는 source)
+  {
+    customerName: '강동원',
+    customerPhone: '010-7777-0001',
+    status: 'NEW' as const,
+    source: 'mall-shop',
+    notes: '크루즈몰 쇼핑몰에서 문의. 프리미엄 크루즈 관심.',
+    nextActionAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1일 후
+  },
+  {
+    customerName: '송혜교',
+    customerPhone: '010-7777-0002',
+    status: 'NEW' as const,
+    source: 'mall-landing',
+    notes: '크루즈몰 랜딩페이지에서 문의. 일본 크루즈 관심.',
+    nextActionAt: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1일 후
+  },
 ];
 
 async function main() {

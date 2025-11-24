@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
+import bcrypt from 'bcryptjs';
 
 // PUT: 파트너 비밀번호 변경
 export async function PUT(req: NextRequest) {
@@ -20,22 +21,12 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // 현재 사용자 정보 조회 (비밀번호 이력 포함)
+    // 현재 사용자 정보 조회 (비밀번호 포함)
     const user = await prisma.user.findUnique({
       where: { id: sessionUser.id },
       select: { 
         id: true, 
         password: true,
-        PasswordEvent: {
-          select: {
-            id: true,
-            from: true,
-            to: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 1,
-        },
       },
     });
 
@@ -46,61 +37,43 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // 실제 현재 비밀번호 가져오기 (PasswordEvent의 최신 to 값 우선, 없으면 user.password)
-    const latestPasswordEvent = user.PasswordEvent && user.PasswordEvent.length > 0 
-      ? user.PasswordEvent[0] 
-      : null;
-    const actualCurrentPassword = latestPasswordEvent?.to || user.password || null;
+    // 현재 비밀번호 검증
+    if (user.password) {
+      if (!currentPassword || typeof currentPassword !== 'string' || currentPassword.trim().length === 0) {
+        return NextResponse.json(
+          { ok: false, message: '현재 비밀번호를 입력해주세요.' },
+          { status: 400 }
+        );
+      }
 
-    console.log('[Partner Password] Password check:', {
-      userId: user.id,
-      hasCurrentPassword: !!(currentPassword && typeof currentPassword === 'string' && currentPassword.trim().length > 0),
-      actualFromEvent: actualCurrentPassword ? '***' : null,
-      actualFromUser: user.password ? '***' : null,
-      hasLatestEvent: !!latestPasswordEvent,
-    });
-
-    // 현재 비밀번호 확인 (선택사항 - currentPassword가 제공되고 비어있지 않은 경우에만 확인)
-    if (currentPassword && typeof currentPassword === 'string' && currentPassword.trim().length > 0) {
-      const trimmedCurrentPassword = currentPassword.trim();
-      // PasswordEvent의 최신 to 값과 user.password 둘 다 확인
-      const matchesEventPassword = actualCurrentPassword === trimmedCurrentPassword;
-      const matchesUserPassword = user.password === trimmedCurrentPassword;
+      // bcrypt로 비밀번호 비교
+      const isPasswordValid = await bcrypt.compare(currentPassword.trim(), user.password);
       
-      if (!matchesEventPassword && !matchesUserPassword) {
-        console.error('[Partner Password] Password mismatch:', {
-          userId: user.id,
-          providedLength: trimmedCurrentPassword.length,
-          actualFromEventLength: actualCurrentPassword?.length || 0,
-          actualFromUserLength: user.password?.length || 0,
-          matchesEventPassword,
-          matchesUserPassword,
-        });
+      if (!isPasswordValid) {
         return NextResponse.json(
           { ok: false, message: '현재 비밀번호가 일치하지 않습니다.' },
           { status: 400 }
         );
       }
-      
-      console.log('[Partner Password] Password verified successfully');
-    } else {
-      console.log('[Partner Password] Skipping current password check (not provided)');
     }
 
-    // 비밀번호 이벤트 기록 (실제 현재 비밀번호를 from으로 사용)
+    // 새 비밀번호 암호화
+    const hashedNewPassword = await bcrypt.hash(newPassword.trim(), 10);
+
+    // 비밀번호 이벤트 기록 (보안상 마스킹된 값 저장)
     await prisma.passwordEvent.create({
       data: {
         userId: user.id,
-        from: actualCurrentPassword || user.password || '',
-        to: newPassword.trim(),
+        from: '***',
+        to: '***',
         reason: `파트너 비밀번호 변경 (파트너 ID: ${profile.user?.mallUserId || sessionUser.id})`,
       },
     });
 
-    // 비밀번호 업데이트 (평문으로 저장)
+    // 비밀번호 업데이트 (bcrypt 해시로 저장)
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: newPassword.trim() },
+      data: { password: hashedNewPassword },
     });
 
     return NextResponse.json({
@@ -121,12 +94,3 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-

@@ -11,6 +11,7 @@ interface ImageInfo {
 
 /**
  * 여행지에 맞는 이미지를 크루즈정보사진 폴더에서 찾아서 반환
+ * 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
  */
 export function getDestinationImages(destinations: string[]): ImageInfo[] {
   const images: ImageInfo[] = [];
@@ -119,6 +120,7 @@ export function getCruiseReviewImages(
   limit: number = 10,
 ): ImageInfo[] {
   // 실제 폴더 경로: "고객 후기 자료"
+  // 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
   const reviewDir = path.join(process.cwd(), 'public', '크루즈정보사진', '고객 후기 자료');
   if (!fs.existsSync(reviewDir)) {
     console.warn('[Cruise Images] Review directory not found:', reviewDir);
@@ -130,42 +132,58 @@ export function getCruiseReviewImages(
 
   const walk = (dirPath: string, relativePath = '', depth = 4) => {
     if (images.length >= limit || depth < 0) return;
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    
+    try {
+      // 디렉토리가 존재하는지 확인
+      if (!fs.existsSync(dirPath)) {
+        return;
+      }
+      
+      const stat = fs.statSync(dirPath);
+      if (!stat.isDirectory()) {
+        return;
+      }
+      
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
 
-    for (const entry of entries) {
-      const entryPath = path.join(dirPath, entry.name);
-      const entryRelative = path.join(relativePath, entry.name);
+      for (const entry of entries) {
+        const entryPath = path.join(dirPath, entry.name);
+        const entryRelative = path.join(relativePath, entry.name);
 
-      if (entry.isDirectory()) {
-        walk(entryPath, entryRelative, depth - 1);
-        if (images.length >= limit) return;
-      } else if (entry.isFile()) {
-        const ext = path.extname(entry.name).toLowerCase();
-        if (!imageExtensions.includes(ext)) continue;
+        if (entry.isDirectory()) {
+          walk(entryPath, entryRelative, depth - 1);
+          if (images.length >= limit) return;
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (!imageExtensions.includes(ext)) continue;
 
-        // 코스타 필터 제거 - 모든 크루즈 사진 포함 (Q2에서 사용)
-        // const normalizedName = entryRelative.toLowerCase();
-        // if (!normalizedName.includes('코스타') && !normalizedName.includes('costa')) {
-        //   continue;
-        // }
+          // 코스타 필터 제거 - 모든 크루즈 사진 포함 (Q2에서 사용)
+          // const normalizedName = entryRelative.toLowerCase();
+          // if (!normalizedName.includes('코스타') && !normalizedName.includes('costa')) {
+          //   continue;
+          // }
 
-        try {
-          const stat = fs.statSync(entryPath);
-          if (stat.size <= 0) continue;
-          fs.accessSync(entryPath, fs.constants.R_OK);
+          try {
+            const stat = fs.statSync(entryPath);
+            if (stat.size <= 0) continue;
+            fs.accessSync(entryPath, fs.constants.R_OK);
 
-          const normalized = entryRelative.replace(/\\/g, '/');
-          const parts = normalized.split('/').filter(Boolean);
-          const url = `/크루즈정보사진/고객 후기 자료/${parts.map(encodeURIComponent).join('/')}`;
+            const normalized = entryRelative.replace(/\\/g, '/');
+            const parts = normalized.split('/').filter(Boolean);
+            const url = `/크루즈정보사진/고객 후기 자료/${parts.map(encodeURIComponent).join('/')}`;
 
-          images.push({
-            url,
-            title: entry.name.replace(/\.[^/.]+$/, ''), // 확장자 제거
-          });
-        } catch (error) {
-          console.warn(`[Cruise Images] Skipping inaccessible file: ${entryRelative}`, error);
+            images.push({
+              url,
+              title: entry.name.replace(/\.[^/.]+$/, ''), // 확장자 제거
+            });
+          } catch (error) {
+            console.warn(`[Cruise Images] Skipping inaccessible file: ${entryRelative}`, error);
+          }
         }
       }
+    } catch (error) {
+      // 디렉토리 접근 실패 시 무시하고 계속 진행
+      console.warn(`[Cruise Images] Failed to access directory ${dirPath}:`, error);
     }
   };
 
@@ -235,9 +253,11 @@ export function getProductDestinationImages(productInfo: {
 
   const countries = new Set<string>();
 
-  const addCountriesFromText = (text?: string) => {
+  const addCountriesFromText = (text?: string | any) => {
     if (!text) return;
-    const upper = text.toUpperCase();
+    // text가 문자열이 아니면 문자열로 변환
+    const textStr = typeof text === 'string' ? text : String(text);
+    const upper = textStr.toUpperCase();
     Object.entries(destinationCountryMap).forEach(([keyword, country]) => {
       if (upper.includes(keyword)) {
         countries.add(country);
@@ -250,14 +270,47 @@ export function getProductDestinationImages(productInfo: {
   
   // itineraryPattern 처리 (JSON 형식일 수도 있음)
   if (productInfo.itineraryPattern) {
-    try {
-      // JSON 형식인지 확인
-      const parsed = JSON.parse(productInfo.itineraryPattern);
-      if (Array.isArray(parsed)) {
-        // JSON 배열인 경우: 각 항목의 country, location 필드에서 국가 추출
-        parsed.forEach((item: any) => {
+    // itineraryPattern이 문자열인지 확인
+    if (typeof productInfo.itineraryPattern === 'string') {
+      try {
+        // JSON 형식인지 확인
+        const parsed = JSON.parse(productInfo.itineraryPattern);
+        if (Array.isArray(parsed)) {
+          // JSON 배열인 경우: 각 항목의 country, location 필드에서 국가 추출
+          parsed.forEach((item: any) => {
+            if (item.country) {
+              // country 코드를 국가명으로 변환 (예: "JP" -> "일본")
+              const countryCodeMap: Record<string, string> = {
+                'KR': '대한민국',
+                'JP': '일본',
+                'TW': '대만',
+                'HK': '홍콩',
+                'SG': '싱가포르',
+                'VN': '베트남',
+                'MY': '말레이시아',
+                'TH': '태국',
+                'PH': '필리핀',
+              };
+              const countryName = countryCodeMap[item.country] || item.country;
+              countries.add(countryName);
+            }
+            if (item.location) {
+              addCountriesFromText(item.location);
+            }
+          });
+        } else {
+          // JSON 객체인 경우
+          addCountriesFromText(JSON.stringify(parsed));
+        }
+      } catch (e) {
+        // JSON이 아닌 경우 일반 문자열로 처리
+        addCountriesFromText(productInfo.itineraryPattern);
+      }
+    } else if (Array.isArray(productInfo.itineraryPattern)) {
+      // 이미 배열인 경우 (직접 전달된 경우)
+      (productInfo.itineraryPattern as any[]).forEach((item: any) => {
+        if (item && typeof item === 'object') {
           if (item.country) {
-            // country 코드를 국가명으로 변환 (예: "JP" -> "일본")
             const countryCodeMap: Record<string, string> = {
               'KR': '대한민국',
               'JP': '일본',
@@ -275,14 +328,11 @@ export function getProductDestinationImages(productInfo: {
           if (item.location) {
             addCountriesFromText(item.location);
           }
-        });
-      } else {
-        // JSON 객체인 경우
-        addCountriesFromText(JSON.stringify(parsed));
-      }
-    } catch (e) {
-      // JSON이 아닌 경우 일반 문자열로 처리
-      addCountriesFromText(productInfo.itineraryPattern);
+        }
+      });
+    } else if (typeof productInfo.itineraryPattern === 'object') {
+      // 객체인 경우 문자열로 변환하여 처리
+      addCountriesFromText(JSON.stringify(productInfo.itineraryPattern));
     }
   }
 
@@ -291,6 +341,7 @@ export function getProductDestinationImages(productInfo: {
 
 /**
  * 객실 이미지 가져오기 (크루즈정보사진 폴더에서)
+ * 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
  */
 export function getRoomImages(limit: number = 3): ImageInfo[] {
   const images: ImageInfo[] = [];

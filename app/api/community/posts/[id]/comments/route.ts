@@ -181,16 +181,66 @@ export async function GET(
       );
     }
 
+    // 현재 사용자 확인 (3일 체험 사용자 필터링을 위해)
+    const session = await getSession();
+    let isTrialUser = false;
+    if (session?.userId) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: parseInt(session.userId) },
+        select: {
+          phone: true,
+          testModeStartedAt: true
+        }
+      });
+      // phone에 "test"가 포함되어 있거나 testModeStartedAt이 있으면 3일 체험 사용자
+      isTrialUser = !!(currentUser?.testModeStartedAt || (currentUser?.phone && currentUser.phone.toLowerCase().includes('test')));
+    }
+
     // DB에서 댓글 조회 (대댓글 포함, 모든 댓글 조회)
     console.log('[COMMENTS GET] Fetching comments from DB...');
     let comments: any[] = [];
     try {
+      const commentWhereCondition: any = {
+        postId: postId
+      };
+
+      // 3일 체험 사용자는 3일 체험 사용자가 작성한 댓글만 볼 수 있도록 필터링
+      if (isTrialUser) {
+        const trialUsers = await prisma.user.findMany({
+          where: {
+            OR: [
+              { testModeStartedAt: { not: null } },
+              { phone: { contains: 'test', mode: 'insensitive' } }
+            ]
+          },
+          select: { id: true }
+        });
+        const trialUserIds = trialUsers.map(u => u.id);
+        commentWhereCondition.userId = { in: trialUserIds };
+      }
+
+      // 3일 체험 사용자 ID 목록 미리 가져오기 (대댓글 필터링용)
+      let trialUserIds: number[] = [];
+      if (isTrialUser) {
+        const trialUsers = await prisma.user.findMany({
+          where: {
+            OR: [
+              { testModeStartedAt: { not: null } },
+              { phone: { contains: 'test', mode: 'insensitive' } }
+            ]
+          },
+          select: { id: true }
+        });
+        trialUserIds = trialUsers.map(u => u.id);
+      }
+
       comments = await prisma.communityComment.findMany({
-        where: {
-          postId: postId
-        },
+        where: commentWhereCondition,
         include: {
           other_CommunityComment: {
+            where: isTrialUser ? {
+              userId: { in: trialUserIds }
+            } : undefined,
             orderBy: { createdAt: 'asc' }
           }
         },

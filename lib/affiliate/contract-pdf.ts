@@ -512,11 +512,24 @@ function maskResidentId(id: string): string {
 }
 
 /**
- * 계약서 PDF를 Google Drive에 업로드
+ * 계약서 PDF를 서버에 저장하고 구글 드라이브에 백업
  */
 export async function saveContractPDF(contractId: number, pdfBuffer: Buffer): Promise<string> {
+  // 1단계: 서버에 먼저 저장 (안정성 확보)
+  const fileName = `contract-${contractId}-${Date.now()}.pdf`;
+  const uploadDir = join(process.cwd(), 'public', 'uploads', 'contracts');
+  
+  if (!existsSync(uploadDir)) {
+    await mkdir(uploadDir, { recursive: true });
+  }
+
+  const filePath = join(uploadDir, fileName);
+  await writeFile(filePath, pdfBuffer);
+  const serverUrl = `/uploads/contracts/${fileName}`;
+  console.log('[Contract PDF] 파일이 서버에 저장되었습니다:', serverUrl);
+
+  // 2단계: 구글 드라이브 백업 (실패해도 계속 진행)
   try {
-    // Google Drive에 업로드 시도
     const { uploadFileToDrive } = await import('@/lib/google-drive');
     
     // DB에서 폴더 ID 가져오기
@@ -529,7 +542,6 @@ export async function saveContractPDF(contractId: number, pdfBuffer: Buffer): Pr
     const folderId = config?.configValue || process.env.GOOGLE_DRIVE_CONTRACTS_FOLDER_ID;
 
     if (folderId && folderId !== 'root') {
-      const fileName = `contract-${contractId}-${Date.now()}.pdf`;
       const uploadResult = await uploadFileToDrive({
         folderId,
         fileName,
@@ -539,27 +551,19 @@ export async function saveContractPDF(contractId: number, pdfBuffer: Buffer): Pr
       });
 
       if (uploadResult.ok && uploadResult.url) {
-        console.log(`[Contract PDF] Uploaded to Google Drive: ${uploadResult.url}`);
-        return uploadResult.url;
+        console.log(`[Contract PDF] 구글 드라이브 백업 성공: ${uploadResult.url}`);
+        // 백업 성공해도 서버 URL 반환 (서버가 기본)
+      } else {
+        console.warn('[Contract PDF] 구글 드라이브 백업 실패 (서버 저장은 성공):', uploadResult.error);
       }
     }
   } catch (error) {
-    console.warn('[Contract PDF] Google Drive upload failed, falling back to local storage:', error);
+    console.warn('[Contract PDF] 구글 드라이브 백업 중 오류 (서버 저장은 성공):', error);
+    // 백업 실패해도 서버 저장은 성공했으므로 계속 진행
   }
 
-  // Google Drive 업로드 실패 시 로컬 저장 (하위 호환성)
-  const uploadDir = join(process.cwd(), 'public', 'contracts', 'pdfs');
-  
-  if (!existsSync(uploadDir)) {
-    await mkdir(uploadDir, { recursive: true });
-  }
-
-  const fileName = `contract-${contractId}-${Date.now()}.pdf`;
-  const filePath = join(uploadDir, fileName);
-  
-  await writeFile(filePath, pdfBuffer);
-  
-  return `/contracts/pdfs/${fileName}`;
+  // 서버 URL 반환 (백업은 metadata에 저장 가능)
+  return serverUrl;
 }
 
 /**

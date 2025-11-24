@@ -5,6 +5,9 @@ import { getAffiliateOwnershipForUsers } from '@/lib/affiliate/customer-ownershi
 import { getCurrentCustomerGroup, CustomerGroup, getCustomerCountByGroup } from '@/lib/customer-journey';
 import { logger } from '@/lib/logger';
 
+// 관리자 페이지에서만 사용하는 확장된 고객 그룹 타입
+type AdminCustomerGroup = CustomerGroup | 'inquiry' | 'all' | 'passport';
+
 const SESSION_COOKIE = 'cg.sid.v2';
 
 // 관리자 권한 확인
@@ -82,7 +85,7 @@ export async function GET(req: NextRequest) {
     const userType = searchParams.get('userType') || 'all'; // all, trial, regular - 3일 체험 사용자와 일반 사용자 구분
     const managerProfileId = searchParams.get('managerProfileId'); // 점장별 필터링
     const customerGroupRaw = searchParams.get('customerGroup');
-    const customerGroup: CustomerGroup | 'all' | null = customerGroupRaw === 'all' ? 'all' : (customerGroupRaw as CustomerGroup | null); // 고객 그룹 필터: all, prospects, trial, mall, purchase, refund, passport, manager-customers, agent-customers
+    const customerGroup: AdminCustomerGroup | null = customerGroupRaw === 'all' ? 'all' : (customerGroupRaw as AdminCustomerGroup | null); // 고객 그룹 필터: all, prospects, trial, mall, purchase, refund, passport, manager-customers, agent-customers, inquiry
 
     // 연동된 크루즈몰 고객 ID 목록 조회 (중복 제거용) - 성능 최적화: 필요할 때만 조회
     // 크루즈 가이드 고객 중 mallUserId가 설정된 고객들의 mallUserId 목록
@@ -143,6 +146,14 @@ export async function GET(req: NextRequest) {
         // 환불 고객만 조회
         whereConditions.push({
           customerStatus: 'refunded',
+        });
+      } else if ((customerGroupRaw as string) === 'inquiry') {
+        // 문의 고객만 조회: product-inquiry 또는 phone-consultation
+        whereConditions.push({
+          OR: [
+            { customerSource: 'product-inquiry' },
+            { customerSource: 'phone-consultation' },
+          ],
         });
       }
       // 다른 customerGroup들 (passport, manager-customers, agent-customers, prospects)은
@@ -523,6 +534,9 @@ export async function GET(req: NextRequest) {
         customerType = 'test';
       } else if (customerSource === 'cruise-guide') {
         customerType = 'cruise-guide';
+      } else if (customerSource === 'product-inquiry' || customerSource === 'phone-consultation') {
+        // 절대법칙: 크루즈몰 전화상담 버튼으로 이름과 연락처를 입력한 고객은 잠재고객(prospect)
+        customerType = 'prospect';
       } else if (customerStatus === 'test' || customerStatus === 'test-locked') {
         customerType = 'test';
       } else if (customerStatus === 'excel') {
@@ -623,6 +637,7 @@ export async function GET(req: NextRequest) {
         currentTripEndDate: mergedCustomer.currentTripEndDate?.toISOString() || null,
         status: genieStatus,
         customerType: mergedCustomer.AffiliateProfile ? 'partner' : customerType,
+        customerSource: mergedCustomer.customerSource || null, // 고객 유입 경로 (전화상담신청 딱지용)
         isMallUser: customerType === 'mall' || (!!mergedCustomer.mallUserId && mergedCustomer.role === 'user'),
         isLinked: (!!mergedCustomer.mallUserId && mergedCustomer.role === 'user') || isLinkedForMallCustomer,
         currentPassword,
@@ -670,6 +685,7 @@ export async function GET(req: NextRequest) {
               engGivenName: true,
               engSurname: true,
               korName: true,
+              passportImage: true, // 여권 이미지 포함
             },
           },
         },
@@ -1018,11 +1034,11 @@ export async function GET(req: NextRequest) {
 
     // 고객 그룹 필터링 (passport는 구매고객 중 여권 정보가 있는/없는 고객)
     // customerGroup이 없거나 'all'이면 필터링하지 않음 (전체 고객 표시)
-    const effectiveGroup: CustomerGroup | 'all' | 'passport' | null = customerGroup as CustomerGroup | 'all' | 'passport' | null;
+    const effectiveGroup: AdminCustomerGroup | null = customerGroup as AdminCustomerGroup | null;
     let customersWithOwnership = customersWithGroup;
     if (effectiveGroup && effectiveGroup !== 'all') {
       try {
-        if (effectiveGroup === 'passport') {
+        if (effectiveGroup === 'passport' as AdminCustomerGroup) {
           // 여권 관리: 구매고객 중 여권 정보가 있는 고객
           customersWithOwnership = customersWithGroup.filter(
             (c) => {
@@ -1094,6 +1110,18 @@ export async function GET(req: NextRequest) {
               }
             }
           );
+        } else if ((customerGroupRaw as string) === 'inquiry') {
+          // 문의 고객: product-inquiry 또는 phone-consultation
+          customersWithOwnership = customersWithGroup.filter(
+            (c) => {
+              try {
+                return c.customerSource === 'product-inquiry' || c.customerSource === 'phone-consultation';
+              } catch (e) {
+                console.error(`[Admin Customers API] Error filtering inquiry customer ${c.id}:`, e);
+                return false;
+              }
+            }
+          );
         } else {
           // 일반 그룹 필터링
           customersWithOwnership = customersWithGroup.filter(
@@ -1142,6 +1170,7 @@ export async function GET(req: NextRequest) {
       'manager-customers': 0,
       'agent-customers': 0,
       'prospects': 0,
+      'inquiry': 0,
     };
     
     try {
@@ -1153,6 +1182,7 @@ export async function GET(req: NextRequest) {
         trialCount,
         mallCount,
         prospectsCount,
+        inquiryCount,
       ] = await Promise.all([
         // 전체 고객 수
         prisma.user.count({
@@ -1217,6 +1247,16 @@ export async function GET(req: NextRequest) {
             Reservation: { none: {} },
           },
         }),
+        // 문의 고객 수 (product-inquiry 또는 phone-consultation)
+        prisma.user.count({
+          where: {
+            role: { not: 'admin' },
+            OR: [
+              { customerSource: 'product-inquiry' },
+              { customerSource: 'phone-consultation' },
+            ],
+          },
+        }),
       ]);
       
       groupCounts['all'] = totalCount;
@@ -1225,6 +1265,7 @@ export async function GET(req: NextRequest) {
       groupCounts['trial'] = trialCount;
       groupCounts['mall'] = mallCount;
       groupCounts['prospects'] = prospectsCount;
+      groupCounts['inquiry'] = inquiryCount;
       
       // 소유권 기반 그룹 카운트는 별도로 계산 (성능 최적화를 위해 나중에 추가 가능)
       // 현재는 기본 그룹 카운트만 계산

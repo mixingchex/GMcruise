@@ -38,8 +38,9 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
       const data = await response.json();
       if (data.ok && data.files) {
         // 중복 제거 (URL 기준)
-        const uniqueFiles = Array.from(
-          new Map(data.files.map((file: FileItem) => [file.url, file])).values()
+        const files = data.files as FileItem[];
+        const uniqueFiles: FileItem[] = Array.from(
+          new Map(files.map((file: FileItem) => [file.url, file])).values()
         );
         setFiles(uniqueFiles);
       } else {

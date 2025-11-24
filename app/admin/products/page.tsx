@@ -1089,8 +1089,6 @@ export default function ProductsManagementPage() {
       isBudget: (product as any).isBudget || false, // 수동 등록 폼과 동일
       recommendedKeywords: recommendedKeywords,
       tags: tags,
-      rating: rating,
-      reviewCount: reviewCount,
       badges: badges,
       // 어필리에이트 수당 관리 필드
       title: affiliateProduct?.title || product.packageName || '',

@@ -39,14 +39,17 @@ function buildOrderBy(sort: string | null) {
 
 export async function GET(req: NextRequest) {
   try {
+    console.log('[GET /api/partner/customers] Starting request...');
     const { profile } = await requirePartnerContext({ includeManagedAgents: true });
     console.log('[GET /api/partner/customers] Profile:', { id: profile.id, type: profile.type });
     const { searchParams } = new URL(req.url);
+    console.log('[GET /api/partner/customers] Search params:', Object.fromEntries(searchParams.entries()));
 
     const { page, limit, skip } = parsePagination(searchParams);
     const statusFilter = ensureValidLeadStatus(searchParams.get('status'));
     const query = searchParams.get('q')?.trim() || '';
     const sort = searchParams.get('sort');
+    const source = searchParams.get('source'); // 전화상담고객 필터 (mall)
 
     // 대리점장인 경우: 랜딩페이지로 유입된 고객도 포함
     // SharedLandingPage를 통해 공유된 랜딩페이지의 등록 고객 조회
@@ -84,9 +87,74 @@ export async function GET(req: NextRequest) {
     }
 
     // AffiliateLead 조건과 랜딩페이지 고객 조건을 OR로 결합
-    const whereConditions: Prisma.AffiliateLeadWhereInput[] = [
-      { OR: [{ managerId: profile.id }, { agentId: profile.id }] },
-    ];
+    let whereConditions: Prisma.AffiliateLeadWhereInput[] = [];
+    
+    // 전화상담고객 필터 (source=mall)
+    if (source === 'mall') {
+      // 대리점장: 본인 + 소속 판매원의 문의고객
+      if (profile.type === 'BRANCH_MANAGER') {
+        const agentIds = profile.managedAgents?.map(a => a.id) || [];
+        whereConditions = [
+          {
+            AND: [
+              {
+                OR: [
+                  { managerId: profile.id },
+                  { agentId: { in: [profile.id, ...agentIds] } },
+                ],
+              },
+              {
+                OR: [
+                  { source: { startsWith: 'mall-' } },
+                  { source: 'product-inquiry' },
+                  { source: 'phone-consultation' }, // 전화상담 신청 추가
+                ],
+              },
+            ],
+          },
+        ];
+      } else {
+        // 판매원: 자신의 몰 문의고객만
+        whereConditions = [
+          {
+            AND: [
+              { agentId: profile.id },
+              {
+                OR: [
+                  { source: { startsWith: 'mall-' } },
+                  { source: 'product-inquiry' },
+                  { source: 'phone-consultation' }, // 전화상담 신청 추가
+                ],
+              },
+            ],
+          },
+        ];
+      }
+    } else {
+      // 일반 고객 (기존 로직)
+      if (profile.type === 'BRANCH_MANAGER') {
+        // 대리점장: 본인 고객 + 소속 판매원 고객
+        const agentIds = profile.managedAgents?.map(a => a.id) || [];
+        whereConditions = [
+          {
+            OR: [
+              { managerId: profile.id },
+              { agentId: { in: [profile.id, ...agentIds] } },
+            ],
+          },
+        ];
+      } else if (profile.type === 'SALES_AGENT') {
+        // 판매원: 자신의 고객만
+        whereConditions = [
+          { agentId: profile.id },
+        ];
+      } else {
+        // 본사(HQ) 또는 기타: 본인 고객
+        whereConditions = [
+          { OR: [{ managerId: profile.id }, { agentId: profile.id }] },
+        ];
+      }
+    }
 
     // 랜딩페이지로 유입된 고객이 있고, 해당 고객의 전화번호로 AffiliateLead를 찾는 경우
     if (landingPageUserIds.length > 0) {
@@ -143,6 +211,11 @@ export async function GET(req: NextRequest) {
     // 판매원일 때는 최근 상담 기록을 더 많이 가져와서 대리점장/본인 기록 확인
     const interactionTake = profile.type === 'SALES_AGENT' ? 10 : 1;
     
+    console.log('[GET /api/partner/customers] Executing findMany query...', {
+      whereConditions: whereConditions.length,
+      skip,
+      take: limit,
+    });
     const leads = await prisma.affiliateLead.findMany({
       where,
       orderBy: buildOrderBy(sort),
@@ -160,10 +233,12 @@ export async function GET(req: NextRequest) {
         },
       },
     });
+    console.log('[GET /api/partner/customers] Found leads:', leads.length);
 
     const leadIds = leads.map((lead) => lead.id);
+    console.log('[GET /api/partner/customers] Lead IDs:', leadIds);
 
-    // 고객 전화번호로 User 정보 조회 (상태 딱지 표시용 및 고객 그룹 추가용)
+    // 고객 전화번호로 User 정보 조회 (상태 딱지 표시용 및 고객 그룹 추가용, Trip 정보 포함)
     const customerPhones = leads
       .map((lead) => lead.customerPhone)
       .filter((phone): phone is string => !!phone);
@@ -173,10 +248,19 @@ export async function GET(req: NextRequest) {
       name: string | null;
       testModeStartedAt: Date | null;
       customerStatus: string | null;
+      customerSource: string | null;
+      role: string | null;
       mallUserId: string | null;
+      trips: Array<{
+        id: number;
+        cruiseName: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+      }>;
     }>();
 
     if (customerPhones.length > 0) {
+      console.log('[GET /api/partner/customers] Fetching users by phone:', customerPhones.length);
       const users = await prisma.user.findMany({
         where: {
           phone: { in: customerPhones },
@@ -187,6 +271,8 @@ export async function GET(req: NextRequest) {
           name: true,
           testModeStartedAt: true,
           customerStatus: true,
+          customerSource: true,
+          role: true,
           mallUserId: true,
         },
       });
@@ -198,7 +284,10 @@ export async function GET(req: NextRequest) {
             name: user.name,
             testModeStartedAt: user.testModeStartedAt,
             customerStatus: user.customerStatus,
+            customerSource: user.customerSource,
+            role: user.role,
             mallUserId: user.mallUserId,
+            trips: [], // UserTrip 모델이 없으므로 빈 배열
           });
         }
       });
@@ -218,6 +307,7 @@ export async function GET(req: NextRequest) {
     >();
 
     if (leadIds.length) {
+      console.log('[GET /api/partner/customers] Fetching sale groups for leads:', leadIds.length);
       const saleGroups = await prisma.affiliateSale.groupBy({
         by: ['leadId', 'status'],
         where: { leadId: { in: leadIds } },
@@ -266,9 +356,113 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // customerSource를 기반으로 customerType 결정하는 함수
+    const determineCustomerType = (customerSource: string | null, role: string | null): 'test' | 'cruise-guide' | 'mall' | 'prospect' | 'partner' | 'admin' | undefined => {
+      if (customerSource === 'admin' || role === 'admin') {
+        return 'admin';
+      } else if (customerSource === 'mall-admin') {
+        return 'admin'; // mall-admin도 admin으로 처리
+      } else if (customerSource === 'mall-signup' || role === 'community') {
+        return 'mall';
+      } else if (customerSource === 'test-guide' || customerSource === 'test') {
+        return 'test';
+      } else if (customerSource === 'cruise-guide') {
+        return 'cruise-guide';
+      } else if (customerSource === 'affiliate-manual' || customerSource === 'product-inquiry' || customerSource === 'phone-consultation') {
+        return 'prospect';
+      }
+      // customerSource가 없거나 알 수 없는 경우, role 기반으로 판단
+      if (role === 'admin') {
+        return 'admin';
+      }
+      // 기본값은 prospect (잠재 고객)
+      return 'prospect';
+    };
+
     const serialized = leads.map((lead) => {
       const userInfo = lead.customerPhone ? usersByPhone.get(lead.customerPhone) : null;
+      const latestTrip = userInfo?.trips?.[0] || null;
+      
+      // customerType 결정
+      const customerType = userInfo 
+        ? determineCustomerType(userInfo.customerSource, userInfo.role)
+        : 'prospect'; // User가 없으면 prospect
+      
+      // status 결정 (User의 customerStatus 사용, 없으면 lead의 status 사용)
+      // customerStatus 값 매핑: 'purchase_confirmed' -> 'package', 그 외는 그대로 사용
+      let status: 'active' | 'package' | 'dormant' | 'locked' | 'test-locked' | undefined = 'active';
+      if (userInfo?.customerStatus) {
+        // DB의 customerStatus를 Customer 인터페이스의 status로 매핑
+        const dbStatus = userInfo.customerStatus;
+        if (dbStatus === 'purchase_confirmed') {
+          status = 'package';
+        } else if (['active', 'package', 'dormant', 'locked', 'test-locked'].includes(dbStatus)) {
+          status = dbStatus as typeof status;
+        } else {
+          status = 'active'; // 기본값
+        }
+      } else if (lead.status) {
+        // AffiliateLead의 status는 그대로 사용 (이미 올바른 형식)
+        status = lead.status as typeof status;
+      }
+      
+      // 담당자 정보 구성 (affiliateOwnership 형식)
+      const ownership = resolveOwnership(profile.id, lead);
+      const agentProfile = lead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile;
+      const managerProfile = lead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile;
+      
+      let affiliateOwnership: {
+        ownerType: 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT';
+        ownerName: string | null;
+        managerProfile: any | null;
+      } | null = null;
+      
+      if (ownership === 'AGENT' && lead.agentId && agentProfile) {
+        affiliateOwnership = {
+          ownerType: 'SALES_AGENT' as const,
+          ownerName: agentProfile.displayName || null,
+          managerProfile: managerProfile ? {
+            id: managerProfile.id,
+            displayName: managerProfile.displayName,
+            nickname: managerProfile.displayName,
+            affiliateCode: managerProfile.affiliateCode,
+            branchLabel: managerProfile.branchLabel,
+            status: 'ACTIVE',
+            contactPhone: null,
+          } : null,
+        };
+      } else if (ownership === 'MANAGER' && lead.managerId && managerProfile) {
+        affiliateOwnership = {
+          ownerType: 'BRANCH_MANAGER' as const,
+          ownerName: managerProfile.displayName || null,
+          managerProfile: null, // 대리점장은 managerProfile이 없음
+        };
+      }
+      
+      // Customer 인터페이스 구조에 맞게 변환
       return {
+        // 필수 필드
+        id: userInfo?.id || lead.id, // User가 있으면 User.id, 없으면 lead.id
+        name: userInfo?.name || lead.customerName || null,
+        phone: lead.customerPhone || null,
+        
+        // 선택 필드
+        customerType,
+        status: status as 'active' | 'package' | 'dormant' | 'locked' | 'test-locked' | undefined,
+        role: (userInfo?.role as 'user' | 'admin' | undefined) || 'user',
+        
+        // affiliateOwnership
+        affiliateOwnership,
+        
+        // trips 배열
+        trips: userInfo?.trips?.map(trip => ({
+          id: trip.id,
+          cruiseName: trip.cruiseName,
+          startDate: trip.startDate?.toISOString() || null,
+          endDate: trip.endDate?.toISOString() || null,
+        })) || [],
+        
+        // 기존 필드들 (하위 호환성 유지)
         ...serializeLead(lead, {
           ownership: resolveOwnership(profile.id, lead),
           counterpart: resolveCounterpart(profile.type, lead),
@@ -290,6 +484,10 @@ export async function GET(req: NextRequest) {
         // User 정보 추가 (고객 그룹 추가용)
         userId: userInfo?.id ?? null,
         userName: userInfo?.name ?? null,
+        // 전화상담 고객용 추가 정보
+        cruiseName: latestTrip?.cruiseName || null,
+        // customerSource 추가 (딱지 표시용)
+        customerSource: userInfo?.customerSource || lead.source || null,
       };
     });
 
@@ -364,14 +562,29 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     if (error instanceof PartnerApiError) {
+      console.error('[GET /api/partner/customers] PartnerApiError:', {
+        message: error.message,
+        status: error.status,
+        stack: error.stack,
+      });
       return NextResponse.json({ ok: false, message: error.message }, { status: error.status });
     }
-    console.error('GET /api/partner/customers error:', error);
+    console.error('[GET /api/partner/customers] Unexpected error:', error);
     if (error instanceof Error) {
-      console.error('Error stack:', error.stack);
-      console.error('Error message:', error.message);
+      console.error('[GET /api/partner/customers] Error name:', error.name);
+      console.error('[GET /api/partner/customers] Error message:', error.message);
+      console.error('[GET /api/partner/customers] Error stack:', error.stack);
+    } else {
+      console.error('[GET /api/partner/customers] Non-Error object:', JSON.stringify(error, null, 2));
     }
-    return NextResponse.json({ ok: false, message: '고객 목록을 불러오지 못했습니다.' }, { status: 500 });
+    return NextResponse.json(
+      { 
+        ok: false, 
+        message: '고객 목록을 불러오지 못했습니다.',
+        error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+      }, 
+      { status: 500 }
+    );
   }
 }
 

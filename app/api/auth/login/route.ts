@@ -1460,10 +1460,14 @@ export async function POST(req: Request) {
     if (password === '3800') {
       console.log('[Login] 3800 로그인 시도:', { phone, name });
       
-      // 이름, 전화번호로 사용자 찾기 (비밀번호는 나중에 확인)
+      // ✅ 전화번호 정규화 (등록 API와 동일하게)
+      const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
+      const normalizedPhone = normalizePhone(phone);
+      
+      // 이름, 정규화된 전화번호로 사용자 찾기 (비밀번호는 나중에 확인)
       let activeUser = await prisma.user.findFirst({
         where: {
-          phone,
+          phone: normalizedPhone,
           name,
           role: 'user',
         },
@@ -1489,13 +1493,13 @@ export async function POST(req: Request) {
 
       // 사용자가 없으면 자동 생성 (크루즈 가이드 지니 AI 요구사항)
       if (!activeUser) {
-        console.log('[Login] 3800 신규 사용자 자동 생성:', { phone, name });
+        console.log('[Login] 3800 신규 사용자 자동 생성:', { phone: normalizedPhone, name });
         try {
           const now = new Date();
           const newUser = await prisma.user.create({
             data: {
               name,
-              phone,
+              phone: normalizedPhone, // 정규화된 전화번호 사용
               password: '3800',
               onboarded: false, // 온보딩 없이 채팅창에 들어갈 수 있도록 false로 설정
               loginCount: 1,

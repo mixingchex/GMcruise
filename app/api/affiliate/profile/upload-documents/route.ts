@@ -1,270 +1,367 @@
-// app/api/affiliate/profile/upload-documents/route.ts
-// 신분증/통장 업로드 API
-
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+
+// ⬇️ 절대법칙: 파일 업로드 API는 반드시 nodejs runtime과 force-dynamic 필요
+export const runtime = 'nodejs';        // Edge Runtime 금지 (파일 시스템 접근 필요)
+export const dynamic = 'force-dynamic'; // 이미지/파일 업로드는 캐시 X
+
+import { getSession } from '@/lib/session';
+
 import prisma from '@/lib/prisma';
+
 import { uploadFileToDrive } from '@/lib/google-drive';
 
-const SESSION_COOKIE = 'cg.sid.v2';
+import { writeFile, mkdir } from 'fs/promises';
 
-// 세션에서 사용자 정보 가져오기
-async function getCurrentUser() {
-  const sid = cookies().get(SESSION_COOKIE)?.value;
-  if (!sid) return null;
+import { existsSync } from 'fs';
 
+import { join } from 'path';
+
+
+
+// ★ 엘런님이 지정한 구글 드라이브 폴더 ID ★
+
+const FOLDER_IDS: Record<string, string> = {
+
+  'ID_CARD': '1DFWpAiS-edjiBym5Y5AonDOl2wXyuDV0',  
+
+  'BANKBOOK': '1IjNSTTTBjU9NZE6fm6DeAAHBx4puWCRl' 
+
+};
+
+
+
+// GET: 문서 목록 조회
+export async function GET(req: NextRequest) {
   try {
-    const session = await prisma.session.findUnique({
-      where: { id: sid },
-      include: {
-        User: {
-          select: { id: true, role: true },
-        },
-      },
-    });
-
-    if (!session || !session.User) return null;
-    return session.User;
-  } catch (error) {
-    console.error('[Upload Documents] Session error:', error);
-    return null;
-  }
-}
-
-const SUPPORTED_TYPES = ['ID_CARD', 'BANKBOOK'] as const;
-type SupportedDocumentType = (typeof SUPPORTED_TYPES)[number];
-
-function normalizeDocumentType(value: string | null): SupportedDocumentType | null {
-  if (!value) return null;
-  const trimmed = value.replace(/[\s-]/g, '').toUpperCase();
-  if (trimmed === 'IDCARD') return 'ID_CARD';
-  if (trimmed === 'BANKBOOK') return 'BANKBOOK';
-  return null;
-}
-
-/**
- * GET: 업로드된 문서 목록 조회
- */
-export async function GET() {
-  try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ ok: false, error: '로그인이 필요합니다' }, { status: 401 });
+    const session = await getSession();
+    if (!session?.userId) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const profile = await prisma.affiliateProfile.findUnique({
-      where: { userId: user.id },
-      select: { id: true, type: true },
+    const userIdInt = parseInt(String(session.userId), 10);
+    const profile = await prisma.affiliateProfile.findFirst({ 
+      where: { userId: userIdInt } 
     });
 
     if (!profile) {
-      return NextResponse.json({ ok: false, error: '어필리에이트 프로필을 찾을 수 없습니다' }, { status: 404 });
-    }
-
-    if (profile.type !== 'SALES_AGENT' && profile.type !== 'BRANCH_MANAGER') {
-      return NextResponse.json({ ok: false, error: '판매원 또는 대리점장만 조회할 수 있습니다' }, { status: 403 });
+      return NextResponse.json({ ok: true, documents: [] });
     }
 
     const documents = await prisma.affiliateDocument.findMany({
-      where: {
-        profileId: profile.id,
-        documentType: { in: SUPPORTED_TYPES },
-      },
+      where: { profileId: profile.id },
       orderBy: { uploadedAt: 'desc' },
     });
 
-    return NextResponse.json({
-      ok: true,
-      documents: documents.map((doc) => ({
+    return NextResponse.json({ 
+      ok: true, 
+      documents: documents.map(doc => ({
         id: doc.id,
         documentType: doc.documentType,
         filePath: doc.filePath,
         fileName: doc.fileName,
         fileSize: doc.fileSize,
         status: doc.status,
-        uploadedAt: doc.uploadedAt,
-        reviewedAt: doc.reviewedAt,
-        isApproved: doc.status === 'APPROVED' || doc.approvedById !== null,
-      })),
+        uploadedAt: doc.uploadedAt?.toISOString() || null,
+        reviewedAt: doc.reviewedAt?.toISOString() || null,
+        isApproved: doc.status === 'APPROVED',
+      }))
     });
   } catch (error: any) {
-    console.error('[Upload Documents] GET error:', error);
-    return NextResponse.json(
-      { ok: false, error: error?.message || '문서 목록을 불러오지 못했습니다' },
-      { status: 500 },
-    );
+    console.error('[GET Documents API Error]', error);
+    return NextResponse.json({ 
+      ok: false, 
+      error: error?.message || '문서 목록을 불러오는 중 오류가 발생했습니다.' 
+    }, { status: 500 });
   }
 }
 
-/**
- * POST: 신분증/통장 업로드
- */
+// POST: 파일 업로드
 export async function POST(req: NextRequest) {
+
   try {
-    const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ ok: false, error: '로그인이 필요합니다' }, { status: 401 });
-    }
 
-    const profile = await prisma.affiliateProfile.findUnique({
-      where: { userId: user.id },
-      select: { id: true, type: true },
-    });
+    const session = await getSession();
 
-    if (!profile) {
-      return NextResponse.json({ ok: false, error: '어필리에이트 프로필을 찾을 수 없습니다' }, { status: 404 });
-    }
+    if (!session?.userId) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
 
-    if (profile.type !== 'SALES_AGENT' && profile.type !== 'BRANCH_MANAGER') {
-      return NextResponse.json({ ok: false, error: '판매원 또는 대리점장만 업로드할 수 있습니다' }, { status: 403 });
-    }
+
 
     const formData = await req.formData();
-    const documentTypeRaw = (formData.get('documentType') as string | null) ?? null;
-    const normalizedType = normalizeDocumentType(documentTypeRaw);
 
-    if (!normalizedType) {
-      return NextResponse.json({ ok: false, error: '업로드할 문서 타입을 지정해주세요 (idCard 또는 bankbook)' }, { status: 400 });
+    const file = formData.get('file') as File;
+
+    const rawType = (formData.get('documentType') as string || '').toUpperCase();
+
+
+
+    if (!file || !rawType) {
+
+      return NextResponse.json({ ok: false, error: '파일과 문서 타입이 필요합니다.' }, { status: 400 });
+
     }
 
-    const uploadFile =
-      (formData.get('file') as File | null) ||
-      (formData.get('idCard') as File | null) ||
-      (formData.get('bankbook') as File | null);
 
-    if (!uploadFile) {
-      return NextResponse.json({ ok: false, error: '업로드할 파일을 선택해주세요' }, { status: 400 });
-    }
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    if (uploadFile.size > MAX_FILE_SIZE) {
-      return NextResponse.json({ ok: false, error: '파일 크기는 10MB를 초과할 수 없습니다' }, { status: 400 });
-    }
+    // 타입 정규화
 
-    // 파일 형식 확인 (이미지 파일만)
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf'];
-    if (!allowedTypes.includes(uploadFile.type)) {
-      return NextResponse.json({ ok: false, error: '지원하는 파일 형식: JPG, PNG, WEBP, PDF' }, { status: 400 });
-    }
+    const documentType = (rawType === 'BANKBOOK') ? 'BANKBOOK' : 'ID_CARD';
 
-    const fileBuffer = Buffer.from(await uploadFile.arrayBuffer());
+    const targetFolderId = FOLDER_IDS[documentType];
+
+
+
+    // 1단계: 서버에 먼저 저장 (안정성 확보)
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const timestamp = Date.now();
+
+    const random = Math.random().toString(36).substring(2, 8);
+
+    const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+
+    const localFileName = `${documentType.toLowerCase()}_${session.userId}_${timestamp}_${random}_${originalName}`;
+
     
-    // 파일명 생성
-    const fileExtension = uploadFile.name.split('.').pop() || 'jpg';
-    const folderPrefix = normalizedType === 'ID_CARD' ? '신분증' : '통장';
-    const fileName = `${folderPrefix}_${profile.type}_${profile.id}_${Date.now()}.${fileExtension}`;
-    
-    // Google Drive 폴더 ID (DB 설정에서 가져오기)
-    const configKey = normalizedType === 'ID_CARD'
-      ? 'google_drive_id_card_folder_id'
-      : 'google_drive_bankbook_folder_id';
-    
-    const config = await prisma.systemConfig.findUnique({
-      where: { configKey },
-      select: { configValue: true },
-    });
 
-    const folderId = config?.configValue || (normalizedType === 'ID_CARD'
-      ? process.env.GOOGLE_DRIVE_ID_CARD_FOLDER_ID 
-      : process.env.GOOGLE_DRIVE_BANKBOOK_FOLDER_ID); // 하위 호환성
+    // 업로드 디렉토리 확인/생성
 
-    if (!folderId || folderId === 'root') {
-      console.error('[Upload Documents] Folder ID not configured:', normalizedType);
-      return NextResponse.json({
-        ok: false,
-        error: '업로드 폴더가 설정되지 않았습니다. 관리자 패널에서 Google Drive 설정을 확인해주세요.',
-      }, { status: 500 });
+    const uploadDir = join(process.cwd(), 'public', 'uploads', 'documents');
+
+    if (!existsSync(uploadDir)) {
+
+      await mkdir(uploadDir, { recursive: true });
+
     }
 
-    // MIME 타입 설정
-    let mimeType = uploadFile.type;
-    if (uploadFile.type === 'application/pdf') {
-      mimeType = 'application/pdf';
-    } else if (uploadFile.type.includes('image')) {
-      mimeType = uploadFile.type;
-    } else {
-      mimeType = 'image/jpeg'; // 기본값
-    }
+    const filepath = join(uploadDir, localFileName);
 
-    // Google Drive에 업로드
-    const uploadResult = await uploadFileToDrive({
-      folderId,
-      fileName,
-      mimeType,
-      buffer: fileBuffer,
-      makePublic: false, // 비공개 (관리자만 접근 가능)
-    });
+    await writeFile(filepath, buffer);
 
-    if (!uploadResult.ok || !uploadResult.url || !uploadResult.fileId) {
-      console.error('[Upload Documents] Google Drive upload failed:', uploadResult.error);
-      return NextResponse.json({ ok: false, error: uploadResult.error || '파일 업로드에 실패했습니다' }, { status: 500 });
-    }
+    const serverUrl = `/uploads/documents/${localFileName}`;
 
-    const updateData: any = {};
-    if (normalizedType === 'ID_CARD') {
-      updateData.idCardPath = uploadResult.url;
-      updateData.idCardOriginalName = uploadFile.name;
-    } else {
-      updateData.bankbookPath = uploadResult.url;
-      updateData.bankbookOriginalName = uploadFile.name;
-    }
+    console.log('[Upload Documents] 파일이 서버에 저장되었습니다:', serverUrl);
 
-    const updatedProfile = await prisma.affiliateProfile.update({
-      where: { id: profile.id },
-      data: updateData,
-      select: {
-        id: true,
-        idCardPath: true,
-        idCardOriginalName: true,
-        bankbookPath: true,
-        bankbookOriginalName: true,
-      },
-    });
 
-    const existingDocument = await prisma.affiliateDocument.findFirst({
-      where: { profileId: profile.id, documentType: normalizedType },
-    });
 
-    if (existingDocument) {
-      await prisma.affiliateDocument.update({
-        where: { id: existingDocument.id },
-        data: {
-          filePath: uploadResult.url,
-          fileName: uploadFile.name,
-          fileSize: uploadFile.size,
-          status: 'UPLOADED',
-          uploadedById: user.id,
-          approvedById: null,
-          reviewedAt: null,
-          uploadedAt: new Date(),
-        },
+    // 2단계: 구글 드라이브 백업 (실패해도 계속 진행)
+
+    let backupUrl: string | null = null;
+
+    let backupError: string | null = null;
+
+    try {
+
+      const backupResult = await uploadFileToDrive({
+
+        folderId: targetFolderId,
+
+        fileName: `${session.userId}_${documentType}_${file.name}`,
+
+        mimeType: file.type,
+
+        buffer: buffer,
+
+        makePublic: false, // 개인정보는 공개하지 않음
+
       });
-    } else {
-      await prisma.affiliateDocument.create({
-        data: {
-          profileId: profile.id,
-          documentType: normalizedType,
-          status: 'UPLOADED',
-          filePath: uploadResult.url,
-          fileName: uploadFile.name,
-          fileSize: uploadFile.size,
-          uploadedById: user.id,
-        },
-      });
+
+
+
+      if (backupResult.ok && backupResult.url) {
+
+        backupUrl = backupResult.url;
+
+        console.log('[Upload Documents] 구글 드라이브 백업 성공:', backupUrl);
+
+      } else {
+
+        backupError = backupResult.error || '구글 드라이브 백업 실패';
+
+        console.warn('[Upload Documents] 구글 드라이브 백업 실패 (서버 저장은 성공):', backupError);
+
+      }
+
+    } catch (backupErr: any) {
+
+      backupError = backupErr?.message || '구글 드라이브 백업 중 오류 발생';
+
+      console.warn('[Upload Documents] 구글 드라이브 백업 중 오류 (서버 저장은 성공):', backupError);
+
+      // 백업 실패해도 서버 저장은 성공했으므로 계속 진행
+
     }
 
-    return NextResponse.json({
-      ok: true,
-      message: `${normalizedType === 'ID_CARD' ? '신분증' : '통장'}이 성공적으로 업로드되었습니다`,
-      profile: updatedProfile,
+
+
+    // 서버 URL을 기본으로 사용 (백업 URL은 metadata에 저장)
+
+    const fileUrl = serverUrl;
+
+
+
+    // DB 저장 (서버 URL 저장, 백업 URL은 metadata에)
+
+    const userIdInt = parseInt(String(session.userId), 10);
+
+    const profile = await prisma.affiliateProfile.findFirst({ where: { userId: userIdInt } });
+
+    
+
+    if (!profile) {
+
+      // 프로필이 없으면 파일은 서버에 저장되었지만 DB에는 저장되지 않음
+
+      console.warn('[Upload Documents] 프로필이 없어서 DB에 저장하지 못했습니다. 파일은 서버에 저장되었습니다:', serverUrl);
+
+      return NextResponse.json({ 
+
+        ok: false, 
+
+        error: '어필리에이트 프로필이 없습니다. 프로필을 먼저 생성해주세요.',
+
+        url: serverUrl, // 서버에 저장된 파일 URL은 반환
+
+        warning: '파일은 서버에 저장되었지만 프로필이 없어 DB에 저장하지 못했습니다.'
+
+      }, { status: 400 });
+
+    }
+
+    
+
+    if (fileUrl) {
+
+      const metadata: any = {};
+
+      if (backupUrl) {
+
+        metadata.backupUrl = backupUrl;
+
+        metadata.backedUpAt = new Date().toISOString();
+
+      }
+
+      if (backupError) {
+
+        metadata.backupError = backupError;
+
+      }
+
+      const existing = await prisma.affiliateDocument.findFirst({
+
+        where: { profileId: profile.id, documentType }
+
+      });
+
+
+
+      if (existing) {
+
+        await prisma.affiliateDocument.update({
+
+          where: { id: existing.id },
+
+          data: { 
+
+            filePath: fileUrl, 
+
+            fileName: file.name, 
+
+            fileSize: file.size,
+
+            status: 'UPLOADED', 
+
+            // updatedAt 필드가 없으므로 제거
+
+            metadata: Object.keys(metadata).length > 0 ? metadata : undefined
+
+          }
+
+        });
+
+      } else {
+
+        await prisma.affiliateDocument.create({
+
+          data: {
+
+            profileId: profile.id,
+
+            documentType,
+
+            filePath: fileUrl,
+
+            fileName: file.name,
+
+            fileSize: file.size,
+
+            status: 'UPLOADED',
+
+            metadata: Object.keys(metadata).length > 0 ? metadata : undefined
+
+          }
+
+        });
+
+      }
+
+    }
+
+
+
+    return NextResponse.json({ 
+
+      ok: true, 
+
+      success: true, 
+
+      url: fileUrl,
+
+      message: '완료되었습니다'
+
     });
+
+
+
   } catch (error: any) {
-    console.error('[Upload Documents] Error:', error);
-    return NextResponse.json({ ok: false, error: error.message || '서버 오류가 발생했습니다' }, { status: 500 });
+
+    console.error('[Upload API Error]', error);
+
+    console.error('[Upload API Error] Stack:', error?.stack);
+
+    console.error('[Upload API Error] Details:', {
+
+      message: error?.message,
+
+      code: error?.code,
+
+      response: error?.response?.data,
+
+    });
+
+    // JWT 관련 에러인 경우 더 자세한 메시지 제공
+
+    if (error?.message?.includes('JWT') || error?.message?.includes('invalid_grant') || error?.message?.includes('Invalid JWT Signature')) {
+
+      return NextResponse.json({ 
+
+        ok: false,
+
+        error: `Google Drive 인증 실패: ${error?.message || 'Invalid JWT Signature'}. 환경변수 GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY 또는 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY의 줄바꿈 문자(\\n) 처리를 확인해주세요.` 
+
+      }, { status: 500 });
+
+    }
+
+    return NextResponse.json({ 
+
+      ok: false,
+
+      error: error?.message || '문서 업로드 중 오류가 발생했습니다.' 
+
+    }, { status: 500 });
+
   }
+
 }
-
-
-
-
-

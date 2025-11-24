@@ -24,6 +24,7 @@ type AffiliateOwnership = {
     branchLabel: string | null;
     status: string | null;
   } | null;
+  leadId?: number | null;
   leadStatus?: string | null;
   leadCreatedAt?: string | null;
   normalizedPhone?: string | null;
@@ -128,8 +129,8 @@ export default function CustomerDetailPage() {
             }
           });
         }
-        if (data.user.reservations) {
-          data.user.reservations.forEach((res: any) => {
+        if ((data.user as any).reservations) {
+          (data.user as any).reservations.forEach((res: any) => {
             if (res.Traveler) {
               res.Traveler.forEach((t: any) => {
                 if (!allTravelers.find(at => at.id === t.id)) {
@@ -142,7 +143,7 @@ export default function CustomerDetailPage() {
         
         console.log('[Load User Data] User data loaded:', {
           trips: data.user.trips?.length || 0,
-          reservations: data.user.reservations?.length || 0,
+          reservations: (data.user as any).reservations?.length || 0,
           totalTravelers: allTravelers.length,
           travelersWithPassport: allTravelers.filter(t => t.passportNo).length,
           travelers: allTravelers.map(t => ({
@@ -1306,8 +1307,8 @@ export default function CustomerDetailPage() {
                         }
                       }
                     }
-                    if (!firstReservation && user.reservations && user.reservations.length > 0) {
-                      firstReservation = user.reservations[0];
+                    if (!firstReservation && (user as any).reservations && (user as any).reservations.length > 0) {
+                      firstReservation = (user as any).reservations[0];
                     }
                     
                     setSelectedReservationId(firstReservation?.id || null);
@@ -1358,8 +1359,8 @@ export default function CustomerDetailPage() {
                 }
 
                 // user.reservations도 확인 (API에서 제공하는 경우)
-                if (user.reservations && Array.isArray(user.reservations)) {
-                  user.reservations.forEach((reservation: any) => {
+                if ((user as any).reservations && Array.isArray((user as any).reservations)) {
+                  (user as any).reservations.forEach((reservation: any) => {
                     if (reservation.Traveler && Array.isArray(reservation.Traveler)) {
                       reservation.Traveler.forEach((traveler: any) => {
                         // 중복 체크 (id로)
@@ -1473,6 +1474,36 @@ export default function CustomerDetailPage() {
                                 {traveler.expiryDate && (
                                   <div><span className="font-medium">만료일:</span> {typeof traveler.expiryDate === 'string' ? traveler.expiryDate : new Date(traveler.expiryDate).toLocaleDateString('ko-KR')}</div>
                                 )}
+                                {traveler.passportImage && (
+                                  <div className="mt-2 flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        const img = new Image();
+                                        img.src = traveler.passportImage;
+                                        const w = window.open();
+                                        if (w) {
+                                          w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
+                                        }
+                                      }}
+                                      className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                                    >
+                                      이미지 보기
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const link = document.createElement('a');
+                                        link.href = traveler.passportImage;
+                                        link.download = `passport_${traveler.passportNo || 'unknown'}.jpg`;
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                      }}
+                                      className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+                                    >
+                                      다운로드
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div className="text-sm text-gray-400">여권 정보가 등록되지 않았습니다.</div>
@@ -1500,11 +1531,11 @@ export default function CustomerDetailPage() {
             </div>
 
             {/* 여권 제출 정보 카드 */}
-            {user.passportSubmissions && user.passportSubmissions.length > 0 && (
+            {(user as any).passportSubmissions && (user as any).passportSubmissions.length > 0 && (
               <div className="bg-white rounded-lg shadow-sm p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">🛂 여권 제출 정보</h2>
                 <div className="space-y-4">
-                  {user.passportSubmissions.map((submission: any) => (
+                  {(user as any).passportSubmissions.map((submission: any) => (
                     <div key={submission.id} className="border border-gray-200 rounded-lg p-4 bg-green-50">
                       <div className="flex items-center justify-between mb-3">
                         <div>

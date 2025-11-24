@@ -111,11 +111,14 @@ export async function requirePartnerContext(options: PartnerContextOptions = {})
 
   // managedRelations 매핑 (manager가 관리하는 agent들)
   if (options.includeManagedAgents && profile.AffiliateRelation_AffiliateRelation_managerIdToAffiliateProfile) {
-    profileWithRelations.managedRelations = profile.AffiliateRelation_AffiliateRelation_managerIdToAffiliateProfile.map(
+    const managedRelations = profile.AffiliateRelation_AffiliateRelation_managerIdToAffiliateProfile.map(
       (rel: any) => ({
         agent: rel.AffiliateProfile_AffiliateRelation_agentIdToAffiliateProfile,
       })
     );
+    profileWithRelations.managedRelations = managedRelations;
+    // 편의를 위해 managedAgents도 매핑 (agent 객체 배열)
+    profileWithRelations.managedAgents = managedRelations.map((rel: any) => rel.agent).filter((a: any) => a);
   }
 
   // agentRelations 매핑 (agent가 속한 manager 관계들)

@@ -51,16 +51,19 @@ function extractDestinations(product: {
 
   if (destinations.length === 0 && product.itineraryPattern) {
     const pattern = product.itineraryPattern;
-    if (pattern.includes('홍콩')) destinations.push('홍콩');
-    if (pattern.includes('대만') || pattern.includes('타이완')) destinations.push('대만');
-    if (pattern.includes('제주')) destinations.push('제주');
-    if (pattern.includes('후쿠오카')) destinations.push('후쿠오카');
-    if (pattern.includes('사세보')) destinations.push('사세보');
-    if (pattern.includes('도쿄')) destinations.push('도쿄');
-    if (pattern.includes('나가사키')) destinations.push('나가사키');
-    if (pattern.includes('오키나와')) destinations.push('오키나와');
-    if (pattern.includes('싱가포르')) destinations.push('싱가포르');
-    if (pattern.includes('베트남')) destinations.push('베트남');
+    // pattern이 문자열인지 확인
+    if (typeof pattern === 'string') {
+      if (pattern.includes('홍콩')) destinations.push('홍콩');
+      if (pattern.includes('대만') || pattern.includes('타이완')) destinations.push('대만');
+      if (pattern.includes('제주')) destinations.push('제주');
+      if (pattern.includes('후쿠오카')) destinations.push('후쿠오카');
+      if (pattern.includes('사세보')) destinations.push('사세보');
+      if (pattern.includes('도쿄')) destinations.push('도쿄');
+      if (pattern.includes('나가사키')) destinations.push('나가사키');
+      if (pattern.includes('오키나와')) destinations.push('오키나와');
+      if (pattern.includes('싱가포르')) destinations.push('싱가포르');
+      if (pattern.includes('베트남')) destinations.push('베트남');
+    }
   }
 
   // 중복 제거 후 쉼표로 연결
@@ -108,46 +111,60 @@ export async function GET(req: NextRequest) {
     const isPreview = searchParams.get('preview') === 'true'; // 미리보기 모드
     
     // 상품 정보 로드 (있는 경우)
+    // ✅ prisma.cruiseProduct.findUnique 사용 (prisma.trip 사용하지 않음)
     let productInfo = null;
     if (productCode) {
       try {
-        const product = await prisma.cruiseProduct.findUnique({
-          where: { productCode: productCode.toUpperCase() },
-          select: {
-            productCode: true,
-            packageName: true,
-            cruiseLine: true,
-            shipName: true,
-            nights: true,
-            days: true,
-            basePrice: true,
-            startDate: true,
-            endDate: true,
-            itineraryPattern: true,
-            MallProductContent: {
-              select: {
-                layout: true,
+        const normalizedProductCode = productCode.trim().toUpperCase();
+        if (!normalizedProductCode) {
+          console.warn('[ChatBot Start] Empty productCode after normalization');
+        } else {
+          const product = await prisma.cruiseProduct.findUnique({
+            where: { productCode: normalizedProductCode },
+            select: {
+              productCode: true,
+              packageName: true,
+              cruiseLine: true,
+              shipName: true,
+              nights: true,
+              days: true,
+              basePrice: true,
+              startDate: true,
+              endDate: true,
+              itineraryPattern: true,
+              MallProductContent: {
+                select: {
+                  layout: true,
+                },
               },
             },
-          },
-        });
-        
-        if (product) {
-          productInfo = {
-            productCode: product.productCode,
-            packageName: product.packageName,
-            cruiseLine: product.cruiseLine,
-            shipName: product.shipName,
-            nights: product.nights,
-            days: product.days,
-            basePrice: product.basePrice,
-            startDate: product.startDate?.toISOString() || null,
-            endDate: product.endDate?.toISOString() || null,
-            itineraryPattern: product.itineraryPattern || '',
-          };
+          });
+          
+          if (product) {
+            productInfo = {
+              productCode: product.productCode,
+              packageName: product.packageName || '',
+              cruiseLine: product.cruiseLine || '',
+              shipName: product.shipName || '',
+              nights: product.nights || 0,
+              days: product.days || 0,
+              basePrice: product.basePrice,
+              startDate: product.startDate?.toISOString() || null,
+              endDate: product.endDate?.toISOString() || null,
+              itineraryPattern: product.itineraryPattern || '',
+            };
+          } else {
+            console.warn(`[ChatBot Start] Product not found: ${normalizedProductCode}`);
+          }
         }
       } catch (error) {
         console.error('[ChatBot Start] Failed to load product:', error);
+        console.error('[ChatBot Start] Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          productCode: productCode,
+        });
+        // 상품 정보 로드 실패해도 계속 진행 (productInfo는 null로 유지)
       }
     }
     
@@ -544,8 +561,17 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('[ChatBot Start] Error:', error);
+    console.error('[ChatBot Start] Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return NextResponse.json(
-      { ok: false, error: '채팅봇을 시작하는 중 오류가 발생했습니다.' },
+      { 
+        ok: false, 
+        error: '채팅봇을 시작하는 중 오류가 발생했습니다.',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

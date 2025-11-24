@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
     // 업로드 디렉토리 확인/생성
     if ((type === 'image' || type === 'file' || type === 'document') && category && filename) {
       // [크루즈정보사진] 폴더 구조: public/크루즈정보사진/[카테고리]/[하위폴더들]/[파일명].확장자
+      // 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
       const categoryDir = category.trim().replace(/[^a-zA-Z0-9가-힣\s]/g, '_');
       
       // 파일명에 슬래시가 있으면 하위 폴더로 인식
@@ -236,6 +237,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Google Drive 업로드 실패 시 로컬 저장 (하위 호환성)
+      // 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
       // 전체 경로 구성: public/크루즈정보사진/[카테고리]/[하위폴더1]/[하위폴더2]/...
       const pathParts = [process.cwd(), 'public', '크루즈정보사진', categoryDir, ...cleanSubFolders];
       uploadDir = join(...pathParts);

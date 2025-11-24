@@ -109,6 +109,7 @@ interface ContractInviteModalProps {
   currentProfileId?: number; // 현재 사용자의 프로필 ID (대리점장인 경우)
   contractType?: 'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'; // 계약서 타입
   onSuccess?: () => void;
+  skipLinkGeneration?: boolean; // 링크 생성 단계 건너뛰고 바로 계약서 작성 폼 열기
 }
 
 export default function ContractInviteModal({
@@ -117,6 +118,7 @@ export default function ContractInviteModal({
   currentProfileId,
   contractType = 'SALES_AGENT',
   onSuccess,
+  skipLinkGeneration = false,
 }: ContractInviteModalProps) {
   const pathname = usePathname();
   const affiliateTerm = getAffiliateTerm(pathname || undefined);
@@ -159,7 +161,53 @@ export default function ContractInviteModal({
 
   useEffect(() => {
     if (isOpen) {
-      // 프로필 목록은 선택적으로만 로드 (기존 판매원 선택용)
+      // 현재 사용자 정보 자동 로드 (수동 계약서 저장용)
+      const loadCurrentUserInfo = async () => {
+        try {
+          const res = await fetch('/api/affiliate/my-profile');
+          const json = await res.json();
+          if (res.ok && json?.ok && json?.profile) {
+            const profile = json.profile;
+            // 사용자 정보가 있고 이름/전화번호가 비어있으면 자동 채우기
+            if ((!inviteForm.name || !inviteForm.phone) && (profile?.name || profile?.phone)) {
+              const autoFilledForm = {
+                name: profile?.name || '',
+                phone: profile?.phone || '',
+              };
+              setInviteForm(autoFilledForm);
+              
+              // skipLinkGeneration이 true이고 이름/전화번호가 모두 있으면 바로 계약서 작성 폼 열기
+              if (skipLinkGeneration && autoFilledForm.name && autoFilledForm.phone) {
+                setTimeout(() => {
+                  setContractForm({
+                    name: autoFilledForm.name,
+                    phone: autoFilledForm.phone,
+                    email: profile?.email || '',
+                    residentIdFront: '',
+                    residentIdBack: '',
+                    address: '',
+                    bankName: '',
+                    bankAccount: '',
+                    bankAccountHolder: '',
+                    signatureUrl: '',
+                    signatureOriginalName: '',
+                    signatureFileId: '',
+                    consentPrivacy: false,
+                    consentNonCompete: false,
+                    consentDbUse: false,
+                    consentPenalty: false,
+                  });
+                  setShowContractFormModal(true);
+                }, 100);
+              }
+            }
+          }
+        } catch (error: any) {
+          console.error('[ContractInviteModal] load current user info error', error);
+          // 에러는 무시 (선택적 기능)
+        }
+      };
+      loadCurrentUserInfo();
     } else {
       setSelectedProfile(null);
       setContractLink(null);
@@ -487,6 +535,7 @@ export default function ContractInviteModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...contractForm,
+          contractType: contractType,
           invitedByProfileId: currentProfileId ?? undefined,
         }),
       });

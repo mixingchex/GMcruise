@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import ProductList from '@/components/mall/ProductList';
 import ContractInviteModal from '@/components/admin/ContractInviteModal';
 import {
   FiSend,
-  FiLock,
   FiEye,
   FiEyeOff,
   FiTrendingUp,
@@ -30,6 +28,8 @@ import {
   FiDollarSign,
   FiLayers,
   FiPlus,
+  FiCalendar,
+  FiPhone,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 import SalesConfirmationModal from '@/components/affiliate/SalesConfirmationModal';
@@ -84,14 +84,6 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
   const [showContractInviteModal, setShowContractInviteModal] = useState(false);
   const [showContractTypeModal, setShowContractTypeModal] = useState(false);
   const [selectedContractType, setSelectedContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [mallFullUrl, setMallFullUrl] = useState<string>('');
@@ -110,6 +102,14 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
   });
   const [isRegistering, setIsRegistering] = useState(false);
   const [isLoadingProductCode, setIsLoadingProductCode] = useState(false);
+  // 자동완성 상태
+  const [customerNameSuggestions, setCustomerNameSuggestions] = useState<Array<{ id: number; name: string; phone: string; displayName: string }>>([]);
+  const [customerPhoneSuggestions, setCustomerPhoneSuggestions] = useState<Array<{ id: number; name: string; phone: string; displayName: string }>>([]);
+  const [mainCustomerPhoneSuggestions, setMainCustomerPhoneSuggestions] = useState<Array<{ id: number; name: string; phone: string; displayName: string }>>([]);
+  const [showCustomerNameSuggestions, setShowCustomerNameSuggestions] = useState(false);
+  const [showCustomerPhoneSuggestions, setShowCustomerPhoneSuggestions] = useState(false);
+  const [showMainCustomerPhoneSuggestions, setShowMainCustomerPhoneSuggestions] = useState(false);
+  const customerSearchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [contracts, setContracts] = useState<Array<{
     id: number;
     name: string;
@@ -193,6 +193,57 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     submittedAt: string | null;
     approvedAt: string | null;
   } | null>(null);
+  
+  // 고객 탭 상태 (전체 고객 / 전화상담고객)
+  const [customerTab, setCustomerTab] = useState<'all' | 'inquiries'>('all');
+  
+  // 구매고객관리 상태
+  const [purchasedReservations, setPurchasedReservations] = useState<Array<{
+    id: number;
+    totalPeople: number;
+    pnrStatus: string;
+    createdAt: string;
+    user: {
+      id: number;
+      name: string | null;
+      phone: string | null;
+      email: string | null;
+    };
+    trip: {
+      id: number;
+      departureDate: string | null;
+      product: {
+        cruiseLine: string | null;
+        shipName: string | null;
+        packageName: string | null;
+      } | null;
+    } | null;
+  }>>([]);
+  const [loadingPurchasedReservations, setLoadingPurchasedReservations] = useState(false);
+  const [purchasedSearchTerm, setPurchasedSearchTerm] = useState('');
+  const [selectedPurchasedReservation, setSelectedPurchasedReservation] = useState<any | null>(null);
+  const [showPassportModal, setShowPassportModal] = useState(false);
+  const [passportMessage, setPassportMessage] = useState('');
+  const [passportPhone, setPassportPhone] = useState('');
+  const [sendingPassport, setSendingPassport] = useState(false);
+  const [passportPreviewDevice, setPassportPreviewDevice] = useState<'iphone' | 'samsung' | null>(null);
+  const [showChatbotModal, setShowChatbotModal] = useState(false);
+  const [chatbotLink, setChatbotLink] = useState('');
+  const [chatbotMessage, setChatbotMessage] = useState('');
+  const [sendingChatbot, setSendingChatbot] = useState(false);
+  const [showPurchasedDetailModal, setShowPurchasedDetailModal] = useState(false);
+  const [purchasedReservationDetail, setPurchasedReservationDetail] = useState<any>(null);
+  const [loadingPurchasedDetail, setLoadingPurchasedDetail] = useState(false);
+  const [inquiryCustomers, setInquiryCustomers] = useState<Array<{
+    id: number;
+    customerName: string | null;
+    customerPhone: string | null;
+    status: string;
+    createdAt: string;
+    productCode?: string | null;
+    productName?: string | null;
+  }>>([]);
+  const [loadingInquiryCustomers, setLoadingInquiryCustomers] = useState(false);
   
   // 관리자가 생성한 공통 상품 링크
   const [commonProductLinks, setCommonProductLinks] = useState<Array<{
@@ -427,6 +478,30 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     return months;
   };
 
+  // 구매고객 목록 로드 함수
+  const loadPurchasedReservations = useCallback(async () => {
+    if (!isBranchManager) {
+      return;
+    }
+    try {
+      setLoadingPurchasedReservations(true);
+      const response = await fetch('/api/partner/reservations', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok) {
+        setPurchasedReservations(data.reservations || []);
+      } else {
+        showError(data.message || '예약 목록을 불러오는데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[PartnerDashboard] 예약 목록 로드 실패:', error);
+      showError('예약 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoadingPurchasedReservations(false);
+    }
+  }, [isBranchManager]);
+
   // 통계 데이터 로드
   useEffect(() => {
     console.log('[PartnerDashboard] useEffect triggered, isBranchManager:', isBranchManager);
@@ -436,8 +511,9 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     if (isBranchManager) {
       loadContracts();
       loadAgentDbStats();
+      loadPurchasedReservations(); // 구매고객 목록 로드
     }
-  }, [isBranchManager, loadMyContract, loadAgentDbStats]);
+  }, [isBranchManager, loadMyContract, loadAgentDbStats, loadPurchasedReservations]);
 
   // 선택된 달이 변경되면 데이터 다시 로드
   useEffect(() => {
@@ -467,6 +543,31 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     }
   };
 
+  // 전화상담고객 로드 함수
+  const loadInquiryCustomers = useCallback(async () => {
+    try {
+      setLoadingInquiryCustomers(true);
+      const res = await fetch('/api/partner/customers?source=mall&limit=10', {
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setInquiryCustomers(json.leads || []);
+      }
+    } catch (error) {
+      console.error('[PartnerDashboard] Failed to load inquiry customers:', error);
+    } finally {
+      setLoadingInquiryCustomers(false);
+    }
+  }, []);
+
+  // 전화상담고객 로드 (탭이 inquiries일 때)
+  useEffect(() => {
+    if (customerTab === 'inquiries') {
+      loadInquiryCustomers();
+    }
+  }, [customerTab, loadInquiryCustomers]);
+
   const loadContracts = async () => {
     if (!isBranchManager) {
       console.log('[PartnerDashboard] Not a branch manager, skipping loadContracts');
@@ -494,6 +595,165 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
       setLoadingContracts(false);
     }
   };
+
+  // 구매고객관리 핸들러 함수들
+  const handleOpenPassportModal = (reservation: any) => {
+    setSelectedPurchasedReservation(reservation);
+    const passportUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/customer/passport/${reservation.id}`;
+    const customerName = reservation.user?.name || '고객';
+    const defaultMessage = `안녕하세요 ${customerName}님. 여권 정보를 등록해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n${passportUrl}`;
+    setPassportMessage(defaultMessage);
+    setPassportPhone(reservation.user?.phone || '');
+    setShowPassportModal(true);
+  };
+
+  const handleSendPassportMessage = async () => {
+    if (!passportPhone || !passportMessage.trim() || !selectedPurchasedReservation) {
+      showError('전화번호와 메시지를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSendingPassport(true);
+      const response = await fetch('/api/partner/customers/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          phone: passportPhone.replace(/[^0-9]/g, ''),
+          message: passportMessage,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || '문자 발송에 실패했습니다.');
+      }
+
+      showSuccess('여권 등록 링크가 발송되었습니다.');
+      setShowPassportModal(false);
+      setPassportPreviewDevice(null);
+    } catch (error: any) {
+      console.error('여권 메시지 발송 오류:', error);
+      showError(error.message || '문자 발송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingPassport(false);
+    }
+  };
+
+  const handleCopyPassportLink = async () => {
+    if (!selectedPurchasedReservation) return;
+    const passportUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/customer/passport/${selectedPurchasedReservation.id}`;
+    try {
+      await navigator.clipboard.writeText(passportUrl);
+      showSuccess('링크가 복사되었습니다.');
+    } catch (error) {
+      showError('링크 복사에 실패했습니다.');
+    }
+  };
+
+  const handleOpenChatbotModal = async (reservation: any) => {
+    setSelectedPurchasedReservation(reservation);
+    
+    try {
+      // 파트너용 챗봇 플로우 API 사용
+      const response = await fetch('/api/partner/chat-bot/passport-flow', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      
+      if (!response.ok || !data.ok || !data.shareToken) {
+        throw new Error(data.error || '여권 챗봇 플로우를 조회할 수 없습니다.');
+      }
+
+      const chatbotUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/chat-bot/share/${data.shareToken}`;
+      setChatbotLink(chatbotUrl);
+      
+      const customerName = reservation.user?.name || '고객';
+      const defaultMessage = `안녕하세요 ${customerName}님. 여권 등록을 도와드리는 챗봇입니다. 아래 링크를 클릭하여 여권 이미지를 업로드해주세요.\n\n${chatbotUrl}`;
+      setChatbotMessage(defaultMessage);
+      setShowChatbotModal(true);
+    } catch (error: any) {
+      console.error('챗봇 모달 열기 오류:', error);
+      showError(error.message || '챗봇 링크를 생성하는 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleSendChatbotMessage = async () => {
+    if (!chatbotMessage.trim() || !selectedPurchasedReservation) {
+      showError('메시지를 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSendingChatbot(true);
+      const response = await fetch('/api/partner/customers/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          phone: (selectedPurchasedReservation.user?.phone || '').replace(/[^0-9]/g, ''),
+          message: chatbotMessage,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || '문자 발송에 실패했습니다.');
+      }
+
+      showSuccess('여권 챗봇 링크가 발송되었습니다.');
+      setShowChatbotModal(false);
+      setPassportPreviewDevice(null);
+    } catch (error: any) {
+      console.error('챗봇 메시지 발송 오류:', error);
+      showError(error.message || '문자 발송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingChatbot(false);
+    }
+  };
+
+  const handleCopyChatbotLink = async () => {
+    try {
+      await navigator.clipboard.writeText(chatbotLink);
+      showSuccess('챗봇 링크가 복사되었습니다.');
+    } catch (error) {
+      showError('링크 복사에 실패했습니다.');
+    }
+  };
+
+  const handleOpenPurchasedDetailModal = async (reservation: any) => {
+    try {
+      setLoadingPurchasedDetail(true);
+      setSelectedPurchasedReservation(reservation);
+      const response = await fetch(`/api/partner/reservations/${reservation.id}`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok) {
+        setPurchasedReservationDetail(data.reservation);
+        setShowPurchasedDetailModal(true);
+      } else {
+        showError(data.error || '예약 상세 정보를 불러오는데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('예약 상세 정보 로드 실패:', error);
+      showError('예약 상세 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoadingPurchasedDetail(false);
+    }
+  };
+
+  const filteredPurchasedReservations = purchasedReservations.filter((reservation) => {
+    if (!purchasedSearchTerm) return true;
+    const search = purchasedSearchTerm.toLowerCase();
+    return (
+      reservation.user?.name?.toLowerCase().includes(search) ||
+      reservation.user?.phone?.includes(search) ||
+      reservation.user?.email?.toLowerCase().includes(search) ||
+      reservation.trip?.product?.packageName?.toLowerCase().includes(search)
+    );
+  });
 
   const handleCompleteContract = async (contractId: number) => {
     // 계약서 열람 확인 체크
@@ -661,12 +921,107 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     }
   };
 
+  // 고객 검색 함수
+  const searchCustomers = useCallback(async (query: string, type: 'name' | 'phone' | 'mainPhone') => {
+    if (!query || query.trim().length < 1) {
+      if (type === 'name') {
+        setCustomerNameSuggestions([]);
+        setShowCustomerNameSuggestions(false);
+      } else if (type === 'phone') {
+        setCustomerPhoneSuggestions([]);
+        setShowCustomerPhoneSuggestions(false);
+      } else {
+        setMainCustomerPhoneSuggestions([]);
+        setShowMainCustomerPhoneSuggestions(false);
+      }
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/affiliate/customers/search?q=${encodeURIComponent(query)}&limit=10`, {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.ok) {
+          const customers = result.customers || [];
+          if (type === 'name') {
+            setCustomerNameSuggestions(customers);
+            setShowCustomerNameSuggestions(customers.length > 0);
+          } else if (type === 'phone') {
+            setCustomerPhoneSuggestions(customers);
+            setShowCustomerPhoneSuggestions(customers.length > 0);
+          } else {
+            setMainCustomerPhoneSuggestions(customers);
+            setShowMainCustomerPhoneSuggestions(customers.length > 0);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[Customer Search] Error:', error);
+    }
+  }, []);
+
+  // 고객 이름 입력 핸들러
+  const handleCustomerNameChange = (value: string) => {
+    setRegisterForm({ ...registerForm, customerName: value });
+
+    if (customerSearchTimeoutRef.current) {
+      clearTimeout(customerSearchTimeoutRef.current);
+    }
+
+    if (value.trim().length >= 1) {
+      setShowCustomerNameSuggestions(true);
+      customerSearchTimeoutRef.current = setTimeout(() => {
+        searchCustomers(value, 'name');
+      }, 300);
+    } else {
+      setCustomerNameSuggestions([]);
+      setShowCustomerNameSuggestions(false);
+    }
+  };
+
+  // 고객 전화번호 입력 핸들러
+  const handleCustomerPhoneChange = (value: string) => {
+    setRegisterForm({ ...registerForm, customerPhone: value });
+
+    if (customerSearchTimeoutRef.current) {
+      clearTimeout(customerSearchTimeoutRef.current);
+    }
+
+    if (value.trim().length >= 1) {
+      setShowCustomerPhoneSuggestions(true);
+      customerSearchTimeoutRef.current = setTimeout(() => {
+        searchCustomers(value, 'phone');
+      }, 300);
+    } else {
+      setCustomerPhoneSuggestions([]);
+      setShowCustomerPhoneSuggestions(false);
+    }
+  };
+
   // 메인 고객 전화번호로 상품 코드 자동 조회
   const handleMainCustomerPhoneChange = async (phone: string) => {
     setRegisterForm({ ...registerForm, mainCustomerPhone: phone });
 
     // 전화번호 정규화 (숫자만 추출)
     const normalizedPhone = phone.replace(/\D/g, '');
+
+    // 자동완성 검색 - 정규화된 전화번호로 검색 (3자 이상이면 검색)
+    if (customerSearchTimeoutRef.current) {
+      clearTimeout(customerSearchTimeoutRef.current);
+    }
+
+    if (normalizedPhone.length >= 3) {
+      setShowMainCustomerPhoneSuggestions(true);
+      customerSearchTimeoutRef.current = setTimeout(() => {
+        searchCustomers(normalizedPhone, 'mainPhone');
+      }, 300);
+    } else if (normalizedPhone.length === 0) {
+      setMainCustomerPhoneSuggestions([]);
+      setShowMainCustomerPhoneSuggestions(false);
+    }
 
     // 전화번호가 10자 이상일 때만 API 호출
     if (normalizedPhone.length >= 10) {
@@ -752,52 +1107,7 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     }
   };
 
-  const handleChangePassword = async () => {
-    if (!newPassword || newPassword.trim().length === 0) {
-      showError('새 비밀번호를 입력해주세요.');
-      return;
-    }
 
-    if (newPassword !== confirmPassword) {
-      showError('새 비밀번호와 확인 비밀번호가 일치하지 않습니다.');
-      return;
-    }
-
-    if (newPassword.length < 4) {
-      showError('비밀번호는 최소 4자 이상이어야 합니다.');
-      return;
-    }
-
-    setIsChangingPassword(true);
-    try {
-      const res = await fetch('/api/partner/password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          currentPassword: currentPassword && currentPassword.trim() ? currentPassword.trim() : undefined,
-          newPassword: newPassword.trim(),
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.ok) {
-        throw new Error(json.message || '비밀번호 변경에 실패했습니다.');
-      }
-
-      showSuccess('비밀번호가 변경되었습니다.');
-      setShowPasswordModal(false);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error: any) {
-      console.error('[Partner Dashboard] Password change error:', error);
-      showError(error.message || '비밀번호 변경 중 오류가 발생했습니다.');
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('ko-KR', {
@@ -1226,18 +1536,18 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
             </Link>
             <Link 
+              href={`${partnerBase}/documents`} 
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
+            >
+              <span className="text-2xl md:text-3xl">📄</span>
+              <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
+            </Link>
+            <Link 
               href={`${partnerBase}/reservation/new`} 
               className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
             >
               <FiFileText className="text-2xl text-teal-600 md:text-3xl" />
               <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/documents`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6"
-            >
-              <FiFileText className="text-2xl text-pink-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-pink-700 md:text-sm">서류 관리</span>
             </Link>
             {isBranchManager && (
               <>
@@ -1290,59 +1600,128 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"
             >
               <FiFileText className="text-2xl text-blue-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 계약서</span>
+              <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 계약서<br />보기</span>
             </Link>
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
-            >
-              <FiLock className="text-2xl text-teal-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-teal-700 md:text-sm">비밀번호 변경</span>
-            </button>
           </div>
         </section>
 
         {/* 최근 활동 - 모바일 최적화 */}
         {stats && (
           <div className="grid gap-6 md:grid-cols-2">
-            {/* 최근 리드 */}
+            {/* 고객 관리 (탭: 전체 고객 / 전화상담고객) */}
             <div className="block rounded-2xl bg-white p-4 shadow-lg transition-all hover:shadow-xl md:rounded-3xl md:p-6">
-              <div 
-                onClick={() => router.push(`${partnerBase}/customers`)}
-                className="block mb-4 cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-slate-900 md:text-xl">최근 리드</h2>
-                  <span className="text-xs text-blue-600 hover:text-blue-700 md:text-sm">
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-lg font-bold text-slate-900 md:text-xl">고객 관리</h2>
+                  <Link
+                    href={`${partnerBase}/customers${customerTab === 'inquiries' ? '?tab=inquiries' : ''}`}
+                    className="text-xs text-blue-600 hover:text-blue-700 md:text-sm"
+                  >
                     전체보기 <FiArrowRight className="inline ml-1" />
-                  </span>
+                  </Link>
+                </div>
+                {/* 탭 버튼 */}
+                <div className="flex gap-2 border-b border-gray-200">
+                  <button
+                    onClick={() => setCustomerTab('all')}
+                    className={`px-4 py-2 text-sm font-semibold transition-colors ${
+                      customerTab === 'all'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    전체 고객
+                  </button>
+                  <button
+                    onClick={() => setCustomerTab('inquiries')}
+                    className={`px-4 py-2 text-sm font-semibold transition-colors ${
+                      customerTab === 'inquiries'
+                        ? 'text-pink-600 border-b-2 border-pink-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    전화상담고객
+                  </button>
                 </div>
               </div>
-              {stats.recentLeads.length > 0 ? (
-                <div className="space-y-3">
-                  {stats.recentLeads.map((lead) => (
-                    <Link
-                      key={lead.id}
-                      href={`${partnerBase}/customers?leadId=${lead.id}`}
-                      className="block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-semibold text-gray-900 text-sm md:text-base">
-                            {lead.customerName || '이름 없음'}
-                          </p>
-                          <p className="text-xs text-gray-500 md:text-sm">{lead.customerPhone || '-'}</p>
-                        </div>
-                        <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getLeadStatusStyle(lead.status)}`}>
-                          {formatLeadStatus(lead.status)}
-                        </span>
-                      </div>
-                      <p className="mt-2 text-xs text-gray-400">{formatDate(lead.createdAt)}</p>
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <p className="py-8 text-center text-sm text-gray-500">리드가 없습니다.</p>
+              
+              {/* 전체 고객 탭 */}
+              {customerTab === 'all' && (
+                <>
+                  {stats.recentLeads.length > 0 ? (
+                    <div className="space-y-3">
+                      {stats.recentLeads.map((lead) => (
+                        <Link
+                          key={lead.id}
+                          href={`${partnerBase}/customers?leadId=${lead.id}`}
+                          className="block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-900 text-sm md:text-base">
+                                {lead.customerName || '이름 없음'}
+                              </p>
+                              <p className="text-xs text-gray-500 md:text-sm">{lead.customerPhone || '-'}</p>
+                            </div>
+                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getLeadStatusStyle(lead.status)}`}>
+                              {formatLeadStatus(lead.status)}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-400">{formatDate(lead.createdAt)}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-8 text-center text-sm text-gray-500">리드가 없습니다.</p>
+                  )}
+                </>
+              )}
+              
+              {/* 전화상담고객 탭 */}
+              {customerTab === 'inquiries' && (
+                <>
+                  {loadingInquiryCustomers ? (
+                    <div className="py-8 text-center text-sm text-gray-500">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-pink-600 mx-auto mb-2"></div>
+                      전화상담고객을 불러오는 중...
+                    </div>
+                  ) : inquiryCustomers.length > 0 ? (
+                    <div className="space-y-3">
+                      {inquiryCustomers.map((customer) => (
+                        <Link
+                          key={customer.id}
+                          href={`${partnerBase}/customers?leadId=${customer.id}&tab=inquiries`}
+                          className="block rounded-lg border border-pink-200 bg-pink-50 p-3 md:p-4 hover:border-pink-300 hover:bg-pink-100 transition-colors"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-gray-900 text-sm md:text-base">
+                                  {customer.customerName || '이름 없음'}
+                                </p>
+                                <span className="px-2 py-0.5 bg-pink-100 text-pink-800 rounded-full text-xs font-semibold">
+                                  전화상담
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 md:text-sm">{customer.customerPhone || '-'}</p>
+                              {customer.productName && (
+                                <p className="text-xs text-pink-600 font-semibold mt-1 truncate">
+                                  {customer.productName}
+                                </p>
+                              )}
+                            </div>
+                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getLeadStatusStyle(customer.status)}`}>
+                              {formatLeadStatus(customer.status)}
+                            </span>
+                          </div>
+                          <p className="mt-2 text-xs text-gray-400">{formatDate(customer.createdAt)}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-8 text-center text-sm text-gray-500">전화상담고객이 없습니다.</p>
+                  )}
+                </>
               )}
             </div>
 
@@ -1430,6 +1809,120 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                         </Link>
                       );
                     })}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* 구매고객관리 (대리점장만) */}
+            {isBranchManager && (
+              <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
+                      <FiShoppingCart className="text-orange-600" />
+                      구매고객관리
+                    </h2>
+                    <p className="mt-1 text-xs text-gray-500 md:text-sm">
+                      예약한 고객들의 정보를 관리하고 여권 등록 링크를 발송할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 검색 */}
+                <div className="mb-6">
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={purchasedSearchTerm}
+                      onChange={(e) => setPurchasedSearchTerm(e.target.value)}
+                      placeholder="고객명, 전화번호, 이메일, 상품명으로 검색..."
+                      className="w-full rounded-lg border border-gray-300 pl-10 pr-4 py-2 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-200"
+                    />
+                  </div>
+                </div>
+
+                {/* 예약 목록 */}
+                {loadingPurchasedReservations ? (
+                  <div className="flex items-center justify-center rounded-lg bg-gray-50 p-12">
+                    <div className="text-center">
+                      <div className="mb-4 inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-orange-600 border-r-transparent"></div>
+                      <p className="text-gray-600">예약 목록을 불러오는 중...</p>
+                    </div>
+                  </div>
+                ) : filteredPurchasedReservations.length === 0 ? (
+                  <div className="rounded-lg bg-gray-50 p-12 text-center">
+                    <p className="text-gray-600">예약 정보가 없습니다.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {filteredPurchasedReservations.map((reservation) => (
+                      <div
+                        key={reservation.id}
+                        className="rounded-lg border border-gray-200 bg-white p-4 md:p-6 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="mb-2 flex items-center gap-3">
+                              <h3 className="text-base md:text-lg font-semibold text-gray-900">
+                                {reservation.user?.name || '이름 없음'}
+                              </h3>
+                              <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-800">
+                                {reservation.pnrStatus || '예약'}
+                              </span>
+                            </div>
+                            <div className="space-y-1 text-sm text-gray-600">
+                              <div className="flex items-center gap-2">
+                                <FiPhone className="text-gray-400" />
+                                <span>{reservation.user?.phone || '전화번호 없음'}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <FiUser className="text-gray-400" />
+                                <span>{reservation.user?.email || '이메일 없음'}</span>
+                              </div>
+                              {reservation.trip && (
+                                <div className="flex items-center gap-2">
+                                  <FiCalendar className="text-gray-400" />
+                                  <span>
+                                    {reservation.trip.product?.cruiseLine} {reservation.trip.product?.shipName}
+                                    {reservation.trip.departureDate && (
+                                      <> • {new Date(reservation.trip.departureDate).toLocaleDateString('ko-KR')}</>
+                                    )}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="text-xs text-gray-500">
+                                총 {reservation.totalPeople}명 • 예약일: {new Date(reservation.createdAt).toLocaleDateString('ko-KR')}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="ml-4 flex flex-col gap-2">
+                            <button
+                              onClick={() => handleOpenPurchasedDetailModal(reservation)}
+                              className="flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-xs md:text-sm font-semibold text-white hover:bg-purple-700 transition-colors"
+                            >
+                              <FiUser />
+                              <span>상세정보</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenPassportModal(reservation)}
+                              className="flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs md:text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                            >
+                              <FiSend />
+                              <span>여권 보내기</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenChatbotModal(reservation)}
+                              className="flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-xs md:text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+                            >
+                              <FiMessageSquare />
+                              <span>챗봇 보내기</span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </section>
@@ -2094,25 +2587,6 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
             </div>
           </div>
         )}
-
-        {/* 파트너몰 미리보기 */}
-        <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
-          <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900 md:text-xl">고객에게 보여지는 파트너몰</h2>
-              <p className="text-xs text-slate-500 md:text-sm">실시간으로 연동되는 상품 목록입니다.</p>
-            </div>
-            <Link
-              href={`/${user.mallUserId || user.phone || partnerId}/shop`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow hover:bg-blue-700 md:text-sm"
-            >
-              고객용 파트너몰 바로가기 <FiArrowRight />
-            </Link>
-          </div>
-          <ProductList partnerContext={partnerContext} />
-        </section>
       </div>
 
       {/* 계약서 타입 선택 모달 */}
@@ -2233,110 +2707,6 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
         />
       )}
 
-      {/* 비밀번호 변경 모달 */}
-      {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
-            <div className="mb-4">
-              <h2 className="text-xl font-bold text-gray-900">비밀번호 변경</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                새로운 비밀번호를 입력해주세요.
-              </p>
-            </div>
-
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  현재 비밀번호 (선택)
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="현재 비밀번호를 입력하세요 (선택사항)"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-2 pr-10 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  새 비밀번호 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showNewPassword ? 'text' : 'password'}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="새 비밀번호를 입력하세요"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-2 pr-10 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPassword(!showNewPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showNewPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">최소 4자 이상 입력해주세요.</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  새 비밀번호 확인 <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="새 비밀번호를 다시 입력하세요"
-                    className="w-full rounded-xl border border-gray-300 px-4 py-2 pr-10 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowPasswordModal(false);
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                }}
-                disabled={isChangingPassword}
-                className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleChangePassword}
-                disabled={isChangingPassword}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:opacity-50"
-              >
-                {isChangingPassword ? '변경 중...' : '비밀번호 변경'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 고객 등록 모달 */}
       {showCustomerRegisterModal && (
@@ -2363,7 +2733,7 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               </div>
 
               {registerForm.isCompanion && (
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     메인 고객 전화번호 <span className="text-red-500">*</span>
                     {isLoadingProductCode && (
@@ -2374,40 +2744,126 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                     type="tel"
                     value={registerForm.mainCustomerPhone}
                     onChange={(e) => handleMainCustomerPhoneChange(e.target.value)}
+                    onFocus={() => {
+                      if (mainCustomerPhoneSuggestions.length > 0) {
+                        setShowMainCustomerPhoneSuggestions(true);
+                      }
+                    }}
+                    onBlur={() => {
+                      // 클릭 이벤트가 발생할 시간을 주기 위해 약간의 지연
+                      setTimeout(() => setShowMainCustomerPhoneSuggestions(false), 200);
+                    }}
                     placeholder="010-1234-5678"
                     className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
                     disabled={isLoadingProductCode}
                   />
+                  {showMainCustomerPhoneSuggestions && mainCustomerPhoneSuggestions.length > 0 && (
+                    <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      {mainCustomerPhoneSuggestions.map((customer) => (
+                        <li
+                          key={customer.id}
+                          onClick={() => {
+                            handleMainCustomerPhoneChange(customer.phone);
+                            setShowMainCustomerPhoneSuggestions(false);
+                          }}
+                          className="px-4 py-2 cursor-pointer hover:bg-green-50 text-sm border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="font-medium text-gray-900">{customer.name}</div>
+                          <div className="text-xs text-gray-500">{customer.phone}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <p className="mt-1 text-xs text-gray-500">
                     💡 메인 고객 전화번호를 입력하면 구매한 상품 코드가 자동으로 입력됩니다.
                   </p>
                 </div>
               )}
 
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   고객 이름 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={registerForm.customerName}
-                  onChange={(e) => setRegisterForm({ ...registerForm, customerName: e.target.value })}
+                  onChange={(e) => handleCustomerNameChange(e.target.value)}
+                  onFocus={() => {
+                    if (customerNameSuggestions.length > 0) {
+                      setShowCustomerNameSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // 클릭 이벤트가 발생할 시간을 주기 위해 약간의 지연
+                    setTimeout(() => setShowCustomerNameSuggestions(false), 200);
+                  }}
                   placeholder="홍길동"
                   className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
                 />
+                {showCustomerNameSuggestions && customerNameSuggestions.length > 0 && (
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    {customerNameSuggestions.map((customer) => (
+                      <li
+                        key={customer.id}
+                        onClick={() => {
+                          setRegisterForm({
+                            ...registerForm,
+                            customerName: customer.name,
+                            customerPhone: customer.phone,
+                          });
+                          setShowCustomerNameSuggestions(false);
+                        }}
+                        className="px-4 py-2 cursor-pointer hover:bg-green-50 text-sm border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="font-medium text-gray-900">{customer.name}</div>
+                        <div className="text-xs text-gray-500">{customer.phone}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-semibold text-gray-700 mb-1">
                   고객 전화번호 <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
                   value={registerForm.customerPhone}
-                  onChange={(e) => setRegisterForm({ ...registerForm, customerPhone: e.target.value })}
+                  onChange={(e) => handleCustomerPhoneChange(e.target.value)}
+                  onFocus={() => {
+                    if (customerPhoneSuggestions.length > 0) {
+                      setShowCustomerPhoneSuggestions(true);
+                    }
+                  }}
+                  onBlur={() => {
+                    // 클릭 이벤트가 발생할 시간을 주기 위해 약간의 지연
+                    setTimeout(() => setShowCustomerPhoneSuggestions(false), 200);
+                  }}
                   placeholder="010-1234-5678"
                   className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
                 />
+                {showCustomerPhoneSuggestions && customerPhoneSuggestions.length > 0 && (
+                  <ul className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    {customerPhoneSuggestions.map((customer) => (
+                      <li
+                        key={customer.id}
+                        onClick={() => {
+                          setRegisterForm({
+                            ...registerForm,
+                            customerName: customer.name,
+                            customerPhone: customer.phone,
+                          });
+                          setShowCustomerPhoneSuggestions(false);
+                        }}
+                        className="px-4 py-2 cursor-pointer hover:bg-green-50 text-sm border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="font-medium text-gray-900">{customer.name}</div>
+                        <div className="text-xs text-gray-500">{customer.phone}</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div>
@@ -2519,6 +2975,503 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-bold text-white shadow hover:bg-blue-700"
               >
                 확인했습니다
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 구매고객관리 - 여권 보내기 모달 */}
+      {showPassportModal && selectedPurchasedReservation && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPassportModal(false);
+              setPassportPreviewDevice(null);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold text-gray-900">여권 보내기</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPassportModal(false);
+                  setPassportPreviewDevice(null);
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
+                    <p className="text-sm font-semibold text-blue-900 mb-1">고객 정보</p>
+                    <p className="text-sm text-blue-800">{selectedPurchasedReservation.user?.name || '이름 없음'}</p>
+                    <p className="text-sm text-blue-800">{selectedPurchasedReservation.user?.phone || '전화번호 없음'}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      전화번호 <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={passportPhone}
+                      onChange={(e) => setPassportPhone(e.target.value)}
+                      placeholder="010-1234-5678"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      메시지 내용 <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={passportMessage}
+                      onChange={(e) => setPassportMessage(e.target.value)}
+                      rows={10}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      placeholder="여권 등록 링크가 포함된 메시지를 입력하세요."
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyPassportLink}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      <FiLink />
+                      <span>링크 복사</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPassportPreviewDevice('iphone')}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      <span>📱</span>
+                      <span>아이폰 미리보기</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPassportPreviewDevice('samsung')}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      <span>📱</span>
+                      <span>삼성 미리보기</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendPassportMessage}
+                    disabled={sendingPassport || !passportPhone || !passportMessage.trim()}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {sendingPassport ? (
+                      <>
+                        <FiRefreshCw className="animate-spin" />
+                        <span>발송 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSend />
+                        <span>문자 보내기</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  {passportPreviewDevice ? (
+                    <div className={`relative ${passportPreviewDevice === 'iphone' ? 'w-[375px]' : 'w-[360px]'}`}>
+                      <div className={`relative ${passportPreviewDevice === 'iphone' ? 'bg-black rounded-[3rem] p-2' : 'bg-gray-800 rounded-[2.5rem] p-1.5'}`}>
+                        {passportPreviewDevice === 'iphone' && (
+                          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[30px] bg-black rounded-b-[1.5rem] z-10"></div>
+                        )}
+                        <div className={`bg-white ${passportPreviewDevice === 'iphone' ? 'rounded-[2.5rem]' : 'rounded-[2rem]'} overflow-hidden`}>
+                          <div className={`${passportPreviewDevice === 'iphone' ? 'h-11 pt-2' : 'h-8 pt-1'} bg-white flex items-center justify-between px-4 text-xs font-semibold`}>
+                            <span>9:41</span>
+                            <div className="flex items-center gap-1">
+                              <span>📶</span>
+                              <span>📶</span>
+                              <span>🔋</span>
+                            </div>
+                          </div>
+                          <div className="h-[600px] bg-gray-50 p-4 overflow-y-auto">
+                            <div className="space-y-3">
+                              <div className="flex justify-start">
+                                <div className="max-w-[80%] rounded-2xl bg-white border border-gray-200 px-4 py-3 shadow-sm">
+                                  <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
+                                    {passportMessage || '메시지 내용을 입력하세요.'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 min-h-[400px]">
+                      <div className="text-center text-gray-500">
+                        <p className="text-lg mb-2">📱</p>
+                        <p className="text-sm">미리보기 버튼을 클릭하면</p>
+                        <p className="text-sm">스마트폰 화면을 확인할 수 있습니다</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 구매고객관리 - 여권채팅봇 보내기 모달 */}
+      {showChatbotModal && selectedPurchasedReservation && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowChatbotModal(false);
+              setPassportPreviewDevice(null);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold text-gray-900">여권채팅봇 보내기</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowChatbotModal(false);
+                  setPassportPreviewDevice(null);
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="rounded-xl bg-green-50 p-4 border border-green-200">
+                    <p className="text-sm font-semibold text-green-900 mb-1">고객 정보</p>
+                    <p className="text-sm text-green-800">{selectedPurchasedReservation.user?.name || '이름 없음'}</p>
+                    <p className="text-sm text-green-800">{selectedPurchasedReservation.user?.phone || '전화번호 없음'}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      챗봇 링크
+                    </label>
+                    <div className="mb-3 rounded-lg bg-white border border-green-300 p-3">
+                      <p className="text-xs font-medium text-gray-500 mb-1">링크 URL</p>
+                      <p className="text-xs text-gray-900 break-all font-mono">
+                        {chatbotLink}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      메시지 내용 <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={chatbotMessage}
+                      onChange={(e) => setChatbotMessage(e.target.value)}
+                      rows={10}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+                      placeholder="여권 챗봇 링크가 포함된 메시지를 입력하세요."
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyChatbotLink}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      <FiLink />
+                      <span>링크 복사</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPassportPreviewDevice('iphone')}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      <span>📱</span>
+                      <span>아이폰 미리보기</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPassportPreviewDevice('samsung')}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      <span>📱</span>
+                      <span>삼성 미리보기</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSendChatbotMessage}
+                    disabled={sendingChatbot || !chatbotMessage.trim()}
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {sendingChatbot ? (
+                      <>
+                        <FiRefreshCw className="animate-spin" />
+                        <span>발송 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSend />
+                        <span>문자 보내기</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  {passportPreviewDevice ? (
+                    <div className={`relative ${passportPreviewDevice === 'iphone' ? 'w-[375px]' : 'w-[360px]'}`}>
+                      <div className={`relative ${passportPreviewDevice === 'iphone' ? 'bg-black rounded-[3rem] p-2' : 'bg-gray-800 rounded-[2.5rem] p-1.5'}`}>
+                        {passportPreviewDevice === 'iphone' && (
+                          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[30px] bg-black rounded-b-[1.5rem] z-10"></div>
+                        )}
+                        <div className={`bg-white ${passportPreviewDevice === 'iphone' ? 'rounded-[2.5rem]' : 'rounded-[2rem]'} overflow-hidden`}>
+                          <div className={`${passportPreviewDevice === 'iphone' ? 'h-11 pt-2' : 'h-8 pt-1'} bg-white flex items-center justify-between px-4 text-xs font-semibold`}>
+                            <span>9:41</span>
+                            <div className="flex items-center gap-1">
+                              <span>📶</span>
+                              <span>📶</span>
+                              <span>🔋</span>
+                            </div>
+                          </div>
+                          <div className="h-[600px] bg-gray-50 p-4 overflow-y-auto">
+                            <div className="space-y-3">
+                              <div className="flex justify-start">
+                                <div className="max-w-[80%] rounded-2xl bg-white border border-gray-200 px-4 py-3 shadow-sm">
+                                  <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
+                                    {chatbotMessage || '메시지 내용을 입력하세요.'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 min-h-[400px]">
+                      <div className="text-center text-gray-500">
+                        <p className="text-lg mb-2">📱</p>
+                        <p className="text-sm">미리보기 버튼을 클릭하면</p>
+                        <p className="text-sm">스마트폰 화면을 확인할 수 있습니다</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 구매고객관리 - 상세정보 (APIS) 모달 */}
+      {showPurchasedDetailModal && purchasedReservationDetail && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPurchasedDetailModal(false);
+              setPurchasedReservationDetail(null);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold text-gray-900">구매고객 상세정보 (APIS)</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPurchasedDetailModal(false);
+                  setPurchasedReservationDetail(null);
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="px-6 py-6">
+              {loadingPurchasedDetail ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-r-transparent"></div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <h4 className="mb-3 text-lg font-semibold text-gray-900">고객 정보</h4>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">이름</p>
+                        <p className="text-base text-gray-900">{purchasedReservationDetail.user?.name || '미입력'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">전화번호</p>
+                        <p className="text-base text-gray-900">{purchasedReservationDetail.user?.phone || '미입력'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">이메일</p>
+                        <p className="text-base text-gray-900">{purchasedReservationDetail.user?.email || '미입력'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">PNR 상태</p>
+                        <p className="text-base text-gray-900">{purchasedReservationDetail.pnrStatus || '미입력'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {purchasedReservationDetail.trip?.product && (
+                    <div className="rounded-lg border border-gray-200 bg-blue-50 p-4">
+                      <h4 className="mb-3 text-lg font-semibold text-gray-900">구매 상품 정보</h4>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">크루즈 라인</p>
+                          <p className="text-base text-gray-900">{purchasedReservationDetail.trip.product.cruiseLine || '미입력'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">선박명</p>
+                          <p className="text-base text-gray-900">{purchasedReservationDetail.trip.product.shipName || '미입력'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">패키지명</p>
+                          <p className="text-base text-gray-900">{purchasedReservationDetail.trip.product.packageName || '미입력'}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">상품 코드</p>
+                          <p className="text-base text-gray-900">{purchasedReservationDetail.trip.product.productCode || '미입력'}</p>
+                        </div>
+                        {purchasedReservationDetail.trip.departureDate && (
+                          <div>
+                            <p className="text-sm font-medium text-gray-500">출발일</p>
+                            <p className="text-base text-gray-900">
+                              {new Date(purchasedReservationDetail.trip.departureDate).toLocaleDateString('ko-KR')}
+                            </p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm font-medium text-gray-500">총 인원</p>
+                          <p className="text-base text-gray-900">{purchasedReservationDetail.totalPeople}명</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="rounded-lg border border-gray-200 bg-white p-4">
+                    <h4 className="mb-3 text-lg font-semibold text-gray-900">여행자 정보 (APIS)</h4>
+                    {purchasedReservationDetail.travelers && purchasedReservationDetail.travelers.length > 0 ? (
+                      <div className="space-y-4">
+                        {purchasedReservationDetail.travelers.map((traveler: any, index: number) => (
+                          <div key={traveler.id || index} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <div className="mb-2 flex items-center justify-between">
+                              <h5 className="font-semibold text-gray-900">
+                                {index === 0 ? '대표자' : `동행자 ${index}`}
+                                {traveler.roomNumber && (
+                                  <span className="ml-2 text-sm font-normal text-gray-500">
+                                    (방 {traveler.roomNumber})
+                                  </span>
+                                )}
+                              </h5>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div>
+                                <p className="text-sm font-medium text-gray-500">한글 성명</p>
+                                <p className="text-base text-gray-900">{traveler.korName || '미입력'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-500">영문 이름</p>
+                                <p className="text-base text-gray-900">
+                                  {traveler.engSurname && traveler.engGivenName
+                                    ? `${traveler.engSurname} ${traveler.engGivenName}`
+                                    : '미입력'}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-500">여권번호</p>
+                                <p className="text-base text-gray-900">{traveler.passportNo || '미입력'}</p>
+                                {traveler.passportImage && (
+                                  <div className="mt-2 flex gap-2">
+                                    <button
+                                      onClick={() => {
+                                        const img = new Image();
+                                        img.src = traveler.passportImage;
+                                        const w = window.open();
+                                        if (w) {
+                                          w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
+                                        }
+                                      }}
+                                      className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                                    >
+                                      이미지 보기
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-500">생년월일</p>
+                                <p className="text-base text-gray-900">{traveler.dateOfBirth || '미입력'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-500">여권 만료일</p>
+                                <p className="text-base text-gray-900">{traveler.passportExpiryDate || '미입력'}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-500">국적</p>
+                                <p className="text-base text-gray-900">{traveler.nationality || '미입력'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">여행자 정보가 없습니다.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPurchasedDetailModal(false);
+                  setPurchasedReservationDetail(null);
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                닫기
               </button>
             </div>
           </div>

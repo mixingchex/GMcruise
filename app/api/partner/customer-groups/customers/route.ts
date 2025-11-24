@@ -65,7 +65,6 @@ export async function GET(req: NextRequest) {
         customerPhone: true,
         managerId: true,
         agentId: true,
-        userId: true,
         createdAt: true,
       },
       orderBy: {
@@ -74,31 +73,56 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
 
-    // AffiliateProfile에서 userId 찾기
-    const profileIds = new Set<number>();
+    // 전화번호로 User ID 찾기
+    const uniquePhoneDigits = new Set<string>();
     leads.forEach(lead => {
-      if (lead.managerId) profileIds.add(lead.managerId);
-      if (lead.agentId) profileIds.add(lead.agentId);
+      const phone = lead.customerPhone;
+      if (phone) {
+        const digits = phone.replace(/[^0-9]/g, '');
+        if (digits.length >= 10) {
+          uniquePhoneDigits.add(digits);
+        }
+      }
     });
 
-    const profiles = await prisma.affiliateProfile.findMany({
-      where: { id: { in: Array.from(profileIds) } },
-      select: { id: true, userId: true },
+    // 전화번호 변형 생성 (하이픈 포함/미포함)
+    const phoneVariants = new Set<string>();
+    uniquePhoneDigits.forEach(digits => {
+      phoneVariants.add(digits); // 숫자만
+      if (digits.length === 11) {
+        phoneVariants.add(`${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`); // 010-1234-5678
+      } else if (digits.length === 10) {
+        phoneVariants.add(`${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`); // 010-123-4567
+      }
     });
 
-    const profileIdToUserId = new Map<number, number>();
-    profiles.forEach(profile => {
-      if (profile.userId) {
-        profileIdToUserId.set(profile.id, profile.userId);
+    const usersFromPhones = await prisma.user.findMany({
+      where: {
+        phone: { in: Array.from(phoneVariants) },
+      },
+      select: {
+        id: true,
+        phone: true,
+      },
+    });
+
+    // 전화번호로 User ID 매핑
+    const phoneToUserId = new Map<string, number>();
+    usersFromPhones.forEach(user => {
+      if (user.phone) {
+        const digits = user.phone.replace(/[^0-9]/g, '');
+        phoneToUserId.set(digits, user.id);
       }
     });
 
     // User 정보가 있는 고객만 필터링하고, 그룹에 속하지 않은 고객만 반환
     const customers = leads
       .map(lead => {
-        const userId = lead.userId || 
-          (lead.managerId && profileIdToUserId.get(lead.managerId)) ||
-          (lead.agentId && profileIdToUserId.get(lead.agentId));
+        const phone = lead.customerPhone;
+        if (!phone) return null;
+        
+        const phoneDigits = phone.replace(/[^0-9]/g, '');
+        const userId = phoneToUserId.get(phoneDigits);
         
         if (!userId) return null;
         

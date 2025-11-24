@@ -87,9 +87,28 @@ export async function POST(req: NextRequest) {
     }
 
     // 여권 전용 폴더 ID (통일된 여권 백업 폴더)
-    const rootFolderId = process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID || 
-                         process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || 
-                         '0AJVz1C-KYWR0Uk9PVA';
+    // 시스템 설정에서 가져오거나 환경변수 또는 기본값 사용
+    let rootFolderId = process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID;
+    
+    // 시스템 설정에서 가져오기
+    if (!rootFolderId) {
+      try {
+        const { prisma } = await import('@/lib/prisma');
+        const config = await prisma.systemConfig.findUnique({
+          where: { configKey: 'google_drive_passports_folder_id' },
+        });
+        if (config?.configValue) {
+          rootFolderId = config.configValue;
+        }
+      } catch (e) {
+        console.warn('[Passport Upload] 시스템 설정 조회 실패:', e);
+      }
+    }
+    
+    // 기본값: 사용자가 지정한 폴더 ID
+    if (!rootFolderId) {
+      rootFolderId = '1Nen5t7rE8WaT9e4xWswSiUNJIcgMiDRF';
+    }
 
     // Level 1: 여행 상품 폴더 생성/검색
     // 형식: [출발일]_[선박명] (예: 20250510_MSC Bellissima)

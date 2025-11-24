@@ -756,11 +756,11 @@ function AffiliateContractPublicPageContent() {
         console.error('[AffiliateContract] Failed to load my mentor', error);
       }
 
-      // 모든 조회 실패 시 본사로 설정
+      // 모든 조회 실패 시 본사로 설정 (고정값)
       console.log('[AffiliateContract] 모든 조회 실패 - 본사로 설정');
       setMentorInfo({
-        name: '(주)마비즈컴퍼니 전혜선',
-        phone: '010-2495-8013',
+        name: '전혜선',
+        phone: '01024958013',
         role: '본사',
         isBranchManager: false,
       });

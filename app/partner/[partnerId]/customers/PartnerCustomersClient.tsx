@@ -35,6 +35,7 @@ import { showError, showSuccess } from '@/components/ui/Toast';
 import SymbolPicker from '@/components/ui/SymbolPicker';
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 import CustomerNoteModal from '@/components/admin/CustomerNoteModal';
+import ProductInquiryCustomerTable from '@/components/admin/ProductInquiryCustomerTable';
 
 type LeadStatusOption = {
   value: string;
@@ -131,6 +132,14 @@ type PartnerCustomer = {
   testModeStartedAt?: string | null;
   customerStatus?: string | null;
   mallUserId?: string | null;
+  // 전화상담 고객용 추가 정보
+  userId?: number | null;
+  cruiseName?: string | null;
+  affiliateOwnership?: {
+    ownerType: 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT';
+    ownerName: string | null;
+    ownerNickname: string | null;
+  } | null;
 };
 
 type Pagination = {
@@ -218,111 +227,6 @@ function formatChatDate(value: string | null | undefined) {
     day: 'numeric',
     weekday: 'short',
   }).format(date);
-}
-
-// 3일 체험 초대 링크 섹션 컴포넌트
-function TrialInviteLinkSection() {
-  const [trialLinkData, setTrialLinkData] = useState<{ url: string; code: string; shortUrl?: string } | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [creating, setCreating] = useState(false);
-
-  const loadTrialLink = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/partner/trial-invite-link', {
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.ok && data.link) {
-        // API에서 반환된 숏링크 사용 (없으면 클라이언트에서 생성)
-        const shortUrl = data.link.shortUrl || `${window.location.origin}/p/${data.link.code}`;
-        setTrialLinkData({ url: data.link.url, code: data.link.code, shortUrl });
-      } else {
-        setTrialLinkData(null);
-      }
-    } catch (error) {
-      console.error('[TrialInviteLink] Load error:', error);
-      setTrialLinkData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const createTrialLink = useCallback(async () => {
-    setCreating(true);
-    try {
-      const res = await fetch('/api/partner/trial-invite-link', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.ok && data.link) {
-        // API에서 반환된 숏링크 사용 (없으면 클라이언트에서 생성)
-        const shortUrl = data.link.shortUrl || `${window.location.origin}/p/${data.link.code}`;
-        setTrialLinkData({ url: data.link.url, code: data.link.code, shortUrl });
-        showSuccess('3일 체험 초대 링크가 생성되었습니다!');
-      } else {
-        showError(data.message || '링크 생성에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('[TrialInviteLink] Create error:', error);
-      showError('링크 생성 중 오류가 발생했습니다.');
-    } finally {
-      setCreating(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadTrialLink();
-  }, [loadTrialLink]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center rounded-2xl bg-white/90 px-4 py-3">
-        <div className="h-4 w-4 border-2 border-yellow-500 border-b-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (!trialLinkData) {
-    return (
-      <button
-        type="button"
-        onClick={createTrialLink}
-        disabled={creating}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-yellow-500 px-4 py-3 font-semibold text-white shadow hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {creating ? (
-          <>
-            <div className="h-4 w-4 border-2 border-white border-b-transparent rounded-full animate-spin" />
-            <span>생성 중...</span>
-          </>
-        ) : (
-          <>
-            <FiPlus className="w-4 h-4" />
-            <span>3일 체험 초대 링크 생성</span>
-          </>
-        )}
-      </button>
-    );
-  }
-
-  // 숏링크 URL 사용 (있으면 숏링크, 없으면 원본 URL)
-  const displayUrl = trialLinkData.shortUrl || trialLinkData.url;
-
-  return (
-    <button
-      type="button"
-      onClick={() => copyToClipboard(displayUrl)}
-      className="flex w-full items-center justify-between rounded-2xl bg-yellow-500 px-4 py-3 font-semibold text-white shadow hover:bg-yellow-600"
-    >
-      <span className="flex items-center gap-2">
-        <span>🎁</span>
-        <span>3일 체험 초대 링크</span>
-      </span>
-      <FiCopy />
-    </button>
-  );
 }
 
 function groupInteractionsByDate(interactions: Interaction[]) {
@@ -532,7 +436,7 @@ export default function PartnerCustomersClient({
   const [isContractTerminated, setIsContractTerminated] = useState(false);
   const [confirmingSale, setConfirmingSale] = useState<number | null>(null);
   const [showExcelModal, setShowExcelModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'customers' | 'groups'>('customers');
+  const [activeTab, setActiveTab] = useState<'customers' | 'inquiries'>('customers');
   const [customerGroups, setCustomerGroups] = useState<Array<{
     id: number;
     name: string;
@@ -543,6 +447,35 @@ export default function PartnerCustomersClient({
   }>>([]);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<number | null>(null);
+  // 전화상담고객 별도 상태
+  const [inquiryCustomers, setInquiryCustomers] = useState<PartnerCustomer[]>([]);
+  const [inquiryPagination, setInquiryPagination] = useState<Pagination>({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
+  const [inquiryLoading, setInquiryLoading] = useState(false);
+  const [inquiryCurrentPage, setInquiryCurrentPage] = useState(1);
+  const [inquirySearchTerm, setInquirySearchTerm] = useState('');
+  const [inquiryStatusFilter, setInquiryStatusFilter] = useState<string>('ALL');
+  // 고객 리스트 모달 관련 상태
+  const [showCustomerListModal, setShowCustomerListModal] = useState(false);
+  const [customerListGroup, setCustomerListGroup] = useState<{ id: number; name: string } | null>(null);
+  const [groupCustomers, setGroupCustomers] = useState<Array<{
+    id: number;
+    userId: number;
+    customerName: string | null;
+    phone: string | null;
+    email: string | null;
+    groupInflowDate: string;
+    daysSinceInflow: number;
+    messageSentCount: number;
+  }>>([]);
+  const [customerListSearch, setCustomerListSearch] = useState('');
+  const [customerListPage, setCustomerListPage] = useState(1);
+  const [customerListTotal, setCustomerListTotal] = useState(0);
+  const [isLoadingCustomerList, setIsLoadingCustomerList] = useState(false);
   const [groupForm, setGroupForm] = useState({
     name: '',
     description: '',
@@ -811,6 +744,60 @@ export default function PartnerCustomersClient({
     }
   }, []);
 
+  // 그룹별 고객 리스트 로드
+  const loadGroupCustomers = useCallback(async (groupId: number, pageNum?: number) => {
+    try {
+      setIsLoadingCustomerList(true);
+      const page = pageNum ?? customerListPage;
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '50',
+      });
+      if (customerListSearch) {
+        params.set('search', customerListSearch);
+      }
+      
+      const response = await fetch(`/api/partner/customer-groups/${groupId}/customers?${params}`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      
+      if (data.ok) {
+        setGroupCustomers(data.customers || []);
+        setCustomerListTotal(data.pagination?.total || 0);
+        setCustomerListPage(data.pagination?.page || 1);
+      } else {
+        showError(data.error || '고객 리스트를 불러오는 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to load group customers:', error);
+      showError('고객 리스트를 불러오는 중 네트워크 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingCustomerList(false);
+    }
+  }, [customerListSearch, customerListPage]);
+
+  // 그룹별 고객 리스트 열기
+  const handleViewCustomerList = useCallback(async (group: { id: number; name: string }) => {
+    setCustomerListGroup(group);
+    setCustomerListSearch('');
+    setCustomerListPage(1);
+    setShowCustomerListModal(true);
+    await loadGroupCustomers(group.id, 1);
+  }, [loadGroupCustomers]);
+
+  // 고객 리스트 검색 (debounce)
+  useEffect(() => {
+    if (!showCustomerListModal || !customerListGroup) return;
+    
+    const timer = setTimeout(() => {
+      setCustomerListPage(1);
+      loadGroupCustomers(customerListGroup.id, 1);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [customerListSearch, showCustomerListModal, customerListGroup, loadGroupCustomers]);
+
   // 퍼널 목록 로드 (예약메시지 groupName별로 그룹화)
   const loadFunnelLists = useCallback(async () => {
     try {
@@ -1020,12 +1007,58 @@ export default function PartnerCustomersClient({
     }
   };
 
+  // 전화상담고객 로드 함수
+  const fetchInquiryCustomers = useCallback(
+    async (pageValue: number) => {
+      setInquiryLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.set('page', pageValue.toString());
+        params.set('source', 'mall'); // 전화상담고객 필터
+        if (inquiryStatusFilter !== 'ALL') params.set('status', inquiryStatusFilter);
+        if (inquirySearchTerm) params.set('q', inquirySearchTerm);
+
+        const res = await fetch(`/api/partner/customers?${params}`, {
+          credentials: 'include',
+        });
+        const json = await res.json();
+        if (!res.ok || !json?.ok) {
+          throw new Error(json?.message || '전화상담 고객 목록을 불러오지 못했습니다.');
+        }
+        
+        setInquiryCustomers(json.customers ?? []);
+        if (json.pagination) {
+          setInquiryPagination(json.pagination);
+          setInquiryCurrentPage(json.pagination.page);
+        }
+      } catch (error) {
+        console.error('fetchInquiryCustomers error', error);
+        showError(
+          error instanceof Error
+            ? error.message
+            : '전화상담 고객 목록을 불러오지 못했습니다.',
+        );
+      } finally {
+        setInquiryLoading(false);
+      }
+    },
+    [inquiryStatusFilter, inquirySearchTerm],
+  );
+
+  // 초기 마운트 시 고객 그룹 로드
   useEffect(() => {
-    fetchCustomers(currentPage);
-    if (activeTab === 'groups') {
-      loadCustomerGroups();
+    loadCustomerGroups();
+  }, [loadCustomerGroups]);
+
+  // activeTab 변경 시 고객 목록 로드
+  useEffect(() => {
+    if (activeTab === 'inquiries') {
+      fetchInquiryCustomers(inquiryCurrentPage);
+    } else if (activeTab === 'customers') {
+      fetchCustomers(currentPage);
     }
-  }, [fetchCustomers, currentPage, activeTab, loadCustomerGroups]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, currentPage, inquiryCurrentPage]);
 
   // 그룹 모달이 열릴 때 활성 상품 목록 로드
   useEffect(() => {
@@ -1051,9 +1084,23 @@ export default function PartnerCustomersClient({
     };
   }, [productDropdownOpen]);
 
+  // 검색/필터 변경 시 페이지 초기화 및 재조회
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, searchTerm]);
+    if (activeTab === 'customers') {
+      fetchCustomers(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, searchTerm, selectedAgentFilter, activeTab]);
+
+  // 전화상담고객 탭의 검색/필터 변경 시 재조회
+  useEffect(() => {
+    setInquiryCurrentPage(1);
+    if (activeTab === 'inquiries') {
+      fetchInquiryCustomers(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inquiryStatusFilter, inquirySearchTerm, activeTab]);
 
   useEffect(() => {
     loadAligoConfig();
@@ -1880,191 +1927,6 @@ export default function PartnerCustomersClient({
                 ) : null}
               </div>
             </div>
-            <div className="rounded-3xl bg-white/15 p-6 backdrop-blur">
-              <p className="text-sm font-semibold uppercase tracking-widest text-white/70">고객 초대 링크</p>
-              <div className="mt-4 space-y-3 text-sm">
-                {/* 3일 체험 초대 링크 */}
-                <TrialInviteLinkSection />
-                {/* 파트너몰 링크 중복 제거: tracked, mall, landing이 모두 같으면 하나만 표시 */}
-                {(() => {
-                  const tracked = partner.shareLinks.tracked;
-                  const mall = partner.shareLinks.mall;
-                  const landing = partner.shareLinks.landing;
-                  
-                  // 모든 링크가 같은 경우
-                  if (tracked === mall && mall === landing && landing) {
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const fullUrl = tracked.startsWith('http') 
-                            ? tracked 
-                            : `${window.location.origin}${tracked}`;
-                          copyToClipboard(fullUrl);
-                        }}
-                        className="flex w-full items-center justify-between rounded-2xl bg-white/95 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                      >
-                        <span>파트너몰 링크</span>
-                        <FiCopy />
-                      </button>
-                    );
-                  }
-                  
-                  // tracked와 mall이 같고 landing이 다른 경우
-                  if (tracked === mall) {
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const fullUrl = tracked.startsWith('http') 
-                              ? tracked 
-                              : `${window.location.origin}${tracked}`;
-                            copyToClipboard(fullUrl);
-                          }}
-                          className="flex w-full items-center justify-between rounded-2xl bg-white/95 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                        >
-                          <span>파트너몰 링크</span>
-                          <FiCopy />
-                        </button>
-                        {landing && landing !== tracked && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const fullUrl = landing.startsWith('http') 
-                                ? landing 
-                                : `${window.location.origin}${landing}`;
-                              copyToClipboard(fullUrl);
-                            }}
-                            className="flex w-full items-center justify-between rounded-2xl bg-white/80 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                          >
-                            <span>랜딩 페이지</span>
-                            <FiCopy />
-                          </button>
-                        )}
-                      </>
-                    );
-                  }
-                  
-                  // tracked와 landing이 같고 mall이 다른 경우
-                  if (tracked === landing && landing) {
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const fullUrl = tracked.startsWith('http') 
-                              ? tracked 
-                              : `${window.location.origin}${tracked}`;
-                            copyToClipboard(fullUrl);
-                          }}
-                          className="flex w-full items-center justify-between rounded-2xl bg-white/95 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                        >
-                          <span>파트너몰 링크</span>
-                          <FiCopy />
-                        </button>
-                        {mall !== tracked && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const fullUrl = mall.startsWith('http') 
-                                ? mall 
-                                : `${window.location.origin}${mall}`;
-                              copyToClipboard(fullUrl);
-                            }}
-                            className="flex w-full items-center justify-between rounded-2xl bg-white/90 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                          >
-                            <span>파트너몰 기본 링크</span>
-                            <FiCopy />
-                          </button>
-                        )}
-                      </>
-                    );
-                  }
-                  
-                  // mall과 landing이 같고 tracked가 다른 경우
-                  if (mall === landing && landing) {
-                    return (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const fullUrl = tracked.startsWith('http') 
-                              ? tracked 
-                              : `${window.location.origin}${tracked}`;
-                            copyToClipboard(fullUrl);
-                          }}
-                          className="flex w-full items-center justify-between rounded-2xl bg-white/95 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                        >
-                          <span>파트너몰 추적 링크</span>
-                          <FiCopy />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const fullUrl = mall.startsWith('http') 
-                              ? mall 
-                              : `${window.location.origin}${mall}`;
-                            copyToClipboard(fullUrl);
-                          }}
-                          className="flex w-full items-center justify-between rounded-2xl bg-white/90 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                        >
-                          <span>파트너몰 링크</span>
-                          <FiCopy />
-                        </button>
-                      </>
-                    );
-                  }
-                  
-                  // 모두 다른 경우
-                  return (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const fullUrl = tracked.startsWith('http') 
-                            ? tracked 
-                            : `${window.location.origin}${tracked}`;
-                          copyToClipboard(fullUrl);
-                        }}
-                        className="flex w-full items-center justify-between rounded-2xl bg-white/95 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                      >
-                        <span>파트너몰 추적 링크</span>
-                        <FiCopy />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const fullUrl = mall.startsWith('http') 
-                            ? mall 
-                            : `${window.location.origin}${mall}`;
-                          copyToClipboard(fullUrl);
-                        }}
-                        className="flex w-full items-center justify-between rounded-2xl bg-white/90 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                      >
-                        <span>파트너몰 기본 링크</span>
-                        <FiCopy />
-                      </button>
-                      {landing && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const fullUrl = landing.startsWith('http') 
-                              ? landing 
-                              : `${window.location.origin}${landing}`;
-                            copyToClipboard(fullUrl);
-                          }}
-                          className="flex w-full items-center justify-between rounded-2xl bg-white/80 px-4 py-3 font-semibold text-blue-700 shadow hover:bg-white"
-                        >
-                          <span>랜딩 페이지</span>
-                          <FiCopy />
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
           </div>
         </header>
 
@@ -2084,20 +1946,20 @@ export default function PartnerCustomersClient({
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('groups')}
+              onClick={() => setActiveTab('inquiries')}
               className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'groups'
+                activeTab === 'inquiries'
                   ? 'border-b-2 border-blue-600 text-blue-600'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              그룹 관리
+              전화상담고객
             </button>
           </div>
 
           {activeTab === 'customers' ? (
             <>
-              {/* 판매원별 DB 관리 현황 (대리점장만) */}
+              {/* 판매원별 DB 관리 현황 (대리점장만) - 판매원에게는 표시하지 않음 */}
               {partner.type === 'BRANCH_MANAGER' && (
                 <div className="mb-6 rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
                   <div className="mb-4 flex items-center justify-between">
@@ -2207,6 +2069,7 @@ export default function PartnerCustomersClient({
             </button>
           </form>
           <div className="flex items-center gap-3 text-sm">
+            {/* 판매원 필터는 대리점장만 사용 가능 (판매원은 본인 고객만 관리) */}
             {partner.type === 'BRANCH_MANAGER' && partner.teamAgents.length > 0 && (
               <>
                 <label className="text-slate-500">판매원</label>
@@ -2269,6 +2132,7 @@ export default function PartnerCustomersClient({
               >
                 <FiUpload /> 엑셀 업로드
               </button>
+              {/* DB 보내기 버튼은 대리점장만 사용 가능 (판매원은 DB를 보낼 수 없음) */}
               {partner.type === 'BRANCH_MANAGER' && (
                 <Link
                   href={`/partner/${partnerId}/customers/send-db`}
@@ -2411,9 +2275,8 @@ export default function PartnerCustomersClient({
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          // 고객 ID 찾기 (customer.id는 AffiliateLead ID이므로 실제 User ID를 찾아야 함)
-                                          const userId = (customer as any).userId || customer.id;
-                                          setSelectedCustomerForNote({ id: userId, name: customer.customerName });
+                                          // 고객 ID 사용 (AffiliateLead ID)
+                                          setSelectedCustomerForNote({ id: customer.id, name: customer.customerName });
                                           setNoteModalOpen(true);
                                         }}
                                         className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition-colors"
@@ -2725,120 +2588,91 @@ export default function PartnerCustomersClient({
           </div>
         </div>
             </>
-          ) : (
-            // 그룹 관리 탭
+          ) : activeTab === 'inquiries' ? (
+            // 전화상담고객 탭
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900">고객 그룹 관리</h3>
-                {/* 판매원/대리점장 모두 그룹 추가 가능 */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingGroup(null);
-                    setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
-                    setShowGroupModal(true);
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FiPhone className="text-blue-600" />
+                  전화상담고객
+                </h3>
+                <p className="text-sm text-slate-600">
+                  {partner.type === 'BRANCH_MANAGER' 
+                    ? '대리점장 본인 및 소속 판매원의 전화상담 고객 목록입니다.' 
+                    : '본인의 전화상담 고객 목록입니다.'}
+                </p>
+              </div>
+
+              {/* 검색 및 필터 */}
+              <div className="flex gap-3 items-center">
+                <div className="relative flex-1">
+                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={inquirySearchTerm}
+                    onChange={(e) => setInquirySearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setInquiryCurrentPage(1);
+                        fetchInquiryCustomers(1);
+                      }
+                    }}
+                    placeholder="고객명, 전화번호 검색"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <select
+                  value={inquiryStatusFilter}
+                  onChange={(e) => {
+                    setInquiryStatusFilter(e.target.value);
+                    setInquiryCurrentPage(1);
+                    fetchInquiryCustomers(1);
                   }}
-                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <FiPlus /> 그룹 추가
+                  <option value="ALL">전체 상태</option>
+                  <option value="NEW">신규</option>
+                  <option value="CONTACTED">연락완료</option>
+                  <option value="IN_PROGRESS">진행중</option>
+                  <option value="PURCHASED">구매완료</option>
+                  <option value="REFUNDED">환불</option>
+                </select>
+                <button
+                  onClick={() => {
+                    setInquiryCurrentPage(1);
+                    fetchInquiryCustomers(1);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  disabled={inquiryLoading}
+                >
+                  <FiRefreshCw className={inquiryLoading ? 'animate-spin' : ''} />
                 </button>
               </div>
 
-              {customerGroups.length === 0 ? (
+              {inquiryLoading ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-12 text-center">
-                  <p className="text-slate-500">등록된 그룹이 없습니다. 그룹을 추가하여 고객을 관리하세요.</p>
+                  <p className="text-slate-500">전화상담 고객 목록을 불러오는 중...</p>
+                </div>
+              ) : inquiryCustomers.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-12 text-center">
+                  <p className="text-slate-500">전화상담 고객이 없습니다.</p>
                 </div>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {customerGroups.map((group) => (
-                    <div
-                      key={group.id}
-                      className="rounded-xl border-2 border-slate-200 bg-white p-4 hover:border-blue-300 transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-4 h-4 rounded-full"
-                            style={{ backgroundColor: group.color || '#3B82F6' }}
-                          />
-                          <h4 className="font-bold text-slate-900">{group.name}</h4>
-                        </div>
-                        {/* 판매원/대리점장 모두 그룹 편집/삭제 가능 */}
-                        <div className="flex gap-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingGroup(group.id);
-                              const metadata = (group as any).metadata || {};
-                              setGroupForm({
-                                name: group.name,
-                                description: group.description || '',
-                                productCode: metadata.productCode || group.productCode || '',
-                                color: group.color || '#3B82F6',
-                              });
-                              setShowGroupModal(true);
-                            }}
-                            className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-50"
-                          >
-                            <FiSettings className="text-sm" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (!confirm(`"${group.name}" 그룹을 삭제하시겠습니까? 그룹에 속한 고객은 그룹만 해제되고 고객은 삭제되지 않습니다.`)) return;
-                              try {
-                                const res = await fetch(`/api/partner/customer-groups/${group.id}`, {
-                                  method: 'DELETE',
-                                  credentials: 'include',
-                                });
-                                const json = await res.json();
-                                if (!res.ok || !json?.ok) {
-                                  throw new Error(json?.message || '그룹 삭제에 실패했습니다.');
-                                }
-                                showSuccess('그룹이 삭제되었습니다. 그룹에 속한 고객은 그룹만 해제되었습니다.');
-                                loadCustomerGroups();
-                              } catch (error) {
-                                showError(error instanceof Error ? error.message : '그룹 삭제에 실패했습니다.');
-                              }
-                            }}
-                            className="rounded-lg p-1.5 text-red-600 hover:bg-red-50"
-                          >
-                            <FiTrash2 className="text-sm" />
-                          </button>
-                        </div>
-                      </div>
-                      {group.description && (
-                        <p className="text-xs text-slate-600 mb-2">{group.description}</p>
-                      )}
-                      {group.productCode && (
-                        <p className="text-xs text-slate-500 mb-2">상품: {group.productCode}</p>
-                      )}
-                      <p className="text-sm font-semibold text-slate-700 mb-3">
-                        고객 수: {group.leadCount}명
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setFunnelSettingsGroup(group);
-                          loadFunnelLists();
-                          setFunnelForm({
-                            funnelTalkIds: Array.isArray((group as any).funnelTalkIds) ? (group as any).funnelTalkIds : [],
-                            funnelSmsIds: Array.isArray((group as any).funnelSmsIds) ? (group as any).funnelSmsIds : [],
-                            funnelEmailIds: Array.isArray((group as any).funnelEmailIds) ? (group as any).funnelEmailIds : [],
-                            reEntryHandling: (group as any).reEntryHandling || 'time_change_info_change',
-                          });
-                          setShowFunnelModal(true);
-                        }}
-                        className="w-full px-4 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors text-sm font-semibold"
-                      >
-                        퍼널 추가
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <ProductInquiryCustomerTable
+                  customers={inquiryCustomers.map((customer) => ({
+                    id: customer.id,
+                    name: customer.customerName,
+                    phone: customer.customerPhone,
+                    createdAt: customer.createdAt,
+                    cruiseName: customer.cruiseName || null,
+                    affiliateOwnership: customer.affiliateOwnership || null,
+                    userId: customer.userId || null,
+                  }))}
+                  onRefresh={() => fetchInquiryCustomers(inquiryCurrentPage)}
+                />
               )}
             </div>
-          )}
+          ) : null}
       </section>
 
       <section className="rounded-3xl bg-white/95 p-6 shadow-lg">
@@ -2875,6 +2709,7 @@ export default function PartnerCustomersClient({
               ) : null}
             </dl>
           </div>
+          {/* 판매원 목록은 대리점장만 볼 수 있음 (판매원에게는 불필요) */}
           {partner.type === 'BRANCH_MANAGER' && partner.teamAgents.length > 0 && (
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-3 mb-4">
@@ -3081,6 +2916,7 @@ export default function PartnerCustomersClient({
                 다음 조치 예정일을 설정하면 알람이 자동으로 설정됩니다.
               </p>
             </div>
+            {/* 담당 판매원 배정은 대리점장만 가능 (판매원은 본인만 배정 가능) */}
             {partner.type === 'BRANCH_MANAGER' ? (
               <div>
                 <label className="text-xs font-semibold text-slate-500">담당 판매원 배정 (선택)</label>
@@ -3471,7 +3307,6 @@ export default function PartnerCustomersClient({
                       <button
                         type="button"
                         onClick={() => {
-                          setActiveTab('groups');
                           setEditingGroup(null);
                           setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
                           setShowGroupModal(true);
@@ -5231,6 +5066,126 @@ export default function PartnerCustomersClient({
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    )}
+
+    {/* 고객 리스트 모달 */}
+    {showCustomerListModal && customerListGroup && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+          <div className="flex items-center justify-between p-6 border-b">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">
+                {customerListGroup.name} - 고객 리스트
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                총 {customerListTotal}명
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowCustomerListModal(false);
+                setCustomerListGroup(null);
+                setGroupCustomers([]);
+                setCustomerListSearch('');
+                setCustomerListPage(1);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <FiX className="text-xl" />
+            </button>
+          </div>
+
+          <div className="p-6 border-b">
+            <div className="flex items-center gap-3">
+              <FiSearch className="text-gray-400" />
+              <input
+                type="text"
+                value={customerListSearch}
+                onChange={(e) => setCustomerListSearch(e.target.value)}
+                placeholder="고객 이름 또는 연락처 검색"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6">
+            {isLoadingCustomerList ? (
+              <div className="text-center py-12">
+                <FiRefreshCw className="inline-block animate-spin text-4xl text-blue-600 mb-4" />
+                <p className="text-gray-600">고객 목록을 불러오는 중...</p>
+              </div>
+            ) : groupCustomers.length === 0 ? (
+              <div className="text-center py-12">
+                <FiUsers className="mx-auto text-4xl text-gray-400 mb-4" />
+                <p className="text-gray-600">
+                  {customerListSearch ? '검색 결과가 없습니다.' : '이 그룹에 속한 고객이 없습니다.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {groupCustomers.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  >
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900">
+                        {customer.customerName || '이름 없음'}
+                      </p>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                        <span>{customer.phone || '전화번호 없음'}</span>
+                        {customer.email && <span>{customer.email}</span>}
+                      </div>
+                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                        <span>유입일: {formatDate(customer.groupInflowDate)}</span>
+                        <span>유입 후 {customer.daysSinceInflow}일</span>
+                        {customer.messageSentCount > 0 && (
+                          <span>발송: {customer.messageSentCount}건</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 페이지네이션 */}
+          {customerListTotal > 50 && (
+            <div className="flex items-center justify-between p-6 border-t">
+              <button
+                onClick={() => {
+                  if (customerListPage > 1) {
+                    const newPage = customerListPage - 1;
+                    setCustomerListPage(newPage);
+                    loadGroupCustomers(customerListGroup.id, newPage);
+                  }
+                }}
+                disabled={customerListPage === 1 || isLoadingCustomerList}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                이전
+              </button>
+              <span className="text-sm text-gray-600">
+                {customerListPage} / {Math.ceil(customerListTotal / 50)}
+              </span>
+              <button
+                onClick={() => {
+                  if (customerListPage < Math.ceil(customerListTotal / 50)) {
+                    const newPage = customerListPage + 1;
+                    setCustomerListPage(newPage);
+                    loadGroupCustomers(customerListGroup.id, newPage);
+                  }
+                }}
+                disabled={customerListPage >= Math.ceil(customerListTotal / 50) || isLoadingCustomerList}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                다음
+              </button>
+            </div>
+          )}
         </div>
       </div>
     )}

@@ -20,10 +20,10 @@ interface CertificateData {
   refundDate?: string;
 }
 
-interface Customer {
-  id: number;
-  name: string;
-  phone: string;
+import { Customer } from '@/types/customer';
+
+// 인증서에서 사용하는 확장 Customer 타입
+interface CertificateCustomer extends Customer {
   email: string;
   displayName: string;
 }
@@ -74,7 +74,7 @@ export default function Certificate({ type }: CertificateProps) {
 
   // 고객 검색 관련
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [customerSuggestions, setCustomerSuggestions] = useState<Customer[]>([]);
+  const [customerSuggestions, setCustomerSuggestions] = useState<CertificateCustomer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [productDetails, setProductDetails] = useState<ProductDetails | null>(null);
@@ -243,7 +243,7 @@ export default function Certificate({ type }: CertificateProps) {
   }, []);
 
   // 고객 선택 핸들러
-  const handleCustomerSelect = (customer: Customer) => {
+  const handleCustomerSelect = (customer: CertificateCustomer) => {
     setCustomerSearchQuery(customer.displayName);
     setData(prev => ({ ...prev, customerName: customer.name }));
     setSelectedCustomerId(customer.id);

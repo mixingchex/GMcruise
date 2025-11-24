@@ -7,6 +7,7 @@ import prisma from '@/lib/prisma';
 
 export type CustomerGroup = 
   | 'prospects'         // 잠재고객 (마케팅 랜딩페이지 고객)
+  | 'landing-page'      // 랜딩페이지 고객 (prospects와 동일하지만 구분)
   | 'trial'             // 크루즈가이드 3일 체험 고객 (잠재고객)
   | 'mall'              // 크루즈몰 고객 (잠재고객)
   | 'purchase'          // 크루즈가이드 지니 구매고객

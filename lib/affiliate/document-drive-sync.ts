@@ -161,39 +161,65 @@ export async function uploadContractPDFToDrive(contractId: number) {
     // 2. PDF 생성
     const pdfBuffer = await generateContractPDFFromId(contractId);
 
-    // 3. 폴더 구조 생성
-    const folderStructure = await createProfileFolderStructure(contract.invitedByProfileId);
-    if (!folderStructure.ok || !folderStructure.folderIds) {
-      return { ok: false, error: folderStructure.error || '폴더 구조를 생성할 수 없습니다.' };
-    }
-
-    const folderId = folderStructure.folderIds['Contracts'];
-    if (!folderId) {
-      return { ok: false, error: 'Contracts 폴더를 찾을 수 없습니다.' };
-    }
-
-    // 4. 파일 이름 생성
+    // 3. 서버에 먼저 저장 (안정성 확보)
+    const { writeFile, mkdir } = await import('fs/promises');
+    const { existsSync } = await import('fs');
+    const { join } = await import('path');
+    
     const timestamp = dayjs(contract.contractSignedAt || contract.createdAt).format('YYYY-MM-DD');
-    const fileName = `contract_${contract.name}_${timestamp}.pdf`;
+    const safeName = contract.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const localFileName = `contract_${contract.id}_${safeName}_${timestamp}.pdf`;
+    
+    const uploadDir = join(process.cwd(), 'public', 'uploads', 'contracts');
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true });
+    }
+    
+    const filepath = join(uploadDir, localFileName);
+    await writeFile(filepath, pdfBuffer);
+    const serverUrl = `/uploads/contracts/${localFileName}`;
+    console.log('[Contract PDF] 파일이 서버에 저장되었습니다:', serverUrl);
 
-    // 5. 구글 드라이브에 업로드
-    const uploadResult = await uploadFileToDrive({
-      folderId,
-      fileName,
-      mimeType: 'application/pdf',
-      buffer: pdfBuffer,
-      makePublic: false, // 계약서는 비공개
-    });
+    // 4. 구글 드라이브 백업 (실패해도 계속 진행)
+    let backupUrl: string | null = null;
+    let backupError: string | null = null;
+    
+    try {
+      const folderStructure = await createProfileFolderStructure(contract.invitedByProfileId);
+      if (folderStructure.ok && folderStructure.folderIds) {
+        const folderId = folderStructure.folderIds['Contracts'];
+        if (folderId) {
+          const fileName = `contract_${contract.name}_${timestamp}.pdf`;
+          const uploadResult = await uploadFileToDrive({
+            folderId,
+            fileName,
+            mimeType: 'application/pdf',
+            buffer: pdfBuffer,
+            makePublic: false, // 계약서는 비공개
+          });
 
-    if (!uploadResult.ok || !uploadResult.fileId || !uploadResult.url) {
-      return { ok: false, error: uploadResult.error || 'PDF 업로드에 실패했습니다.' };
+          if (uploadResult.ok && uploadResult.url) {
+            backupUrl = uploadResult.url;
+            console.log('[Contract PDF] 구글 드라이브 백업 성공:', backupUrl);
+          } else {
+            backupError = uploadResult.error || '구글 드라이브 백업 실패';
+            console.warn('[Contract PDF] 구글 드라이브 백업 실패 (서버 저장은 성공):', backupError);
+          }
+        }
+      }
+    } catch (backupErr: any) {
+      backupError = backupErr?.message || '구글 드라이브 백업 중 오류 발생';
+      console.warn('[Contract PDF] 구글 드라이브 백업 중 오류 (서버 저장은 성공):', backupError);
     }
 
+    // 서버 URL을 기본으로 반환 (백업 URL은 metadata에 저장 가능)
     return {
       ok: true,
-      fileId: uploadResult.fileId,
-      url: uploadResult.url,
-      fileName,
+      fileId: null, // 서버 저장은 fileId 없음
+      url: serverUrl, // 서버 URL을 기본으로 사용
+      backupUrl: backupUrl, // 백업 URL (있으면)
+      fileName: localFileName,
+      backupError: backupError || undefined,
     };
   } catch (error: any) {
     console.error('[Document Drive Sync] uploadContractPDFToDrive error:', error);

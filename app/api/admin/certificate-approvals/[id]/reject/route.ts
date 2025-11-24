@@ -1,7 +1,7 @@
 // 관리자/대리점장 승인 거부 API
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/session';
+import { getSessionUser } from '@/lib/auth';
 import { notifyRequesterOfRejection } from '@/lib/notifications/certificateNotifications';
 
 export async function POST(
@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const user = await getSessionUser(req);
+    const user = await getSessionUser();
     
     if (!user) {
       return NextResponse.json(

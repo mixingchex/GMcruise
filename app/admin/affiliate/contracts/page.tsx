@@ -2648,6 +2648,64 @@ export default function AdminAffiliateContractsPage() {
                 </div>
               </section>
 
+              {/* 계약서 PDF */}
+              <section className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <FiFileText className="text-blue-600" />
+                  계약서 PDF
+                </h3>
+                <div className="space-y-3">
+                  {selectedContract.metadata?.pdfUrl ? (
+                    <>
+                      <p className="text-sm text-gray-600">
+                        완료된 계약서 PDF를 확인하실 수 있습니다.
+                      </p>
+                      <div className="flex gap-3">
+                        <a
+                          href={selectedContract.metadata.pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                        >
+                          <FiExternalLink className="w-4 h-4" />
+                          PDF 보기
+                        </a>
+                        <a
+                          href={selectedContract.metadata.pdfUrl}
+                          download
+                          className="inline-flex items-center gap-2 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                        >
+                          <FiFileText className="w-4 h-4" />
+                          PDF 다운로드
+                        </a>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm text-gray-600">
+                        {selectedContract.status === 'completed' 
+                          ? '계약서가 완료되었지만 PDF가 아직 생성되지 않았습니다. "PDF로 보내기" 버튼을 클릭하여 PDF를 생성하고 전송할 수 있습니다.'
+                          : selectedContract.status === 'approved'
+                          ? '계약서가 승인되었습니다. 완료 처리 시 PDF가 생성됩니다.'
+                          : '계약서가 완료되면 PDF가 생성됩니다.'}
+                      </p>
+                      {selectedContract.status === 'completed' && (
+                        <div className="flex gap-3">
+                          <button
+                            onClick={() => selectedContract && handleSendPDF(selectedContract.id)}
+                            disabled={!selectedContract || sendingPdfContractId === selectedContract.id}
+                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <FiSend className="w-4 h-4" />
+                            {sendingPdfContractId === selectedContract?.id ? 'PDF 생성 중...' : 'PDF 생성 및 전송'}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </section>
+
               {/* 사용자 정보 */}
               {selectedContract.user && (
                 <section className="rounded-xl bg-gray-50 p-4">

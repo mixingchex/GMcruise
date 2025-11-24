@@ -18,6 +18,23 @@ function LinkRedirectHandlerInner() {
     const product = searchParams?.get('product');
 
     if (linkCode) {
+      // trial 링크인 경우 (3일 체험 초대 링크) - 전체 구매몰이 아닌 로그인 페이지로 리다이렉트
+      if (linkCode.startsWith('trial-')) {
+        // trial 링크는 /login-test?trial=... 형식으로 리다이렉트
+        const params = new URLSearchParams();
+        params.append('trial', linkCode);
+        if (agent) {
+          params.append('affiliate', agent);
+        }
+        if (affiliate) {
+          params.append('affiliate', affiliate);
+        }
+        const loginUrl = `/login-test?${params.toString()}`;
+        router.replace(loginUrl);
+        return;
+      }
+
+      // 일반 어필리에이트 링크 처리
       // 링크 정보 조회
       fetch(`/api/public/affiliate-link/${linkCode}`)
         .then(res => res.json())

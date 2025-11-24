@@ -26,7 +26,6 @@ interface PartnerDashboardMenuProps {
   onCustomerRegister: () => void;
   onContractSend: () => void;
   onPasswordChange: () => void;
-  onDocumentManagement: () => void;
 }
 
 export default function PartnerDashboardMenu({
@@ -37,7 +36,6 @@ export default function PartnerDashboardMenu({
   onCustomerRegister,
   onContractSend,
   onPasswordChange,
-  onDocumentManagement,
 }: PartnerDashboardMenuProps) {
   const partnerId = user.phone || user.mallUserId;
 
@@ -114,6 +112,13 @@ export default function PartnerDashboardMenu({
           <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
           <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
         </Link>
+        <Link 
+          href={`${partnerBase}/documents`} 
+          className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
+        >
+          <span className="text-2xl md:text-3xl">📄</span>
+          <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
+        </Link>
         {isBranchManager && (
           <>
             <Link 
@@ -160,13 +165,6 @@ export default function PartnerDashboardMenu({
           <FiLink className="text-2xl text-pink-600 md:text-3xl" />
           <span className="text-xs font-semibold text-pink-700 md:text-sm">나의 SNS<br />프로필</span>
         </Link>
-        <button
-          onClick={onDocumentManagement}
-          className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6"
-        >
-          <FiFileText className="text-2xl text-indigo-600 md:text-3xl" />
-          <span className="text-xs font-semibold text-indigo-700 md:text-sm">문서 관리</span>
-        </button>
         <Link 
           href={`${partnerBase}/contract`} 
           className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"

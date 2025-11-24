@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3, FiMaximize2 } from 'react-icons/fi';
+import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3, FiMaximize2, FiChevronLeft } from 'react-icons/fi';
 import { getKoreanCruiseLineName, getKoreanShipName, formatTravelPeriod } from '@/lib/utils/cruiseNames';
 import { PRODUCT_TAGS } from '@/components/admin/ProductTagsSelector';
 import DOMPurify from 'isomorphic-dompurify';
@@ -33,11 +33,18 @@ interface ProductDetailProps {
       videos?: string[] | null;
       layout?: any;
     } | null;
+    MallProductContent?: {
+      thumbnail?: string | null;
+      images?: string[] | null;
+      videos?: string[] | null;
+      layout?: any;
+    } | null;
   };
   partnerId?: string;
+  hasUserTrip?: boolean;
 }
 
-export default function ProductDetail({ product, partnerId }: ProductDetailProps) {
+export default function ProductDetail({ product, partnerId, hasUserTrip }: ProductDetailProps) {
   const router = useRouter();
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -132,10 +139,12 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
   const [isSaving, setIsSaving] = useState(false);
 
   // layout 데이터 파싱 (포함/불포함, 예약안내 등)
-  const layoutData = product.mallProductContent?.layout 
-    ? (typeof product.mallProductContent.layout === 'string' 
-        ? JSON.parse(product.mallProductContent.layout) 
-        : product.mallProductContent.layout)
+  // Prisma 관계명이 MallProductContent 또는 mallProductContent일 수 있으므로 둘 다 확인
+  const mallContent = (product as any).mallProductContent || (product as any).MallProductContent || null;
+  const layoutData = mallContent?.layout 
+    ? (typeof mallContent.layout === 'string' 
+        ? JSON.parse(mallContent.layout) 
+        : mallContent.layout)
     : null;
 
   // 상세페이지 블록 (이미지, 동영상, 텍스트)
@@ -565,34 +574,6 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
     return `/chat-bot?productCode=${encodeURIComponent(product.productCode)}`;
   };
 
-  // 본사 구매 링크 생성 (partner 파라미터 없이)
-  const getMainCompanyPaymentUrl = () => {
-    return `/products/${product.productCode}/payment`;
-  };
-
-  const getMainCompanyInquiryUrl = () => {
-    return `/products/${product.productCode}/inquiry`;
-  };
-
-  const getMainCompanyChatBotUrl = () => {
-    return `/chat-bot?productCode=${encodeURIComponent(product.productCode)}`;
-  };
-
-  // 본사 구매로 전환 (쿠키 삭제 및 리다이렉트)
-  const handleMainCompanyPurchase = (type: 'payment' | 'inquiry' | 'chatbot') => {
-    // 쿠키 삭제
-    document.cookie = 'affiliate_mall_user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    document.cookie = 'affiliate_code=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    
-    // 본사 주소로 이동
-    if (type === 'payment') {
-      router.push(getMainCompanyPaymentUrl());
-    } else if (type === 'inquiry') {
-      router.push(getMainCompanyInquiryUrl());
-    } else {
-      router.push(getMainCompanyChatBotUrl());
-    }
-  };
 
   // 출처 배지
   const getSourceBadge = () => {
@@ -637,23 +618,31 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
   // 하위 호환성을 위해 기존 images/videos 배열도 확인 (detailBlocks가 없을 때만 사용)
   const images = imagesFromBlocks.length > 0 
     ? imagesFromBlocks 
-    : (product.mallProductContent?.images 
-        ? (typeof product.mallProductContent.images === 'string' 
-            ? JSON.parse(product.mallProductContent.images) 
-            : product.mallProductContent.images)
+    : (mallContent?.images 
+        ? (typeof mallContent.images === 'string' 
+            ? JSON.parse(mallContent.images) 
+            : mallContent.images)
         : []);
 
   const videos = videosFromBlocks.length > 0
     ? videosFromBlocks
-    : (product.mallProductContent?.videos 
-        ? (typeof product.mallProductContent.videos === 'string' 
-            ? JSON.parse(product.mallProductContent.videos) 
-            : product.mallProductContent.videos)
+    : (mallContent?.videos 
+        ? (typeof mallContent.videos === 'string' 
+            ? JSON.parse(mallContent.videos) 
+            : mallContent.videos)
         : []);
 
   return (
     <div className="container mx-auto px-3 md:px-6 py-4 md:py-8 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto w-full">
+        {/* 이전으로 돌아가기 버튼 - 상단 */}
+        <button
+          onClick={() => router.back()}
+          className="mb-4 flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+        >
+          <FiChevronLeft size={20} />
+          <span className="text-sm font-medium">이전으로 돌아가기</span>
+        </button>
         {/* 메인 콘텐츠 영역 */}
         <div>
         {/* 상품 헤더 */}
@@ -667,9 +656,9 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
           <div className="mb-6">
             {/* 메인 이미지/비디오 - 썸네일 우선 표시 */}
             <div className="relative h-80 md:h-96 bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 rounded-xl overflow-hidden mb-4">
-              {product.mallProductContent?.thumbnail ? (
+              {mallContent?.thumbnail ? (
                 <img
-                  src={product.mallProductContent.thumbnail}
+                  src={mallContent.thumbnail}
                   alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 썸네일`}
                   className="w-full h-full object-cover"
                 />
@@ -2209,68 +2198,41 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
 
           {/* 구매 문의 버튼 */}
           <div className="mt-6 pt-5 border-t border-gray-200">
-            <div className="flex flex-col gap-3">
-              {/* 본사에서 구매하기 옵션 (partnerId가 있을 때만 표시) */}
-              {partnerId && (
-                <div className="mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-xs text-gray-600 mb-2 text-center">본사에서 구매하고 싶으신가요?</p>
-                  <div className="flex gap-2">
-                    {product.basePrice && product.basePrice > 0 ? (
-                      <button
-                        onClick={() => handleMainCompanyPurchase('payment')}
-                        className="flex-1 px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded transition-colors"
-                      >
-                        본사에서 결제하기
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleMainCompanyPurchase('inquiry')}
-                        className="flex-1 px-3 py-2 bg-gray-600 hover:bg-gray-700 text-white text-xs font-medium rounded transition-colors"
-                      >
-                        본사에서 가격 문의
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleMainCompanyPurchase('chatbot')}
-                      className="flex-1 px-3 py-2 bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
-                    >
-                      본사 채팅봇
-                    </button>
-                  </div>
-                </div>
-              )}
+            {(() => {
+              // 활성화된 버튼 개수 계산
+              const activeButtons = [
+                contactOptions.payment && { type: 'payment', url: getPaymentUrl(), label: '결제하기', icon: '💳', color: 'bg-emerald-600 hover:bg-emerald-700' },
+                contactOptions.phoneCall && { type: 'phone', url: getInquiryUrl(), label: '전화상담', icon: '📞', color: 'bg-blue-600 hover:bg-blue-700' },
+                contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI 지니 채팅봇', icon: '🤖', color: 'bg-rose-600 hover:bg-rose-700' },
+              ].filter(Boolean) as Array<{ type: string; url: string; label: string; icon: string; color: string }>;
               
-              {/* 결제하기 버튼 */}
-              {contactOptions.payment && product.basePrice && product.basePrice > 0 && (
-                <Link
-                  href={getPaymentUrl()}
-                  className="w-full px-5 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
-                >
-                  <span className="text-xl">💳</span>
-                  <span>결제하기</span>
-                </Link>
-              )}
-              {/* 전화상담 버튼 */}
-              {contactOptions.phoneCall && (
-                <Link
-                  href={getInquiryUrl()}
-                  className="w-full px-5 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
-                >
-                  <span className="text-xl">📞</span>
-                  <span>전화상담</span>
-                </Link>
-              )}
-              {/* AI 지니 채팅봇 버튼 */}
-              {contactOptions.aiChatbot && (
-                <Link
-                  href={getChatBotUrl()}
-                  className="w-full px-5 py-4 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg"
-                >
-                  <span className="text-xl">🤖</span>
-                  <span>AI 지니 채팅봇</span>
-                </Link>
-              )}
-            </div>
+              const buttonCount = activeButtons.length;
+              
+              // 버튼 개수에 따른 레이아웃 클래스 결정
+              let layoutClass = '';
+              if (buttonCount === 3) {
+                layoutClass = 'grid grid-cols-1 md:grid-cols-3 gap-3';
+              } else if (buttonCount === 2) {
+                layoutClass = 'grid grid-cols-1 md:grid-cols-2 gap-3';
+              } else {
+                layoutClass = 'flex flex-col gap-3';
+              }
+              
+              return (
+                <div className={layoutClass}>
+                  {activeButtons.map((button, index) => (
+                    <Link
+                      key={button.type}
+                      href={button.url}
+                      className={`w-full px-5 py-4 ${button.color} text-white font-semibold text-center rounded-lg transition-colors shadow-sm flex items-center justify-center gap-2 text-base md:text-lg`}
+                    >
+                      <span className="text-xl">{button.icon}</span>
+                      <span>{button.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
@@ -2542,6 +2504,16 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
         </div>,
         document.body
       )}
+      {/* 이전으로 돌아가기 버튼 - 하단 */}
+      <div className="mt-8 flex justify-center">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-sm"
+        >
+          <FiChevronLeft size={20} />
+          <span className="text-sm font-medium">이전으로 돌아가기</span>
+        </button>
+      </div>
     </div>
   );
 }

@@ -58,20 +58,25 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
           .map((img: any) => {
             if (typeof img === 'string') {
               const trimmed = img.trim();
-              if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || !trimmed.startsWith('http')) {
+              // [object Object] 체크 및 유효한 URL 경로 체크 (http://, https://, /로 시작하는 경로 허용)
+              if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || trimmed.length === 0) {
+                return '';
+              }
+              // http://, https://, 또는 /로 시작하는 경로만 허용
+              if (!trimmed.startsWith('http') && !trimmed.startsWith('/')) {
                 return '';
               }
               return trimmed;
             }
             if (img && typeof img === 'object' && 'url' in img) {
               const url = typeof img.url === 'string' ? img.url.trim() : '';
-              if (url && !url.includes('[object Object]') && url.startsWith('http')) {
+              if (url && !url.includes('[object Object]') && (url.startsWith('http') || url.startsWith('/'))) {
                 return url;
               }
             }
             return '';
           })
-          .filter((url: string) => url.length > 0 && url.startsWith('http'));
+          .filter((url: string) => url.length > 0 && (url.startsWith('http') || url.startsWith('/')));
       }
     } catch (e) {
       console.error('[parseGalleryImages] error:', e, profile?.galleryImages);
@@ -90,20 +95,25 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
           .map((img: any) => {
             if (typeof img === 'string') {
               const trimmed = img.trim();
-              if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || !trimmed.startsWith('http')) {
+              // [object Object] 체크 및 유효한 URL 경로 체크 (http://, https://, /로 시작하는 경로 허용)
+              if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || trimmed.length === 0) {
+                return '';
+              }
+              // http://, https://, 또는 /로 시작하는 경로만 허용
+              if (!trimmed.startsWith('http') && !trimmed.startsWith('/')) {
                 return '';
               }
               return trimmed;
             }
             if (img && typeof img === 'object' && 'url' in img) {
               const url = typeof img.url === 'string' ? img.url.trim() : '';
-              if (url && !url.includes('[object Object]') && url.startsWith('http')) {
+              if (url && !url.includes('[object Object]') && (url.startsWith('http') || url.startsWith('/'))) {
                 return url;
               }
             }
             return '';
           })
-          .filter((url: string) => url.length > 0 && url.startsWith('http'));
+          .filter((url: string) => url.length > 0 && (url.startsWith('http') || url.startsWith('/')));
       }
     } catch (e) {
       console.error('[parseFeaturedImages] error:', e, profile?.featuredImages);
@@ -150,22 +160,62 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       });
       return slots;
     })(),
-    youtubeVideoUrl: profile?.youtubeVideoUrl || '',
+    youtubeVideoUrls: (() => {
+      // 기존 단일 youtubeVideoUrl을 배열로 변환
+      if (profile?.youtubeVideoUrl) {
+        try {
+          const parsed = typeof profile.youtubeVideoUrl === 'string' 
+            ? JSON.parse(profile.youtubeVideoUrl) 
+            : profile.youtubeVideoUrl;
+          if (Array.isArray(parsed)) {
+            return parsed.filter((url: any) => url && typeof url === 'string' && url.trim());
+          }
+          return [profile.youtubeVideoUrl].filter(Boolean);
+        } catch {
+          return [profile.youtubeVideoUrl].filter(Boolean);
+        }
+      }
+      return [''];
+    })(),
   });
 
   const profileImageUrl = formData.profileImage || null;
   const partnerId = user.mallUserId;
+
+  // 프로필이 변경될 때 formData 업데이트 (유튜브 동영상 링크 포함)
+  useEffect(() => {
+    if (profile?.youtubeVideoUrl !== undefined) {
+      const videoUrls = (() => {
+        try {
+          const parsed = typeof profile.youtubeVideoUrl === 'string' 
+            ? JSON.parse(profile.youtubeVideoUrl) 
+            : profile.youtubeVideoUrl;
+          if (Array.isArray(parsed)) {
+            return parsed.filter((url: any) => url && typeof url === 'string' && url.trim());
+          }
+          return [profile.youtubeVideoUrl].filter(Boolean);
+        } catch {
+          return [profile.youtubeVideoUrl].filter(Boolean);
+        }
+      })();
+      setFormData((prev) => ({
+        ...prev,
+        youtubeVideoUrls: videoUrls.length > 0 ? videoUrls : [''],
+      }));
+    }
+  }, [profile?.youtubeVideoUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const { customLinks, galleryImages, featuredImages, ...restFormData } = formData;
+      const { customLinks, galleryImages, featuredImages, youtubeVideoUrls, ...restFormData } = formData;
       
       const filteredCustomLinks = customLinks.filter(link => link.label.trim() && link.url.trim());
       const filteredGalleryImages = galleryImages.filter((img: string) => img && img.trim());
       const filteredFeaturedImages = featuredImages.filter((img: string) => img && img.trim());
+      const filteredYoutubeVideoUrls = youtubeVideoUrls.filter((url: string) => url && url.trim());
       
       const res = await fetch('/api/partner/profile', {
         method: 'PUT',
@@ -176,6 +226,9 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
           customLinks: filteredCustomLinks.length > 0 ? filteredCustomLinks : null,
           galleryImages: filteredGalleryImages.length > 0 ? filteredGalleryImages : null,
           featuredImages: filteredFeaturedImages.length > 0 ? filteredFeaturedImages : null,
+          youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0 
+            ? (filteredYoutubeVideoUrls.length === 1 ? filteredYoutubeVideoUrls[0] : JSON.stringify(filteredYoutubeVideoUrls))
+            : null,
         }),
       });
 
@@ -255,13 +308,17 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       }
 
       const imageUrl = json.profileImage;
-      if (typeof imageUrl !== 'string') {
+      if (typeof imageUrl !== 'string' || !imageUrl.trim()) {
         throw new Error('이미지 URL이 올바르지 않습니다.');
       }
       
+      const trimmedUrl = imageUrl.trim();
+      console.log('[GalleryImageUpload] Uploaded image URL:', trimmedUrl, 'at index:', index);
+      
       setFormData((prev) => {
         const newGalleryImages = [...prev.galleryImages];
-        newGalleryImages[index] = imageUrl;
+        newGalleryImages[index] = trimmedUrl;
+        console.log('[GalleryImageUpload] Updated gallery images:', newGalleryImages);
         return { ...prev, galleryImages: newGalleryImages };
       });
       showSuccess('이미지가 업로드되었습니다!');
@@ -292,13 +349,17 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       }
 
       const imageUrl = json.profileImage;
-      if (typeof imageUrl !== 'string') {
+      if (typeof imageUrl !== 'string' || !imageUrl.trim()) {
         throw new Error('이미지 URL이 올바르지 않습니다.');
       }
       
+      const trimmedUrl = imageUrl.trim();
+      console.log('[FeaturedImageUpload] Uploaded image URL:', trimmedUrl, 'at index:', index);
+      
       setFormData((prev) => {
         const newFeaturedImages = [...prev.featuredImages];
-        newFeaturedImages[index] = imageUrl;
+        newFeaturedImages[index] = trimmedUrl;
+        console.log('[FeaturedImageUpload] Updated featured images:', newFeaturedImages);
         return { ...prev, featuredImages: newFeaturedImages };
       });
       showSuccess('이미지가 업로드되었습니다!');
@@ -659,18 +720,50 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                   </h3>
                   <div className="mb-4 rounded-xl bg-red-50 border border-red-200 p-4">
                     <p className="text-sm text-red-700">
-                      유튜브 동영상 링크를 입력하면 나의 SNS 프로필 페이지에 표시됩니다.
+                      유튜브 동영상 링크를 최대 3개까지 입력할 수 있습니다. 좌우로 스와이프하여 여러 동영상을 볼 수 있습니다.
                     </p>
                   </div>
-                  <div>
-                    <input
-                      type="url"
-                      value={formData.youtubeVideoUrl}
-                      onChange={(e) => setFormData({ ...formData, youtubeVideoUrl: e.target.value })}
-                      placeholder="https://www.youtube.com/watch?v=... 또는 https://youtu.be/..."
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
-                    />
-                    {formData.youtubeVideoUrl && (
+                  <div className="space-y-3">
+                    {formData.youtubeVideoUrls.map((url, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="url"
+                          value={url}
+                          onChange={(e) => {
+                            const newUrls = [...formData.youtubeVideoUrls];
+                            newUrls[index] = e.target.value;
+                            setFormData({ ...formData, youtubeVideoUrls: newUrls });
+                          }}
+                          placeholder="https://www.youtube.com/watch?v=... 또는 https://youtu.be/..."
+                          className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-100"
+                        />
+                        {formData.youtubeVideoUrls.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newUrls = formData.youtubeVideoUrls.filter((_, i) => i !== index);
+                              setFormData({ ...formData, youtubeVideoUrls: newUrls.length > 0 ? newUrls : [''] });
+                            }}
+                            className="px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <FiX className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    {formData.youtubeVideoUrls.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFormData({ ...formData, youtubeVideoUrls: [...formData.youtubeVideoUrls, ''] });
+                        }}
+                        className="w-full px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-red-500 hover:text-red-600 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <FiPlus className="w-4 h-4" />
+                        동영상 추가 (최대 3개)
+                      </button>
+                    )}
+                    {formData.youtubeVideoUrls.some(url => url.trim()) && (
                       <div className="mt-2 text-xs text-green-600">
                         <FiCheck className="inline w-3 h-3 mr-1" />
                         유튜브 링크가 입력되었습니다.
@@ -703,7 +796,13 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                       customLinks: formData.customLinks.filter(link => link.label.trim() && link.url.trim()),
                       galleryImages: formData.galleryImages.filter((img: string) => img.trim()),
                       featuredImages: formData.featuredImages.filter((img: string) => img.trim()),
-                      youtubeVideoUrl: formData.youtubeVideoUrl || null,
+                      youtubeVideoUrl: (() => {
+                        const filtered = formData.youtubeVideoUrls.filter((url: string) => url && url.trim());
+                        return filtered.length > 0 
+                          ? (filtered.length === 1 ? filtered[0] : JSON.stringify(filtered))
+                          : null;
+                      })(),
+                      youtubeVideoUrls: formData.youtubeVideoUrls.filter((url: string) => url && url.trim()),
                       mallUserId: user.mallUserId,
                     }}
                   />
@@ -724,11 +823,12 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                     partnerId={partnerId} 
                     onSaveProfile={async () => {
                       // 프로필 자동 저장
-                      const { customLinks, galleryImages, featuredImages, ...restFormData } = formData;
+                      const { customLinks, galleryImages, featuredImages, youtubeVideoUrls, ...restFormData } = formData;
                       
                       const filteredCustomLinks = customLinks.filter(link => link.label.trim() && link.url.trim());
                       const filteredGalleryImages = galleryImages.filter((img: string) => img && img.trim());
                       const filteredFeaturedImages = featuredImages.filter((img: string) => img && img.trim());
+                      const filteredYoutubeVideoUrls = youtubeVideoUrls.filter((url: string) => url && url.trim());
                       
                       const res = await fetch('/api/partner/profile', {
                         method: 'PUT',
@@ -739,6 +839,9 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                           customLinks: filteredCustomLinks.length > 0 ? filteredCustomLinks : null,
                           galleryImages: filteredGalleryImages.length > 0 ? filteredGalleryImages : null,
                           featuredImages: filteredFeaturedImages.length > 0 ? filteredFeaturedImages : null,
+                          youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0 
+                            ? (filteredYoutubeVideoUrls.length === 1 ? filteredYoutubeVideoUrls[0] : JSON.stringify(filteredYoutubeVideoUrls))
+                            : null,
                         }),
                       });
 
@@ -803,7 +906,12 @@ function GalleryImageManager({
     if (!img) return '';
     if (typeof img === 'string') {
       const trimmed = img.trim();
-      if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || !trimmed.startsWith('http')) {
+      // [object Object] 체크 및 유효한 URL 경로 체크 (http://, https://, /로 시작하는 경로 허용)
+      if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || trimmed.length === 0) {
+        return '';
+      }
+      // http://, https://, 또는 /로 시작하는 경로만 허용
+      if (!trimmed.startsWith('http') && !trimmed.startsWith('/')) {
         return '';
       }
       return trimmed;
@@ -811,7 +919,14 @@ function GalleryImageManager({
     if (img && typeof img === 'object' && 'url' in img) {
       const url = (img as { url: any }).url;
       if (typeof url === 'string') {
-        return url.trim();
+        const trimmedUrl = url.trim();
+        if (trimmedUrl.includes('[object Object]') || trimmedUrl === '[object Object]' || trimmedUrl.length === 0) {
+          return '';
+        }
+        if (!trimmedUrl.startsWith('http') && !trimmedUrl.startsWith('/')) {
+          return '';
+        }
+        return trimmedUrl;
       }
     }
     return '';
@@ -820,7 +935,7 @@ function GalleryImageManager({
   return (
     <div className="grid grid-cols-3 gap-3">
       {slots.map((imageUrl, index) => (
-        <div key={index} className="relative aspect-square border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50">
+        <div key={`gallery-${index}-${imageUrl || 'empty'}`} className="relative aspect-square border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50">
           {imageUrl && typeof imageUrl === 'string' && imageUrl.trim() ? (
             <>
               <img
@@ -882,7 +997,12 @@ function FeaturedImageManager({
     if (!img) return '';
     if (typeof img === 'string') {
       const trimmed = img.trim();
-      if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || !trimmed.startsWith('http')) {
+      // [object Object] 체크 및 유효한 URL 경로 체크 (http://, https://, /로 시작하는 경로 허용)
+      if (trimmed.includes('[object Object]') || trimmed === '[object Object]' || trimmed.length === 0) {
+        return '';
+      }
+      // http://, https://, 또는 /로 시작하는 경로만 허용
+      if (!trimmed.startsWith('http') && !trimmed.startsWith('/')) {
         return '';
       }
       return trimmed;
@@ -890,7 +1010,14 @@ function FeaturedImageManager({
     if (img && typeof img === 'object' && 'url' in img) {
       const url = (img as { url: any }).url;
       if (typeof url === 'string') {
-        return url.trim();
+        const trimmedUrl = url.trim();
+        if (trimmedUrl.includes('[object Object]') || trimmedUrl === '[object Object]' || trimmedUrl.length === 0) {
+          return '';
+        }
+        if (!trimmedUrl.startsWith('http') && !trimmedUrl.startsWith('/')) {
+          return '';
+        }
+        return trimmedUrl;
       }
     }
     return '';
@@ -965,7 +1092,7 @@ function FeaturedImageManager({
       {/* 업로드 슬롯 */}
       <div className="grid grid-cols-3 gap-3">
         {slots.map((imageUrl, index) => (
-          <div key={index} className="relative aspect-video border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50">
+          <div key={`featured-${index}-${imageUrl || 'empty'}`} className="relative aspect-video border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50">
             {imageUrl && typeof imageUrl === 'string' && imageUrl.trim() ? (
               <>
                 <img
@@ -1010,6 +1137,31 @@ function FeaturedImageManager({
   );
 }
 
+// 태그 영어 → 한글 변환 함수
+function translateTagToKorean(tag: string): string {
+  const tagMap: Record<string, string> = {
+    'popular': '인기',
+    'recommended': '추천',
+    'premium': '프리미엄',
+    'genie': '지니팩',
+    'geniepack': '지니팩',
+    'domestic': '국내',
+    'japan': '일본',
+    'budget': '저예산',
+    'urgent': '긴급',
+    'main': '주력',
+    'mainproduct': '주력',
+    'new': '신규',
+    'hot': '핫딜',
+    'sale': '할인',
+    'best': '베스트',
+    'special': '특가',
+  };
+  
+  const tagLower = tag.toLowerCase().replace(/^#/, '').trim();
+  return tagMap[tagLower] || tag;
+}
+
 // 스마트폰 미리보기 컴포넌트
 function MobilePreview({ profile }: { 
   profile: {
@@ -1025,11 +1177,13 @@ function MobilePreview({ profile }: {
     galleryImages: string[];
     featuredImages: string[];
     youtubeVideoUrl: string | null;
+    youtubeVideoUrls?: string[];
     mallUserId?: string;
   }
 }) {
   const [deviceType, setDeviceType] = useState<'iphone' | 'samsung'>('iphone');
   const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [youtubeIndex, setYoutubeIndex] = useState(0);
   const [galleryModal, setGalleryModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
   const [featuredModal, setFeaturedModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
   const [products, setProducts] = useState<any[]>([]);
@@ -1068,6 +1222,45 @@ function MobilePreview({ profile }: {
     }
   }, [profile.featuredImages.length]);
 
+  const getYoutubeVideoId = (url: string | null): string | null => {
+    if (!url) return null;
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/|youtube\.com\/embed\/)([^&\n?#]+)/);
+    return match ? match[1] : null;
+  };
+
+  // 유튜브 동영상 URL 배열 파싱
+  const parseYoutubeVideoUrls = (): string[] => {
+    // youtubeVideoUrls가 직접 제공되면 사용
+    if (profile.youtubeVideoUrls && Array.isArray(profile.youtubeVideoUrls)) {
+      return profile.youtubeVideoUrls.filter((url: any) => url && typeof url === 'string' && url.trim());
+    }
+    // youtubeVideoUrl이 있으면 파싱
+    if (!profile.youtubeVideoUrl) return [];
+    try {
+      const parsed = typeof profile.youtubeVideoUrl === 'string' 
+        ? JSON.parse(profile.youtubeVideoUrl) 
+        : profile.youtubeVideoUrl;
+      if (Array.isArray(parsed)) {
+        return parsed.filter((url: any) => url && typeof url === 'string' && url.trim());
+      }
+      return [profile.youtubeVideoUrl].filter(Boolean);
+    } catch {
+      return [profile.youtubeVideoUrl].filter(Boolean);
+    }
+  };
+
+  const youtubeVideoUrls = parseYoutubeVideoUrls();
+  const youtubeVideoIds = youtubeVideoUrls.map(url => getYoutubeVideoId(url)).filter((id): id is string => id !== null);
+
+  useEffect(() => {
+    if (youtubeVideoIds.length > 1) {
+      const interval = setInterval(() => {
+        setYoutubeIndex((prev) => (prev + 1) % youtubeVideoIds.length);
+      }, 8000); // 유튜브 동영상은 8초마다 자동 넘김
+      return () => clearInterval(interval);
+    }
+  }, [youtubeVideoIds.length]);
+
   useEffect(() => {
     const loadProducts = async () => {
       if (!profile.mallUserId) {
@@ -1077,10 +1270,18 @@ function MobilePreview({ profile }: {
       
       try {
         setProductsLoading(true);
-        const res = await fetch(`/api/public/products?mallUserId=${profile.mallUserId}&limit=6`);
+        const res = await fetch(`/api/public/products?limit=6`);
         const data = await res.json();
         if (data.ok && data.products) {
-          setProducts(data.products);
+          // 연동된 상품만 필터링 (AffiliateProduct가 있는 상품만)
+          // 3,800,000원 같은 특정 가격의 상품이 연동되지 않았으면 제외
+          const filteredProducts = data.products.filter((product: any) => {
+            // basePrice가 있고, AffiliateProduct와 연동된 상품만 표시
+            // API에서 이미 AffiliateProduct가 있는 상품만 반환하므로 추가 필터링은 불필요
+            // 하지만 혹시 모를 경우를 대비해 productCode가 있는 상품만 표시
+            return product.productCode && product.basePrice;
+          });
+          setProducts(filteredProducts);
         }
       } catch (error) {
         console.error('[MobilePreview] Failed to load products:', error);
@@ -1091,14 +1292,6 @@ function MobilePreview({ profile }: {
 
     loadProducts();
   }, [profile.mallUserId]);
-
-  const getYoutubeVideoId = (url: string | null): string | null => {
-    if (!url) return null;
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-    return match ? match[1] : null;
-  };
-
-  const youtubeVideoId = getYoutubeVideoId(profile.youtubeVideoUrl);
 
   return (
     <div className="space-y-6">
@@ -1281,20 +1474,52 @@ function MobilePreview({ profile }: {
                   )}
 
                   {/* 유튜브 동영상 */}
-                  {youtubeVideoId && (
+                  {youtubeVideoIds.length > 0 && (
                     <div className="bg-white rounded-3xl shadow-xl p-4 mb-6">
                       <h2 className="text-lg font-bold text-gray-900 mb-3">동영상</h2>
-                      <div className="aspect-video rounded-lg overflow-hidden">
+                      <div className="relative aspect-video rounded-lg overflow-hidden bg-black">
                         <iframe
                           width="100%"
                           height="100%"
-                          src={`https://www.youtube.com/embed/${youtubeVideoId}`}
+                          src={`https://www.youtube.com/embed/${youtubeVideoIds[youtubeIndex]}`}
                           title="YouTube video player"
                           frameBorder="0"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
                           className="w-full h-full"
                         />
+                        {youtubeVideoIds.length > 1 && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setYoutubeIndex((prev) => (prev - 1 + youtubeVideoIds.length) % youtubeVideoIds.length);
+                              }}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full z-10"
+                            >
+                              <FiChevronLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setYoutubeIndex((prev) => (prev + 1) % youtubeVideoIds.length);
+                              }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full z-10"
+                            >
+                              <FiChevronRight className="w-4 h-4" />
+                            </button>
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1 z-10">
+                              {youtubeVideoIds.map((_, i) => (
+                                <div
+                                  key={i}
+                                  className={`w-1.5 h-1.5 rounded-full ${
+                                    i === youtubeIndex ? 'bg-white' : 'bg-white/50'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1310,35 +1535,93 @@ function MobilePreview({ profile }: {
                         <div className="text-center py-4 text-gray-500 text-sm">로딩 중...</div>
                       ) : products.length > 0 ? (
                         <div className="space-y-2">
-                          {products.slice(0, 3).map((product: any) => (
-                            <a
-                              key={product.id}
-                              href={`/${profile.mallUserId}/shop/products/${product.productCode}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-sm transition-all"
-                            >
-                              <div className="flex gap-3">
-                                {product.thumbnail && (
-                                  <img
-                                    src={product.thumbnail}
-                                    alt={product.title}
-                                    className="w-16 h-16 rounded-lg object-cover"
-                                  />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">
-                                    {product.title}
-                                  </h3>
-                                  {product.basePrice && (
-                                    <p className="text-purple-600 font-bold text-xs">
-                                      {product.basePrice.toLocaleString('ko-KR')}원
-                                    </p>
+                          {products.slice(0, 3).map((product: any) => {
+                            // 태그 파싱 - boolean 필드들도 태그로 추가
+                            let tags: string[] = [];
+                            
+                            // boolean 필드들을 태그로 추가
+                            if (product.isUrgent) tags.push('urgent');
+                            if (product.isMainProduct) tags.push('main');
+                            if (product.isPopular) tags.push('popular');
+                            if (product.isRecommended) tags.push('recommended');
+                            if (product.isPremium) tags.push('premium');
+                            if (product.isGeniePack) tags.push('genie');
+                            if (product.isDomestic) tags.push('domestic');
+                            if (product.isJapan) tags.push('japan');
+                            if (product.isBudget) tags.push('budget');
+                            
+                            // product.tags 필드에서 추가 태그 파싱
+                            if (product.tags) {
+                              if (Array.isArray(product.tags)) {
+                                const parsedTags = product.tags.map((tag: any) => tag?.toString() || '').filter(Boolean);
+                                tags.push(...parsedTags);
+                              } else if (typeof product.tags === 'string') {
+                                try {
+                                  const parsed = JSON.parse(product.tags);
+                                  if (Array.isArray(parsed)) {
+                                    const parsedTags = parsed.map((t: any) => t?.toString() || '').filter(Boolean);
+                                    tags.push(...parsedTags);
+                                  } else {
+                                    tags.push(product.tags);
+                                  }
+                                } catch {
+                                  const splitTags = product.tags.split(',').map((t: string) => t.trim()).filter(Boolean);
+                                  tags.push(...splitTags);
+                                }
+                              }
+                            }
+                            
+                            // 중복 제거 및 최대 3개만 유지
+                            const uniqueTags = Array.from(new Set(tags)).slice(0, 3);
+                            
+                            // 태그를 한글로 변환
+                            const koreanTags = uniqueTags.map(tag => translateTagToKorean(tag));
+                            
+                            // 상품명 추출 (packageName 또는 title)
+                            const productName = product.packageName || product.title || '상품명 없음';
+                            
+                            return (
+                              <a
+                                key={product.id || product.productCode}
+                                href={`/${profile.mallUserId}/shop/products/${product.productCode}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-sm transition-all"
+                              >
+                                <div className="flex gap-3">
+                                  {product.thumbnail && (
+                                    <img
+                                      src={product.thumbnail}
+                                      alt={productName}
+                                      className="w-16 h-16 rounded-lg object-cover"
+                                    />
                                   )}
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">
+                                      {productName}
+                                    </h3>
+                                    {product.basePrice && (
+                                      <p className="text-purple-600 font-bold text-xs mb-1">
+                                        {product.basePrice.toLocaleString('ko-KR')}원
+                                      </p>
+                                    )}
+                                    {koreanTags.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1">
+                                        {koreanTags.slice(0, 3).map((tag: string, idx: number) => (
+                                          <span
+                                            key={idx}
+                                            className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full"
+                                          >
+                                            {tag.startsWith('#') ? tag : `#${tag}`}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            </a>
-                          ))}
+                              </a>
+                            );
+                          })}
                           <a
                             href={`/${profile.mallUserId}/shop`}
                             target="_blank"

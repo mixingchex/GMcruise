@@ -31,7 +31,8 @@ cd /home/userhyeseon28/projects/cruise-guide
 
 # 원격 저장소 URL에 토큰 포함 (일시적)
 # ⚠️ 주의: 실제 토큰은 GitHub에서 생성한 Personal Access Token으로 교체하세요
-git remote set-url origin https://ghp_YOUR_TOKEN_HERE@github.com/monicajeon28/GMcruise.git
+# ⚠️ 보안: 실제 토큰을 파일에 저장하지 마세요!
+git remote set-url origin https://YOUR_TOKEN@github.com/monicajeon28/GMcruise.git
 
 # dev 브랜치 푸시
 git push origin dev

@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -162,48 +164,117 @@ export async function POST(
       );
     }
 
-    // 6. Google Drive에 파일 업로드
-    const { uploadFileToDrive } = await import('@/lib/google-drive');
-    
-    // 파일 버퍼 생성
+    // 6. 파일 버퍼 생성
     const fileBuffer = Buffer.from(await audioFile.arrayBuffer());
     
     // 파일명 생성 (중복 방지)
     const fileExtension = audioFile.name.split('.').pop() || 'mp3';
     const fileName = `sale_${saleId}_${audioFileType}_${Date.now()}.${fileExtension}`;
     
-    // Google Drive 폴더 ID (환경 변수에서 가져오거나 기본값 사용)
-    const audioFolderId = process.env.GOOGLE_DRIVE_AUDIO_FOLDER_ID || process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID || null;
+    // 7. 서버에 파일 저장
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'audio');
     
-    // Google Drive에 업로드
-    const uploadResult = await uploadFileToDrive({
-      folderId: audioFolderId,
-      fileName,
-      mimeType: audioFile.type || 'audio/mpeg',
-      buffer: fileBuffer,
-      makePublic: false,
-    });
+    // 디렉토리가 없으면 생성
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
     
-    if (!uploadResult.ok || !uploadResult.url || !uploadResult.fileId) {
-      console.error('[Submit Confirmation] Google Drive upload failed:', uploadResult.error);
+    // 서버 파일 경로
+    const serverFilePath = path.join(uploadsDir, fileName);
+    const serverFileUrl = `/uploads/audio/${fileName}`;
+    
+    // 파일을 서버에 저장
+    try {
+      fs.writeFileSync(serverFilePath, fileBuffer);
+      console.log('[Submit Confirmation] 파일 서버 저장 완료:', serverFilePath);
+    } catch (serverSaveError: any) {
+      console.error('[Submit Confirmation] 서버 파일 저장 실패:', serverSaveError);
       return NextResponse.json(
-        { ok: false, error: uploadResult.error || '녹음 파일 업로드에 실패했습니다' },
+        { ok: false, error: '서버에 파일 저장에 실패했습니다: ' + serverSaveError.message },
         { status: 500 }
       );
     }
 
-    // 7. 데이터베이스 업데이트
+    // 8. Google Drive에 백업 업로드 (실패해도 서버 저장은 유지)
+    let googleDriveFileId: string | null = null;
+    let googleDriveUrl: string | null = null;
+    let googleDriveError: string | null = null;
+    
+    try {
+      const { uploadFileToDrive } = await import('@/lib/google-drive');
+      
+      // Google Drive 폴더 ID (DB 설정 > 환경 변수 > 기본값 순서로 확인)
+      let audioFolderId: string | null = null;
+      
+      // 1. DB 설정에서 가져오기
+      try {
+        const audioConfig = await prisma.systemConfig.findUnique({
+          where: { configKey: 'google_drive_sales_audio_folder_id' },
+        });
+        if (audioConfig?.configValue) {
+          audioFolderId = audioConfig.configValue;
+        }
+      } catch (dbError) {
+        console.warn('[Submit Confirmation] DB에서 폴더 ID 조회 실패:', dbError);
+      }
+      
+      // 2. 환경 변수에서 가져오기
+      if (!audioFolderId) {
+        audioFolderId = process.env.GOOGLE_DRIVE_SALES_AUDIO_FOLDER_ID || 
+                       process.env.GOOGLE_DRIVE_AUDIO_FOLDER_ID || 
+                       process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID || 
+                       null;
+      }
+      
+      // 3. 기본값 사용 (사용자가 제공한 폴더 ID)
+      if (!audioFolderId) {
+        audioFolderId = '1dhTmPheRvOsc0V0ukpKOqD2Ry1IN-OrH';
+      }
+      
+      // Google Drive에 백업 업로드
+      const uploadResult = await uploadFileToDrive({
+        folderId: audioFolderId,
+        fileName,
+        mimeType: audioFile.type || 'audio/mpeg',
+        buffer: fileBuffer,
+        makePublic: false,
+      });
+      
+      if (uploadResult.ok && uploadResult.fileId && uploadResult.url) {
+        googleDriveFileId = uploadResult.fileId;
+        googleDriveUrl = uploadResult.url;
+        console.log('[Submit Confirmation] Google Drive 백업 완료:', googleDriveUrl);
+      } else {
+        googleDriveError = uploadResult.error || '알 수 없는 오류';
+        console.warn('[Submit Confirmation] Google Drive 백업 실패 (서버 저장은 유지):', googleDriveError);
+      }
+    } catch (driveError: any) {
+      googleDriveError = driveError.message || '알 수 없는 오류';
+      console.warn('[Submit Confirmation] Google Drive 백업 실패 (서버 저장은 유지):', googleDriveError);
+      // Google Drive 백업 실패해도 서버 저장은 성공했으므로 계속 진행
+    }
+
+    // 9. 데이터베이스 업데이트
+    const updateData: any = {
+      status: 'PENDING_APPROVAL',
+      audioFileName: audioFile.name,
+      audioFileType: audioFileType, // 녹음 파일 타입 저장
+      submittedById: user.id,
+      submittedAt: new Date(),
+    };
+
+    // 서버 파일 경로 저장 (항상 저장)
+    updateData.audioFileServerPath = serverFileUrl;
+    
+    // Google Drive 정보 저장 (백업 성공한 경우만)
+    if (googleDriveFileId && googleDriveUrl) {
+      updateData.audioFileGoogleDriveId = googleDriveFileId;
+      updateData.audioFileGoogleDriveUrl = googleDriveUrl;
+    }
+
     const updatedSale = await prisma.affiliateSale.update({
       where: { id: saleId },
-      data: {
-        status: 'PENDING_APPROVAL',
-        audioFileGoogleDriveId: uploadResult.fileId,
-        audioFileGoogleDriveUrl: uploadResult.url,
-        audioFileName: audioFile.name,
-        audioFileType: audioFileType, // 녹음 파일 타입 저장
-        submittedById: user.id,
-        submittedAt: new Date(),
-      },
+      data: updateData,
     });
 
     return NextResponse.json({
@@ -212,7 +283,11 @@ export async function POST(
       sale: {
         id: updatedSale.id,
         status: updatedSale.status,
-        audioFileUrl: updatedSale.audioFileGoogleDriveUrl,
+        audioFileUrl: updatedSale.audioFileServerPath || updatedSale.audioFileGoogleDriveUrl,
+        audioFileServerPath: updatedSale.audioFileServerPath,
+        audioFileGoogleDriveUrl: updatedSale.audioFileGoogleDriveUrl,
+        googleDriveBackupStatus: googleDriveFileId ? 'success' : 'failed',
+        googleDriveError: googleDriveError || undefined,
       },
     });
   } catch (error: any) {

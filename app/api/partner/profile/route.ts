@@ -4,6 +4,39 @@ import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
+// GET: 프로필 정보 조회
+export async function GET(req: NextRequest) {
+  try {
+    const { profile } = await requirePartnerContext();
+    
+    // 프론트엔드 형식에 맞게 변환
+    const formattedProfile = {
+      ...profile,
+      user: profile.User,
+    };
+
+    return NextResponse.json({
+      ok: true,
+      profile: formattedProfile,
+    });
+  } catch (error: any) {
+    console.error('[GET /api/partner/profile] error:', error);
+    
+    // PartnerApiError인 경우 상태 코드와 메시지 그대로 반환
+    if (error.name === 'PartnerApiError') {
+      return NextResponse.json(
+        { ok: false, message: error.message },
+        { status: error.status || 403 }
+      );
+    }
+    
+    return NextResponse.json(
+      { ok: false, message: error.message || '프로필 조회에 실패했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PUT(req: NextRequest) {
   try {
     const { profile } = await requirePartnerContext();

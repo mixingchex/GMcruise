@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: { leadId: string } }
 ) {
   try {
-    const { user, profile } = await requirePartnerContext(req);
+    const { sessionUser: user, profile } = await requirePartnerContext();
     const leadId = parseInt(params.leadId);
 
     if (isNaN(leadId)) {
@@ -71,6 +71,9 @@ export async function GET(
     );
   }
 }
+
+
+
 
 
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiAlertCircle, FiUsers, FiTrendingUp, FiClock, FiRefreshCw, FiArrowRight } from 'react-icons/fi';
+import { FiAlertCircle, FiUsers, FiTrendingUp, FiClock, FiRefreshCw, FiArrowRight, FiPhone } from 'react-icons/fi';
 
 // 성능 최적화: 차트 컴포넌트를 별도 파일로 분리하여 동적 임포트
 import dynamic from 'next/dynamic';
@@ -144,6 +144,16 @@ export default function AdminDashboard() {
   const [recentCustomers, setRecentCustomers] = useState<RecentCustomer[]>([]);
   const [recentTrips, setRecentTrips] = useState<RecentTrip[]>([]);
   const [monitoringData, setMonitoringData] = useState<MonitoringData | null>(null);
+  const [phoneInquiries, setPhoneInquiries] = useState<Array<{
+    id: number;
+    customerName: string | null;
+    customerPhone: string | null;
+    productCode: string | null;
+    productName: string | null;
+    createdAt: string;
+    status: string;
+    mallUserId: string | null;
+  }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -234,6 +244,34 @@ export default function AdminDashboard() {
         }
       } catch (err) {
         console.warn('최근 여행 로드 실패:', err);
+      }
+
+      // 전화상담 신청 목록 로드
+      try {
+        const inquiriesResponse = await fetch('/api/admin/affiliate/leads?limit=20', {
+          credentials: 'include',
+        });
+        if (inquiriesResponse.ok) {
+          const inquiriesData = await inquiriesResponse.json();
+          if (inquiriesData.ok && inquiriesData.leads) {
+            // source가 'mall-'로 시작하거나 'product-inquiry'인 것만 필터링
+            const filtered = inquiriesData.leads.filter((lead: any) => 
+              lead.source?.startsWith('mall-') || lead.source === 'product-inquiry'
+            ).map((lead: any) => ({
+              id: lead.id,
+              customerName: lead.customerName,
+              customerPhone: lead.customerPhone,
+              productCode: lead.metadata?.productCode || lead.metadata?.product_code || null,
+              productName: lead.metadata?.productName || lead.metadata?.product_name || null,
+              createdAt: lead.createdAt,
+              status: lead.status,
+              mallUserId: lead.metadata?.mallUserId || lead.metadata?.affiliateMallUserId || null,
+            }));
+            setPhoneInquiries(filtered);
+          }
+        }
+      } catch (err) {
+        console.error('전화상담 신청 로드 실패:', err);
       }
 
       setLastUpdated(new Date());
@@ -425,6 +463,209 @@ export default function AdminDashboard() {
       </div>
 
 
+      {/* 문의 고객 카테고리 - 왼쪽 상단 */}
+      {dashboardData && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {/* 문의 고객 섹션 */}
+          <div className="lg:col-span-1 bg-gradient-to-br from-white to-pink-50 rounded-xl shadow-lg border-2 border-pink-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <FiPhone className="text-pink-600" />
+                전화상담 고객
+              </h2>
+              <span className="text-xs font-bold px-3 py-1 rounded bg-pink-100 text-pink-700 border border-pink-300">
+                전화상담
+              </span>
+            </div>
+            <button
+              onClick={() => router.push('/admin/affiliate/customers?source=mall')}
+              className="px-3 py-1.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white text-xs font-bold rounded-lg shadow-md hover:scale-105 transition-all flex items-center gap-1"
+            >
+              전체 <FiArrowRight className="w-3 h-3" />
+            </button>
+          </div>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {phoneInquiries.length > 0 ? (
+              phoneInquiries.slice(0, 5).map((inquiry) => (
+                <div
+                  key={inquiry.id}
+                  className="p-3 bg-white rounded-lg border-2 border-pink-200 hover:border-pink-400 hover:shadow-md transition-all cursor-pointer"
+                  onClick={() => router.push(`/admin/affiliate/customers?leadId=${inquiry.id}&source=mall`)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-bold text-sm text-gray-900 truncate">{inquiry.customerName || '이름 미입력'}</p>
+                        <span className="px-2 py-0.5 bg-pink-100 text-pink-800 rounded-full text-xs font-semibold whitespace-nowrap">
+                          전화상담신청
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1">{inquiry.customerPhone || '연락처 미입력'}</p>
+                      {inquiry.productCode && (
+                        <p className="text-xs text-pink-600 font-semibold mt-1 truncate">
+                          📦 {inquiry.productName || inquiry.productCode}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1 ml-2">
+                      <span className={`text-xs px-2 py-0.5 rounded ${
+                        inquiry.status === 'NEW' ? 'bg-yellow-100 text-yellow-800' :
+                        inquiry.status === 'CONTACTED' ? 'bg-blue-100 text-blue-800' :
+                        inquiry.status === 'PURCHASED' ? 'bg-green-100 text-green-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {inquiry.status === 'NEW' ? '신규' :
+                         inquiry.status === 'CONTACTED' ? '연락완료' :
+                         inquiry.status === 'PURCHASED' ? '구매완료' :
+                         inquiry.status}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(inquiry.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-500">전화상담 고객이 없습니다.</p>
+              </div>
+            )}
+          </div>
+          {phoneInquiries.length > 5 && (
+            <div className="mt-3 text-center">
+              <button
+                onClick={() => router.push('/admin/affiliate/customers?source=mall')}
+                className="text-xs text-pink-600 hover:text-pink-700 font-semibold"
+              >
+                +{phoneInquiries.length - 5}건 더 보기 →
+              </button>
+            </div>
+          )}
+          </div>
+
+          {/* 최근 고객 & 최근 여행 등록 - 오른쪽 2/3 */}
+          <div className="lg:col-span-2 space-y-6">
+          {/* 최근 가입 고객 */}
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <span className="text-3xl">👥</span>
+                  최근 가입 고객
+                </h2>
+                <span className="text-xs font-bold px-3 py-1 rounded bg-blue-100 text-blue-700 border border-blue-300">
+                  지니AI 가이드
+                </span>
+              </div>
+              <button
+                onClick={() => router.push('/admin/customers')}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-sm font-bold rounded-lg shadow-md hover:scale-105 transition-all flex items-center gap-2"
+              >
+                전체 보기 <FiArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {visibleRecentCustomers.length > 0 ? (
+                visibleRecentCustomers.slice(0, 3).map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => router.push(`/admin/customers/${customer.id}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center">
+                        <span className="text-xl">👤</span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-gray-900">{customer.name || '이름 없음'}</p>
+                          {customer.status === 'locked' && (
+                            <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-medium">잠금</span>
+                          )}
+                          {customer.status === 'dormant' && (
+                            <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-medium">동면</span>
+                          )}
+                          {customer.status === 'active' && (
+                            <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium">활성</span>
+                          )}
+                          {customer.status === 'package' && (
+                            <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-medium">패키지</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600">{customer.phone}</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
+                      {new Date(customer.createdAt).toLocaleDateString('ko-KR')}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-xl">
+                  <p className="text-gray-500">최근 가입 고객이 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 최근 여행 등록 */}
+          <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                  <span className="text-3xl">✈️</span>
+                  최근 여행 등록
+                </h2>
+                <span className="text-xs font-bold px-3 py-1 rounded bg-blue-100 text-blue-700 border border-blue-300">
+                  지니AI 가이드
+                </span>
+              </div>
+              <button
+                onClick={() => router.push('/admin/customers')}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-bold rounded-lg shadow-md hover:scale-105 transition-all flex items-center gap-2"
+              >
+                전체 보기 <FiArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {recentTrips.length > 0 ? (
+                recentTrips.slice(0, 3).map((trip) => (
+                  <div
+                    key={trip.id}
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => router.push(`/admin/customers`)}
+                  >
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full flex items-center justify-center">
+                        <span className="text-xl">🚢</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-bold text-gray-900">{trip.cruiseName}</p>
+                        <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
+                          <span>{trip.userName}</span>
+                          <span>•</span>
+                          <span>{Array.isArray(trip.destination) ? trip.destination.join(', ') : trip.destination}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
+                      {new Date(trip.startDate).toLocaleDateString('ko-KR')}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-xl">
+                  <p className="text-gray-500">최근 여행 등록이 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        </div>
+      )}
+
       {/* 통계 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((card, index) => (
@@ -559,125 +800,6 @@ export default function AdminDashboard() {
         productViews={dashboardData.productViews}
       />
 
-      {/* 최근 활동 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 최근 가입 고객 */}
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <span className="text-3xl">👥</span>
-                최근 가입 고객
-              </h2>
-              <span className="text-xs font-bold px-3 py-1 rounded bg-blue-100 text-blue-700 border border-blue-300">
-                지니AI 가이드
-              </span>
-            </div>
-            <button
-              onClick={() => router.push('/admin/customers')}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white text-sm font-bold rounded-lg shadow-md hover:scale-105 transition-all flex items-center gap-2"
-            >
-              전체 보기 <FiArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {visibleRecentCustomers.length > 0 ? (
-              visibleRecentCustomers.map((customer) => (
-                <div
-                  key={customer.id}
-                  className="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
-                  onClick={() => router.push(`/admin/customers/${customer.id}`)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-cyan-100 rounded-full flex items-center justify-center">
-                      <span className="text-xl">👤</span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-gray-900">{customer.name || '이름 없음'}</p>
-                        {/* 상태 표시 */}
-                        {customer.status === 'locked' && (
-                          <span className="bg-red-100 text-red-800 px-2 py-0.5 rounded text-xs font-medium">잠금</span>
-                        )}
-                        {customer.status === 'dormant' && (
-                          <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded text-xs font-medium">동면</span>
-                        )}
-                        {customer.status === 'active' && (
-                          <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded text-xs font-medium">활성</span>
-                        )}
-                        {customer.status === 'package' && (
-                          <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs font-medium">패키지</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600">{customer.phone}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
-                    {new Date(customer.createdAt).toLocaleDateString('ko-KR')}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-xl">
-                <p className="text-gray-500">최근 가입 고객이 없습니다.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 최근 여행 등록 */}
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <span className="text-3xl">✈️</span>
-                최근 여행 등록
-              </h2>
-              <span className="text-xs font-bold px-3 py-1 rounded bg-blue-100 text-blue-700 border border-blue-300">
-                지니AI 가이드
-              </span>
-            </div>
-            <button
-              onClick={() => router.push('/admin/customers')}
-              className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-sm font-bold rounded-lg shadow-md hover:scale-105 transition-all flex items-center gap-2"
-            >
-              전체 보기 <FiArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-3">
-            {recentTrips.length > 0 ? (
-              recentTrips.map((trip) => (
-                <div
-                  key={trip.id}
-                  className="flex items-center justify-between p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-emerald-300 hover:shadow-md transition-all cursor-pointer"
-                  onClick={() => router.push(`/admin/customers`)}
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-full flex items-center justify-center">
-                      <span className="text-xl">🚢</span>
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-gray-900">{trip.cruiseName}</p>
-                      <div className="flex items-center gap-2 mt-1 text-sm text-gray-600">
-                        <span>{trip.userName}</span>
-                        <span>•</span>
-                        <span>{Array.isArray(trip.destination) ? trip.destination.join(', ') : trip.destination}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
-                    {new Date(trip.startDate).toLocaleDateString('ko-KR')}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-xl">
-                <p className="text-gray-500">최근 여행 등록이 없습니다.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* 최근 피드백 */}
       {dashboardData.satisfaction.recentFeedback.length > 0 && (

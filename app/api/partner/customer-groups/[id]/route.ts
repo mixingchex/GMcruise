@@ -87,7 +87,7 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { name, description, color, parentGroupId } = body;
+    const { name, description, color, parentGroupId, funnelTalkIds, funnelSmsIds, funnelEmailIds, reEntryHandling } = body;
 
     const resolvedParentGroupId =
       parentGroupId === null || parentGroupId === undefined
@@ -106,6 +106,16 @@ export async function PUT(
             : existingGroup.description,
         color: color !== undefined ? color || null : existingGroup.color,
         parentGroupId: resolvedParentGroupId,
+        funnelTalkIds: funnelTalkIds !== undefined 
+          ? (Array.isArray(funnelTalkIds) && funnelTalkIds.length > 0 ? funnelTalkIds : null)
+          : existingGroup.funnelTalkIds,
+        funnelSmsIds: funnelSmsIds !== undefined 
+          ? (Array.isArray(funnelSmsIds) && funnelSmsIds.length > 0 ? funnelSmsIds : null)
+          : existingGroup.funnelSmsIds,
+        funnelEmailIds: funnelEmailIds !== undefined 
+          ? (Array.isArray(funnelEmailIds) && funnelEmailIds.length > 0 ? funnelEmailIds : null)
+          : existingGroup.funnelEmailIds,
+        reEntryHandling: reEntryHandling !== undefined ? (reEntryHandling || null) : existingGroup.reEntryHandling,
       },
       include: partnerGroupInclude,
     });

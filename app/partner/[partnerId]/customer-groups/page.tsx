@@ -251,10 +251,10 @@ export default function PartnerCustomerGroupsPage() {
       description: group.description || '',
       color: group.color || '#3B82F6',
       parentGroupId: group.parentGroupId,
-      funnelTalkIds: [],
-      funnelSmsIds: [],
-      funnelEmailIds: [],
-      reEntryHandling: 'time_change_info_change',
+      funnelTalkIds: Array.isArray(group.funnelTalkIds) ? group.funnelTalkIds : [],
+      funnelSmsIds: Array.isArray(group.funnelSmsIds) ? group.funnelSmsIds : [],
+      funnelEmailIds: Array.isArray(group.funnelEmailIds) ? group.funnelEmailIds : [],
+      reEntryHandling: group.reEntryHandling || 'time_change_info_change',
     });
     setShowModal(true);
   };

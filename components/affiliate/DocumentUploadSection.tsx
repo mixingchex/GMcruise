@@ -4,7 +4,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FiUpload, FiCheckCircle, FiXCircle, FiFile, FiRefreshCw, FiEye, FiClock } from 'react-icons/fi';
+import Link from 'next/link';
+import { FiUpload, FiCheckCircle, FiXCircle, FiFile, FiRefreshCw, FiEye, FiClock, FiSave, FiEdit2, FiArrowLeft } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
 type Document = {
@@ -19,10 +20,15 @@ type Document = {
   isApproved: boolean;
 };
 
-export default function DocumentUploadSection() {
+type DocumentUploadSectionProps = {
+  partnerId?: string;
+};
+
+export default function DocumentUploadSection({ partnerId }: DocumentUploadSectionProps = {}) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<'ID_CARD' | 'BANKBOOK' | null>(null);
+  const [savingDocuments, setSavingDocuments] = useState(false);
   const idCardInputRef = useRef<HTMLInputElement>(null);
   const bankbookInputRef = useRef<HTMLInputElement>(null);
 
@@ -37,6 +43,7 @@ export default function DocumentUploadSection() {
       if (!res.ok || !json.ok) {
         throw new Error(json.error || '문서 목록을 불러오지 못했습니다');
       }
+      console.log('[DocumentUpload] Documents loaded:', json.documents);
       setDocuments(json.documents || []);
     } catch (error: any) {
       console.error('[DocumentUpload] Load documents error:', error);
@@ -75,6 +82,13 @@ export default function DocumentUploadSection() {
       formData.append('file', file);
       formData.append('documentType', documentType);
 
+      console.log('[DocumentUpload] Uploading file:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        documentType,
+      });
+
       const res = await fetch('/api/affiliate/profile/upload-documents', {
         method: 'POST',
         credentials: 'include',
@@ -82,12 +96,19 @@ export default function DocumentUploadSection() {
       });
 
       const json = await res.json();
+      
+      console.log('[DocumentUpload] Upload response:', {
+        status: res.status,
+        ok: res.ok,
+        jsonOk: json.ok,
+        error: json.error,
+      });
 
       if (!res.ok || !json.ok) {
         throw new Error(json.error || '파일 업로드에 실패했습니다');
       }
 
-      showSuccess(json.message || '파일이 업로드되었습니다');
+      showSuccess(json.message || '완료되었습니다');
       await loadDocuments(); // 목록 새로고침
     } catch (error: any) {
       console.error('[DocumentUpload] Upload error:', error);
@@ -147,11 +168,53 @@ export default function DocumentUploadSection() {
     }
   };
 
+  // 문서 저장 함수 (업로드된 문서 정보 확인)
+  const handleSaveDocuments = async () => {
+    setSavingDocuments(true);
+    try {
+      // 문서 목록을 다시 로드하여 최신 상태 확인
+      await loadDocuments();
+      showSuccess('세금 신고용 서류가 저장되었습니다!');
+    } catch (error: any) {
+      console.error('[DocumentUpload] Save documents error:', error);
+      showError(error.message || '문서 저장 중 오류가 발생했습니다');
+    } finally {
+      setSavingDocuments(false);
+    }
+  };
+
   const idCardDoc = documents.find(d => d.documentType === 'ID_CARD');
   const bankbookDoc = documents.find(d => d.documentType === 'BANKBOOK');
+  
+  // 디버깅: 승인 상태 확인
+  if (idCardDoc) {
+    console.log('[DocumentUpload] ID Card doc:', { 
+      isApproved: idCardDoc.isApproved, 
+      status: idCardDoc.status,
+      filePath: idCardDoc.filePath 
+    });
+  }
+  if (bankbookDoc) {
+    console.log('[DocumentUpload] Bankbook doc:', { 
+      isApproved: bankbookDoc.isApproved, 
+      status: bankbookDoc.status,
+      filePath: bankbookDoc.filePath 
+    });
+  }
 
   return (
     <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
+      {partnerId && (
+        <div className="mb-4">
+          <Link
+            href={`/partner/${partnerId}/dashboard`}
+            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-semibold mb-4"
+          >
+            <FiArrowLeft className="text-base" />
+            대시보드로 돌아가기
+          </Link>
+        </div>
+      )}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
           <FiFile className="text-blue-600" />
@@ -197,7 +260,32 @@ export default function DocumentUploadSection() {
               )}
             </div>
             {idCardDoc ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
+                {/* 승인된 경우 이미지 미리보기 */}
+                {idCardDoc.isApproved && idCardDoc.filePath && (
+                  <div className="rounded-lg border-2 border-green-200 bg-green-50 p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <FiCheckCircle className="text-green-600" />
+                      <span className="text-sm font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
+                    </div>
+                    <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+                      <img
+                        src={idCardDoc.filePath.startsWith('http') ? idCardDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${idCardDoc.filePath}` : idCardDoc.filePath)}
+                        alt="신분증"
+                        className="w-full h-auto max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          const url = idCardDoc.filePath.startsWith('http') ? idCardDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${idCardDoc.filePath}` : idCardDoc.filePath);
+                          if (typeof window !== 'undefined') {
+                            window.open(url, '_blank');
+                          }
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">
                     {idCardDoc.fileName || '신분증 파일'}
@@ -270,7 +358,32 @@ export default function DocumentUploadSection() {
               )}
             </div>
             {bankbookDoc ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
+                {/* 승인된 경우 이미지 미리보기 */}
+                {bankbookDoc.isApproved && bankbookDoc.filePath && (
+                  <div className="rounded-lg border-2 border-green-200 bg-green-50 p-3">
+                    <div className="mb-2 flex items-center gap-2">
+                      <FiCheckCircle className="text-green-600" />
+                      <span className="text-sm font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
+                    </div>
+                    <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+                      <img
+                        src={bankbookDoc.filePath.startsWith('http') ? bankbookDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${bankbookDoc.filePath}` : bankbookDoc.filePath)}
+                        alt="통장사본"
+                        className="w-full h-auto max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => {
+                          const url = bankbookDoc.filePath.startsWith('http') ? bankbookDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${bankbookDoc.filePath}` : bankbookDoc.filePath);
+                          if (typeof window !== 'undefined') {
+                            window.open(url, '_blank');
+                          }
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">
                     {bankbookDoc.fileName || '통장사본 파일'}
@@ -328,6 +441,37 @@ export default function DocumentUploadSection() {
           </div>
         </div>
       )}
+      
+      {/* 저장/수정 버튼 */}
+      <div className="mt-6 flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
+        <button
+          onClick={handleSaveDocuments}
+          disabled={savingDocuments || loading || documents.length === 0}
+          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+        >
+          {savingDocuments ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              저장 중...
+            </>
+          ) : (
+            <>
+              <FiSave />
+              저장하기
+            </>
+          )}
+        </button>
+        {(idCardDoc || bankbookDoc) && (
+          <button
+            onClick={loadDocuments}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+          >
+            <FiEdit2 />
+            수정하기
+          </button>
+        )}
+      </div>
     </section>
   );
 }

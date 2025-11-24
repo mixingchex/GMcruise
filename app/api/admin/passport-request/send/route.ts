@@ -228,12 +228,17 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      // 변수 스코프 문제 해결: try 블록 밖에서 선언
+      let submissionId: number | undefined;
+      let link: string | undefined;
+      let token: string | undefined;
+      
       try {
         const latestTrip = user.UserTrip[0] ?? null;
         const existingSubmission = user.PassportSubmissions[0] ?? null;
-        const token = generateToken();
+        token = generateToken();
         const tokenExpiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
-        const link = buildPassportLink(token);
+        link = buildPassportLink(token);
 
         const personalizedMessage = fillTemplate(baseMessage, {
           고객명: user.name ? `${user.name}님` : '고객님',
@@ -257,8 +262,6 @@ export async function POST(req: NextRequest) {
           results.push({ userId: user.id, success: false, error: errorMessage });
           continue;
         }
-
-        let submissionId: number;
 
         if (existingSubmission && !existingSubmission.isSubmitted) {
           const updated = await prisma.passportSubmission.update({
@@ -390,17 +393,12 @@ export async function POST(req: NextRequest) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         
         // 토큰이 생성되었는지 확인 (submissionId가 있으면 토큰도 생성됨)
-        let errorResult: SendResultItem = { userId: user.id, success: false, error: message };
-        try {
-          // submissionId가 정의되어 있으면 토큰도 생성되었을 가능성이 높음
-          if (typeof submissionId !== 'undefined') {
-            errorResult.link = link;
-            errorResult.token = token;
-            errorResult.submissionId = submissionId;
-          }
-        } catch {
-          // submissionId가 없거나 에러 발생 시 무시
-        }
+        const errorResult: SendResultItem = {
+          userId: user.id,
+          success: false,
+          error: message,
+          ...(submissionId !== undefined && link && token ? { submissionId, link, token } : {}),
+        };
         
         await recordPassportLog({
           userId: user.id,

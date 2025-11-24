@@ -60,10 +60,13 @@ export default function InquiryForm({ productCode, productName, partnerId }: Inq
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             productCode,
-            name: nameValue,
-            phone: phoneNumber,
+            name: 'helpuser', // 전화상담 신청은 helpuser로 고정
+            phone: 'helpphone', // 전화상담 신청은 helpphone으로 고정
             passportNumber: null, // 전화상담 문의는 여권번호 불필요
             message: null,
+            isPhoneConsultation: true, // 전화상담 신청 플래그
+            actualName: nameValue, // 실제 이름은 별도 필드로 전달
+            actualPhone: phoneNumber, // 실제 연락처는 별도 필드로 전달
           }),
         });
 

@@ -5,7 +5,7 @@ import React, { useEffect, useRef } from 'react';
 interface MapModalProps {
   isOpen: boolean;
   onClose: () => void;
-  ports: { id: string; name: string; lat: number; lng: number; }[];
+  ports: { id: string; name: string; lat: number; lng: number; name_ko?: string; city?: string; country?: string; }[];
 }
 
 // Google Maps API 스크립트를 동적으로 로드하는 함수
@@ -53,7 +53,7 @@ const MapModal: React.FC<MapModalProps> = ({ isOpen, onClose, ports }) => {
           return;
         }
 
-        const mapOptions: google.maps.MapOptions = {
+        const mapOptions: any = {
           center: { lat: 0, lng: 0 }, // 초기 중심점 (나중에 조정됨)
           zoom: 2, // 초기 줌 레벨 (나중에 조정됨)
           gestureHandling: 'cooperative', // 모바일에서 두 손가락으로만 확대/축소

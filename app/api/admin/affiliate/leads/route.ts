@@ -64,9 +64,21 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || null;
     const managerId = searchParams.get('managerId') ? parseInt(searchParams.get('managerId')!, 10) : null;
     const agentId = searchParams.get('agentId') ? parseInt(searchParams.get('agentId')!, 10) : null;
+    const source = searchParams.get('source') || null; // source=mall 파라미터
 
     // WHERE 조건 구성
-    const where: Prisma.AffiliateLeadWhereInput = {};
+    const whereConditions: Prisma.AffiliateLeadWhereInput[] = [];
+
+    // source 필터: mall인 경우 mall-로 시작하거나 product-inquiry, phone-consultation인 것만
+    if (source === 'mall') {
+      whereConditions.push({
+        OR: [
+          { source: { startsWith: 'mall-' } },
+          { source: 'product-inquiry' },
+          { source: 'phone-consultation' }, // 전화상담 신청 추가
+        ],
+      });
+    }
 
     // 검색 조건 (이름 또는 전화번호)
     if (customerName || customerPhone) {
@@ -88,23 +100,28 @@ export async function GET(req: NextRequest) {
       }
 
       if (searchConditions.length > 0) {
-        where.OR = searchConditions;
+        whereConditions.push({ OR: searchConditions });
       }
     }
 
     // 상태 필터
     if (status) {
-      where.status = status as any;
+      whereConditions.push({ status: status as any });
     }
 
     // 담당자 필터
     if (managerId) {
-      where.managerId = managerId;
+      whereConditions.push({ managerId });
     }
 
     if (agentId) {
-      where.agentId = agentId;
+      whereConditions.push({ agentId });
     }
+
+    // 최종 where 조건 구성
+    const where: Prisma.AffiliateLeadWhereInput = whereConditions.length > 0 
+      ? { AND: whereConditions }
+      : {};
 
     // 총 개수 조회
     let total = 0;
@@ -164,6 +181,8 @@ export async function GET(req: NextRequest) {
             AffiliateSale: true,
           },
         },
+        source: true,
+        metadata: true,
       },
     });
       console.log('[admin/affiliate/leads][GET] Query successful, found', leads.length, 'leads');
@@ -178,12 +197,55 @@ export async function GET(req: NextRequest) {
       throw queryError;
     }
 
+    // 고객 전화번호로 User 정보 조회 (Trip 정보 포함)
+    const customerPhones = leads
+      .map((lead: any) => lead.customerPhone)
+      .filter((phone): phone is string => !!phone);
+    
+    const usersByPhone = new Map<string, {
+      id: number;
+      name: string | null;
+      trips: Array<{
+        id: number;
+        cruiseName: string | null;
+        startDate: Date | null;
+        endDate: Date | null;
+      }>;
+    }>();
+
+    if (customerPhones.length > 0) {
+      const users = await prisma.user.findMany({
+        where: {
+          phone: { in: customerPhones },
+        },
+        select: {
+          id: true,
+          phone: true,
+          name: true,
+        },
+      });
+
+      users.forEach((user) => {
+        if (user.phone) {
+          usersByPhone.set(user.phone, {
+            id: user.id,
+            name: user.name,
+            trips: [], // UserTrip 모델이 없으므로 빈 배열
+          });
+        }
+      });
+    }
+
     // 응답 데이터 형식화
     console.log('[admin/affiliate/leads][GET] Starting to format', leads.length, 'leads');
     const formattedLeads = leads.map((lead: any) => {
       try {
         const manager = lead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile;
         const agent = lead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile;
+        
+        // User 정보 조회
+        const userInfo = lead.customerPhone ? usersByPhone.get(lead.customerPhone) : null;
+        const latestTrip = userInfo?.trips?.[0] || null;
         
         const formatDate = (date: any) => {
           if (!date) return null;
@@ -200,6 +262,16 @@ export async function GET(req: NextRequest) {
             return null;
           }
         };
+
+        // 담당자 정보 구성 (affiliateOwnership 형식)
+        let affiliateOwnership: any = null;
+        if (manager || agent) {
+          affiliateOwnership = {
+            ownerType: agent ? 'SALES_AGENT' : (manager ? 'BRANCH_MANAGER' : 'HQ'),
+            ownerName: (agent?.displayName || manager?.displayName) || null,
+            ownerNickname: (agent?.displayName || manager?.displayName) || null,
+          };
+        }
 
         const formatted = {
           id: lead.id,
@@ -228,6 +300,10 @@ export async function GET(req: NextRequest) {
             interactions: (lead._count?.AffiliateInteraction ?? 0) || 0,
             sales: (lead._count?.AffiliateSale ?? 0) || 0,
           },
+          // 전화상담 고객용 추가 정보
+          userId: userInfo?.id || null,
+          cruiseName: latestTrip?.cruiseName || null,
+          affiliateOwnership,
         };
         return formatted;
       } catch (itemError: any) {
@@ -264,6 +340,9 @@ export async function GET(req: NextRequest) {
             interactions: 0,
             sales: 0,
           },
+          userId: null,
+          cruiseName: null,
+          affiliateOwnership: null,
         };
       }
     });

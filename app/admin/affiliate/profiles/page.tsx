@@ -17,6 +17,8 @@ import {
   FiXCircle,
   FiClock,
   FiEye,
+  FiDownload,
+  FiImage,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
@@ -1976,10 +1978,32 @@ export default function AffiliateProfilesPage() {
                       }
                     };
                     const statusInfo = getStatusInfo();
+                    // 이미지 파일인지 확인
+                    const isImage = doc.filePath && /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.filePath);
+                    // 다운로드 URL 생성 (상대 경로인 경우 절대 경로로 변환)
+                    const downloadUrl = doc.filePath?.startsWith('http') 
+                      ? doc.filePath 
+                      : doc.filePath?.startsWith('/') 
+                        ? `${window.location.origin}${doc.filePath}`
+                        : doc.filePath;
+                    // 이미지 미리보기 URL
+                    const imageUrl = downloadUrl;
+                    
+                    const handleDownload = () => {
+                      if (!downloadUrl) return;
+                      const link = document.createElement('a');
+                      link.href = downloadUrl;
+                      link.download = doc.fileName || `${doc.documentType === 'ID_CARD' ? '신분증' : '통장사본'}_${doc.id}.jpg`;
+                      link.target = '_blank';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    };
+
                     return (
                       <div key={doc.id} className="border border-gray-200 rounded-lg p-4">
                         <div className="flex items-start justify-between mb-3">
-                          <div>
+                          <div className="flex-1">
                             <h3 className="text-lg font-semibold text-gray-900">
                               {doc.documentType === 'ID_CARD' ? '신분증' : '통장사본'}
                             </h3>
@@ -2009,28 +2033,52 @@ export default function AffiliateProfilesPage() {
                             {statusInfo.label}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3">
+                        
+                        {/* 이미지 미리보기 */}
+                        {isImage && imageUrl && (
+                          <div className="mb-3 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                            <img
+                              src={imageUrl}
+                              alt={doc.documentType === 'ID_CARD' ? '신분증' : '통장사본'}
+                              className="w-full h-auto max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(imageUrl, '_blank')}
+                              onError={(e) => {
+                                // 이미지 로드 실패 시 숨김
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center gap-3 flex-wrap">
                           <a
-                            href={doc.filePath}
+                            href={downloadUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+                            className="inline-flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
                           >
                             <FiEye className="text-base" />
                             문서 보기
                           </a>
+                          <button
+                            onClick={handleDownload}
+                            className="inline-flex items-center gap-2 rounded-lg border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-100 transition-colors"
+                          >
+                            <FiDownload className="text-base" />
+                            다운로드
+                          </button>
                           {!doc.isApproved && doc.status === 'UPLOADED' && (
                             <>
                               <button
                                 onClick={() => handleDocumentAction(doc.id, 'approve')}
-                                className="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100"
+                                className="inline-flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100 transition-colors"
                               >
                                 <FiCheckCircle className="text-base" />
                                 승인
                               </button>
                               <button
                                 onClick={() => handleDocumentAction(doc.id, 'reject')}
-                                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100"
+                                className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 transition-colors"
                               >
                                 <FiXCircle className="text-base" />
                                 거부

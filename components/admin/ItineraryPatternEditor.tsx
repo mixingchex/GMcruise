@@ -417,7 +417,6 @@ export default function ItineraryPatternEditor({ value, onChange }: Props) {
                         </div>
                       </div>
                     )}
-                    </div>
 
                     {/* 메모 */}
                     <div>

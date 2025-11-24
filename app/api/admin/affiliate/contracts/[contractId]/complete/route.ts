@@ -132,13 +132,28 @@ export async function POST(
     });
 
     // 📦 구글 드라이브에 계약서 PDF 및 관련 문서 백업
+    let pdfUrl: string | null = null;
     if (contract.invitedByProfileId) {
       console.log('[Admin Contract Complete] 구글 드라이브 백업 시작...');
       
       // 1. 계약서 PDF 업로드
       const pdfUploadResult = await uploadContractPDFToDrive(contractId);
       if (pdfUploadResult.ok) {
+        pdfUrl = pdfUploadResult.url;
         console.log('[Admin Contract Complete] 계약서 PDF 구글 드라이브 업로드 성공:', pdfUploadResult.url);
+        
+        // PDF URL을 metadata에 저장
+        await prisma.affiliateContract.update({
+          where: { id: contractId },
+          data: {
+            metadata: {
+              ...metadata,
+              pdfUrl: pdfUrl,
+              pdfBackupUrl: pdfUploadResult.backupUrl || null,
+              pdfFileName: pdfUploadResult.fileName || null,
+            },
+          },
+        });
       } else {
         console.error('[Admin Contract Complete] 계약서 PDF 구글 드라이브 업로드 실패:', pdfUploadResult.error);
       }

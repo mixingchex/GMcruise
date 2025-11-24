@@ -55,6 +55,13 @@
       "contractType": "trial-invite",
       "createdAt": "2025-11-22T17:19:13.997Z",
       "clickCount": 0
+    },
+    {
+      "code": "trial-AFF-USER1-MICQ0GUV-1763989287553",
+      "url": "https://www.cruisedot.co.kr/login-test?trial=trial-AFF-USER1-MICQ0GUV-1763989287553&affiliate=AFF-USER1-MICQ0GUV&manager=AFF-BOSS1-MICQ0HEX",
+      "contractType": "trial-invite",
+      "createdAt": "2025-11-24T13:01:27.850Z",
+      "clickCount": 0
     }
   ]
 }

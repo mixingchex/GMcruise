@@ -5,6 +5,7 @@ import { FiEdit2, FiCheck, FiX, FiFileText, FiEye, FiClock } from 'react-icons/f
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 import CustomerNoteModal from '@/components/admin/CustomerNoteModal';
 import CustomerDetailModal from '@/components/admin/CustomerDetailModal';
+import { Customer } from '@/types/customer';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
 
@@ -32,32 +33,29 @@ type AffiliateOwnership = {
   leadCreatedAt?: string | null;
 };
 
-interface Customer {
-  id: number;
-  name: string | null;
-  phone: string | null;
-  email: string | null;
-  createdAt: string;
-  lastActiveAt: string | null;
-  tripCount: number;
-  totalTripCount: number;
-  isHibernated: boolean;
-  isLocked: boolean;
-  customerStatus: string | null;
-  status?: 'active' | 'package' | 'dormant' | 'locked' | 'test' | 'test-locked' | null; // 지니 상태
-  customerType?: 'cruise-guide' | 'mall' | 'test' | 'prospect' | 'admin' | 'mall-admin' | 'partner'; // 고객 분류
-  isMallUser?: boolean; // 크루즈몰 고객 여부
+// CustomerTable에서 사용하는 확장 Customer 타입
+interface AdminCustomer extends Omit<Customer, 'customerType' | 'affiliateOwnership'> {
+  email?: string | null;
+  createdAt?: string;
+  lastActiveAt?: string | null;
+  tripCount?: number;
+  totalTripCount?: number;
+  isHibernated?: boolean;
+  isLocked?: boolean;
+  customerStatus?: string | null;
+  customerSource?: string | null; // 고객 유입 경로 (product-inquiry 등)
+  isMallUser?: boolean;
   isLinked?: boolean; // 연동 여부 (크루즈 가이드 고객이 mallUserId를 가진 경우)
-  mallUserId?: string | null; // 크루즈몰 사용자 ID
-  mallNickname?: string | null; // 크루즈몰 닉네임
-  kakaoChannelAdded?: boolean; // 카카오 채널 추가 여부
-  kakaoChannelAddedAt?: string | null; // 카카오 채널 추가 일시
-  pwaGenieInstalledAt?: string | null; // 크루즈가이드 지니 바탕화면 추가 일시
-  pwaMallInstalledAt?: string | null; // 크루즈몰 바탕화면 추가 일시
-  currentTripEndDate: string | null;
+  mallUserId?: string | null;
+  mallNickname?: string | null;
+  kakaoChannelAdded?: boolean;
+  kakaoChannelAddedAt?: string | null;
+  pwaGenieInstalledAt?: string | null;
+  pwaMallInstalledAt?: string | null;
+  currentTripEndDate?: string | null;
   currentPassword?: string | null;
-  role?: string | null; // 사용자 역할
-  testModeStartedAt?: string | null; // 테스트 모드 시작일
+  testModeStartedAt?: string | null;
+  customerType?: Customer['customerType'] | 'mall-admin'; // mall-admin 추가
   AffiliateProfile?: {
     id: number;
     type: 'BRANCH_MANAGER' | 'SALES_AGENT' | 'HQ';
@@ -70,19 +68,21 @@ interface Customer {
   trips: {
     id: number;
     cruiseName: string | null;
-    companionType: string | null;
-    destination: any;
+    companionType?: string | null;
+    destination?: any;
     startDate: string | null;
     endDate: string | null;
   }[];
-  daysRemaining?: number | null; // 여행 종료일까지 남은 일수
-  affiliateOwnership?: AffiliateOwnership | null;
-  metadata?: any; // 메타데이터 (환불 횟수 등)
-  updatedAt?: string; // 업데이트 날짜
+  daysRemaining?: number | null;
+  affiliateOwnership?: AffiliateOwnership & {
+    ownerNickname?: string | null; // ownerNickname 추가
+  } | null;
+  metadata?: any;
+  updatedAt?: string;
 }
 
 interface Props {
-  customers: Customer[];
+  customers: AdminCustomer[];
   onRefresh?: () => void;
 }
 
@@ -105,7 +105,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
   const [selectedCustomerForNote, setSelectedCustomerForNote] = useState<{ id: number; name: string | null } | null>(null);
 
   // 소유권 딱지 렌더링 함수 (고객 이름 옆에 표시)
-  const renderOwnershipBadge = (customer: Customer) => {
+  const renderOwnershipBadge = (customer: AdminCustomer) => {
     if (!customer.affiliateOwnership) {
       return null;
     }
@@ -151,7 +151,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
   };
 
   // 상태 딱지 렌더링 함수
-  const renderStatusBadges = (customer: Customer) => {
+  const renderStatusBadges = (customer: AdminCustomer) => {
     const badges: Array<{ label: string; color: string }> = [];
     
     // 1. 관리자 딱지 (회색) - 최우선
@@ -212,28 +212,34 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
       return badges; // 테스트 고객은 다른 딱지 표시 안 함
     }
     
-    // 5. 잠재고객 딱지 (노란색)
-    if (customer.customerType === 'prospect') {
+    // 5. 전화상담 신청 고객 딱지 (분홍색) - 절대법칙: 크루즈몰 전화상담 버튼으로 이름과 연락처를 입력한 고객 (helpuser/helpphone)
+    if (customer.customerSource === 'phone-consultation' || customer.customerSource === 'product-inquiry') {
+      badges.push({ label: '전화상담신청', color: 'bg-pink-200 text-pink-900 border border-pink-400 font-bold' });
+      // 전화상담 신청 고객은 잠재고객이지만, 전화상담신청 딱지가 우선 표시됨
+    }
+    
+    // 6. 잠재고객 딱지 (노란색)
+    if (customer.customerType === 'prospect' && customer.customerSource !== 'product-inquiry' && customer.customerSource !== 'phone-consultation') {
       badges.push({ label: '잠재고객', color: 'bg-yellow-100 text-yellow-800 border border-yellow-300' });
       return badges; // 잠재고객은 다른 딱지 표시 안 함
     }
     
-    // 6. 크루즈몰 고객 딱지 (초록색)
+    // 7. 크루즈몰 고객 딱지 (초록색)
     if (customer.customerType === 'mall') {
       badges.push({ label: '크루즈몰', color: 'bg-green-100 text-green-800 border border-green-300' });
     }
     
-    // 7. 크루즈가이드 고객 딱지 (파란색)
+    // 8. 크루즈가이드 고객 딱지 (파란색)
     if (customer.customerType === 'cruise-guide') {
       badges.push({ label: '크루즈가이드', color: 'bg-blue-100 text-blue-800 border border-blue-300' });
     }
     
-    // 8. 통합 딱지 (보라색) - 연동된 고객
+    // 9. 통합 딱지 (보라색) - 연동된 고객
     if (customer.isLinked) {
       badges.push({ label: '통합', color: 'bg-purple-100 text-purple-800 border border-purple-300' });
     }
     
-    // 9. 인증서 딱지 (구매확인서발동/환불인증완료)
+    // 10. 인증서 딱지 (구매확인서발동/환불인증완료)
     // 인증서 상태 표시
     if (customer.customerStatus === 'purchase_confirmed') {
       badges.push({ label: '구매인증서', color: 'bg-indigo-100 text-indigo-800 border border-indigo-300' });
@@ -241,7 +247,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
       badges.push({ label: '환불인증서', color: 'bg-red-100 text-red-800 border border-red-300' });
     }
 
-    // 10. 지니 상태 딱지 (크루즈가이드 또는 크루즈몰 고객의 지니 상태)
+    // 11. 지니 상태 딱지 (크루즈가이드 또는 크루즈몰 고객의 지니 상태)
     if (customer.status) {
       if (customer.status === 'active' || customer.status === 'package') {
         badges.push({ label: '활성', color: 'bg-blue-100 text-blue-800 border border-blue-300' });

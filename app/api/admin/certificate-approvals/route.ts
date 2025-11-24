@@ -6,13 +6,34 @@ import { getSessionUser } from '@/lib/session';
 // GET: 승인 요청 목록 조회
 export async function GET(req: NextRequest) {
   try {
-    const user = await getSessionUser(req);
+    const user = await getSessionUser();
     
-    if (!user || user.role !== 'admin') {
+    if (!user) {
       return NextResponse.json(
-        { ok: false, error: '관리자 권한이 필요합니다.' },
-        { status: 403 }
+        { ok: false, error: '로그인이 필요합니다.' },
+        { status: 401 }
       );
+    }
+
+    // 관리자 또는 대리점장/본사만 접근 가능
+    const isAdmin = user.role === 'admin' || user.role === 'ADMIN';
+    
+    if (!isAdmin) {
+      // 대리점장 또는 본사인지 확인
+      const affiliateProfile = await prisma.affiliateProfile.findFirst({
+        where: {
+          userId: user.id,
+          status: 'ACTIVE',
+          type: { in: ['BRANCH_MANAGER', 'HQ'] },
+        },
+      });
+
+      if (!affiliateProfile) {
+        return NextResponse.json(
+          { ok: false, error: '관리자 또는 대리점장/본사 권한이 필요합니다.' },
+          { status: 403 }
+        );
+      }
     }
 
     const { searchParams } = new URL(req.url);
@@ -89,6 +110,9 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+
+
 
 
 

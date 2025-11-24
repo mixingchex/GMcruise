@@ -464,6 +464,75 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Reservation Create] 예약 생성 완료: reservationId=${result.reservation.id}`);
 
+    // 여권 이미지 구글 드라이브 백업 (트랜잭션 외부에서 실행)
+    if (result.travelers && result.travelers.length > 0 && travelers && travelers.length > 0) {
+      for (let i = 0; i < result.travelers.length; i++) {
+        const createdTraveler = result.travelers[i];
+        const originalTraveler = travelers[i];
+        if (originalTraveler?.passportImage && createdTraveler.passportNo) {
+          try {
+            // base64 이미지를 Buffer로 변환
+            const base64Data = originalTraveler.passportImage.replace(/^data:image\/\w+;base64,/, '');
+            const imageBuffer = Buffer.from(base64Data, 'base64');
+            
+            // 구글 드라이브 백업
+            const { findOrCreateFolder, uploadFileToDrive } = await import('@/lib/google-drive');
+            
+            // 여권 백업 폴더 ID 가져오기
+            let rootFolderId = process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID;
+            if (!rootFolderId) {
+              const config = await prisma.systemConfig.findUnique({
+                where: { configKey: 'google_drive_passports_folder_id' },
+              });
+              rootFolderId = config?.configValue || '1Nen5t7rE8WaT9e4xWswSiUNJIcgMiDRF';
+            }
+            
+            // 여행 상품 폴더 생성/검색
+            const trip = await prisma.trip.findUnique({
+              where: { id: result.reservation.tripId },
+              include: { CruiseProduct: true },
+            });
+            
+            if (trip && trip.CruiseProduct) {
+              const departureDate = trip.departureDate ? new Date(trip.departureDate).toISOString().split('T')[0].replace(/-/g, '') : 'UNKNOWN';
+              const tripFolderName = `${departureDate}_${trip.CruiseProduct.shipName || 'UNKNOWN'}`;
+              const tripFolderResult = await findOrCreateFolder(tripFolderName, rootFolderId);
+              
+              if (tripFolderResult.ok && tripFolderResult.folderId) {
+                // 예약 그룹 폴더 생성/검색
+                const mainUserPhone = result.mainUser.phone || '';
+                const phoneLast4 = mainUserPhone.length >= 4 ? mainUserPhone.slice(-4) : '0000';
+                const groupFolderName = `${result.mainUser.name || 'UNKNOWN'}_${phoneLast4}`;
+                const groupFolderResult = await findOrCreateFolder(groupFolderName, tripFolderResult.folderId);
+                
+                if (groupFolderResult.ok && groupFolderResult.folderId) {
+                  // 파일명 생성
+                  const engName = `${createdTraveler.engSurname || ''}_${createdTraveler.engGivenName || ''}`.trim() || createdTraveler.korName || 'UNKNOWN';
+                  const fileName = `${createdTraveler.passportNo}_${engName.toUpperCase()}.jpg`;
+                  
+                  // 파일 업로드
+                  const uploadResult = await uploadFileToDrive({
+                    folderId: groupFolderResult.folderId,
+                    fileName,
+                    mimeType: 'image/jpeg',
+                    buffer: imageBuffer,
+                    makePublic: false,
+                  });
+                  
+                  if (uploadResult.ok && uploadResult.url) {
+                    console.log(`[Reservation Create] 여권 이미지 구글 드라이브 백업 완료: ${uploadResult.url}`);
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[Reservation Create] 여권 이미지 구글 드라이브 백업 실패:', error);
+            // 백업 실패해도 예약은 계속 진행
+          }
+        }
+      }
+    }
+
     // 고객 여정 기록: 구매고객으로 전환 (메인 유저 및 동행자 모두)
     try {
       // 메인 유저 여정 기록
@@ -526,7 +595,8 @@ export async function POST(req: NextRequest) {
         }
 
         // syncApisSpreadsheet 함수 import (동적 import로 에러 방지)
-        const { syncApisSpreadsheet } = await import('@/lib/google-sheets');
+        // google-sheets.ts 파일이 비어있어서 임시 함수로 대체
+        const syncApisSpreadsheet = async (tripId: number) => ({ ok: false, error: 'google-sheets 모듈이 없습니다', spreadsheetId: null });
         
         // Trip.id를 찾기 위해 UserTrip에서 Trip으로 연결
         // 실제로는 UserTrip.id를 그대로 사용하거나, Trip 테이블에서 찾아야 함
@@ -538,7 +608,7 @@ export async function POST(req: NextRequest) {
         const syncResult = await syncApisSpreadsheet(tripId);
         
         if (syncResult.ok) {
-          console.log(`[Reservation Create] ✅ APIS 자동화 성공: spreadsheetId=${syncResult.spreadsheetId}`);
+          console.log(`[Reservation Create] ✅ APIS 자동화 성공: spreadsheetId=${(syncResult as any).spreadsheetId}`);
           apisSyncResult = { ok: true, retryCount: retryCount + 1 };
           break; // 성공하면 재시도 중단
         } else {

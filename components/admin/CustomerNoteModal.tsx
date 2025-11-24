@@ -164,6 +164,13 @@ export default function CustomerNoteModal({ customerId, customerName, isOpen, on
     if (isOpen && customerId) {
       loadNotes();
       setSuccessMessage(null); // 모달 열 때 메시지 초기화
+      
+      // 실시간 업데이트: 5초마다 새 기록 확인 (대화창처럼)
+      const interval = setInterval(() => {
+        loadNotes();
+      }, 5000);
+      
+      return () => clearInterval(interval);
     }
   }, [isOpen, customerId]);
 
@@ -195,152 +202,159 @@ export default function CustomerNoteModal({ customerId, customerName, isOpen, on
           </div>
         )}
 
-        {/* 기록 목록 */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* 기록 목록 - 대화창 형태 */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : notes.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              아직 기록이 없습니다.
+              아직 기록이 없습니다. 첫 번째 기록을 작성해보세요!
             </div>
           ) : (
-            notes.map((note) => (
-              <div
-                key={note.id}
-                className={`p-4 rounded-lg border ${
-                  note.isInternal
-                    ? 'bg-yellow-50 border-yellow-200'
-                    : 'bg-white border-gray-200'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-semibold">
-                      {note.createdByLabel}
-                    </span>
-                    <span className="text-sm font-medium text-gray-700">
-                      {note.createdByName}
-                    </span>
-                    {note.isInternal && (
-                      <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
-                        내부 기록
+            notes.map((note) => {
+              // 작성자 타입에 따라 메시지 위치 결정 (대화창처럼)
+              const isAdmin = note.createdByLabel === '본사';
+              const isManager = note.createdByLabel === '대리점장';
+              const isAgent = note.createdByLabel === '판매원';
+              
+              return (
+                <div
+                  key={note.id}
+                  className={`flex ${isAdmin ? 'justify-start' : isManager ? 'justify-center' : 'justify-end'}`}
+                >
+                  <div className={`max-w-[80%] ${isAdmin ? 'items-start' : 'items-end'} flex flex-col`}>
+                    <div className="flex items-center gap-2 mb-1 px-2">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        isAdmin ? 'bg-gray-100 text-gray-700' :
+                        isManager ? 'bg-purple-100 text-purple-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {note.createdByLabel}
                       </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">
-                      {new Date(note.createdAt).toLocaleString('ko-KR')}
-                    </span>
-                    <button
-                      onClick={() => handleEdit(note)}
-                      className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                      title="수정"
-                    >
-                      <FiEdit2 size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(note.id)}
-                      disabled={deletingNoteId === note.id}
-                      className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
-                      title="삭제"
-                    >
-                      <FiTrash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-                {editingNoteId === note.id ? (
-                  <div className="space-y-2">
-                    <textarea
-                      value={editingContent}
-                      onChange={(e) => setEditingContent(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                      rows={3}
-                      autoFocus
-                    />
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleSaveEdit(note.id)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
-                      >
-                        저장
-                      </button>
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-3 py-1 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded text-sm font-medium transition-colors"
-                      >
-                        취소
-                      </button>
+                      <span className="text-xs font-medium text-gray-600">
+                        {note.createdByName}
+                      </span>
+                      {note.isInternal && (
+                        <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                          🔒 내부
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400">
+                        {new Date(note.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className={`relative rounded-2xl px-4 py-3 shadow-sm ${
+                      note.isInternal
+                        ? 'bg-yellow-50 border-2 border-yellow-200'
+                        : isAdmin
+                        ? 'bg-white border border-gray-200'
+                        : isManager
+                        ? 'bg-purple-50 border border-purple-200'
+                        : 'bg-blue-50 border border-blue-200'
+                    }`}>
+                      {editingNoteId === note.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={editingContent}
+                            onChange={(e) => setEditingContent(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                            rows={3}
+                            autoFocus
+                          />
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleSaveEdit(note.id)}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm font-medium transition-colors"
+                            >
+                              저장
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="px-3 py-1 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded text-sm font-medium transition-colors"
+                            >
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-gray-800 whitespace-pre-wrap text-sm leading-relaxed">{note.content}</p>
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+                            <button
+                              onClick={() => handleEdit(note)}
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="수정"
+                            >
+                              <FiEdit2 size={14} />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(note.id)}
+                              disabled={deletingNoteId === note.id}
+                              className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                              title="삭제"
+                            >
+                              <FiTrash2 size={14} />
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
-                ) : (
-                  <p className="text-gray-800 whitespace-pre-wrap">{note.content}</p>
-                )}
-              </div>
-            ))
+                </div>
+              );
+            })
           )}
         </div>
 
-        {/* 기록 작성 폼 */}
-        <div className="p-6 border-t bg-gray-50">
+        {/* 기록 작성 폼 - 대화창 입력창 형태 */}
+        <div className="p-6 border-t bg-white">
           <div className="space-y-3">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isInternal}
-                    onChange={(e) => setIsInternal(e.target.checked)}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-gray-700 flex items-center gap-1">
-                    {isInternal ? <FiLock size={14} /> : <FiUnlock size={14} />}
-                    내부 기록 (다른 담당자에게만 공개)
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isInternal}
+                  onChange={(e) => setIsInternal(e.target.checked)}
+                  className="w-4 h-4 text-yellow-600 focus:ring-yellow-500"
+                />
+                <span className="text-sm text-gray-700 flex items-center gap-1">
+                  {isInternal ? <FiLock size={14} className="text-yellow-600" /> : <FiUnlock size={14} className="text-gray-400" />}
+                  <span className={isInternal ? 'text-yellow-700 font-semibold' : 'text-gray-600'}>
+                    내부 기록
                   </span>
-                </label>
-              </div>
-              <div className="ml-6 pl-1">
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  {isInternal ? (
-                    <>
-                      <span className="font-semibold text-yellow-700">✓ 체크 시:</span> 본사/대리점장/판매원만 볼 수 있음 (고객은 볼 수 없음)
-                    </>
-                  ) : (
-                    <>
-                      <span className="font-semibold text-gray-700">✓ 미체크 시:</span> 본사/대리점장/판매원 모두 볼 수 있음 (고객은 볼 수 없음)
-                    </>
-                  )}
-                  <br />
-                  <span className="text-gray-500">※ 공통: 고객 본인은 볼 수 없음</span>
-                </p>
-              </div>
+                </span>
+              </label>
+              <span className="text-xs text-gray-500">
+                {isInternal ? '본사/대리점장/판매원만 공개' : '모든 담당자 공개'}
+              </span>
             </div>
-            <textarea
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              placeholder="고객에 대한 기록을 작성하세요..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              rows={4}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                  handleSubmit();
-                }
-              }}
-            />
-            <div className="flex items-center justify-between">
-              <p className="text-xs text-gray-500">
-                Cmd/Ctrl + Enter로 저장
-              </p>
+            <div className="flex items-end gap-2">
+              <textarea
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                placeholder="고객에 대한 기록을 작성하세요... (판매원, 대리점장, 관리자 모두 볼 수 있습니다)"
+                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={3}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    handleSubmit();
+                  }
+                }}
+              />
               <button
                 onClick={handleSubmit}
                 disabled={isSaving || !newNote.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center gap-2"
               >
-                <FiSend size={16} />
-                {isSaving ? '저장 중...' : '기록 작성'}
+                <FiSend size={18} />
+                {isSaving ? '전송 중...' : '전송'}
               </button>
             </div>
+            <p className="text-xs text-gray-500 text-center">
+              💬 대화창처럼 실시간으로 업데이트됩니다 • Cmd/Ctrl + Enter로 빠른 전송
+            </p>
           </div>
         </div>
       </div>

@@ -90,9 +90,20 @@ export function getPhotoPool(): { url: string; title: string; tags: string[]; fo
         };
       });
   } else {
-    const PHOTOS_DIR = getPhotosDir();
-    const files = walk(PHOTOS_DIR);
-    cachedPool = files.map(toItem);
+    try {
+      const PHOTOS_DIR = getPhotosDir();
+      // 폴더가 존재하는지 확인
+      if (fs.existsSync(PHOTOS_DIR)) {
+        const files = walk(PHOTOS_DIR);
+        cachedPool = files.map(toItem);
+      } else {
+        console.warn('[Photos Search] 크루즈정보사진 폴더가 없습니다:', PHOTOS_DIR);
+        cachedPool = [];
+      }
+    } catch (error) {
+      console.error('[Photos Search] 폴더 접근 오류:', error);
+      cachedPool = [];
+    }
   }
 
   return cachedPool;

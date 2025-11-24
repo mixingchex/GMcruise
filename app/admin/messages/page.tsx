@@ -30,14 +30,14 @@ type Message = {
   messageIds?: number[]; // 그룹에 속한 모든 메시지 ID (삭제 시 사용)
 };
 
-type Customer = {
-  id: number;
-  name: string | null;
-  phone: string | null;
-  email: string | null;
-  status: string;
-  hasActiveTrip: boolean;
-  latestTrip: { cruiseName: string | null; status: string } | null;
+import { Customer } from '@/types/customer';
+
+// Messages 페이지에서 사용하는 확장 Customer 타입
+type MessageCustomer = Customer & {
+  email?: string | null;
+  status?: string;
+  hasActiveTrip?: boolean;
+  latestTrip?: { cruiseName: string | null; status: string } | null;
 };
 
 export default function AdminMessagesPage() {
@@ -49,8 +49,8 @@ export default function AdminMessagesPage() {
 
   // 고객 검색 및 선택
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-  const [customerSearchResults, setCustomerSearchResults] = useState<Customer[]>([]);
-  const [selectedCustomers, setSelectedCustomers] = useState<Customer[]>([]);
+  const [customerSearchResults, setCustomerSearchResults] = useState<MessageCustomer[]>([]);
+  const [selectedCustomers, setSelectedCustomers] = useState<MessageCustomer[]>([]);
   const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
   const [recipientType, setRecipientType] = useState<'all' | 'specific' | 'direct'>('all');
   const customerSearchRef = useRef<HTMLDivElement>(null);

@@ -248,6 +248,19 @@ export default function LinksPage() {
           return { ...link, url: landingUrl };
         }
         
+        // trial 링크인 경우 (3일 체험 초대 링크) - 전체 구매몰이 아닌 로그인 페이지로
+        if (link.code && link.code.startsWith('trial-')) {
+          const params = new URLSearchParams();
+          params.append('trial', link.code);
+          if (link.agent?.affiliateCode) {
+            params.append('affiliate', link.agent.affiliateCode);
+          } else if (link.manager?.affiliateCode) {
+            params.append('affiliate', link.manager.affiliateCode);
+          }
+          const loginUrl = `${baseUrl}/login-test?${params.toString()}`;
+          return { ...link, url: loginUrl };
+        }
+        
         // 상품 링크인 경우
         let linkUrl = link.productCode ? `${baseUrl}/products/${link.productCode}` : `${baseUrl}/products`;
         const params = new URLSearchParams();

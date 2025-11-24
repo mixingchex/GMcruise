@@ -17,10 +17,14 @@ import {
   FiImage,
   FiLoader,
   FiExternalLink,
+  FiArrowLeft,
+  FiHome,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 import html2canvas from 'html2canvas';
 import ComparisonQuoteImage from '@/components/admin/ComparisonQuoteImage';
+import AffiliateCertificate from '@/components/affiliate/documents/AffiliateCertificate';
+import CertificateApprovals from '@/components/admin/documents/CertificateApprovals';
 
 type DocumentType = 'COMPARISON_QUOTE' | 'PURCHASE_CONFIRMATION' | 'REFUND_CERTIFICATE';
 
@@ -51,8 +55,12 @@ type AffiliateSale = {
   } | null;
 };
 
+type TabType = 'comparison' | 'purchase' | 'refund' | 'approvals';
+
 export default function AdminDocumentsPage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<TabType>('comparison');
+  const [partnerId, setPartnerId] = useState<string | null>(null);
   const [sales, setSales] = useState<AffiliateSale[]>([]);
   const [filters, setFilters] = useState({
     search: '',
@@ -67,6 +75,28 @@ export default function AdminDocumentsPage() {
   const [isLoadingProduct, setIsLoadingProduct] = useState(false);
   const [isDownloadingImage, setIsDownloadingImage] = useState(false);
   const quoteImageRef = useRef<HTMLDivElement>(null);
+
+  // 판매원 프로필 정보 로드 (대시보드 경로 확인용)
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const response = await fetch('/api/partner/profile', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          // API 응답 형식: profile.user.mallUserId 또는 profile.User.mallUserId
+          const mallUserId = data.profile?.user?.mallUserId || data.profile?.User?.mallUserId;
+          if (mallUserId) {
+            setPartnerId(mallUserId);
+          }
+        }
+      } catch (error) {
+        console.error('[AdminDocumentsPage] Failed to load profile:', error);
+      }
+    };
+    loadProfile();
+  }, []);
 
   // 타사 비교 견적서 폼 데이터
   const [comparisonQuoteData, setComparisonQuoteData] = useState({
@@ -342,53 +372,124 @@ export default function AdminDocumentsPage() {
         {/* 헤더 */}
         <header className="rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-extrabold">서류관리</h1>
-              <p className="text-sm text-white/80">
-                타사 비교 견적서, 구매확인서, 환불완료증서를 생성하고 관리합니다.
-              </p>
+            <div className="flex items-center gap-4">
+              {partnerId && (
+                <button
+                  onClick={() => router.push(`/partner/${partnerId}/dashboard`)}
+                  className="inline-flex items-center justify-center rounded-xl bg-white/20 p-2.5 text-white hover:bg-white/30 transition-colors"
+                  title="판매원 대시보드로 돌아가기"
+                >
+                  <FiHome className="text-xl" />
+                </button>
+              )}
+              <div className="space-y-2">
+                <h1 className="text-3xl font-extrabold">서류관리</h1>
+                <p className="text-sm text-white/80">
+                  타사 비교 견적서, 구매확인서, 환불완료증서를 생성하고 관리합니다.
+                </p>
+              </div>
             </div>
-            <button
-              onClick={loadSales}
-              className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30"
-            >
-              <FiRefreshCw className="text-base" />
-              새로고침
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/admin/dashboard')}
+                className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30"
+              >
+                <FiHome className="text-base" />
+                대시보드로 돌아가기
+              </button>
+              {activeTab === 'comparison' && (
+                <button
+                  onClick={loadSales}
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30"
+                >
+                  <FiRefreshCw className="text-base" />
+                  새로고침
+                </button>
+              )}
+            </div>
           </div>
         </header>
 
-        {/* 필터 */}
-        <section className="rounded-3xl bg-white p-6 shadow-lg">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-1 items-center gap-3">
-              <div className="relative flex-1 max-w-md">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                  placeholder="주문번호, 상품코드, 고객명 검색..."
-                  className="w-full rounded-xl border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </div>
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-                className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              >
-                <option value="all">전체 상태</option>
-                <option value="PENDING">대기중</option>
-                <option value="CONFIRMED">확정됨</option>
-                <option value="PAID">지급완료</option>
-                <option value="REFUNDED">환불됨</option>
-              </select>
-            </div>
-          </div>
-        </section>
+        {/* 탭 네비게이션 */}
+        <div className="mb-6 border-b border-gray-200 bg-white rounded-lg shadow-sm">
+          <nav className="flex gap-1 px-4" aria-label="문서 탭">
+            <button
+              onClick={() => setActiveTab('comparison')}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                activeTab === 'comparison'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              비교견적서
+            </button>
+            <button
+              onClick={() => setActiveTab('purchase')}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                activeTab === 'purchase'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              구매확인증서
+            </button>
+            <button
+              onClick={() => setActiveTab('refund')}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                activeTab === 'refund'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              환불인증서
+            </button>
+            <button
+              onClick={() => setActiveTab('approvals')}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
+                activeTab === 'approvals'
+                  ? 'bg-orange-600 text-white shadow-md'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+            >
+              승인 관리
+            </button>
+          </nav>
+        </div>
 
-        {/* 판매 목록 */}
-        <section className="rounded-3xl bg-white shadow-lg">
+        {/* 비교견적서 탭 - 기존 판매 목록 */}
+        {activeTab === 'comparison' && (
+          <>
+            {/* 필터 */}
+            <section className="rounded-3xl bg-white p-6 shadow-lg">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-1 items-center gap-3">
+                  <div className="relative flex-1 max-w-md">
+                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={filters.search}
+                      onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+                      placeholder="주문번호, 상품코드, 고객명 검색..."
+                      className="w-full rounded-xl border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+                    className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="all">전체 상태</option>
+                    <option value="PENDING">대기중</option>
+                    <option value="CONFIRMED">확정됨</option>
+                    <option value="PAID">지급완료</option>
+                    <option value="REFUNDED">환불됨</option>
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            {/* 판매 목록 */}
+            <section className="rounded-3xl bg-white shadow-lg">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -506,9 +607,26 @@ export default function AdminDocumentsPage() {
             </table>
           </div>
         </section>
+          </>
+        )}
 
-        {/* 문서 생성 모달 */}
-        {isModalOpen && selectedSale && selectedDocumentType && (
+        {/* 구매확인증서 탭 */}
+        {activeTab === 'purchase' && (
+          <AffiliateCertificate key="purchase" type="purchase" />
+        )}
+
+        {/* 환불인증서 탭 */}
+        {activeTab === 'refund' && (
+          <AffiliateCertificate key="refund" type="refund" />
+        )}
+
+        {/* 승인 관리 탭 */}
+        {activeTab === 'approvals' && (
+          <CertificateApprovals key="approvals" />
+        )}
+
+        {/* 문서 생성 모달 (비교견적서용) */}
+        {activeTab === 'comparison' && isModalOpen && selectedSale && selectedDocumentType && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
             <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
               <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 sticky top-0 bg-white">

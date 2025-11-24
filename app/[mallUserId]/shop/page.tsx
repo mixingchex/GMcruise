@@ -92,7 +92,7 @@ export default async function PersonalShopPage({ params }: { params: { mallUserI
     
     // 개인 링크로 등록된 상품 코드 목록 (중복 제거)
     // productCode가 직접 있으면 사용, 없으면 AffiliateProduct에서 가져오기
-    const featuredProductCodes = Array.from(
+    const featuredProductCodes: string[] = Array.from(
       new Set(
         personalProductLinks
           .map(link => {

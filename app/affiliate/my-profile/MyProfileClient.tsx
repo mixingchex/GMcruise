@@ -584,30 +584,49 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
   const [bankbookFile, setBankbookFile] = useState<File | null>(null);
   const [idCardUploading, setIdCardUploading] = useState(false);
   const [bankbookUploading, setBankbookUploading] = useState(false);
-  const [idCardUrl, setIdCardUrl] = useState<string | null>(null);
-  const [bankbookUrl, setBankbookUrl] = useState<string | null>(null);
+  const [idCardDoc, setIdCardDoc] = useState<{
+    filePath: string;
+    isApproved: boolean;
+  } | null>(null);
+  const [bankbookDoc, setBankbookDoc] = useState<{
+    filePath: string;
+    isApproved: boolean;
+  } | null>(null);
+  const [loadingDocs, setLoadingDocs] = useState(true);
 
-  // 초기 URL 설정
+  // 문서 목록 로드
   useEffect(() => {
-    // 프로필에서 초기 URL 가져오기
-    // 프로필 객체에서 idCardPath, bankbookPath를 가져와야 하지만,
-    // 현재 프로필 타입에는 없으므로 API를 통해 가져와야 함
-    const fetchProfile = async () => {
+    const loadDocuments = async () => {
       try {
-        const res = await fetch('/api/affiliate/me/profile', { credentials: 'include' });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.ok && json.profile) {
-            if (json.profile.idCardPath) setIdCardUrl(json.profile.idCardPath);
-            if (json.profile.bankbookPath) setBankbookUrl(json.profile.bankbookPath);
+        setLoadingDocs(true);
+        const res = await fetch('/api/affiliate/profile/upload-documents', {
+          credentials: 'include',
+        });
+        const json = await res.json();
+        if (res.ok && json.ok && json.documents) {
+          const idCard = json.documents.find((d: any) => d.documentType === 'ID_CARD');
+          const bankbook = json.documents.find((d: any) => d.documentType === 'BANKBOOK');
+          if (idCard) {
+            setIdCardDoc({
+              filePath: idCard.filePath,
+              isApproved: idCard.isApproved || false,
+            });
+          }
+          if (bankbook) {
+            setBankbookDoc({
+              filePath: bankbook.filePath,
+              isApproved: bankbook.isApproved || false,
+            });
           }
         }
       } catch (error) {
-        console.error('[DocumentUpload] Fetch profile error:', error);
+        console.error('[DocumentUpload] Load documents error:', error);
+      } finally {
+        setLoadingDocs(false);
       }
     };
     
-    fetchProfile();
+    loadDocuments();
   }, [profile]);
 
   const handleIdCardUpload = async () => {
@@ -619,8 +638,8 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
     setIdCardUploading(true);
     try {
       const formData = new FormData();
-      formData.append('idCard', idCardFile);
-      formData.append('documentType', 'idCard');
+      formData.append('file', idCardFile);
+      formData.append('documentType', 'ID_CARD');
 
       const res = await fetch('/api/affiliate/profile/upload-documents', {
         method: 'POST',
@@ -634,9 +653,23 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
         throw new Error(json.error || '신분증 업로드에 실패했습니다');
       }
 
-      setIdCardUrl(json.profile.idCardPath);
-      showSuccess('신분증이 성공적으로 업로드되었습니다');
+      showSuccess('완료되었습니다');
       setIdCardFile(null);
+      
+      // 문서 목록 다시 로드
+      const docRes = await fetch('/api/affiliate/profile/upload-documents', {
+        credentials: 'include',
+      });
+      const docJson = await docRes.json();
+      if (docRes.ok && docJson.ok && docJson.documents) {
+        const idCard = docJson.documents.find((d: any) => d.documentType === 'ID_CARD');
+        if (idCard) {
+          setIdCardDoc({
+            filePath: idCard.filePath,
+            isApproved: idCard.isApproved || false,
+          });
+        }
+      }
       
       // 파일 입력 초기화
       const input = document.getElementById('idCardInput') as HTMLInputElement;
@@ -658,8 +691,8 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
     setBankbookUploading(true);
     try {
       const formData = new FormData();
-      formData.append('bankbook', bankbookFile);
-      formData.append('documentType', 'bankbook');
+      formData.append('file', bankbookFile);
+      formData.append('documentType', 'BANKBOOK');
 
       const res = await fetch('/api/affiliate/profile/upload-documents', {
         method: 'POST',
@@ -673,9 +706,23 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
         throw new Error(json.error || '통장 업로드에 실패했습니다');
       }
 
-      setBankbookUrl(json.profile.bankbookPath);
-      showSuccess('통장이 성공적으로 업로드되었습니다');
+      showSuccess('완료되었습니다');
       setBankbookFile(null);
+      
+      // 문서 목록 다시 로드
+      const docRes = await fetch('/api/affiliate/profile/upload-documents', {
+        credentials: 'include',
+      });
+      const docJson = await docRes.json();
+      if (docRes.ok && docJson.ok && docJson.documents) {
+        const bankbook = docJson.documents.find((d: any) => d.documentType === 'BANKBOOK');
+        if (bankbook) {
+          setBankbookDoc({
+            filePath: bankbook.filePath,
+            isApproved: bankbook.isApproved || false,
+          });
+        }
+      }
       
       // 파일 입력 초기화
       const input = document.getElementById('bankbookInput') as HTMLInputElement;
@@ -696,21 +743,53 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
           신분증 사본 <span className="text-red-500">*</span>
         </label>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          {idCardUrl ? (
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-xs text-green-700">
-                <FiCheck className="text-base" />
-                <span className="font-semibold">업로드 완료</span>
+          {loadingDocs ? (
+            <p className="text-xs text-slate-500 mb-2">문서 정보를 불러오는 중...</p>
+          ) : idCardDoc ? (
+            <div className="space-y-3">
+              {/* 승인된 경우 이미지 미리보기 */}
+              {idCardDoc.isApproved && idCardDoc.filePath && (
+                <div className="rounded-lg border-2 border-green-200 bg-green-50 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <FiCheck className="text-green-600" />
+                    <span className="text-xs font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
+                  </div>
+                  <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+                    <img
+                      src={idCardDoc.filePath.startsWith('http') ? idCardDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${idCardDoc.filePath}` : idCardDoc.filePath)}
+                      alt="신분증"
+                      className="w-full h-auto max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => {
+                        const url = idCardDoc.filePath.startsWith('http') ? idCardDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${idCardDoc.filePath}` : idCardDoc.filePath);
+                        if (typeof window !== 'undefined') {
+                          window.open(url, '_blank');
+                        }
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-xs text-green-700">
+                  <FiCheck className="text-base" />
+                  <span className="font-semibold">업로드 완료</span>
+                  {!idCardDoc.isApproved && (
+                    <span className="text-xs text-yellow-600">(승인 대기 중)</span>
+                  )}
+                </div>
+                <a
+                  href={idCardDoc.filePath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                >
+                  <FiFile className="text-base" />
+                  확인하기
+                </a>
               </div>
-              <a
-                href={idCardUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-              >
-                <FiFile className="text-base" />
-                확인하기
-              </a>
             </div>
           ) : (
             <p className="text-xs text-slate-500 mb-2">신분증 사본을 업로드해주세요 (JPG, PNG, PDF)</p>
@@ -743,21 +822,53 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
           통장 사본 <span className="text-red-500">*</span>
         </label>
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          {bankbookUrl ? (
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-xs text-green-700">
-                <FiCheck className="text-base" />
-                <span className="font-semibold">업로드 완료</span>
+          {loadingDocs ? (
+            <p className="text-xs text-slate-500 mb-2">문서 정보를 불러오는 중...</p>
+          ) : bankbookDoc ? (
+            <div className="space-y-3">
+              {/* 승인된 경우 이미지 미리보기 */}
+              {bankbookDoc.isApproved && bankbookDoc.filePath && (
+                <div className="rounded-lg border-2 border-green-200 bg-green-50 p-3">
+                  <div className="mb-2 flex items-center gap-2">
+                    <FiCheck className="text-green-600" />
+                    <span className="text-xs font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
+                  </div>
+                  <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+                    <img
+                      src={bankbookDoc.filePath.startsWith('http') ? bankbookDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${bankbookDoc.filePath}` : bankbookDoc.filePath)}
+                      alt="통장사본"
+                      className="w-full h-auto max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                      onClick={() => {
+                        const url = bankbookDoc.filePath.startsWith('http') ? bankbookDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${bankbookDoc.filePath}` : bankbookDoc.filePath);
+                        if (typeof window !== 'undefined') {
+                          window.open(url, '_blank');
+                        }
+                      }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-xs text-green-700">
+                  <FiCheck className="text-base" />
+                  <span className="font-semibold">업로드 완료</span>
+                  {!bankbookDoc.isApproved && (
+                    <span className="text-xs text-yellow-600">(승인 대기 중)</span>
+                  )}
+                </div>
+                <a
+                  href={bankbookDoc.filePath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                >
+                  <FiFile className="text-base" />
+                  확인하기
+                </a>
               </div>
-              <a
-                href={bankbookUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
-              >
-                <FiFile className="text-base" />
-                확인하기
-              </a>
             </div>
           ) : (
             <p className="text-xs text-slate-500 mb-2">통장 사본을 업로드해주세요 (JPG, PNG, PDF)</p>

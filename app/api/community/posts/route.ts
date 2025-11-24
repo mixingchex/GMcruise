@@ -352,6 +352,21 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const postIdParam = searchParams.get('postId');
 
+    // 현재 사용자 확인 (3일 체험 사용자 필터링을 위해)
+    const session = await getSession();
+    let isTrialUser = false;
+    if (session?.userId) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: parseInt(session.userId) },
+        select: {
+          phone: true,
+          testModeStartedAt: true
+        }
+      });
+      // phone에 "test"가 포함되어 있거나 testModeStartedAt이 있으면 3일 체험 사용자
+      isTrialUser = !!(currentUser?.testModeStartedAt || (currentUser?.phone && currentUser.phone.toLowerCase().includes('test')));
+    }
+
     if (postIdParam) {
       const postId = parseInt(postIdParam);
       if (isNaN(postId)) {
@@ -363,17 +378,13 @@ export async function GET(req: Request) {
 
       const post = await prisma.communityPost.findUnique({
         where: { id: postId, isDeleted: false },
-        select: {
-          id: true,
-          title: true,
-          content: true,
-          category: true,
-          authorName: true,
-          images: true,
-          views: true,
-          likes: true,
-          comments: true,
-          createdAt: true
+        include: {
+          User: {
+            select: {
+              phone: true,
+              testModeStartedAt: true
+            }
+          }
         }
       });
 
@@ -384,10 +395,30 @@ export async function GET(req: Request) {
         );
       }
 
+      // 3일 체험 사용자는 3일 체험 사용자가 작성한 게시글만 볼 수 있음
+      if (isTrialUser) {
+        const postAuthor = post.User;
+        const isPostAuthorTrial = !!(postAuthor?.testModeStartedAt || (postAuthor?.phone && postAuthor.phone.toLowerCase().includes('test')));
+        if (!isPostAuthorTrial) {
+          return NextResponse.json(
+            { ok: false, error: '게시글을 찾을 수 없습니다.' },
+            { status: 404 }
+          );
+        }
+      }
+
       return NextResponse.json({
         ok: true,
         post: {
-          ...post,
+          id: post.id,
+          title: post.title,
+          content: post.content,
+          category: post.category,
+          authorName: post.authorName,
+          images: post.images,
+          views: post.views,
+          likes: post.likes,
+          comments: post.comments,
           createdAt:
             post.createdAt instanceof Date
               ? post.createdAt.toISOString()
@@ -406,6 +437,22 @@ export async function GET(req: Request) {
     const whereCondition: any = {
       isDeleted: false
     };
+
+    // 3일 체험 사용자는 3일 체험 사용자가 작성한 게시글만 볼 수 있도록 필터링
+    if (isTrialUser) {
+      // 3일 체험 사용자 ID 목록 가져오기 (phone에 "test" 포함 또는 testModeStartedAt이 있는 사용자)
+      const trialUsers = await prisma.user.findMany({
+        where: {
+          OR: [
+            { testModeStartedAt: { not: null } },
+            { phone: { contains: 'test', mode: 'insensitive' } }
+          ]
+        },
+        select: { id: true }
+      });
+      const trialUserIds = trialUsers.map(u => u.id);
+      whereCondition.userId = { in: trialUserIds };
+    }
 
     // 카테고리 필터 추가
     if (category && category !== 'all') {
@@ -436,13 +483,30 @@ export async function GET(req: Request) {
         }
       ];
 
-      // 댓글에서도 키워드 검색
+      // 댓글에서도 키워드 검색 (3일 체험 사용자 필터링 적용)
+      const commentWhereCondition: any = {
+        content: {
+          contains: searchTerm
+        }
+      };
+      
+      // 3일 체험 사용자는 3일 체험 사용자가 작성한 댓글만 검색
+      if (isTrialUser) {
+        const trialUsers = await prisma.user.findMany({
+          where: {
+            OR: [
+              { testModeStartedAt: { not: null } },
+              { phone: { contains: 'test', mode: 'insensitive' } }
+            ]
+          },
+          select: { id: true }
+        });
+        const trialUserIds = trialUsers.map(u => u.id);
+        commentWhereCondition.userId = { in: trialUserIds };
+      }
+
       const commentsWithKeyword = await prisma.communityComment.findMany({
-        where: {
-          content: {
-            contains: searchTerm
-          }
-        },
+        where: commentWhereCondition,
         select: {
           postId: true
         }
@@ -471,18 +535,35 @@ export async function GET(req: Request) {
       }
     });
 
-    // 댓글에 키워드가 있지만 검색 결과에 없는 게시글도 추가
+    // 댓글에 키워드가 있지만 검색 결과에 없는 게시글도 추가 (3일 체험 사용자 필터링 적용)
     if (postsWithKeywordInComments.length > 0) {
-      const additionalPosts = await prisma.communityPost.findMany({
-        where: {
-          id: {
-            in: postsWithKeywordInComments
-          },
-          isDeleted: false,
-          ...(category && category !== 'all' ? {
-            category: category === 'travel-prep' || category === 'schedule' ? 'destination' : category
-          } : {})
+      const additionalWhereCondition: any = {
+        id: {
+          in: postsWithKeywordInComments
         },
+        isDeleted: false,
+        ...(category && category !== 'all' ? {
+          category: category === 'travel-prep' || category === 'schedule' ? 'destination' : category
+        } : {})
+      };
+
+      // 3일 체험 사용자는 3일 체험 사용자가 작성한 게시글만 추가
+      if (isTrialUser) {
+        const trialUsers = await prisma.user.findMany({
+          where: {
+            OR: [
+              { testModeStartedAt: { not: null } },
+              { phone: { contains: 'test', mode: 'insensitive' } }
+            ]
+          },
+          select: { id: true }
+        });
+        const trialUserIds = trialUsers.map(u => u.id);
+        additionalWhereCondition.userId = { in: trialUserIds };
+      }
+
+      const additionalPosts = await prisma.communityPost.findMany({
+        where: additionalWhereCondition,
         select: {
           id: true,
           title: true,

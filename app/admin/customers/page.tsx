@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiSearch, FiFilter, FiArrowUp, FiArrowDown, FiChevronLeft, FiChevronRight, FiUser, FiPlus, FiX, FiInfo, FiDownload } from 'react-icons/fi';
 import CustomerTable from '@/components/admin/CustomerTable';
+import { Customer } from '@/types/customer';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
 
@@ -32,29 +33,24 @@ type AffiliateOwnership = {
   normalizedPhone?: string | null;
 };
 
-interface Customer {
-  id: number;
-  name: string | null;
-  phone: string | null;
-  email: string | null;
-  createdAt: string;
-  lastActiveAt: string | null;
-  tripCount: number;
-  totalTripCount: number;
-  isHibernated: boolean;
-  isLocked: boolean;
-  customerStatus: string | null;
-  status?: 'active' | 'package' | 'dormant' | 'locked' | 'test' | 'test-locked' | null; // 지니 상태
-  customerType?: 'cruise-guide' | 'mall' | 'test' | 'prospect' | 'admin' | 'mall-admin' | 'partner'; // 고객 분류
-  isMallUser?: boolean; // 크루즈몰 고객 여부
-  mallUserId?: string | null; // 크루즈몰 사용자 ID
-  mallNickname?: string | null; // 크루즈몰 닉네임
-  kakaoChannelAdded?: boolean; // 카카오 채널 추가 여부
-  kakaoChannelAddedAt?: string | null; // 카카오 채널 추가 일시
-  pwaGenieInstalledAt?: string | null; // 크루즈가이드 지니 바탕화면 추가 일시
-  pwaMallInstalledAt?: string | null; // 크루즈몰 바탕화면 추가 일시
-  currentTripEndDate: string | null;
-  role?: string | null; // 사용자 역할
+// Admin 페이지에서 사용하는 확장 Customer 타입
+interface AdminCustomer extends Customer {
+  email?: string | null;
+  createdAt?: string;
+  lastActiveAt?: string | null;
+  tripCount?: number;
+  totalTripCount?: number;
+  isHibernated?: boolean;
+  isLocked?: boolean;
+  customerStatus?: string | null;
+  isMallUser?: boolean;
+  mallUserId?: string | null;
+  mallNickname?: string | null;
+  kakaoChannelAdded?: boolean;
+  kakaoChannelAddedAt?: string | null;
+  pwaGenieInstalledAt?: string | null;
+  pwaMallInstalledAt?: string | null;
+  currentTripEndDate?: string | null;
   AffiliateProfile?: {
     id: number;
     type: 'BRANCH_MANAGER' | 'SALES_AGENT' | 'HQ';
@@ -67,8 +63,8 @@ interface Customer {
   trips: Array<{
     id: number;
     cruiseName: string | null;
-    companionType: string | null;
-    destination: any;
+    companionType?: string | null;
+    destination?: any;
     startDate: string | null;
     endDate: string | null;
   }>;
@@ -90,7 +86,7 @@ export default function CustomersPage() {
   // 기본값: 'all' (전체 고객 표시) - 사용자가 원하는 그룹을 선택할 수 있도록
   const initialGroup = searchParams?.get('customerGroup') || 'all';
   
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [pagination, setPagination] = useState<Pagination>({
     total: 0,
     page: 1,
@@ -399,6 +395,14 @@ export default function CustomersPage() {
               countKey: 'prospects',
               color: 'yellow'
             },
+            { 
+              value: 'inquiry', 
+              label: '문의 고객', 
+              description: '상품 상세페이지 상담 신청 고객',
+              icon: '💬',
+              countKey: 'inquiry',
+              color: 'pink'
+            },
           ].map((category) => {
             const count = groupCounts[category.countKey] ?? 0;
             const isActive = customerGroup === category.value;
@@ -412,6 +416,7 @@ export default function CustomersPage() {
               indigo: isActive ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50',
               teal: isActive ? 'bg-teal-50 border-teal-500' : 'bg-white border-gray-200 hover:border-teal-300 hover:bg-teal-50',
               yellow: isActive ? 'bg-yellow-50 border-yellow-500' : 'bg-white border-gray-200 hover:border-yellow-300 hover:bg-yellow-50',
+              pink: isActive ? 'bg-pink-50 border-pink-500' : 'bg-white border-gray-200 hover:border-pink-300 hover:bg-pink-50',
             };
             
             return (

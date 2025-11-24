@@ -90,27 +90,32 @@ export async function GET(
         displayName: profile.displayName,
         type: profile.type,
       },
-      documents: documents.map(doc => ({
-        id: doc.id,
-        documentType: doc.documentType,
-        filePath: doc.filePath,
-        fileName: doc.fileName,
-        fileSize: doc.fileSize,
-        status: doc.status,
-        uploadedAt: doc.uploadedAt,
-        reviewedAt: doc.reviewedAt,
-        uploadedBy: doc.User_AffiliateDocument_uploadedByIdToUser ? {
-          id: doc.User_AffiliateDocument_uploadedByIdToUser.id,
-          name: doc.User_AffiliateDocument_uploadedByIdToUser.name,
-          email: doc.User_AffiliateDocument_uploadedByIdToUser.email,
-        } : null,
-        approvedBy: doc.User_AffiliateDocument_approvedByIdToUser ? {
-          id: doc.User_AffiliateDocument_approvedByIdToUser.id,
-          name: doc.User_AffiliateDocument_approvedByIdToUser.name,
-          email: doc.User_AffiliateDocument_approvedByIdToUser.email,
-        } : null,
-        isApproved: doc.approvedById !== null,
-      })),
+      documents: documents.map(doc => {
+        const metadata = doc.metadata as any;
+        return {
+          id: doc.id,
+          documentType: doc.documentType,
+          filePath: doc.filePath,
+          fileName: doc.fileName,
+          fileSize: doc.fileSize,
+          status: doc.status,
+          uploadedAt: doc.uploadedAt,
+          reviewedAt: doc.reviewedAt,
+          metadata: metadata || null,
+          backupUrl: metadata?.backupUrl || null, // 구글 드라이브 백업 URL
+          uploadedBy: doc.User_AffiliateDocument_uploadedByIdToUser ? {
+            id: doc.User_AffiliateDocument_uploadedByIdToUser.id,
+            name: doc.User_AffiliateDocument_uploadedByIdToUser.name,
+            email: doc.User_AffiliateDocument_uploadedByIdToUser.email,
+          } : null,
+          approvedBy: doc.User_AffiliateDocument_approvedByIdToUser ? {
+            id: doc.User_AffiliateDocument_approvedByIdToUser.id,
+            name: doc.User_AffiliateDocument_approvedByIdToUser.name,
+            email: doc.User_AffiliateDocument_approvedByIdToUser.email,
+          } : null,
+          isApproved: doc.approvedById !== null,
+        };
+      }),
     });
   } catch (error: any) {
     console.error('[Admin Get Documents] Error:', error);

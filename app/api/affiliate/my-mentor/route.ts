@@ -43,12 +43,12 @@ export async function GET(req: NextRequest) {
     });
 
     if (!currentProfile) {
-      // 프로필이 없으면 본사로 반환
+      // 프로필이 없으면 본사로 반환 (고정값)
       return NextResponse.json({
         ok: true,
         mentor: {
-          name: '(주)마비즈컴퍼니 전혜선',
-          phone: '010-2495-8013',
+          name: '전혜선',
+          phone: '01024958013',
           role: '본사',
           isBranchManager: false,
         },
@@ -67,8 +67,8 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({
             ok: true,
             mentor: {
-              name: '(주)마비즈컴퍼니 전혜선',
-              phone: '010-2495-8013',
+              name: '전혜선',
+              phone: '01024958013',
               role: '본사',
               isBranchManager: false,
             },
@@ -77,8 +77,8 @@ export async function GET(req: NextRequest) {
           return NextResponse.json({
             ok: true,
             mentor: {
-              name: '(주)마비즈컴퍼니 배연성',
-              phone: '010-3860-9161',
+              name: '배연성',
+              phone: '01038609161',
               role: '본사',
               isBranchManager: false,
             },
@@ -86,12 +86,12 @@ export async function GET(req: NextRequest) {
         }
       }
       
-      // 본사 전화번호가 아니면 본사가 담당 멘토
+      // 본사 전화번호가 아니면 본사가 담당 멘토 (고정값)
       return NextResponse.json({
         ok: true,
         mentor: {
-          name: '(주)마비즈컴퍼니 전혜선',
-          phone: '010-2495-8013',
+          name: '전혜선',
+          phone: '01024958013',
           role: '본사',
           isBranchManager: false,
         },
@@ -135,8 +135,8 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({
               ok: true,
               mentor: {
-                name: '(주)마비즈컴퍼니 전혜선',
-                phone: '010-2495-8013',
+                name: '전혜선',
+                phone: '01024958013',
                 role: '본사',
                 isBranchManager: false,
               },
@@ -145,8 +145,8 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({
               ok: true,
               mentor: {
-                name: '(주)마비즈컴퍼니 배연성',
-                phone: '010-3860-9161',
+                name: '배연성',
+                phone: '01038609161',
                 role: '본사',
                 isBranchManager: false,
               },
@@ -170,12 +170,12 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 기본값: 본사
+    // 기본값: 본사 (고정값)
     return NextResponse.json({
       ok: true,
       mentor: {
-        name: '(주)마비즈컴퍼니 전혜선',
-        phone: '010-2495-8013',
+        name: '전혜선',
+        phone: '01024958013',
         role: '본사',
         isBranchManager: false,
       },

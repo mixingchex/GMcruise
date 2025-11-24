@@ -78,6 +78,59 @@ export async function POST(req: NextRequest) {
       managerId = affiliateProfile.id;
     }
 
+    // ✅ 절대법칙: 동행인 등록 시 즉시 User 생성 (유료 서비스 고객으로)
+    // 이름과 전화번호로 기존 User 확인
+    let existingUser = await prisma.user.findFirst({
+      where: {
+        phone: normalizedPhone,
+        name: customerName.trim(),
+        role: 'user',
+      },
+      select: {
+        id: true,
+        customerSource: true,
+        customerStatus: true,
+        password: true,
+      },
+    });
+
+    let userId: number;
+    if (existingUser) {
+      // 기존 User가 있으면 customerSource와 비밀번호 업데이트
+      userId = existingUser.id;
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          customerSource: 'cruise-guide',
+          customerStatus: 'active',
+          password: '3800',
+          isLocked: false,
+          isHibernated: false,
+        },
+      });
+      console.log('[Affiliate Customer Register] 기존 User 업데이트:', { userId, phone: normalizedPhone });
+    } else {
+      // 새 User 생성 (유료 서비스 고객)
+      const now = new Date();
+      const newUser = await prisma.user.create({
+        data: {
+          name: customerName.trim(),
+          phone: normalizedPhone,
+          password: '3800',
+          role: 'user',
+          customerSource: 'cruise-guide',
+          customerStatus: 'active',
+          onboarded: false, // 로그인 시 온보딩 완료
+          loginCount: 0,
+          isLocked: false,
+          isHibernated: false,
+          updatedAt: now,
+        },
+      });
+      userId = newUser.id;
+      console.log('[Affiliate Customer Register] 새 User 생성:', { userId, phone: normalizedPhone });
+    }
+
     // AffiliateLead 생성 또는 업데이트
     const leadData: any = {
       customerName: customerName.trim(),
@@ -167,7 +220,14 @@ export async function POST(req: NextRequest) {
         agent: lead.agent,
         isCompanion: isCompanion || false,
       },
-      message: isCompanion ? '동행인이 등록되었습니다.' : '고객이 등록되었습니다.',
+      user: {
+        id: userId,
+        name: customerName.trim(),
+        phone: normalizedPhone,
+        customerSource: 'cruise-guide',
+        customerStatus: 'active',
+      },
+      message: isCompanion ? '동행인이 등록되었습니다. 비밀번호 3800으로 로그인할 수 있습니다.' : '고객이 등록되었습니다. 비밀번호 3800으로 로그인할 수 있습니다.',
     });
   } catch (error: any) {
     console.error('[Affiliate Customer Register] Error:', error);

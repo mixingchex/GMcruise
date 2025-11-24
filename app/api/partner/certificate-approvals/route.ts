@@ -7,7 +7,7 @@ import { notifyAdminOfApprovalRequest } from '@/lib/notifications/certificateNot
 // GET: 승인 요청 조회
 export async function GET(req: NextRequest) {
   try {
-    const { user, profile } = await requirePartnerContext(req);
+    const { sessionUser, profile } = await requirePartnerContext();
 
     const { searchParams } = new URL(req.url);
     const customerId = searchParams.get('customerId');
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
 
     const where: any = {
-      requesterId: user.id,
+      requesterId: sessionUser.id,
     };
 
     if (customerId) {
@@ -26,11 +26,53 @@ export async function GET(req: NextRequest) {
       where.certificateType = certificateType;
     }
 
-    if (status) {
+    if (status && status !== 'all') {
       where.status = status;
     }
 
-    // 최신 승인 요청 조회
+    // status가 'all'인 경우 모든 승인 요청 목록 반환
+    if (status === 'all') {
+      const approvals = await prisma.certificateApproval.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          Customer: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          Requester: {
+            select: {
+              id: true,
+              name: true,
+              AffiliateProfile: {
+                select: {
+                  type: true,
+                  displayName: true,
+                  branchLabel: true,
+                },
+              },
+            },
+          },
+          Approver: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        approvals,
+      });
+    }
+
+    // 최신 승인 요청 조회 (단일)
     const approval = await prisma.certificateApproval.findFirst({
       where,
       orderBy: { createdAt: 'desc' },
@@ -68,7 +110,7 @@ export async function GET(req: NextRequest) {
 // POST: 승인 요청 생성
 export async function POST(req: NextRequest) {
   try {
-    const { user, profile } = await requirePartnerContext(req);
+    const { sessionUser, profile } = await requirePartnerContext();
 
     const body = await req.json();
     const {
@@ -113,7 +155,7 @@ export async function POST(req: NextRequest) {
     const approval = await prisma.certificateApproval.create({
       data: {
         certificateType,
-        requesterId: user.id,
+        requesterId: sessionUser.id,
         requesterType,
         customerId,
         customerName,
@@ -125,7 +167,7 @@ export async function POST(req: NextRequest) {
         refundAmount,
         refundDate,
         status: autoApprove ? 'approved' : 'pending',
-        approvedBy: autoApprove ? user.id : null,
+        approvedBy: autoApprove ? sessionUser.id : null,
         approvedByType: autoApprove ? 'BRANCH_MANAGER' : null,
         approvedAt: autoApprove ? new Date() : null,
         metadata,
@@ -157,7 +199,7 @@ export async function POST(req: NextRequest) {
     console.log('[Certificate Approval] Created:', {
       id: approval.id,
       type: certificateType,
-      requester: user.name,
+      requester: sessionUser.name,
       requesterType,
       customer: customerName,
       autoApproved: autoApprove,

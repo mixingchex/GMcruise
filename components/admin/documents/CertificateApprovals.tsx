@@ -195,7 +195,7 @@ export default function CertificateApprovals() {
     <div className="space-y-6">
       {/* 필터 */}
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">승인 요청 관리</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">신청한 고객 승인요청</h2>
         
         <div className="flex flex-wrap gap-4">
           <div>
@@ -452,6 +452,9 @@ export default function CertificateApprovals() {
     </div>
   );
 }
+
+
+
 
 
 

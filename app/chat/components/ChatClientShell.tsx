@@ -108,16 +108,29 @@ export default function ChatClientShell({
                        mode === 'translate' ? 'translate' : 'default';
       
       // ChatMessage 형식을 API 형식으로 변환
-      const apiMessages = messagesToSave.map(msg => ({
-        id: msg.id,
-        role: msg.role,
-        type: msg.type || 'text',
-        text: msg.type === 'text' ? (msg.text || '') : '',
-        ...(msg.links && { links: msg.links }),
-        ...(msg.images && { images: msg.images }),
-        ...(msg.chips && { chips: msg.chips }),
-        timestamp: new Date().toISOString(),
-      }));
+      const apiMessages = messagesToSave.map(msg => {
+        const base = {
+          id: msg.id,
+          role: msg.role,
+          type: msg.type || 'text',
+          text: msg.type === 'text' ? (msg.text || '') : '',
+          timestamp: new Date().toISOString(),
+        };
+        
+        // 타입별 속성 추가
+        if (msg.type === 'map-links' && 'links' in msg) {
+          return { ...base, links: msg.links };
+        }
+        if (msg.type === 'photo-gallery' && 'images' in msg) {
+          return { ...base, images: msg.images };
+        }
+        // chips는 현재 타입에 없지만 API 호환성을 위해 any로 처리
+        const msgAny = msg as any;
+        if (msgAny.chips) {
+          return { ...base, chips: msgAny.chips };
+        }
+        return base;
+      });
 
       await fetch('/api/chat/history', {
         method: 'POST',

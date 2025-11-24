@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/payslip-sender",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/community-bot",
+      "schedule": "0 8 * * *"
     }
   ]
 }

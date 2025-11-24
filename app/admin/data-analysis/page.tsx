@@ -105,11 +105,7 @@ interface MarketingInsight {
   };
 }
 
-interface Customer {
-  id: number;
-  name: string | null;
-  phone: string | null;
-}
+import { Customer } from '@/types/customer';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
@@ -633,7 +629,7 @@ export default function DataAnalysisPage() {
               <p className="text-red-800 font-medium">{error}</p>
             </div>
             <button
-              onClick={loadAnalytics}
+              onClick={() => loadAnalytics(true)}
               className="text-red-600 hover:text-red-800 text-sm font-medium underline"
             >
               다시 시도

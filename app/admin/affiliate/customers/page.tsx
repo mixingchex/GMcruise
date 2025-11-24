@@ -4,7 +4,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiRefreshCw,
   FiSearch,
@@ -14,6 +14,7 @@ import {
   FiCheckCircle,
 } from 'react-icons/fi';
 import { showError } from '@/components/ui/Toast';
+import ProductInquiryCustomerTable from '@/components/admin/ProductInquiryCustomerTable';
 
 type AffiliateLead = {
   id: number;
@@ -38,10 +39,19 @@ type AffiliateLead = {
     interactions: number;
     sales: number;
   };
+  // 전화상담 고객용 추가 정보
+  userId?: number | null;
+  cruiseName?: string | null;
+  affiliateOwnership?: {
+    ownerType: 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT';
+    ownerName: string | null;
+    ownerNickname: string | null;
+  } | null;
 };
 
 export default function AffiliateCustomersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [leads, setLeads] = useState<AffiliateLead[]>([]);
   const [filters, setFilters] = useState({
     search: '',
@@ -52,6 +62,9 @@ export default function AffiliateCustomersPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  // URL 파라미터에서 source=mall 확인
+  const source = searchParams.get('source');
 
   const loadLeads = useCallback(async () => {
     try {
@@ -64,6 +77,10 @@ export default function AffiliateCustomersPage() {
       if (filters.status) params.set('status', filters.status);
       if (filters.managerId) params.set('managerId', filters.managerId);
       if (filters.agentId) params.set('agentId', filters.agentId);
+      // source=mall 파라미터가 있으면 모든 문의고객 표시
+      if (source === 'mall') {
+        params.set('source', 'mall');
+      }
       params.set('page', page.toString());
       params.set('limit', '50');
 
@@ -80,7 +97,7 @@ export default function AffiliateCustomersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [filters, page]);
+  }, [filters, page, source]);
 
   useEffect(() => {
     loadLeads();
@@ -129,9 +146,13 @@ export default function AffiliateCustomersPage() {
       <section className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">고객 관리</h1>
+            <h1 className="text-2xl font-extrabold text-gray-900">
+              {source === 'mall' ? '문의고객 관리' : '고객 관리'}
+            </h1>
             <p className="text-sm text-gray-600 mt-1">
-              어필리에이트를 통해 유입된 고객(Lead)을 관리하고 추적합니다.
+              {source === 'mall' 
+                ? '크루즈몰 전화상담 버튼으로 이름과 연락처를 입력한 전화상담고객을 관리합니다.'
+                : '어필리에이트를 통해 유입된 고객(Lead)을 관리하고 추적합니다.'}
             </p>
           </div>
           <div className="flex gap-3">
@@ -174,152 +195,171 @@ export default function AffiliateCustomersPage() {
       </section>
 
       <section className="bg-white rounded-2xl shadow-lg border border-gray-200">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">고객 정보</th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">담당자</th>
-                <th className="px-4 py-3 text-sm font-semibold text-gray-600">상태</th>
-                <th className="px-4 py-3 text-sm font-semibold text-gray-600">여권</th>
-                <th className="px-4 py-3 text-sm font-semibold text-gray-600">활동</th>
-                <th className="px-4 py-3 text-sm font-semibold text-gray-600">등록일</th>
-                <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">관리</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {isLoading && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-sm text-gray-500">
-                    고객 목록을 불러오는 중입니다...
-                  </td>
-                </tr>
-              )}
-              {!isLoading && leads.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500">
-                    조건에 해당하는 고객이 없습니다.
-                  </td>
-                </tr>
-              )}
-              {!isLoading &&
-                leads.map((lead) => {
-                  return (
-                    <tr key={lead.id} className="hover:bg-blue-50/40">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <FiUser className="text-blue-600" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">
-                              {lead.customerName || '이름 없음'}
-                            </div>
-                            {lead.customerPhone && (
-                              <div className="text-xs text-gray-500 flex items-center gap-1">
-                                <FiPhone className="text-xs" />
-                                {lead.customerPhone}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="space-y-1">
-                          {lead.manager && (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-700">
-                                대리점장
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {lead.manager.displayName || lead.manager.affiliateCode || '이름 없음'}
-                              </span>
-                            </div>
-                          )}
-                          {lead.agent && (
-                            <div className="flex items-center gap-2">
-                              <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                                판매원
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">
-                                {lead.agent.displayName || lead.agent.affiliateCode || '이름 없음'}
-                              </span>
-                            </div>
-                          )}
-                          {!lead.manager && !lead.agent && (
-                            <span className="text-sm text-gray-400">담당자 없음</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-4 text-sm">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(lead.status)}`}
-                        >
-                          {getStatusLabel(lead.status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm">
-                        {lead.passportCompletedAt ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                            <FiCheckCircle className="text-xs" />
-                            완료
-                          </span>
-                        ) : lead.passportRequestedAt ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-                            대기중
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 text-center text-sm">
-                        <div className="text-gray-900">{lead._count.interactions}</div>
-                        <div className="text-xs text-gray-500">상호작용</div>
-                        <div className="text-gray-900 mt-1">{lead._count.sales}</div>
-                        <div className="text-xs text-gray-500">판매</div>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-600">
-                        {new Date(lead.createdAt).toLocaleDateString('ko-KR')}
-                      </td>
-                      <td className="px-4 py-4 text-right">
-                        <button
-                          onClick={() => router.push(`/admin/affiliate/customers/${lead.id}`)}
-                          className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                        >
-                          <FiEye className="text-base" />
-                          상세보기
-                        </button>
+        {source === 'mall' ? (
+          // 전화상담 고객 목록 (간소화된 형식)
+          <ProductInquiryCustomerTable
+            customers={leads.map((lead) => ({
+              id: lead.id,
+              name: lead.customerName,
+              phone: lead.customerPhone,
+              createdAt: lead.createdAt,
+              cruiseName: lead.cruiseName || null,
+              affiliateOwnership: lead.affiliateOwnership || null,
+              userId: lead.userId || null,
+            }))}
+            onRefresh={loadLeads}
+          />
+        ) : (
+          // 일반 고객 목록 (기존 형식)
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">고객 정보</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">담당자</th>
+                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">상태</th>
+                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">여권</th>
+                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">활동</th>
+                    <th className="px-4 py-3 text-sm font-semibold text-gray-600">등록일</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-600">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {isLoading && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-6 text-center text-sm text-gray-500">
+                        고객 목록을 불러오는 중입니다...
                       </td>
                     </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
+                  )}
+                  {!isLoading && leads.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-sm text-gray-500">
+                        조건에 해당하는 고객이 없습니다.
+                      </td>
+                    </tr>
+                  )}
+                  {!isLoading &&
+                    leads.map((lead) => {
+                      return (
+                        <tr key={lead.id} className="hover:bg-blue-50/40">
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <FiUser className="text-blue-600" />
+                              </div>
+                              <div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {lead.customerName || '이름 없음'}
+                                </div>
+                                {lead.customerPhone && (
+                                  <div className="text-xs text-gray-500 flex items-center gap-1">
+                                    <FiPhone className="text-xs" />
+                                    {lead.customerPhone}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="space-y-1">
+                              {lead.manager && (
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-700">
+                                    대리점장
+                                  </span>
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {lead.manager.displayName || lead.manager.affiliateCode || '이름 없음'}
+                                  </span>
+                                </div>
+                              )}
+                              {lead.agent && (
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                                    판매원
+                                  </span>
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {lead.agent.displayName || lead.agent.affiliateCode || '이름 없음'}
+                                  </span>
+                                </div>
+                              )}
+                              {!lead.manager && !lead.agent && (
+                                <span className="text-sm text-gray-400">담당자 없음</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-sm">
+                            <span
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(lead.status)}`}
+                            >
+                              {getStatusLabel(lead.status)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-sm">
+                            {lead.passportCompletedAt ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                <FiCheckCircle className="text-xs" />
+                                완료
+                              </span>
+                            ) : lead.passportRequestedAt ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
+                                대기중
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">-</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4 text-center text-sm">
+                            <div className="text-gray-900">{lead._count.interactions}</div>
+                            <div className="text-xs text-gray-500">상호작용</div>
+                            <div className="text-gray-900 mt-1">{lead._count.sales}</div>
+                            <div className="text-xs text-gray-500">판매</div>
+                          </td>
+                          <td className="px-4 py-4 text-sm text-gray-600">
+                            {new Date(lead.createdAt).toLocaleDateString('ko-KR')}
+                          </td>
+                          <td className="px-4 py-4 text-right">
+                            <button
+                              onClick={() => router.push(`/admin/affiliate/customers/${lead.id}`)}
+                              className="inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                            >
+                              <FiEye className="text-base" />
+                              상세보기
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
 
-        {/* 페이지네이션 */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
-            <div className="text-sm text-gray-600">
-              페이지 {page} / {totalPages}
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                이전
-              </button>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                다음
-              </button>
-            </div>
-          </div>
+            {/* 페이지네이션 */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between border-t border-gray-200 px-4 py-3">
+                <div className="text-sm text-gray-600">
+                  페이지 {page} / {totalPages}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    이전
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>

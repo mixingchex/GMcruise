@@ -5,6 +5,7 @@ import path from "path";
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
 const MEDIA_ROOT = path.join(process.cwd(), "public", "크루즈정보사진");
 const ALLOWED_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg", ".avif"]);
 
@@ -50,25 +51,41 @@ const readMediaLibrary = async (): Promise<{ directories: MediaDirectory[]; file
   const files: MediaFile[] = [];
 
   const walk = async (currentPath: string, relativePath = ""): Promise<void> => {
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const entryPath = path.join(currentPath, entry.name);
-      const entryRelativePath = path.join(relativePath, entry.name);
-      if (entry.isDirectory()) {
-        directories.push({
-          name: entry.name,
-          path: `/${path.join("크루즈정보사진", entryRelativePath).replace(/\\/g, "/")}`,
-        });
-        await walk(entryPath, entryRelativePath);
-      } else if (entry.isFile()) {
-        const stat = await fs.stat(entryPath);
-        files.push({
-          name: entry.name,
-          path: `/${path.join("크루즈정보사진", entryRelativePath).replace(/\\/g, "/")}`,
-          size: stat.size,
-          modifiedAt: stat.mtime.toISOString(),
-        });
+    try {
+      // 디렉토리가 존재하는지 확인
+      const stats = await fs.stat(currentPath);
+      if (!stats.isDirectory()) {
+        return;
       }
+      
+      const entries = await fs.readdir(currentPath, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(currentPath, entry.name);
+        const entryRelativePath = path.join(relativePath, entry.name);
+        if (entry.isDirectory()) {
+          directories.push({
+            name: entry.name,
+            path: `/${path.join("크루즈정보사진", entryRelativePath).replace(/\\/g, "/")}`,
+          });
+          await walk(entryPath, entryRelativePath);
+        } else if (entry.isFile()) {
+          try {
+            const stat = await fs.stat(entryPath);
+            files.push({
+              name: entry.name,
+              path: `/${path.join("크루즈정보사진", entryRelativePath).replace(/\\/g, "/")}`,
+              size: stat.size,
+              modifiedAt: stat.mtime.toISOString(),
+            });
+          } catch (error) {
+            // 개별 파일 접근 실패는 무시
+            console.warn(`[Cruisedot Media] Failed to stat file ${entryPath}:`, error);
+          }
+        }
+      }
+    } catch (error) {
+      // 디렉토리 접근 실패 시 무시하고 계속 진행
+      console.warn(`[Cruisedot Media] Failed to access directory ${currentPath}:`, error);
     }
   };
 

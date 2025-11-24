@@ -9,6 +9,8 @@ import {
   FiSearch,
   FiTrendingUp,
   FiUsers,
+  FiPhone,
+  FiArrowRight,
 } from 'react-icons/fi';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -176,9 +178,21 @@ export default function AffiliateTeamDashboardPage() {
   const [totals, setTotals] = useState<DashboardResponse['totals']>(null);
   const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [phoneInquiries, setPhoneInquiries] = useState<Array<{
+    id: number;
+    customerName: string | null;
+    customerPhone: string | null;
+    productCode: string | null;
+    productName: string | null;
+    createdAt: string;
+    status: string;
+    mallUserId: string | null;
+    managerId: number | null;
+  }>>([]);
 
   useEffect(() => {
     loadMetrics();
+    loadPhoneInquiries();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -224,6 +238,32 @@ export default function AffiliateTeamDashboardPage() {
 
   const toggleManager = (id: number) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const loadPhoneInquiries = async () => {
+    try {
+      const res = await fetch('/api/admin/affiliate/leads?limit=20');
+      const json = await res.json();
+      if (res.ok && json?.ok && json.leads) {
+        // source가 'mall-'로 시작하거나 'product-inquiry'인 것만 필터링
+        const filtered = json.leads
+          .filter((lead: any) => lead.source?.startsWith('mall-') || lead.source === 'product-inquiry')
+          .map((lead: any) => ({
+            id: lead.id,
+            customerName: lead.customerName,
+            customerPhone: lead.customerPhone,
+            productCode: lead.metadata?.productCode || lead.metadata?.product_code || null,
+            productName: lead.metadata?.productName || lead.metadata?.product_name || null,
+            createdAt: lead.createdAt,
+            status: lead.status,
+            mallUserId: lead.metadata?.mallUserId || lead.metadata?.affiliateMallUserId || null,
+            managerId: lead.managerId,
+          }));
+        setPhoneInquiries(filtered);
+      }
+    } catch (error) {
+      console.error('[TeamDashboard] Failed to load phone inquiries:', error);
+    }
   };
 
   const overviewCards = useMemo(() => {
@@ -288,14 +328,16 @@ export default function AffiliateTeamDashboardPage() {
           <h1 className="text-2xl font-bold text-slate-900">어필리에이트 팀 성과 대시보드</h1>
           <p className="mt-1 text-sm text-slate-600">대리점장별 판매/리드/커미션 현황과 판매원 실적을 한눈에 확인할 수 있습니다.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => loadMetrics()}
-          className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-          disabled={loading}
-        >
-          <FiRefreshCw className={loading ? 'animate-spin' : ''} /> 새로고침
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => loadMetrics()}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+            disabled={loading}
+          >
+            <FiRefreshCw className={loading ? 'animate-spin' : ''} /> 새로고침
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="rounded-3xl bg-white/90 p-6 shadow-sm backdrop-blur">

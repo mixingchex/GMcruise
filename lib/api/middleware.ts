@@ -39,14 +39,14 @@ export async function withAuth<T = any>(
   handler: ApiHandler<T>,
   options: AuthOptions = {}
 ): Promise<(req: NextRequest) => Promise<NextResponse<T>>> {
-  return async (req: NextRequest) => {
+  return async (req: NextRequest): Promise<NextResponse<T>> => {
     try {
       // 세션 쿠키 확인
       const sid = cookies().get(SESSION_COOKIE)?.value;
       
       if (!sid) {
         if (options.required !== false) {
-          return errorResponse('인증이 필요합니다. 다시 로그인해 주세요.', 401);
+          return errorResponse('인증이 필요합니다. 다시 로그인해 주세요.', 401) as NextResponse<T>;
         }
         // 인증이 선택적이면 user를 null로 전달
         return handler(req, null as any);
@@ -70,7 +70,7 @@ export async function withAuth<T = any>(
 
       if (!session || !session.User) {
         if (options.required !== false) {
-          return errorResponse('인증이 필요합니다. 다시 로그인해 주세요.', 401);
+          return errorResponse('인증이 필요합니다. 다시 로그인해 주세요.', 401) as NextResponse<T>;
         }
         return handler(req, null as any);
       }
@@ -85,14 +85,14 @@ export async function withAuth<T = any>(
 
       // 역할 체크
       if (options.roles && !options.roles.includes(user.role)) {
-        return errorResponse('권한이 없습니다.', 403);
+        return errorResponse('권한이 없습니다.', 403) as NextResponse<T>;
       }
 
       // 핸들러 실행
       return await handler(req, user);
     } catch (error) {
       logger.error('[API Middleware] Auth error:', error);
-      return handleError(error);
+      return handleError(error) as NextResponse<T>;
     }
   };
 }
@@ -100,9 +100,9 @@ export async function withAuth<T = any>(
 /**
  * 관리자 권한 미들웨어
  */
-export function withAdmin<T = any>(
+export async function withAdmin<T = any>(
   handler: ApiHandler<T>
-): (req: NextRequest) => Promise<NextResponse<T>> {
+): Promise<(req: NextRequest) => Promise<NextResponse<T>>> {
   return withAuth(handler, { roles: ['admin'] });
 }
 
@@ -112,11 +112,11 @@ export function withAdmin<T = any>(
 export async function withPartner<T = any>(
   handler: (req: NextRequest, user: ApiUser, profile: any) => Promise<NextResponse<T>>
 ): Promise<(req: NextRequest) => Promise<NextResponse<T>>> {
-  return async (req: NextRequest) => {
+  return async (req: NextRequest): Promise<NextResponse<T>> => {
     try {
       const sessionUser = await getSessionUser();
       if (!sessionUser) {
-        return errorResponse('로그인이 필요합니다.', 401);
+        return errorResponse('로그인이 필요합니다.', 401) as NextResponse<T>;
       }
 
       // 파트너 프로필 조회
@@ -141,21 +141,21 @@ export async function withPartner<T = any>(
       });
 
       if (!profile) {
-        return errorResponse('파트너 권한이 필요합니다. 관리자에게 문의해주세요.', 403);
+        return errorResponse('파트너 권한이 필요합니다. 관리자에게 문의해주세요.', 403) as NextResponse<T>;
       }
 
       const user: ApiUser = {
         id: sessionUser.id,
-        role: sessionUser.role,
+        role: sessionUser.role || '',
         name: sessionUser.name,
         phone: sessionUser.phone,
-        email: sessionUser.email,
+        email: null, // SessionUser에 email이 없으므로 null로 설정
       };
 
       return await handler(req, user, profile);
     } catch (error) {
       logger.error('[API Middleware] Partner auth error:', error);
-      return handleError(error);
+      return handleError(error) as NextResponse<T>;
     }
   };
 }
@@ -244,6 +244,9 @@ export async function parseBody<T = any>(req: NextRequest): Promise<T> {
 export function parseQuery(req: NextRequest): URLSearchParams {
   return new URL(req.url).searchParams;
 }
+
+
+
 
 
 

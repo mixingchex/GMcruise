@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       throw new Error('Failed to fetch image data');
     }
 
-    let imageBuffer = Buffer.from(imageResponse.data as ArrayBuffer);
+    let imageBuffer = Buffer.from(imageResponse.data as ArrayBuffer) as Buffer;
     let outputMimeType = mimeType;
     let outputFileName = fileName;
 
@@ -221,7 +221,7 @@ export async function GET(req: NextRequest) {
         }
 
         // PNG로 변환
-        imageBuffer = await processedImage.png().toBuffer();
+        imageBuffer = (await processedImage.png().toBuffer()) as Buffer;
         outputMimeType = 'image/png';
         outputFileName = fileName.replace(/\.[^/.]+$/, '') + '.png';
       } catch (error) {
@@ -243,7 +243,7 @@ export async function GET(req: NextRequest) {
       headers['Content-Disposition'] = `attachment; filename="${encodeURIComponent(outputFileName)}"`;
     }
 
-    return new NextResponse(imageBuffer, {
+    return new NextResponse(imageBuffer as any, {
       headers,
     });
   } catch (error: any) {

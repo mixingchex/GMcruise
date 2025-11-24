@@ -541,7 +541,7 @@ async function runAllTriggers() {
 export function startProactiveEngine() {
   // 매 10분마다 실행 (*/10 * * * *)
   const job = cron.schedule('*/10 * * * *', runAllTriggers, {
-    scheduled: false, // 자동 시작 안 함
+    // scheduled: false, // 자동 시작 안 함 - TaskOptions에 없음
   });
 
   job.start();

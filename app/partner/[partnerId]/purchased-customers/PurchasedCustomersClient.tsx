@@ -873,6 +873,23 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                                 <div>
                                   <p className="text-sm font-medium text-gray-500">여권번호</p>
                                   <p className="text-base text-gray-900">{traveler.passportNo || '미입력'}</p>
+                                  {traveler.passportImage && (
+                                    <div className="mt-2 flex gap-2">
+                                      <button
+                                        onClick={() => {
+                                          const img = new Image();
+                                          img.src = traveler.passportImage;
+                                          const w = window.open();
+                                          if (w) {
+                                            w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
+                                          }
+                                        }}
+                                        className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                                      >
+                                        이미지 보기
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                                 <div>
                                   <p className="text-sm font-medium text-gray-500">생년월일</p>

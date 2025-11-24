@@ -153,16 +153,19 @@ function extractDestinations(product: {
 
   if (destinations.length === 0 && product.itineraryPattern) {
     const pattern = product.itineraryPattern;
-    if (pattern.includes('홍콩')) destinations.push('홍콩');
-    if (pattern.includes('대만') || pattern.includes('타이완')) destinations.push('대만');
-    if (pattern.includes('제주')) destinations.push('제주');
-    if (pattern.includes('후쿠오카')) destinations.push('후쿠오카');
-    if (pattern.includes('사세보')) destinations.push('사세보');
-    if (pattern.includes('도쿄')) destinations.push('도쿄');
-    if (pattern.includes('나가사키')) destinations.push('나가사키');
-    if (pattern.includes('오키나와')) destinations.push('오키나와');
-    if (pattern.includes('싱가포르')) destinations.push('싱가포르');
-    if (pattern.includes('베트남')) destinations.push('베트남');
+    // pattern이 문자열인지 확인
+    if (typeof pattern === 'string') {
+      if (pattern.includes('홍콩')) destinations.push('홍콩');
+      if (pattern.includes('대만') || pattern.includes('타이완')) destinations.push('대만');
+      if (pattern.includes('제주')) destinations.push('제주');
+      if (pattern.includes('후쿠오카')) destinations.push('후쿠오카');
+      if (pattern.includes('사세보')) destinations.push('사세보');
+      if (pattern.includes('도쿄')) destinations.push('도쿄');
+      if (pattern.includes('나가사키')) destinations.push('나가사키');
+      if (pattern.includes('오키나와')) destinations.push('오키나와');
+      if (pattern.includes('싱가포르')) destinations.push('싱가포르');
+      if (pattern.includes('베트남')) destinations.push('베트남');
+    }
   }
 
   // 중복 제거 후 쉼표로 연결

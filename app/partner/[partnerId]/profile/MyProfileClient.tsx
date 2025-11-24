@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FiArrowLeft, FiSave, FiUser, FiMail, FiPhone, FiEdit2, FiUpload, FiCheck, FiFile, FiLink, FiPlus, FiX, FiImage, FiCopy, FiChevronLeft, FiChevronRight, FiPlay, FiExternalLink, FiShoppingBag } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiUser, FiMail, FiPhone, FiEdit2, FiUpload, FiCheck, FiFile, FiLink, FiPlus, FiX, FiImage, FiCopy, FiChevronLeft, FiChevronRight, FiPlay, FiExternalLink, FiShoppingBag, FiLock, FiEye, FiEyeOff, FiFileText, FiCheckCircle } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 import DocumentUploadSection from '@/components/affiliate/DocumentUploadSection';
+import dayjs from 'dayjs';
 
 type MyProfileClientProps = {
   user: {
@@ -27,6 +28,26 @@ interface CustomLink {
 export default function MyProfileClient({ user, profile }: MyProfileClientProps) {
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+  const [savingBasicInfo, setSavingBasicInfo] = useState(false);
+  const [savingPartnerMall, setSavingPartnerMall] = useState(false);
+  
+  // 비밀번호 변경 관련 상태
+  const [isEditingPassword, setIsEditingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  
+  // 나의 계약서 모달 관련 상태
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [contract, setContract] = useState<any | null>(null);
+  const [loadingContract, setLoadingContract] = useState(false);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [contractType, setContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
+  const [currentProfileId, setCurrentProfileId] = useState<number | undefined>(undefined);
   
   // JSON 필드 파싱 함수들
   const parseCustomLinks = (): CustomLink[] => {
@@ -211,6 +232,129 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
     }
   };
 
+  // 기본정보 저장 함수
+  const handleSaveBasicInfo = async () => {
+    if (!formData.displayName || formData.displayName.trim() === '') {
+      showError('표시 이름을 입력해주세요.');
+      return;
+    }
+
+    setSavingBasicInfo(true);
+    try {
+      const res = await fetch('/api/partner/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          displayName: formData.displayName,
+          contactPhone: formData.contactPhone,
+          contactEmail: formData.contactEmail,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '기본정보 저장에 실패했습니다.');
+      }
+
+      showSuccess('기본정보가 저장되었습니다!');
+    } catch (error: any) {
+      console.error('[MyProfileClient] Save basic info error:', error);
+      showError(error.message || '기본정보 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSavingBasicInfo(false);
+    }
+  };
+
+  // 파트너몰 설정 저장 함수
+  const handleSavePartnerMall = async () => {
+    setSavingPartnerMall(true);
+    try {
+      const res = await fetch('/api/partner/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          profileTitle: formData.profileTitle,
+          landingAnnouncement: formData.landingAnnouncement,
+          welcomeMessage: formData.welcomeMessage,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '파트너몰 설정 저장에 실패했습니다.');
+      }
+
+      showSuccess('파트너몰 설정이 저장되었습니다!');
+    } catch (error: any) {
+      console.error('[MyProfileClient] Save partner mall error:', error);
+      showError(error.message || '파트너몰 설정 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSavingPartnerMall(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword || newPassword.trim().length === 0) {
+      showError('새 비밀번호를 입력해주세요.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showError('새 비밀번호와 확인 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    if (newPassword.length < 4) {
+      showError('비밀번호는 최소 4자 이상이어야 합니다.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+
+    try {
+      // currentPassword가 비어있지 않으면 trim하여 전송, 비어있으면 null 전송
+      const trimmedCurrentPassword = currentPassword && currentPassword.trim().length > 0 
+        ? currentPassword.trim() 
+        : null;
+
+      console.log('[MyProfileClient] Changing password:', {
+        hasCurrentPassword: !!trimmedCurrentPassword,
+        newPasswordLength: newPassword.trim().length,
+      });
+
+      const res = await fetch('/api/partner/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: trimmedCurrentPassword,
+          newPassword: newPassword.trim(),
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '비밀번호 변경에 실패했습니다.');
+      }
+
+      showSuccess('비밀번호가 변경되었습니다.');
+      setIsEditingPassword(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (error: any) {
+      console.error('[MyProfileClient] Password change error:', error);
+      showError(error.message || '비밀번호 변경 중 오류가 발생했습니다.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -381,6 +525,82 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
     });
   };
 
+  // 사용자 프로필 정보 로드 (계약서 타입 확인용)
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const res = await fetch('/api/affiliate/my-profile');
+        const json = await res.json();
+        
+        if (res.ok && json?.ok) {
+          const profile = json.profile;
+          setUserProfile(profile);
+          setCurrentProfileId(profile?.id);
+          
+          if (profile?.type === 'BRANCH_MANAGER') {
+            setContractType('BRANCH_MANAGER');
+          } else if (profile?.type === 'SALES_AGENT') {
+            setContractType('SALES_AGENT');
+          }
+        }
+      } catch (error: any) {
+        console.error('[MyProfileClient] load user profile error', error);
+      }
+    };
+    
+    loadUserProfile();
+  }, []);
+
+  // 나의 계약서 로드 함수
+  const loadContract = async () => {
+    try {
+      setLoadingContract(true);
+      const res = await fetch('/api/affiliate/my-contract', { credentials: 'include' });
+      const json = await res.json();
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.message || '계약 정보를 불러올 수 없습니다.');
+      }
+
+      setContract(json.contract);
+      setShowContractModal(true);
+    } catch (error: any) {
+      console.error('[MyProfileClient] load contract error', error);
+      showError(error.message || '계약 정보를 불러오는 중 문제가 발생했습니다.');
+    } finally {
+      setLoadingContract(false);
+    }
+  };
+
+  // 수동 계약서 저장 버튼 클릭 핸들러
+  const handleManualContractSave = () => {
+    // 계약서 작성 페이지로 이동 (계약서 타입과 프로필 ID 포함)
+    const params = new URLSearchParams();
+    params.append('type', contractType);
+    // invitedBy는 전달하지 않음 (자신의 계약서이므로 담당 멘토를 자동으로 조회하도록)
+    // 사용자 정보도 URL에 포함 (자동 채우기용)
+    if (userProfile?.name) {
+      params.append('name', encodeURIComponent(userProfile.name));
+    }
+    if (userProfile?.phone) {
+      params.append('phone', encodeURIComponent(userProfile.phone));
+    }
+    window.location.href = `/affiliate/contract?${params.toString()}`;
+  };
+
+  // 서명 URL 추출 함수
+  const getSignatureUrl = () => {
+    if (!contract?.metadata) return null;
+    const metadata = contract.metadata as any;
+    if (metadata?.signatures?.main?.url) {
+      return metadata.signatures.main.url;
+    }
+    if (metadata?.signature?.url) {
+      return metadata.signature.url;
+    }
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 pt-10 md:px-6">
@@ -465,6 +685,26 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
                   />
                 </div>
               </div>
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveBasicInfo}
+                  disabled={savingBasicInfo}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {savingBasicInfo ? (
+                    <>
+                      <span className="animate-spin">⏳</span>
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <FiSave />
+                      저장하기
+                    </>
+                  )}
+                </button>
+              </div>
             </section>
 
             {/* 파트너몰 설정 */}
@@ -518,11 +758,160 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
                   />
                 </div>
               </div>
+              <div className="mt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleSavePartnerMall}
+                  disabled={savingPartnerMall}
+                  className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  {savingPartnerMall ? (
+                    <>
+                      <span className="animate-spin">⏳</span>
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <FiSave />
+                      저장하기
+                    </>
+                  )}
+                </button>
+              </div>
+            </section>
+
+            {/* 비밀번호 변경 */}
+            <section className="border-t-2 border-teal-200 pt-8 mt-8">
+              <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900">
+                <FiLock className="text-teal-600" />
+                비밀번호 변경
+              </h2>
+              <div className="mb-4 rounded-xl bg-teal-50 border border-teal-200 p-4">
+                <p className="text-sm text-teal-700">
+                  계정 보안을 위해 정기적으로 비밀번호를 변경하세요.
+                </p>
+              </div>
+              {!isEditingPassword ? (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingPassword(true)}
+                  className="w-full px-4 py-3 bg-teal-600 text-white rounded-lg font-semibold hover:bg-teal-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <FiLock className="w-4 h-4" />
+                  비밀번호 변경하기
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      현재 비밀번호 (선택사항)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="현재 비밀번호를 입력하세요 (선택사항)"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pr-10 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showCurrentPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      현재 비밀번호를 입력하면 더 안전합니다. 비워두어도 변경 가능합니다.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      새 비밀번호 <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="새 비밀번호를 입력하세요"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pr-10 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showNewPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">최소 4자 이상 입력해주세요.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      새 비밀번호 확인 <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="새 비밀번호를 다시 입력하세요"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 pr-10 text-sm focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingPassword(false);
+                        setCurrentPassword('');
+                        setNewPassword('');
+                        setConfirmPassword('');
+                      }}
+                      className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                      disabled={isChangingPassword}
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleChangePassword}
+                      disabled={isChangingPassword}
+                      className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isChangingPassword ? (
+                        <>
+                          <span className="animate-spin">⏳</span>
+                          변경 중...
+                        </>
+                      ) : (
+                        <>
+                          <FiLock />
+                          비밀번호 변경
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* 세금 신고용 서류 업로드 */}
             <section className="border-t-2 border-blue-200 pt-8 mt-8">
-              <DocumentUploadSection />
+              <DocumentUploadSection partnerId={partnerId} />
             </section>
           </div>
 
@@ -554,6 +943,214 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
           </div>
         </form>
       </div>
+
+      {/* 나의 계약서 모달 */}
+      {showContractModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 overflow-y-auto"
+          onClick={() => setShowContractModal(false)}
+        >
+          <div
+            className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 sticky top-0 bg-white rounded-t-3xl">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900">나의 계약서</h3>
+                <p className="text-xs text-slate-500 mt-1">계약 정보를 확인할 수 있습니다</p>
+              </div>
+              <button
+                onClick={() => setShowContractModal(false)}
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100 transition-colors"
+              >
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="px-6 py-8 max-h-[70vh] overflow-y-auto">
+              {contract ? (
+                <div className="space-y-6">
+                  {/* 기본 정보 */}
+                  <section className="rounded-xl bg-gray-50 p-4">
+                    <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                      <FiUser className="text-blue-600" />
+                      계약자 정보
+                    </h4>
+                    <div className="grid gap-4 md:grid-cols-2 text-sm">
+                      <div>
+                        <p className="font-semibold text-slate-500">성명</p>
+                        <p className="text-slate-900">{contract.name}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-500">연락처</p>
+                        <p className="text-slate-900">{contract.phone}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-500">이메일</p>
+                        <p className="text-slate-900">{contract.email || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-500">주소</p>
+                        <p className="text-slate-900">{contract.address || '정보 없음'}</p>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* 정산 계좌 정보 */}
+                  {(contract.bankName || contract.bankAccount) && (
+                    <section className="rounded-xl bg-gray-50 p-4">
+                      <h4 className="text-lg font-bold text-slate-900 mb-4">정산 계좌 정보</h4>
+                      <div className="grid gap-4 md:grid-cols-3 text-sm">
+                        {contract.bankName && (
+                          <div>
+                            <p className="font-semibold text-slate-500">은행명</p>
+                            <p className="text-slate-900">{contract.bankName}</p>
+                          </div>
+                        )}
+                        {contract.bankAccount && (
+                          <div>
+                            <p className="font-semibold text-slate-500">계좌번호</p>
+                            <p className="text-slate-900">{contract.bankAccount}</p>
+                          </div>
+                        )}
+                        {contract.bankAccountHolder && (
+                          <div>
+                            <p className="font-semibold text-slate-500">예금주</p>
+                            <p className="text-slate-900">{contract.bankAccountHolder}</p>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* 계약서 서명 */}
+                  {getSignatureUrl() && (
+                    <section className="rounded-xl bg-gray-50 p-4">
+                      <h4 className="text-lg font-bold text-slate-900 mb-4">계약서 서명</h4>
+                      <div className="rounded-xl border-2 border-slate-200 bg-white p-6">
+                        <div className="flex items-center justify-center">
+                          <img
+                            src={getSignatureUrl() || ''}
+                            alt="나의 서명"
+                            className="max-h-40 w-auto"
+                          />
+                        </div>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* 필수 동의 확인 */}
+                  <section className="rounded-xl bg-gray-50 p-4">
+                    <h4 className="text-lg font-bold text-slate-900 mb-4">필수 동의 항목</h4>
+                    <div className="grid gap-3 md:grid-cols-2 text-sm">
+                      <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${contract.consentPrivacy ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                        <FiCheckCircle className="text-lg" />
+                        <span>개인정보 처리 동의</span>
+                      </div>
+                      <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${contract.consentNonCompete ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                        <FiCheckCircle className="text-lg" />
+                        <span>경업금지 조항 동의</span>
+                      </div>
+                      <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${contract.consentDbUse ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                        <FiCheckCircle className="text-lg" />
+                        <span>DB 활용 동의</span>
+                      </div>
+                      <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${contract.consentPenalty ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                        <FiCheckCircle className="text-lg" />
+                        <span>위약금 조항 동의</span>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* 계약 상태 */}
+                  <section className="rounded-xl bg-gray-50 p-4">
+                    <h4 className="text-lg font-bold text-slate-900 mb-4">계약 상태</h4>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex items-center justify-between rounded-xl bg-green-50 px-4 py-3 border border-green-200">
+                        <span className="font-semibold text-green-800">계약 상태</span>
+                        <span className={`inline-flex items-center gap-2 rounded-full px-4 py-1 text-xs font-bold text-white ${
+                          contract.status === 'approved' || contract.status === 'completed'
+                            ? 'bg-green-600' 
+                            : contract.status === 'terminated'
+                            ? 'bg-red-600'
+                            : 'bg-yellow-600'
+                        }`}>
+                          <FiCheckCircle />
+                          {contract.status === 'approved' || contract.status === 'completed' ? '승인 완료' : 
+                           contract.status === 'terminated' ? '계약 해지' : '승인 대기 중'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                        <span className="font-semibold text-slate-700">계약 접수일</span>
+                        <span className="text-slate-600">{dayjs(contract.submittedAt).format('YYYY년 MM월 DD일')}</span>
+                      </div>
+                      {contract.reviewedAt && (
+                        <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+                          <span className="font-semibold text-slate-700">승인일</span>
+                          <span className="text-slate-600">{dayjs(contract.reviewedAt).format('YYYY년 MM월 DD일')}</span>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* 계약서 PDF */}
+                  {(contract as any).pdfUrl && (
+                    <section className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+                      <h4 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <FiFileText className="text-blue-600" />
+                        계약서 PDF
+                      </h4>
+                      <div className="space-y-3">
+                        <p className="text-sm text-slate-600">
+                          완료된 계약서 PDF를 확인하실 수 있습니다.
+                        </p>
+                        <div className="flex gap-3">
+                          <a
+                            href={(contract as any).pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                          >
+                            <FiExternalLink className="w-4 h-4" />
+                            PDF 보기
+                          </a>
+                          <a
+                            href={(contract as any).pdfUrl}
+                            download
+                            className="inline-flex items-center gap-2 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                          >
+                            <FiFileText className="w-4 h-4" />
+                            PDF 다운로드
+                          </a>
+                        </div>
+                      </div>
+                    </section>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FiFileText className="mx-auto text-6xl text-slate-300 mb-4" />
+                  <h3 className="text-xl font-bold text-slate-900 mb-2">계약 정보 없음</h3>
+                  <p className="text-slate-600">
+                    승인된 계약이 없습니다.
+                    <br />
+                    계약서를 작성하신 경우 관리자 승인을 기다려주세요.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end border-t border-slate-200 px-6 py-4 rounded-b-3xl">
+              <button
+                onClick={() => setShowContractModal(false)}
+                className="rounded-lg border border-gray-300 px-6 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

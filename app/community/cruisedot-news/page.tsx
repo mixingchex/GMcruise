@@ -156,7 +156,25 @@ function CruisedotNewsPageContent() {
       ...normalizedApiPosts,
       ...STATIC_NEWS_POSTS.map((post) => toCombinedPost(post, "static")),
     ];
+    
+    // 오늘 생성된 글을 우선 정렬
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     return merged.sort((a, b) => {
+      const aDate = new Date(a.publishedAt);
+      aDate.setHours(0, 0, 0, 0);
+      const bDate = new Date(b.publishedAt);
+      bDate.setHours(0, 0, 0, 0);
+      
+      const aIsToday = aDate.getTime() === today.getTime();
+      const bIsToday = bDate.getTime() === today.getTime();
+      
+      // 오늘 생성된 글을 맨 앞으로
+      if (aIsToday && !bIsToday) return -1;
+      if (!aIsToday && bIsToday) return 1;
+      
+      // 둘 다 오늘이거나 둘 다 아니면 최신순
       const aTime = new Date(a.publishedAt).getTime();
       const bTime = new Date(b.publishedAt).getTime();
       return bTime - aTime;
@@ -403,9 +421,28 @@ function CruisedotNewsPageContent() {
             <>
               <div className="px-6 pt-8 md:px-8 md:pt-10">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <h2 className="text-3xl font-extrabold text-slate-900 md:text-[2.4rem]">
-                    {selectedPost.title}
-                  </h2>
+                  <div className="flex-1">
+                    {(() => {
+                      const postDate = new Date(selectedPost.publishedAt);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      postDate.setHours(0, 0, 0, 0);
+                      const isToday = postDate.getTime() === today.getTime();
+                      
+                      return (
+                        <div className="flex items-center gap-3 mb-2">
+                          {isToday && (
+                            <span className="px-4 py-1.5 bg-red-500 text-white text-sm font-bold rounded-full animate-pulse shadow-lg">
+                              🔥 오늘의 뉴스
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <h2 className="text-3xl font-extrabold text-slate-900 md:text-[2.4rem]">
+                      {selectedPost.title}
+                    </h2>
+                  </div>
                   {canWrite && selectedPost.source === "db" && selectedPost.dbId && (
                     <Link
                       href={`/community/cruisedot-news/edit/${selectedPost.dbId}`}

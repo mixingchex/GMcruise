@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { syncApisSpreadsheet } from '@/lib/google-sheets';
+// import { syncApisSpreadsheet } from '@/lib/google-sheets'; // google-sheets.ts 파일이 비어있음
 
 /**
  * 상품별 APIS 엑셀 생성 (자동화)
@@ -96,9 +96,10 @@ export async function POST(req: NextRequest) {
         }
 
         // APIS 생성
-        const result = await syncApisSpreadsheet(trip.id);
+        // const result = await syncApisSpreadsheet(trip.id); // google-sheets.ts 파일이 비어있음
+        const result = { ok: false, error: 'google-sheets 모듈이 없습니다' };
 
-        if (result.ok) {
+        if (result.ok && 'folderId' in result) {
           results.push({
             productCode: product.productCode,
             cruiseLine: product.cruiseLine,
@@ -106,15 +107,15 @@ export async function POST(req: NextRequest) {
             packageName: product.packageName,
             tripId: trip.id,
             customerCount: product.UserTrip.length,
-            folderId: result.folderId,
-            folderUrl: result.folderId
-              ? `https://drive.google.com/drive/folders/${result.folderId}`
+            folderId: (result as any).folderId,
+            folderUrl: (result as any).folderId
+              ? `https://drive.google.com/drive/folders/${(result as any).folderId}`
               : null,
-            spreadsheetId: result.spreadsheetId,
-            spreadsheetUrl: result.spreadsheetId
-              ? `https://docs.google.com/spreadsheets/d/${result.spreadsheetId}`
+            spreadsheetId: (result as any).spreadsheetId,
+            spreadsheetUrl: (result as any).spreadsheetId
+              ? `https://docs.google.com/spreadsheets/d/${(result as any).spreadsheetId}`
               : null,
-            rowCount: result.rowCount || 0,
+            rowCount: (result as any).rowCount || 0,
           });
         } else {
           errors.push({
@@ -150,6 +151,9 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+
 
 
 

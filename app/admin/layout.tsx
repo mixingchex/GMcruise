@@ -75,6 +75,7 @@ export default function AdminLayout({
   ];
 
   const menuItems = [
+    { href: '/admin/affiliate/customers?source=mall', label: '문의고객', icon: '📞', section: 'inquiries' },
     { href: '/admin/apis', label: 'APIS 확인하기', icon: '📋' },
     { href: '/admin/dashboard', label: '대시보드', icon: '📊' },
     { href: '/admin/pwa-stats', label: 'PWA 설치 통계', icon: '📲' },
@@ -126,6 +127,7 @@ export default function AdminLayout({
   ];
 
   const sectionConfigs = [
+    { key: 'inquiries', label: '문의고객', icon: '📞' },
     { key: 'general', label: '기본 메뉴', icon: '📂' },
     { key: 'marketing', label: '마케팅 자동화', icon: '🚀' },
     { key: 'mall', label: '메인몰', icon: '🛍️' },

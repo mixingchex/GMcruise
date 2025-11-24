@@ -124,6 +124,31 @@ export async function GET(req: NextRequest) {
         }
       }
       
+      // trial 링크인 경우 (3일 체험 초대 링크) - 전체 구매몰이 아닌 로그인 페이지로
+      if (link.code && link.code.startsWith('trial-')) {
+        const trialParams = new URLSearchParams();
+        trialParams.append('trial', link.code);
+        if (link.AffiliateProfile_AffiliateLink_agentIdToAffiliateProfile?.affiliateCode) {
+          trialParams.append('affiliate', link.AffiliateProfile_AffiliateLink_agentIdToAffiliateProfile.affiliateCode);
+        } else if (link.AffiliateProfile_AffiliateLink_managerIdToAffiliateProfile?.affiliateCode) {
+          trialParams.append('affiliate', link.AffiliateProfile_AffiliateLink_managerIdToAffiliateProfile.affiliateCode);
+        }
+        const loginUrl = `/login-test?${trialParams.toString()}`;
+        return {
+          ...link,
+          url: loginUrl,
+          manager: link.AffiliateProfile_AffiliateLink_managerIdToAffiliateProfile,
+          agent: link.AffiliateProfile_AffiliateLink_agentIdToAffiliateProfile,
+          product: link.AffiliateProduct,
+          issuedBy: link.User,
+          isCommonLink,
+          _count: {
+            leads: link._count.AffiliateLead,
+            sales: link._count.AffiliateSale,
+          },
+        };
+      }
+      
       if (link.code) {
         params.append('link', link.code);
       }

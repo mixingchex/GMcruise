@@ -250,7 +250,6 @@ export default function APISPage() {
         passportSubmissionId: data.customer.passportSubmissionId || null,
         passportDriveFolderUrl: data.customer.passportDriveFolderUrl || null,
         passportSubmittedAt: data.customer.passportSubmittedAt || null,
-        passportIsSubmitted: data.customer.passportIsSubmitted || false,
       };
       
       setCustomerAPISData(formattedData);

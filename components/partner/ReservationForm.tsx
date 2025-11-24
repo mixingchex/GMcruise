@@ -117,6 +117,8 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
   const [error, setError] = useState('');
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   const draggedTravelerRef = useRef<Traveler | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOverRoomId, setDragOverRoomId] = useState<string | null>(null);
 
   // 결제 내역 관련 state
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -1537,7 +1539,6 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
         message: err.message,
         stack: err.stack,
       });
-      setError(err.message || '여권 스캔 중 오류가 발생했습니다.');
       
       // 에러 발생 시 isScanning 해제 (roomGroups와 unassignedTravelers 모두 확인)
       setRoomGroups((prevRoomGroups) =>
@@ -1553,6 +1554,10 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
           t.id === travelerId ? { ...t, isScanning: false } : t
         )
       );
+      
+      // 에러 메시지 표시
+      const errorMessage = err.message || '여권 스캔 중 오류가 발생했습니다.';
+      setError(errorMessage);
     } finally {
       // 파일 입력 초기화
       if (fileInput) {
@@ -1563,13 +1568,34 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
   };
 
   // 드래그 시작
-  const handleDragStart = (traveler: Traveler) => {
+  const handleDragStart = (e: React.DragEvent, traveler: Traveler) => {
     draggedTravelerRef.current = traveler;
+    setIsDragging(true);
+    // dataTransfer 설정 (일부 브라우저에서 필요)
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', traveler.id);
+    }
+  };
+
+  // 드래그 종료
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setDragOverRoomId(null);
+    draggedTravelerRef.current = null;
   };
 
   // 드롭 영역에 들어올 때
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, roomGroupId?: string) => {
     e.preventDefault();
+    if (roomGroupId) {
+      setDragOverRoomId(roomGroupId);
+    }
+  };
+
+  // 드롭 영역에서 나갈 때
+  const handleDragLeave = () => {
+    setDragOverRoomId(null);
   };
 
   // 방에 여행자 배정 (드롭)
@@ -1577,30 +1603,52 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
     const traveler = draggedTravelerRef.current;
     if (!traveler) return;
 
-    const roomGroup = roomGroups.find((rg) => rg.id === roomGroupId);
-    if (!roomGroup) return;
+    // 함수형 업데이트로 최신 상태 보장
+    setRoomGroups((prevRoomGroups) => {
+      const roomGroup = prevRoomGroups.find((rg) => rg.id === roomGroupId);
+      if (!roomGroup) return prevRoomGroups;
 
-    // 방이 가득 찼는지 확인
-    if (roomGroup.travelers.length >= roomGroup.maxCapacity) {
-      alert('이 방은 이미 가득 찼습니다.');
-      return;
-    }
-
-    // 미배정 목록에서 제거
-    setUnassignedTravelers(unassignedTravelers.filter((t) => t.id !== traveler.id));
-
-    // 방에 추가
-    const updatedRoomGroups = roomGroups.map((rg) => {
-      if (rg.id === roomGroupId) {
-        return {
-          ...rg,
-          travelers: [...rg.travelers, traveler],
-        };
+      // 방이 가득 찼는지 확인
+      if (roomGroup.travelers.length >= roomGroup.maxCapacity) {
+        alert('이 방은 이미 가득 찼습니다.');
+        return prevRoomGroups;
       }
-      return rg;
-    });
-    setRoomGroups(updatedRoomGroups);
 
+      // 여행자가 이미 다른 방에 있는지 확인하고 제거
+      const updatedRoomGroups = prevRoomGroups.map((rg) => {
+        // 기존 방에서 여행자 제거
+        if (rg.travelers.some((t) => t.id === traveler.id)) {
+          return {
+            ...rg,
+            travelers: rg.travelers.filter((t) => t.id !== traveler.id),
+          };
+        }
+        return rg;
+      });
+
+      // 새 방에 여행자 추가
+      return updatedRoomGroups.map((rg) => {
+        if (rg.id === roomGroupId) {
+          // 이미 같은 방에 있는지 확인
+          if (rg.travelers.some((t) => t.id === traveler.id)) {
+            return rg;
+          }
+          return {
+            ...rg,
+            travelers: [...rg.travelers, traveler],
+          };
+        }
+        return rg;
+      });
+    });
+
+    // 미배정 목록에서도 제거 (함수형 업데이트)
+    setUnassignedTravelers((prevUnassigned) =>
+      prevUnassigned.filter((t) => t.id !== traveler.id)
+    );
+
+    setIsDragging(false);
+    setDragOverRoomId(null);
     draggedTravelerRef.current = null;
   };
 
@@ -2324,13 +2372,50 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
                 {availableCabinTypes.map((cabinType) => {
                   const purchase = cabinPurchases.find((p) => p.cabinType === cabinType);
                   const quantity = purchase?.quantity || 0;
-                  const pricingInfo = getPricingInfo(cabinType);
+                  // 요금표에서 해당 객실 타입의 모든 요금 정보 가져오기
+                  const allPricingForCabin = selectedTrip?.product?.MallProductContent?.layout?.pricing?.filter(
+                    (p: PricingRow) => p.cabinType === cabinType
+                  ) || [];
+                  
                   return (
                     <div key={cabinType} className="rounded-lg border border-gray-200 p-4">
-                      <div className="mb-2 flex items-center gap-4">
-                        <label className="w-24 text-sm font-medium text-gray-700">
+                      <div className="mb-3">
+                        <label className="text-sm font-semibold text-gray-900">
                           {cabinType}
                         </label>
+                        {quantity > 0 && (
+                          <span className="ml-2 text-sm font-bold text-blue-600">
+                            ({quantity}개 구매)
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* 요금표 정보 표시 */}
+                      {allPricingForCabin.length > 0 ? (
+                        <div className="mb-3 space-y-1">
+                          {allPricingForCabin.map((pricing: PricingRow, index: number) => (
+                            <div key={index} className="text-xs text-gray-600">
+                              <span className="font-medium">{pricing.fareCategory || ''}</span>
+                              {pricing.fareLabel && (
+                                <span className="ml-1 text-gray-500">({pricing.fareLabel})</span>
+                              )}
+                              {pricing.adultPrice && (
+                                <span className="ml-2">
+                                  성인: {pricing.adultPrice.toLocaleString()}원
+                                </span>
+                              )}
+                              {pricing.childPrice && (
+                                <span className="ml-2">
+                                  아동: {pricing.childPrice.toLocaleString()}원
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                      
+                      <div className="flex items-center gap-4">
+                        <label className="text-xs text-gray-600">구매 수량:</label>
                         <input
                           type="number"
                           min="0"
@@ -2342,20 +2427,6 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
                         />
                         <span className="text-sm text-gray-500">개</span>
                       </div>
-                      {pricingInfo && (
-                        <div className="mt-2 text-xs text-gray-600">
-                          {pricingInfo.adultPrice && (
-                            <span className="font-medium">
-                              성인: {pricingInfo.adultPrice.toLocaleString()}원
-                            </span>
-                          )}
-                          {pricingInfo.childPrice && (
-                            <span className="ml-2">
-                              아동: {pricingInfo.childPrice.toLocaleString()}원
-                            </span>
-                          )}
-                        </div>
-                      )}
 
       {/* 고객별 일괄 발송 모달 */}
       {showBulkSendModal && (
@@ -2629,7 +2700,8 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
                       onUpdate={(field, value) => updateUnassignedTraveler(traveler.id, field, value)}
                       onRemove={() => removeUnassignedTraveler(traveler.id)}
                       onPassportScan={() => handlePassportScan(traveler.id)}
-                      onDragStart={() => handleDragStart(traveler)}
+                      onDragStart={(e) => handleDragStart(e, traveler)}
+                      onDragEnd={handleDragEnd}
                       fileInputRef={(el) => {
                         fileInputRefs.current[traveler.id] = el;
                       }}
@@ -2647,8 +2719,15 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
             {roomGroups.map((roomGroup) => (
               <div
                 key={roomGroup.id}
-                className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4"
-                onDragOver={handleDragOver}
+                className={`rounded-lg border-2 p-4 transition-all ${
+                  dragOverRoomId === roomGroup.id
+                    ? 'border-blue-500 bg-blue-100 shadow-lg scale-105'
+                    : roomGroup.travelers.length >= roomGroup.maxCapacity
+                    ? 'border-gray-300 bg-gray-100'
+                    : 'border-blue-200 bg-blue-50'
+                }`}
+                onDragOver={(e) => handleDragOver(e, roomGroup.id)}
+                onDragLeave={handleDragLeave}
                 onDrop={() => handleDropToRoom(roomGroup.id)}
               >
                 <div className="mb-3 flex items-center justify-between">
@@ -2682,7 +2761,8 @@ export default function ReservationForm({ partnerId, trips }: ReservationFormPro
                       }}
                       onRemove={() => removeTravelerFromRoom(roomGroup.id, traveler.id)}
                       onPassportScan={() => handlePassportScan(traveler.id)}
-                      onDragStart={() => handleDragStart(traveler)}
+                      onDragStart={(e) => handleDragStart(e, traveler)}
+                      onDragEnd={handleDragEnd}
                       fileInputRef={(el) => {
                         fileInputRefs.current[traveler.id] = el;
                       }}
@@ -2978,7 +3058,8 @@ interface TravelerCardProps {
   onUpdate: (field: keyof Traveler, value: any) => void;
   onRemove: () => void;
   onPassportScan: () => void;
-  onDragStart: () => void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
   fileInputRef: (el: HTMLInputElement | null) => void;
   departureDate?: string; // ⚠️ 출발일 전달 (만료일 검증용)
   customerPassportImageUrl?: string | null; // 고객이 업로드한 여권 이미지 URL
@@ -2991,6 +3072,7 @@ function TravelerCard({
   onRemove,
   onPassportScan,
   onDragStart,
+  onDragEnd,
   fileInputRef,
   departureDate,
   customerPassportImageUrl,
@@ -3023,8 +3105,9 @@ function TravelerCard({
   return (
     <div
       draggable
-      onDragStart={onDragStart}
-      className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+      onDragStart={(e) => onDragStart(e)}
+      onDragEnd={() => onDragEnd?.()}
+      className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm cursor-move hover:shadow-md transition-shadow"
     >
       <div className="mb-3 flex items-center justify-between">
         <h4 className="font-semibold text-gray-800">여행자 정보</h4>

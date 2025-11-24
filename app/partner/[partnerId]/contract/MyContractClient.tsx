@@ -72,6 +72,8 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
   const [deletingContractId, setDeletingContractId] = useState<number | null>(null);
   const [showSendContractModal, setShowSendContractModal] = useState(false);
   const [contractType, setContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [currentProfileId, setCurrentProfileId] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const loadContract = async () => {
@@ -98,9 +100,18 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
         const res = await fetch('/api/affiliate/my-profile');
         const json = await res.json();
         
-        if (res.ok && json?.ok && json?.profile?.type === 'BRANCH_MANAGER') {
-          setIsBranchManager(true);
-          loadManagedContracts();
+        if (res.ok && json?.ok) {
+          const profile = json.profile;
+          setUserProfile(profile);
+          setCurrentProfileId(profile?.id);
+          
+          if (profile?.type === 'BRANCH_MANAGER') {
+            setIsBranchManager(true);
+            setContractType('BRANCH_MANAGER');
+            loadManagedContracts();
+          } else if (profile?.type === 'SALES_AGENT') {
+            setContractType('SALES_AGENT');
+          }
         }
       } catch (error: any) {
         console.error('[MyContract] check branch manager error', error);
@@ -307,12 +318,14 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
               <br />
               계약서를 작성하신 경우 관리자 승인을 기다려주세요.
             </p>
-            <Link
-              href={`/partner/${partnerId}/dashboard`}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
-            >
-              대시보드로 돌아가기
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+              <Link
+                href={`/partner/${partnerId}/dashboard`}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
+              >
+                대시보드로 돌아가기
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -641,6 +654,42 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
               })()}
             </div>
           </section>
+
+          {/* 계약서 PDF */}
+          {(contract as any).pdfUrl && (
+            <section className="rounded-3xl bg-blue-50 border border-blue-200 p-6 shadow-lg">
+              <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <FiFileText className="text-blue-600" />
+                계약서 PDF
+              </h2>
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  {contract.status === 'approved' || contract.status === 'completed' 
+                    ? '승인된 계약서 PDF를 확인하실 수 있습니다.'
+                    : '계약서 PDF를 확인하실 수 있습니다.'}
+                </p>
+                <div className="flex gap-3">
+                  <a
+                    href={(contract as any).pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                  >
+                    <FiExternalLink className="w-4 h-4" />
+                    PDF 보기
+                  </a>
+                  <a
+                    href={(contract as any).pdfUrl}
+                    download
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                  >
+                    <FiFileText className="w-4 h-4" />
+                    PDF 다운로드
+                  </a>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* 계약서 관리 (대리점장만) */}
           {isBranchManager && (
