@@ -622,6 +622,85 @@ export default function CustomersPage() {
           </div>
         </div>
 
+        {/* 활성 필터 표시 (필터 칩) */}
+        {(search || status !== 'all' || certificateType !== 'all' || monthFilter || selectedManagerId) && (
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-gray-700">활성 필터:</span>
+            {search && (
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium flex items-center gap-2">
+                검색: {search}
+                <button
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                  }}
+                  className="hover:text-blue-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </span>
+            )}
+            {status !== 'all' && (
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium flex items-center gap-2">
+                상태: {status === 'active' ? '활성' : status === 'hibernated' ? '동면' : '잠금'}
+                <button
+                  onClick={() => setStatus('all')}
+                  className="hover:text-green-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </span>
+            )}
+            {certificateType !== 'all' && (
+              <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium flex items-center gap-2">
+                인증서: {certificateType === 'purchase_confirmed' ? '구매확인' : '환불'}
+                <button
+                  onClick={() => setCertificateType('all')}
+                  className="hover:text-purple-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </span>
+            )}
+            {monthFilter && (
+              <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm font-medium flex items-center gap-2">
+                가입월: {monthFilter}
+                <button
+                  onClick={() => setMonthFilter('')}
+                  className="hover:text-orange-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </span>
+            )}
+            {selectedManagerId && (
+              <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm font-medium flex items-center gap-2">
+                대리점장: {managers.find(m => m.id.toString() === selectedManagerId)?.displayName || selectedManagerId}
+                <button
+                  onClick={() => setSelectedManagerId('')}
+                  className="hover:text-indigo-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={() => {
+                setSearchInput('');
+                setSearch('');
+                setStatus('all');
+                setCertificateType('all');
+                setMonthFilter('');
+                setSelectedManagerId('');
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
+              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-sm font-medium transition-colors"
+            >
+              모든 필터 초기화
+            </button>
+          </div>
+        )}
+
         {/* 페이지 크기 선택 및 엑셀 다운로드 */}
         <div className="mt-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

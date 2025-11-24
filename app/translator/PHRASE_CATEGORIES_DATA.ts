@@ -54,6 +54,10 @@ export const PHRASE_CATEGORIES_DATA = {
         { ko: '이거 다른 사이즈 있나요?', target: 'Do you have this in a different size?', pronunciation: '(두 유 해브 디스 인 어 디퍼런트 사이즈?)', emoji: '📏' },
         { ko: '카드로 결제할 수 있나요?', target: 'Can I pay by card?', pronunciation: '(캔 아이 페이 바이 카드?)', emoji: '💳' },
         { ko: '환불 가능할까요?', target: 'Can I get a refund?', pronunciation: '(캔 아이 겟 어 리펀드?)', emoji: '↩️' },
+        { ko: '이거 다른 색상 있나요?', target: 'Do you have this in a different color?', pronunciation: '(두 유 해브 디스 인 어 디퍼런트 컬러?)', emoji: '🎨' },
+        { ko: '이거 입어봐도 될까요?', target: 'Can I try this on?', pronunciation: '(캔 아이 트라이 디스 온?)', emoji: '👕' },
+        { ko: '할인 있나요?', target: 'Is there a discount?', pronunciation: '(이즈 데어 어 디스카운트?)', emoji: '🏷️' },
+        { ko: '포장해 주세요', target: 'Please wrap it up', pronunciation: '(플리즈 랩 잇 업)', emoji: '📦' },
       ],
     },
     {
@@ -66,6 +70,9 @@ export const PHRASE_CATEGORIES_DATA = {
         { ko: '멀리 있나요?', target: 'Is it far?', pronunciation: '(이즈 잇 파?)', emoji: '📍' },
         { ko: '지도 받을 수 있나요?', target: 'Could I get a map?', pronunciation: '(쿠드 아이 겟 어 맵?)', emoji: '🗺️' },
         { ko: '가장 가까운 지하철역이 어디인가요?', target: 'Where is the nearest subway station?', pronunciation: '(웨어 이즈 더 니어리스트 서브웨이 스테이션?)', emoji: '🚇' },
+        { ko: '택시 타는 곳이 어디인가요?', target: 'Where can I get a taxi?', pronunciation: '(웨어 캔 아이 겟 어 택시?)', emoji: '🚕' },
+        { ko: '공항까지 어떻게 가나요?', target: 'How do I get to the airport?', pronunciation: '(하우 두 아이 겟 투 더 에어포트?)', emoji: '✈️' },
+        { ko: '이 주소로 가주세요', target: 'Please take me to this address', pronunciation: '(플리즈 테이크 미 투 디스 어드레스)', emoji: '📍' },
       ],
     },
     {
@@ -77,6 +84,10 @@ export const PHRASE_CATEGORIES_DATA = {
         { ko: '몇 시에 문 여나요?', target: 'What time does it open?', pronunciation: '(왓 타임 더즈 잇 오픈?)', emoji: '🕐' },
         { ko: '몇 시에 문 닫나요?', target: 'What time does it close?', pronunciation: '(왓 타임 더즈 잇 클로즈?)', emoji: '🕐' },
         { ko: '여기서 사진 찍어도 되나요?', target: 'Is it okay to take a picture here?', pronunciation: '(이즈 잇 오케이 투 테이크 어 픽처 히어?)', emoji: '📷' },
+        { ko: '티켓 한 장 주세요', target: 'One ticket, please', pronunciation: '(원 티켓, 플리즈)', emoji: '🎫' },
+        { ko: '가이드 투어 있나요?', target: 'Do you have a guided tour?', pronunciation: '(두 유 해브 어 가이디드 투어?)', emoji: '👨‍🏫' },
+        { ko: '입장료는 얼마인가요?', target: 'How much is the admission fee?', pronunciation: '(하우 머치 이즈 더 어드미션 피?)', emoji: '💵' },
+        { ko: '이곳의 유명한 명소가 뭔가요?', target: 'What are the famous attractions here?', pronunciation: '(왓 아 더 페이머스 어트랙션즈 히어?)', emoji: '⭐' },
       ],
     },
     {

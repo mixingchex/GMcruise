@@ -1791,20 +1791,36 @@ export default function AdminMessagesPage() {
                 </p>
               </div>
 
-              {/* 긴급공지 체크박스 (크루즈가이드 메시지일 때만 표시) */}
+              {/* 긴급공지 체크박스 (크루즈가이드 메시지일 때만 표시) - 개선된 디자인 */}
               {formData.sendMethod === 'cruise-guide' && (
-                <div className="flex items-center gap-3 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                <div className={`flex items-center gap-3 p-5 rounded-xl border-2 transition-all ${
+                  formData.isUrgent 
+                    ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-400 shadow-lg animate-pulse' 
+                    : 'bg-gray-50 border-gray-200'
+                }`}>
                   <input
                     type="checkbox"
                     id="isUrgent"
                     checked={formData.isUrgent}
                     onChange={(e) => setFormData({ ...formData, isUrgent: e.target.checked, messageType: e.target.checked ? 'announcement' : 'info' })}
-                    className="w-5 h-5 text-red-600"
+                    className="w-6 h-6 text-red-600 cursor-pointer"
                   />
-                  <label htmlFor="isUrgent" className="flex items-center gap-2 text-red-800 font-bold cursor-pointer">
-                    <FiAlertCircle size={20} />
-                    긴급공지로 발송 (스마트폰 알림 및 팝업 표시)
+                  <label htmlFor="isUrgent" className="flex items-center gap-3 text-base font-bold cursor-pointer flex-1">
+                    <FiAlertCircle size={24} className={formData.isUrgent ? 'text-red-600 animate-bounce' : 'text-gray-400'} />
+                    <div>
+                      <div className={formData.isUrgent ? 'text-red-800' : 'text-gray-700'}>
+                        🚨 긴급공지로 발송
+                      </div>
+                      <div className="text-sm font-normal text-gray-600 mt-1">
+                        스마트폰 푸시 알림 및 앱 내 팝업으로 즉시 표시됩니다
+                      </div>
+                    </div>
                   </label>
+                  {formData.isUrgent && (
+                    <div className="px-3 py-1 bg-red-600 text-white rounded-full text-xs font-bold animate-pulse">
+                      긴급
+                    </div>
+                  )}
                 </div>
               )}
 

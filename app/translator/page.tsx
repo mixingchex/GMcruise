@@ -821,7 +821,7 @@ export default function TranslatorPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-3 rounded-xl bg-green-600 text-white px-6 md:px-8 py-4 md:py-5 text-lg md:text-xl font-bold shadow-lg hover:bg-green-700 active:scale-95 transition-all"
+              className="inline-flex items-center gap-3 rounded-xl bg-green-600 text-white px-6 md:px-8 py-4 md:py-5 text-lg md:text-xl font-bold shadow-lg hover:bg-green-700 active:scale-95 transition-all min-h-[60px] md:min-h-[70px]"
             >
               <FiCamera size={28} className="md:w-8 md:h-8" />
               <span>📷 사진으로 번역</span>
@@ -1143,8 +1143,8 @@ export default function TranslatorPage() {
               onTouchStart={() => startPressToTalk(p.from, p.to)}
               onTouchEnd={stopPressToTalk}
               className={`
-                w-full px-4 md:px-5 py-4 md:py-5 rounded-xl text-lg md:text-xl font-bold shadow-lg
-                min-h-[80px] md:min-h-[96px]
+                w-full px-4 md:px-5 py-5 md:py-6 rounded-xl text-lg md:text-xl font-bold shadow-lg
+                min-h-[120px] md:min-h-[140px]
                 ${listening === 'recording' 
                   ? 'bg-gradient-to-r from-red-600 to-red-500 text-white animate-pulse' 
                   : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600'

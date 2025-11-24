@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FiChevronLeft, FiTrash2, FiPlus, FiCheck, FiChevronDown, FiChevronUp, FiX, FiVolume2, FiPause } from 'react-icons/fi';
@@ -33,6 +33,7 @@ export default function ChecklistPage() {
   const [speakingCategory, setSpeakingCategory] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [testModeInfo, setTestModeInfo] = useState<TestModeInfo | null>(null);
+  const hasCreatedDefaultsRef = useRef(false); // 기본 항목 생성 플래그
 
   useEffect(() => {
     // 테스트 모드 정보 로드
@@ -224,8 +225,13 @@ export default function ChecklistPage() {
     { id: Date.now() + 29, text: '지퍼백 (액체류 담기)', completed: false },
   ];
 
-  // 기본 항목을 서버에 저장하는 함수
+  // 기본 항목을 서버에 저장하는 함수 (한 번만 실행되도록 보호)
   const createDefaultItemsOnServer = async (defaultItems: ChecklistItem[]) => {
+    // 이미 실행 중이면 중복 실행 방지
+    if (hasCreatedDefaultsRef.current && items.length > 0) {
+      return;
+    }
+    
     for (const item of defaultItems) {
       try {
         const res = await fetch('/api/checklist', {
@@ -243,54 +249,70 @@ export default function ChecklistPage() {
             const updated = prev.map(localItem =>
               localItem.id === item.id ? finalItem : localItem
             );
-            // localStorage도 업데이트
-            if (typeof window !== 'undefined') {
-              const STORAGE_KEY = 'cruise-guide-checklist';
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-            }
             return updated;
           });
-          // 서버 저장 간격 조절
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // 서버 저장 간격 조절 (429 에러 방지)
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } else if (res.status === 429) {
+          // Rate limit이면 더 긴 대기
+          console.warn('[Checklist] Rate limit, waiting longer...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       } catch (error) {
         console.error('[Checklist] Error creating default item on server:', error);
+        // 에러 발생 시에도 계속 진행 (다음 항목 시도)
+        await new Promise(resolve => setTimeout(resolve, 200));
       }
     }
   };
 
-  // localStorage에서 서버로 동기화하는 함수
-  const syncLocalStorageToServer = async (localItems: ChecklistItem[]) => {
+  // localStorage에서 서버로 마이그레이션하는 함수 (한 번만 실행)
+  const migrateFromLocalStorage = async () => {
+    if (typeof window === 'undefined') return;
+    
     const STORAGE_KEY = 'cruise-guide-checklist';
+    const MIGRATION_KEY = 'checklist-migrated-to-server';
+    
+    // 이미 마이그레이션 했으면 스킵
+    const migrated = localStorage.getItem(MIGRATION_KEY);
+    if (migrated) return;
     
     try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        localStorage.setItem(MIGRATION_KEY, 'true');
+        return;
+      }
+
+      const localItems: ChecklistItem[] = JSON.parse(saved);
+      
+      if (!Array.isArray(localItems) || localItems.length === 0) {
+        localStorage.setItem(MIGRATION_KEY, 'true');
+        return;
+      }
+
       // 서버에서 현재 항목들 가져오기
       const res = await fetch('/api/checklist', {
         credentials: 'include',
       });
       
       if (!res.ok) {
-        console.warn('[Checklist] Failed to fetch server items for sync');
+        console.warn('[Checklist] Failed to fetch server items for migration');
         return;
       }
       
       const data = await res.json();
       const serverItems = data.items || [];
-      const serverItemIds = new Set(serverItems.map((item: ChecklistItem) => item.id));
+      const serverTexts = new Set(serverItems.map((item: ChecklistItem) => item.text));
       
       // localStorage에만 있고 서버에 없는 항목들을 찾아서 서버에 저장
-      const itemsToSync = localItems.filter(item => {
-        // 숫자 ID이고 서버에 없는 항목 (임시 ID로 생성된 항목들)
-        return typeof item.id === 'number' && !serverItemIds.has(item.id);
-      });
+      const itemsToMigrate = localItems.filter(item => !serverTexts.has(item.text));
       
-      if (itemsToSync.length > 0) {
-        console.log(`[Checklist] Syncing ${itemsToSync.length} items to server...`);
-        
-        let updatedLocalItems = [...localItems];
+      if (itemsToMigrate.length > 0) {
+        console.log(`[Checklist] Migrating ${itemsToMigrate.length} items from localStorage to server...`);
         
         // 각 항목을 서버에 저장
-        for (const item of itemsToSync) {
+        for (const item of itemsToMigrate) {
           try {
             const addRes = await fetch('/api/checklist', {
               method: 'POST',
@@ -305,140 +327,116 @@ export default function ChecklistPage() {
               const serverItem = await addRes.json();
               const finalItem = serverItem.item || serverItem;
               
-              // localStorage에서 임시 ID를 서버 ID로 업데이트
-              updatedLocalItems = updatedLocalItems.map(localItem =>
-                localItem.id === item.id ? finalItem : localItem
-              );
-              
               // 완료 상태도 동기화
-              if (item.completed !== finalItem.completed) {
-                await fetch(`/api/checklist/${finalItem.id}`, {
-                  method: 'PUT',
+              if (item.completed && !finalItem.completed) {
+                const numericId = typeof finalItem.id === 'string' ? parseInt(finalItem.id) : finalItem.id;
+                await fetch('/api/checklist', {
+                  method: 'PATCH',
                   headers: {
                     'Content-Type': 'application/json',
                   },
                   credentials: 'include',
-                  body: JSON.stringify({ completed: item.completed }),
+                  body: JSON.stringify({ id: numericId, completed: true }),
                 });
-                // 완료 상태도 업데이트
-                updatedLocalItems = updatedLocalItems.map(localItem =>
-                  localItem.id === finalItem.id ? { ...localItem, completed: item.completed } : localItem
-                );
               }
+              
+              // 서버 저장 간격 조절 (429 에러 방지)
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
-          } catch (syncError) {
-            console.error('[Checklist] Error syncing item to server:', syncError);
-          }
-        }
-        
-        // localStorage 업데이트
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedLocalItems));
-        }
-        
-        // 동기화 후 서버에서 다시 로드하여 최신 상태로 업데이트
-        const reloadRes = await fetch('/api/checklist', {
-          credentials: 'include',
-        });
-        
-        if (reloadRes.ok) {
-          const reloadData = await reloadRes.json();
-          const reloadItems = reloadData.items || reloadData;
-          if (Array.isArray(reloadItems)) {
-            setItems(reloadItems);
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(reloadItems));
-            }
+          } catch (migrateError) {
+            console.error('[Checklist] Error migrating item to server:', migrateError);
           }
         }
       }
+
+      // 마이그레이션 완료 표시
+      localStorage.setItem(MIGRATION_KEY, 'true');
+      localStorage.removeItem(STORAGE_KEY); // 기존 데이터 삭제
+      
+      console.log(`✅ ${itemsToMigrate.length}개 체크리스트 항목 마이그레이션 완료`);
+      
+      // 서버에서 다시 로드
+      await loadItems();
     } catch (error) {
-      console.error('[Checklist] Error syncing to server:', error);
+      console.error('[Checklist] Migration error:', error);
     }
   };
 
-  // API: 체크리스트 목록 불러오기 (API 실패 시 localStorage 사용)
-  const loadItems = async () => {
+  // API: 체크리스트 목록 불러오기 (API 전용)
+  const loadItems = async (skipError = false) => {
     setIsLoading(true);
-    setError(null);
-    
-    const STORAGE_KEY = 'cruise-guide-checklist';
+    if (!skipError) {
+      setError(null);
+    }
     
     try {
       const res = await fetch('/api/checklist', {
         credentials: 'include',
       });
       
-      if (res.ok) {
-        const data = await res.json();
-        const items = data.items || data;
-        if (Array.isArray(items)) {
-          // 항목이 없으면 기본 항목 생성
-          if (items.length === 0) {
-            const defaultItems = getDefaultItems();
-            setItems(defaultItems);
-            // localStorage에 저장
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultItems));
-            }
-            // 백그라운드에서 서버에 저장
-            createDefaultItemsOnServer(defaultItems).catch(console.error);
-          } else {
-            setItems(items);
-            // localStorage에도 백업 저장
-            if (typeof window !== 'undefined') {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-            }
-          }
-          return;
+      if (!res.ok) {
+        // 401이나 429 오류는 재시도하지 않음
+        if (res.status === 401) {
+          throw new Error('인증이 필요합니다. 로그인 후 다시 시도해주세요.');
         }
+        if (res.status === 429) {
+          throw new Error('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.');
+        }
+        throw new Error('체크리스트를 불러올 수 없습니다.');
       }
       
-      // API 실패 시 localStorage에서 로드
-      throw new Error('API failed, trying localStorage');
+      const data = await res.json();
+      const items = data.items || data;
+      
+      if (Array.isArray(items)) {
+        // 서버에서 받은 항목을 클라이언트 형식으로 변환 (id: number 유지)
+        const formattedItems = items.map((item: any) => ({
+          id: typeof item.id === 'number' ? item.id : parseInt(item.id) || item.id,
+          text: item.text || '',
+          completed: item.completed || false,
+        }));
+        
+        // 항목이 없으면 기본 항목 생성 (한 번만)
+        if (formattedItems.length === 0 && !skipError && !hasCreatedDefaultsRef.current) {
+          hasCreatedDefaultsRef.current = true;
+          const defaultItems = getDefaultItems();
+          setItems(defaultItems);
+          // 백그라운드에서 서버에 저장 (한 번만 실행되도록 플래그 사용)
+          createDefaultItemsOnServer(defaultItems).catch(console.error);
+        } else {
+          setItems(formattedItems);
+        }
+      } else {
+        throw new Error('잘못된 데이터 형식입니다.');
+      }
     } catch (err: any) {
-      console.error('Error loading checklist from API, trying localStorage:', err);
-      
-      // localStorage에서 로드 시도
-      if (typeof window !== 'undefined') {
-        try {
-          const saved = localStorage.getItem(STORAGE_KEY);
-          if (saved) {
-            const localItems = JSON.parse(saved);
-            if (Array.isArray(localItems) && localItems.length > 0) {
-              setItems(localItems);
-              console.log('[Checklist] Loaded from localStorage:', localItems.length, 'items');
-              
-              // 백그라운드에서 서버로 동기화 시도
-              syncLocalStorageToServer(localItems).catch(console.error);
-              
-              // localStorage에 저장된 데이터가 있으면 에러 표시하지 않음
-              setError(null);
-              return;
-            }
-          }
-        } catch (e) {
-          console.error('Error parsing localStorage:', e);
-        }
+      // 에러는 항상 로깅
+      console.error('[Checklist] Error loading from API:', err);
+      if (!skipError) {
+        setError(`체크리스트를 불러오는 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
       }
       
-      // localStorage에도 없으면 기본 항목 생성
-      const defaultItems = getDefaultItems();
-      setItems(defaultItems);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultItems));
+      // 401이나 429 오류가 아니고, 아직 기본 항목을 생성하지 않았으면 생성
+      if (err.message && !err.message.includes('인증') && !err.message.includes('너무 많') && !hasCreatedDefaultsRef.current) {
+        hasCreatedDefaultsRef.current = true;
+        const defaultItems = getDefaultItems();
+        setItems(defaultItems);
+        // 백그라운드에서 서버에 저장 시도 (한 번만)
+        createDefaultItemsOnServer(defaultItems).catch(console.error);
       }
-      // 백그라운드에서 서버에 저장
-      createDefaultItemsOnServer(defaultItems).catch(console.error);
-      setError(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 마운트 시 불러오기
+  // 마운트 시 불러오기 및 마이그레이션
   useEffect(() => {
-    loadItems();
+    // 먼저 localStorage에서 서버로 마이그레이션 (한 번만)
+    migrateFromLocalStorage().then(() => {
+      // 마이그레이션 후 서버에서 로드
+      loadItems();
+    });
+    
     // iOS 키보드 가림 방지용 safest area 여백
     document.body.classList.add('pb-24', 'sm:pb-0');
     return () => {
@@ -450,29 +448,10 @@ export default function ChecklistPage() {
     };
   }, []);
 
-  // 아이템 추가 (API 실패 시 localStorage 사용)
+  // 아이템 추가 (API 전용)
   const handleAdd = async (value?: string) => {
     const text = (value !== undefined ? value : newText).trim();
     if (!text) return;
-    
-    const STORAGE_KEY = 'cruise-guide-checklist';
-    
-    // 즉시 로컬 상태에 추가 (낙관적 업데이트)
-    const newItem: ChecklistItem = {
-      id: Date.now(), // 임시 ID
-      text,
-      completed: false,
-    };
-    
-    let updatedItems: ChecklistItem[] = [];
-    setItems(prev => {
-      updatedItems = [...prev, newItem];
-      // localStorage에도 즉시 저장
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
-      }
-      return updatedItems;
-    });
     
     if (value === undefined) setNewText('');
     
@@ -480,7 +459,6 @@ export default function ChecklistPage() {
     setError(null);
     hapticClick();
     
-    // API 호출 시도 (실패해도 로컬에는 이미 저장됨)
     try {
       const res = await fetch('/api/checklist', {
         method: 'POST',
@@ -491,40 +469,40 @@ export default function ChecklistPage() {
         body: JSON.stringify({ text }),
       });
       
-      if (res.ok) {
-        const serverItem = await res.json();
-        const finalItem = serverItem.item || serverItem;
-        // 서버에서 받은 ID로 업데이트
-        setItems(prev => {
-          const finalItems = prev.map(item => 
-            item.id === newItem.id ? finalItem : item
-          );
-          // localStorage도 업데이트
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(finalItems));
-          }
-          return finalItems;
-        });
-      } else {
-        // API 실패 시 나중에 동기화할 수 있도록 에러 표시하지 않음
-        console.warn('[Checklist] Failed to save item to server, will sync later');
+      if (!res.ok) {
+        const errorData = res.status === 401 || res.status === 429 
+          ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
+          : await res.json().catch(() => ({ error: '항목 추가 실패' }));
+        
+        throw new Error(errorData.error || '항목 추가 실패');
       }
+      
+      const serverItem = await res.json();
+      const finalItem = serverItem.item || serverItem;
+      
+      // 서버에서 받은 항목을 상태에 추가
+      setItems(prev => [...prev, finalItem]);
     } catch (err: any) {
-      console.error('Error adding item to API (will sync later):', err);
-      // API 실패해도 로컬에는 이미 저장되어 있으므로 에러 표시하지 않음
-      // 나중에 동기화 함수가 자동으로 처리함
+      // 에러는 항상 로깅
+      console.error('[Checklist] Error adding item:', err);
+      setError(`항목 추가 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 완료 토글 (API 실패 시 localStorage 사용)
+  // 완료 토글 (API 전용)
   const handleToggle = async (id: number) => {
     const item = items.find(i => i.id === id);
     if (!item) return;
 
-    const STORAGE_KEY = 'cruise-guide-checklist';
     const newCompleted = !item.completed;
+    const oldCompleted = item.completed;
+
+    // 즉시 UI 업데이트 (낙관적 업데이트)
+    setItems(prev => prev.map(i => 
+      i.id === id ? { ...i, completed: newCompleted } : i
+    ));
 
     if (!item.completed) {
       hapticSuccess();
@@ -532,54 +510,59 @@ export default function ChecklistPage() {
       hapticClick();
     }
 
-    // 즉시 로컬 상태 업데이트
-    setItems(prev => {
-      const updatedItems = prev.map(i => 
-        i.id === id ? { ...i, completed: newCompleted } : i
-      );
-      // localStorage에도 즉시 저장
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
-      }
-      return updatedItems;
-    });
-
     setIsLoading(true);
     setError(null);
 
-    // API 호출 시도 (실패해도 로컬에는 이미 업데이트됨)
     try {
-      const res = await fetch(`/api/checklist/${id}`, {
-        method: 'PUT',
+      // PATCH 메서드 사용 (체크리스트 API는 PATCH 사용)
+      const res = await fetch('/api/checklist', {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ completed: newCompleted }),
+        body: JSON.stringify({ id, completed: newCompleted }),
       });
       
-      if (res.ok) {
-        const updated = await res.json();
-        setItems(prev => {
-          const finalItems = prev.map(i => 
-            i.id === id ? { ...i, ...updated } : i
-          );
-          // localStorage도 업데이트
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(finalItems));
-          }
-          return finalItems;
-        });
+      if (!res.ok) {
+        // 상태 롤백
+        setItems(prev => prev.map(i => 
+          i.id === id ? { ...i, completed: oldCompleted } : i
+        ));
+        
+        const errorData = res.status === 401 || res.status === 429 
+          ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
+          : await res.json().catch(() => ({ error: '상태 변경 실패' }));
+        
+        throw new Error(errorData.error || '상태 변경 실패');
       }
+      
+      const result = await res.json();
+      const updatedItem = result.item || result;
+      
+      // 서버에서 받은 업데이트된 항목으로 상태 업데이트
+      setItems(prev => prev.map(i => 
+        i.id === id ? updatedItem : i
+      ));
     } catch (err: any) {
-      console.error('Error toggling item in API (already updated locally):', err);
-      // API 실패해도 로컬에는 이미 업데이트되어 있으므로 에러 표시하지 않음
+      // 에러는 항상 로깅
+      console.error('[Checklist] Error toggling item:', err);
+      const errorMessage = err.message || '알 수 없는 오류';
+      setError(`상태 변경 중 오류가 발생했습니다: ${errorMessage}`);
+      
+      // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
+      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
+        // 짧은 딜레이 후 재시도 (무한 루프 방지)
+        setTimeout(() => {
+          loadItems(true).catch(console.error);
+        }, 1000);
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 항목 수정
+  // 항목 수정 (API 전용)
   const handleUpdate = async (id: number, newText: string) => {
     const trimmedText = newText.trim();
     if (!trimmedText) {
@@ -587,50 +570,62 @@ export default function ChecklistPage() {
       return;
     }
 
-    const STORAGE_KEY = 'cruise-guide-checklist';
-    
-    // 즉시 로컬 상태 업데이트
-    setItems(prev => {
-      const updatedItems = prev.map(i => 
-        i.id === id ? { ...i, text: trimmedText } : i
-      );
-      // localStorage에도 즉시 저장
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
-      }
-      return updatedItems;
-    });
+    const item = items.find(i => i.id === id);
+    const oldText = item?.text || '';
+
+    // 즉시 UI 업데이트 (낙관적 업데이트)
+    setItems(prev => prev.map(i => 
+      i.id === id ? { ...i, text: trimmedText } : i
+    ));
 
     setEditingItemId(null);
     setIsLoading(true);
     setError(null);
 
-    // API 호출 시도
     try {
-      const res = await fetch(`/api/checklist/${id}`, {
-        method: 'PUT',
+      // 체크리스트 API는 PATCH 메서드 사용
+      const res = await fetch('/api/checklist', {
+        method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ text: trimmedText }),
+        body: JSON.stringify({ id, text: trimmedText }),
       });
       
-      if (res.ok) {
-        const updated = await res.json();
-        setItems(prev => {
-          const finalItems = prev.map(i => 
-            i.id === id ? { ...i, ...updated } : i
-          );
-          // localStorage도 업데이트
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(finalItems));
-          }
-          return finalItems;
-        });
+      if (!res.ok) {
+        // 상태 롤백
+        setItems(prev => prev.map(i => 
+          i.id === id ? { ...i, text: oldText } : i
+        ));
+        
+        const errorData = res.status === 401 || res.status === 429 
+          ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
+          : await res.json().catch(() => ({ error: '수정 실패' }));
+        
+        throw new Error(errorData.error || '수정 실패');
       }
+      
+      const result = await res.json();
+      const updatedItem = result.item || result;
+      
+      // 서버에서 받은 업데이트된 항목으로 상태 업데이트
+      setItems(prev => prev.map(i => 
+        i.id === id ? updatedItem : i
+      ));
     } catch (err: any) {
-      console.error('Error updating item in API (already updated locally):', err);
+      // 에러는 항상 로깅
+      console.error('[Checklist] Error updating item:', err);
+      const errorMessage = err.message || '알 수 없는 오류';
+      setError(`수정 중 오류가 발생했습니다: ${errorMessage}`);
+      
+      // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
+      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
+        // 짧은 딜레이 후 재시도 (무한 루프 방지)
+        setTimeout(() => {
+          loadItems(true).catch(console.error);
+        }, 1000);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -648,55 +643,45 @@ export default function ChecklistPage() {
     setEditingText('');
   };
 
-  // 체크리스트 초기화 (리셋)
+  // 체크리스트 초기화 (리셋) - API 전용
   const handleReset = async () => {
     if (!window.confirm('체크리스트를 초기 상태로 리셋하시겠습니까?\n모든 항목과 체크 상태가 삭제되고 기본 항목으로 다시 시작됩니다.')) {
       return;
     }
-
-    const STORAGE_KEY = 'cruise-guide-checklist';
-    const defaultListKey = 'checklist-default-items-created';
     
     setIsLoading(true);
     setError(null);
 
     try {
-      // localStorage 초기화
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(STORAGE_KEY);
-        localStorage.removeItem(defaultListKey);
-      }
-
-      // API에서 모든 항목 삭제 시도
-      try {
-        const currentItems = items;
-        for (const item of currentItems) {
-          try {
-            await fetch(`/api/checklist/${item.id}`, {
-              method: 'DELETE',
-              credentials: 'include',
-            });
-          } catch (e) {
-            // 개별 삭제 실패는 무시
+      // API에서 모든 항목 삭제
+      const currentItems = items;
+      for (const item of currentItems) {
+        try {
+          const res = await fetch('/api/checklist', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({ id: item.id }),
+          });
+          
+          if (!res.ok) {
+            console.warn(`[Checklist] Failed to delete item ${item.id}`);
           }
+        } catch (e) {
+          console.error(`[Checklist] Error deleting item ${item.id}:`, e);
         }
-      } catch (e) {
-        // API 삭제 실패는 무시 (이미 localStorage는 삭제됨)
       }
 
       // 기본 항목 생성
       const defaultItems = getDefaultItems();
 
-      // localStorage에 저장
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultItems));
-        localStorage.setItem(defaultListKey, 'true');
-      }
-
       // 상태 업데이트
       setItems(defaultItems);
+      hasCreatedDefaultsRef.current = false;
 
-      // 백그라운드에서 API로 전송 시도
+      // 백그라운드에서 API로 전송
       createDefaultItemsOnServer(defaultItems).catch(console.error);
 
     } catch (err: any) {
@@ -707,38 +692,49 @@ export default function ChecklistPage() {
     }
   };
 
-  // 삭제 (API 실패 시 localStorage 사용)
+  // 삭제 (API 전용)
   const handleDelete = async (id: number) => {
     hapticImpact();
     
-    const STORAGE_KEY = 'cruise-guide-checklist';
-    
-    // 즉시 로컬 상태에서 제거
-    setItems(prev => {
-      const updatedItems = prev.filter(i => i.id !== id);
-      // localStorage에도 즉시 저장
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedItems));
-      }
-      return updatedItems;
-    });
+    // 즉시 UI에서 제거 (낙관적 업데이트)
+    const deletedItem = items.find(i => i.id === id);
+    setItems(prev => prev.filter(i => i.id !== id));
 
     setIsLoading(true);
     setError(null);
 
-    // API 호출 시도 (실패해도 로컬에서는 이미 삭제됨)
     try {
-      const res = await fetch(`/api/checklist/${id}`, {
+      const res = await fetch('/api/checklist', {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         credentials: 'include',
+        body: JSON.stringify({ id }),
       });
       
       if (!res.ok) {
-        console.warn('Failed to delete item from API, but removed from local storage');
+        // 상태 롤백
+        if (deletedItem) {
+          setItems(prev => [...prev, deletedItem]);
+        }
+        
+        const errorData = res.status === 401 || res.status === 429 
+          ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
+          : await res.json().catch(() => ({ error: '삭제 실패' }));
+        
+        throw new Error(errorData.error || '삭제 실패');
       }
     } catch (err: any) {
-      console.error('Error deleting item from API (already removed locally):', err);
-      // API 실패해도 로컬에서는 이미 삭제되어 있으므로 에러 표시하지 않음
+      // 에러는 항상 로깅
+      console.error('[Checklist] Error deleting item:', err);
+      const errorMessage = err.message || '알 수 없는 오류';
+      setError(`삭제 중 오류가 발생했습니다: ${errorMessage}`);
+      
+      // 상태 롤백
+      if (deletedItem) {
+        setItems(prev => [...prev, deletedItem]);
+      }
     } finally {
       setIsLoading(false);
     }

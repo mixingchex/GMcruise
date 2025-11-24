@@ -250,8 +250,8 @@ export default function PageBuilderPage() {
           title: '추천 크루즈',
           buttons: [
             { text: '10년 승무원 출신 인솔자', icon: '✓' },
-            { text: '한국 전문 크루즈 여행사', icon: '✓' },
-            { text: '빠르고 신속한 한국여행사', icon: '✓' },
+            { text: '전문 매니저 상담', icon: '✓' },
+            { text: '빠르고 신속한 스탭지원', icon: '✓' },
           ],
           rightBadge: { topText: '신뢰할 수 있는', bottomText: '한국 여행사' },
         };

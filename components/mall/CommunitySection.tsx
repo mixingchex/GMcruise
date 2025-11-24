@@ -44,7 +44,22 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
   const [recentPosts, setRecentPosts] = useState<CommunityPost[]>([]);
   const [popularPosts, setPopularPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newsPosts, setNewsPosts] = useState<CommunityNewsPost[]>([]);
+  // 초기값으로 정적 뉴스 설정 (로딩 중에도 표시)
+  const [newsPosts, setNewsPosts] = useState<CommunityNewsPost[]>(() => {
+    return STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
+      id: `static-${post.id}`,
+      title: post.title,
+      content: post.summary,
+      category: 'cruisedot-news',
+      authorName: '크루즈닷 본사',
+      images: [],
+      views: post.baseViews,
+      likes: post.baseLikes,
+      comments: Math.max(12, Math.floor(post.baseLikes / 2)),
+      createdAt: post.publishedAt,
+      href: `/community/cruisedot-news?post=${post.id}`,
+    })) as CommunityNewsPost[];
+  });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const recentScrollRef = useRef<HTMLDivElement>(null);
   const popularScrollRef = useRef<HTMLDivElement>(null);
@@ -164,12 +179,18 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
               };
             }) as (CommunityNewsPost & { isToday?: boolean })[];
           
-          // 오늘 생성된 글을 맨 앞으로 정렬
+          // 최신순 정렬 (오늘 생성된 글을 맨 앞으로, 그 다음 최신순)
           const sortedNews = mappedNews.sort((a, b) => {
-            if (a.isToday && !b.isToday) return -1;
-            if (!a.isToday && b.isToday) return 1;
-            // 둘 다 오늘이거나 둘 다 아니면 최신순
-            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            // 오늘 생성된 글을 맨 앞으로
+            const aIsToday = a.isToday || false;
+            const bIsToday = b.isToday || false;
+            if (aIsToday && !bIsToday) return -1;
+            if (!aIsToday && bIsToday) return 1;
+            
+            // 둘 다 오늘이거나 둘 다 아니면 최신순 (최신이 앞으로)
+            const aTime = new Date(a.createdAt).getTime();
+            const bTime = new Date(b.createdAt).getTime();
+            return bTime - aTime; // 최신이 앞으로 (큰 값이 앞으로)
           });
 
           if (sortedNews.length > 0) {
@@ -228,22 +249,65 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
     } catch (error: any) {
       if (error.name !== 'AbortError') {
         console.error('Failed to load community posts:', error);
+        // 에러 발생 시 fallback으로 정적 뉴스 표시
+        const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
+          id: `static-${post.id}`,
+          title: post.title,
+          content: post.summary,
+          category: 'cruisedot-news',
+          authorName: '크루즈닷 본사',
+          images: [],
+          views: post.baseViews,
+          likes: post.baseLikes,
+          comments: Math.max(12, Math.floor(post.baseLikes / 2)),
+          createdAt: post.publishedAt,
+          href: `/community/cruisedot-news?post=${post.id}`,
+        })) as CommunityNewsPost[];
+        setNewsPosts(fallbackNews);
       }
     }
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (!dateString) return '날짜 없음';
     
-    if (days === 0) return '오늘';
-    if (days === 1) return '어제';
-    if (days < 7) return `${days}일 전`;
-    if (days < 30) return `${Math.floor(days / 7)}주 전`;
-    if (days < 365) return `${Math.floor(days / 30)}개월 전`;
-    return `${Math.floor(days / 365)}년 전`;
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const postDate = new Date(date);
+      postDate.setHours(0, 0, 0, 0);
+      
+      // 오늘 생성된 경우
+      if (postDate.getTime() === today.getTime()) {
+        return '오늘';
+      }
+      
+      // 어제 생성된 경우
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      if (postDate.getTime() === yesterday.getTime()) {
+        return '어제';
+      }
+      
+      const diff = now.getTime() - date.getTime();
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      
+      if (days < 7) return `${days}일 전`;
+      if (days < 30) {
+        const weeks = Math.floor(days / 7);
+        return weeks === 1 ? '1주 전' : `${weeks}주 전`;
+      }
+      if (days < 365) {
+        const months = Math.floor(days / 30);
+        return months === 1 ? '1개월 전' : `${months}개월 전`;
+      }
+      const years = Math.floor(days / 365);
+      return years === 1 ? '1년 전' : `${years}년 전`;
+    } catch (error) {
+      return '날짜 오류';
+    }
   };
 
   const truncateContent = (content: string, maxLength: number = 80) => {
@@ -494,9 +558,8 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
         </div>
       )}
 
-      {/* 크루즈뉘우스 미리보기 */}
-      {newsPosts.length > 0 && (
-        <div className="mt-12 md:mt-16">
+      {/* 크루즈뉘우스 미리보기 - 항상 표시 */}
+      <div className="mt-12 md:mt-16">
           <div className="flex items-center justify-between mb-6 md:mb-8">
             <div>
               <div className="flex items-center gap-3 mb-2">
@@ -544,13 +607,21 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
               ref={newsScrollRef}
               className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
             >
-              {newsPosts.map((post, index) => {
+              {newsPosts.length === 0 ? (
+                <div className="flex-shrink-0 w-full text-center py-8 text-gray-500">
+                  크루즈뉘우스를 불러오는 중...
+                </div>
+              ) : (
+                newsPosts.map((post, index) => {
                 const postDate = new Date(post.createdAt);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 postDate.setHours(0, 0, 0, 0);
                 const isToday = postDate.getTime() === today.getTime();
-                const isLatest = index === 0;
+                // 정적 뉴스(static-로 시작하는 id)는 "최신" 태그를 붙이지 않음
+                // 데이터베이스에서 가져온 실제 뉴스(제가 생성한 글)는 첫 번째 카드에 "최신" 태그 표시
+                const isStaticNews = String(post.id).startsWith('static-');
+                const isLatest = index === 0 && !isStaticNews;
                 
                 return (
                 <Link
@@ -571,7 +642,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                       }`}>
                         {isToday && isLatest ? '🔥 오늘의 뉴스' : '크루즈뉘우스'}
                       </span>
-                      {isLatest && (
+                      {isLatest && !isStaticNews && (
                         <span className="px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-md animate-pulse">
                           최신
                         </span>
@@ -619,7 +690,9 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                     </div>
                   </div>
                 </Link>
-              )})}
+                );
+              })
+              )}
             </div>
             <button
               onClick={() => scrollRight(newsScrollRef)}
@@ -630,7 +703,6 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
             </button>
           </div>
         </div>
-      )}
 
       {/* 게시글이 없을 때 - 로그인한 사용자에게만 표시 */}
       {isLoggedIn && !loading && recentPosts.length === 0 && popularPosts.length === 0 && (

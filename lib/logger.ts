@@ -78,4 +78,12 @@ export const securityLogger = {
     // 의심스러운 활동은 항상 로깅
     console.warn('[Security] Suspicious activity:', { clientIp, activity });
   },
+  botDetected: (clientIp: string, userAgent: string | null, path: string) => {
+    // 봇 탐지는 보안 이슈이므로 항상 로깅
+    console.warn('[Security] Bot detected:', { clientIp, userAgent, path });
+  },
+  warn: (message: string, context?: any) => {
+    // 경고 메시지는 항상 로깅
+    console.warn('[Security]', message, context || '');
+  },
 };

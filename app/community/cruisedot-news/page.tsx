@@ -185,18 +185,26 @@ function CruisedotNewsPageContent() {
     const param = searchParams?.get("post");
     if (param) {
       setSelectedId(param);
+    } else {
+      // URL 파라미터가 없으면 최신 뉴스(첫 번째) 자동 선택
+      if (combinedPosts.length > 0) {
+        setSelectedId(combinedPosts[0].id);
+        // URL도 업데이트 (하지만 스크롤은 유지)
+        router.replace(`/community/cruisedot-news?post=${encodeURIComponent(combinedPosts[0].id)}`, {
+          scroll: false,
+        });
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, combinedPosts, router]);
 
   useEffect(() => {
     if (!combinedPosts.length) return;
-    setSelectedId((prev) => {
-      if (prev && combinedPosts.some((post) => post.id === prev)) {
-        return prev;
-      }
-      return combinedPosts[0].id;
-    });
-  }, [combinedPosts]);
+    // combinedPosts가 변경되면 최신 뉴스로 업데이트 (URL 파라미터가 없을 때만)
+    const param = searchParams?.get("post");
+    if (!param) {
+      setSelectedId(combinedPosts[0].id);
+    }
+  }, [combinedPosts, searchParams]);
 
   const selectedPost = useMemo(
     () => combinedPosts.find((post) => post.id === selectedId) || null,
@@ -369,14 +377,7 @@ function CruisedotNewsPageContent() {
                 </p>
               </div>
             </div>
-            {canWrite && (
-              <Link
-                href="/community/cruisedot-news/write"
-                className="inline-flex items-center gap-2 rounded-full bg-rose-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-rose-300/40 transition hover:-translate-y-0.5 hover:bg-rose-500"
-              >
-                ✍️ 칼럼 작성
-              </Link>
-            )}
+            {/* 크루즈뉘우스 작성은 관리자 패널에서만 가능 */}
           </div>
           {selectedPost && (
             <div className="rounded-3xl border border-slate-100 bg-white/70 p-6 shadow-sm backdrop-blur">

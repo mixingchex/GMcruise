@@ -1,0 +1,135 @@
+/**
+ * API 보호 유틸리티
+ * API 엔드포인트 보호 및 스크래핑 방지
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { isBot, isSuspiciousRequest, isScraperTool } from './bot-detection';
+import { securityLogger } from '@/lib/logger';
+
+/**
+ * API 요청 보호 미들웨어
+ * @param req NextRequest
+ * @returns NextResponse | null (차단 시)
+ */
+export function protectApiRequest(req: NextRequest): NextResponse | null {
+  const userAgent = req.headers.get('user-agent');
+  const headers = Object.fromEntries(req.headers.entries());
+  
+  // 봇 차단
+  if (isBot(userAgent)) {
+    securityLogger.warn(`[API Protection] Bot blocked: ${userAgent}`, {
+      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+      path: req.nextUrl.pathname,
+    });
+    
+    return NextResponse.json(
+      { error: 'Access denied' },
+      { status: 403 }
+    );
+  }
+  
+  // 스크래퍼 도구 차단
+  if (isScraperTool(userAgent)) {
+    securityLogger.warn(`[API Protection] Scraper blocked: ${userAgent}`, {
+      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+      path: req.nextUrl.pathname,
+    });
+    
+    return NextResponse.json(
+      { error: 'Access denied' },
+      { status: 403 }
+    );
+  }
+  
+  // 의심스러운 요청 차단
+  if (isSuspiciousRequest(userAgent, headers)) {
+    securityLogger.warn(`[API Protection] Suspicious request blocked`, {
+      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+      path: req.nextUrl.pathname,
+      userAgent,
+    });
+    
+    return NextResponse.json(
+      { error: 'Access denied' },
+      { status: 403 }
+    );
+  }
+  
+  return null; // 통과
+}
+
+/**
+ * API 응답 데이터 마스킹
+ * 민감한 정보를 마스킹하여 노출 방지
+ */
+export function maskSensitiveData(data: any): any {
+  if (typeof data !== 'object' || data === null) {
+    return data;
+  }
+  
+  if (Array.isArray(data)) {
+    return data.map(item => maskSensitiveData(item));
+  }
+  
+  const masked: any = {};
+  const sensitiveKeys = [
+    'password',
+    'token',
+    'apiKey',
+    'secret',
+    'key',
+    'authorization',
+    'cookie',
+    'session',
+    'phone',
+    'email',
+    'creditCard',
+    'ssn',
+  ];
+  
+  for (const [key, value] of Object.entries(data)) {
+    const lowerKey = key.toLowerCase();
+    const isSensitive = sensitiveKeys.some(sk => lowerKey.includes(sk));
+    
+    if (isSensitive && typeof value === 'string') {
+      masked[key] = value.length > 4 
+        ? `${value.substring(0, 2)}***${value.substring(value.length - 2)}`
+        : '***';
+    } else if (typeof value === 'object' && value !== null) {
+      masked[key] = maskSensitiveData(value);
+    } else {
+      masked[key] = value;
+    }
+  }
+  
+  return masked;
+}
+
+/**
+ * CORS 헤더 설정
+ * 허용된 도메인만 접근 가능하도록 설정
+ */
+export function getCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigins = [
+    process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr',
+    'https://www.cruisedot.co.kr',
+    'https://cruisedot.co.kr',
+  ];
+  
+  // 개발 환경에서는 localhost 허용
+  if (process.env.NODE_ENV === 'development') {
+    allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
+  }
+  
+  const isAllowed = origin && allowedOrigins.some(allowed => origin.startsWith(allowed));
+  
+  return {
+    'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0],
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400', // 24시간
+  };
+}
+

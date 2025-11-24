@@ -89,20 +89,19 @@ function PaymentPageContent({ productCode, productName, amount }: PaymentPagePro
           window.location.href = data.paymentUrl;
         } else if (data.paymentData) {
           // 결제 데이터가 있는 경우 웰컴페이먼츠 결제 페이지로 리다이렉트
-          // TODO: 웰컴페이먼츠 결제 페이지 URL 환경 변수에서 가져오기
-          const welcomePayUrl = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || '';
-          if (welcomePayUrl) {
-            window.location.href = `${welcomePayUrl}?${new URLSearchParams(data.paymentData).toString()}`;
-          } else {
-            // 결제 URL이 설정되지 않은 경우 성공 페이지로 이동
-            router.push(`/payment/success?orderId=${data.orderId || ''}`);
-          }
+          // 서버에서 이미 paymentUrl을 생성하여 반환하므로, paymentData가 있는 경우는 폴백 처리
+          // 서버 API에서 paymentUrl을 반환하도록 수정되었으므로 이 분기는 거의 사용되지 않음
+          alert('결제 URL을 생성할 수 없습니다. 관리자에게 문의해주세요.');
+          console.error('[Payment] paymentUrl not provided:', data);
         } else {
-          // 결제 데이터가 없는 경우 성공 페이지로 이동
-          router.push(`/payment/success?orderId=${data.orderId || ''}`);
+          // 결제 데이터가 없는 경우 에러 처리
+          alert('결제 정보를 받을 수 없습니다. 다시 시도해주세요.');
+          console.error('[Payment] No payment data received:', data);
         }
       } else {
-        alert('결제 요청 실패: ' + (data.error || 'Unknown error'));
+        const errorMessage = data.error || 'Unknown error';
+        alert('결제 요청 실패: ' + errorMessage);
+        console.error('[Payment] Request failed:', data);
       }
     } catch (error) {
       // 에러는 항상 로깅 (결제 오류는 중요)

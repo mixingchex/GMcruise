@@ -119,6 +119,8 @@ export default function AdminLayout({
     { href: '/admin/landing-pages', label: '랜딩페이지 관리', icon: '📄', section: 'marketing' },
     { href: '/admin/chat-bot', label: 'AI 지니 채팅봇(구매)', icon: '🤖' },
     { href: '/admin/community', label: '커뮤니티 관리', icon: '💬' },
+    { href: '/admin/community-bot', label: '커뮤니티 봇 관리', icon: '🤖💬', section: 'marketing' },
+    { href: '/admin/cruisedot-news', label: '크루즈뉘우스 관리', icon: '📰', section: 'marketing' },
     // 마케팅 자동화
     { href: '/admin/marketing/dashboard', label: '마케팅 대시보드', icon: '📊', section: 'marketing' },
     { href: '/admin/funnel', label: '퍼널 메시지', icon: '📊', section: 'marketing' },

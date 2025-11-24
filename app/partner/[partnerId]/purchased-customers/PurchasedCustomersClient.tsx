@@ -391,13 +391,6 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                       <FiSend />
                       <span>여권 보내기</span>
                     </button>
-                    <button
-                      onClick={() => handleOpenChatbotModal(reservation)}
-                      className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
-                    >
-                      <FiMessageSquare />
-                      <span>여권채팅봇 보내기</span>
-                    </button>
                   </div>
                 </div>
               </div>

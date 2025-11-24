@@ -107,20 +107,12 @@ export async function GET(
           ],
         },
         Trip: {
-          include: {
-            Product: {
-              select: {
-                id: true,
-                productCode: true,
-                cruiseLine: true,
-                shipName: true,
-                packageName: true,
-                nights: true,
-                days: true,
-                basePrice: true,
-                description: true,
-              },
-            },
+          select: {
+            id: true,
+            productCode: true,
+            shipName: true,
+            departureDate: true,
+            endDate: true,
           },
         },
         User: {
@@ -149,16 +141,40 @@ export async function GET(
       );
     }
 
+    // Product 정보 조회 (productCode로 CruiseProduct 조회)
+    let product = null;
+    if (reservation.Trip?.productCode) {
+      const cruiseProduct = await prisma.cruiseProduct.findUnique({
+        where: { productCode: reservation.Trip.productCode },
+        select: {
+          id: true,
+          productCode: true,
+          cruiseLine: true,
+          shipName: true,
+          packageName: true,
+          nights: true,
+          days: true,
+          basePrice: true,
+          description: true,
+        },
+      });
+      product = cruiseProduct;
+    }
+
     return NextResponse.json({
       ok: true,
       reservation: {
         id: reservation.id,
         totalPeople: reservation.totalPeople,
         pnrStatus: reservation.pnrStatus,
-        createdAt: reservation.createdAt.toISOString(),
+        createdAt: reservation.createdAt ? reservation.createdAt.toISOString() : null,
         trip: reservation.Trip ? {
-          ...reservation.Trip,
-          product: reservation.Trip.Product,
+          id: reservation.Trip.id,
+          productCode: reservation.Trip.productCode,
+          shipName: reservation.Trip.shipName,
+          departureDate: reservation.Trip.departureDate ? reservation.Trip.departureDate.toISOString() : null,
+          endDate: reservation.Trip.endDate ? reservation.Trip.endDate.toISOString() : null,
+          product: product,
         } : null,
         user: reservation.User,
         travelers: reservation.Traveler.map((t) => ({

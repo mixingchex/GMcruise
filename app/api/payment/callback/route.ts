@@ -38,65 +38,88 @@ export async function POST(req: NextRequest) {
     }
 
     // 결제 성공 여부 확인
-    const isSuccess = resultCode === '0000' || resultCode === '00'; // 웰컴페이먼츠 성공 코드 확인 필요
+    // 웰컴페이먼츠 성공 코드: '0000' (일반), '00' (간편결제), 'SUCCESS' 등
+    const isSuccess = resultCode === '0000' || resultCode === '00' || resultCode === 'SUCCESS';
 
     // 결제 정보 업데이트
-    // TODO: Payment 테이블에 저장/업데이트
-    // await prisma.payment.update({
-    //   where: { orderId },
-    //   data: {
-    //     status: isSuccess ? 'completed' : 'failed',
-    //     resultCode,
-    //     resultMsg,
-    //     completedAt: isSuccess ? new Date() : null,
-    //   }
-    // });
+    try {
+      const payment = await prisma.payment.findUnique({
+        where: { orderId },
+      });
+
+      if (payment) {
+        // 기존 결제 정보 업데이트
+        await prisma.payment.update({
+          where: { orderId },
+          data: {
+            status: isSuccess ? 'completed' : 'failed',
+            paidAt: isSuccess ? new Date() : null,
+            failedAt: !isSuccess ? new Date() : null,
+            failureReason: !isSuccess ? resultMsg || '결제 실패' : null,
+            metadata: {
+              ...(payment.metadata as any || {}),
+              callbackReceivedAt: new Date().toISOString(),
+              resultCode,
+              resultMsg,
+            },
+          },
+        });
+      } else {
+        // 결제 정보가 없는 경우 로그만 남김 (이미 결제 요청 시 생성되어야 함)
+        console.warn('[Payment Callback] Payment not found in DB:', orderId);
+      }
+    } catch (dbError) {
+      console.error('[Payment Callback] DB update error:', dbError);
+      // DB 업데이트 실패해도 결제 처리는 계속 진행
+    }
 
     if (isSuccess) {
       // 결제 성공 처리
       console.log('[Payment Callback] Payment successful:', orderId);
       
-      // 결제 웹훅 호출 (어필리에이트 판매 생성)
-      try {
-        // 주문 정보를 DB에서 가져오거나, formData에서 필요한 정보 추출
-        // TODO: 주문 정보를 DB에 저장하고 여기서 조회하도록 수정 필요
-        
-        // 임시로 formData에서 정보 추출
-        const productCode = body.get('productCode') as string;
-        const amount = parseInt(body.get('amount') as string || '0');
-        const buyerName = body.get('buyerName') as string;
-        const buyerEmail = body.get('buyerEmail') as string;
-        const buyerTel = body.get('buyerTel') as string;
-        
-        // 웹훅 호출 (내부 API)
-        const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payment/webhook`;
-        await fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            imp_uid: orderId, // 임시로 orderId 사용
-            merchant_uid: orderId,
-            status: 'paid',
-            amount,
-            productCode,
-            customerName: buyerName,
-            customerPhone: buyerTel,
-            customerEmail: buyerEmail,
-            metadata: {
-              // metadata는 결제 요청 시 저장한 것을 사용해야 함
-              // TODO: 주문 정보를 DB에 저장하고 여기서 조회하도록 수정 필요
-            },
-          }),
-        });
-      } catch (webhookError) {
-        console.error('[Payment Callback] Webhook 호출 실패:', webhookError);
-        // 웹훅 실패해도 결제 처리는 성공으로 처리
+      // 결제 정보를 DB에서 조회
+      const payment = await prisma.payment.findUnique({
+        where: { orderId },
+        select: {
+          productCode: true,
+          amount: true,
+          buyerName: true,
+          buyerEmail: true,
+          buyerTel: true,
+          metadata: true,
+          affiliateCode: true,
+          affiliateMallUserId: true,
+        },
+      });
+
+      if (payment) {
+        // 결제 웹훅 호출 (어필리에이트 판매 생성)
+        try {
+          const webhookUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payment/webhook`;
+          await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imp_uid: orderId,
+              merchant_uid: orderId,
+              status: 'paid',
+              amount: payment.amount,
+              productCode: payment.productCode,
+              customerName: payment.buyerName,
+              customerPhone: payment.buyerTel,
+              customerEmail: payment.buyerEmail || '',
+              metadata: payment.metadata || {},
+              affiliateCode: payment.affiliateCode,
+              affiliateMallUserId: payment.affiliateMallUserId,
+            }),
+          });
+        } catch (webhookError) {
+          console.error('[Payment Callback] Webhook 호출 실패:', webhookError);
+          // 웹훅 실패해도 결제 처리는 성공으로 처리
+        }
+      } else {
+        console.warn('[Payment Callback] Payment not found for webhook:', orderId);
       }
-      
-      // TODO: 주문 완료 처리
-      // - 주문 정보 저장
-      // - 사용자에게 알림 발송
-      // - 관리자에게 알림 발송
     } else {
       // 결제 실패 처리
       console.error('[Payment Callback] Payment failed:', { orderId, resultCode, resultMsg });

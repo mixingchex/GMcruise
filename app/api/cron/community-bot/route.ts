@@ -111,23 +111,26 @@ function getRandomReplyDate(commentDate: Date, postDate: Date): Date {
 }
 
 /**
- * 게시글 길이 범위 선택 (비율에 따라)
+ * 게시글 길이 범위 선택 (100자, 300자, 500자, 1000자, 1500자 골고루)
  */
 function selectPostLengthRange(): { min: number; max: number } {
   const random = Math.random();
   
   if (random < 0.2) {
-    // 20%: 300자 이내
-    return { min: 50, max: 300 };
-  } else if (random < 0.7) {
-    // 50%: 500자 이내
-    return { min: 200, max: 500 };
-  } else if (random < 0.9) {
-    // 20%: 1000자 이내
-    return { min: 500, max: 1000 };
+    // 20%: 100자
+    return { min: 80, max: 120 };
+  } else if (random < 0.4) {
+    // 20%: 300자
+    return { min: 250, max: 350 };
+  } else if (random < 0.6) {
+    // 20%: 500자
+    return { min: 450, max: 550 };
+  } else if (random < 0.8) {
+    // 20%: 1000자
+    return { min: 900, max: 1100 };
   } else {
-    // 10%: 3000자 이내
-    return { min: 1000, max: 3000 };
+    // 20%: 1500자
+    return { min: 1400, max: 1600 };
   }
 }
 
@@ -138,10 +141,13 @@ function shouldUseEmoji(): boolean {
   return Math.random() < 0.1; // 10% 확률
 }
 
+// 이미지 중복 방지를 위한 전역 변수 (세션별로 관리)
+const usedImages = new Set<string>();
+
 /**
- * 크루즈정보사진 폴더에서 크루즈 관련 이미지 URL 가져오기
+ * 크루즈정보사진 폴더에서 크루즈 관련 이미지 URL 가져오기 (중복 방지)
  */
-async function getCruiseImage(keyword: string): Promise<string> {
+async function getCruiseImage(keyword: string, excludeImages: string[] = []): Promise<string> {
   try {
     const fs = require('fs');
     const path = require('path');
@@ -149,7 +155,7 @@ async function getCruiseImage(keyword: string): Promise<string> {
     // 크루즈정보사진 폴더 경로
     const cruisePhotoDir = path.join(process.cwd(), 'public', '크루즈정보사진');
     
-    // 크루즈 관련 폴더 목록
+    // 크루즈 관련 폴더 목록 (더 다양하게)
     const cruiseFolders = [
       '코스타세레나',
       'MSC벨리시마',
@@ -160,41 +166,47 @@ async function getCruiseImage(keyword: string): Promise<string> {
       '로얄 브릴리앙스호',
       '로얄 얼루어호',
       '크루즈배경이미지',
-      '상품이미지'
+      '상품이미지',
+      '고객 후기 자료',
+      'landing_exposure',
+      'landing_attachments'
     ];
     
-    // 랜덤으로 폴더 선택
-    const selectedFolder = cruiseFolders[Math.floor(Math.random() * cruiseFolders.length)];
-    const folderPath = path.join(cruisePhotoDir, selectedFolder);
+    // 모든 폴더에서 이미지 수집
+    const allImages: Array<{ folder: string; file: string; path: string }> = [];
     
-    if (fs.existsSync(folderPath)) {
-      const files = fs.readdirSync(folderPath);
-      const imageFiles = files.filter((file: string) => {
-        const ext = path.extname(file).toLowerCase();
-        return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
-      });
-      
-      if (imageFiles.length > 0) {
-        const randomImage = imageFiles[Math.floor(Math.random() * imageFiles.length)];
-        return `/크루즈정보사진/${selectedFolder}/${randomImage}`;
-      }
-    }
-    
-    // 폴더가 없거나 이미지가 없으면 다른 폴더 시도
     for (const folder of cruiseFolders) {
-      const testPath = path.join(cruisePhotoDir, folder);
-      if (fs.existsSync(testPath)) {
-        const files = fs.readdirSync(testPath);
+      const folderPath = path.join(cruisePhotoDir, folder);
+      if (fs.existsSync(folderPath)) {
+        const files = fs.readdirSync(folderPath);
         const imageFiles = files.filter((file: string) => {
           const ext = path.extname(file).toLowerCase();
           return ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
         });
         
-        if (imageFiles.length > 0) {
-          const randomImage = imageFiles[Math.floor(Math.random() * imageFiles.length)];
-          return `/크루즈정보사진/${folder}/${randomImage}`;
+        for (const file of imageFiles) {
+          const imagePath = `/크루즈정보사진/${folder}/${file}`;
+          // 중복 제외 목록과 사용된 이미지 목록에서 제외
+          if (!excludeImages.includes(imagePath) && !usedImages.has(imagePath)) {
+            allImages.push({ folder, file, path: imagePath });
+          }
         }
       }
+    }
+    
+    // 사용 가능한 이미지가 있으면 랜덤 선택
+    if (allImages.length > 0) {
+      const randomIndex = Math.floor(Math.random() * allImages.length);
+      const selectedImage = allImages[randomIndex];
+      usedImages.add(selectedImage.path);
+      return selectedImage.path;
+    }
+    
+    // 모든 이미지가 사용되었으면 usedImages 초기화하고 다시 시도
+    if (usedImages.size > 0 && allImages.length === 0) {
+      usedImages.clear();
+      // 재귀 호출로 다시 시도
+      return getCruiseImage(keyword, excludeImages);
     }
     
     // 모든 시도 실패 시 기본 이미지
@@ -307,7 +319,7 @@ async function getStockMarketInfo(): Promise<{ kospi: number; kosdaq: number; na
 /**
  * 크루즈뉘우스 형식의 게시글 생성
  */
-async function generateCruisedotNews(): Promise<{ title: string; highlight: string; html: string; category: string } | null> {
+export async function generateCruisedotNews(): Promise<{ title: string; highlight: string; html: string; category: string } | null> {
   try {
     // 주제 랜덤 선택
     const topic = NEWS_TOPICS[Math.floor(Math.random() * NEWS_TOPICS.length)];
@@ -400,9 +412,9 @@ async function generateCruisedotNews(): Promise<{ title: string; highlight: stri
     const title = titleMatch[1].trim();
     const highlight = highlightMatch[1].trim();
     
-    // 이미지 가져오기
+    // 이미지 가져오기 (중복 방지)
     const image1 = await getCruiseImage(topic.keyword);
-    const image2 = await getCruiseImage(topic.keyword);
+    const image2 = await getCruiseImage(topic.keyword, [image1]);
     
     // 블록 구성: 이미지-글-이미지-글 형식
     const blocks: NewsBlock[] = [];
@@ -544,9 +556,10 @@ async function generatePost(): Promise<{ title: string; content: string; categor
 - 행복하고 즐거워하는 감정 표현
 - 구체적이고 실용적인 경험 공유
 - 친근하고 자연스러운 말투
-- 한국어 이모티콘 적극 사용: ^^, ㅋㅋㅋ, ㅋㅋ, ㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
+- 한국어 이모티콘 다양하게 적극 사용: ㅋㅋ, ㅎㅎ, ㅋ.., ㅎ..., ^^, :), ㅎㅎㅎㅎㅎㅎ, ㅋㅋㅋㅋㅋㅋㅋ, ㅋㅋㅋ, ㅎㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
 ${useEmoji ? '- 이모지(이모지)도 1-2개 사용 가능' : '- 이모지(이모지)는 사용하지 마세요'}
 - 짧고 간결하지만 진심이 담긴 표현
+- 질문도 하고 답도 하고, 경험 공유도 하고, 다양한 형태로 작성
 
 요구사항:
 - 카테고리: ${category === 'travel-tip' ? '여행팁' : category === 'qna' ? '질문답변' : '관광지추천'}
@@ -554,7 +567,11 @@ ${useEmoji ? '- 이모지(이모지)도 1-2개 사용 가능' : '- 이모지(이
 - 제목: 15-35자 정도, 궁금증이나 감동을 담은 제목
 - 내용: ${lengthRange.min}-${lengthRange.max}자 정도, 구체적이고 실용적이며 감정이 담긴 내용
 - 유튜브 댓글처럼 "정말 궁금해요", "도움 부탁드려요", "너무 좋았어요" 같은 표현 사용
-- 한국어 이모티콘(^^, ㅋㅋㅋ, ㅎㅎ, ㅠㅠ 등)을 자연스럽게 사용하여 감정 표현
+- 한국어 이모티콘(ㅋㅋ, ㅎㅎ, ㅋ.., ㅎ..., ^^, :), ㅎㅎㅎㅎㅎㅎ, ㅋㅋㅋㅋㅋㅋㅋ 등)을 다양하게 자연스럽게 사용하여 감정 표현
+- 질문형 게시글도 작성 가능 (예: "이거 궁금한데요?", "혹시 아시는 분 계신가요?")
+- 답변형 게시글도 작성 가능 (예: "제 경험으로는...", "저는 이렇게 했어요")
+- 경험 공유형 게시글도 작성 가능 (예: "저도 거기 갔었는데...", "정말 좋았어요!")
+- 매번 다른 스타일로 작성하여 중복되지 않도록
 - 한국어로 작성
 - 반드시 ${lengthRange.min}자 이상 ${lengthRange.max}자 이내로 작성하세요
 
@@ -696,26 +713,26 @@ ${useEmoji ? '- 이모지(이모지)도 1개 정도 사용 가능' : '- 이모�
 }
 
 /**
- * 댓글 길이 범위 선택 (비율에 따라)
+ * 댓글 길이 범위 선택 (10자, 30자, 50자, 100자, 150자 골고루)
  */
 function selectCommentLengthRange(): { min: number; max: number } {
   const random = Math.random();
   
-  if (random < 0.4) {
-    // 40%: 30자 이내
-    return { min: 10, max: 30 };
-  } else if (random < 0.7) {
-    // 30%: 60자 이내
-    return { min: 25, max: 60 };
+  if (random < 0.2) {
+    // 20%: 10자
+    return { min: 8, max: 12 };
+  } else if (random < 0.4) {
+    // 20%: 30자
+    return { min: 25, max: 35 };
+  } else if (random < 0.6) {
+    // 20%: 50자
+    return { min: 45, max: 55 };
   } else if (random < 0.8) {
-    // 10%: 100자 이내
-    return { min: 60, max: 100 };
-  } else if (random < 0.85) {
-    // 5%: 150자 이내
-    return { min: 100, max: 150 };
+    // 20%: 100자
+    return { min: 90, max: 110 };
   } else {
-    // 5%: 200자 이내
-    return { min: 150, max: 200 };
+    // 20%: 150자
+    return { min: 140, max: 160 };
   }
 }
 
@@ -739,15 +756,20 @@ async function generateComment(postTitle: string, postContent: string, postCateg
 - 공감과 격려 ("저도 궁금했어요", "도움됐어요 감사합니다")
 - 구체적인 경험 공유 ("저도 거기 갔었는데...", "저는 이렇게 했어요")
 - 친근하고 자연스러운 말투
-- 한국어 이모티콘 적극 사용: ^^, ㅋㅋㅋ, ㅋㅋ, ㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
+- 한국어 이모티콘 다양하게 적극 사용: ㅋㅋ, ㅎㅎ, ㅋ.., ㅎ..., ^^, :), ㅎㅎㅎㅎㅎㅎ, ㅋㅋㅋㅋㅋㅋㅋ, ㅋㅋㅋ, ㅎㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
 ${useEmoji ? '- 이모지(이모지)도 1개 정도 사용 가능' : '- 이모지(이모지)는 사용하지 마세요'}
 - 짧고 간결하지만 진심이 담긴 표현
+- 질문도 하고 답도 하고, 경험 공유도 하고, 다양한 형태로 작성
 
 요구사항:
 - 실제 유튜브 댓글처럼 자연스럽고 진솔한 톤
 - ${lengthRange.min}-${lengthRange.max}자 정도의 짧고 간결한 댓글
 - 게시글 내용과 관련된 공감, 질문, 조언, 경험 공유
-- 한국어 이모티콘(^^, ㅋㅋㅋ, ㅎㅎ, ㅠㅠ 등)을 자연스럽게 사용하여 감정 표현
+- 한국어 이모티콘(ㅋㅋ, ㅎㅎ, ㅋ.., ㅎ..., ^^, :), ㅎㅎㅎㅎㅎㅎ, ㅋㅋㅋㅋㅋㅋㅋ 등)을 다양하게 자연스럽게 사용하여 감정 표현
+- 질문형 댓글도 작성 가능 (예: "이거 궁금한데요?", "혹시 아시는 분 계신가요?")
+- 답변형 댓글도 작성 가능 (예: "제 경험으로는...", "저는 이렇게 했어요")
+- 공감형 댓글도 작성 가능 (예: "저도 궁금했어요!", "정말 좋은 정보네요!")
+- 매번 다른 스타일로 작성하여 중복되지 않도록
 - 한국어로 작성
 - 댓글만 작성 (다른 설명 없이)
 - "정말", "너무", "진짜", "꼭", "감사합니다" 같은 표현 자연스럽게 사용
@@ -776,17 +798,26 @@ ${useEmoji ? '- 이모지(이모지)도 1개 정도 사용 가능' : '- 이모�
 }
 
 /**
- * 대댓글 길이 범위 선택 (비율에 따라)
+ * 대댓글 길이 범위 선택 (10자, 30자, 50자, 100자, 150자 골고루)
  */
 function selectReplyLengthRange(): { min: number; max: number } {
   const random = Math.random();
   
-  if (random < 0.6) {
-    // 60%: 20자 이내
-    return { min: 5, max: 20 };
+  if (random < 0.2) {
+    // 20%: 10자
+    return { min: 8, max: 12 };
+  } else if (random < 0.4) {
+    // 20%: 30자
+    return { min: 25, max: 35 };
+  } else if (random < 0.6) {
+    // 20%: 50자
+    return { min: 45, max: 55 };
+  } else if (random < 0.8) {
+    // 20%: 100자
+    return { min: 90, max: 110 };
   } else {
-    // 40%: 30자 이내
-    return { min: 15, max: 30 };
+    // 20%: 150자
+    return { min: 140, max: 160 };
   }
 }
 
@@ -808,11 +839,15 @@ async function generateReply(commentContent: string, commentAuthor: string, post
 - 댓글 내용에 자연스럽게 반응 (공감, 질문, 추가 정보, 경험 공유 등)
 - 실제 사람들이 댓글에 답하는 것처럼 자연스러운 대화 톤
 - ${lengthRange.min}-${lengthRange.max}자 정도의 짧고 간결한 대댓글
-- 한국어 이모티콘 적극 사용: ^^, ㅋㅋㅋ, ㅋㅋ, ㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
+- 한국어 이모티콘 다양하게 적극 사용: ㅋㅋ, ㅎㅎ, ㅋ.., ㅎ..., ^^, :), ㅎㅎㅎㅎㅎㅎ, ㅋㅋㅋㅋㅋㅋㅋ, ㅋㅋㅋ, ㅎㅎㅎ, ㅠㅠ, ㅠ, ㅜㅜ, ^_^, @_@ 등
 ${useEmoji ? '- 이모지(이모지)도 1개 정도 사용 가능' : '- 이모지(이모지)는 사용하지 마세요'}
+- 질문형 대댓글도 작성 가능 (예: "이거 궁금한데요?", "혹시 더 자세히 알려주실 수 있나요?")
+- 답변형 대댓글도 작성 가능 (예: "제 경험으로는...", "저는 이렇게 했어요")
+- 공감형 대댓글도 작성 가능 (예: "저도 그렇게 생각해요!", "정말 좋은 정보네요!")
+- 매번 다른 스타일로 작성하여 중복되지 않도록
 - 한국어로 작성
 - 대댓글만 작성 (다른 설명 없이)
-- "맞아요", "저도", "그렇군요", "추가로" 같은 자연스러운 연결 표현 사용
+- "맞아요", "저도", "그렇군요", "추가로", "정말", "너무", "진짜" 같은 자연스러운 연결 표현 사용
 - 반드시 ${lengthRange.min}자 이상 ${lengthRange.max}자 이내로 작성하세요`;
 
     const response = await askGemini([
@@ -908,7 +943,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: '봇 사용자 확인 실패' }, { status: 500 });
     }
 
-    // 크루즈뉘우스 생성 (하루 1개씩)
+    // 크루즈뉘우스 생성 (하루 1개씩) - 봇 활성화 상태와 무관하게 항상 실행
     let newsCreated = false;
     try {
       checkTimeout();
@@ -956,6 +991,23 @@ export async function POST(req: Request) {
       }
     } catch (error) {
       console.error('[COMMUNITY BOT] 크루즈뉘우스 생성 중 오류 (무시):', error);
+    }
+
+    // 봇 활성화 상태 확인 (커뮤니티 게시글/댓글/대댓글에만 적용)
+    const botConfig = await prisma.systemConfig.findUnique({
+      where: { configKey: 'community_bot_active' },
+    });
+
+    const isBotActive = botConfig?.configValue === 'true';
+    
+    if (!isBotActive) {
+      console.log('[COMMUNITY BOT] 봇이 비활성화되어 있습니다. 커뮤니티 활동을 건너뜁니다.');
+      return NextResponse.json({ 
+        ok: true, 
+        message: '크루즈뉘우스는 생성되었지만, 봇이 비활성화되어 커뮤니티 활동은 하지 않습니다.',
+        isActive: false,
+        newsCreated 
+      });
     }
 
     // 1. 일반 게시글 생성

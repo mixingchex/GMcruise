@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
               customerSource: true,
               role: true,
               customerStatus: true,
-              userTrips: {
+              UserTrip: {
                 select: {
                   id: true,
                   cruiseName: true,
@@ -128,19 +128,17 @@ export async function GET(req: NextRequest) {
             },
           },
           Trip: {
-            include: {
-              Product: {
-                select: {
-                  cruiseLine: true,
-                  shipName: true,
-                  packageName: true,
-                },
-              },
+            select: {
+              id: true,
+              productCode: true,
+              shipName: true,
+              departureDate: true,
+              endDate: true,
             },
           },
         },
         orderBy: {
-          createdAt: 'desc',
+          id: 'desc',
         },
         take: 100, // 최대 100개
       });
@@ -203,6 +201,32 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Product 정보 조회 (productCode로 CruiseProduct 조회)
+    const productCodeSet = new Set<string>();
+    reservations.forEach(r => {
+      if (r.Trip?.productCode) {
+        productCodeSet.add(r.Trip.productCode);
+      }
+    });
+    
+    const productMap = new Map<string, any>();
+    if (productCodeSet.size > 0) {
+      const products = await prisma.cruiseProduct.findMany({
+        where: {
+          productCode: { in: Array.from(productCodeSet) },
+        },
+        select: {
+          productCode: true,
+          cruiseLine: true,
+          shipName: true,
+          packageName: true,
+        },
+      });
+      products.forEach(product => {
+        productMap.set(product.productCode, product);
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       reservations: reservations.map((r) => {
@@ -257,7 +281,7 @@ export async function GET(req: NextRequest) {
         }
         
         // trips 매핑
-        const trips = user?.userTrips?.map(trip => ({
+        const trips = user?.UserTrip?.map(trip => ({
           id: trip.id,
           cruiseName: trip.cruiseName,
           startDate: trip.startDate ? trip.startDate.toISOString() : null,
@@ -267,8 +291,8 @@ export async function GET(req: NextRequest) {
         return {
           id: r.id,
           totalPeople: r.totalPeople,
-          pnrStatus: r.pnrStatus,
-          createdAt: r.createdAt.toISOString(),
+          passportStatus: r.passportStatus,
+          createdAt: r.paymentDate ? r.paymentDate.toISOString() : null,
           user: {
             ...user,
             customerType,
@@ -280,7 +304,15 @@ export async function GET(req: NextRequest) {
           trip: r.Trip ? {
             id: r.Trip.id,
             departureDate: r.Trip.departureDate?.toISOString() || null,
-            product: r.Trip.Product,
+            product: r.Trip.productCode ? productMap.get(r.Trip.productCode) || {
+              cruiseLine: null,
+              shipName: r.Trip.shipName || null,
+              packageName: null,
+            } : {
+              cruiseLine: null,
+              shipName: r.Trip.shipName || null,
+              packageName: null,
+            },
           } : null,
         };
       }),

@@ -1126,6 +1126,47 @@ export default function DataAnalysisPage() {
                       {JSON.stringify(insight.data, null, 2)}
                     </pre>
                   </div>
+                  
+                  {/* 인사이트 기반 추천 상품 표시 */}
+                  {insight.insightType === 'destination_preference' && insight.data?.preferredDestinations && (
+                    <div className="border-t pt-4 mt-4">
+                      <h5 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <span>🎯</span>
+                        추천 상품 (선호 목적지 기반)
+                      </h5>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-2">
+                          선호 목적지: {Array.isArray(insight.data.preferredDestinations) 
+                            ? insight.data.preferredDestinations.join(', ')
+                            : '정보 없음'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          💡 이 고객의 선호 목적지와 일치하는 크루즈 상품을 추천할 수 있습니다.
+                          <br />
+                          상품 관리 페이지에서 목적지 필터를 사용하여 관련 상품을 찾아보세요.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {insight.insightType === 'spending_pattern' && insight.data?.averageSpending && (
+                    <div className="border-t pt-4 mt-4">
+                      <h5 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                        <span>💰</span>
+                        추천 상품 (지출 패턴 기반)
+                      </h5>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <p className="text-sm text-gray-600 mb-2">
+                          평균 지출: {typeof insight.data.averageSpending === 'number' 
+                            ? `${insight.data.averageSpending.toLocaleString()}원`
+                            : '정보 없음'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          💡 이 고객의 지출 패턴을 고려하여 적절한 가격대의 상품을 추천할 수 있습니다.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

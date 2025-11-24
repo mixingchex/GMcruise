@@ -124,6 +124,12 @@ export default async function RootLayout({
         {/* X-Frame-Options는 HTTP 헤더로만 설정 가능하므로 제거 (middleware에서 처리) */}
         <meta httpEquiv="X-XSS-Protection" content="1; mode=block" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
+        {/* 스크래핑 방지 메타 태그 */}
+        <meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+        <meta name="googlebot" content="noindex, nofollow" />
+        <meta name="bingbot" content="noindex, nofollow" />
+        {/* 개발자 도구 접근 제한 (선택사항) */}
+        <meta name="format-detection" content="telephone=no, address=no, email=no" />
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/images/ai-cruise-logo.png" type="image/png" sizes="512x512" />
         {/* Google Search Console Verification */}

@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import { checkRateLimit, RateLimitPolicies } from '@/lib/rate-limiter';
 import { getClientIp } from '@/lib/ip-utils';
 import { securityLogger } from '@/lib/logger';
+import { protectApiRequest } from '@/lib/security/api-protection';
+import { isBot, isScraperTool } from '@/lib/security/bot-detection';
 
 const PUBLIC = [
   '/login',
@@ -32,11 +34,29 @@ export async function middleware(req: NextRequest) {
   // 공개 경로는 통과
   if (PUBLIC.some(p => pathname.startsWith(p))) return NextResponse.next();
 
-  // API Rate Limiting (AI 요청은 더 엄격하게)
+  // API 보호: 봇 및 스크래퍼 차단
   if (pathname.startsWith('/api/')) {
-    // 공개 API는 rate limiting 제외
+    // 공개 API는 봇 차단 제외 (하지만 스크래퍼는 차단)
     if (pathname.startsWith('/api/passport') || pathname.startsWith('/api/public')) {
+      const userAgent = req.headers.get('user-agent');
+      // 스크래퍼 도구는 여전히 차단
+      if (isScraperTool(userAgent)) {
+        securityLogger.warn(`[Middleware] Scraper blocked on public API: ${userAgent}`, {
+          ip: getClientIp(req),
+          path: pathname,
+        });
+        return NextResponse.json(
+          { error: 'Access denied' },
+          { status: 403 }
+        );
+      }
       return NextResponse.next();
+    }
+    
+    // API 보호 적용
+    const protectionResult = protectApiRequest(req);
+    if (protectionResult) {
+      return protectionResult;
     }
     
     // Rate limiting에서 제외할 API (자주 호출되지만 보안상 위험하지 않은 API)
@@ -101,6 +121,18 @@ export async function middleware(req: NextRequest) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  // 스크래핑 방지 헤더
+  response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
+  
+  // API 엔드포인트에 대한 추가 보안 헤더
+  if (pathname.startsWith('/api/')) {
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('X-DNS-Prefetch-Control', 'off');
+    response.headers.set('X-Download-Options', 'noopen');
+    response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
+  }
+  
   return response;
 }
 
