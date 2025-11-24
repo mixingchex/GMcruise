@@ -140,7 +140,7 @@ export default function ExhibitionPage() {
                 📞 010-3289-3800
               </a>
               <a
-                href="https://leadgeny.kr/i/yjo"
+                href="https://www.cruisedot.co.kr/i/6nx"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-8 py-3 bg-blue-800 text-white font-semibold rounded-lg hover:bg-blue-900 transition-colors"

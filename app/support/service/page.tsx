@@ -43,7 +43,7 @@ export default function ServicePage() {
   const [highlightTitle, setHighlightTitle] = useState('크루즈 여행, 더 쉽고 편리하게!');
   const [highlightText, setHighlightText] = useState('크루즈닷과 함께하면 크루즈 여행 준비부터 여행 중까지 모든 것이 간편해집니다.');
   const [highlightButtonText, setHighlightButtonText] = useState('상담하기');
-  const [highlightButtonLink, setHighlightButtonLink] = useState('https://leadgeny.kr/i/yjo');
+  const [highlightButtonLink, setHighlightButtonLink] = useState('https://www.cruisedot.co.kr/i/6nx');
 
   const defaultServices = [
     {

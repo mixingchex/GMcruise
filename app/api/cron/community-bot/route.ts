@@ -379,14 +379,18 @@ async function generateCruisedotNews(): Promise<{ title: string; highlight: stri
     const titleMatch = text.match(/제목:\s*(.+?)(?:\n|$)/);
     const highlightMatch = text.match(/핵심문장:\s*(.+?)(?:\n|$)/);
     const section1TitleMatch = text.match(/섹션1제목:\s*(.+?)(?:\n|$)/);
-    const section1ContentMatch = text.match(/섹션1내용:\s*(.+?)(?:\n|섹션2제목|이미지1설명)/s);
+    const section1ContentMatch = text.match(/섹션1내용:\s*([\s\S]+?)(?=\n(?:섹션2제목|이미지1설명)|$)/);
     const image1DescMatch = text.match(/이미지1설명:\s*(.+?)(?:\n|$)/);
     const section2TitleMatch = text.match(/섹션2제목:\s*(.+?)(?:\n|$)/);
-    const section2ContentMatch = text.match(/섹션2내용:\s*(.+?)(?:\n|섹션3제목|이미지2설명)/s);
+    const section2ContentMatch = text.match(/섹션2내용:\s*([\s\S]+?)(?=\n(?:섹션3제목|이미지2설명)|$)/);
     const image2DescMatch = text.match(/이미지2설명:\s*(.+?)(?:\n|$)/);
     const section3TitleMatch = text.match(/섹션3제목:\s*(.+?)(?:\n|$)/);
-    const section3ContentMatch = text.match(/섹션3내용:\s*(.+?)(?:\n|마무리)/s);
-    const summaryMatch = text.match(/마무리:\s*(.+?)(?:\n|$)/s);
+    const section3ContentMatch = text.match(/섹션3내용:\s*([\s\S]+?)(?=\n(?:섹션4제목|마무리)|$)/);
+    const section4TitleMatch = text.match(/섹션4제목:\s*(.+?)(?:\n|$)/);
+    const section4ContentMatch = text.match(/섹션4내용:\s*([\s\S]+?)(?=\n(?:섹션5제목|마무리)|$)/);
+    const section5TitleMatch = text.match(/섹션5제목:\s*(.+?)(?:\n|$)/);
+    const section5ContentMatch = text.match(/섹션5내용:\s*([\s\S]+?)(?=\n(?:마무리)|$)/);
+    const summaryMatch = text.match(/마무리:\s*([\s\S]+?)(?:\n|$)/);
 
     if (!titleMatch || !highlightMatch) {
       console.error('[COMMUNITY BOT] 크루즈뉘우스 파싱 실패');
@@ -469,6 +473,28 @@ async function generateCruisedotNews(): Promise<{ title: string; highlight: stri
         type: 'section',
         heading: section3TitleMatch[1].trim(),
         body: section3ContentMatch[1].trim(),
+        listItems: []
+      } as NewsSectionBlock);
+    }
+    
+    // 네 번째 섹션
+    if (section4TitleMatch && section4ContentMatch) {
+      blocks.push({
+        id: `section-4-${Date.now()}`,
+        type: 'section',
+        heading: section4TitleMatch[1].trim(),
+        body: section4ContentMatch[1].trim(),
+        listItems: []
+      } as NewsSectionBlock);
+    }
+    
+    // 다섯 번째 섹션
+    if (section5TitleMatch && section5ContentMatch) {
+      blocks.push({
+        id: `section-5-${Date.now()}`,
+        type: 'section',
+        heading: section5TitleMatch[1].trim(),
+        body: section5ContentMatch[1].trim(),
         listItems: []
       } as NewsSectionBlock);
     }

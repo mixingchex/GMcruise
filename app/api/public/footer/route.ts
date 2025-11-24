@@ -20,7 +20,7 @@ async function readFooterData(): Promise<any> {
         consultButton: {
           enabled: true,
           text: '상담하기',
-          link: 'https://leadgeny.kr/i/yjo',
+          link: 'https://www.cruisedot.co.kr/i/6nx',
           icon: null,
         },
       },

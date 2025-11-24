@@ -83,10 +83,10 @@ export async function POST(req: NextRequest) {
         };
         
         // 대표자(첫 번째)의 연락처를 User 테이블에 업데이트
-        if (index === 0 && travelerData.phone && reservation.userId) {
+        if (index === 0 && travelerData.phone && reservation.mainUserId) {
           try {
             await prisma.user.update({
-              where: { id: reservation.userId },
+              where: { id: reservation.mainUserId },
               data: { phone: travelerData.phone },
             });
           } catch (userUpdateError) {

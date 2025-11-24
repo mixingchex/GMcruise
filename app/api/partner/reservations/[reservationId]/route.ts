@@ -142,7 +142,7 @@ export async function GET(
     }
 
     // 권한 확인: 예약이 관리하는 고객의 예약인지 확인
-    if (!managedUserIds.has(reservation.userId)) {
+    if (!managedUserIds.has(reservation.mainUserId)) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' },
         { status: 403 }

@@ -379,7 +379,7 @@ function TestLoginPageContent() {
 
               {/* 상담신청하기 버튼 */}
               <a
-                href="https://leadgeny.kr/lpo.php?seq=4d7a4d314e445978"
+                href="https://www.cruisedot.co.kr/i/6nx"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full bg-gradient-to-r from-green-600 via-green-700 to-emerald-700 hover:from-green-700 hover:via-green-800 hover:to-emerald-800 text-white font-bold text-base md:text-lg lg:text-xl py-3 md:py-4 lg:py-5 rounded-lg md:rounded-xl shadow-lg md:shadow-xl hover:shadow-green-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden group flex items-center justify-center"

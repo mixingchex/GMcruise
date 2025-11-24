@@ -728,7 +728,7 @@ export default function PageEditor({
                 'button',
                 <div className="flex flex-wrap justify-center gap-4">
                   <a
-                    href={highlightButtonContent?.content?.link || 'https://leadgeny.kr/i/yjo'}
+                    href={highlightButtonContent?.content?.link || 'https://www.cruisedot.co.kr/i/6nx'}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"

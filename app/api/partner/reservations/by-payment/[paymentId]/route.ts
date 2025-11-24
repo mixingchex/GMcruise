@@ -116,17 +116,17 @@ export async function GET(
         AND: [
           {
             OR: [
-              { user: { phone: payment.buyerTel } },
-              { user: { email: payment.buyerEmail } },
+              { User: { phone: payment.buyerTel } },
+              { User: { email: payment.buyerEmail } },
             ],
           },
           {
-            userId: managedUserIdsArray.length > 0 ? { in: managedUserIdsArray } : { in: [] },
+            mainUserId: managedUserIdsArray.length > 0 ? { in: managedUserIdsArray } : { in: [] },
           },
         ],
       },
       include: {
-        user: {
+        User: {
           select: {
             id: true,
             name: true,
@@ -158,7 +158,7 @@ export async function GET(
         totalPeople: r.totalPeople,
         pnrStatus: r.pnrStatus,
         createdAt: r.createdAt.toISOString(),
-        user: r.user,
+        user: r.User,
         travelers: r.Traveler,
       })),
     });

@@ -38,7 +38,7 @@ const defaultBanners: Banner[] = [
     image: '/크루즈사진/코스타세레나/코스타세레나.jpg',
     title: '크루즈닷과',
     subtitle: '행복한 크루즈여행 하기',
-    link: 'https://leadgeny.kr/lpo.php?seq=4d7a4d314e445978',
+    link: 'https://www.cruisedot.co.kr/i/6nx',
   },
 ];
 

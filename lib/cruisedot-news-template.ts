@@ -183,34 +183,52 @@ export const NEWS_TEMPLATE_STYLE = `
     margin-top: 12px;
   }
   .news-section-block .highlight-red {
-    background: linear-gradient(180deg, transparent 60%, rgba(239, 68, 68, 0.3) 60%);
-    padding: 2px 4px;
+    background: linear-gradient(180deg, transparent 60%, rgba(239, 68, 68, 0.35) 60%);
+    padding: 3px 8px;
     font-weight: 700;
+    font-size: 1.3em;
     color: #dc2626;
+    border-radius: 3px;
+    line-height: 1.4;
+    display: inline-block;
   }
   .news-section-block .highlight-blue {
-    background: linear-gradient(180deg, transparent 60%, rgba(59, 130, 246, 0.3) 60%);
-    padding: 2px 4px;
+    background: linear-gradient(180deg, transparent 60%, rgba(59, 130, 246, 0.35) 60%);
+    padding: 3px 8px;
     font-weight: 700;
+    font-size: 1.3em;
     color: #2563eb;
+    border-radius: 3px;
+    line-height: 1.4;
+    display: inline-block;
   }
   .news-section-block .highlight-yellow {
-    background: linear-gradient(180deg, transparent 60%, rgba(250, 204, 21, 0.5) 60%);
-    padding: 2px 4px;
+    background: linear-gradient(180deg, transparent 60%, rgba(250, 204, 21, 0.55) 60%);
+    padding: 3px 8px;
     font-weight: 700;
+    font-size: 1.3em;
     color: #ca8a04;
+    border-radius: 3px;
+    line-height: 1.4;
+    display: inline-block;
   }
   .news-section-block .text-bold {
     font-weight: 700;
+    font-size: 1.25em;
     color: #111827;
+    line-height: 1.4;
   }
   .news-section-block .text-red {
     color: #dc2626;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1.25em;
+    line-height: 1.4;
   }
   .news-section-block .text-blue {
     color: #2563eb;
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1.25em;
+    line-height: 1.4;
   }
   .news-list {
     margin: 16px 0 0;
@@ -478,8 +496,16 @@ const renderBlockHtml = (block: NewsBlock) => {
           `
           : "";
       // 본문을 줄바꿈 기준으로 분리하여 각 문단을 <p> 태그로 감싸기 (2-3줄씩)
+      // HTML 태그는 그대로 유지 (강조 효과를 위해)
       const paragraphs = block.body.split('\n').filter(p => p.trim().length > 0);
-      const bodyMarkup = paragraphs.map(p => `<p>${escapeHtml(p.trim())}</p>`).join('');
+      const bodyMarkup = paragraphs.map(p => {
+        const trimmed = p.trim();
+        // HTML 태그가 포함된 경우 그대로 사용, 아니면 escape
+        if (trimmed.includes('<span') || trimmed.includes('<strong') || trimmed.includes('<em')) {
+          return `<p>${trimmed}</p>`;
+        }
+        return `<p>${escapeHtml(trimmed)}</p>`;
+      }).join('');
       
       return `
         <article class="news-section-block">

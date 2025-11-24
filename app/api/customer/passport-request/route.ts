@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 요청한 userId가 예약 소유자인지 확인
-    if (reservation.userId !== userId) {
+    if (reservation.mainUserId !== userId) {
       return NextResponse.json(
         { ok: false, message: '권한이 없습니다.' },
         { status: 403 }

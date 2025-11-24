@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
             // userId로 연결된 Reservation을 찾아서 Traveler 찾기
             const relatedReservation = await tx.reservation.findFirst({
               where: {
-                userId,
+                mainUserId: userId,
                 tripId: reservation.tripId,
               },
             });
@@ -143,7 +143,7 @@ export async function POST(req: NextRequest) {
         updatedTravelers.push(updatedTraveler);
 
         // User에 여권 정보 백업
-        const userId = reservation.userId;
+        const userId = reservation.mainUserId;
         if (userId) {
           await backupPassportDataToUser(userId, {
             korName,

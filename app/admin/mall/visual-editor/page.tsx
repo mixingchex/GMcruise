@@ -401,7 +401,7 @@ export default function VisualEditorPage() {
       contactInfo: {
         phone: '010-3289-3800',
         email: 'hyeseon28@naver.com',
-        kakaoLink: 'https://leadgeny.kr/i/yjo',
+        kakaoLink: 'https://www.cruisedot.co.kr/i/6nx',
         businessHours: '오전 9시 ~ 오후 5시 (공휴일 휴무)',
       },
     },
@@ -5199,7 +5199,7 @@ function FooterEditor({
                 contactInfo: { ...localConfig.contactInfo, kakaoLink: e.target.value },
               })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="https://leadgeny.kr/i/yjo"
+              placeholder="https://www.cruisedot.co.kr/i/6nx"
             />
             <p className="text-xs text-gray-500 mt-1">
               • 카카오톡 상담 버튼을 클릭했을 때 이동할 링크를 입력하세요. 전체 URL을 입력해야 합니다.

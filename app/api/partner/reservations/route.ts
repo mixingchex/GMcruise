@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     if (userIdArray.length > 0) {
       reservations = await prisma.reservation.findMany({
         where: {
-          userId: { in: userIdArray },
+          mainUserId: { in: userIdArray },
         },
         include: {
           User: {
