@@ -345,17 +345,17 @@ export async function DELETE(req: NextRequest) {
       },
     });
 
+    // 일정이 없으면 이미 삭제된 것으로 간주하고 성공 반환 (멱등성)
     if (!existing) {
-      return NextResponse.json(
-        { ok: false, error: '일정을 찾을 수 없습니다' },
-        { status: 404 }
-      );
+      console.log('[API] 일정이 이미 삭제되었거나 존재하지 않음:', id);
+      return NextResponse.json({ ok: true, message: '일정이 이미 삭제되었습니다' });
     }
 
     await prisma.userSchedule.delete({
       where: { id: parseInt(id) },
     });
 
+    console.log('[API] 일정 삭제 성공:', id);
     return NextResponse.json({ ok: true, message: '일정이 삭제되었습니다' });
   } catch (error) {
     console.error('[API] Schedules DELETE error:', error);

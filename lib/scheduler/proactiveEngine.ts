@@ -12,9 +12,9 @@ import { parseTime } from '@/lib/utils';
 
 interface TriggerContext {
   userId: number;
-  tripId: number;
+  userTripId: number;
   itinerary: any;
-  trip: any;
+  userTrip: any;
 }
 
 /**
@@ -75,7 +75,7 @@ async function checkTravelPreparation() {
     sevenDaysLater.setHours(0, 0, 0, 0);
     const sevenDaysLaterEnd = new Date(sevenDaysLater.getTime() + 24 * 60 * 60 * 1000);
 
-    const ddaySevenTrips = await prisma.trip.findMany({
+    const ddaySevenTrips = await prisma.userTrip.findMany({
       where: {
         status: 'Upcoming',
         startDate: {
@@ -83,19 +83,19 @@ async function checkTravelPreparation() {
           lt: sevenDaysLaterEnd,
         },
       },
-      include: { User: true },  // ✅ 대문자 U로 변경
+      include: { User: true },
     });
 
-    for (const trip of ddaySevenTrips) {
-      const eventKey = `DDAY_SEVEN_${trip.id}`;
-      const alreadySent = await hasAlreadySent(trip.userId, trip.id, null, 'DDAY', eventKey);
+    for (const userTrip of ddaySevenTrips) {
+      const eventKey = `DDAY_SEVEN_${userTrip.id}`;
+      const alreadySent = await hasAlreadySent(userTrip.userId, userTrip.id, null, 'DDAY', eventKey);
 
       if (!alreadySent) {
         const title = '🚢 여행 출발까지 7일 남았습니다!';
-        const body = `${trip.cruiseName || '크루즈 여행'}을 위한 준비를 시작하세요. 필수 물품을 챙기고 여권을 확인해주세요!`;
+        const body = `${userTrip.cruiseName || '크루즈 여행'}을 위한 준비를 시작하세요. 필수 물품을 챙기고 여권을 확인해주세요!`;
 
-        await sendNotificationToUser(trip.userId, { title, body });
-        await logNotification(trip.userId, trip.id, null, 'DDAY', eventKey, title, body);
+        await sendNotificationToUser(userTrip.userId, { title, body });
+        await logNotification(userTrip.userId, userTrip.id, null, 'DDAY', eventKey, title, body);
       }
     }
 
@@ -104,7 +104,7 @@ async function checkTravelPreparation() {
     oneDayLater.setHours(0, 0, 0, 0);
     const oneDayLaterEnd = new Date(oneDayLater.getTime() + 24 * 60 * 60 * 1000);
 
-    const ddayOneTrips = await prisma.trip.findMany({
+    const ddayOneTrips = await prisma.userTrip.findMany({
       where: {
         status: 'Upcoming',
         startDate: {
@@ -112,19 +112,19 @@ async function checkTravelPreparation() {
           lt: oneDayLaterEnd,
         },
       },
-      include: { User: true },  // ✅ 대문자 U로 변경
+      include: { User: true },
     });
 
-    for (const trip of ddayOneTrips) {
-      const eventKey = `DDAY_ONE_${trip.id}`;
-      const alreadySent = await hasAlreadySent(trip.userId, trip.id, null, 'DDAY', eventKey);
+    for (const userTrip of ddayOneTrips) {
+      const eventKey = `DDAY_ONE_${userTrip.id}`;
+      const alreadySent = await hasAlreadySent(userTrip.userId, userTrip.id, null, 'DDAY', eventKey);
 
       if (!alreadySent) {
         const title = '🚢 내일 출발입니다!';
-        const body = `${trip.cruiseName || '크루즈 여행'}이 내일 출발합니다. 최종 준비를 마쳐주세요!`;
+        const body = `${userTrip.cruiseName || '크루즈 여행'}이 내일 출발합니다. 최종 준비를 마쳐주세요!`;
 
-        await sendNotificationToUser(trip.userId, { title, body });
-        await logNotification(trip.userId, trip.id, null, 'DDAY', eventKey, title, body);
+        await sendNotificationToUser(userTrip.userId, { title, body });
+        await logNotification(userTrip.userId, userTrip.id, null, 'DDAY', eventKey, title, body);
       }
     }
 
@@ -152,15 +152,15 @@ async function checkEmbarkationWarning() {
         },
       },
       include: {
-        Trip: { include: { User: true } },  // ✅ 대문자로 변경
+        UserTrip: { include: { User: true } },
       },
     });
 
     for (const itinerary of embarkations) {
       const eventKey = `EMBARKATION_${itinerary.id}`;
       const alreadySent = await hasAlreadySent(
-        itinerary.Trip.userId,  // ✅ 대문자 T로 변경
-        itinerary.tripId,
+        itinerary.UserTrip.userId,
+        itinerary.userTripId,
         itinerary.id,
         'EMBARKATION',
         eventKey
@@ -181,10 +181,10 @@ async function checkEmbarkationWarning() {
         const title = '🚢 터미널로 향할 시간입니다!';
         const body = `${embarkationTime}에 승선합니다. 지금 바로 터미널로 이동해주세요! 여권을 꼭 챙기세요.`;
 
-        await sendNotificationToUser(itinerary.Trip.userId, { title, body });  // ✅ 대문자 T로 변경
+        await sendNotificationToUser(itinerary.UserTrip.userId, { title, body });
         await logNotification(
-          itinerary.Trip.userId,  // ✅ 대문자 T로 변경
-          itinerary.tripId,
+          itinerary.UserTrip.userId,
+          itinerary.userTripId,
           itinerary.id,
           'EMBARKATION',
           eventKey,
@@ -217,15 +217,15 @@ async function checkDisembarkationWarning() {
         },
       },
       include: {
-        Trip: { include: { User: true } },  // ✅ 대문자로 변경
+        UserTrip: { include: { User: true } },
       },
     });
 
     for (const itinerary of portVisits) {
       const eventKey = `DISEMBARKATION_${itinerary.id}`;
       const alreadySent = await hasAlreadySent(
-        itinerary.Trip.userId,  // ✅ 대문자 T로 변경
-        itinerary.tripId,
+        itinerary.UserTrip.userId,
+        itinerary.userTripId,
         itinerary.id,
         'DISEMBARKATION',
         eventKey
@@ -247,10 +247,10 @@ async function checkDisembarkationWarning() {
         const title = `🏖️ ${locationName} 도착 1시간 전!`;
         const body = `${arrivalTime}에 ${locationName}에 도착합니다. 여권을 챙기고 준비해주세요!`;
 
-        await sendNotificationToUser(itinerary.Trip.userId, { title, body });  // ✅ 대문자 T로 변경
+        await sendNotificationToUser(itinerary.UserTrip.userId, { title, body });
         await logNotification(
-          itinerary.Trip.userId,  // ✅ 대문자 T로 변경
-          itinerary.tripId,
+          itinerary.UserTrip.userId,
+          itinerary.userTripId,
           itinerary.id,
           'DISEMBARKATION',
           eventKey,
@@ -284,15 +284,15 @@ async function checkBoardingWarning() {
         },
       },
       include: {
-        Trip: { include: { User: true } },  // ✅ 대문자로 변경
+        UserTrip: { include: { User: true } },
       },
     });
 
     for (const itinerary of portVisits) {
       const eventKey = `BOARDING_WARNING_${itinerary.id}`;
       const alreadySent = await hasAlreadySent(
-        itinerary.Trip.userId,  // ✅ 대문자 T로 변경
-        itinerary.tripId,
+        itinerary.UserTrip.userId,
+        itinerary.userTripId,
         itinerary.id,
         'BOARDING_WARNING',
         eventKey
@@ -314,10 +314,10 @@ async function checkBoardingWarning() {
         const title = '⚠️ 출항 1시간 전! 지금 바로 배로 돌아오세요!';
         const body = `${departureTime}에 ${locationName}에서 출항합니다. 늦으면 배를 놓칠 수 있습니다! 지금 바로 배로 돌아와주세요!`;
 
-        await sendNotificationToUser(itinerary.Trip.userId, { title, body });  // ✅ 대문자 T로 변경
+        await sendNotificationToUser(itinerary.UserTrip.userId, { title, body });
         await logNotification(
-          itinerary.Trip.userId,  // ✅ 대문자 T로 변경
-          itinerary.tripId,
+          itinerary.UserTrip.userId,
+          itinerary.userTripId,
           itinerary.id,
           'BOARDING_WARNING',
           eventKey,
@@ -345,7 +345,7 @@ async function checkFeedbackCollection() {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // 어제 종료된 여행 조회 (D+1)
-    const completedTrips = await prisma.trip.findMany({
+    const completedTrips = await prisma.userTrip.findMany({
       where: {
         status: 'Completed',
         endDate: {
@@ -353,14 +353,14 @@ async function checkFeedbackCollection() {
           lt: tomorrow,
         },
       },
-      include: { User: true },  // ✅ 대문자 U로 변경
+      include: { User: true },
     });
 
-    for (const trip of completedTrips) {
-      const eventKey = `FEEDBACK_COLLECTION_${trip.id}`;
+    for (const userTrip of completedTrips) {
+      const eventKey = `FEEDBACK_COLLECTION_${userTrip.id}`;
       const alreadySent = await hasAlreadySent(
-        trip.userId,
-        trip.id,
+        userTrip.userId,
+        userTrip.id,
         null,
         'FEEDBACK_COLLECTION',
         eventKey
@@ -368,14 +368,14 @@ async function checkFeedbackCollection() {
 
       if (alreadySent) continue;
 
-      const userName = trip.user.name || '고객';
+      const userName = userTrip.User.name || '고객';
       const title = '✨ 여행은 즐거우셨나요?';
       const body = `${userName}님의 소중한 의견을 들려주세요. 여행 피드백을 5분 정도 기록해 주시면, 더 나은 크루즈 경험을 위해 활용하겠습니다!`;
 
-      await sendNotificationToUser(trip.userId, { title, body });
+      await sendNotificationToUser(userTrip.userId, { title, body });
       await logNotification(
-        trip.userId,
-        trip.id,
+        userTrip.userId,
+        userTrip.id,
         null,
         'FEEDBACK_COLLECTION',
         eventKey,
@@ -383,7 +383,7 @@ async function checkFeedbackCollection() {
         body
       );
 
-      console.log(`[Proactive] 여행 ${trip.id} 피드백 수집 알림 발송 (사용자: ${trip.userId})`);
+      console.log(`[Proactive] 여행 ${userTrip.id} 피드백 수집 알림 발송 (사용자: ${userTrip.userId})`);
     }
 
     console.log('[Proactive] 피드백 수집 체크 완료');
@@ -403,9 +403,9 @@ async function checkLandingPageNotifications() {
     const currentTime = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
 
     // 푸시 알림이 활성화된 랜딩페이지 조회
+    // pushNotificationEnabled 필드가 없으므로 isActive와 isPublic만으로 필터링
     const landingPages = await prisma.landingPage.findMany({
       where: {
-        pushNotificationEnabled: true,
         isActive: true,
         isPublic: true,
       },

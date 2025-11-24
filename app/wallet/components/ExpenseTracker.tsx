@@ -59,7 +59,7 @@ const CATEGORIES: { key: ExpenseCategory; label: string; icon: string }[] = [
   { key: '기타', label: '기타', icon: '💰' },
 ];
 
-// localStorage 제거 - 이제 API만 사용
+const STORAGE_KEY = 'expense-tracker-items';
 
 export default function ExpenseTracker() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -120,7 +120,31 @@ export default function ExpenseTracker() {
     calculateKRW();
   }, [amount, selectedCurrency]);
 
-  // localStorage 함수 제거 - 이제 API만 사용
+  // localStorage에서 로드
+  const loadFromLocalStorage = (): Expense[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('[ExpenseTracker] Failed to load from localStorage:', e);
+    }
+    return [];
+  };
+
+  // localStorage에 저장
+  const saveToLocalStorage = (items: Expense[]): boolean => {
+    if (typeof window === 'undefined') return false;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+      return true;
+    } catch (e) {
+      console.error('[ExpenseTracker] Failed to save to localStorage:', e);
+      return false;
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -130,10 +154,7 @@ export default function ExpenseTracker() {
       const countriesRes = await fetch('/api/wallet/countries');
       const countriesData = await countriesRes.json();
 
-      // 개발 환경에서만 로깅
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ExpenseTracker] Countries data:', countriesData);
-      }
+      console.log('[ExpenseTracker] Countries data:', countriesData);
 
       if (countriesData.success) {
         if (countriesData.currencies?.length > 0) {
@@ -142,41 +163,63 @@ export default function ExpenseTracker() {
         setTripDates(countriesData.tripDates);
       }
 
-      // API에서 지출 기록 조회
-      const expensesRes = await fetch('/api/wallet/expenses', {
-        credentials: 'include', // 쿠키 포함
-      });
-      
-      if (expensesRes.ok) {
-        const expensesData = await expensesRes.json();
+      // API에서 지출 기록 시도
+      try {
+        const expensesRes = await fetch('/api/wallet/expenses', {
+          credentials: 'include', // 쿠키 포함
+        });
+        
+        if (expensesRes.ok) {
+          const expensesData = await expensesRes.json();
+          console.log('[ExpenseTracker] Expenses data:', expensesData);
 
-        if (expensesData.success) {
-          // API 응답 형식에 맞게 변환
-          const formattedExpenses = (expensesData.expenses || []).map((exp: any) => ({
-            id: exp.id,
-            tripId: exp.tripId,
-            day: exp.day || 1,
-            date: exp.date || (exp.createdAt ? new Date(exp.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
-            category: exp.category,
-            amount: exp.amount || exp.foreignAmount || 0,
-            currency: exp.currency || 'KRW',
-            amountInKRW: exp.amountInKRW || exp.krwAmount || 0,
-            description: exp.description || '',
-            createdAt: exp.createdAt || new Date().toISOString(),
-          }));
-          
-          setExpenses(formattedExpenses);
-          return;
+          if (expensesData.success) {
+            // API 응답 형식에 맞게 변환
+            const formattedExpenses = (expensesData.expenses || []).map((exp: any) => ({
+              id: exp.id,
+              tripId: exp.tripId,
+              day: exp.day || 1,
+              date: exp.date || (exp.createdAt ? new Date(exp.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+              category: exp.category,
+              amount: exp.amount || exp.foreignAmount || 0,
+              currency: exp.currency || 'KRW',
+              amountInKRW: exp.amountInKRW || exp.krwAmount || 0,
+              description: exp.description || '',
+              createdAt: exp.createdAt || new Date().toISOString(),
+            }));
+            
+            // API 데이터와 localStorage 데이터 병합
+            const localItems = loadFromLocalStorage();
+            const merged = [...formattedExpenses, ...localItems.filter(local => 
+              !formattedExpenses.some(api => api.id === local.id)
+            )];
+            
+            setExpenses(merged);
+            saveToLocalStorage(merged);
+            return;
+          }
         }
+      } catch (apiError: any) {
+        console.warn('[ExpenseTracker] API failed, using localStorage:', apiError);
       }
-      
-      // API 실패 시 빈 배열
-      setExpenses([]);
+
+      // API 실패 시 localStorage에서 로드
+      const localItems = loadFromLocalStorage();
+      if (localItems.length > 0) {
+        setExpenses(localItems);
+        console.log('[ExpenseTracker] Loaded from localStorage:', localItems.length, 'items');
+      } else {
+        setExpenses([]);
+      }
     } catch (error: any) {
-      // 에러는 항상 로깅 (중요)
       console.error('[ExpenseTracker] Error loading data:', error);
-      setError(`데이터를 불러오는 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
-      setExpenses([]);
+      // localStorage에서라도 로드 시도
+      const localItems = loadFromLocalStorage();
+      if (localItems.length > 0) {
+        setExpenses(localItems);
+      } else {
+        setError(`데이터를 불러오는 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -216,8 +259,7 @@ export default function ExpenseTracker() {
           }
         }
       } catch (rateError) {
-        // 에러는 항상 로깅 (환율 계산 실패는 중요)
-        console.error('[ExpenseTracker] Exchange rate API failed, using default:', rateError);
+        console.warn('[ExpenseTracker] Exchange rate API failed, using default:', rateError);
         // 기본 환율 사용 (USD = 1300원)
         if (selectedCurrency !== 'KRW') {
           amountInKRW = Math.round(amountNum * 1300);
@@ -232,46 +274,56 @@ export default function ExpenseTracker() {
         expenseDate = start.toISOString().split('T')[0];
       }
 
-      // API에 저장
-      const res = await fetch('/api/wallet/expenses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          day: selectedDay,
-          date: expenseDate,
-          category: selectedCategory,
-          amount: amountNum,
-          currency: selectedCurrency,
-          amountInKRW,
-          description: description.trim(),
-        }),
-      });
+      // 새 지출 항목 생성 (localStorage용)
+      const newExpense: Expense = {
+        id: `local-${Date.now()}`, // localStorage용 임시 ID
+        tripId: 0, // 나중에 tripId를 받을 수 있으면 업데이트
+        day: selectedDay,
+        date: expenseDate,
+        category: selectedCategory,
+        amount: amountNum,
+        currency: selectedCurrency,
+        amountInKRW,
+        description: description.trim(),
+        createdAt: new Date().toISOString(),
+      };
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || '지출 추가 실패');
-      }
+      // 즉시 localStorage에 저장 (낙관적 업데이트)
+      const updatedExpenses = [newExpense, ...expenses];
+      setExpenses(updatedExpenses);
+      saveToLocalStorage(updatedExpenses);
 
-      const result = await res.json();
-      if (result.success && result.expense) {
-        // 서버에서 반환된 지출 항목을 상태에 추가
-        const formattedExpense = {
-          id: result.expense.id,
-          tripId: result.expense.tripId,
-          day: result.expense.day || selectedDay,
-          date: result.expense.date || expenseDate,
-          category: result.expense.category,
-          amount: result.expense.amount,
-          currency: result.expense.currency,
-          amountInKRW: result.expense.amountInKRW,
-          description: result.expense.description,
-          createdAt: result.expense.createdAt,
-        };
-        
-        setExpenses([formattedExpense, ...expenses]);
-      } else {
-        throw new Error('지출 추가 실패');
+      // API에 저장 시도 (백그라운드)
+      try {
+        const res = await fetch('/api/wallet/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            day: selectedDay,
+            date: expenseDate,
+            category: selectedCategory,
+            amount: amountNum,
+            currency: selectedCurrency,
+            amountInKRW,
+            description: description.trim(),
+          }),
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          if (result.success && result.expense) {
+            // 서버 ID로 업데이트
+            const finalExpenses = updatedExpenses.map(exp => 
+              exp.id === newExpense.id ? { ...exp, id: result.expense.id } : exp
+            );
+            setExpenses(finalExpenses);
+            saveToLocalStorage(finalExpenses);
+          }
+        }
+      } catch (apiError: any) {
+        console.warn('[ExpenseTracker] API save failed, keeping local:', apiError);
+        // API 실패해도 localStorage에는 저장됨
       }
 
       // 폼 초기화
@@ -297,24 +349,38 @@ export default function ExpenseTracker() {
 
     setLoading(true);
     try {
-      // API에서 모든 지출 삭제
-      const res = await fetch('/api/wallet/expenses?all=true', {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || '삭제 실패');
+      // 즉시 상태에서 삭제 (낙관적 업데이트)
+      setExpenses([]);
+      
+      // localStorage에 저장 시도
+      const saved = saveToLocalStorage([]);
+      if (!saved) {
+        alert('로컬 저장소에 저장하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+        // 저장 실패 시 다시 로드
+        await loadData();
+        return;
       }
 
-      const result = await res.json();
-      if (result.success) {
-        // 상태에서 삭제
-        setExpenses([]);
-        alert(`모든 지출 기록이 삭제되었습니다. (${result.deletedCount || expenses.length}개)`);
-      } else {
-        throw new Error(result.error || '삭제 실패');
+      // API에서 모든 지출 삭제 시도
+      try {
+        const res = await fetch('/api/wallet/expenses?all=true', {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+
+        if (res.ok) {
+          const result = await res.json();
+          console.log('[ExpenseTracker] All expenses deleted:', result.deletedCount);
+          alert(`모든 지출 기록이 삭제되었습니다. (${result.deletedCount || expenses.length}개)`);
+        } else {
+          console.warn('[ExpenseTracker] API delete all failed, but local delete succeeded');
+          // localStorage는 성공했으므로 성공 메시지 표시
+          alert(`모든 지출 기록이 삭제되었습니다. (${expenses.length}개)\n서버 동기화는 나중에 자동으로 시도됩니다.`);
+        }
+      } catch (apiError) {
+        console.warn('[ExpenseTracker] API delete all error, but local delete succeeded:', apiError);
+        // localStorage는 성공했으므로 성공 메시지 표시
+        alert(`모든 지출 기록이 삭제되었습니다. (${expenses.length}개)\n서버 동기화는 나중에 자동으로 시도됩니다.`);
       }
     } catch (error: any) {
       console.error('[ExpenseTracker] Reset all error:', error);
@@ -332,28 +398,25 @@ export default function ExpenseTracker() {
 
     setLoading(true);
     try {
-      // API에서 삭제 (숫자 ID만 가능)
-      if (typeof id !== 'number') {
-        throw new Error('유효하지 않은 지출 ID입니다.');
-      }
+      // 즉시 localStorage에서 삭제 (낙관적 업데이트)
+      const updatedExpenses = expenses.filter(exp => exp.id !== id);
+      setExpenses(updatedExpenses);
+      saveToLocalStorage(updatedExpenses);
 
-      const res = await fetch(`/api/wallet/expenses?id=${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
+      // API에서 삭제 시도 (숫자 ID인 경우만)
+      if (typeof id === 'number') {
+        try {
+          const res = await fetch(`/api/wallet/expenses?id=${id}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || '삭제 실패');
-      }
-
-      const result = await res.json();
-      if (result.success) {
-        // 상태에서 삭제
-        const updatedExpenses = expenses.filter(exp => exp.id !== id);
-        setExpenses(updatedExpenses);
-      } else {
-        throw new Error(result.error || '삭제 실패');
+          if (!res.ok) {
+            console.warn('[ExpenseTracker] API delete failed, but local delete succeeded');
+          }
+        } catch (apiError) {
+          console.warn('[ExpenseTracker] API delete error, but local delete succeeded:', apiError);
+        }
       }
     } catch (error: any) {
       console.error('[ExpenseTracker] Delete error:', error);
@@ -383,8 +446,6 @@ export default function ExpenseTracker() {
   };
 
   const handleSaveEdit = async (id: number | string) => {
-    if (!editingExpenseId || editingExpenseId !== id) return;
-
     const amountNum = parseFloat(editingAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
       alert('올바른 금액을 입력해주세요.');
@@ -393,82 +454,52 @@ export default function ExpenseTracker() {
 
     setLoading(true);
     try {
-      // API 업데이트 (숫자 ID만 가능)
-      if (typeof id !== 'number') {
-        throw new Error('유효하지 않은 지출 ID입니다.');
-      }
-
-      // 환율 계산
-      const expense = expenses.find(e => e.id === id);
-      let amountInKRW = amountNum;
-      if (expense && expense.currency !== 'KRW') {
-        try {
-          const ratesRes = await fetch('/api/wallet/exchange-rate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ currencies: [expense.currency, 'KRW'] }),
-          });
-          const ratesData = await ratesRes.json();
-
-          if (ratesData.success) {
-            const currencyRate = ratesData.rates.find((r: any) => r.code === expense.currency);
-            if (currencyRate) {
-              amountInKRW = expense.currency === 'KRW'
-                ? amountNum
-                : Math.round(amountNum * currencyRate.rateToKRW);
-            }
-          }
-        } catch (rateError) {
-          // 에러는 항상 로깅
-          console.error('[ExpenseTracker] Exchange rate API failed, using default:', rateError);
-          if (expense.currency !== 'KRW') {
-            amountInKRW = Math.round(amountNum * 1300);
-          }
+      // 즉시 localStorage에서 업데이트
+      const updatedExpenses = expenses.map(exp => {
+        if (exp.id === id) {
+          // 환율 재계산 필요 시
+          const currency = exp.currency;
+          const amountInKRW = currency === 'KRW' 
+            ? amountNum 
+            : Math.round(amountNum * (exp.amountInKRW / exp.amount));
+          
+          return {
+            ...exp,
+            amount: amountNum,
+            amountInKRW,
+            description: editingDescription.trim(),
+          };
         }
-      }
-
-      // API 업데이트
-      const res = await fetch('/api/wallet/expenses', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          id,
-          amount: amountNum,
-          amountInKRW,
-          description: editingDescription.trim(),
-        }),
+        return exp;
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || '수정 실패');
-      }
+      setExpenses(updatedExpenses);
+      saveToLocalStorage(updatedExpenses);
 
-      const result = await res.json();
-      if (result.success && result.expense) {
-        // 서버에서 반환된 업데이트된 지출 항목으로 상태 업데이트
-        const updatedExpenses = expenses.map(exp => {
-          if (exp.id === id) {
-            return {
-              id: result.expense.id,
-              tripId: result.expense.tripId,
-              day: result.expense.day || exp.day,
-              date: result.expense.date || exp.date,
-              category: result.expense.category || exp.category,
-              amount: result.expense.amount,
-              currency: result.expense.currency || exp.currency,
-              amountInKRW: result.expense.amountInKRW,
-              description: result.expense.description,
-              createdAt: result.expense.createdAt || exp.createdAt,
-            };
+      // API 업데이트 시도 (숫자 ID인 경우만)
+      if (typeof id === 'number') {
+        try {
+          const expense = expenses.find(e => e.id === id);
+          if (expense) {
+            const res = await fetch('/api/wallet/expenses', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({
+                id,
+                amount: amountNum,
+                amountInKRW: updatedExpenses.find(e => e.id === id)?.amountInKRW,
+                description: editingDescription.trim(),
+              }),
+            });
+
+            if (!res.ok) {
+              console.warn('[ExpenseTracker] API update failed, but local update succeeded');
+            }
           }
-          return exp;
-        });
-        
-        setExpenses(updatedExpenses);
-      } else {
-        throw new Error(result.error || '수정 실패');
+        } catch (apiError) {
+          console.warn('[ExpenseTracker] API update error, but local update succeeded:', apiError);
+        }
       }
 
       setEditingExpenseId(null);

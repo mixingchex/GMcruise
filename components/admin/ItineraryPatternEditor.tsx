@@ -20,6 +20,7 @@ export interface ItineraryDay {
   departure?: string;
   time?: string;
   notes?: string;
+  hasCruiseInfo?: boolean; // 크루즈 탑승 정보 포함 여부 (선택제)
 }
 
 interface Props {
@@ -171,6 +172,12 @@ export default function ItineraryPatternEditor({ value, onChange }: Props) {
                       </p>
                       <p className="text-sm text-gray-600">
                         {day.location || '위치 미설정'} {day.country && `(${day.country})`}
+                        {day.hasCruiseInfo && day.arrival && (
+                          <span className="ml-2 text-blue-600 font-semibold">
+                            🚢 입항: {day.arrival}
+                            {day.departure && ` / 출항: ${day.departure}`}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -288,9 +295,104 @@ export default function ItineraryPatternEditor({ value, onChange }: Props) {
                           ))}
                         </select>
                       </div>
+                    </div>
 
-                      {/* 입항 시간 (기항지만) */}
-                      {day.type === 'PortVisit' && (
+                    {/* 크루즈 탑승 정보 섹션 (선택제) */}
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="mb-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={day.hasCruiseInfo || false}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              updateDay(day.day, { 
+                                hasCruiseInfo: checked,
+                                // 체크박스 해제 시 입항/출항 시간도 초기화
+                                ...(checked ? {} : { arrival: undefined, departure: undefined })
+                              });
+                            }}
+                            className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-semibold text-gray-700">
+                            🚢 크루즈 정보 포함 (입항/출항 시간 설정)
+                          </span>
+                        </label>
+                        <p className="text-xs text-gray-500 mt-1 ml-7">
+                          체크하면 아래 필드가 표시되며, 브리핑의 "내일 예정" 정보에 자동 반영됩니다.
+                        </p>
+                      </div>
+
+                      {day.hasCruiseInfo && (
+                        <div className="grid sm:grid-cols-2 gap-4 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          {/* 크루즈 국가 (기존 국가와 별도로 설정 가능) */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              크루즈 입항 국가
+                            </label>
+                            <select
+                              value={day.country || ''}
+                              onChange={(e) => updateDay(day.day, { country: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="">국가를 선택하세요</option>
+                              {COUNTRIES.map(country => (
+                                <option key={country.value} value={country.value}>
+                                  {country.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* 입항 시간 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              입항 시간
+                            </label>
+                            <input
+                              type="time"
+                              value={day.arrival || ''}
+                              onChange={(e) => updateDay(day.day, { arrival: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="예: 08:00"
+                            />
+                          </div>
+
+                          {/* 출항 시간 */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              출항 시간
+                            </label>
+                            <input
+                              type="time"
+                              value={day.departure || ''}
+                              onChange={(e) => updateDay(day.day, { departure: e.target.value })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              placeholder="예: 18:00"
+                            />
+                          </div>
+
+                          {/* 기존 승선/하선 시간 필드 (Embarkation/Disembarkation 타입일 때만 표시) */}
+                          {(day.type === 'Embarkation' || day.type === 'Disembarkation') && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                {day.type === 'Embarkation' ? '승선' : '하선'} 시간
+                              </label>
+                              <input
+                                type="time"
+                                value={day.time || ''}
+                                onChange={(e) => updateDay(day.day, { time: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 기존 입항/출항 시간 필드 (PortVisit 타입이고 크루즈 정보가 체크되지 않은 경우에만 표시 - 하위 호환성) */}
+                    {day.type === 'PortVisit' && !day.hasCruiseInfo && (
+                      <div className="grid sm:grid-cols-2 gap-4 mt-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             입항 시간
@@ -302,10 +404,6 @@ export default function ItineraryPatternEditor({ value, onChange }: Props) {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
-                      )}
-
-                      {/* 출항 시간 (기항지만) */}
-                      {day.type === 'PortVisit' && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             출항 시간
@@ -317,22 +415,8 @@ export default function ItineraryPatternEditor({ value, onChange }: Props) {
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           />
                         </div>
-                      )}
-
-                      {/* 승선/하선 시간 */}
-                      {(day.type === 'Embarkation' || day.type === 'Disembarkation') && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            {day.type === 'Embarkation' ? '승선' : '하선'} 시간
-                          </label>
-                          <input
-                            type="time"
-                            value={day.time || ''}
-                            onChange={(e) => updateDay(day.day, { time: e.target.value })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          />
-                        </div>
-                      )}
+                      </div>
+                    )}
                     </div>
 
                     {/* 메모 */}

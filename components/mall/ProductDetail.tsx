@@ -1340,8 +1340,10 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                         }}
                       />
                       {block.alt && (
-                        <div className="p-4 bg-gray-50 border-t border-gray-200">
-                          <p className="text-sm text-gray-600 italic">{block.alt}</p>
+                        <div className="p-5 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-t border-gray-200">
+                          <p className="text-base md:text-lg text-gray-800 leading-relaxed tracking-wide font-medium not-italic break-words" style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                            {block.alt}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1413,8 +1415,10 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                         />
                       )}
                       {block.title && (
-                        <div className="p-4 bg-gray-50 border-t border-gray-200">
-                          <p className="text-lg font-semibold text-gray-800">{block.title}</p>
+                        <div className="p-5 md:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-t border-blue-200">
+                          <p className="text-xl md:text-2xl font-bold text-gray-900 leading-relaxed tracking-wide break-words" style={{ wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                            {block.title}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -1423,11 +1427,13 @@ export default function ProductDetail({ product, partnerId }: ProductDetailProps
                   return (
                     <div key={block.id || index} className="bg-white rounded-xl p-4 md:p-6 shadow-md">
                       <div 
-                        className="prose prose-sm md:prose-lg max-w-none text-gray-700"
+                        className="prose prose-base md:prose-xl max-w-none text-gray-800"
                         style={{ 
                           wordBreak: 'keep-all',
-                          lineHeight: '2',
-                          letterSpacing: '0.02em'
+                          overflowWrap: 'break-word',
+                          lineHeight: '1.9',
+                          letterSpacing: '0.025em',
+                          fontSize: '16px'
                         }}
                         dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(block.content) }}
                       />

@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FiUpload, FiCopy, FiCheck, FiFolder, FiFolderPlus, FiTrash2, FiSearch, FiImage, FiCode, FiX } from 'react-icons/fi';
+import { FiUpload, FiCopy, FiCheck, FiFolder, FiFolderPlus, FiTrash2, FiSearch, FiImage, FiCode, FiX, FiArrowLeft, FiDownload } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
 import Image from 'next/image';
 
@@ -21,7 +21,29 @@ interface ImageItem {
   };
 }
 
+interface CruisePhotoItem {
+  id: string;
+  name: string;
+  url: string;
+  webpUrl: string;
+  size: number;
+  modified: Date;
+  code: {
+    url: string;
+    imageTag: string;
+    htmlTag: string;
+  };
+}
+
+interface CruiseFolder {
+  name: string;
+  path: string;
+}
+
 export default function ImageLibraryPage() {
+  const [activeTab, setActiveTab] = useState<'library' | 'cruise'>('library');
+  
+  // 이미지 라이브러리 상태
   const [images, setImages] = useState<ImageItem[]>([]);
   const [folders, setFolders] = useState<string[]>([]);
   const [rootFolders, setRootFolders] = useState<string[]>([]);
@@ -35,9 +57,22 @@ export default function ImageLibraryPage() {
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 크루즈정보사진 상태
+  const [cruiseImages, setCruiseImages] = useState<CruisePhotoItem[]>([]);
+  const [cruiseFolders, setCruiseFolders] = useState<CruiseFolder[]>([]);
+  const [cruiseCurrentPath, setCruiseCurrentPath] = useState('');
+  const [cruiseIsLoading, setCruiseIsLoading] = useState(false);
+  const [cruiseSearchQuery, setCruiseSearchQuery] = useState('');
+  const [selectedCruiseImage, setSelectedCruiseImage] = useState<CruisePhotoItem | null>(null);
+  const [cruiseFolderSearch, setCruiseFolderSearch] = useState('');
+
   useEffect(() => {
-    loadImages();
-  }, [currentFolder]);
+    if (activeTab === 'library') {
+      loadImages();
+    } else if (activeTab === 'cruise') {
+      loadCruisePhotos();
+    }
+  }, [currentFolder, activeTab, cruiseCurrentPath]);
 
   const loadImages = async () => {
     try {
@@ -107,15 +142,94 @@ export default function ImageLibraryPage() {
     }
   };
 
-  const filteredImages = images.filter(img =>
+  // 중복 제거 (URL 기준)
+  const uniqueImages = Array.from(
+    new Map(images.map((img) => [img.url, img])).values()
+  );
+
+  const filteredImages = uniqueImages.filter(img =>
     img.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const loadCruisePhotos = async () => {
+    try {
+      setCruiseIsLoading(true);
+      const response = await fetch(`/api/admin/cruise-photos?folder=${encodeURIComponent(cruiseCurrentPath)}`);
+      const data = await response.json();
+
+      if (data.ok) {
+        setCruiseImages(data.images || []);
+        setCruiseFolders(data.folders || []);
+      } else {
+        console.error('[Cruise Photos] API Error:', JSON.stringify(data, null, 2));
+        console.error('[Cruise Photos] Error details:', {
+          message: data.message,
+          error: data.error,
+          status: response.status,
+        });
+        showError(data.message || data.error || '크루즈정보사진 목록을 불러오는데 실패했습니다.');
+      }
+    } catch (error: any) {
+      console.error('[Cruise Photos] Fetch error:', error);
+      console.error('[Cruise Photos] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+      showError(`크루즈정보사진 목록을 불러오는데 실패했습니다: ${error.message || '알 수 없는 오류'}`);
+    } finally {
+      setCruiseIsLoading(false);
+    }
+  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
+
+  // 이미지 삭제
+  const handleDelete = async (image: ImageItem, e: React.MouseEvent) => {
+    e.stopPropagation(); // 클릭 이벤트 전파 방지
+
+    if (!confirm(`"${image.name}" 이미지를 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/admin/images?url=${encodeURIComponent(image.url)}&folder=${encodeURIComponent(currentFolder)}`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+        }
+      );
+
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('이미지가 삭제되었습니다.');
+        // 삭제된 이미지가 선택된 이미지이면 선택 해제
+        if (selectedImage?.url === image.url) {
+          setSelectedImage(null);
+        }
+        // 목록 새로고침
+        loadImages();
+      } else {
+        showError(data.message || '이미지 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('이미지 삭제 실패:', error);
+      showError('이미지 삭제에 실패했습니다.');
+    }
+  };
+
+  const filteredCruiseImages = cruiseImages.filter(img =>
+    img.name.toLowerCase().includes(cruiseSearchQuery.toLowerCase())
+  );
+
+  const filteredCruiseFolders = cruiseFolders.filter(folder =>
+    folder.name.toLowerCase().includes(cruiseFolderSearch.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -125,62 +239,122 @@ export default function ImageLibraryPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">이미지 라이브러리</h1>
-              <p className="text-gray-600">이미지를 업로드하고 관리하세요. 자동으로 WebP 변환됩니다.</p>
+              <p className="text-gray-600">
+                {activeTab === 'library' 
+                  ? '이미지를 업로드하고 관리하세요. 자동으로 WebP 변환됩니다.'
+                  : '크루즈정보사진에서 이미지를 선택하고 HTML 소스 코드를 생성하세요.'}
+              </p>
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-              >
-                <FiUpload className="w-5 h-5" />
-                {isUploading ? '업로드 중...' : '이미지 업로드'}
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => handleUpload(e.target.files)}
-                className="hidden"
-              />
+              {activeTab === 'library' && (
+                <>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                  >
+                    <FiUpload className="w-5 h-5" />
+                    {isUploading ? '업로드 중...' : '이미지 업로드'}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleUpload(e.target.files)}
+                    className="hidden"
+                  />
+                </>
+              )}
             </div>
           </div>
 
-          {/* 검색 및 폴더 */}
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="이미지 검색..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={currentFolder}
-                onChange={(e) => setCurrentFolder(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="images">기본 (images)</option>
-                {rootFolders.map((folder) => (
-                  <option key={folder} value={folder}>
-                    {folder}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowNewFolderInput(!showNewFolderInput)}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                title="새 폴더"
-              >
-                <FiFolderPlus className="w-5 h-5" />
-              </button>
-            </div>
+          {/* 탭 */}
+          <div className="flex gap-2 border-b border-gray-200 mb-4">
+            <button
+              onClick={() => setActiveTab('library')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'library'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              이미지 라이브러리
+            </button>
+            <button
+              onClick={() => setActiveTab('cruise')}
+              className={`px-4 py-2 font-medium transition-colors ${
+                activeTab === 'cruise'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-800'
+              }`}
+            >
+              크루즈정보사진
+            </button>
           </div>
+
+          {/* 검색 및 폴더 */}
+          {activeTab === 'library' ? (
+            <div className="flex items-center gap-4">
+              <div className="flex-1 relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="이미지 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  value={currentFolder}
+                  onChange={(e) => setCurrentFolder(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="images">기본 (images)</option>
+                  {rootFolders.map((folder) => (
+                    <option key={folder} value={folder}>
+                      {folder}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowNewFolderInput(!showNewFolderInput)}
+                  className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  title="새 폴더"
+                >
+                  <FiFolderPlus className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="flex-1 relative">
+                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="이미지 검색..."
+                  value={cruiseSearchQuery}
+                  onChange={(e) => setCruiseSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              {cruiseCurrentPath && (
+                <button
+                  onClick={() => {
+                    const pathParts = cruiseCurrentPath.split('/');
+                    pathParts.pop();
+                    setCruiseCurrentPath(pathParts.join('/'));
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  <FiArrowLeft className="w-5 h-5" />
+                  상위 폴더
+                </button>
+              )}
+            </div>
+          )}
 
           {/* 새 폴더 입력 */}
           {showNewFolderInput && (
@@ -216,53 +390,295 @@ export default function ImageLibraryPage() {
         </div>
 
         {/* 이미지 그리드 */}
-        {isLoading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">이미지 목록을 불러오는 중...</p>
-          </div>
-        ) : filteredImages.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
-            <FiImage className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 text-lg">이미지가 없습니다.</p>
-            <p className="text-gray-400 text-sm mt-2">위의 "이미지 업로드" 버튼을 클릭하여 이미지를 업로드하세요.</p>
-          </div>
+        {activeTab === 'library' ? (
+          <>
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">이미지 목록을 불러오는 중...</p>
+              </div>
+            ) : filteredImages.length === 0 ? (
+              <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+                <FiImage className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 text-lg">이미지가 없습니다.</p>
+                <p className="text-gray-400 text-sm mt-2">위의 "이미지 업로드" 버튼을 클릭하여 이미지를 업로드하세요.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {filteredImages.map((image) => (
+                  <div
+                    key={image.url}
+                    className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow cursor-pointer relative group"
+                    onClick={() => setSelectedImage(image)}
+                  >
+                    <div className="aspect-square relative bg-gray-100">
+                      <Image
+                        src={image.webpUrl || image.url}
+                        alt={image.name}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                      />
+                      {image.webpUrl && (
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded z-10">
+                          WebP
+                        </div>
+                      )}
+                      {/* 삭제 버튼 - 항상 표시 */}
+                      <button
+                        onClick={(e) => handleDelete(image, e)}
+                        className="absolute top-2 left-2 p-2 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transition-colors z-10 flex items-center justify-center"
+                        title="삭제"
+                      >
+                        <FiTrash2 size={14} />
+                      </button>
+                    </div>
+                    <div className="p-3">
+                      <p className="text-sm font-medium text-gray-800 truncate" title={image.name}>
+                        {image.name}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{formatFileSize(image.size)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredImages.map((image) => (
-              <div
-                key={image.url}
-                className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => setSelectedImage(image)}
-              >
-                <div className="aspect-square relative bg-gray-100">
+          <>
+            {cruiseIsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">크루즈정보사진 목록을 불러오는 중...</p>
+              </div>
+            ) : (
+              <div className="flex gap-4">
+                {/* 폴더 목록 */}
+                <div className="w-64 bg-white rounded-lg shadow-sm border p-4">
+                  <div className="mb-4">
+                    <div className="relative">
+                      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="폴더 검색..."
+                        value={cruiseFolderSearch}
+                        onChange={(e) => setCruiseFolderSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+                    {filteredCruiseFolders.map((folder) => (
+                      <button
+                        key={folder.path}
+                        onClick={() => setCruiseCurrentPath(folder.path)}
+                        className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <FiFolder className="w-4 h-4 text-gray-400" />
+                        <span className="truncate">{folder.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 이미지 그리드 */}
+                <div className="flex-1">
+                  {filteredCruiseImages.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+                      <FiImage className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 text-lg">이미지가 없습니다.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                      {filteredCruiseImages.map((image) => (
+                        <div
+                          key={image.url}
+                          className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => setSelectedCruiseImage(image)}
+                        >
+                          <div className="aspect-square relative bg-gray-100">
+                            <Image
+                              src={image.url}
+                              alt={image.name}
+                              fill
+                              className="object-cover"
+                              sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                            />
+                          </div>
+                          <div className="p-3">
+                            <p className="text-sm font-medium text-gray-800 truncate" title={image.name}>
+                              {image.name}
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">{formatFileSize(image.size)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* 크루즈정보사진 상세 모달 */}
+      {selectedCruiseImage && activeTab === 'cruise' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-800">{selectedCruiseImage.name}</h2>
+                <button
+                  onClick={() => setSelectedCruiseImage(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <FiX className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="mb-6">
+                <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
                   <Image
-                    src={image.webpUrl || image.url}
-                    alt={image.name}
+                    src={selectedCruiseImage.webpUrl || selectedCruiseImage.url}
+                    alt={selectedCruiseImage.name}
                     fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                    className="object-contain"
                   />
-                  {image.webpUrl && (
-                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded">
+                  {selectedCruiseImage.webpUrl && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded z-10">
                       WebP
                     </div>
                   )}
                 </div>
-                <div className="p-3">
-                  <p className="text-sm font-medium text-gray-800 truncate" title={image.name}>
-                    {image.name}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">{formatFileSize(image.size)}</p>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600">파일 크기</p>
+                    <p className="font-medium">{formatFileSize(selectedCruiseImage.size)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600">경로</p>
+                    <p className="font-medium text-xs break-all">{selectedCruiseImage.url}</p>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* 이미지 상세 모달 */}
-      {selectedImage && (
+              {/* 코드 복사 섹션 */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <FiCode className="w-5 h-5" />
+                  소스코드 복사
+                </h3>
+
+                {/* Next.js Image 태그 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-700">Next.js Image 태그</label>
+                    <button
+                      onClick={() => copyToClipboard(selectedCruiseImage.code.imageTag, 'cruiseImageTag')}
+                      className="flex items-center gap-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                    >
+                      {copiedCode === 'cruiseImageTag' ? (
+                        <>
+                          <FiCheck className="w-4 h-4" />
+                          복사됨
+                        </>
+                      ) : (
+                        <>
+                          <FiCopy className="w-4 h-4" />
+                          복사
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                    {selectedCruiseImage.code.imageTag}
+                  </pre>
+                </div>
+
+                {/* HTML img 태그 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-700">HTML img 태그</label>
+                    <button
+                      onClick={() => copyToClipboard(selectedCruiseImage.code.htmlTag, 'cruiseHtmlTag')}
+                      className="flex items-center gap-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                    >
+                      {copiedCode === 'cruiseHtmlTag' ? (
+                        <>
+                          <FiCheck className="w-4 h-4" />
+                          복사됨
+                        </>
+                      ) : (
+                        <>
+                          <FiCopy className="w-4 h-4" />
+                          복사
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                    {selectedCruiseImage.code.htmlTag}
+                  </pre>
+                </div>
+
+                {/* URL만 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-700">이미지 URL</label>
+                    <button
+                      onClick={() => copyToClipboard(selectedCruiseImage.code.url, 'cruiseUrl')}
+                      className="flex items-center gap-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+                    >
+                      {copiedCode === 'cruiseUrl' ? (
+                        <>
+                          <FiCheck className="w-4 h-4" />
+                          복사됨
+                        </>
+                      ) : (
+                        <>
+                          <FiCopy className="w-4 h-4" />
+                          복사
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="bg-gray-100 p-3 rounded text-sm overflow-x-auto">
+                    {selectedCruiseImage.code.url}
+                  </pre>
+                </div>
+
+                {/* PNG 다운로드 버튼 */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => {
+                      if (!selectedCruiseImage) return;
+                      const downloadUrl = `/api/admin/cruise-photos/image?id=${selectedCruiseImage.id}&download=true&watermark=true`;
+                      const link = document.createElement('a');
+                      link.href = downloadUrl;
+                      link.download = selectedCruiseImage.name.replace(/\.[^/.]+$/, '') + '.png';
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      showSuccess('PNG 다운로드가 시작되었습니다.');
+                    }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                  >
+                    <FiDownload className="w-5 h-5" />
+                    PNG 다운로드 (워터마크 포함)
+                  </button>
+                  <p className="text-xs text-gray-500 mt-2 text-center">
+                    크루즈닷 로고가 워터마크로 추가됩니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 이미지 라이브러리 상세 모달 */}
+      {selectedImage && activeTab === 'library' && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">

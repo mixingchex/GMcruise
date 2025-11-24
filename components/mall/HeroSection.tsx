@@ -169,6 +169,10 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
                       productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                   }
+                } else if (btn.text === '지금 시작하기') {
+                  // 지금 시작하기 버튼은 새 창으로 열기
+                  e.preventDefault();
+                  window.open(btn.link || '/login-test', '_blank');
                 } else {
                   // 기타 버튼은 기존 동작
                   window.location.href = btn.link || '/login-test';

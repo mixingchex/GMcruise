@@ -583,7 +583,26 @@ export default function DailyBriefingCard() {
     return dateStr;
   };
 
-  // 브리핑이 변경될 때 일정 불러오기 (스마트폰 현재 시간 기준)
+  // 시간에서 30분 빼기 함수 (HH:MM 형식)
+  const subtract30Minutes = (timeStr: string): string | null => {
+    if (!timeStr || !timeStr.includes(':')) return null;
+    try {
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      let totalMinutes = hours * 60 + minutes - 30;
+      if (totalMinutes < 0) {
+        // 전날로 넘어가는 경우 처리
+        totalMinutes += 24 * 60; // 24시간 추가
+      }
+      const newHours = Math.floor(totalMinutes / 60) % 24;
+      const newMinutes = totalMinutes % 60;
+      return `${String(newHours).padStart(2, '0')}:${String(newMinutes).padStart(2, '0')}`;
+    } catch (error) {
+      console.error('[DailyBriefingCard] 시간 계산 오류:', error);
+      return null;
+    }
+  };
+
+  // 브리핑이 변경될 때 일정 불러오기 및 내일 예정 알람 설정 (스마트폰 현재 시간 기준)
   // briefing.date만 의존성으로 사용하여 무한 리렌더링 방지
   useEffect(() => {
     if (!briefing || !briefing.date) return;
@@ -614,8 +633,78 @@ export default function DailyBriefingCard() {
     loadSchedules(tomorrowStr).then(() => {
       console.log('[DailyBriefingCard] 내일 일정 불러오기 완료');
     });
+
+    // 내일 예정 정보가 있으면 알람 자동 설정
+    const setupTomorrowAlarms = async () => {
+      if (!briefing.tomorrow || !briefing.tomorrow.arrival) {
+        console.log('[DailyBriefingCard] 내일 예정 정보가 없어 알람을 설정하지 않습니다.');
+        return;
+      }
+
+      const hasPermission = await requestNotificationPermission();
+      if (!hasPermission) {
+        console.log('[DailyBriefingCard] 알림 권한이 없어 내일 예정 알람을 설정할 수 없습니다.');
+        return;
+      }
+
+      const tomorrowLocation = briefing.tomorrow.location || '항구';
+      const tomorrowCountry = briefing.tomorrow.country || '';
+      const arrivalTime = briefing.tomorrow.arrival;
+
+      // 1. 입항 30분 전 알람 설정
+      const alarm30MinBefore = subtract30Minutes(arrivalTime);
+      if (alarm30MinBefore) {
+        const alarmKey30Min = `tomorrow-arrival-30min-${tomorrowStr}`;
+        const existingAlarm30Min = localStorage.getItem(alarmKey30Min);
+        
+        if (!existingAlarm30Min || existingAlarm30Min !== tomorrowStr) {
+          try {
+            const alarmTitle30Min = `🚢 ${tomorrowLocation}${tomorrowCountry ? ` (${tomorrowCountry})` : ''} 입항 30분 전!`;
+            const success = await scheduleAlarm(tomorrowStr, alarm30MinBefore, alarmTitle30Min);
+            if (success) {
+              localStorage.setItem(alarmKey30Min, tomorrowStr);
+              console.log('[DailyBriefingCard] 입항 30분 전 알람 설정 완료:', { 
+                date: tomorrowStr, 
+                time: alarm30MinBefore,
+                arrivalTime,
+                location: tomorrowLocation 
+              });
+            }
+          } catch (error) {
+            console.error('[DailyBriefingCard] 입항 30분 전 알람 설정 실패:', error);
+          }
+        }
+      }
+
+      // 2. 1일 전 알람 설정 (오늘 저녁 8시 또는 적절한 시간에)
+      const alarmKey1Day = `tomorrow-arrival-1day-${tomorrowStr}`;
+      const existingAlarm1Day = localStorage.getItem(alarmKey1Day);
+      
+      if (!existingAlarm1Day || existingAlarm1Day !== tomorrowStr) {
+        try {
+          // 오늘 날짜, 저녁 8시에 알람 설정
+          const alarmTime1Day = '20:00';
+          const alarmTitle1Day = `📅 내일 예정: ${tomorrowLocation}${tomorrowCountry ? ` (${tomorrowCountry})` : ''} 입항 ${arrivalTime}`;
+          const success = await scheduleAlarm(todayStr, alarmTime1Day, alarmTitle1Day);
+          if (success) {
+            localStorage.setItem(alarmKey1Day, tomorrowStr);
+            console.log('[DailyBriefingCard] 1일 전 알람 설정 완료:', { 
+              date: todayStr, 
+              time: alarmTime1Day,
+              tomorrowLocation,
+              arrivalTime 
+            });
+          }
+        } catch (error) {
+          console.error('[DailyBriefingCard] 1일 전 알람 설정 실패:', error);
+        }
+      }
+    };
+
+    // 내일 예정 알람 설정
+    setupTomorrowAlarms();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [briefing?.date]); // briefing.date만 의존성으로 사용
+  }, [briefing?.date, briefing?.tomorrow]); // briefing.date와 briefing.tomorrow를 의존성으로 사용
 
   useEffect(() => {
     loadAllData();
@@ -994,8 +1083,16 @@ export default function DailyBriefingCard() {
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        throw new Error('일정 삭제 실패');
+      const data = await response.json().catch(() => ({}));
+      
+      // 404는 이미 삭제된 것으로 간주하고 성공 처리
+      if (!response.ok && response.status !== 404) {
+        throw new Error(data.error || '일정 삭제 실패');
+      }
+      
+      // 성공 또는 이미 삭제된 경우 (404도 성공으로 처리)
+      if (response.ok || response.status === 404) {
+        console.log('[DailyBriefingCard] 일정 삭제 성공:', schedule.id);
       }
 
       // 서버에서 최신 일정 다시 불러오기 (스마트폰 현재 시간 기준)

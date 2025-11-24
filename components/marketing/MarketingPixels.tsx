@@ -1,7 +1,7 @@
+'use client';
+
 // components/marketing/MarketingPixels.tsx
 // 마케팅 픽셀 스크립트 자동 주입 컴포넌트
-
-'use client';
 
 import { useEffect } from 'react';
 import Script from 'next/script';

@@ -1583,6 +1583,252 @@ export async function POST(req: Request) {
         throw updateError;
       }
 
+      // 유료 고객(3800): REAL-CRUISE-01 상품으로 UserTrip 자동 생성/업데이트
+      console.log('[Login] 3800: UserTrip 자동 생성 체크 시작:', { userId: activeUser.id });
+      
+      const existingUserTrip = await prisma.userTrip.findFirst({
+        where: { userId: activeUser.id },
+        select: { id: true, productId: true },
+      });
+      
+      console.log('[Login] 3800: UserTrip 존재 여부 확인:', { 
+        userId: activeUser.id,
+        hasTrip: !!existingUserTrip,
+        tripId: existingUserTrip?.id,
+        productId: existingUserTrip?.productId
+      });
+
+      // REAL-CRUISE-01 상품 조회
+      const realProduct = await prisma.cruiseProduct.findUnique({
+        where: { productCode: 'REAL-CRUISE-01' },
+      });
+
+      console.log('[Login] 3800: REAL-CRUISE-01 상품 조회 결과:', { 
+        found: !!realProduct,
+        productId: realProduct?.id,
+        productCode: realProduct?.productCode,
+        cruiseLine: realProduct?.cruiseLine,
+        shipName: realProduct?.shipName,
+        nights: realProduct?.nights,
+        days: realProduct?.days,
+      });
+
+      // UserTrip이 없거나 REAL-CRUISE-01이 아닌 경우 생성/재생성
+      if ((!existingUserTrip || (existingUserTrip && realProduct && existingUserTrip.productId !== realProduct.id)) && realProduct) {
+        console.log('[Login] 3800: UserTrip 생성 시작');
+        
+        try {
+          const now = new Date();
+          
+          // 기존 UserTrip이 다른 상품이면 삭제
+          if (existingUserTrip && realProduct && existingUserTrip.productId !== realProduct.id) {
+            console.log('[Login] 3800: 기존 UserTrip이 REAL-CRUISE-01이 아님, 삭제 후 재생성');
+            
+            await prisma.itinerary.deleteMany({
+              where: { userTripId: existingUserTrip.id },
+            });
+            
+            await prisma.userTrip.delete({
+              where: { id: existingUserTrip.id },
+            });
+            
+            console.log('[Login] 3800: ✅ 기존 UserTrip 삭제 완료');
+          }
+
+          // 출발일: 오늘 + 30일 (D-30)
+          const startDate = new Date(now);
+          startDate.setDate(startDate.getDate() + 30);
+          startDate.setHours(0, 0, 0, 0);
+
+          // 종료 날짜 계산 (출발일 + (days - 1)일)
+          const endDate = new Date(startDate);
+          endDate.setDate(endDate.getDate() + realProduct.days - 1);
+          endDate.setHours(23, 59, 59, 999);
+
+          console.log('[Login] 3800: 날짜 계산 완료:', {
+            today: now.toISOString().split('T')[0],
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0],
+            nights: realProduct.nights,
+            days: realProduct.days,
+            dday: Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+          });
+
+          // 목적지 배열 생성 (itineraryPattern에서 추출)
+          const itineraryPattern = normalizeItineraryPattern(realProduct.itineraryPattern);
+          const destinations = extractDestinationsFromItineraryPattern(realProduct.itineraryPattern);
+          const visitedCountries = extractVisitedCountriesFromItineraryPattern(realProduct.itineraryPattern);
+
+          // 예약번호 자동 생성
+          const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
+          const randomStr = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+          const reservationCode = `CRD-${dateStr}-${randomStr}`;
+
+          console.log('[Login] 3800: UserTrip 생성 데이터 준비 완료:', {
+            userId: activeUser.id,
+            productId: realProduct.id,
+            reservationCode,
+            cruiseName: `${realProduct.cruiseLine} ${realProduct.shipName}`,
+            destinations: destinations,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            nights: realProduct.nights,
+            days: realProduct.days,
+            visitCount: destinations.length,
+          });
+
+          // UserTrip 생성
+          const userTrip = await prisma.userTrip.create({
+            data: {
+              userId: activeUser.id,
+              productId: realProduct.id,
+              reservationCode,
+              cruiseName: `${realProduct.cruiseLine} ${realProduct.shipName}`,
+              companionType: '가족', // 기본값
+              destination: destinations,
+              startDate,
+              endDate,
+              nights: realProduct.nights,
+              days: realProduct.days,
+              visitCount: destinations.length,
+              status: 'Upcoming',
+              googleFolderId: 'auto-genie',
+              spreadsheetId: 'auto-genie',
+              updatedAt: new Date(),
+            },
+          });
+
+          console.log('[Login] 3800: ✅ UserTrip 생성 성공:', {
+            tripId: userTrip.id,
+            userId: activeUser.id,
+            cruiseName: `${realProduct.cruiseLine} ${realProduct.shipName}`,
+            startDate: startDate.toISOString(),
+            endDate: endDate.toISOString(),
+            nights: realProduct.nights,
+            days: realProduct.days,
+          });
+
+          // Itinerary 레코드들 자동 생성
+          console.log('[Login] 3800: Itinerary 생성 시작:', {
+            itineraryPatternLength: itineraryPattern.length,
+            tripId: userTrip.id,
+          });
+          
+          const itineraries = [];
+          for (const pattern of itineraryPattern) {
+            const dayDate = new Date(startDate);
+            dayDate.setDate(dayDate.getDate() + pattern.day - 1);
+
+            itineraries.push({
+              userTripId: userTrip.id,
+              day: pattern.day,
+              date: dayDate,
+              type: pattern.type,
+              location: pattern.location || null,
+              country: pattern.country || null,
+              currency: pattern.currency || null,
+              language: pattern.language || null,
+              arrival: pattern.arrival || null,
+              departure: pattern.departure || null,
+              time: pattern.time || null,
+              updatedAt: new Date(),
+            });
+          }
+
+          console.log('[Login] 3800: Itinerary 데이터 준비 완료:', {
+            count: itineraries.length,
+            tripId: userTrip.id,
+          });
+
+          await prisma.itinerary.createMany({
+            data: itineraries,
+          });
+
+          console.log('[Login] 3800: ✅ Itinerary 생성 완료:', {
+            count: itineraries.length,
+            tripId: userTrip.id,
+          });
+
+          // VisitedCountry 업데이트
+          for (const [countryCode, countryInfo] of visitedCountries) {
+            await prisma.visitedCountry.upsert({
+              where: {
+                userId_countryCode: {
+                  userId: activeUser.id,
+                  countryCode,
+                },
+              },
+              update: {
+                visitCount: { increment: 1 },
+                lastVisited: startDate,
+              },
+              create: {
+                userId: activeUser.id,
+                countryCode,
+                countryName: countryInfo.name,
+                visitCount: 1,
+                lastVisited: startDate,
+              },
+            });
+          }
+
+          // 온보딩 완료 상태로 설정
+          console.log('[Login] 3800: 온보딩 완료 상태 설정 시작:', {
+            userId: activeUser.id,
+          });
+          
+          await prisma.user.update({
+            where: { id: activeUser.id },
+            data: {
+              onboarded: true,
+              totalTripCount: { increment: 1 },
+            },
+          });
+
+          console.log('[Login] 3800: ✅ 온보딩 완료 상태 설정 완료:', {
+            userId: activeUser.id,
+            onboarded: true,
+          });
+
+          console.log('[Login] 3800: Auto-created trip for user', activeUser.id, 'with product REAL-CRUISE-01', {
+            startDate: startDate.toISOString().split('T')[0],
+            endDate: endDate.toISOString().split('T')[0],
+            nights: realProduct.nights,
+            days: realProduct.days,
+            loginDate: now.toISOString().split('T')[0],
+            dday: Math.ceil((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)),
+          });
+        } catch (tripError) {
+          console.error('[Login] 3800: Failed to auto-create UserTrip:', tripError);
+          console.error('[Login] 3800: UserTrip creation error details:', {
+            error: tripError instanceof Error ? tripError.message : String(tripError),
+            stack: tripError instanceof Error ? tripError.stack : undefined,
+            name: tripError instanceof Error ? tripError.name : undefined,
+            userId: activeUser.id,
+            userName: activeUser.name || name,
+          });
+          
+          // UserTrip 생성 실패 시에도 로그인은 계속 진행하되, 에러를 명확히 기록
+        }
+      } else if (existingUserTrip && realProduct && existingUserTrip.productId === realProduct.id) {
+        console.log('[Login] 3800: 기존 UserTrip이 REAL-CRUISE-01임, UserTrip 생성 건너뜀:', {
+          userId: activeUser.id,
+          tripId: existingUserTrip.id,
+          productId: existingUserTrip.productId,
+        });
+        
+        // 기존 UserTrip이 있으면 온보딩 완료 상태로 설정
+        await prisma.user.update({
+          where: { id: activeUser.id },
+          data: {
+            onboarded: true,
+          },
+        });
+      } else if (!realProduct) {
+        console.error('[Login] 3800: ❌ REAL-CRUISE-01 상품을 찾을 수 없습니다!');
+        console.warn('[Login] 3800: REAL-CRUISE-01 product not found');
+      }
+
       const next = '/chat'; // 항상 채팅으로 이동
       const userId = activeUser.id;
 

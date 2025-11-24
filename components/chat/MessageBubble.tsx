@@ -1,3 +1,5 @@
+'use client';
+
 import { useRouter } from 'next/navigation';
 import DirectionsButtons from '@/components/DirectionsButtons'; // DirectionsButtons 임포트
 

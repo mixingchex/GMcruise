@@ -1021,7 +1021,8 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
           </section>
         )}
 
-        {/* 개인 링크 - 모바일 최적화 */}
+        {/* 개인 링크 - 모바일 최적화 (대리점장/판매원은 빠른메뉴의 링크 관리에서 확인 가능하므로 숨김) */}
+        {!isBranchManager && !isSalesAgent && (
         <section className="rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 p-4 shadow-lg md:rounded-3xl md:p-6 border-2 border-indigo-100">
           <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
             <FiLink className="text-indigo-600" />
@@ -1146,6 +1147,7 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
             ))}
           </div>
         </section>
+        )}
 
 
         {/* 빠른 메뉴 - 모바일 최적화 */}

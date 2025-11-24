@@ -4,7 +4,7 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, stat } from 'fs/promises';
+import { readdir, stat, unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import prisma from '@/lib/prisma';
@@ -129,13 +129,18 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 중복 제거 (URL 기준)
+    const uniqueFiles = Array.from(
+      new Map(files.map((file) => [file.url, file])).values()
+    );
+
     // 업로드 시간 기준 내림차순 정렬 (최신순)
-    files.sort((a, b) => b.uploadedAt - a.uploadedAt);
+    uniqueFiles.sort((a, b) => b.uploadedAt - a.uploadedAt);
 
     return NextResponse.json({
       ok: true,
-      files,
-      count: files.length,
+      files: uniqueFiles,
+      count: uniqueFiles.length,
     });
   } catch (error) {
     console.error('[Mall Files API] Error:', error);
@@ -143,6 +148,81 @@ export async function GET(req: NextRequest) {
       {
         ok: false,
         error: error instanceof Error ? error.message : '파일 목록을 불러올 수 없습니다.',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE: 파일 삭제
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    // 관리자 권한 확인
+    const admin = await checkAdminAuth();
+    if (!admin) {
+      return NextResponse.json(
+        { ok: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const url = new URL(req.url);
+    const fileUrl = url.searchParams.get('url');
+
+    if (!fileUrl) {
+      return NextResponse.json(
+        { ok: false, error: '파일 URL이 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    // URL에서 실제 파일 경로 추출
+    let filepath: string;
+    if (fileUrl.startsWith('/uploads/images/')) {
+      const filename = fileUrl.replace('/uploads/images/', '');
+      filepath = join(process.cwd(), 'public', 'uploads', 'images', filename);
+    } else if (fileUrl.startsWith('/uploads/videos/')) {
+      const filename = fileUrl.replace('/uploads/videos/', '');
+      filepath = join(process.cwd(), 'public', 'uploads', 'videos', filename);
+    } else {
+      return NextResponse.json(
+        { ok: false, error: '유효하지 않은 파일 경로입니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 보안: public/uploads 디렉토리 내부인지 확인
+    const uploadsDir = join(process.cwd(), 'public', 'uploads');
+    if (!filepath.startsWith(uploadsDir)) {
+      return NextResponse.json(
+        { ok: false, error: '접근할 수 없는 경로입니다.' },
+        { status: 403 }
+      );
+    }
+
+    // 파일 존재 확인
+    if (!existsSync(filepath)) {
+      return NextResponse.json(
+        { ok: false, error: '파일을 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    // 파일 삭제
+    await unlink(filepath);
+
+    return NextResponse.json({
+      ok: true,
+      message: '파일이 삭제되었습니다.',
+    });
+  } catch (error) {
+    console.error('[Mall Files API] Delete error:', error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : '파일 삭제에 실패했습니다.',
       },
       { status: 500 }
     );

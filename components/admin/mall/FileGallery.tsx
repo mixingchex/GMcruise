@@ -4,8 +4,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiImage, FiVideo, FiX, FiRefreshCw, FiUpload } from 'react-icons/fi';
-import { showError } from '@/components/ui/Toast';
+import { FiImage, FiVideo, FiX, FiRefreshCw, FiUpload, FiTrash2 } from 'react-icons/fi';
+import { showError, showSuccess } from '@/components/ui/Toast';
 
 interface FileItem {
   url: string;
@@ -37,7 +37,11 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
       });
       const data = await response.json();
       if (data.ok && data.files) {
-        setFiles(data.files);
+        // 중복 제거 (URL 기준)
+        const uniqueFiles = Array.from(
+          new Map(data.files.map((file: FileItem) => [file.url, file])).values()
+        );
+        setFiles(uniqueFiles);
       } else {
         showError(data.error || '파일 목록을 불러올 수 없습니다.');
       }
@@ -101,6 +105,38 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
   const handleSelect = (url: string) => {
     setSelectedUrl(url);
     onSelect(url);
+  };
+
+  // 파일 삭제
+  const handleDelete = async (url: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // 클릭 이벤트 전파 방지
+
+    if (!confirm('이 파일을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/mall/files?url=${encodeURIComponent(url)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('파일이 삭제되었습니다.');
+        // 삭제된 파일이 선택된 파일이면 선택 해제
+        if (selectedUrl === url) {
+          setSelectedUrl(undefined);
+        }
+        // 목록 새로고침
+        await loadFiles();
+      } else {
+        showError(data.error || '파일 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('파일 삭제 실패:', error);
+      showError('파일 삭제에 실패했습니다.');
+    }
   };
 
   return (
@@ -181,6 +217,14 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
                           </div>
                         </div>
                       )}
+                      {/* 삭제 버튼 - 항상 표시 */}
+                      <button
+                        onClick={(e) => handleDelete(file.url, e)}
+                        className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transition-colors z-10 flex items-center justify-center"
+                        title="삭제"
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
                     </div>
                   ) : (
                     <div className="aspect-square relative bg-gray-900 flex items-center justify-center">
@@ -192,6 +236,14 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
                           </div>
                         </div>
                       )}
+                      {/* 삭제 버튼 - 항상 표시 */}
+                      <button
+                        onClick={(e) => handleDelete(file.url, e)}
+                        className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transition-colors z-10 flex items-center justify-center"
+                        title="삭제"
+                      >
+                        <FiTrash2 size={16} />
+                      </button>
                     </div>
                   )}
                   <div className="p-2 bg-white">
