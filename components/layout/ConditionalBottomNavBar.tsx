@@ -27,6 +27,7 @@ const HIDE_NAV_PATHS = [
   '/chat-bot', // AI 지니 채팅봇 페이지
   '/partner', // 파트너 전용 페이지
   '/landing', // 랜딩페이지 공개 링크에선 크루즈가이드 하단 툴바 숨김
+  '/store', // 파트너/어필리에이트 랜딩페이지 (/store/[affiliateCode]/[landingSlug])
 ];
 
 // 판매원 개인몰 경로 패턴 (동적 경로: /[mallUserId]/dashboard 등)
