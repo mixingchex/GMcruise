@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/auth/check-nickname/route.ts
 // 닉네임 중복 확인 API
 
@@ -45,25 +47,3 @@ export async function GET(req: Request) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

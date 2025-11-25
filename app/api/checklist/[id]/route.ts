@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/checklist/[id]/route.ts
 // 체크리스트 개별 항목 API
 
@@ -123,25 +125,3 @@ export async function DELETE(
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

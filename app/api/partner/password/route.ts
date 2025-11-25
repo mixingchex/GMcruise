@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/password/route.ts
 // 파트너 비밀번호 변경 API
 

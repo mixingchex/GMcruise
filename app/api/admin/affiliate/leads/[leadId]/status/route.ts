@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/leads/[leadId]/status/route.ts
 // 고객 상태 변경 API
 

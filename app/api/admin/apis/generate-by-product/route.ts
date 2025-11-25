@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 // import { syncApisSpreadsheet } from '@/lib/google-sheets'; // google-sheets.ts 파일이 비어있음
@@ -151,16 +153,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

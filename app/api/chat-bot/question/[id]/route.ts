@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/chat-bot/question/[id]/route.ts
 // 특정 질문 로드
 

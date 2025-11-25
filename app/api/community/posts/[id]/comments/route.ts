@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/posts/[id]/comments/route.ts
 // 커뮤니티 게시글 댓글 API
 
@@ -892,33 +894,3 @@ export async function POST(
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

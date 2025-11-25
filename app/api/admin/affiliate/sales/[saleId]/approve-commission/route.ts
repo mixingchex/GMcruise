@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/sales/[saleId]/approve-commission/route.ts
 // 구매 완료 승인 및 수당 확정 API (기존 프로세스용)
 
@@ -160,5 +162,3 @@ export async function POST(
     }, { status: 500 });
   }
 }
-
-

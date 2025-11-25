@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall-users/list/route.ts
 // 크루즈몰 고객 전체 목록 조회 API
 
@@ -118,5 +120,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-

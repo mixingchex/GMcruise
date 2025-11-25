@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/pages/content/route.ts
 // 페이지 콘텐츠 관리 API
 
@@ -181,4 +183,3 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
-

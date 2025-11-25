@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/monitoring/route.ts
 // 계약/수당/DB 회수 모니터링 API
 
@@ -220,5 +222,3 @@ export async function GET() {
     );
   }
 }
-
-

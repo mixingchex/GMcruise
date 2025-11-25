@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall-customers/[userId]/lock/route.ts
 // 크루즈몰 고객 계정 잠금/해제
 
@@ -163,4 +165,3 @@ export async function DELETE(
     );
   }
 }
-

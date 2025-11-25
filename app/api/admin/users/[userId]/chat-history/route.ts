@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/users/[userId]/chat-history/route.ts
 // 관리자용: 사용자 AI 대화 기록 조회 API
 
@@ -82,4 +84,3 @@ export async function GET(
     );
   }
 }
-

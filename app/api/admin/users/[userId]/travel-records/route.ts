@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/users/[userId]/travel-records/route.ts
 // 사용자의 여행 기록 조회 (관리자 전용)
 // MapTravelRecord와 TravelDiaryEntry를 함께 조회
@@ -124,9 +126,3 @@ export async function GET(
     );
   }
 }
-
-
-
-
-
-

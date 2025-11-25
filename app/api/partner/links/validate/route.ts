@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/links/validate/route.ts
 // 링크 유효성 검사 API
 
@@ -82,7 +84,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-

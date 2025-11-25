@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/sales/[saleId]/receipt/route.ts
 // 현금영수증 처리 API
 
@@ -72,5 +74,3 @@ export async function POST(
     );
   }
 }
-
-

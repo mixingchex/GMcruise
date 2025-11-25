@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/generate-flow/route.ts
 // AI로 플로우 자동 생성 API
 
@@ -356,6 +358,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-

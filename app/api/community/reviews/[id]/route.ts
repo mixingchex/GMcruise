@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/reviews/[id]/route.ts
 // 리뷰 상세 조회 API
 
@@ -327,4 +329,3 @@ export async function PUT(
     );
   }
 }
-

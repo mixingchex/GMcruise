@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/products/track-view/route.ts
 // 상품 조회 추적 API
 
@@ -49,23 +51,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

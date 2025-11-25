@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/posts/[id]/like/route.ts
 // 게시글 좋아요 API
 
@@ -49,46 +51,3 @@ export async function POST(
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

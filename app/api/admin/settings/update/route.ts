@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { promises as fs } from 'fs';
@@ -151,4 +153,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

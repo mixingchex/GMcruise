@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/contracts/[contractId]/complete/route.ts
 // 관리자 패널에서 계약서 완료 승인 API (PDF 전송만, 아이디 생성 없음)
 
@@ -230,5 +232,3 @@ export async function POST(
     );
   }
 }
-
-

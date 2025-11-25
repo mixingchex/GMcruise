@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/parse-ppt/route.ts
 // PPT 문서 파싱 API
 
@@ -141,6 +143,3 @@ export async function POST(request: NextRequest) {
     }, { status: 500 });
   }
 }
-
-
-

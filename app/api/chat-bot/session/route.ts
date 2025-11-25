@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/chat-bot/session/route.ts
 // 채팅봇 세션 생성 및 추적
 
@@ -146,4 +148,3 @@ export async function PATCH(req: NextRequest) {
     );
   }
 }
-

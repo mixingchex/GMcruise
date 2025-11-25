@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/youtube/videos/route.ts
 // YouTube 일반 영상 목록 조회 API (Shorts 제외)
 
@@ -140,44 +142,3 @@ export async function GET(request: NextRequest) {
     return fallbackWithScrapedVideos(maxResults, 'Unexpected error from YouTube API. Using scraped data.');
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

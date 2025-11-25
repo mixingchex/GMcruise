@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest } from 'next/server';
 
 // WebSocket 서버는 별도로 구현해야 합니다
@@ -11,10 +13,3 @@ export async function GET(request: NextRequest) {
     status: 200,
   });
 }
-
-
-
-
-
-
-

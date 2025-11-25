@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/upload/route.ts
 // 커뮤니티 이미지 업로드 API
 
@@ -91,4 +93,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

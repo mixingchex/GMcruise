@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/cms/products/route.ts
 // CMS 크루즈 상품 관리 API (기획자용)
 
@@ -244,4 +246,3 @@ export async function DELETE(req: Request) {
     );
   }
 }
-

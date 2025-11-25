@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/community/categories/[id]/route.ts
 // 커뮤니티 카테고리 삭제 API
 
@@ -126,7 +128,3 @@ export async function DELETE(
     );
   }
 }
-
-
-
-

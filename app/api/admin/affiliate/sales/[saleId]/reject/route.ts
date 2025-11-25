@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/sales/[saleId]/reject/route.ts
 // 판매 확정 거부 API
 

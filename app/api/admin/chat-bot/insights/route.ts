@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/insights/route.ts
 // 채팅봇 인사이트 데이터 조회
 
@@ -103,23 +105,3 @@ export async function GET() {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

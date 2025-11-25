@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 // GET: 카카오 채널 정보 조회 (공개용)
@@ -19,4 +21,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

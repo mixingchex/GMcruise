@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/sales/[saleId]/card-payment/route.ts
 // 카드 계산 완료 처리 API
 
@@ -79,5 +81,3 @@ export async function POST(
     );
   }
 }
-
-

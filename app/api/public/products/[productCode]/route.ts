@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/products/[productCode]/route.ts
 // 공개 상품 상세 조회 API (로그인 불필요)
 
@@ -127,16 +129,3 @@ export async function GET(
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

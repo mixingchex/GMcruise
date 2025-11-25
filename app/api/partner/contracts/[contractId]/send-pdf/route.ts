@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/contracts/[contractId]/send-pdf/route.ts
 // 계약서 PDF 재전송 API (완료된 계약서도 재전송 가능)
 
@@ -125,4 +127,3 @@ export async function POST(
     );
   }
 }
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/sections/route.ts
 // 메인페이지 섹션 관리 API
 
@@ -122,5 +124,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-

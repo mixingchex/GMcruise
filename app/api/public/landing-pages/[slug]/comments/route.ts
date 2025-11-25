@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/landing-pages/[slug]/comments/route.ts
 // 랜딩페이지 댓글 API (로그인 불필요)
 

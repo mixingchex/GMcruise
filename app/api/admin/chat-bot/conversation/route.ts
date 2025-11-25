@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { askGemini } from '@/lib/gemini';
 import { requireAdmin, AdminAuthError } from '@/lib/auth/requireAdmin';
@@ -139,6 +141,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-

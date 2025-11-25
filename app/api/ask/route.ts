@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // Edge runtime 제거 - Prisma 사용을 위해 Node.js runtime 사용
 // export const runtime = 'edge';
 

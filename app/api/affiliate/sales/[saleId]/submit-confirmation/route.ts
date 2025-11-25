@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/affiliate/sales/[saleId]/submit-confirmation/route.ts
 // 판매 확정 요청 제출 API
 

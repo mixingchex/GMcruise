@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/sales/pending-approval/route.ts
 // 구매 완료 승인 대기 목록 조회 API
 
@@ -175,9 +177,3 @@ export async function GET(req: NextRequest) {
     }, { status: 500 });
   }
 }
-
-
-
-
-
-

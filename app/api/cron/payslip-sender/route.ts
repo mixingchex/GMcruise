@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { sendApprovedPayslips } from '@/lib/scheduler/payslipSender';
 
@@ -41,13 +43,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-

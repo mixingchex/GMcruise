@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/questions/route.ts
 // 채팅봇 질문 관리 API
 
@@ -90,23 +92,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

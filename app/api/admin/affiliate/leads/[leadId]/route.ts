@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/leads/[leadId]/route.ts
 // 어필리에이트 Lead 상세 조회/수정 API
 
@@ -617,5 +619,3 @@ export async function DELETE(
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/links/route.ts
 // 파트너용 링크 관리 API
 
@@ -192,4 +194,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

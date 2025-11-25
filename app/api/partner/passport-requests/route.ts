@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/passport-requests/route.ts
 // 여권 요청 관리 API (자신의 개인몰 고객만 조회)
 

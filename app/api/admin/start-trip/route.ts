@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
@@ -82,4 +84,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: '여행 시작 실패' }, { status: 500 });
   }
 }
-

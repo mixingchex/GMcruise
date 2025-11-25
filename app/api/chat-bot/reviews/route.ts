@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 function encodeImagePath(path: string): string {
   if (!path) return path;
   const segments = path.split('/').filter((segment, index) => !(index === 0 && segment === ''));
@@ -345,4 +347,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

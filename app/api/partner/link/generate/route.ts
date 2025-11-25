@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
@@ -84,6 +86,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/contracts/[contractId]/renewal/route.ts
 // 재계약 승인/거부 API (관리자 전용)
 
@@ -270,4 +272,3 @@ export async function POST(
     );
   }
 }
-

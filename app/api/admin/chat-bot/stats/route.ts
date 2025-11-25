@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireAdmin, AdminAuthError } from '@/lib/auth/requireAdmin';
@@ -327,4 +329,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

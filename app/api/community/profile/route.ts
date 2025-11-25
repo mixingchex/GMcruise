@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/profile/route.ts
 // 커뮤니티 프로필 조회/수정 API
 

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
@@ -345,11 +347,3 @@ export async function DELETE(_req: NextRequest, { params }: { params: { profileI
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
-
-
-
-
-
-
-
-

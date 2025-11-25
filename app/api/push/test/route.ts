@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/push/test/route.ts
 // 푸시 알림 테스트 API (개발용)
 
@@ -52,4 +54,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

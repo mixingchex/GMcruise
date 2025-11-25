@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/youtube/shorts/route.ts
 // YouTube Shorts 영상 목록 조회 API
 

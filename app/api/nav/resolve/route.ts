@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { resolveTerminalByText, type POI, type Terminal, TERMINALS } from '@/lib/terminals';
 import { buildDrivingUrl, buildTransitUrl, buildMapUrl } from '../../../../src/lib/nav/urls';

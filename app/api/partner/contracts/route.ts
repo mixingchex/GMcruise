@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/contracts/route.ts
 // 파트너 계약서 목록 조회 API (대리점장만 사용 가능)
 
@@ -100,4 +102,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

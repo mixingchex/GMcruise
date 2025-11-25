@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/inquiry/route.ts
 // 구매 문의 API (로그인 불필요)
 
@@ -206,7 +208,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-

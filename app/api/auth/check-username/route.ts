@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/auth/check-username/route.ts
 // 아이디 중복 확인 API
 
@@ -45,19 +47,3 @@ export async function GET(req: Request) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

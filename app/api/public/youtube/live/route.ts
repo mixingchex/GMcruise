@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/youtube/live/route.ts
 // YouTube 라이브 방송 조회 API
 

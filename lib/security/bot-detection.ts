@@ -148,3 +148,4 @@ export function isScraperTool(userAgent: string | null | undefined): boolean {
   return scraperPatterns.some(pattern => pattern.test(userAgent));
 }
 
+

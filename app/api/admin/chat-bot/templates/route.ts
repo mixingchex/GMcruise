@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/templates/route.ts
 // 템플릿 리스트 API
 
@@ -50,4 +52,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

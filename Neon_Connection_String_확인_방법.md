@@ -153,3 +153,4 @@ postgresql://neondb_owner:abc123xyz@ep-cool-darkness-123456.us-east-2.aws.neon.t
 **작성자**: AI Assistant  
 **상태**: Connection String 확인 방법 안내 완료
 
+

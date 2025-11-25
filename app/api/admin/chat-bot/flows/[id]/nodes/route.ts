@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/flows/[id]/nodes/route.ts
 // 플로우의 노드와 엣지를 질문으로 변환하여 저장
 
@@ -167,6 +169,3 @@ export async function POST(
     );
   }
 }
-
-
-

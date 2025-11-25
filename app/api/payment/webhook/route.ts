@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/payment/webhook/route.ts
 // 결제 완료 웹훅 (외부 결제 시스템에서 호출)
 
@@ -373,9 +375,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-

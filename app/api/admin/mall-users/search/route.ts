@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall-users/search/route.ts
 // 크루즈몰 고객 검색 API (닉네임, 이름, 전화번호로 검색)
 
@@ -100,5 +102,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/pages/content/route.ts
 // 공개 페이지 콘텐츠 조회 API (인증 불필요)
 
@@ -38,4 +40,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

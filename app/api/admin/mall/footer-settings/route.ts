@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/footer-settings/route.ts
 // Footer 버튼 설정 관리 API (관리자 전용)
 
@@ -148,23 +150,3 @@ export async function PUT(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

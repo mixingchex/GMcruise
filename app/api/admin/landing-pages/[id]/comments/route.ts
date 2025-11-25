@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/landing-pages/[id]/comments/route.ts
 // 관리자용 랜딩페이지 댓글 조회 API
 
@@ -111,5 +113,3 @@ export async function GET(
     );
   }
 }
-
-

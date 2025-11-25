@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/affiliate/sales/my-sales/route.ts
 // 내 판매 목록 조회 API
 

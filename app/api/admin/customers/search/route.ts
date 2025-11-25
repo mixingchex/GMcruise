@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // 고객 검색 API (자동완성용)
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';

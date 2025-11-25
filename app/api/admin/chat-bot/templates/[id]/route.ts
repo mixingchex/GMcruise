@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/templates/[id]/route.ts
 // 템플릿 상세 조회 API
 
@@ -62,6 +64,3 @@ export async function GET(
     );
   }
 }
-
-
-

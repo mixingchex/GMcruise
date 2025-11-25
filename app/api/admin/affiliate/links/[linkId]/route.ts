@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/links/[linkId]/route.ts
 // 어필리에이트 링크 개별 관리 API
 
@@ -259,4 +261,3 @@ export async function DELETE(
     );
   }
 }
-

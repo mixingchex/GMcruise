@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/link-genie/route.ts
 // 크루즈몰과 크루즈 가이드 지니 연동 API
 
@@ -166,4 +168,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

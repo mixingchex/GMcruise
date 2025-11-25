@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/customers/create-genie/route.ts
 // 지니가이드 고객 추가 API (전체 고객 관리용)
 
@@ -86,4 +88,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

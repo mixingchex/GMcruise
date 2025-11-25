@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // 관리자/대리점장 승인 처리 API
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -160,4 +162,3 @@ export async function POST(
     );
   }
 }
-

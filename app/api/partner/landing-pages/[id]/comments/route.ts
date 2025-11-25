@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/landing-pages/[id]/comments/route.ts
 // 대리점장용 랜딩페이지 댓글 조회 API
 
@@ -89,5 +91,3 @@ export async function GET(
     );
   }
 }
-
-

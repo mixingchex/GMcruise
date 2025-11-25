@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall-analytics/route.ts
 // 메인몰 데이터 분석 - 키워드 및 감정 분석
 
@@ -198,23 +200,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { runProactiveEngineNow } from '@/lib/scheduler/proactiveEngine';
 import { getSession } from '@/lib/session';

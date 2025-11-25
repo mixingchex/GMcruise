@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/chat-bot/start/route.ts
 // 채팅봇 시작 - 첫 질문 로드 (상품 정보 포함)
 

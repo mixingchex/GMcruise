@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/products/[productCode]/route.ts
 // MallProductContent의 layout 필드 업데이트
 
@@ -73,9 +75,3 @@ export async function PUT(
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
-
-
-
-
-
-

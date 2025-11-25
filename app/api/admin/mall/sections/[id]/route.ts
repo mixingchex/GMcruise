@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/sections/[id]/route.ts
 // 섹션 개별 관리 API
 
@@ -120,5 +122,3 @@ export async function DELETE(
     );
   }
 }
-
-

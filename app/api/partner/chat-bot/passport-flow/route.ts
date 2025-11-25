@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/chat-bot/passport-flow/route.ts
 // 파트너용 여권 챗봇 플로우 조회/생성 API
 
@@ -145,4 +147,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

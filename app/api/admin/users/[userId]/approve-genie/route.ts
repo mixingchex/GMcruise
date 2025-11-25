@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/users/[userId]/approve-genie/route.ts
 // 일반 크루즈 가이드 사용 승인 API
 
@@ -135,5 +137,3 @@ export async function POST(
     );
   }
 }
-
-

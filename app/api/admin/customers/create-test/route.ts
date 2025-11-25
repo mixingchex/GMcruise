@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/customers/create-test/route.ts
 // 테스트 고객 추가 API (테스트 고객 관리용)
 
@@ -102,4 +104,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

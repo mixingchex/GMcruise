@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/posts/[id]/view/route.ts
 // 게시글 조회수 증가 API (실시간 업데이트용)
 
@@ -77,25 +79,3 @@ export async function GET(
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

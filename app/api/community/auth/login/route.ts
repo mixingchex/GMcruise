@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/auth/login/route.ts
 // 커뮤니티 전용 로그인 API
 
@@ -151,4 +153,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

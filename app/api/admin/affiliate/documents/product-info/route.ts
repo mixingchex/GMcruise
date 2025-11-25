@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/documents/product-info/route.ts
 // 상품 정보 조회 API (비교견적서용)
 
@@ -86,6 +88,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-
-

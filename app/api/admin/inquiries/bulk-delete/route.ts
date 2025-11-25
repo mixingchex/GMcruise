@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/inquiries/bulk-delete/route.ts
 // 구매 문의 일괄 삭제 API
 
@@ -75,6 +77,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-

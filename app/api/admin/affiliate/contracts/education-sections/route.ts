@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/contracts/education-sections/route.ts
 // 교육 계약서 섹션을 반환하는 API
 
@@ -26,4 +28,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

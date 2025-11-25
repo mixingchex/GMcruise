@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/landing-pages/[id]/comments/[commentId]/route.ts
 // 관리자용 랜딩페이지 댓글 삭제 API
 
@@ -106,5 +108,3 @@ export async function DELETE(
     );
   }
 }
-
-

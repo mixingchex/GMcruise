@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // 판매원용 고객 구매 정보 조회 API
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -216,7 +218,3 @@ export async function GET(
     );
   }
 }
-
-
-
-

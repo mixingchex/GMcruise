@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/posts/[id]/route.ts
 // 커뮤니티 게시글 상세 조회 및 삭제 API
 

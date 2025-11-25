@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/pages/html/route.ts
 // 공개 페이지 HTML 조회 API
 
@@ -38,4 +40,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/settings/marketing/route.ts
 // 마케팅 픽셀 및 API 설정 관리
 
@@ -200,4 +202,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

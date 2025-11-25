@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/user/hibernation/route.ts
 // 사용자 동면 상태 조회 및 관리 API
 
@@ -100,4 +102,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

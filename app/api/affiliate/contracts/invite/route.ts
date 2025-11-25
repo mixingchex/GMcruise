@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
@@ -98,4 +100,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }
-

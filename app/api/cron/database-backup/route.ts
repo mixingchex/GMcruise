@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { manualRunDatabaseBackup } from '@/lib/scheduler/databaseBackup';
 
@@ -41,16 +43,3 @@ export async function GET(request: Request) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { backupPassportDataToUser, findUserByNameAndPhone } from '@/lib/passport-utils';
@@ -184,9 +186,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-

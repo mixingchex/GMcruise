@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { getAffiliateOwnershipForUsers } from '@/lib/affiliate/customer-ownership';
@@ -91,4 +93,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/mall/footer-settings/route.ts
 // Footer 버튼 설정 API (공개)
 
@@ -54,23 +56,3 @@ export async function GET() {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

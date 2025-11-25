@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/documents/sync/route.ts
 // 관리자용: 프로필 문서를 구글 드라이브에 동기화하는 API
 

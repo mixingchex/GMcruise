@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/settings/seo-global/route.ts
 // SEO 전역 설정 관리 API
 
@@ -231,4 +233,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

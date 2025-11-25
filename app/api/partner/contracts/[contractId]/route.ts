@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/contracts/[contractId]/route.ts
 // 대리점장용 계약서 상세 조회 및 삭제 API
 
@@ -165,8 +167,3 @@ export async function DELETE(
     );
   }
 }
-
-
-
-
-

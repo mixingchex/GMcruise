@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/flows/[id]/copy/route.ts
 // 기존 플로우 복제 API
 
@@ -229,4 +231,3 @@ export async function POST(
     );
   }
 }
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/contracts/[contractId]/reject/route.ts
 // 대리점장용 계약서 거부 API
 
@@ -79,8 +81,3 @@ export async function POST(
     );
   }
 }
-
-
-
-
-

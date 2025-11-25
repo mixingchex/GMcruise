@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/chat-bot/create-passport-flow/route.ts
 // 여권 챗봇 플로우 자동 생성
 
@@ -161,4 +163,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

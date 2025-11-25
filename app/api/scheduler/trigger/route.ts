@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/scheduler/trigger/route.ts
 // Proactive Engine 수동 트리거 API (테스트용)
 
@@ -28,4 +30,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

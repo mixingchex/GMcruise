@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/broadcast/route.ts
 // 관리자용: 긴급 공지 발송 API
 
@@ -128,4 +130,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

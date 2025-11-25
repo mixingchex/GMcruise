@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/files/route.ts
 // 업로드된 파일 목록 조회 API
 
@@ -228,6 +230,3 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
-
-
-

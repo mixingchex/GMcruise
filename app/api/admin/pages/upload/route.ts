@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/pages/upload/route.ts
 // 이미지 업로드 API
 
@@ -101,4 +103,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

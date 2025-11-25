@@ -176,3 +176,4 @@ Prisma를 사용하는 API는 반드시 `runtime = 'nodejs'`를 설정해야 합
 **작성자**: AI Assistant  
 **상태**: 수정 완료, 배포 대기
 
+

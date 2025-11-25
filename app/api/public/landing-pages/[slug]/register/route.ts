@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/landing-pages/[slug]/register/route.ts
 // 랜딩페이지 폼 제출 API (로그인 불필요)
 

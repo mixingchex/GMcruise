@@ -206,3 +206,4 @@
 **작성자**: AI Assistant  
 **상태**: Vercel Git 설정 찾기 가이드 작성 완료
 
+

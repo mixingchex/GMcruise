@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/dday/today/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/(server)/session';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/expenses/route.ts
 // 가계부 지출 API (CRUD) - 레거시 호환성 유지
 

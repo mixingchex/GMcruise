@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
@@ -243,4 +245,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: false, message: '판매원 정보를 불러오지 못했습니다.' }, { status: 500 });
   }
 }
-

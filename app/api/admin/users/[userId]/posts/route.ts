@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/users/[userId]/posts/route.ts
 // 사용자가 작성한 게시글 조회 (관리자 전용)
 
@@ -68,23 +70,3 @@ export async function GET(
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

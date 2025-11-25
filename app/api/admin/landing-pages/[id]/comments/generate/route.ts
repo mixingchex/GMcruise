@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
@@ -280,5 +282,3 @@ ${imageUrls.length > 0 ? `\n\n이 페이지에는 ${imageUrls.length}개의 이�
     );
   }
 }
-
-

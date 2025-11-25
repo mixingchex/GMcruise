@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/go/route.ts
 import { NextResponse } from 'next/server';
 export async function GET(req:Request){

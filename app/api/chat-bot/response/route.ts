@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/chat-bot/response/route.ts
 // 채팅봇 응답 저장
 
@@ -71,11 +73,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-

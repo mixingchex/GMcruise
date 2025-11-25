@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/system/google-drive/route.ts
 // Google Drive 설정 API
 
@@ -311,4 +313,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

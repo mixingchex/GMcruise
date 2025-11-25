@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/cms/templates/route.ts
 // CMS 알림 템플릿 관리 API (기획자용)
 
@@ -200,4 +202,3 @@ export async function DELETE(req: Request) {
     );
   }
 }
-

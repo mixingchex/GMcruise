@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/page-config/route.ts
 // 메인페이지 전체 설정 API
 
@@ -313,4 +315,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

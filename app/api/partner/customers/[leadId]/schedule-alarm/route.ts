@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import {
@@ -68,10 +70,3 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: false, message: '알람 스케줄링에 실패했습니다.' }, { status: 500 });
   }
 }
-
-
-
-
-
-
-

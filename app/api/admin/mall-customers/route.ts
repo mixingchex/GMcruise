@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall-customers/route.ts
 // 크루즈몰 고객 관리 API (커뮤니티, 리뷰, 상품 문의 활동 고객)
 

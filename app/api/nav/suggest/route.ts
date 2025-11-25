@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server'
 import terminalsData from '@/data/terminals.json'
 import { normalizeCountry } from '@/lib/nav/country'

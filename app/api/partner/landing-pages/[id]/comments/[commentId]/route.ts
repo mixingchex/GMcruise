@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/landing-pages/[id]/comments/[commentId]/route.ts
 // 대리점장용 랜딩페이지 댓글 삭제 API
 
@@ -93,5 +95,3 @@ export async function DELETE(
     );
   }
 }
-
-

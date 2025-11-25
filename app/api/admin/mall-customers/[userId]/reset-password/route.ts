@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall-customers/[userId]/reset-password/route.ts
 // 크루즈몰 고객 비밀번호 초기화
 
@@ -77,4 +79,3 @@ export async function POST(
     );
   }
 }
-

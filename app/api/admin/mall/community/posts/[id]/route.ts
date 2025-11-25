@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/community/posts/[id]/route.ts
 // 관리자용 커뮤니티 게시글 수정 및 삭제 API
 
@@ -181,7 +183,3 @@ export async function DELETE(
     );
   }
 }
-
-
-
-

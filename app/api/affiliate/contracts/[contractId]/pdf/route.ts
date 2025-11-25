@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/affiliate/contracts/[contractId]/pdf/route.ts
 // 계약서 PDF 조회 API
 
@@ -38,8 +40,3 @@ export async function GET(
     );
   }
 }
-
-
-
-
-

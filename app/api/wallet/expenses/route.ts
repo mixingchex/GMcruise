@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/wallet/expenses/route.ts
 // 가계부 지출 API (CRUD)
 

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/affiliate-link/[code]/route.ts
 // 공개 어필리에이트 링크 정보 조회 API
 
@@ -119,5 +121,3 @@ export async function GET(
     );
   }
 }
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/posts/[id]/comments/[commentId]/route.ts
 // 댓글 삭제 API
 
@@ -104,4 +106,3 @@ export async function DELETE(
     );
   }
 }
-

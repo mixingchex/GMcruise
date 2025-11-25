@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 // 웰컴페이먼츠 결제 완료 알림 API (서버 간 통신용)
@@ -30,4 +32,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

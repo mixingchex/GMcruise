@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/inquiries/[inquiryId]/status/route.ts
 // 구매 문의 상태 변경 API
 
@@ -90,5 +92,3 @@ export async function PUT(
     );
   }
 }
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // 관리자용 인증서 승인 관리 API
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -110,28 +112,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

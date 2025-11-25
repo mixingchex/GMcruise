@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/products/[productCode]/route.ts
 // 상품 상세 조회 및 수정 API
 
@@ -589,4 +591,3 @@ export async function PUT(
     );
   }
 }
-

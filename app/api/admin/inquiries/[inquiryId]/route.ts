@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/inquiries/[inquiryId]/route.ts
 // 구매 문의 삭제 API
 
@@ -77,6 +79,3 @@ export async function DELETE(
     );
   }
 }
-
-
-

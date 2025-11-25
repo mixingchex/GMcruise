@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/leads/[leadId]/complete-passport/route.ts
 // 여권 완료 처리 API (본사 관리자만 가능)
 

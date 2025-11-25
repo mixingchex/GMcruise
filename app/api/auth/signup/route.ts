@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/auth/signup/route.ts
 // 회원가입 API
 
@@ -278,12 +280,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
-
-
-
-
-
-
-

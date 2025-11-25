@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { syncApisSpreadsheet } from '@/lib/google-sheets';
 
@@ -39,5 +41,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-

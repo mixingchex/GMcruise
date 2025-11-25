@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/my-info/route.ts
 // 내 정보 조회 API (커뮤니티 전용)
 
@@ -291,4 +293,3 @@ export async function GET() {
     );
   }
 }
-

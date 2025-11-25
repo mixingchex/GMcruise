@@ -193,3 +193,4 @@ www.cruisedot.co.kr. 3600 IN CNAME cname.vercel-dns.com.
 **상태**: SSL 인증서 생성 실패 에러 분석  
 **다음 단계**: DNS 레코드 확인 및 전파 대기
 
+

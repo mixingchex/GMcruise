@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/payapp/request/route.ts
 // PayApp 결제 요청 API
 
@@ -185,4 +187,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/reviews/route.ts
 // 공개 리뷰 API (메인페이지용)
 
@@ -293,9 +295,3 @@ export async function GET(req: Request) {
     });
   }
 }
-
-
-
-
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/settings/seo/route.ts
 // SEO 설정 관리 API
 
@@ -186,9 +188,3 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
-
-
-
-
-
-

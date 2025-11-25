@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 export const runtime = 'nodejs'; // Edge Runtime 금지 (xlsx 라이브러리 사용)
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -65,6 +67,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-

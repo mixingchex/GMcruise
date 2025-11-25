@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/products/[productCode]/reviews/route.ts
 // 상품 리뷰 조회 및 생성 API
 
@@ -457,4 +459,3 @@ export async function GET(
     );
   }
 }
-

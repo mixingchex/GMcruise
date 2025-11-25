@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/contracts/[contractId]/renewal-request/route.ts
 // 재계약 갱신 요청 API
 
@@ -96,5 +98,3 @@ export async function POST(
     );
   }
 }
-
-

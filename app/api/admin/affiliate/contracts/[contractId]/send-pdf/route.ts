@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/contracts/[contractId]/send-pdf/route.ts
 // 관리자용 계약서 PDF 이메일 전송 API
 
@@ -114,4 +116,3 @@ export async function POST(
     );
   }
 }
-

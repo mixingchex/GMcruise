@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 // 환율 API - ExchangeRate-API 사용 (무료, 하루 1500회 제한)

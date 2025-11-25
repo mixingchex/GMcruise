@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/chat-bot/youtube/search/route.ts
 // 챗봇용 YouTube 영상 검색 API (키워드 기반)
 
@@ -76,4 +78,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/adjustments/route.ts
 // 수당 조정 승인 API
 

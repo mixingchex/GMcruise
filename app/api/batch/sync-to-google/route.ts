@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/batch/sync-to-google/route.ts
 // 1시간마다 실행되는 배치 작업: 최근 1시간 동안 작성된 데이터를 Google Sheets/Drive에 저장
 
@@ -62,4 +64,3 @@ export async function GET() {
     schedule: 'Should be called every hour (e.g., via cron job)'
   });
 }
-

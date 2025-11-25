@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/community/categories/route.ts
 // 커뮤니티 카테고리 관리 API
 
@@ -129,7 +131,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-
-

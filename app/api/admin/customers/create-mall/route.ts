@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/customers/create-mall/route.ts
 // 크루즈몰 회원 추가 API (메인몰 고객 관리용)
 

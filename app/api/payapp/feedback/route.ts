@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/payapp/feedback/route.ts
 // PayApp 결제 완료 통보 (feedbackurl)
 
@@ -141,4 +143,3 @@ export async function POST(req: Request) {
     return new NextResponse('SUCCESS', { status: 200 });
   }
 }
-

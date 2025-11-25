@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/my-info/update/route.ts
 // 내 정보 수정 API (이름, 연락처, 비밀번호)
 
@@ -130,4 +132,3 @@ export async function PUT(req: Request) {
     );
   }
 }
-

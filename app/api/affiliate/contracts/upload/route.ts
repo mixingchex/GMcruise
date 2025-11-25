@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -107,12 +109,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: error?.message || '파일 업로드 중 오류가 발생했습니다.' }, { status: 500 });
   }
 }
-
-
-
-
-
-
-
-
-

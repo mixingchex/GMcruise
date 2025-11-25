@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/users/[userId]/product-views/route.ts
 // 사용자의 상품 조회 내역 조회 (관리자 전용)
 
@@ -132,4 +134,3 @@ export async function GET(
     );
   }
 }
-

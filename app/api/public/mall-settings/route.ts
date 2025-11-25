@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/mall-settings/route.ts
 // 메인몰 설정 공개 API (인증 불필요)
 
@@ -42,5 +44,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
@@ -141,4 +143,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/dashboard/route.ts
 // 관리자 대시보드 통계 API
 
@@ -582,4 +584,3 @@ export async function GET() {
     );
   }
 }
-

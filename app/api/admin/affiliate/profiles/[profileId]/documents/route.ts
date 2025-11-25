@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/profiles/[profileId]/documents/route.ts
 // 관리자용 어필리에이트 프로필 문서 조회 및 승인 API
 
@@ -230,12 +232,3 @@ export async function POST(
     );
   }
 }
-
-
-
-
-
-
-
-
-

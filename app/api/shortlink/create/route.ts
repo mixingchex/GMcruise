@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/shortlink/create/route.ts
 // 숏링크 생성 API
 
@@ -144,4 +146,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

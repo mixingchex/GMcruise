@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
@@ -41,22 +43,3 @@ export async function POST(req: Request) {
     }, { status:500 });
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

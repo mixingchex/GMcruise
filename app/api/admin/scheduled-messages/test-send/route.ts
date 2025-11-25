@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { manualProcessScheduledMessages } from '@/lib/scheduler/scheduledMessageSender';
@@ -100,4 +102,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

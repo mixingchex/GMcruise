@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/analytics/route.ts
 // 관리자 데이터 분석 API
 
@@ -568,4 +570,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

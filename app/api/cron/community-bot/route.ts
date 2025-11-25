@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/cron/community-bot/route.ts
 // 커뮤니티 자동 게시글/댓글 생성 봇 (1시간마다 실행)
 
@@ -1394,4 +1396,3 @@ export async function GET(req: Request) {
     }, { status: 500 });
   }
 }
-

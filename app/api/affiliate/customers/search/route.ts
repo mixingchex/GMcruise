@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // 판매원/대리점장의 고객 검색 API
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -113,4 +115,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

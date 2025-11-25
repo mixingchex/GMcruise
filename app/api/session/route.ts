@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/session/route.ts
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/(server)/session';

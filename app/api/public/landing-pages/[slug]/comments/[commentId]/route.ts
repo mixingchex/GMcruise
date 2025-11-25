@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/public/landing-pages/[slug]/comments/[commentId]/route.ts
 // 랜딩페이지 댓글 수정/삭제 API
 

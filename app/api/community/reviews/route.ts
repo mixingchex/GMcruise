@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/community/reviews/route.ts
 // 크루즈 리뷰 API
 
@@ -318,15 +320,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-

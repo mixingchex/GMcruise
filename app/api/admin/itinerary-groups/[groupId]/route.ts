@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/itinerary-groups/[groupId]/route.ts
 // 특정 그룹 불러오기 API
 

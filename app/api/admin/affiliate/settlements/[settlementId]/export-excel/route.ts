@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/settlements/[settlementId]/export-excel/route.ts
 // 엑셀 다운로드 API (요구사항 형식)
 
@@ -405,10 +407,3 @@ export async function GET(
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
-
-
-
-
-
-
-

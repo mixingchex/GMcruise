@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // 고객 선택 시 결제/상품 정보 조회 API
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';

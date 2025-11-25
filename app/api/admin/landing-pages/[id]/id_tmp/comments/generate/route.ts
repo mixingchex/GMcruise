@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
@@ -205,4 +207,3 @@ ${imageUrls.length > 0 ? `\n\n이 페이지에는 ${imageUrls.length}개의 이�
     );
   }
 }
-

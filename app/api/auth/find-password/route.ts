@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/auth/find-password/route.ts
 // 비밀번호 찾기 API
 
@@ -153,4 +155,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

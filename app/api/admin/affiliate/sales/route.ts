@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/sales/route.ts
 // 어필리에이트 판매 생성 및 관리 API
 
@@ -287,9 +289,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
-
-
-
-
-
-

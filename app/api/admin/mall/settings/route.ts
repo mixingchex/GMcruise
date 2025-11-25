@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall/settings/route.ts
 // 메인몰 전역 설정 API
 
@@ -163,5 +165,3 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   return POST(req); // POST와 동일한 로직 사용
 }
-
-

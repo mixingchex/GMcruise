@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/user/test-mode/route.ts
 // 테스트 모드 정보를 반환하는 API (기존 코드 수정 없이 별도 파일)
 
@@ -21,4 +23,3 @@ export async function GET() {
     );
   }
 }
-

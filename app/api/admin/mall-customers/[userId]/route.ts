@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/mall-customers/[userId]/route.ts
 // 크루즈몰 고객 상세 조회 및 수정 API
 
@@ -201,4 +203,3 @@ export async function PATCH(
     );
   }
 }
-

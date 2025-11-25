@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getSessionUser } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { searchKnowledgeBase } from '@/lib/ai/ragSearch';
@@ -531,4 +533,3 @@ export async function POST(req: Request) {
     });
   }
 }
-

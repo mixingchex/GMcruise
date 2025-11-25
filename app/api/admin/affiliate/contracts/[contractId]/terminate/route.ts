@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/contracts/[contractId]/terminate/route.ts
 // 계약 해지 API (관리자 전용) - 계약 위반 등 즉시 해지용
 
@@ -192,4 +194,3 @@ export async function POST(
     );
   }
 }
-

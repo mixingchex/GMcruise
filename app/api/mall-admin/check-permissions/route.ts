@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/mall-admin/check-permissions/route.ts
 // 크루즈몰 관리자 권한 확인 API
 
@@ -43,4 +45,3 @@ export async function GET() {
     );
   }
 }
-

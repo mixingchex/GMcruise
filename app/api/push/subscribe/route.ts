@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/push/subscribe/route.ts
 // 푸시 알림 구독 API
 
@@ -70,4 +72,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

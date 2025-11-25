@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/links/cleanup/route.ts
 // 어필리에이트 링크 정리 API (관리자 전용)
 
@@ -190,4 +192,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

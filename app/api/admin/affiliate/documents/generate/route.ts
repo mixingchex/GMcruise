@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/documents/generate/route.ts
 // 서류 생성 API (타사 비교 견적서, 구매확인서, 환불완료증서)
 
@@ -299,6 +301,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-
-

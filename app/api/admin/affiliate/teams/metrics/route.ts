@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { getSessionUser } from '@/lib/auth';
@@ -608,11 +610,3 @@ export async function GET(req: NextRequest) {
     }, { status: 500 });
   }
 }
-
-
-
-
-
-
-
-

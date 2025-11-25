@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/partner/trial-invite-link/route.ts
 // 3일 체험 초대 링크 생성/조회 API
 
@@ -286,5 +288,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-

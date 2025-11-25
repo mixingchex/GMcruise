@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/links/options/route.ts
 // 링크 생성에 필요한 옵션 데이터 조회 API
 
@@ -201,4 +203,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

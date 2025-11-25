@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // 파트너 인증서 승인 요청 API
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -225,4 +227,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

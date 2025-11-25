@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/affiliate/contracts/[contractId]/retry-recovery/route.ts
 // DB 회수 재시도 API (관리자 전용)
 
@@ -154,5 +156,3 @@ export async function POST(
     );
   }
 }
-
-

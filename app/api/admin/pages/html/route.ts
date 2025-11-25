@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 // app/api/admin/pages/html/route.ts
 // 페이지 HTML 콘텐츠 관리 API
 
@@ -114,4 +116,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

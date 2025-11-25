@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
 
@@ -147,4 +149,3 @@ Now convert: "${text}"`;
     }, { status: 500 });
   }
 }
-
