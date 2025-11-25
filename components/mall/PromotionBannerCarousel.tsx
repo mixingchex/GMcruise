@@ -410,15 +410,21 @@ export default function PromotionBannerCarousel() {
       {banners.length > 1 && (
         <>
           <button
-            onClick={goToPrevious}
-            className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white text-gray-900 rounded-full p-4 shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-all duration-300 min-w-[56px] min-h-[56px] flex items-center justify-center hover:scale-110 active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToPrevious();
+            }}
+            className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white text-gray-900 rounded-full p-4 shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-all duration-300 min-w-[56px] min-h-[56px] flex items-center justify-center hover:scale-110 active:scale-95 z-50 cursor-pointer"
             aria-label="이전 배너"
           >
             <FiChevronLeft size={28} />
           </button>
           <button
-            onClick={goToNext}
-            className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white text-gray-900 rounded-full p-4 shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-all duration-300 min-w-[56px] min-h-[56px] flex items-center justify-center hover:scale-110 active:scale-95"
+            onClick={(e) => {
+              e.stopPropagation();
+              goToNext();
+            }}
+            className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white text-gray-900 rounded-full p-4 shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-all duration-300 min-w-[56px] min-h-[56px] flex items-center justify-center hover:scale-110 active:scale-95 z-50 cursor-pointer"
             aria-label="다음 배너"
           >
             <FiChevronRight size={28} />
