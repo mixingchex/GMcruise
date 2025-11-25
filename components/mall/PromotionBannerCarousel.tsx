@@ -21,7 +21,7 @@ interface Banner {
 const defaultBanners: Banner[] = [
   {
     id: 1,
-    image: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (2).png',  // 고화질 이미지 사용 (빠른 로딩)
+    image: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png',  // 첫 번째 배너 - 고화질 배경 이미지
     title: '크루즈닷 지니 AI 출시',
     subtitle: '3일 무료 체험',
     link: '/login-test',
@@ -35,7 +35,7 @@ const defaultBanners: Banner[] = [
   },
   {
     id: 3,
-    image: '/크루즈사진/코스타세레나/코스타세레나.jpg',
+    image: '/크루즈정보사진/코스타세레나/코스타 내부시설/코스타세레나호 중앙 로비.jpg',  // 크루즈 내부 고화질 사진
     title: '크루즈닷과',
     subtitle: '행복한 크루즈여행 하기',
     link: 'https://www.cruisedot.co.kr/i/6nx',
@@ -202,8 +202,8 @@ export default function PromotionBannerCarousel() {
           return (
             <div
               key={banner.id}
-              className={`absolute inset-0 transition-opacity duration-500 ${
-                index === currentIndex ? 'opacity-100' : 'opacity-0'
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
               onClick={(e) => {
                 // 스와이프 중이면 링크 클릭 방지
@@ -258,20 +258,21 @@ export default function PromotionBannerCarousel() {
                 />
               )}
               
-              {/* 어두운 오버레이 */}
-              <div className="absolute inset-0 bg-black/50"></div>
+              {/* 세련된 그라데이션 오버레이 */}
+              <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/60"></div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
               
               {/* 컨텐츠 */}
-              <div className="relative z-10 text-center px-6 md:px-8">
-                <h3 className="text-4xl md:text-5xl lg:text-6xl font-black mb-4 md:mb-6 drop-shadow-2xl">
+              <div className="relative z-10 text-center px-6 md:px-8 max-w-5xl mx-auto">
+                <h3 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-4 md:mb-6 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] leading-tight">
                   {banner.title || `배너 ${index + 1}`}
                 </h3>
                 {banner.subtitle && (
-                  <p className="text-xl md:text-2xl lg:text-3xl opacity-95 drop-shadow-lg mb-6 md:mb-8 font-bold">
+                  <p className="text-xl md:text-2xl lg:text-3xl xl:text-4xl opacity-95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] mb-8 md:mb-10 font-bold tracking-tight">
                     {banner.subtitle}
                   </p>
                 )}
-                <div className="flex flex-wrap justify-center gap-4 mt-8">
+                <div className="flex flex-wrap justify-center gap-4 md:gap-6 mt-8 md:mt-10">
                   {banner.button1Text && (
                     <a
                       href={banner.button1Link || '#'}
@@ -282,7 +283,7 @@ export default function PromotionBannerCarousel() {
                           e.preventDefault();
                         }
                       }}
-                      className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50 hover:bg-white/40 transition-all cursor-pointer"
+                      className="bg-white/20 backdrop-blur-lg px-8 py-4 rounded-full text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 transition-all duration-300 cursor-pointer"
                     >
                       ✓ {banner.button1Text}
                     </a>
@@ -297,7 +298,7 @@ export default function PromotionBannerCarousel() {
                           e.preventDefault();
                         }
                       }}
-                      className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50 hover:bg-white/40 transition-all cursor-pointer"
+                      className="bg-white/20 backdrop-blur-lg px-8 py-4 rounded-full text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 transition-all duration-300 cursor-pointer"
                     >
                       ✓ {banner.button2Text}
                     </a>
@@ -318,7 +319,7 @@ export default function PromotionBannerCarousel() {
                             e.preventDefault();
                           }
                         }}
-                        className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50 hover:bg-white/40 transition-all cursor-pointer"
+                        className="bg-white/20 backdrop-blur-lg px-8 py-4 rounded-full text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 transition-all duration-300 cursor-pointer"
                       >
                         ✓ 프리미엄 서비스
                       </a>
@@ -335,7 +336,7 @@ export default function PromotionBannerCarousel() {
                             e.preventDefault();
                           }
                         }}
-                        className="bg-white/30 backdrop-blur-md px-6 py-3 rounded-full text-base md:text-lg font-black shadow-2xl border-2 border-white/50 hover:bg-white/40 transition-all cursor-pointer"
+                        className="bg-white/20 backdrop-blur-lg px-8 py-4 rounded-full text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 transition-all duration-300 cursor-pointer"
                       >
                         ✓ 신뢰할 수 있는 여행사
                       </a>
@@ -349,19 +350,19 @@ export default function PromotionBannerCarousel() {
         })}
       </div>
 
-      {/* 좌우 화살표 */}
+      {/* 좌우 화살표 - 세련된 디자인 */}
       {banners.length > 1 && (
         <>
           <button
             onClick={goToPrevious}
-            className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 rounded-full p-4 shadow-2xl transition-all min-w-[56px] min-h-[56px] flex items-center justify-center"
+            className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white text-gray-900 rounded-full p-4 shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-all duration-300 min-w-[56px] min-h-[56px] flex items-center justify-center hover:scale-110 active:scale-95"
             aria-label="이전 배너"
           >
             <FiChevronLeft size={28} />
           </button>
           <button
             onClick={goToNext}
-            className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-900 rounded-full p-4 shadow-2xl transition-all min-w-[56px] min-h-[56px] flex items-center justify-center"
+            className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 bg-white/95 hover:bg-white text-gray-900 rounded-full p-4 shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-all duration-300 min-w-[56px] min-h-[56px] flex items-center justify-center hover:scale-110 active:scale-95"
             aria-label="다음 배너"
           >
             <FiChevronRight size={28} />
@@ -369,17 +370,17 @@ export default function PromotionBannerCarousel() {
         </>
       )}
 
-      {/* 인디케이터 */}
+      {/* 인디케이터 - 세련된 디자인 */}
       {banners.length > 1 && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3">
+        <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex gap-3 items-center">
           {banners.map((_, index) => (
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`h-3 rounded-full transition-all ${
+              className={`h-3 rounded-full transition-all duration-300 ${
                 index === currentIndex
-                  ? 'w-10 bg-white shadow-lg'
-                  : 'w-3 bg-white/60 hover:bg-white/80'
+                  ? 'w-10 bg-white shadow-[0_4px_12px_rgba(255,255,255,0.5)]'
+                  : 'w-3 bg-white/50 hover:bg-white/70 hover:scale-110'
               }`}
               aria-label={`배너 ${index + 1}로 이동`}
             />
