@@ -108,7 +108,6 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const [shipNameDropdownOpen, setShipNameDropdownOpen] = useState(false);
   const cruiseLineDropdownRef = useRef<HTMLDivElement>(null);
   const shipNameDropdownRef = useRef<HTMLDivElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const popularScrollRef = useRef<HTMLDivElement>(null);
   const recommendedScrollRef = useRef<HTMLDivElement>(null);
   const featuredScrollRef = useRef<HTMLDivElement>(null); // 개인 링크 상품 스크롤용
@@ -246,15 +245,6 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
-
-  useEffect(() => {
-    // 비디오 자동 재생 설정
-    if (videoRef.current) {
-      videoRef.current.play().catch((error) => {
-        console.log('Video autoplay failed:', error);
-      });
-    }
   }, []);
 
   useEffect(() => {
@@ -857,19 +847,15 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         </>
       ) : (
         <>
-          {/* 크루즈 쇼케이스 비디오 */}
+          {/* 크루즈 쇼케이스 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
           <div className="relative w-full h-64 md:h-80 lg:h-96 rounded-xl overflow-hidden shadow-2xl mb-8">
-            <video
-              ref={videoRef}
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute inset-0 w-full h-full object-cover"
-            >
-              <source src="/videos/cruise-showcase-video.mp4" type="video/mp4" />
-            </video>
-            {/* 비디오 위 어두운 오버레이 (선택적) */}
+            <div
+              className="absolute inset-0 w-full h-full bg-cover bg-center animate-subtle-zoom"
+              style={{
+                backgroundImage: 'url(/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (4).png)',
+              }}
+            />
+            {/* 배경 위 어두운 오버레이 (선택적) */}
             <div className="absolute inset-0 bg-black/20"></div>
           </div>
 

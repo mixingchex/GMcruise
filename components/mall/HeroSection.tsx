@@ -20,9 +20,10 @@ interface HeroConfig {
 export default function HeroSection({ config }: { config?: HeroConfig }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // 기본값
+  // 기본값 (동영상 → 이미지로 변경하여 로딩 속도 개선)
   const heroConfig = config || {
-    videoUrl: '/videos/hero-video.mp4',
+    // videoUrl: '/videos/hero-video.mp4',  // 동영상 비활성화 (느린 로딩)
+    backgroundImage: '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png',  // 고화질 이미지 사용
     logoUrl: '/images/ai-cruise-logo.png',
     title: '크루즈닷 AI 지니',
     subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
@@ -43,27 +44,17 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
   }, []);
 
   return (
-    <div 
+    <div
       className="relative text-white py-16 md:py-24 overflow-hidden cursor-pointer"
       onClick={() => window.location.href = '/login-test'}
     >
-      {/* 배경 비디오 */}
-      <video
-        ref={videoRef}
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover z-0"
-      >
-        <source src={heroConfig.videoUrl} type="video/mp4" />
-        {/* 비디오 로드 실패 시 크루즈 배경 이미지로 대체 */}
-        <img 
-          src="/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png" 
-          alt="크루즈 배경" 
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      </video>
+      {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
+      <div
+        className="absolute inset-0 w-full h-full bg-cover bg-center z-0 animate-subtle-zoom"
+        style={{
+          backgroundImage: `url(${heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png'})`,
+        }}
+      />
       
       {/* 어두운 오버레이 (가독성 향상) */}
       <div className="absolute inset-0 bg-black/50 z-10"></div>

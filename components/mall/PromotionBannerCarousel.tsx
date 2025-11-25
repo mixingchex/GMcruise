@@ -17,18 +17,18 @@ interface Banner {
   link?: string; // 전체 배너 링크 (하위 호환성)
 }
 
-// 배너 데이터 (추후 DB에서 가져올 수 있음)
+// 배너 데이터 (고화질 이미지 사용 - 빠른 로딩을 위해 동영상 대체)
 const defaultBanners: Banner[] = [
   {
     id: 1,
-    video: '/videos/크루즈_광고_영상_제작_프롬프트.mp4',
+    image: '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (2).png',  // 동영상 → 이미지로 변경 (빠른 로딩)
     title: '크루즈닷 지니 AI 출시',
     subtitle: '3일 무료 체험',
     link: '/login-test',
   },
   {
     id: 2,
-    video: '/videos/크루즈보여지는영상.mp4',
+    image: '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (3).png',  // 동영상 → 이미지로 변경 (빠른 로딩)
     title: '크루즈닷 회원이라면?',
     subtitle: '프리미엄 혜택 즐기기',
     link: '/community',
@@ -247,28 +247,15 @@ export default function PromotionBannerCarousel() {
                 }}
               />
             )}
-            <div
-              className="w-full h-full relative flex items-center justify-center text-white"
-              style={banner.image ? {
-                backgroundImage: `url(${banner.image})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              } : {}}
-            >
-              {/* 비디오 배경 */}
-              {banner.video && (
-                <video
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                  onError={(e) => {
-                    console.error('[PromotionBanner] Video load error:', banner.video);
+            <div className="w-full h-full relative flex items-center justify-center text-white">
+              {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩 + 부드러운 애니메이션) */}
+              {banner.image && (
+                <div
+                  className="absolute inset-0 w-full h-full bg-cover bg-center animate-subtle-zoom"
+                  style={{
+                    backgroundImage: `url(${banner.image})`,
                   }}
-                >
-                  <source src={banner.video} type="video/mp4" />
-                </video>
+                />
               )}
               
               {/* 어두운 오버레이 */}

@@ -94,7 +94,6 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
   const [dynamicValues, setDynamicValues] = useState<{ [key: number]: number }>({});
   const intervalsRef = useRef<{ [key: number]: NodeJS.Timeout }>({});
   const animationFramesRef = useRef<{ [key: number]: number }>({});
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   // finalConfig를 useMemo로 메모이제이션하여 무한 루프 방지
   const finalConfig: CompanyStatsConfig = useMemo(() => ({
@@ -184,32 +183,18 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
     };
   }, []); // 빈 의존성 배열 - bottomRowCards는 항상 같으므로 한 번만 실행
 
-
-  useEffect(() => {
-    // 비디오 자동 재생 설정
-    if (videoRef.current) {
-      videoRef.current.play().catch((error) => {
-        console.log('Video autoplay failed:', error);
-      });
-    }
-  }, []);
-
   return (
     <section className="relative bg-white py-12 sm:py-16 md:py-20 lg:py-24 overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl relative z-10">
-        {/* 상단 배너 비디오 */}
+        {/* 상단 배너 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
         <div className="relative w-full h-48 sm:h-64 md:h-80 lg:h-96 rounded-2xl overflow-hidden shadow-2xl mb-10 sm:mb-12 md:mb-16 lg:mb-20">
-          <video
-            ref={videoRef}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          >
-            <source src="/videos/크루즈보여지는영상.mp4" type="video/mp4" />
-          </video>
-          {/* 비디오 위 어두운 오버레이 (텍스트 가독성) */}
+          <div
+            className="absolute inset-0 w-full h-full bg-cover bg-center animate-subtle-zoom"
+            style={{
+              backgroundImage: 'url(/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (5).png)',
+            }}
+          />
+          {/* 배경 위 어두운 오버레이 (텍스트 가독성) */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
           
           {/* 비디오 위 텍스트 오버레이 */}

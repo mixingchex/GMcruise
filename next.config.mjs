@@ -78,8 +78,8 @@ const nextConfig = {
         // Git 및 캐시
         '.git',
         '.next/cache',
-        // 정적 파일 (동영상은 제외하지 않음 - 배포에 필요)
-        // 'public/videos/**',  // 주석 처리 - 히어로/프로모션 배너 동영상 필요
+        // 정적 파일 (동영상은 이미지로 대체되어 제외)
+        'public/videos/**',  // 모든 동영상을 고화질 이미지로 대체 (빠른 로딩)
         'public/크루즈정보사진/**',
         'public/크루즈사진/**',
         'public/audio/**',

@@ -174,3 +174,20 @@ select {
 .animate-scale-in {
   animation: scaleIn 0.3s ease-out forwards;
 }
+
+/* 배경 이미지 부드러운 줌 애니메이션 (동영상 대체용) */
+@keyframes subtle-zoom {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-subtle-zoom {
+  animation: subtle-zoom 20s ease-in-out infinite;
+}
