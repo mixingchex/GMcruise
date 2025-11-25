@@ -56,27 +56,64 @@ const nextConfig = {
   // useSearchParams를 Suspense 없이 사용 가능하도록 설정 (동적 라우팅 자동 적용)
   experimental: {
     missingSuspenseWithCSRBailout: false,
-    // Vercel Function 크기 줄이기 위해 불필요한 파일 제외
+    // Vercel Function 크기 줄이기 위해 불필요한 파일 제외 (강화 버전)
     outputFileTracingExcludes: {
       '*': [
+        // Node.js 바이너리 제외
         'node_modules/@swc/core-linux-x64-gnu',
         'node_modules/@swc/core-linux-x64-musl',
-        'node_modules/@esbuild/linux-x64',
+        'node_modules/@swc/core-darwin-x64',
+        'node_modules/@swc/core-darwin-arm64',
+        'node_modules/@esbuild/**',
+        'node_modules/@next/swc-linux-x64-gnu',
+        'node_modules/@next/swc-linux-x64-musl',
+        'node_modules/@next/swc-darwin-x64',
+        'node_modules/@next/swc-darwin-arm64',
+        // 빌드 도구 제외
         'node_modules/webpack',
         'node_modules/terser',
+        'node_modules/prettier',
+        'node_modules/eslint',
+        'node_modules/typescript',
+        // Git 및 캐시
         '.git',
         '.next/cache',
-        'public/videos',
-        'public/크루즈정보사진',
-        'public/크루즈사진',
-        'scripts',
-        '*.md',
+        // 정적 파일
+        'public/videos/**',
+        'public/크루즈정보사진/**',
+        'public/크루즈사진/**',
+        'public/audio/**',
+        // 스크립트 및 문서
+        'scripts/**',
+        '**/*.md',
+        'docs/**',
+        // 테스트 파일
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        '**/*.spec.ts',
+        '**/*.spec.tsx',
+        '__tests__/**',
       ],
     },
   },
 
-  // 서버 컴포넌트 외부 패키지 최적화
-  serverExternalPackages: ['@prisma/client', '@node-rs/argon2'],
+  // 서버 컴포넌트 외부 패키지 최적화 (더 많은 패키지 추가)
+  serverExternalPackages: [
+    '@prisma/client',
+    '@node-rs/argon2',
+    'sharp',
+    'canvas',
+  ],
+
+  // 라이브러리 임포트 최적화
+  modularizeImports: {
+    'react-icons': {
+      transform: 'react-icons/{{member}}',
+    },
+    'lodash': {
+      transform: 'lodash/{{member}}',
+    },
+  },
 
   // 프로덕션 빌드 시 console.log/warn/debug/info 제거 (에러는 유지)
   compiler: {
