@@ -21,14 +21,14 @@ interface Banner {
 const defaultBanners: Banner[] = [
   {
     id: 1,
-    image: '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (2).png',  // 동영상 → 이미지로 변경 (빠른 로딩)
+    image: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (2).png',  // 고화질 이미지 사용 (빠른 로딩)
     title: '크루즈닷 지니 AI 출시',
     subtitle: '3일 무료 체험',
     link: '/login-test',
   },
   {
     id: 2,
-    image: '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (3).png',  // 동영상 → 이미지로 변경 (빠른 로딩)
+    image: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (3).png',  // 고화질 이미지 사용 (빠른 로딩)
     title: '크루즈닷 회원이라면?',
     subtitle: '프리미엄 혜택 즐기기',
     link: '/community',

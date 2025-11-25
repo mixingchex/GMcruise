@@ -140,7 +140,7 @@ function LoginPageContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-5"
           style={{
-            backgroundImage: `url('/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png')`,
+            backgroundImage: `url('/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png')`,
           }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/60 to-white/80"></div>

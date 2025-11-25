@@ -187,7 +187,7 @@ function TestLoginPageContent() {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-5"
           style={{
-            backgroundImage: `url('/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png')`,
+            backgroundImage: `url('/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png')`,
           }}
         ></div>
         <div className="absolute inset-0 bg-gradient-to-b from-sky-50/30 via-blue-50/20 to-sky-50/30"></div>

@@ -23,7 +23,7 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
   // 기본값 (동영상 → 이미지로 변경하여 로딩 속도 개선)
   const heroConfig = config || {
     // videoUrl: '/videos/hero-video.mp4',  // 동영상 비활성화 (느린 로딩)
-    backgroundImage: '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png',  // 고화질 이미지 사용
+    backgroundImage: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png',  // 고화질 이미지 사용
     logoUrl: '/images/ai-cruise-logo.png',
     title: '크루즈닷 AI 지니',
     subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
@@ -52,7 +52,7 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
       <div
         className="absolute inset-0 w-full h-full bg-cover bg-center z-0 animate-subtle-zoom"
         style={{
-          backgroundImage: `url(${heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png'})`,
+          backgroundImage: `url(${heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png'})`,
         }}
       />
       

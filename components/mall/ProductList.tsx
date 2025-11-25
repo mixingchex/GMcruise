@@ -852,7 +852,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
             <div
               className="absolute inset-0 w-full h-full bg-cover bg-center animate-subtle-zoom"
               style={{
-                backgroundImage: 'url(/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (4).png)',
+                backgroundImage: 'url(/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (4).png)',
               }}
             />
             {/* 배경 위 어두운 오버레이 (선택적) */}
