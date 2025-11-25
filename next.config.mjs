@@ -56,7 +56,27 @@ const nextConfig = {
   // useSearchParams를 Suspense 없이 사용 가능하도록 설정 (동적 라우팅 자동 적용)
   experimental: {
     missingSuspenseWithCSRBailout: false,
+    // Vercel Function 크기 줄이기 위해 불필요한 파일 제외
+    outputFileTracingExcludes: {
+      '*': [
+        'node_modules/@swc/core-linux-x64-gnu',
+        'node_modules/@swc/core-linux-x64-musl',
+        'node_modules/@esbuild/linux-x64',
+        'node_modules/webpack',
+        'node_modules/terser',
+        '.git',
+        '.next/cache',
+        'public/videos',
+        'public/크루즈정보사진',
+        'public/크루즈사진',
+        'scripts',
+        '*.md',
+      ],
+    },
   },
+
+  // 서버 컴포넌트 외부 패키지 최적화
+  serverExternalPackages: ['@prisma/client', '@node-rs/argon2'],
 
   // 프로덕션 빌드 시 console.log/warn/debug/info 제거 (에러는 유지)
   compiler: {
