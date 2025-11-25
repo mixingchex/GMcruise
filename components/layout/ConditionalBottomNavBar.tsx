@@ -12,7 +12,8 @@ const HIDE_NAV_PATHS = [
   '/affiliate', // 어필리에이트 전용 페이지
   '/customer', // 고객 전용 페이지 (여권 등록 등)
   '/onboarding',
-  '/products',  // 공개 판매몰
+  '/product',   // 크루즈 상품 페이지 (단수형)
+  '/products',  // 크루즈 상품 목록 (복수형)
   '/youtube',   // 공개 유튜브
   '/reviews',   // 공개 후기
   '/community', // 공개 커뮤니티

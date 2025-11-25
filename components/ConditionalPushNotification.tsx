@@ -13,7 +13,8 @@ const HIDE_PUSH_PROMPT_PATHS = [
   '/affiliate',
   '/customer', // 고객 전용 페이지 (여권 등록 등)
   // 크루즈몰 경로 (푸시 알림은 크루즈 가이드 지니와 3일 체험에만 표시)
-  '/products',
+  '/product',  // 크루즈 상품 페이지 (단수형)
+  '/products', // 크루즈 상품 목록 (복수형)
   '/youtube',
   '/reviews',
   '/community',
