@@ -1,7 +1,7 @@
 // components/mall/HeroSection.tsx
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 interface HeroConfig {
@@ -19,6 +19,9 @@ interface HeroConfig {
 
 export default function HeroSection({ config }: { config?: HeroConfig }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // 기본값 (동영상 → 이미지로 변경하여 로딩 속도 개선)
   const heroConfig = config || {
@@ -34,27 +37,78 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
     ],
   };
 
+  // 이미지 사전 로드 및 에러 핸들링
   useEffect(() => {
-    // 비디오 자동 재생 설정
-    if (videoRef.current) {
-      videoRef.current.play().catch((error) => {
-        console.log('Video autoplay failed:', error);
-      });
+    const img = new Image();
+    const imageUrl = heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png';
+    
+    img.onload = () => {
+      setImageLoaded(true);
+      setImageError(false);
+    };
+    
+    img.onerror = () => {
+      console.error('[HeroSection] 이미지 로드 실패:', imageUrl);
+      setImageError(true);
+      setImageLoaded(false);
+      // 대체 이미지 시도
+      const fallbackUrl = '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png';
+      const fallbackImg = new Image();
+      fallbackImg.onload = () => {
+        setImageLoaded(true);
+        setImageError(false);
+        if (imgRef.current) {
+          imgRef.current.src = fallbackUrl;
+        }
+      };
+      fallbackImg.src = fallbackUrl;
+    };
+    
+    img.src = imageUrl;
+    if (imgRef.current) {
+      imgRef.current.src = imageUrl;
     }
-  }, []);
+  }, [heroConfig.backgroundImage]);
 
   return (
     <div
-      className="relative text-white py-16 md:py-24 overflow-hidden cursor-pointer"
+      className="relative text-white py-12 sm:py-16 md:py-20 lg:py-24 overflow-hidden cursor-pointer min-h-[500px] sm:min-h-[600px] md:min-h-[700px] flex items-center"
       onClick={() => window.location.href = '/login-test'}
     >
       {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
-      <div
-        className="absolute inset-0 w-full h-full bg-cover bg-center z-0 animate-subtle-zoom"
-        style={{
-          backgroundImage: `url('${encodeURI(heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png')}')`,
-        }}
-      />
+      <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
+        {/* 숨겨진 이미지로 사전 로드 */}
+        <img
+          ref={imgRef}
+          src={heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png'}
+          alt=""
+          className="hidden"
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+        />
+        {/* 배경 이미지 */}
+        <div
+          className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${
+            imageLoaded ? 'opacity-100' : 'opacity-0'
+          } ${imageError ? 'hidden' : ''} animate-subtle-zoom`}
+          style={{
+            backgroundImage: imageLoaded 
+              ? `url('${encodeURI(heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png')}')`
+              : 'none',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        {/* 로딩 중 배경 (그라데이션) */}
+        {!imageLoaded && !imageError && (
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 animate-pulse"></div>
+        )}
+        {/* 에러 시 대체 배경 */}
+        {imageError && (
+          <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800"></div>
+        )}
+      </div>
       
       {/* 어두운 오버레이 (가독성 향상) */}
       <div className="absolute inset-0 bg-black/50 z-10"></div>
@@ -77,16 +131,16 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
             </div>
           )}
 
-          {/* 메인 타이틀 */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-4 md:mb-6 drop-shadow-2xl leading-tight">
+          {/* 메인 타이틀 - 모바일 가독성 향상 */}
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-3 sm:mb-4 md:mb-6 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] leading-tight px-2">
             {heroConfig.title}
           </h1>
-          <p className="text-xl md:text-2xl lg:text-3xl mb-8 md:mb-10 text-white font-semibold drop-shadow-lg whitespace-pre-line leading-relaxed px-2">
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl mb-6 sm:mb-8 md:mb-10 text-white font-semibold drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] whitespace-pre-line leading-relaxed px-2 sm:px-4">
             {heroConfig.subtitle}
           </p>
 
-          {/* 주요 기능 소개 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-8 md:mb-10 text-sm md:text-base lg:text-lg">
+          {/* 주요 기능 소개 - 모바일에서 블록별로 표시 */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-6 md:mb-8 lg:mb-10 text-sm md:text-base lg:text-lg">
             <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
               <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">🗺️</div>
               <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 가자</div>
@@ -109,8 +163,8 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
             </div>
           </div>
 
-          {/* CTA 버튼 */}
-          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 lg:gap-6 justify-center px-2">
+          {/* CTA 버튼 - 모바일에서 세로로, 데스크톱에서 가로로 */}
+          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 lg:gap-6 justify-center px-2 sm:px-4">
             {heroConfig.buttons?.map((btn, idx) => {
               // 버튼 스타일 생성
               const buttonStyle: React.CSSProperties = {};
