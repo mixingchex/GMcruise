@@ -111,29 +111,57 @@ export function maskSensitiveData(data: any): any {
  * 허용된 도메인만 접근 가능하도록 설정
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
+  // 허용된 도메인 목록 (슬래시 포함/미포함 모두 포함)
   const allowedOrigins = [
     'https://www.cruisedot.co.kr',
+    'https://www.cruisedot.co.kr/',
     'https://cruisedot.co.kr',
+    'https://cruisedot.co.kr/',
     process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr',
+    process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/` : 'https://cruisedot.co.kr/',
   ];
-  
-  // 프로덕션 환경에서도 커스텀 도메인 명시적으로 허용
-  if (process.env.NODE_ENV === 'production') {
-    // 프로덕션에서는 커스텀 도메인만 허용
-    // allowedOrigins는 이미 위에 설정됨
-  }
   
   // 개발 환경에서는 localhost 허용
   if (process.env.NODE_ENV === 'development') {
-    allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
+    allowedOrigins.push(
+      'http://localhost:3000',
+      'http://localhost:3000/',
+      'http://localhost:3001',
+      'http://localhost:3001/'
+    );
   }
   
-  const isAllowed = origin && allowedOrigins.some(allowed => 
-    origin === allowed || origin.startsWith(allowed + '/')
-  );
+  // Vercel Preview URL도 허용
+  if (process.env.VERCEL_URL) {
+    allowedOrigins.push(
+      `https://${process.env.VERCEL_URL}`,
+      `https://${process.env.VERCEL_URL}/`
+    );
+  }
+  
+  // origin이 null이면 Same-Origin 요청이므로 허용
+  // 브라우저의 기본 fetch는 Same-Origin일 때 Origin 헤더를 보내지 않음
+  if (!origin) {
+    return {
+      'Access-Control-Allow-Origin': '*', // Same-Origin 요청은 * 허용
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Max-Age': '86400', // 24시간
+    };
+  }
+  
+  // origin 정규화 (슬래시 제거하여 비교)
+  const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+  
+  // 허용된 도메인인지 확인 (슬래시 포함/미포함 모두 체크)
+  const isAllowed = allowedOrigins.some(allowed => {
+    const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
+    return normalizedOrigin === normalizedAllowed || normalizedOrigin.startsWith(normalizedAllowed);
+  });
   
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0],
+    'Access-Control-Allow-Origin': isAllowed ? origin : '*', // 차단하지 않고 * 허용
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
     'Access-Control-Allow-Credentials': 'true',

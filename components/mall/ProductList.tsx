@@ -296,13 +296,19 @@ export default function ProductList({ partnerContext = null, featuredProductCode
 
   const loadSettings = async () => {
     try {
-      const response = await fetch('/api/public/mall-settings');
+      const apiUrl = '/api/public/mall-settings';
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${apiUrl}`);
+      }
+      
       const data = await response.json();
       if (data.ok && data.settings) {
         setSettings(data.settings);
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('[ProductList] 설정 로드 실패:', '/api/public/mall-settings', error);
       // 설정 로드 실패 시 기본값 사용
     }
   };
@@ -311,7 +317,13 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const loadAvailableRegions = async () => {
     try {
       // 모든 상품을 가져와서 지역별로 상품이 있는지 확인
-      const response = await fetch('/api/public/products?limit=1000');
+      const apiUrl = '/api/public/products?limit=1000';
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${apiUrl}`);
+      }
+      
       const data = await response.json();
       
       if (data.ok && Array.isArray(data.products)) {
@@ -351,7 +363,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         setAvailableRegions(regions);
       }
     } catch (error) {
-      console.error('Failed to load available regions:', error);
+      console.error('[ProductList] 지역 정보 로드 실패:', '/api/public/products?limit=1000', error);
       // 실패 시 기본값 사용 (전체만 표시)
       setAvailableRegions(new Set(['all']));
     }
@@ -394,7 +406,13 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       // 각 상품 코드에 대해 상품 정보 조회
       const productPromises = codesToLoad.map(async (productCode) => {
         try {
-          const response = await fetch(`/api/public/products/${productCode}`);
+          const apiUrl = `/api/public/products/${productCode}`;
+          const response = await fetch(apiUrl);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${apiUrl}`);
+          }
+          
           const data = await response.json();
           
           if (data.ok && data.product) {
@@ -430,7 +448,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           }
           return null;
         } catch (error) {
-          console.error(`Failed to load product ${productCode}:`, error);
+          console.error(`[ProductList] 상품 로드 실패:`, `/api/public/products/${productCode}`, error);
           return null;
         }
       });
@@ -455,40 +473,47 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   };
 
   const loadProducts = async () => {
+    // API URL을 함수 시작 부분에서 구성 (에러 로깅을 위해)
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: '12',
+      sort: filters.sort,
+    });
+
+    if (filters.region !== 'all') {
+      params.append('region', filters.region);
+    }
+    
+    if (filters.cruiseLine !== 'all') {
+      params.append('cruiseLine', filters.cruiseLine);
+    }
+    
+    if (filters.shipName !== 'all') {
+      params.append('shipName', filters.shipName);
+    }
+
+    const apiUrl = `/api/public/products?${params.toString()}`;
+    
     try {
       setIsLoading(true);
       setError(null);
 
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '12',
-        sort: filters.sort,
-      });
-
-      if (filters.region !== 'all') {
-        params.append('region', filters.region);
-      }
-      
-      if (filters.cruiseLine !== 'all') {
-        params.append('cruiseLine', filters.cruiseLine);
-      }
-      
-      if (filters.shipName !== 'all') {
-        params.append('shipName', filters.shipName);
-      }
-
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
       
-      const response = await fetch(`/api/public/products?${params.toString()}`, {
+      const response = await fetch(apiUrl, {
         signal: abortController.signal,
       });
       clearTimeout(timeoutId);
       
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${apiUrl}`);
+      }
+      
       const data = await response.json();
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error || '상품 목록을 불러올 수 없습니다.');
+      if (!data.ok) {
+        throw new Error(data.error || `상품 목록을 불러올 수 없습니다: ${apiUrl}`);
       }
 
       const productsWithFlags = data.products.map((p: any) => {
@@ -544,7 +569,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       updateAvailableRegions(filteredProducts);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        console.error('Failed to load products:', err);
+        const apiUrl = `/api/public/products?${params.toString()}`;
+        console.error('[ProductList] 상품 목록 로드 실패:', apiUrl, err);
         setError(err instanceof Error ? err.message : '상품 목록을 불러올 수 없습니다.');
       }
     } finally {
@@ -590,30 +616,37 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   };
 
   const loadBelowProducts = async () => {
+    const belowSettings = settings['recommended-below-settings'];
+    if (!belowSettings || belowSettings.type !== 'products') {
+      setBelowProducts([]);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      limit: (belowSettings.products.count || 4).toString(),
+      sort: 'popular',
+    });
+
+    if (belowSettings.products.category) {
+      params.append('region', belowSettings.products.category);
+    }
+
+    const apiUrl = `/api/public/products?${params.toString()}`;
+    
     try {
-      const belowSettings = settings['recommended-below-settings'];
-      if (!belowSettings || belowSettings.type !== 'products') {
-        setBelowProducts([]);
-        return;
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${apiUrl}`);
       }
-
-      const params = new URLSearchParams({
-        limit: (belowSettings.products.count || 4).toString(),
-        sort: 'popular',
-      });
-
-      if (belowSettings.products.category) {
-        params.append('region', belowSettings.products.category);
-      }
-
-      const response = await fetch(`/api/public/products?${params.toString()}`);
+      
       const data = await response.json();
 
       if (data.ok && data.products) {
         setBelowProducts(data.products);
       }
     } catch (error) {
-      console.error('Failed to load below products:', error);
+      console.error('[ProductList] 하위 상품 로드 실패:', apiUrl, error);
       setBelowProducts([]);
     }
   };

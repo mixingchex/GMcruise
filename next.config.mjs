@@ -184,6 +184,7 @@ const nextConfig = {
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     remotePatterns: [
+      // 구글 드라이브 및 구글 전체 도메인
       {
         protocol: 'https',
         hostname: 'drive.google.com',
@@ -191,8 +192,22 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: '**.google.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.googleusercontent.com',
+      },
+      {
+        protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
       },
+      // 유튜브 전체 도메인
+      {
+        protocol: 'https',
+        hostname: '**.youtube.com',
+      },
+      // 유튜브 썸네일
       {
         protocol: 'https',
         hostname: 'i.ytimg.com',
@@ -202,6 +217,16 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'img.youtube.com',
         pathname: '/**',
+      },
+      // 유튜브 프로필 이미지
+      {
+        protocol: 'https',
+        hostname: 'yt3.ggpht.com',
+      },
+      // 카카오 CDN
+      {
+        protocol: 'https',
+        hostname: '**.kakaocdn.net',
       },
     ],
   },

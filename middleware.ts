@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { checkRateLimit, RateLimitPolicies } from '@/lib/rate-limiter';
 import { getClientIp } from '@/lib/ip-utils';
 import { securityLogger } from '@/lib/logger';
-import { protectApiRequest } from '@/lib/security/api-protection';
+import { protectApiRequest, getCorsHeaders } from '@/lib/security/api-protection';
 import { isBot, isScraperTool } from '@/lib/security/bot-detection';
 
 const PUBLIC = [
@@ -37,6 +37,23 @@ export async function middleware(req: NextRequest) {
 
   // API 보호: 봇 및 스크래퍼 차단
   if (pathname.startsWith('/api/')) {
+    // OPTIONS 요청 (CORS preflight)은 무조건 통과
+    if (req.method === 'OPTIONS') {
+      const origin = req.headers.get('origin');
+      const corsHeaders = getCorsHeaders(origin);
+      return NextResponse.json({}, { 
+        status: 200,
+        headers: corsHeaders
+      });
+    }
+    
+    // origin 헤더 확인 (Same-Origin 요청은 origin이 null일 수 있음)
+    const origin = req.headers.get('origin');
+    const host = req.headers.get('host');
+    
+    // Same-Origin 요청 (origin이 null이거나 host와 일치)은 무조건 통과
+    const isSameOrigin = !origin || (host && origin.includes(host));
+    
     // 공개 API는 봇 차단 제외 (하지만 스크래퍼는 차단)
     if (pathname.startsWith('/api/passport') || pathname.startsWith('/api/public')) {
       const userAgent = req.headers.get('user-agent');
@@ -46,17 +63,42 @@ export async function middleware(req: NextRequest) {
           ip: getClientIp(req),
           path: pathname,
         });
+        const corsHeaders = getCorsHeaders(origin);
         return NextResponse.json(
           { error: 'Access denied' },
-          { status: 403 }
+          { 
+            status: 403,
+            headers: corsHeaders
+          }
         );
       }
-      return NextResponse.next();
+      // CORS 헤더 추가
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
+    }
+    
+    // Same-Origin 요청은 보호 로직 건너뛰고 통과
+    if (isSameOrigin) {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
     }
     
     // API 보호 적용
     const protectionResult = protectApiRequest(req);
     if (protectionResult) {
+      // 차단 시에도 CORS 헤더 추가
+      const corsHeaders = getCorsHeaders(origin);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        protectionResult.headers.set(key, value);
+      });
       return protectionResult;
     }
     
@@ -68,7 +110,12 @@ export async function middleware(req: NextRequest) {
     
     // 제외 목록에 있으면 rate limiting 건너뛰기
     if (excludedFromRateLimit.some(excluded => pathname.startsWith(excluded))) {
-      return NextResponse.next();
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(req.headers.get('origin'));
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
     }
     
     const clientIp = getClientIp(req);
@@ -86,6 +133,7 @@ export async function middleware(req: NextRequest) {
       securityLogger.rateLimitExceeded(clientIp, pathname, policy.limit);
       
       const retryAfter = resetTime ? Math.ceil((resetTime - Date.now()) / 1000) : 60;
+      const corsHeaders = getCorsHeaders(req.headers.get('origin'));
       return NextResponse.json(
         { 
           ok: false, 
@@ -96,6 +144,7 @@ export async function middleware(req: NextRequest) {
           status: 429,
           headers: {
             'Retry-After': String(retryAfter),
+            ...corsHeaders,
           }
         }
       );
@@ -126,12 +175,19 @@ export async function middleware(req: NextRequest) {
   // 스크래핑 방지 헤더
   response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive, nosnippet');
   
-  // API 엔드포인트에 대한 추가 보안 헤더
+  // API 엔드포인트에 대한 추가 보안 헤더 및 CORS 헤더
   if (pathname.startsWith('/api/')) {
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('X-DNS-Prefetch-Control', 'off');
     response.headers.set('X-Download-Options', 'noopen');
     response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
+    
+    // CORS 헤더 추가 (모든 API 요청에 대해)
+    const origin = req.headers.get('origin');
+    const corsHeaders = getCorsHeaders(origin);
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
   }
   
   return response;

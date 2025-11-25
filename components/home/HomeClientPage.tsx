@@ -60,7 +60,8 @@ export default function HomeClientPage() {
         const configAbortController = new AbortController();
         const configTimeoutId = setTimeout(() => configAbortController.abort(), 3000); // 3초로 단축
 
-        const response = await fetch('/api/public/page-config', {
+        const apiUrl = '/api/public/page-config';
+        const response = await fetch(apiUrl, {
           signal: configAbortController.signal,
           cache: 'no-store',
         });
@@ -70,7 +71,7 @@ export default function HomeClientPage() {
         if (!isMounted) return;
         
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
+          throw new Error(`HTTP ${response.status}: ${apiUrl}`);
         }
         const data = await response.json();
         if (data.ok && data.config) {
@@ -81,7 +82,7 @@ export default function HomeClientPage() {
       } catch (error: any) {
         if (!isMounted) return;
         if (error.name !== 'AbortError') {
-          console.warn('[HomePage] 페이지 설정 로드 실패 (기본값 사용):', error);
+          console.error('[HomePage] 페이지 설정 로드 실패:', '/api/public/page-config', error);
         }
         setPageConfig(null);
       }
@@ -103,13 +104,14 @@ export default function HomeClientPage() {
         const delay = isJustLoggedIn ? 800 : 300;
         await new Promise(resolve => setTimeout(resolve, delay));
         
-        const res = await fetch('/api/auth/me', { 
+        const apiUrl = '/api/auth/me';
+        const res = await fetch(apiUrl, { 
           credentials: 'include',
           signal: authAbortController.signal
         });
         
         if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
+          throw new Error(`HTTP ${res.status}: ${apiUrl}`);
         }
         
         const data = await res.json();
@@ -127,7 +129,8 @@ export default function HomeClientPage() {
             setTimeout(async () => {
               if (!isMounted) return;
               try {
-                const retryRes = await fetch('/api/auth/me', { 
+                const retryApiUrl = '/api/auth/me';
+                const retryRes = await fetch(retryApiUrl, { 
                   credentials: 'include',
                   signal: authAbortController.signal
                 });
@@ -138,9 +141,11 @@ export default function HomeClientPage() {
                     setUser(retryData.user);
                     return;
                   }
+                } else {
+                  console.error('[HomePage] 재시도 API 에러:', retryApiUrl, `HTTP ${retryRes.status}`);
                 }
               } catch (retryError) {
-                console.warn('[HomePage] 재시도 실패:', retryError);
+                console.error('[HomePage] 재시도 실패:', '/api/auth/me', retryError);
               }
               if (!isMounted) return;
               setUser(null);
@@ -154,14 +159,15 @@ export default function HomeClientPage() {
         clearTimeout(authTimeoutId);
         if (!isMounted) return;
         if (error.name !== 'AbortError') {
-          console.warn('[HomePage] 로그인 상태 확인 실패:', error);
+          console.error('[HomePage] 로그인 상태 확인 실패:', '/api/auth/me', error);
         }
         // 로그인 직후인 경우 재시도
         if (isJustLoggedIn && !user) {
           setTimeout(async () => {
             if (!isMounted) return;
             try {
-              const retryRes = await fetch('/api/auth/me', { 
+              const retryApiUrl = '/api/auth/me';
+              const retryRes = await fetch(retryApiUrl, { 
                 credentials: 'include',
                 signal: authAbortController.signal
               });
@@ -172,9 +178,11 @@ export default function HomeClientPage() {
                   setUser(retryData.user);
                   return;
                 }
+              } else {
+                console.error('[HomePage] 재시도 API 에러:', retryApiUrl, `HTTP ${retryRes.status}`);
               }
             } catch (retryError) {
-              console.warn('[HomePage] 재시도 실패:', retryError);
+              console.error('[HomePage] 재시도 실패:', '/api/auth/me', retryError);
             }
             if (!isMounted) return;
             setUser(null);
@@ -197,12 +205,16 @@ export default function HomeClientPage() {
       setTimeout(() => {
         if (!isMounted) return;
         const focusAbortController = new AbortController();
-        fetch('/api/auth/me', { 
+        const focusApiUrl = '/api/auth/me';
+        fetch(focusApiUrl, { 
           credentials: 'include',
           signal: focusAbortController.signal
         })
           .then(res => {
-            if (!res.ok) return null;
+            if (!res.ok) {
+              console.error('[HomePage] 포커스 시 API 에러:', focusApiUrl, `HTTP ${res.status}`);
+              return null;
+            }
             return res.json();
           })
           .then(data => {
@@ -212,8 +224,8 @@ export default function HomeClientPage() {
               setUser(data.user);
             }
           })
-          .catch(() => {
-            // 포커스 시 에러는 무시
+          .catch((error) => {
+            console.error('[HomePage] 포커스 시 API 호출 실패:', focusApiUrl, error);
           });
       }, 200);
     };
@@ -233,15 +245,21 @@ export default function HomeClientPage() {
     if (isLoggingOut) return;
     try {
       setIsLoggingOut(true);
-      await fetch('/api/auth/logout', {
+      const logoutApiUrl = '/api/auth/logout';
+      const response = await fetch(logoutApiUrl, {
         method: 'POST',
         credentials: 'include',
       });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${logoutApiUrl}`);
+      }
+      
       setUser(null);
       // 크루즈가이드 지니에서는 로그아웃 후 크루즈몰로만 이동 (온보딩으로 절대 이동하지 않음)
       window.location.href = '/';
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('[HomePage] 로그아웃 실패:', '/api/auth/logout', error);
       // 에러가 발생해도 크루즈몰로 이동
       setUser(null);
       window.location.href = '/';
