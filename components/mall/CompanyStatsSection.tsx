@@ -191,7 +191,7 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
           <div
             className="absolute inset-0 w-full h-full bg-cover bg-center animate-subtle-zoom"
             style={{
-              backgroundImage: 'url(/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (5).png)',
+              backgroundImage: `url('${encodeURI('/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (5).png')}')`,
             }}
           />
           {/* 배경 위 어두운 오버레이 (텍스트 가독성) */}

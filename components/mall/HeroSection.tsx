@@ -52,7 +52,7 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
       <div
         className="absolute inset-0 w-full h-full bg-cover bg-center z-0 animate-subtle-zoom"
         style={{
-          backgroundImage: `url(${heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png'})`,
+          backgroundImage: `url('${encodeURI(heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png')}')`,
         }}
       />
       

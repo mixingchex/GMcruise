@@ -253,7 +253,7 @@ export default function PromotionBannerCarousel() {
                 <div
                   className="absolute inset-0 w-full h-full bg-cover bg-center animate-subtle-zoom"
                   style={{
-                    backgroundImage: `url(${banner.image})`,
+                    backgroundImage: `url('${encodeURI(banner.image)}')`,
                   }}
                 />
               )}
