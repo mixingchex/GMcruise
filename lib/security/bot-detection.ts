@@ -70,16 +70,36 @@ const ALLOWED_BOTS = [
  * @returns true if bot, false otherwise
  */
 export function isBot(userAgent: string | null | undefined): boolean {
-  if (!userAgent) return true; // User-Agent가 없으면 봇으로 간주
+  // User-Agent가 없거나 비어있으면 일반 브라우저로 간주 (통과)
+  if (!userAgent || userAgent.trim() === '') {
+    return false;
+  }
   
   const ua = userAgent.toLowerCase();
+  
+  // 일반 브라우저 User-Agent 패턴 (통과)
+  const browserPatterns = [
+    /mozilla/i,
+    /chrome/i,
+    /safari/i,
+    /firefox/i,
+    /edge/i,
+    /opera/i,
+    /msie/i,
+    /trident/i,
+  ];
+  
+  // 일반 브라우저로 보이면 통과
+  if (browserPatterns.some(pattern => pattern.test(ua)) && !/bot|crawler|spider|scraper/i.test(ua)) {
+    return false;
+  }
   
   // 허용된 검색 엔진 봇은 통과
   if (ALLOWED_BOTS.some(pattern => pattern.test(ua))) {
     return false;
   }
   
-  // 차단할 봇 패턴 확인
+  // 차단할 봇 패턴 확인 (명확한 봇만 차단)
   return BOT_PATTERNS.some(pattern => pattern.test(ua));
 }
 
@@ -93,23 +113,32 @@ export function isSuspiciousRequest(
   userAgent: string | null | undefined,
   headers: Headers | Record<string, string | string[] | undefined>
 ): boolean {
-  // User-Agent가 없으면 의심스러움
-  if (!userAgent) return true;
+  // User-Agent가 없거나 비어있으면 일반 요청으로 간주 (통과)
+  if (!userAgent || userAgent.trim() === '') {
+    return false;
+  }
   
-  // 일반적인 브라우저 헤더가 없으면 의심스러움
+  // 일반적인 브라우저 헤더가 없어도 의심스럽지 않게 처리 (완화)
   const accept = headers['accept'] || headers['Accept'];
   const acceptLanguage = headers['accept-language'] || headers['Accept-Language'];
   const acceptEncoding = headers['accept-encoding'] || headers['Accept-Encoding'];
   
-  // Accept 헤더가 없거나 비정상적이면 의심스러움
-  if (!accept || typeof accept === 'string' && !accept.includes('text/html') && !accept.includes('application/json')) {
-    return true;
+  // Accept 헤더가 없어도 통과 (API 요청은 Accept가 다를 수 있음)
+  // Accept 헤더가 있지만 비정상적인 경우만 의심스럽게 처리
+  if (accept && typeof accept === 'string') {
+    const acceptStr = accept.toLowerCase();
+    // 완전히 비정상적인 Accept만 차단
+    if (!acceptStr.includes('*') && 
+        !acceptStr.includes('text') && 
+        !acceptStr.includes('application') && 
+        !acceptStr.includes('image') &&
+        !acceptStr.includes('json')) {
+      return true;
+    }
   }
   
-  // 일반적인 브라우저는 Accept-Language를 보냄
-  if (!acceptLanguage) {
-    return true;
-  }
+  // Accept-Language가 없어도 통과 (완화)
+  // 완전히 명확한 스크래퍼만 차단하도록 완화
   
   return false;
 }
@@ -120,8 +149,12 @@ export function isSuspiciousRequest(
  * @returns true if scraper tool, false otherwise
  */
 export function isScraperTool(userAgent: string | null | undefined): boolean {
-  if (!userAgent) return true;
+  // User-Agent가 없거나 비어있으면 일반 요청으로 간주 (통과)
+  if (!userAgent || userAgent.trim() === '') {
+    return false;
+  }
   
+  // 명확한 스크래퍼 도구만 차단
   const scraperPatterns = [
     /curl/i,
     /wget/i,

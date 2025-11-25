@@ -51,17 +51,47 @@ export async function middleware(req: NextRequest) {
     const origin = req.headers.get('origin');
     const host = req.headers.get('host');
     
-    // Same-Origin 요청 (origin이 null이거나 host와 일치)은 무조건 통과
-    const isSameOrigin = !origin || (host && origin.includes(host));
+    // 커스텀 도메인 체크: host가 cruisedot.co.kr를 포함하면 무조건 통과
+    const isCustomDomain = host && (
+      host.includes('cruisedot.co.kr') || 
+      host.includes('www.cruisedot.co.kr')
+    );
+    
+    // Same-Origin 요청 (origin이 null이거나 host와 일치, 또는 커스텀 도메인)은 무조건 통과
+    const isSameOrigin = !origin || 
+                        (host && origin.includes(host)) || 
+                        isCustomDomain;
     
     // 공개 API는 봇 차단 제외 (하지만 스크래퍼는 차단)
     if (pathname.startsWith('/api/passport') || pathname.startsWith('/api/public')) {
       const userAgent = req.headers.get('user-agent');
-      // 스크래퍼 도구는 여전히 차단
+      
+      // User-Agent가 비어있거나 애매한 경우 통과 (일반 브라우저 요청 보호)
+      if (!userAgent || userAgent.trim() === '') {
+        const response = NextResponse.next();
+        const corsHeaders = getCorsHeaders(origin);
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+          response.headers.set(key, value);
+        });
+        return response;
+      }
+      
+      // 스크래퍼 도구는 여전히 차단 (명확한 스크래퍼만)
       if (isScraperTool(userAgent)) {
-        securityLogger.warn(`[Middleware] Scraper blocked on public API: ${userAgent}`, {
-          ip: getClientIp(req),
+        const clientIp = getClientIp(req);
+        console.log('[Middleware] [403 BLOCKED] Scraper blocked on public API:', {
+          origin: origin || 'null',
+          host: host || 'null',
+          userAgent: userAgent || 'null',
+          ip: clientIp,
           path: pathname,
+          method: req.method,
+        });
+        securityLogger.warn(`[Middleware] Scraper blocked on public API: ${userAgent}`, {
+          ip: clientIp,
+          path: pathname,
+          origin,
+          host,
         });
         const corsHeaders = getCorsHeaders(origin);
         return NextResponse.json(
@@ -91,9 +121,33 @@ export async function middleware(req: NextRequest) {
       return response;
     }
     
+    // User-Agent가 비어있거나 애매한 경우 봇 감지 건너뛰기 (일반 브라우저 요청 보호)
+    const userAgent = req.headers.get('user-agent');
+    if (!userAgent || userAgent.trim() === '') {
+      const response = NextResponse.next();
+      const corsHeaders = getCorsHeaders(origin);
+      Object.entries(corsHeaders).forEach(([key, value]) => {
+        response.headers.set(key, value);
+      });
+      return response;
+    }
+    
     // API 보호 적용
     const protectionResult = protectApiRequest(req);
     if (protectionResult) {
+      // 차단 시 디버깅 로그 출력
+      const userAgent = req.headers.get('user-agent');
+      const clientIp = getClientIp(req);
+      console.log('[Middleware] [403 BLOCKED] API request blocked by protection:', {
+        origin: origin || 'null',
+        host: host || 'null',
+        userAgent: userAgent || 'null',
+        ip: clientIp,
+        path: pathname,
+        method: req.method,
+        reason: 'API Protection (Bot/Scraper/Suspicious)',
+      });
+      
       // 차단 시에도 CORS 헤더 추가
       const corsHeaders = getCorsHeaders(origin);
       Object.entries(corsHeaders).forEach(([key, value]) => {

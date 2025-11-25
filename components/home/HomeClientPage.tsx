@@ -63,7 +63,6 @@ export default function HomeClientPage() {
         const apiUrl = '/api/public/page-config';
         const response = await fetch(apiUrl, {
           signal: configAbortController.signal,
-          cache: 'no-store',
         });
         
         clearTimeout(configTimeoutId);
@@ -82,7 +81,8 @@ export default function HomeClientPage() {
       } catch (error: any) {
         if (!isMounted) return;
         if (error.name !== 'AbortError') {
-          console.error('[HomePage] 페이지 설정 로드 실패:', '/api/public/page-config', error);
+          const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/public/page-config` : '/api/public/page-config';
+          console.error('[HomePage] 페이지 설정 로드 실패:', fullUrl, error);
         }
         setPageConfig(null);
       }
@@ -142,10 +142,12 @@ export default function HomeClientPage() {
                     return;
                   }
                 } else {
-                  console.error('[HomePage] 재시도 API 에러:', retryApiUrl, `HTTP ${retryRes.status}`);
+                  const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${retryApiUrl}` : retryApiUrl;
+                  console.error('[HomePage] 재시도 API 에러:', fullUrl, `HTTP ${retryRes.status}`);
                 }
               } catch (retryError) {
-                console.error('[HomePage] 재시도 실패:', '/api/auth/me', retryError);
+                const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/me` : '/api/auth/me';
+                console.error('[HomePage] 재시도 실패:', fullUrl, retryError);
               }
               if (!isMounted) return;
               setUser(null);
@@ -159,7 +161,8 @@ export default function HomeClientPage() {
         clearTimeout(authTimeoutId);
         if (!isMounted) return;
         if (error.name !== 'AbortError') {
-          console.error('[HomePage] 로그인 상태 확인 실패:', '/api/auth/me', error);
+          const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/me` : '/api/auth/me';
+          console.error('[HomePage] 로그인 상태 확인 실패:', fullUrl, error);
         }
         // 로그인 직후인 경우 재시도
         if (isJustLoggedIn && !user) {
@@ -179,10 +182,12 @@ export default function HomeClientPage() {
                   return;
                 }
               } else {
-                console.error('[HomePage] 재시도 API 에러:', retryApiUrl, `HTTP ${retryRes.status}`);
+                const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${retryApiUrl}` : retryApiUrl;
+                console.error('[HomePage] 재시도 API 에러:', fullUrl, `HTTP ${retryRes.status}`);
               }
             } catch (retryError) {
-              console.error('[HomePage] 재시도 실패:', '/api/auth/me', retryError);
+              const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/me` : '/api/auth/me';
+              console.error('[HomePage] 재시도 실패:', fullUrl, retryError);
             }
             if (!isMounted) return;
             setUser(null);
@@ -212,7 +217,8 @@ export default function HomeClientPage() {
         })
           .then(res => {
             if (!res.ok) {
-              console.error('[HomePage] 포커스 시 API 에러:', focusApiUrl, `HTTP ${res.status}`);
+              const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${focusApiUrl}` : focusApiUrl;
+              console.error('[HomePage] 포커스 시 API 에러:', fullUrl, `HTTP ${res.status}`);
               return null;
             }
             return res.json();
@@ -225,7 +231,8 @@ export default function HomeClientPage() {
             }
           })
           .catch((error) => {
-            console.error('[HomePage] 포커스 시 API 호출 실패:', focusApiUrl, error);
+            const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${focusApiUrl}` : focusApiUrl;
+            console.error('[HomePage] 포커스 시 API 호출 실패:', fullUrl, error);
           });
       }, 200);
     };
@@ -259,7 +266,8 @@ export default function HomeClientPage() {
       // 크루즈가이드 지니에서는 로그아웃 후 크루즈몰로만 이동 (온보딩으로 절대 이동하지 않음)
       window.location.href = '/';
     } catch (error) {
-      console.error('[HomePage] 로그아웃 실패:', '/api/auth/logout', error);
+      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/logout` : '/api/auth/logout';
+      console.error('[HomePage] 로그아웃 실패:', fullUrl, error);
       // 에러가 발생해도 크루즈몰로 이동
       setUser(null);
       window.location.href = '/';

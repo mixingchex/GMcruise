@@ -18,9 +18,25 @@ export function protectApiRequest(req: NextRequest): NextResponse | null {
   
   // 봇 차단
   if (isBot(userAgent)) {
+    const origin = req.headers.get('origin');
+    const host = req.headers.get('host');
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const path = req.nextUrl.pathname;
+    
+    console.log('[API Protection] [403 BLOCKED] Bot blocked:', {
+      origin: origin || 'null',
+      host: host || 'null',
+      userAgent: userAgent || 'null',
+      ip,
+      path,
+      reason: 'Bot detected',
+    });
+    
     securityLogger.warn(`[API Protection] Bot blocked: ${userAgent}`, {
-      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-      path: req.nextUrl.pathname,
+      ip,
+      path,
+      origin,
+      host,
     });
     
     return NextResponse.json(
@@ -31,9 +47,25 @@ export function protectApiRequest(req: NextRequest): NextResponse | null {
   
   // 스크래퍼 도구 차단
   if (isScraperTool(userAgent)) {
+    const origin = req.headers.get('origin');
+    const host = req.headers.get('host');
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const path = req.nextUrl.pathname;
+    
+    console.log('[API Protection] [403 BLOCKED] Scraper blocked:', {
+      origin: origin || 'null',
+      host: host || 'null',
+      userAgent: userAgent || 'null',
+      ip,
+      path,
+      reason: 'Scraper tool detected',
+    });
+    
     securityLogger.warn(`[API Protection] Scraper blocked: ${userAgent}`, {
-      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-      path: req.nextUrl.pathname,
+      ip,
+      path,
+      origin,
+      host,
     });
     
     return NextResponse.json(
@@ -44,10 +76,31 @@ export function protectApiRequest(req: NextRequest): NextResponse | null {
   
   // 의심스러운 요청 차단
   if (isSuspiciousRequest(userAgent, headers)) {
+    const origin = req.headers.get('origin');
+    const host = req.headers.get('host');
+    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const path = req.nextUrl.pathname;
+    
+    console.log('[API Protection] [403 BLOCKED] Suspicious request blocked:', {
+      origin: origin || 'null',
+      host: host || 'null',
+      userAgent: userAgent || 'null',
+      ip,
+      path,
+      reason: 'Suspicious request pattern',
+      headers: {
+        accept: headers['accept'] || headers['Accept'] || 'null',
+        'accept-language': headers['accept-language'] || headers['Accept-Language'] || 'null',
+        'accept-encoding': headers['accept-encoding'] || headers['Accept-Encoding'] || 'null',
+      },
+    });
+    
     securityLogger.warn(`[API Protection] Suspicious request blocked`, {
-      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
-      path: req.nextUrl.pathname,
+      ip,
+      path,
       userAgent,
+      origin,
+      host,
     });
     
     return NextResponse.json(
@@ -111,14 +164,18 @@ export function maskSensitiveData(data: any): any {
  * 허용된 도메인만 접근 가능하도록 설정
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
-  // 허용된 도메인 목록 (슬래시 포함/미포함 모두 포함)
+  // 허용된 도메인 목록 (하드코딩 - 환경변수 의존 제거)
   const allowedOrigins = [
+    // 커스텀 도메인 (HTTPS)
     'https://www.cruisedot.co.kr',
     'https://www.cruisedot.co.kr/',
     'https://cruisedot.co.kr',
     'https://cruisedot.co.kr/',
-    process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr',
-    process.env.NEXT_PUBLIC_BASE_URL ? `${process.env.NEXT_PUBLIC_BASE_URL}/` : 'https://cruisedot.co.kr/',
+    // 커스텀 도메인 (HTTP - 개발/테스트용)
+    'http://www.cruisedot.co.kr',
+    'http://www.cruisedot.co.kr/',
+    'http://cruisedot.co.kr',
+    'http://cruisedot.co.kr/',
   ];
   
   // 개발 환경에서는 localhost 허용
@@ -131,7 +188,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
     );
   }
   
-  // Vercel Preview URL도 허용
+  // Vercel Preview URL도 허용 (환경변수 있으면 추가)
   if (process.env.VERCEL_URL) {
     allowedOrigins.push(
       `https://${process.env.VERCEL_URL}`,

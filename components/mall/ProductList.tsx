@@ -308,7 +308,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         setSettings(data.settings);
       }
     } catch (error) {
-      console.error('[ProductList] 설정 로드 실패:', '/api/public/mall-settings', error);
+      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/public/mall-settings` : '/api/public/mall-settings';
+      console.error('[ProductList] 설정 로드 실패:', fullUrl, error);
       // 설정 로드 실패 시 기본값 사용
     }
   };
@@ -363,7 +364,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         setAvailableRegions(regions);
       }
     } catch (error) {
-      console.error('[ProductList] 지역 정보 로드 실패:', '/api/public/products?limit=1000', error);
+      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/public/products?limit=1000` : '/api/public/products?limit=1000';
+      console.error('[ProductList] 지역 정보 로드 실패:', fullUrl, error);
       // 실패 시 기본값 사용 (전체만 표시)
       setAvailableRegions(new Set(['all']));
     }
@@ -448,7 +450,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           }
           return null;
         } catch (error) {
-          console.error(`[ProductList] 상품 로드 실패:`, `/api/public/products/${productCode}`, error);
+          const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/public/products/${productCode}` : `/api/public/products/${productCode}`;
+          console.error(`[ProductList] 상품 로드 실패:`, fullUrl, error);
           return null;
         }
       });
@@ -570,7 +573,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         const apiUrl = `/api/public/products?${params.toString()}`;
-        console.error('[ProductList] 상품 목록 로드 실패:', apiUrl, err);
+        const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${apiUrl}` : apiUrl;
+        console.error('[ProductList] 상품 목록 로드 실패:', fullUrl, err);
         setError(err instanceof Error ? err.message : '상품 목록을 불러올 수 없습니다.');
       }
     } finally {
@@ -646,7 +650,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         setBelowProducts(data.products);
       }
     } catch (error) {
-      console.error('[ProductList] 하위 상품 로드 실패:', apiUrl, error);
+      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${apiUrl}` : apiUrl;
+      console.error('[ProductList] 하위 상품 로드 실패:', fullUrl, error);
       setBelowProducts([]);
     }
   };
