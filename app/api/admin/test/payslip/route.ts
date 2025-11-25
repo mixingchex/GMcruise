@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
@@ -48,7 +46,9 @@ export async function GET(req: Request) {
     console.log(`[Payslip Test] Generating test payslip for ${period} by ${session.User.name}`);
 
     // 지급명세서 생성 API 호출
-    const generateResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/admin/payslips/generate`, {
+    // 서버 사이드 API route에서 내부 API 호출 시 절대 URL 필요
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const generateResponse = await fetch(`${baseUrl}/api/admin/payslips/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -82,3 +82,25 @@ export async function GET(req: Request) {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

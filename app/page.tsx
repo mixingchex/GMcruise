@@ -1,12 +1,17 @@
 // app/page.tsx
 // 메인페이지 - 공개 쇼핑몰 (로그인 불필요)
 
+// 강제 동적 렌더링: 캐싱 방지 및 서버에서 항상 최신 데이터 로드
+// 클라이언트 컴포넌트이지만 페이지 레벨에서 캐싱 방지
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 // 성능 최적화: 무거운 컴포넌트 동적 임포트
-import dynamic from 'next/dynamic';
+import dynamicImport from 'next/dynamic';
 import HeroSection from '@/components/mall/HeroSection';
 import ProductList from '@/components/mall/ProductList';
 import ReviewSlider from '@/components/mall/ReviewSlider';
@@ -14,16 +19,16 @@ import CruiseSearchBlock from '@/components/mall/CruiseSearchBlock';
 import PublicFooter from '@/components/layout/PublicFooter';
 
 // YouTube 관련 컴포넌트는 동적 임포트 (필요할 때만 로드)
-const YoutubeShortsSlider = dynamic(() => import('@/components/mall/YoutubeShortsSlider'), {
+const YoutubeShortsSlider = dynamicImport(() => import('@/components/mall/YoutubeShortsSlider'), {
   loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
 });
-const YoutubeVideosSlider = dynamic(() => import('@/components/mall/YoutubeVideosSlider'), {
+const YoutubeVideosSlider = dynamicImport(() => import('@/components/mall/YoutubeVideosSlider'), {
   loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
 });
-const YoutubeLiveSection = dynamic(() => import('@/components/mall/YoutubeLiveSection'), {
+const YoutubeLiveSection = dynamicImport(() => import('@/components/mall/YoutubeLiveSection'), {
   loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
 });
-const PromotionBannerCarousel = dynamic(() => import('@/components/mall/PromotionBannerCarousel'), {
+const PromotionBannerCarousel = dynamicImport(() => import('@/components/mall/PromotionBannerCarousel'), {
   loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />,
 });
 import CompanyStatsSection from '@/components/mall/CompanyStatsSection';

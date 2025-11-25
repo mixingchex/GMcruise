@@ -19,6 +19,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 // 기본 메타데이터 (SEO 최적화)
 export const metadata: Metadata = {
+  metadataBase: new URL('https://www.cruisedot.co.kr'),
   title: "크루즈 가이드 - AI 여행 도우미 | 크루즈 예약, 여행 준비, 실시간 안내",
   description: "AI 가이드 지니와 함께하는 특별한 크루즈 여행. 크루즈 상품 예약, 여행 준비, 실시간 안내까지 모든 것을 한 곳에서. 일본 크루즈, 지중해 크루즈, 알래스카 크루즈 등 다양한 크루즈 여행 상품을 확인하세요.",
   keywords: [

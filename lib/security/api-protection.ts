@@ -112,17 +112,25 @@ export function maskSensitiveData(data: any): any {
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   const allowedOrigins = [
-    process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr',
     'https://www.cruisedot.co.kr',
     'https://cruisedot.co.kr',
+    process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr',
   ];
+  
+  // 프로덕션 환경에서도 커스텀 도메인 명시적으로 허용
+  if (process.env.NODE_ENV === 'production') {
+    // 프로덕션에서는 커스텀 도메인만 허용
+    // allowedOrigins는 이미 위에 설정됨
+  }
   
   // 개발 환경에서는 localhost 허용
   if (process.env.NODE_ENV === 'development') {
     allowedOrigins.push('http://localhost:3000', 'http://localhost:3001');
   }
   
-  const isAllowed = origin && allowedOrigins.some(allowed => origin.startsWith(allowed));
+  const isAllowed = origin && allowedOrigins.some(allowed => 
+    origin === allowed || origin.startsWith(allowed + '/')
+  );
   
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : allowedOrigins[0],
