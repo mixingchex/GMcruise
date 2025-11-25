@@ -36,17 +36,12 @@ import PWAInstallButtonGenie from '@/components/PWAInstallButtonGenie';
 
 export default function HomePage() {
   const [user, setUser] = useState<{ name: string | null; role: string } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [pageConfig, setPageConfig] = useState<any>(null);
 
   useEffect(() => {
     let isMounted = true;
     const abortController = new AbortController();
-
-    // 로딩 상태를 즉시 false로 설정하여 페이지를 먼저 표시
-    // API 응답은 백그라운드에서 처리
-    setLoading(false);
     
     // URL 파라미터에서 로그인 직후인지 확인
     const urlParams = new URLSearchParams(window.location.search);
@@ -255,52 +250,55 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 상단 헤더 - 항상 표시 */}
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-50">
+      {/* 상단 헤더 - 세련된 디자인 */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-lg">
+        <div className="container mx-auto px-3 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
             {/* 왼쪽: 로고 및 환영 메시지 */}
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <Link href="/" className="flex items-center flex-shrink-0">
-                <img src="/images/ai-cruise-logo.png" alt="크루즈닷 로고" className="h-6 sm:h-8 object-contain" onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/images/placeholder.png';
-                }} />
+            <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+              <Link href="/" className="flex items-center flex-shrink-0 transform hover:scale-105 transition-transform duration-200">
+                <img
+                  src="/images/ai-cruise-logo.png"
+                  alt="크루즈닷 로고"
+                  className="h-8 sm:h-10 object-contain drop-shadow-md"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = '/images/placeholder.png';
+                  }}
+                />
               </Link>
-              {loading ? (
-                <span className="text-gray-600 font-semibold text-xs sm:text-sm">로딩 중...</span>
-              ) : user ? (
+              {user ? (
                 <Link
                   href="/community/my-info"
-                  className="flex items-center gap-1 sm:gap-2 transition-colors cursor-pointer min-w-0"
+                  className="flex items-center gap-1 sm:gap-2 transition-all duration-200 cursor-pointer min-w-0 hover:scale-105"
                 >
-                  <span className="text-xs sm:text-sm font-semibold truncate text-blue-600">
+                  <span className="text-sm sm:text-base font-bold truncate bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">
                     {user.name?.trim() || '고객'}
                   </span>
-                  <span className="text-xs sm:text-sm font-semibold whitespace-nowrap text-gray-800">
-                    님 환영합니다!
+                  <span className="text-sm sm:text-base font-semibold whitespace-nowrap text-gray-700">
+                    님 환영합니다! 👋
                   </span>
                 </Link>
               ) : (
-                <span className="text-xs sm:text-sm font-semibold text-gray-800">
-                  크루즈닷에 오신 것을 환영합니다!
+                <span className="text-sm sm:text-base font-semibold text-gray-700">
+                  크루즈닷에 오신 것을 환영합니다! ✨
                 </span>
               )}
             </div>
 
-            {/* 오른쪽: 메뉴 버튼들 */}
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+            {/* 오른쪽: 메뉴 버튼들 - 세련된 그라데이션 버튼 */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end">
               {!user ? (
                 <>
                   <Link
                     href="/mall/login"
-                    className="px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-sm sm:text-base font-semibold transition-colors min-h-[44px] flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center text-gray-700 hover:text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 border border-gray-300 hover:border-gray-400 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
                   >
                     로그인
                   </Link>
                   <Link
                     href="/mall/signup"
-                    className="px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-sm sm:text-base font-semibold transition-colors min-h-[44px] flex items-center justify-center bg-blue-600 text-white hover:opacity-90 active:opacity-80"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
                   >
                     회원가입
                   </Link>
@@ -309,20 +307,20 @@ export default function HomePage() {
                 <>
                   <Link
                     href="/community/my-info"
-                    className="px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-sm sm:text-base font-semibold transition-colors min-h-[44px] flex items-center justify-center text-gray-700 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center text-gray-700 hover:text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 border border-gray-300 hover:border-gray-400 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
                   >
                     내정보
                   </Link>
                   <Link
                     href="/community"
-                    className="px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg text-sm sm:text-base font-semibold transition-colors min-h-[44px] flex items-center justify-center bg-blue-600 text-white hover:opacity-90 active:opacity-80"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
                   >
                     우리끼리크루즈닷
                   </Link>
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
-                    className="px-3 sm:px-4 py-2.5 sm:py-2 bg-gray-100 text-gray-700 font-semibold rounded-lg hover:bg-gray-200 active:bg-gray-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed min-h-[44px] text-sm sm:text-base"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 hover:text-gray-900 border border-gray-300 hover:border-gray-400 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                   >
                     로그아웃
                   </button>

@@ -199,9 +199,9 @@ export default function PromotionBannerCarousel() {
 
   if (isLoading) {
     return (
-      <div className="relative w-full h-80 md:h-96 lg:h-[500px] rounded-xl overflow-hidden shadow-2xl bg-gray-200 animate-pulse">
+      <div className="relative w-full h-80 md:h-96 lg:h-[500px] rounded-xl overflow-hidden shadow-2xl bg-gradient-to-br from-blue-100 via-purple-100 to-indigo-100 animate-pulse">
         <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-gray-400">로딩 중...</p>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
       </div>
     );
