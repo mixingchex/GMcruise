@@ -97,13 +97,8 @@ const nextConfig = {
     },
   },
 
-  // 서버 컴포넌트 외부 패키지 최적화 (더 많은 패키지 추가)
-  serverExternalPackages: [
-    '@prisma/client',
-    '@node-rs/argon2',
-    'sharp',
-    'canvas',
-  ],
+  // Next.js 14+는 외부 패키지를 자동으로 처리하므로 serverExternalPackages 제거
+  // @prisma/client, @node-rs/argon2, sharp, canvas는 자동으로 최적화됨
 
   // 라이브러리 임포트 최적화
   modularizeImports: {
