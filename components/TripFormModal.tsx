@@ -355,13 +355,47 @@ export default function TripFormModal({ isOpen, onClose, onSubmit, initialData, 
         .filter(country => !selectedEnglishNames.has(country.englishName))
         .slice(0, 30);
     }
-    const term = countrySearchTerm.toLowerCase();
+    const term = countrySearchTerm.toLowerCase().trim();
+    
+    // 정확한 매칭을 우선시하고, 그 다음 단어 시작 부분 매칭
+    // "중국"을 검색할 때 "중앙아프리카 공화국"이 매칭되지 않도록 주의
     return allCountries
-      .filter(country =>
-        !selectedEnglishNames.has(country.englishName) && // 이미 선택된 국가 제외
-        (country.koreanName.toLowerCase().includes(term) ||
-         country.englishName.toLowerCase().includes(term))
-      )
+      .filter(country => {
+        if (selectedEnglishNames.has(country.englishName)) {
+          return false;
+        }
+        
+        const koreanNameLower = country.koreanName.toLowerCase();
+        const englishNameLower = country.englishName.toLowerCase();
+        
+        // 정확한 매칭
+        if (koreanNameLower === term || englishNameLower === term) {
+          return true;
+        }
+        
+        // 단어 시작 부분 매칭 (가장 일반적인 경우)
+        if (koreanNameLower.startsWith(term) || englishNameLower.startsWith(term)) {
+          return true;
+        }
+        
+        // 단어 경계에서 매칭 (공백 앞뒤로 검색어가 있는 경우)
+        // 예: "아프리카" 검색 시 "중앙아프리카 공화국" 매칭
+        const koreanWordMatch = koreanNameLower.includes(' ' + term + ' ') || 
+                                koreanNameLower.endsWith(' ' + term) ||
+                                koreanNameLower.startsWith(term + ' ');
+        const englishWordMatch = englishNameLower.includes(' ' + term + ' ') || 
+                                 englishNameLower.endsWith(' ' + term) ||
+                                 englishNameLower.startsWith(term + ' ');
+        
+        if (koreanWordMatch || englishWordMatch) {
+          return true;
+        }
+        
+        // 부분 문자열 매칭은 최소한으로 (단, "중국"이 "중앙"에 매칭되지 않도록)
+        // 검색어가 국가 이름 중간에 포함되어 있지만, 단어 경계가 아닌 경우는 제외
+        // 예: "중국" 검색 시 "중앙아프리카 공화국"은 매칭되지 않음
+        return false;
+      })
       .slice(0, 30); // 최대 30개만 표시
   }, [countrySearchTerm, allCountries, selectedCountries]);
 

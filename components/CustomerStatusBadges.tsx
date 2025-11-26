@@ -5,6 +5,7 @@ import { FiCheckCircle, FiClock, FiShoppingBag, FiUser } from 'react-icons/fi';
 interface CustomerStatusBadgesProps {
   testModeStartedAt: string | null | undefined;
   customerStatus: string | null | undefined;
+  customerSource?: string | null | undefined; // 고객 출처 추가
   mallUserId: string | null | undefined;
   className?: string;
 }
@@ -18,30 +19,40 @@ interface CustomerStatusBadgesProps {
 export default function CustomerStatusBadges({
   testModeStartedAt,
   customerStatus,
+  customerSource,
   mallUserId,
   className = '',
 }: CustomerStatusBadgesProps) {
-  const isTrialUser = !!testModeStartedAt;
-  const isRegularGenie = !testModeStartedAt && (customerStatus === 'active' || customerStatus === 'package');
+  // 크루즈가이드 지니 3일 체험: customerStatus: 'test' 또는 'test-locked', customerSource: 'test-guide'
+  const isTrialUser = !!testModeStartedAt || 
+    (customerStatus === 'test' && customerSource === 'test-guide') ||
+    (customerStatus === 'test-locked' && customerSource === 'test-guide');
+  // 크루즈가이드 지니 (결제 고객): customerStatus: 'active' 또는 'package', customerSource: 'cruise-guide'
+  // test-locked 상태가 아니어야 함 (3일 체험 완료 고객은 제외)
+  const isRegularGenie = !testModeStartedAt && 
+    customerStatus !== 'test' && 
+    customerStatus !== 'test-locked' &&
+    (customerStatus === 'active' || customerStatus === 'package') && 
+    customerSource === 'cruise-guide';
   const isMallUser = !!mallUserId;
 
   const badges = [];
 
-  // 3일 체험 중
+  // 크루즈가이드 지니 3일 체험
   if (isTrialUser) {
     badges.push({
-      label: '3일 체험',
+      label: '크루즈가이드 지니 3일 체험',
       icon: <FiClock className="w-3 h-3" />,
-      bgColor: 'bg-yellow-50',
-      textColor: 'text-yellow-700',
-      borderColor: 'border-yellow-200',
+      bgColor: 'bg-orange-50',
+      textColor: 'text-orange-700',
+      borderColor: 'border-orange-200',
     });
   }
 
-  // 일반 크루즈 가이드
+  // 크루즈가이드 지니 (결제 고객)
   if (isRegularGenie) {
     badges.push({
-      label: '크루즈 가이드',
+      label: '크루즈가이드 지니 (결제)',
       icon: <FiUser className="w-3 h-3" />,
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700',

@@ -1159,9 +1159,70 @@ export async function GET(req: NextRequest) {
     const endIndex = startIndex + limit;
     const paginatedProducts = productsWithDestination.slice(startIndex, endIndex);
 
+    // limit=1000인 경우 (연관검색어 생성용) 전체 상품 반환
+    const responseProducts = isThemeRequest || (limit >= 1000) ? productsWithDestination : paginatedProducts;
+    
+    // limit=1000인 경우 recommendedKeywords 포함 여부 로그 (상세)
+    if (limit >= 1000) {
+      const productsWithKeywords = responseProducts.filter((p: any) => {
+        return p.recommendedKeywords && (
+          (Array.isArray(p.recommendedKeywords) && p.recommendedKeywords.length > 0) ||
+          (typeof p.recommendedKeywords === 'string' && p.recommendedKeywords.trim())
+        );
+      });
+      
+      // 각 상품의 recommendedKeywords 추출 과정 로그
+      const detailedLog = responseProducts.slice(0, 5).map((p: any) => {
+        let extractedKeywords: string[] | null = null;
+        
+        // MallProductContent.layout에서 추출 시도
+        if (p.mallProductContent?.layout) {
+          try {
+            const layout = typeof p.mallProductContent.layout === 'string' 
+              ? JSON.parse(p.mallProductContent.layout) 
+              : p.mallProductContent.layout;
+            if (layout?.recommendedKeywords) {
+              if (Array.isArray(layout.recommendedKeywords)) {
+                extractedKeywords = layout.recommendedKeywords;
+              } else if (typeof layout.recommendedKeywords === 'string') {
+                try {
+                  extractedKeywords = JSON.parse(layout.recommendedKeywords);
+                } catch {
+                  extractedKeywords = [layout.recommendedKeywords];
+                }
+              }
+            }
+          } catch (e) {
+            // 파싱 실패
+          }
+        }
+        
+        return {
+          productCode: p.productCode,
+          hasMallContent: !!p.mallProductContent,
+          hasLayout: !!p.mallProductContent?.layout,
+          layoutRecommendedKeywords: extractedKeywords,
+          productRecommendedKeywords: p.recommendedKeywords,
+          finalRecommendedKeywords: p.recommendedKeywords || extractedKeywords
+        };
+      });
+      
+      console.log('[Public Products API] Products with recommendedKeywords (detailed):', {
+        total: responseProducts.length,
+        withKeywords: productsWithKeywords.length,
+        sampleProducts: detailedLog,
+        allKeywords: productsWithKeywords.flatMap((p: any) => {
+          const keywords = Array.isArray(p.recommendedKeywords) 
+            ? p.recommendedKeywords 
+            : (typeof p.recommendedKeywords === 'string' ? [p.recommendedKeywords] : []);
+          return keywords.map((kw: string) => ({ productCode: p.productCode, keyword: kw }));
+        })
+      });
+    }
+    
     return NextResponse.json({
       ok: true,
-      products: paginatedProducts,
+      products: responseProducts,
       pagination: {
         page,
         limit,

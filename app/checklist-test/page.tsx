@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { FiChevronLeft, FiTrash2, FiPlus, FiCheck, FiChevronDown, FiChevronUp, FiX, FiVolume2, FiPause } from 'react-icons/fi';
 import { hapticClick, hapticSuccess, hapticImpact } from '@/lib/haptic';
 import { useKeyboardHandler, useViewportHeight } from '@/lib/keyboard-handler';
 import { trackFeature } from '@/lib/analytics';
 import TutorialCountdown from '@/app/chat/components/TutorialCountdown';
-import { checkTestModeClient, TestModeInfo } from '@/lib/test-mode-client';
+import { checkTestModeClient, TestModeInfo, getCorrectPath } from '@/lib/test-mode-client';
 import { clearAllLocalStorage } from '@/lib/csrf-client';
 
 // 체크리스트 아이템 타입 정의 (API 응답 형식에 맞춤)
@@ -22,6 +22,7 @@ type ChecklistItem = {
 
 export default function ChecklistPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,13 +37,19 @@ export default function ChecklistPage() {
   const hasCreatedDefaultsRef = useRef(false); // 기본 항목 생성 플래그
 
   useEffect(() => {
-    // 테스트 모드 정보 로드
+    // 테스트 모드 정보 로드 및 경로 보호
     const loadTestModeInfo = async () => {
       const info = await checkTestModeClient();
       setTestModeInfo(info);
+      
+      // 경로 보호: 일반 사용자는 /checklist로 리다이렉트
+      const correctPath = getCorrectPath(pathname || '/checklist-test', info);
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
     };
     loadTestModeInfo();
-  }, []);
+  }, [pathname, router]);
 
   const handleLogout = async () => {
     try {

@@ -177,11 +177,22 @@ export default function AdminDashboard() {
       }
       setError(null);
       
-      // 대시보드 데이터 로드
-      const dashboardResponse = await fetch('/api/admin/dashboard', {
-        credentials: 'include',
-      });
+      // 성능 최적화: 모든 API를 병렬로 호출하여 로딩 시간 단축
+      const [
+        dashboardResponse,
+        monitoringResponse,
+        customersResponse,
+        tripsResponse,
+        inquiriesResponse
+      ] = await Promise.all([
+        fetch('/api/admin/dashboard', { credentials: 'include' }),
+        fetch('/api/admin/affiliate/monitoring', { credentials: 'include' }).catch(() => null),
+        fetch('/api/admin/users/recent', { credentials: 'include' }).catch(() => null),
+        fetch('/api/admin/trips/recent', { credentials: 'include' }).catch(() => null),
+        fetch('/api/admin/affiliate/leads?limit=20', { credentials: 'include' }).catch(() => null),
+      ]);
 
+      // 대시보드 데이터 처리
       if (!dashboardResponse.ok) {
         if (dashboardResponse.status === 401 || dashboardResponse.status === 403) {
           const errorData = await dashboardResponse.json().catch(() => ({}));
@@ -199,59 +210,47 @@ export default function AdminDashboard() {
         throw new Error(dashboardResult.error || '데이터를 불러오는 중 오류가 발생했습니다.');
       }
 
-      // 모니터링 데이터 로드
-      try {
-        const monitoringResponse = await fetch('/api/admin/affiliate/monitoring', {
-          credentials: 'include',
-        });
-        if (monitoringResponse.ok) {
+      setDashboardData(dashboardResult.dashboard);
+
+      // 모니터링 데이터 처리
+      if (monitoringResponse?.ok) {
+        try {
           const monitoringResult = await monitoringResponse.json();
           if (monitoringResult.ok) {
             setMonitoringData(monitoringResult.data);
           }
+        } catch (monitoringError) {
+          console.error('[Dashboard] Failed to parse monitoring data:', monitoringError);
         }
-      } catch (monitoringError) {
-        console.error('[Dashboard] Failed to load monitoring data:', monitoringError);
       }
 
-      setDashboardData(dashboardResult.dashboard);
-
-      // 최근 고객 로드
-      try {
-        const customersResponse = await fetch('/api/admin/users/recent', {
-          credentials: 'include',
-        });
-        if (customersResponse.ok) {
+      // 최근 고객 처리
+      if (customersResponse?.ok) {
+        try {
           const customersData = await customersResponse.json();
           if (customersData.ok && customersData.customers) {
             setRecentCustomers(customersData.customers);
           }
+        } catch (err) {
+          console.warn('최근 고객 로드 실패:', err);
         }
-      } catch (err) {
-        console.warn('최근 고객 로드 실패:', err);
       }
 
-      // 최근 여행 로드
-      try {
-        const tripsResponse = await fetch('/api/admin/trips/recent', {
-          credentials: 'include',
-        });
-        if (tripsResponse.ok) {
+      // 최근 여행 처리
+      if (tripsResponse?.ok) {
+        try {
           const tripsData = await tripsResponse.json();
           if (tripsData.ok && tripsData.trips) {
             setRecentTrips(tripsData.trips);
           }
+        } catch (err) {
+          console.warn('최근 여행 로드 실패:', err);
         }
-      } catch (err) {
-        console.warn('최근 여행 로드 실패:', err);
       }
 
-      // 전화상담 신청 목록 로드
-      try {
-        const inquiriesResponse = await fetch('/api/admin/affiliate/leads?limit=20', {
-          credentials: 'include',
-        });
-        if (inquiriesResponse.ok) {
+      // 전화상담 신청 목록 처리
+      if (inquiriesResponse?.ok) {
+        try {
           const inquiriesData = await inquiriesResponse.json();
           if (inquiriesData.ok && inquiriesData.leads) {
             // source가 'mall-'로 시작하거나 'product-inquiry'인 것만 필터링
@@ -269,9 +268,9 @@ export default function AdminDashboard() {
             }));
             setPhoneInquiries(filtered);
           }
+        } catch (err) {
+          console.error('전화상담 신청 로드 실패:', err);
         }
-      } catch (err) {
-        console.error('전화상담 신청 로드 실패:', err);
       }
 
       setLastUpdated(new Date());

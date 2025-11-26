@@ -400,3 +400,4 @@ function generateSimpleEmbedding(text: string): number[] {
 **결론**: 모든 개선 사항은 선택사항이며, 현재 상태로도 배포 가능
 
 
+

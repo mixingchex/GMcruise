@@ -2210,6 +2210,12 @@ model User {
   @@index([role, updatedAt])
   @@index([role, customerStatus, updatedAt])
   @@index([role, createdAt])
+  // 성능 최적화: 고객관리 페이지 쿼리 최적화를 위한 추가 인덱스
+  @@index([customerSource])
+  @@index([role, customerSource])
+  @@index([mallUserId])
+  @@index([testModeStartedAt])
+  @@index([customerStatus, createdAt])
 }
 
 model UserActivity {
@@ -2423,4 +2429,5 @@ model AffiliateLedger {
   @@index([isSettled])
   @@index([type])
 }
+
 

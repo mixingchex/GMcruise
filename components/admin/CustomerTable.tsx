@@ -202,12 +202,13 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
       return badges; // 관리자크루즈몰은 다른 딱지 표시 안 함
     }
     
-    // 4. 테스트 고객 딱지 (주황색)
-    if (customer.customerType === 'test') {
-      if (customer.status === 'test-locked') {
-        badges.push({ label: '테스트잠금', color: 'bg-gray-100 text-gray-800 border border-gray-300' });
+    // 4. 테스트 고객 딱지 (주황색) - 크루즈가이드 지니 3일 체험
+    // customerStatus: 'test', customerSource: 'test-guide' → 명확히 구분
+    if (customer.customerType === 'test' || (customer.customerStatus === 'test' && customer.customerSource === 'test-guide')) {
+      if (customer.status === 'test-locked' || customer.customerStatus === 'test-locked') {
+        badges.push({ label: '3일체험 잠금', color: 'bg-gray-100 text-gray-800 border border-gray-300' });
       } else {
-        badges.push({ label: '테스트가이드', color: 'bg-orange-100 text-orange-800 border border-orange-300' });
+        badges.push({ label: '크루즈가이드 지니 3일 체험', color: 'bg-orange-100 text-orange-800 border border-orange-300 font-semibold' });
       }
       return badges; // 테스트 고객은 다른 딱지 표시 안 함
     }
@@ -229,9 +230,10 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
       badges.push({ label: '크루즈몰', color: 'bg-green-100 text-green-800 border border-green-300' });
     }
     
-    // 8. 크루즈가이드 고객 딱지 (파란색)
-    if (customer.customerType === 'cruise-guide') {
-      badges.push({ label: '크루즈가이드', color: 'bg-blue-100 text-blue-800 border border-blue-300' });
+    // 8. 크루즈가이드 고객 딱지 (파란색) - 크루즈가이드 지니 (결제 고객)
+    // customerStatus: 'active', customerSource: 'cruise-guide' → 명확히 구분
+    if (customer.customerType === 'cruise-guide' || (customer.customerStatus === 'active' && customer.customerSource === 'cruise-guide')) {
+      badges.push({ label: '크루즈가이드 지니 (결제)', color: 'bg-blue-100 text-blue-800 border border-blue-300 font-semibold' });
     }
     
     // 9. 통합 딱지 (보라색) - 연동된 고객
@@ -674,6 +676,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
               <th className="px-6 py-4 text-left font-semibold">비밀번호</th>
               <th className="px-6 py-4 text-left font-semibold">이름</th>
               <th className="px-6 py-4 text-left font-semibold">연락처</th>
+              <th className="px-6 py-4 text-left font-semibold">이메일</th>
               <th className="px-6 py-4 text-left font-semibold">구매 정보</th>
               <th className="px-6 py-4 text-left font-semibold">여권 상태</th>
               <th className="px-6 py-4 text-left font-semibold">구매/환불</th>
@@ -780,6 +783,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                       <CustomerStatusBadges
                         testModeStartedAt={customer.testModeStartedAt}
                         customerStatus={customer.customerStatus}
+                        customerSource={customer.customerSource}
                         mallUserId={customer.mallUserId}
                       />
                       <button
@@ -837,6 +841,58 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                         onClick={() => handleFieldEdit(customer.id, 'phone', customer.phone)}
                         className="opacity-0 group-hover:opacity-100 p-1 text-blue-500 hover:text-blue-700"
                         title="전화번호 수정"
+                      >
+                        <FiEdit2 size={14} />
+                      </button>
+                    </div>
+                  )}
+                </td>
+                {/* 이메일 컬럼 */}
+                <td className="px-6 py-4">
+                  {editingField?.customerId === customer.id && editingField?.field === 'email' ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="email"
+                        value={editingField.value}
+                        onChange={(e) => setEditingField({ ...editingField, value: e.target.value })}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm w-40"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleFieldSave(customer.id, 'email', editingField.value);
+                          } else if (e.key === 'Escape') {
+                            handleFieldCancel();
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={() => handleFieldSave(customer.id, 'email', editingField.value)}
+                        disabled={savingField === customer.id}
+                        className="p-1 text-green-600 hover:text-green-700 disabled:opacity-50"
+                        title="저장"
+                      >
+                        <FiCheck size={16} />
+                      </button>
+                      <button
+                        onClick={handleFieldCancel}
+                        className="p-1 text-red-600 hover:text-red-700"
+                        title="취소"
+                      >
+                        <FiX size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group">
+                      <span 
+                        className="cursor-pointer hover:text-blue-400 break-all"
+                        onClick={() => handleFieldEdit(customer.id, 'email', customer.email)}
+                      >
+                        {customer.email || '-'}
+                      </span>
+                      <button
+                        onClick={() => handleFieldEdit(customer.id, 'email', customer.email)}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-blue-500 hover:text-blue-700"
+                        title="이메일 수정"
                       >
                         <FiEdit2 size={14} />
                       </button>

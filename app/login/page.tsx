@@ -180,7 +180,7 @@ function LoginPageContent() {
           <div className="mb-6 rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 bg-white">
             <div className="aspect-video w-full">
               <iframe
-                src="https://www.youtube.com/embed/-p_6G69MgyQ?si=Z4ILad3Exz9aU0PW&autoplay=1&mute=0&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1"
+                src="https://www.youtube.com/embed/-p_6G69MgyQ?si=Z4ILad3Exz9aU0PW&autoplay=1&mute=1&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1"
                 title="크루즈 가이드 지니 AI 소개 영상"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"

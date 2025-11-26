@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { FiArrowLeft, FiCamera, FiMic, FiMicOff } from 'react-icons/fi';
 import { csrfFetch } from '@/lib/csrf-client';
 import { PHRASE_CATEGORIES_DATA } from './PHRASE_CATEGORIES_DATA';
 import { trackFeature } from '@/lib/analytics';
 import TutorialCountdown from '@/app/chat/components/TutorialCountdown';
-import { checkTestModeClient, TestModeInfo } from '@/lib/test-mode-client';
+import { checkTestModeClient, TestModeInfo, getCorrectPath } from '@/lib/test-mode-client';
 import { clearAllLocalStorage } from '@/lib/csrf-client';
 
 // 국가별 → 현지어 매핑
@@ -52,16 +52,23 @@ const STORAGE_KEY = 'translator:conversation';
 
 export default function TranslatorPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [testModeInfo, setTestModeInfo] = useState<TestModeInfo | null>(null);
 
   useEffect(() => {
-    // 테스트 모드 정보 로드
+    // 테스트 모드 정보 로드 및 경로 보호
     const loadTestModeInfo = async () => {
       const info = await checkTestModeClient();
       setTestModeInfo(info);
+      
+      // 경로 보호: 일반 사용자는 /translator로 리다이렉트
+      const correctPath = getCorrectPath(pathname || '/translator-test', info);
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
     };
     loadTestModeInfo();
-  }, []);
+  }, [pathname, router]);
 
   const handleLogout = async () => {
     try {

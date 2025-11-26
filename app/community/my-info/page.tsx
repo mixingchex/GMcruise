@@ -36,6 +36,7 @@ export default function MyInfoPage() {
   const [editNickname, setEditNickname] = useState('');
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   
   // 비밀번호 변경
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -72,6 +73,7 @@ export default function MyInfoPage() {
       setEditNickname(data.user.mallNickname || data.user.name || '');
       setEditName(data.user.name || '');
       setEditPhone(data.user.phone || '');
+      setEditEmail(data.user.email || '');
     } catch (err) {
       setError('정보를 불러오는 중 오류가 발생했습니다.');
     } finally {
@@ -82,6 +84,12 @@ export default function MyInfoPage() {
   const handleSave = async () => {
     if (!editName.trim() || !editPhone.trim()) {
       alert('이름과 연락처를 모두 입력해주세요.');
+      return;
+    }
+
+    // 이메일 형식 검증 (입력된 경우에만)
+    if (editEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())) {
+      alert('올바른 이메일 형식을 입력해주세요.');
       return;
     }
 
@@ -96,6 +104,7 @@ export default function MyInfoPage() {
         body: JSON.stringify({
           name: editName.trim(),
           phone: editPhone.trim(),
+          email: editEmail.trim() || null,
           mallNickname: editNickname.trim(),
         }),
       });
@@ -244,6 +253,7 @@ export default function MyInfoPage() {
                       setEditNickname(user?.mallNickname || user?.name || '');
                       setEditName(user?.name || '');
                       setEditPhone(user?.phone || '');
+                      setEditEmail(user?.email || '');
                     }}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors"
                   >
@@ -292,6 +302,16 @@ export default function MyInfoPage() {
                     onChange={(e) => setEditNickname(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                     placeholder="닉네임을 입력하세요"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">이메일</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    placeholder="이메일을 입력하세요 (선택사항)"
                   />
                 </div>
               </div>

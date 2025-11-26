@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
 
     // FeatureUsage 업데이트 (page_view 제외)
     if (feature && feature !== 'page_view') {
+      const now = new Date();
       await prisma.featureUsage.upsert({
         where: {
           userId_feature: {
@@ -66,13 +67,15 @@ export async function POST(req: NextRequest) {
         },
         update: {
           usageCount: { increment: 1 },
-          lastUsedAt: new Date(),
+          lastUsedAt: now,
+          updatedAt: now,
         },
         create: {
           userId: user.id,
           feature,
           usageCount: 1,
-          lastUsedAt: new Date(),
+          lastUsedAt: now,
+          updatedAt: now,
         },
       });
     }

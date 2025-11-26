@@ -125,12 +125,14 @@ export async function POST(req: NextRequest) {
       });
     } else {
       // 생성
+      const now = new Date();
       const created = await prisma.chatHistory.create({
         data: {
           userId: user.id,
           tripId: tripId || null,
           sessionId,
           messages: messages as any,
+          updatedAt: now,
         },
       });
 

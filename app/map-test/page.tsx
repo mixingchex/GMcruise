@@ -16,7 +16,8 @@ import * as topojson from 'topojson-client'; // topojson-client 임포트
 import TripFormModal from '@/components/TripFormModal'; // TripFormModal 임포트
 import VisitedCountryModal from '@/components/VisitedCountryModal'; // VisitedCountryModal 임포트
 import TutorialCountdown from '@/app/chat/components/TutorialCountdown';
-import { checkTestModeClient, TestModeInfo } from '@/lib/test-mode-client';
+import { checkTestModeClient, TestModeInfo, getCorrectPath } from '@/lib/test-mode-client';
+import { usePathname } from 'next/navigation';
 
 // Geographies 데이터 (나중에 public/data/world-110m.json 등으로 옮길 수 있습니다)
 const geoUrl = "/data/countries-110m.json"; // 로컬 파일 경로로 변경
@@ -408,6 +409,21 @@ const saveTripsToLocal = (trips: Trip[]) => {
 
 export default function MapPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  
+  // 경로 보호: 일반 사용자는 /map으로 리다이렉트
+  useEffect(() => {
+    const checkPath = async () => {
+      const testModeInfo = await checkTestModeClient();
+      const correctPath = getCorrectPath(pathname || '/map-test', testModeInfo);
+      
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
+    };
+    
+    checkPath();
+  }, [pathname, router]);
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null); // 지도에서 선택된 국가

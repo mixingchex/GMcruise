@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { FiCheckSquare, FiDollarSign, FiTool, FiArrowLeft } from 'react-icons/fi';
+import { useRouter, usePathname } from 'next/navigation';
+import { FiCheckSquare, FiDollarSign, FiTool, FiArrowLeft, FiMessageCircle } from 'react-icons/fi';
 import TutorialCountdown from '@/app/chat/components/TutorialCountdown';
-import { checkTestModeClient, TestModeInfo } from '@/lib/test-mode-client';
+import { checkTestModeClient, TestModeInfo, getCorrectPath } from '@/lib/test-mode-client';
 import { clearAllLocalStorage } from '@/lib/csrf-client';
 
 const tools = [
@@ -45,16 +45,23 @@ const tools = [
 
 export default function ToolsTestPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [testModeInfo, setTestModeInfo] = useState<TestModeInfo | null>(null);
 
   useEffect(() => {
-    // 테스트 모드 정보 로드
+    // 테스트 모드 정보 로드 및 경로 보호
     const loadTestModeInfo = async () => {
       const info = await checkTestModeClient();
       setTestModeInfo(info);
+      
+      // 경로 보호: 일반 사용자는 /tools로 리다이렉트
+      const correctPath = getCorrectPath(pathname || '/tools-test', info);
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
     };
     loadTestModeInfo();
-  }, []);
+  }, [pathname, router]);
 
   const handleLogout = async () => {
     try {
@@ -93,6 +100,17 @@ export default function ToolsTestPage() {
             <FiArrowLeft size={20} />
             <span className="text-base font-medium">뒤로가기</span>
           </button>
+          
+          {/* 지니채팅 돌아가기 버튼 */}
+          <div className="mb-6 flex justify-center">
+            <Link
+              href="/chat-test"
+              className="inline-flex items-center gap-2 rounded-xl border border-purple-300 bg-white px-5 py-2.5 hover:bg-purple-50 text-base md:text-lg font-semibold text-purple-700 shadow-sm transition-all duration-200 hover:shadow-md"
+            >
+              <FiMessageCircle className="text-xl" />
+              <span>지니채팅 돌아가기</span>
+            </Link>
+          </div>
           
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-5 shadow-xl">

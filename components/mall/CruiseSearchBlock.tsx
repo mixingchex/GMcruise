@@ -106,6 +106,12 @@ const cityToRegionMap: Record<string, string> = {
 
 // 한글 국가 이름을 API 형식으로 변환
 const convertRegionToApiFormat = (region: string): string => {
+  // 이미 API 형식인 경우 그대로 반환 (예: 'southeast-asia', 'japan' 등)
+  const apiFormats = ['japan', 'alaska', 'usa', 'southeast-asia', 'western-mediterranean', 'eastern-mediterranean', 'singapore'];
+  if (apiFormats.includes(region.toLowerCase())) {
+    return region.toLowerCase();
+  }
+  
   const regionMap: Record<string, string> = {
     '일본': 'japan',
     '알래스카': 'alaska',
@@ -273,22 +279,70 @@ export default function CruiseSearchBlock() {
 
   // 모든 상품 로드 (연관 검색어 생성용)
   useEffect(() => {
+    let isMounted = true;
+    
     const loadAllProducts = async () => {
       try {
         console.log('[CruiseSearchBlock] Loading all products for related search terms...');
         const response = await fetch('/api/public/products?limit=1000');
+        
+        if (!isMounted) return;
+        
         const data = await response.json();
-        if (data.ok && data.products) {
+        console.log('[CruiseSearchBlock] API Response:', {
+          ok: data.ok,
+          productsCount: data.products?.length || 0,
+          hasProducts: !!data.products,
+          isArray: Array.isArray(data.products),
+          firstProduct: data.products?.[0] ? {
+            productCode: data.products[0].productCode,
+            hasRecommendedKeywords: !!data.products[0].recommendedKeywords,
+            recommendedKeywords: data.products[0].recommendedKeywords,
+            hasMallContent: !!data.products[0].mallProductContent,
+            mallContentLayout: data.products[0].mallProductContent?.layout ? (() => {
+              try {
+                const layout = typeof data.products[0].mallProductContent.layout === 'string'
+                  ? JSON.parse(data.products[0].mallProductContent.layout)
+                  : data.products[0].mallProductContent.layout;
+                return {
+                  hasRecommendedKeywords: !!layout?.recommendedKeywords,
+                  recommendedKeywords: layout?.recommendedKeywords
+                };
+              } catch {
+                return null;
+              }
+            })() : null
+          } : null
+        });
+        
+        if (!isMounted) return;
+        
+        if (data.ok && data.products && Array.isArray(data.products) && data.products.length > 0) {
           console.log('[CruiseSearchBlock] Loaded products:', data.products.length);
           setAllAvailableProducts(data.products);
         } else {
-          console.warn('[CruiseSearchBlock] Failed to load products:', data);
+          console.warn('[CruiseSearchBlock] Failed to load products:', {
+            ok: data.ok,
+            hasProducts: !!data.products,
+            productsType: typeof data.products,
+            isArray: Array.isArray(data.products),
+            productsLength: data.products?.length || 0,
+            data
+          });
+          setAllAvailableProducts([]);
         }
       } catch (error) {
+        if (!isMounted) return;
         console.error('[CruiseSearchBlock] Failed to load products for related search terms:', error);
+        setAllAvailableProducts([]);
       }
     };
+    
     loadAllProducts();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
     // 실제 상품 데이터 기반으로 연관 검색어 생성 (실제 검색 결과가 있는 것만)
@@ -302,262 +356,17 @@ export default function CruiseSearchBlock() {
       const terms: Array<{ label: string; cruiseLine: string; region: string; keyword?: string; productCount: number }> = [];
       const seenLabels = new Set<string>(); // 중복 제거용
       
-      // 1. 지역별 연관 검색어 생성 (MallProductContent.layout.destination 우선, itineraryPattern fallback)
-      const regionCounts: Record<string, number> = {};
-      const cruiseLineCounts: Record<string, number> = {};
-      
-      allAvailableProducts.forEach(product => {
-        // destination 추출 (MallProductContent.layout.destination 우선)
-        let destinations: string[] = [];
-        
-        if (product.mallProductContent?.layout) {
-          try {
-            const layout = typeof product.mallProductContent.layout === 'string' 
-              ? JSON.parse(product.mallProductContent.layout) 
-              : product.mallProductContent.layout;
-            
-            if (layout && typeof layout === 'object' && layout.destination && Array.isArray(layout.destination)) {
-              destinations = layout.destination;
-            }
-          } catch (e) {
-            // 파싱 실패 시 무시
-          }
-        }
-        
-        // fallback: product.destination 필드
-        if (destinations.length === 0 && product.destination && Array.isArray(product.destination)) {
-          destinations = product.destination;
-        }
-        
-        // fallback: itineraryPattern에서 country 필드 확인
-        if (destinations.length === 0 && product.itineraryPattern) {
-          try {
-            const pattern = typeof product.itineraryPattern === 'string' 
-              ? JSON.parse(product.itineraryPattern) 
-              : product.itineraryPattern;
-            
-            if (Array.isArray(pattern)) {
-              pattern.forEach((item: any) => {
-                if (item && typeof item === 'object' && item.country) {
-                  const country = item.country.toString().toLowerCase();
-                  let regionKey = '';
-                  
-                  if (country.includes('jp') || country.includes('japan') || country.includes('일본')) {
-                    regionKey = 'japan';
-                  } else if (country.includes('alaska') || country.includes('알래스카')) {
-                    regionKey = 'alaska';
-                  } else if (country.includes('us') || country.includes('usa') || country.includes('미국') || country.includes('united states') || country.includes('america')) {
-                    regionKey = 'usa'; // 미국 추가
-                  } else if (country.includes('th') || country.includes('thailand') || country.includes('태국') ||
-                            country.includes('vn') || country.includes('vietnam') || country.includes('베트남') ||
-                            country.includes('my') || country.includes('malaysia') || country.includes('말레이시아')) {
-                    regionKey = 'southeast-asia';
-                  } else if (country.includes('sg') || country.includes('singapore') || country.includes('싱가포르')) {
-                    regionKey = 'singapore';
-                  } else if (country.includes('es') || country.includes('spain') || country.includes('스페인') ||
-                            country.includes('fr') || country.includes('france') || country.includes('프랑스') ||
-                            country.includes('it') || country.includes('italy') || country.includes('이탈리아')) {
-                    regionKey = 'western-mediterranean';
-                  } else if (country.includes('gr') || country.includes('greece') || country.includes('그리스') ||
-                            country.includes('tr') || country.includes('turkey') || country.includes('터키')) {
-                    regionKey = 'eastern-mediterranean';
-                  }
-                  
-                  if (regionKey) {
-                    regionCounts[regionKey] = (regionCounts[regionKey] || 0) + 1;
-                  }
-                }
-              });
-            }
-          } catch (e) {
-            // 파싱 실패 시 무시
-          }
-        }
-        
-        // destination 배열에서 지역 추출
-        destinations.forEach(dest => {
-          const destLower = dest.toLowerCase();
-          let regionKey = '';
-          
-          if (destLower.includes('일본') || destLower.includes('japan') || destLower.includes('jp')) {
-            regionKey = 'japan';
-          } else if (destLower.includes('알래스카') || destLower.includes('alaska')) {
-            regionKey = 'alaska';
-          } else if (destLower.includes('미국') || destLower.includes('usa') || destLower.includes('united states') || destLower.includes('america') || destLower.includes('us ')) {
-            regionKey = 'usa'; // 미국 추가
-          } else if (destLower.includes('태국') || destLower.includes('thailand') || destLower.includes('베트남') || destLower.includes('vietnam') || destLower.includes('말레이시아') || destLower.includes('malaysia')) {
-            regionKey = 'southeast-asia';
-          } else if (destLower.includes('싱가포르') || destLower.includes('singapore')) {
-            regionKey = 'singapore';
-          } else if (destLower.includes('스페인') || destLower.includes('spain') || destLower.includes('프랑스') || destLower.includes('france') || destLower.includes('이탈리아') || destLower.includes('italy')) {
-            regionKey = 'western-mediterranean';
-          } else if (destLower.includes('그리스') || destLower.includes('greece') || destLower.includes('터키') || destLower.includes('turkey')) {
-            regionKey = 'eastern-mediterranean';
-          }
-          
-          if (regionKey) {
-            regionCounts[regionKey] = (regionCounts[regionKey] || 0) + 1;
-          }
-        });
-        
-        // 크루즈 라인 추출 (한글/영문 모두 고려)
-        if (product.cruiseLine) {
-          const cruiseLine = product.cruiseLine.trim();
-          if (cruiseLine) {
-            // 한글명 추출 (괄호 앞 부분)
-            const koreanName = cruiseLine.split('(')[0].trim();
-            // 영문명 추출 (괄호 안 부분)
-            const englishMatch = cruiseLine.match(/\(([^)]+)\)/);
-            const englishName = englishMatch ? englishMatch[1].trim() : '';
-            
-            // 한글명으로 카운트
-            if (koreanName) {
-              cruiseLineCounts[koreanName] = (cruiseLineCounts[koreanName] || 0) + 1;
-            }
-            // 영문명으로도 카운트 (다른 형식으로 저장된 경우 대비)
-            if (englishName) {
-              cruiseLineCounts[englishName] = (cruiseLineCounts[englishName] || 0) + 1;
-            }
-            // 전체 문자열로도 카운트
-            cruiseLineCounts[cruiseLine] = (cruiseLineCounts[cruiseLine] || 0) + 1;
-          }
-        }
-        
-        // 선박명도 크루즈 라인으로 사용 (크루즈 라인과 선박명이 반대로 저장된 경우 대비)
-        if (product.shipName) {
-          const shipName = product.shipName.trim();
-          if (shipName) {
-            // 한글명 추출 (괄호 앞 부분)
-            const koreanName = shipName.split('(')[0].trim();
-            // 영문명 추출 (괄호 안 부분)
-            const englishMatch = shipName.match(/\(([^)]+)\)/);
-            const englishName = englishMatch ? englishMatch[1].trim() : '';
-            
-            // 한글명으로 카운트
-            if (koreanName) {
-              cruiseLineCounts[koreanName] = (cruiseLineCounts[koreanName] || 0) + 1;
-            }
-            // 영문명으로도 카운트
-            if (englishName) {
-              cruiseLineCounts[englishName] = (cruiseLineCounts[englishName] || 0) + 1;
-            }
-          }
-        }
-      });
-
-    // 지역별 연관 검색어 추가 (상품이 있는 지역만, 최소 1개 이상)
-    const regionLabels: Record<string, string> = {
-      'japan': '일본 크루즈',
-      'alaska': '알래스카 크루즈',
-      'usa': '미국 크루즈', // 미국 추가
-      'southeast-asia': '동남아 크루즈',
-      'singapore': '싱가포르 크루즈',
-      'western-mediterranean': '지중해 크루즈',
-      'eastern-mediterranean': '동부지중해 크루즈',
-    };
-    
-    Object.entries(regionCounts)
-      .filter(([_, count]) => count > 0) // 실제 상품이 있는 지역만
-      .sort((a, b) => b[1] - a[1]) // 상품 수가 많은 순으로 정렬
-      .slice(0, 5) // 최대 5개
-      .forEach(([regionKey, count]) => {
-        if (regionLabels[regionKey] && !seenLabels.has(regionLabels[regionKey])) {
-          seenLabels.add(regionLabels[regionKey]);
-          terms.push({
-            label: regionLabels[regionKey],
-            cruiseLine: 'all',
-            region: regionKey,
-            productCount: count
-          });
-        }
-      });
-
-    // 크루즈 라인별 연관 검색어 추가 (상품이 있는 크루즈 라인만, 최소 1개 이상)
-    Object.entries(cruiseLineCounts)
-      .filter(([_, count]) => count > 0) // 실제 상품이 있는 크루즈 라인만
-      .sort((a, b) => b[1] - a[1]) // 상품 수가 많은 순으로 정렬
-      .slice(0, 5) // 최대 5개
-      .forEach(([cruiseLine, count]) => {
-        // 크루즈 옵션에서 매칭되는 항목 찾기
-        const cruiseOption = cruiseOptions.find(opt => 
-          opt.cruiseLine.toLowerCase().includes(cruiseLine.toLowerCase()) ||
-          cruiseLine.toLowerCase().includes(opt.cruiseLine.toLowerCase())
-        );
-        
-        let label = '';
-        let cruiseLineValue = '';
-        
-        if (cruiseOption) {
-          const baseLabel = cruiseOption.label.split('(')[0].trim();
-          // "크루즈"가 이미 포함되어 있으면 추가하지 않음
-          if (baseLabel.includes('크루즈')) {
-            label = baseLabel;
-          } else {
-            label = `${baseLabel} 크루즈`;
-          }
-          cruiseLineValue = cruiseOption.value;
-        } else {
-          // 매칭되는 옵션이 없으면 크루즈 라인 이름 그대로 사용
-          if (cruiseLine.toLowerCase().includes('cruise') || cruiseLine.includes('크루즈')) {
-            label = cruiseLine;
-          } else {
-            label = `${cruiseLine} 크루즈`;
-          }
-          cruiseLineValue = `line:${cruiseLine}`;
-        }
-        
-        // 중복 제거 및 "전체 크루즈" 제외
-        if (label && label !== '전체 크루즈' && !seenLabels.has(label)) {
-          seenLabels.add(label);
-          terms.push({
-            label: label,
-            cruiseLine: cruiseLineValue,
-            region: 'all',
-            productCount: count
-          });
-        }
-      });
+      // 관리자가 설정한 추천 키워드(마케팅 태그)만 연관검색어로 표시
+      // 지역별, 크루즈 라인별, 개별 국가별 연관 검색어는 제거
 
     // 추천 키워드 기반 연관 검색어 추가 (상품이 있는 키워드만) - 우선순위 높게, 더 많이 표시
     const keywordCounts: Record<string, number> = {};
     let keywordProductsCount = 0;
     allAvailableProducts.forEach(product => {
-      // MallProductContent.layout.recommendedKeywords 우선 확인
-      if (product.mallProductContent?.layout) {
-        try {
-          const layout = typeof product.mallProductContent.layout === 'string' 
-            ? JSON.parse(product.mallProductContent.layout) 
-            : product.mallProductContent.layout;
-          
-          if (layout && typeof layout === 'object' && layout.recommendedKeywords) {
-            let keywords: string[] = [];
-            if (Array.isArray(layout.recommendedKeywords)) {
-              keywords = layout.recommendedKeywords;
-            } else if (typeof layout.recommendedKeywords === 'string') {
-              try {
-                keywords = JSON.parse(layout.recommendedKeywords);
-              } catch (e) {
-                keywords = [layout.recommendedKeywords];
-              }
-            }
-            
-            keywords.forEach(keyword => {
-              if (keyword && typeof keyword === 'string' && keyword.trim()) {
-                const trimmedKeyword = keyword.trim();
-                keywordCounts[trimmedKeyword] = (keywordCounts[trimmedKeyword] || 0) + 1;
-                keywordProductsCount++;
-              }
-            });
-          }
-        } catch (e) {
-          // 파싱 실패 시 무시
-          console.warn('[CruiseSearchBlock] Failed to parse layout.recommendedKeywords:', e);
-        }
-      }
+      let keywords: string[] = [];
       
-      // fallback: product.recommendedKeywords 필드 확인
+      // 1. API에서 직접 반환된 recommendedKeywords 필드 우선 확인 (가장 확실함)
       if (product.recommendedKeywords) {
-        let keywords: string[] = [];
         if (Array.isArray(product.recommendedKeywords)) {
           keywords = product.recommendedKeywords;
         } else if (typeof product.recommendedKeywords === 'string') {
@@ -567,36 +376,81 @@ export default function CruiseSearchBlock() {
             keywords = [product.recommendedKeywords];
           }
         }
-        keywords.forEach(keyword => {
-          if (keyword && typeof keyword === 'string' && keyword.trim()) {
-            const trimmedKeyword = keyword.trim();
-            keywordCounts[trimmedKeyword] = (keywordCounts[trimmedKeyword] || 0) + 1;
-            keywordProductsCount++;
-          }
-        });
       }
+      
+      // 2. fallback: MallProductContent.layout.recommendedKeywords 확인
+      if (keywords.length === 0 && product.mallProductContent?.layout) {
+        try {
+          const layout = typeof product.mallProductContent.layout === 'string' 
+            ? JSON.parse(product.mallProductContent.layout) 
+            : product.mallProductContent.layout;
+          
+          if (layout && typeof layout === 'object' && layout.recommendedKeywords) {
+            if (Array.isArray(layout.recommendedKeywords)) {
+              keywords = layout.recommendedKeywords;
+            } else if (typeof layout.recommendedKeywords === 'string') {
+              try {
+                keywords = JSON.parse(layout.recommendedKeywords);
+              } catch (e) {
+                keywords = [layout.recommendedKeywords];
+              }
+            }
+          }
+        } catch (e) {
+          // 파싱 실패 시 무시
+          console.warn('[CruiseSearchBlock] Failed to parse layout.recommendedKeywords:', e);
+        }
+      }
+      
+      // 키워드 카운트
+      keywords.forEach(keyword => {
+        if (keyword && typeof keyword === 'string' && keyword.trim()) {
+          const trimmedKeyword = keyword.trim();
+          keywordCounts[trimmedKeyword] = (keywordCounts[trimmedKeyword] || 0) + 1;
+          keywordProductsCount++;
+        }
+      });
     });
 
     console.log('[CruiseSearchBlock] Keyword extraction:', {
+      totalProducts: allAvailableProducts.length,
       totalKeywords: Object.keys(keywordCounts).length,
-      keywordCounts: Object.entries(keywordCounts).slice(0, 10),
+      keywordCounts: Object.entries(keywordCounts).slice(0, 20),
       keywordProductsCount,
-      sampleProducts: allAvailableProducts.slice(0, 3).map(p => ({
-        productCode: p.productCode,
-        hasMallContent: !!p.mallProductContent,
-        hasLayout: !!p.mallProductContent?.layout,
-        hasRecommendedKeywords: !!(p.mallProductContent?.layout && (() => {
-          try {
-            const layout = typeof p.mallProductContent.layout === 'string' 
-              ? JSON.parse(p.mallProductContent.layout) 
-              : p.mallProductContent.layout;
-            return layout?.recommendedKeywords;
-          } catch {
-            return false;
+      sampleProducts: allAvailableProducts.slice(0, 5).map(p => {
+        let keywords: string[] = [];
+        if (p.recommendedKeywords) {
+          if (Array.isArray(p.recommendedKeywords)) {
+            keywords = p.recommendedKeywords;
+          } else if (typeof p.recommendedKeywords === 'string') {
+            try {
+              keywords = JSON.parse(p.recommendedKeywords);
+            } catch {
+              keywords = [p.recommendedKeywords];
+            }
           }
-        })()),
-        hasProductRecommendedKeywords: !!p.recommendedKeywords
-      }))
+        }
+        return {
+          productCode: p.productCode,
+          hasProductRecommendedKeywords: !!p.recommendedKeywords,
+          productRecommendedKeywords: keywords,
+          hasMallContent: !!p.mallProductContent,
+          hasLayout: !!p.mallProductContent?.layout,
+          layoutRecommendedKeywords: (() => {
+            if (p.mallProductContent?.layout) {
+              try {
+                const layout = typeof p.mallProductContent.layout === 'string' 
+                  ? JSON.parse(p.mallProductContent.layout) 
+                  : p.mallProductContent.layout;
+                return layout?.recommendedKeywords || null;
+              } catch {
+                return null;
+              }
+            }
+            return null;
+          })()
+        };
+      })
     });
 
     // 추천 키워드 연관 검색어 추가 (관리자가 입력한 마케팅태그 - 최우선 표시)
@@ -619,110 +473,11 @@ export default function CruiseSearchBlock() {
         }
       });
 
-    // 각 상품의 destination에서 개별 국가별 연관 검색어 생성 (5개국 방문 시 5개국 모두 검색 가능하도록)
-    const individualCountryCounts: Record<string, { count: number; regionKey: string }> = {};
-    allAvailableProducts.forEach(product => {
-      // destination 추출
-      let destinations: string[] = [];
-      
-      if (product.mallProductContent?.layout) {
-        try {
-          const layout = typeof product.mallProductContent.layout === 'string' 
-            ? JSON.parse(product.mallProductContent.layout) 
-            : product.mallProductContent.layout;
-          
-          if (layout && typeof layout === 'object' && layout.destination && Array.isArray(layout.destination)) {
-            destinations = layout.destination;
-          }
-        } catch (e) {
-          // 파싱 실패 시 무시
-        }
-      }
-      
-      // fallback: product.destination 필드
-      if (destinations.length === 0 && product.destination && Array.isArray(product.destination)) {
-        destinations = product.destination;
-      }
-      
-      // 각 destination을 개별적으로 카운트
-      destinations.forEach(dest => {
-        const destStr = dest.toString().trim();
-        if (!destStr) return;
-        
-        // 국가명 추출 (예: "미국 - 시애틀" → "미국", "일본 - 사세보" → "일본")
-        const countryMatch = destStr.match(/^([^-]+)/);
-        if (countryMatch) {
-          const countryName = countryMatch[1].trim();
-          
-          // 국가명을 regionKey로 변환
-          let regionKey = '';
-          const countryLower = countryName.toLowerCase();
-          
-          if (countryLower.includes('일본') || countryLower.includes('japan') || countryLower.includes('jp')) {
-            regionKey = 'japan';
-          } else if (countryLower.includes('미국') || countryLower.includes('usa') || countryLower.includes('united states') || countryLower.includes('america')) {
-            regionKey = 'usa';
-          } else if (countryLower.includes('알래스카') || countryLower.includes('alaska')) {
-            regionKey = 'alaska';
-          } else if (countryLower.includes('태국') || countryLower.includes('thailand') || countryLower.includes('th')) {
-            regionKey = 'southeast-asia';
-          } else if (countryLower.includes('베트남') || countryLower.includes('vietnam') || countryLower.includes('vn')) {
-            regionKey = 'southeast-asia';
-          } else if (countryLower.includes('말레이시아') || countryLower.includes('malaysia') || countryLower.includes('my')) {
-            regionKey = 'southeast-asia';
-          } else if (countryLower.includes('싱가포르') || countryLower.includes('singapore') || countryLower.includes('sg')) {
-            regionKey = 'singapore';
-          } else if (countryLower.includes('스페인') || countryLower.includes('spain') || countryLower.includes('es')) {
-            regionKey = 'western-mediterranean';
-          } else if (countryLower.includes('프랑스') || countryLower.includes('france') || countryLower.includes('fr')) {
-            regionKey = 'western-mediterranean';
-          } else if (countryLower.includes('이탈리아') || countryLower.includes('italy') || countryLower.includes('it')) {
-            regionKey = 'western-mediterranean';
-          } else if (countryLower.includes('그리스') || countryLower.includes('greece') || countryLower.includes('gr')) {
-            regionKey = 'eastern-mediterranean';
-          } else if (countryLower.includes('터키') || countryLower.includes('turkey') || countryLower.includes('tr')) {
-            regionKey = 'eastern-mediterranean';
-          }
-          
-          if (regionKey && !individualCountryCounts[countryName]) {
-            individualCountryCounts[countryName] = { count: 0, regionKey };
-          }
-          if (regionKey && individualCountryCounts[countryName]) {
-            individualCountryCounts[countryName].count += 1;
-          }
-        }
-      });
-    });
-
-    // 개별 국가별 연관 검색어 추가 (예: "일본", "미국", "태국" 등)
-    Object.entries(individualCountryCounts)
-      .filter(([_, data]) => data.count > 0)
-      .sort((a, b) => b[1].count - a[1].count)
-      .slice(0, 8) // 최대 8개
-      .forEach(([countryName, data]) => {
-        const label = `${countryName} 크루즈`;
-        if (!seenLabels.has(label)) {
-          seenLabels.add(label);
-          terms.push({
-            label: label,
-            cruiseLine: 'all',
-            region: data.regionKey,
-            productCount: data.count
-          });
-        }
-      });
-
-    // 상품 수가 많은 순으로 정렬하고 최대 20개 반환 (키워드, 국가, 크루즈 모두 포함)
-    // 추천 키워드(관리자가 입력한 마케팅태그)를 최우선으로 표시
+    // 추천 키워드(마케팅 태그)만 연관검색어로 표시
+    // 상품 수가 많은 순으로 정렬하고 최대 20개 반환
     const result = terms
-      .sort((a, b) => {
-        // 1순위: 추천 키워드 (관리자가 입력한 마케팅태그)
-        if (a.keyword && !b.keyword) return -1;
-        if (!a.keyword && b.keyword) return 1;
-        // 2순위: 키워드가 둘 다 있거나 둘 다 없으면 상품 수가 많은 순
-        return b.productCount - a.productCount;
-      })
-      .slice(0, 20) // 최대 20개로 증가
+      .sort((a, b) => b.productCount - a.productCount) // 상품 수가 많은 순으로 정렬
+      .slice(0, 20) // 최대 20개
       .map(({ productCount, ...term }) => term); // productCount 제거
     
     console.log('[CruiseSearchBlock] Generated related search terms:', result.length, result);
@@ -877,7 +632,7 @@ export default function CruiseSearchBlock() {
         }
       }
       
-      // 키워드 파라미터 추가
+      // 키워드 파라미터 추가 (개별 국가별 연관 검색어의 경우 국가명을 키워드로 사용)
       if (keyword) {
         params.append('keyword', keyword);
       }
@@ -888,21 +643,67 @@ export default function CruiseSearchBlock() {
       if (data.ok) {
         let filteredProducts = data.products;
         
-        // 추천 키워드로 필터링 (키워드가 있는 경우)
+        // 추천 키워드(마케팅 태그)로 검색: recommendedKeywords에 정확히 포함된 상품만 필터링
+        // API는 여러 필드에서 검색하므로, 클라이언트에서 recommendedKeywords만 확인하여 정확한 필터링
         if (keyword) {
           filteredProducts = data.products.filter((p: Product) => {
-            if (!p.recommendedKeywords) return false;
-            let keywords: string[] = [];
-            if (Array.isArray(p.recommendedKeywords)) {
-              keywords = p.recommendedKeywords;
-            } else if (typeof p.recommendedKeywords === 'string') {
+            // MallProductContent.layout.recommendedKeywords 확인
+            if (p.mallProductContent?.layout) {
               try {
-                keywords = JSON.parse(p.recommendedKeywords);
+                const layout = typeof p.mallProductContent.layout === 'string' 
+                  ? JSON.parse(p.mallProductContent.layout) 
+                  : p.mallProductContent.layout;
+                
+                if (layout && typeof layout === 'object' && layout.recommendedKeywords) {
+                  let keywords: string[] = [];
+                  if (Array.isArray(layout.recommendedKeywords)) {
+                    keywords = layout.recommendedKeywords;
+                  } else if (typeof layout.recommendedKeywords === 'string') {
+                    try {
+                      keywords = JSON.parse(layout.recommendedKeywords);
+                    } catch (e) {
+                      keywords = [layout.recommendedKeywords];
+                    }
+                  }
+                  
+                  // 정확히 일치하는 키워드가 있는지 확인 (대소문자 무시)
+                  const keywordLower = keyword.toLowerCase().trim();
+                  const hasExactMatch = keywords.some((kw: string) => {
+                    if (!kw) return false;
+                    return kw.toString().toLowerCase().trim() === keywordLower;
+                  });
+                  
+                  if (hasExactMatch) return true;
+                }
               } catch (e) {
-                keywords = [];
+                // 파싱 실패 시 무시
               }
             }
-            return keywords.includes(keyword);
+            
+            // fallback: product.recommendedKeywords 필드 확인
+            if (p.recommendedKeywords) {
+              let keywords: string[] = [];
+              if (Array.isArray(p.recommendedKeywords)) {
+                keywords = p.recommendedKeywords;
+              } else if (typeof p.recommendedKeywords === 'string') {
+                try {
+                  keywords = JSON.parse(p.recommendedKeywords);
+                } catch (e) {
+                  keywords = [p.recommendedKeywords];
+                }
+              }
+              
+              // 정확히 일치하는 키워드가 있는지 확인 (대소문자 무시)
+              const keywordLower = keyword.toLowerCase().trim();
+              const hasExactMatch = keywords.some((kw: string) => {
+                if (!kw) return false;
+                return kw.toString().toLowerCase().trim() === keywordLower;
+              });
+              
+              if (hasExactMatch) return true;
+            }
+            
+            return false;
           });
         }
         

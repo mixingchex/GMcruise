@@ -367,12 +367,12 @@ export async function POST(req: Request) {
 
       try {
         // 3일 체험 로그인: 비밀번호 1101만 맞으면 무조건 로그인 가능 (가벼운 인증)
-        // 전화번호로 기존 사용자 찾기 (이름은 무시)
+        // 전화번호로 기존 사용자 찾기 (비밀번호 조건 제거 - 1101이면 무조건 허용)
         let testUser = await prisma.user.findFirst({
           where: {
             phone: phone || undefined,
-            password: { in: TEST_MODE_PASSWORDS },
             role: 'user',
+            // password 조건 제거: 전화번호만으로 조회하여 어떤 비밀번호든 1101로 업데이트 가능
           },
           select: { 
             id: true, 
@@ -388,52 +388,102 @@ export async function POST(req: Request) {
           },
         });
 
-        console.log('[Login] 테스트 모드 사용자 조회 결과:', { found: !!testUser, userId: testUser?.id });
+        console.log('[Login] 테스트 모드 사용자 조회 결과:', { found: !!testUser, userId: testUser?.id, customerStatus: testUser?.customerStatus, customerSource: testUser?.customerSource });
         
         // 사용자가 없으면 자동 생성 (테스트 모드) - 이름/전화번호 아무거나 입력해도 생성
         if (!testUser) {
           console.log('[Login] 테스트 모드 신규 사용자 생성 시작');
           const now = new Date();
-          const newUser = await prisma.user.create({
-            data: {
-              name: name || '3일체험고객', // 이름이 없으면 기본값
-              phone: phone || `test-${Date.now()}`, // 전화번호가 없으면 임시값
-              password: normalizedTestPassword,
-              onboarded: false,
-              loginCount: 1,
-              role: 'user',
-              customerStatus: 'test',
-              testModeStartedAt: now, // 테스트 모드 시작 시간 기록
-              customerSource: 'test-guide', // 크루즈가이드 3일체험 고객
-              updatedAt: now,
-            },
-            select: { 
-              id: true, 
-              password: true, 
-              onboarded: true, 
-              loginCount: true, 
-              customerStatus: true,
-              testModeStartedAt: true,
-              customerSource: true,
-            },
-          });
-          testUser = newUser;
-        } else {
-          // 기존 사용자: 이름/전화번호 업데이트 (입력한 값으로 업데이트)
-          if (testUser.name !== name || testUser.phone !== phone) {
-            await prisma.user.update({
-              where: { id: testUser.id },
+          try {
+            const newUser = await prisma.user.create({
               data: {
-                name: name || testUser.name,
-                phone: phone || testUser.phone,
+                name: name || '3일체험고객', // 이름이 없으면 기본값
+                phone: phone || `test-${Date.now()}`, // 전화번호가 없으면 임시값
+                password: normalizedTestPassword,
+                onboarded: false,
+                loginCount: 1,
+                role: 'user',
+                customerStatus: 'test',
+                testModeStartedAt: now, // 테스트 모드 시작 시간 기록
+                customerSource: 'test-guide', // 크루즈가이드 3일체험 고객
+                updatedAt: now,
+              },
+              select: { 
+                id: true, 
+                name: true,
+                phone: true,
+                password: true, 
+                onboarded: true, 
+                loginCount: true, 
+                customerStatus: true,
+                testModeStartedAt: true,
+                customerSource: true,
               },
             });
-            testUser.name = name || testUser.name;
-            testUser.phone = phone || testUser.phone;
+            testUser = newUser;
+          } catch (createError: any) {
+            // 전화번호 중복 에러인 경우 (P2002)
+            if (createError?.code === 'P2002') {
+              console.log('[Login] 전화번호 중복, 기존 사용자 재조회 및 업데이트');
+              // 전화번호로 다시 조회
+              testUser = await prisma.user.findFirst({
+                where: {
+                  phone: phone || undefined,
+                  role: 'user',
+                },
+                select: { 
+                  id: true, 
+                  name: true,
+                  phone: true,
+                  password: true, 
+                  role: true,
+                  onboarded: true, 
+                  loginCount: true, 
+                  customerStatus: true,
+                  testModeStartedAt: true,
+                  customerSource: true,
+                },
+              });
+              
+              if (testUser) {
+                // 기존 사용자 업데이트: 이름, 비밀번호를 입력한 값으로 업데이트
+                await prisma.user.update({
+                  where: { id: testUser.id },
+                  data: {
+                    name: name || testUser.name,
+                    phone: phone || testUser.phone,
+                    password: normalizedTestPassword, // 비밀번호를 1101로 업데이트
+                  },
+                });
+                testUser.name = name || testUser.name;
+                testUser.phone = phone || testUser.phone;
+                testUser.password = normalizedTestPassword;
+                console.log('[Login] 기존 사용자 업데이트 완료 (중복 처리)');
+              } else {
+                throw createError; // 다른 에러면 그대로 throw
+              }
+            } else {
+              throw createError; // 다른 에러면 그대로 throw
+            }
           }
+        } else {
+          // 기존 사용자: 이름/전화번호/비밀번호 업데이트 (입력한 값으로 업데이트, 중복이면 수정)
+          // 비밀번호를 1101로 업데이트하여 무조건 로그인 가능하게 함
+          await prisma.user.update({
+            where: { id: testUser.id },
+            data: {
+              name: name || testUser.name, // 입력한 이름으로 업데이트
+              phone: phone || testUser.phone, // 입력한 전화번호로 업데이트
+              password: normalizedTestPassword, // 비밀번호를 1101로 업데이트 (무조건 로그인 가능)
+            },
+          });
+          testUser.name = name || testUser.name;
+          testUser.phone = phone || testUser.phone;
+          testUser.password = normalizedTestPassword;
           
-          // customerSource를 test-guide로 확실히 설정
-          if (testUser.customerSource !== 'test-guide') {
+          // customerSource는 기존 값 유지 (구매고객이 3일체험 하는 경우 'cruise-guide' 유지)
+          // 단, customerSource가 없으면 'test-guide'로 설정
+          if (!testUser.customerSource) {
             await prisma.user.update({
               where: { id: testUser.id },
               data: { customerSource: 'test-guide' },
@@ -454,23 +504,30 @@ export async function POST(req: Request) {
         const testModeEndAt = new Date(testModeStartedAt);
         testModeEndAt.setHours(testModeEndAt.getHours() + 72);
 
-        if (now > testModeEndAt) {
-          // 72시간 경과 → 잠금 상태로 변경
+        // 72시간 경과 여부 확인 (로그인은 허용하되 완료 안내 표시)
+        const isExpired = now > testModeEndAt;
+        
+        if (isExpired) {
+          // 72시간 경과 → customerStatus를 'test-locked'로 변경 (완료 상태 표시용)
+          // 하지만 로그인은 허용하여 완료 안내를 볼 수 있게 함
           await prisma.user.update({
             where: { id: testUser.id },
             data: {
-              customerStatus: 'locked',
-              isLocked: true,
-              lockedAt: now,
-              lockedReason: '테스트 모드 72시간 만료',
-              password: '8300', // 잠금 비밀번호로 변경
+              customerStatus: 'test-locked', // 완료 상태로 표시
+              // isLocked는 false로 유지하여 로그인 허용
+              // password는 1101로 유지하여 재로그인 가능
             },
           });
-
-          return NextResponse.json({ 
-            ok: false, 
-            error: '테스트 기간이 만료되었습니다. 관리자에게 문의해주세요.' 
-          }, { status: 403 });
+          
+          // customerStatus 업데이트 반영
+          testUser.customerStatus = 'test-locked';
+          
+          console.log('[Login] 테스트 모드 72시간 경과 - 완료 안내 표시를 위해 로그인 허용:', { 
+            userId: testUser.id, 
+            testModeStartedAt, 
+            testModeEndAt,
+            expired: true 
+          });
         }
 
         // 3일 체험 초대 링크 처리
@@ -568,16 +625,20 @@ export async function POST(req: Request) {
         }
 
         // 테스트 모드 활성화
+        // customerStatus는 기존 값 유지 (구매고객이 3일체험 하는 경우 'active' 유지)
+        // 단, customerStatus가 없거나 'locked'인 경우에만 'test'로 설정
+        // 72시간 경과 시 'test-locked'로 이미 설정되었으므로 덮어쓰지 않음
+        const shouldSetTestStatus = !isExpired && (!testUser.customerStatus || testUser.customerStatus === 'locked');
         await prisma.user.update({
           where: { id: testUser.id },
           data: {
-            customerStatus: 'test',
+            ...(shouldSetTestStatus && { customerStatus: 'test' }), // 기존 상태가 있으면 유지, 72시간 경과 시에는 test-locked 유지
             testModeStartedAt: testModeStartedAt || now, // null 체크 후 할당
             isLocked: false,
             isHibernated: false,
             loginCount: { increment: 1 },
-            customerSource: trialCode ? 'trial-invite-link' : (testUser.customerSource || 'test-guide'), // customerSource가 없으면 설정
-            password: normalizedTestPassword,
+            customerSource: trialCode ? 'trial-invite-link' : (testUser.customerSource || 'test-guide'), // customerSource는 기존 값 유지 (구매고객이면 'cruise-guide' 유지)
+            password: normalizedTestPassword, // 비밀번호는 항상 1101로 업데이트
           },
         });
 
@@ -630,7 +691,7 @@ export async function POST(req: Request) {
           
           // 기존 UserTrip과 관련된 Itinerary, VisitedCountry 삭제
           await prisma.itinerary.deleteMany({
-            where: { tripId: existingTrip.id },
+            where: { userTripId: existingTrip.id },
           });
           
           await prisma.userTrip.delete({
@@ -733,7 +794,7 @@ export async function POST(req: Request) {
                 dayDate.setDate(dayDate.getDate() + pattern.day - 1);
 
                 itineraries.push({
-                  tripId: trip.id,
+                  userTripId: trip.id,
                   day: pattern.day,
                   date: dayDate,
                   type: pattern.type,
@@ -744,6 +805,7 @@ export async function POST(req: Request) {
                   arrival: pattern.arrival || null,
                   departure: pattern.departure || null,
                   time: pattern.time || null,
+                  updatedAt: new Date(),
                 });
               }
 
@@ -895,12 +957,17 @@ export async function POST(req: Request) {
         await reactivateUser(userId);
         await updateLastActive(userId);
 
+        // 남은 시간 계산 (음수면 0으로 표시)
+        const remainingMs = testModeEndAt.getTime() - now.getTime();
+        const testModeRemainingHours = Math.max(0, Math.ceil(remainingMs / (1000 * 60 * 60)));
+        
         return NextResponse.json({ 
           ok: true, 
           next,
           csrfToken: session.csrfToken,
           testMode: true, // 테스트 모드 플래그
-          testModeRemainingHours: Math.ceil((testModeEndAt.getTime() - now.getTime()) / (1000 * 60 * 60)), // 남은 시간
+          testModeRemainingHours, // 남은 시간 (0이면 완료)
+          testModeExpired: isExpired, // 완료 여부 플래그 추가
         });
       } catch (testModeError) {
         // 상세한 오류 로깅

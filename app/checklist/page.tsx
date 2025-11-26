@@ -2,10 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { FiChevronLeft, FiTrash2, FiPlus, FiCheck, FiChevronDown, FiChevronUp, FiX, FiVolume2, FiPause, FiPlay } from 'react-icons/fi';
 import { hapticClick, hapticSuccess, hapticImpact } from '@/lib/haptic';
 import { useKeyboardHandler, useViewportHeight } from '@/lib/keyboard-handler';
 import { trackFeature } from '@/lib/analytics';
+import { checkTestModeClient, getCorrectPath } from '@/lib/test-mode-client';
 
 // 체크리스트 아이템 타입 정의 (API 응답 형식에 맞춤)
 type ChecklistItem = {
@@ -17,6 +19,8 @@ type ChecklistItem = {
 };
 
 export default function ChecklistPage() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +33,20 @@ export default function ChecklistPage() {
   const [isPaused, setIsPaused] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const hasCreatedDefaultsRef = useRef(false); // 기본 항목 생성 플래그
+
+  // 경로 보호: 테스트 모드 사용자는 /checklist-test로 리다이렉트
+  useEffect(() => {
+    const checkPath = async () => {
+      const testModeInfo = await checkTestModeClient();
+      const correctPath = getCorrectPath(pathname || '/checklist', testModeInfo);
+      
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
+    };
+    
+    checkPath();
+  }, [pathname, router]);
 
   const startSpeaking = (text: string, category: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -257,12 +275,15 @@ export default function ChecklistPage() {
       }
       
       // 401이나 429 오류가 아니고, 아직 기본 항목을 생성하지 않았으면 생성
-      if (err.message && !err.message.includes('인증') && !err.message.includes('너무 많') && !hasCreatedDefaultsRef.current) {
+      const errorMessage = err?.message || '';
+      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많') && !hasCreatedDefaultsRef.current) {
         hasCreatedDefaultsRef.current = true;
         const defaultItems = getDefaultItems();
         setItems(defaultItems);
         // 백그라운드에서 서버에 저장 시도 (한 번만)
-        createDefaultItemsOnServer(defaultItems).catch(console.error);
+        createDefaultItemsOnServer(defaultItems).catch((createError) => {
+          console.error('[Checklist] Error creating default items:', createError);
+        });
       }
     } finally {
       setIsLoading(false);

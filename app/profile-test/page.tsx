@@ -10,8 +10,18 @@ import PushToggle from './components/PushToggle';
 import TripInfoSection from './components/TripInfoSection';
 import ProfileTestWrapper from './ProfileTestWrapper';
 import { FiArrowLeft, FiUser } from 'react-icons/fi';
+import { checkTestMode, getCorrectPath } from '@/lib/test-mode';
+import { redirect } from 'next/navigation';
 
 export default async function ProfilePage() {
+  // 경로 보호: 일반 사용자는 /profile로 리다이렉트
+  const testModeInfo = await checkTestMode();
+  const correctPath = getCorrectPath('/profile-test', testModeInfo);
+  
+  if (correctPath !== '/profile-test') {
+    redirect(correctPath);
+  }
+  
   // 1) 세션 (❗️중요: await 필수)
   const session = await getServerSession();
 

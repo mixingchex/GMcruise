@@ -2,10 +2,19 @@
 import ChatInteractiveUI from './components/ChatInteractiveUI'; // 기존 컴포넌트
 import TopBar from "./components/TopBar";
 import TripInfoBanner from '@/components/TripInfoBanner'; // TripInfoBanner 임포트
+import { checkTestMode, getCorrectPath } from '@/lib/test-mode';
+import { redirect } from 'next/navigation';
 
 export default async function ChatPage() {
+  // 경로 보호: 테스트 모드 사용자는 /chat-test로 리다이렉트
+  const testModeInfo = await checkTestMode();
+  const correctPath = getCorrectPath('/chat', testModeInfo);
+  
+  if (correctPath !== '/chat') {
+    redirect(correctPath);
+  }
+  
   // 기존 크루즈 가이드 지니 AI (3800 로그인 사용자용)
-  // 테스트 모드 체크 제거 - 완전히 분리된 경로로 처리
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
       <TopBar />

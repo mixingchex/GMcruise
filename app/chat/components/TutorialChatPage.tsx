@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TestModeInfo } from '@/lib/test-mode-client';
-import ChatInteractiveUI from './ChatInteractiveUI'; // 기존 컴포넌트 (수정 없이 사용)
+import TestChatInteractiveUI from './TestChatInteractiveUI'; // 테스트 고객 전용 컴포넌트
 import TutorialWelcomePopup from './TutorialWelcomePopup';
 import TutorialCountdown from './TutorialCountdown';
 import TutorialFeatureGuide from './TutorialFeatureGuide';
@@ -152,7 +152,7 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
           </div>
         </div>
 
-        {/* 실제 채팅 인터페이스 - ChatInteractiveUI를 그대로 사용 (DailyBriefingCard 포함) */}
+        {/* 실제 채팅 인터페이스 - TestChatInteractiveUI 사용 (테스트 고객 전용, 완전 분리) */}
         <div className="bg-white rounded-3xl shadow-2xl p-5 md:p-6 border-4 border-purple-300 mx-4">
           <div className="text-center mb-6">
             <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-full font-bold text-lg md:text-xl mb-4">
@@ -194,8 +194,8 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
             </div>
           </div>
 
-          {/* ChatInteractiveUI를 그대로 사용 - DailyBriefingCard가 포함되어 있음 */}
-          <ChatInteractiveUI />
+          {/* TestChatInteractiveUI 사용 - 테스트 고객 전용 (완전 분리) */}
+          <TestChatInteractiveUI />
           
           {/* 크루즈몰 바탕화면 추가하기 (카카오톡 채널 버튼 아래) */}
           <div className="mt-4 pt-4 border-t border-gray-200">

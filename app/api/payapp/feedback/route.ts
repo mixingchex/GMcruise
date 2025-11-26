@@ -54,85 +54,169 @@ export async function POST(req: Request) {
       return new NextResponse('FAIL', { status: 400 });
     }
 
-    const contractId = parseInt(var1 || '0');
-    if (!contractId || isNaN(contractId)) {
-      console.error('[PayApp Feedback] 유효하지 않은 계약서 ID');
-      return new NextResponse('FAIL', { status: 400 });
-    }
+    // var2로 랜딩페이지 결제인지 계약서 결제인지 구분
+    const isLandingPagePayment = var2 && String(var2).startsWith('LP_');
+    
+    if (isLandingPagePayment) {
+      // 랜딩페이지 결제 처리
+      const orderId = var1; // var1에 orderId가 저장되어 있음
+      const landingPageId = parseInt(String(var2).replace('LP_', '') || '0');
+      
+      if (!orderId) {
+        console.error('[PayApp Feedback] 유효하지 않은 주문번호');
+        return new NextResponse('FAIL', { status: 400 });
+      }
 
-    // 계약서 조회
-    const contract = await prisma.affiliateContract.findUnique({
-      where: { id: contractId },
-    });
+      // orderId로 Payment 찾기
+      const payment = await prisma.payment.findUnique({
+        where: { orderId },
+      });
 
-    if (!contract) {
-      console.error('[PayApp Feedback] 계약서를 찾을 수 없습니다:', contractId);
-      return new NextResponse('FAIL', { status: 404 });
-    }
+      if (!payment) {
+        console.error('[PayApp Feedback] 랜딩페이지 결제를 찾을 수 없습니다:', { orderId, mul_no, landingPageId });
+        return new NextResponse('FAIL', { status: 404 });
+      }
 
-    // 결제 상태에 따른 처리
-    switch (pay_state) {
-      case '1':
-        // 결제 요청
-        console.log('[PayApp Feedback] 결제 요청:', mul_no);
-        break;
+      // 결제 상태에 따른 처리
+      switch (pay_state) {
+        case '1':
+          // 결제 요청
+          console.log('[PayApp Feedback] 랜딩페이지 결제 요청:', mul_no, '주문번호:', orderId);
+          break;
 
-      case '4':
-        // 결제 완료
-        console.log('[PayApp Feedback] 결제 완료:', mul_no, '계약서 ID:', contractId);
-        
-        // 계약서 메타데이터에 결제 정보 저장
-        const metadata = contract.metadata as any || {};
-        metadata.payment = {
-          mul_no: mul_no,
-          price: parseInt(price || '0'),
-          pay_date: pay_date,
-          pay_type: pay_type,
-          pay_state: 'completed',
-        };
+        case '4':
+          // 결제 완료
+          console.log('[PayApp Feedback] 랜딩페이지 결제 완료:', mul_no, '주문번호:', orderId);
+          
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: 'completed',
+              metadata: {
+                ...(payment.metadata as any || {}),
+                mul_no: mul_no,
+                pay_date: pay_date,
+                pay_type: pay_type,
+                pay_state: 'completed',
+              },
+            },
+          });
+          break;
 
-        await prisma.affiliateContract.update({
-          where: { id: contractId },
-          data: {
-            metadata: metadata,
-          },
-        });
-        break;
+        case '8':
+        case '32':
+          // 요청 취소
+          console.log('[PayApp Feedback] 랜딩페이지 결제 요청 취소:', mul_no);
+          break;
 
-      case '8':
-      case '32':
-        // 요청 취소
-        console.log('[PayApp Feedback] 결제 요청 취소:', mul_no);
-        break;
+        case '9':
+        case '64':
+          // 승인 취소
+          console.log('[PayApp Feedback] 랜딩페이지 결제 승인 취소:', mul_no);
+          
+          await prisma.payment.update({
+            where: { id: payment.id },
+            data: {
+              status: 'cancelled',
+              metadata: {
+                ...(payment.metadata as any || {}),
+                pay_state: 'cancelled',
+                cancel_date: new Date().toISOString(),
+              },
+            },
+          });
+          break;
 
-      case '9':
-      case '64':
-        // 승인 취소
-        console.log('[PayApp Feedback] 결제 승인 취소:', mul_no);
-        
-        // 계약서 메타데이터에 취소 정보 저장
-        const cancelMetadata = contract.metadata as any || {};
-        cancelMetadata.payment = {
-          ...cancelMetadata.payment,
-          pay_state: 'cancelled',
-          cancel_date: new Date().toISOString(),
-        };
+        case '10':
+          // 결제 대기 (가상계좌)
+          console.log('[PayApp Feedback] 랜딩페이지 결제 대기:', mul_no);
+          break;
 
-        await prisma.affiliateContract.update({
-          where: { id: contractId },
-          data: {
-            metadata: cancelMetadata,
-          },
-        });
-        break;
+        default:
+          console.log('[PayApp Feedback] 랜딩페이지 결제 상태:', pay_state, mul_no);
+      }
+    } else {
+      // 계약서 결제 처리 (기존 로직)
+      const contractId = parseInt(var1 || '0');
+      if (!contractId || isNaN(contractId)) {
+        console.error('[PayApp Feedback] 유효하지 않은 계약서 ID');
+        return new NextResponse('FAIL', { status: 400 });
+      }
 
-      case '10':
-        // 결제 대기 (가상계좌)
-        console.log('[PayApp Feedback] 결제 대기:', mul_no);
-        break;
+      // 계약서 조회
+      const contract = await prisma.affiliateContract.findUnique({
+        where: { id: contractId },
+      });
 
-      default:
-        console.log('[PayApp Feedback] 알 수 없는 결제 상태:', pay_state);
+      if (!contract) {
+        console.error('[PayApp Feedback] 계약서를 찾을 수 없습니다:', contractId);
+        return new NextResponse('FAIL', { status: 404 });
+      }
+
+      // 결제 상태에 따른 처리
+      switch (pay_state) {
+        case '1':
+          // 결제 요청
+          console.log('[PayApp Feedback] 결제 요청:', mul_no);
+          break;
+
+        case '4':
+          // 결제 완료
+          console.log('[PayApp Feedback] 결제 완료:', mul_no, '계약서 ID:', contractId);
+          
+          // 계약서 메타데이터에 결제 정보 저장
+          const metadata = contract.metadata as any || {};
+          metadata.payment = {
+            mul_no: mul_no,
+            price: parseInt(price || '0'),
+            pay_date: pay_date,
+            pay_type: pay_type,
+            pay_state: 'completed',
+          };
+
+          await prisma.affiliateContract.update({
+            where: { id: contractId },
+            data: {
+              metadata: metadata,
+            },
+          });
+          break;
+
+        case '8':
+        case '32':
+          // 요청 취소
+          console.log('[PayApp Feedback] 결제 요청 취소:', mul_no);
+          break;
+
+        case '9':
+        case '64':
+          // 승인 취소
+          console.log('[PayApp Feedback] 결제 승인 취소:', mul_no);
+          
+          // 계약서 메타데이터에 취소 정보 저장
+          const cancelMetadata = contract.metadata as any || {};
+          cancelMetadata.payment = {
+            ...cancelMetadata.payment,
+            pay_state: 'cancelled',
+            cancel_date: new Date().toISOString(),
+          };
+
+          await prisma.affiliateContract.update({
+            where: { id: contractId },
+            data: {
+              metadata: cancelMetadata,
+            },
+          });
+          break;
+
+        case '10':
+          // 결제 대기 (가상계좌)
+          console.log('[PayApp Feedback] 결제 대기:', mul_no);
+          break;
+
+        default:
+          console.log('[PayApp Feedback] 알 수 없는 결제 상태:', pay_state);
+      }
     }
 
     // PayApp에 성공 응답 (반드시 'SUCCESS' 반환)

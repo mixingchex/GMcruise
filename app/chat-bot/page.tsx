@@ -8,8 +8,6 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ReviewModal from '@/components/chat-bot/ReviewModal';
-import BottomNavBar from '@/components/layout/BottomNavBar';
-import PushNotificationPrompt from '@/components/PushNotificationPrompt';
 
 const supportsAbortSignalTimeout =
   typeof AbortSignal !== 'undefined' && typeof (AbortSignal as any).timeout === 'function';
@@ -1239,7 +1237,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       </div>
 
       {/* 채팅 영역 */}
-      <div className="flex-1 container mx-auto px-4 py-6 max-w-4xl pb-24">
+      <div className="flex-1 container mx-auto px-4 py-6 max-w-4xl">
         <div className="bg-white rounded-lg shadow-lg h-full flex flex-col">
           {/* 메시지 영역 */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">

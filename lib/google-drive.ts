@@ -22,7 +22,7 @@ type FindOrCreateFolderResult = {
   error?: string;
 };
 
-function getDriveClient() {
+export function getDriveClient() {
   // 1. 환경변수에서 Private Key 찾기 (여러 이름 모두 확인)
   const rawPrivateKey = 
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
@@ -316,4 +316,5 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
   }
 }
 
-export {};
+// getDriveClient는 내부 함수이므로 export하지 않음
+// 테스트는 findOrCreateFolder나 uploadFileToDrive를 통해 간접적으로 테스트

@@ -31,7 +31,11 @@ export default function AdminFeedback() {
 
   const loadReviews = async () => {
     try {
-      const response = await fetch(`/api/admin/feedback`);
+      // 성능 최적화: 30초 캐시로 설정하여 반복 요청 시 빠른 응답
+      const response = await fetch(`/api/admin/feedback`, {
+        credentials: 'include',
+        next: { revalidate: 30 }, // 30초마다 재검증
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch reviews');
@@ -41,6 +45,7 @@ export default function AdminFeedback() {
       setReviews(data.reviews || []);
     } catch (error) {
       console.error('Failed to load reviews:', error);
+      // 에러 상태 표시를 위한 추가 처리 가능
     } finally {
       setIsLoading(false);
     }

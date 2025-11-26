@@ -2,30 +2,37 @@
 
 import { useState, useEffect } from 'react';
 import { FiDollarSign, FiList, FiPieChart, FiChevronLeft } from 'react-icons/fi';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import CurrencyCalculator from './components/CurrencyCalculator';
 import ExpenseTracker from './components/ExpenseTracker';
 import Statistics from './components/Statistics';
 import { trackFeature } from '@/lib/analytics';
 import TutorialCountdown from '@/app/chat/components/TutorialCountdown';
-import { checkTestModeClient, TestModeInfo } from '@/lib/test-mode-client';
+import { checkTestModeClient, TestModeInfo, getCorrectPath } from '@/lib/test-mode-client';
 import { clearAllLocalStorage } from '@/lib/csrf-client';
 
 type Tab = 'calculator' | 'expenses' | 'statistics';
 
 export default function WalletPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [activeTab, setActiveTab] = useState<Tab>('calculator');
   const [testModeInfo, setTestModeInfo] = useState<TestModeInfo | null>(null);
 
   useEffect(() => {
-    // 테스트 모드 정보 로드
+    // 테스트 모드 정보 로드 및 경로 보호
     const loadTestModeInfo = async () => {
       const info = await checkTestModeClient();
       setTestModeInfo(info);
+      
+      // 경로 보호: 일반 사용자는 /wallet로 리다이렉트
+      const correctPath = getCorrectPath(pathname || '/wallet-test', info);
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
     };
     loadTestModeInfo();
-  }, []);
+  }, [pathname, router]);
 
   const handleLogout = async () => {
     try {

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft, FiMap, FiGlobe, FiTag, FiCalendar, FiMapPin } from 'react-icons/fi';
 import { trackFeature } from '@/lib/analytics';
+import { checkTestModeClient, getCorrectPath } from '@/lib/test-mode-client';
 // 성능 최적화: 무거운 지도 라이브러리는 그대로 사용 (복잡도가 높아서 나중에 최적화)
 // 동적 임포트는 컴포넌트 분리 후 적용 예정
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
@@ -423,6 +424,22 @@ const saveTripsToLocal = (trips: Trip[]) => {
 
 export default function MapPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  
+  // 경로 보호: 테스트 모드 사용자는 /map-test로 리다이렉트
+  useEffect(() => {
+    const checkPath = async () => {
+      const testModeInfo = await checkTestModeClient();
+      const correctPath = getCorrectPath(pathname || '/map', testModeInfo);
+      
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
+    };
+    
+    checkPath();
+  }, [pathname, router]);
+  
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null); // 지도에서 선택된 국가

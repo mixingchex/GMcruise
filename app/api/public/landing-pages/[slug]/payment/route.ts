@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import crypto from 'crypto';
+import { payappApiPost } from '@/lib/payapp';
 
 /**
  * POST: 랜딩페이지 결제 요청 처리
@@ -179,27 +180,114 @@ export async function POST(
       
       paymentUrl = `${welcomePayUrl}?${params.toString()}`;
     } else if (paymentProvider === 'payapp') {
-      // PayApp 결제 URL 생성
-      const payappUrl = process.env.NEXT_PUBLIC_PAYAPP_URL || process.env.PAYAPP_URL || '';
-      if (!payappUrl) {
-        console.error('[Landing Page Payment] PayApp URL이 설정되지 않음');
+      // PayApp API를 통한 동적 결제 URL 생성
+      const payappUserid = process.env.PAYAPP_USERID;
+      const payappLinkkey = process.env.PAYAPP_LINKKEY;
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') || 'http://localhost:3000';
+
+      if (!payappUserid || !payappLinkkey) {
+        console.error('[Landing Page Payment] PayApp 설정 누락:', {
+          hasUserid: !!payappUserid,
+          hasLinkkey: !!payappLinkkey,
+        });
         return NextResponse.json(
-          { ok: false, error: '결제 프로바이더 URL이 설정되지 않았습니다. 관리자에게 문의해주세요.' },
+          { ok: false, error: 'PayApp 설정이 완료되지 않았습니다. 관리자에게 문의해주세요.' },
           { status: 500 }
         );
       }
-      
-      // PayApp 형식에 맞게 파라미터 구성
-      const params = new URLSearchParams();
-      params.append('mid', paymentData.mid);
-      params.append('orderId', paymentData.orderId);
-      params.append('amount', String(paymentData.amount));
-      params.append('productName', paymentData.productName);
-      params.append('returnUrl', paymentData.returnUrl);
-      params.append('notifyUrl', paymentData.notifyUrl);
-      params.append('signature', signature);
-      
-      paymentUrl = `${payappUrl}?${params.toString()}`;
+
+      // 요청 body에서 전화번호 받기 (선택사항)
+      let requestBody: any = {};
+      try {
+        requestBody = await req.json().catch(() => ({}));
+      } catch {
+        // body가 없으면 빈 객체 사용
+      }
+
+      // 전화번호 처리 (요청에서 받거나 임시값 사용)
+      // 페이앱 결제창에서 전화번호를 입력받을 수 있으므로, 없으면 임시값 사용
+      const recvphone = requestBody.phone 
+        ? requestBody.phone.replace(/[^0-9]/g, '') 
+        : '01000000000'; // 임시 전화번호 (페이앱 결제창에서 실제 전화번호 입력)
+
+      // PayApp API 호출
+      const payappParams = {
+        cmd: 'payrequest',
+        userid: payappUserid,
+        goodname: productName,
+        price: paymentData.amount,
+        recvphone: recvphone,
+        memo: `${productName} 결제`,
+        reqaddr: 0,
+        feedbackurl: `${baseUrl}/api/payapp/feedback`,
+        var1: orderId, // 주문번호 (결제 추적용)
+        var2: `LP_${landingPage.id}`, // 랜딩페이지 ID (LP_ prefix로 구분)
+        smsuse: 'n', // SMS 발송 안함
+        returnurl: `${baseUrl}/api/payment/callback?orderId=${orderId}`,
+        openpaytype: 'card', // 카드번호 입력 결제만
+        checkretry: 'y', // feedbackurl 재시도
+        skip_cstpage: 'y', // 매출전표 페이지 이동 안함
+      };
+
+      console.log('[Landing Page Payment] PayApp API 호출:', {
+        cmd: payappParams.cmd,
+        userid: payappParams.userid,
+        goodname: payappParams.goodname,
+        price: payappParams.price,
+        recvphone: payappParams.recvphone,
+        feedbackurl: payappParams.feedbackurl,
+        returnurl: payappParams.returnurl,
+      });
+
+      const payappResult = await payappApiPost(payappParams);
+
+      console.log('[Landing Page Payment] PayApp API 응답:', payappResult);
+
+      if (payappResult.state === '1') {
+        // 결제 요청 성공
+        paymentUrl = payappResult.payurl || '';
+        
+        if (!paymentUrl) {
+          console.error('[Landing Page Payment] PayApp에서 결제 URL을 받지 못함');
+          return NextResponse.json(
+            { ok: false, error: '결제 URL을 생성하지 못했습니다. 다시 시도해주세요.' },
+            { status: 500 }
+          );
+        }
+
+        // Payment 테이블에 mul_no 저장
+        if (payappResult.mul_no) {
+          await prisma.payment.update({
+            where: { orderId },
+            data: {
+              metadata: {
+                ...metadata,
+                mul_no: payappResult.mul_no,
+              },
+            },
+          });
+        }
+
+        console.log('[Landing Page Payment] PayApp 결제 URL 생성 성공:', {
+          mul_no: payappResult.mul_no,
+          payurl: paymentUrl,
+        });
+      } else {
+        // 결제 요청 실패
+        console.error('[Landing Page Payment] PayApp 결제 요청 실패:', {
+          state: payappResult.state,
+          errorMessage: payappResult.errorMessage,
+          errno: payappResult.errno,
+        });
+        return NextResponse.json(
+          {
+            ok: false,
+            error: payappResult.errorMessage || '결제 요청에 실패했습니다.',
+            errno: payappResult.errno,
+          },
+          { status: 400 }
+        );
+      }
     } else {
       return NextResponse.json(
         { ok: false, error: `지원하지 않는 결제 프로바이더입니다: ${paymentProvider}` },

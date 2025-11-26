@@ -1,7 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { FiCheckSquare, FiDollarSign, FiTool } from 'react-icons/fi';
+import { useRouter, usePathname } from 'next/navigation';
+import { FiCheckSquare, FiDollarSign, FiTool, FiMessageCircle } from 'react-icons/fi';
+import { checkTestModeClient, getCorrectPath } from '@/lib/test-mode-client';
+import { useEffect } from 'react';
 
 const tools = [
   {
@@ -39,11 +42,39 @@ const tools = [
 ];
 
 export default function ToolsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // 경로 보호: 테스트 모드 사용자는 /tools-test로 리다이렉트
+  useEffect(() => {
+    const checkPath = async () => {
+      const testModeInfo = await checkTestModeClient();
+      const correctPath = getCorrectPath(pathname || '/tools', testModeInfo);
+      
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
+    };
+    
+    checkPath();
+  }, [pathname, router]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* 헤더 */}
         <div className="mb-8">
+          {/* 지니채팅 돌아가기 버튼 */}
+          <div className="mb-6 flex justify-center">
+            <Link
+              href="/chat"
+              className="inline-flex items-center gap-2 rounded-xl border border-purple-300 bg-white px-5 py-2.5 hover:bg-purple-50 text-base md:text-lg font-semibold text-purple-700 shadow-sm transition-all duration-200 hover:shadow-md"
+            >
+              <FiMessageCircle className="text-xl" />
+              <span>지니채팅 돌아가기</span>
+            </Link>
+          </div>
+          
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-5 shadow-xl">
               <FiTool size={48} className="text-white md:w-12 md:h-12" />

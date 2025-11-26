@@ -194,3 +194,4 @@ www.cruisedot.co.kr. 3600 IN CNAME cname.vercel-dns.com.
 **다음 단계**: DNS 레코드 확인 및 전파 대기
 
 
+

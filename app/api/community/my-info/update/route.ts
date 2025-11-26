@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 // app/api/community/my-info/update/route.ts
 // 내 정보 수정 API (이름, 연락처, 비밀번호)
 
@@ -21,14 +19,16 @@ export async function PUT(req: Request) {
 
     const userId = parseInt(session.userId);
     const body = await req.json();
-    const { name, phone, password, currentPassword, mallNickname } = body;
+    const { name, phone, email, password, currentPassword, mallNickname } = body;
 
-    // 사용자 정보 조회
+    // 사용자 정보 조회 (기존 연락처와 이메일 확인을 위해 포함)
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         password: true,
+        phone: true,
+        email: true,
       }
     });
 
@@ -53,22 +53,60 @@ export async function PUT(req: Request) {
 
     // 연락처 업데이트
     if (phone !== undefined && phone.trim()) {
-      // 연락처 중복 확인 (자신 제외)
-      const existingUser = await prisma.user.findFirst({
-        where: {
-          phone: phone.trim(),
-          id: { not: userId }
-        }
-      });
+      const newPhone = phone.trim();
+      
+      // 기존 연락처와 동일하면 중복 체크 건너뛰기
+      if (user.phone !== newPhone) {
+        // 연락처가 변경된 경우에만 중복 확인 (자신 제외)
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            phone: newPhone,
+            id: { not: userId }
+          }
+        });
 
-      if (existingUser) {
+        if (existingUser) {
+          return NextResponse.json(
+            { ok: false, error: '이미 사용 중인 연락처입니다.' },
+            { status: 400 }
+          );
+        }
+      }
+
+      updateData.phone = newPhone;
+    }
+
+    // 이메일 업데이트
+    if (email !== undefined) {
+      const emailValue = email.trim() || null;
+      
+      // 이메일이 입력된 경우 형식 검증
+      if (emailValue && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
         return NextResponse.json(
-          { ok: false, error: '이미 사용 중인 연락처입니다.' },
+          { ok: false, error: '올바른 이메일 형식을 입력해주세요.' },
           { status: 400 }
         );
       }
 
-      updateData.phone = phone.trim();
+      // 기존 이메일과 동일하면 중복 체크 건너뛰기
+      if (emailValue && user.email !== emailValue) {
+        // 이메일이 변경된 경우에만 중복 확인 (자신 제외)
+        const existingUser = await prisma.user.findFirst({
+          where: {
+            email: emailValue,
+            id: { not: userId }
+          }
+        });
+
+        if (existingUser) {
+          return NextResponse.json(
+            { ok: false, error: '이미 사용 중인 이메일입니다.' },
+            { status: 400 }
+          );
+        }
+      }
+
+      updateData.email = emailValue;
     }
 
     // 비밀번호 변경
@@ -132,3 +170,4 @@ export async function PUT(req: Request) {
     );
   }
 }
+

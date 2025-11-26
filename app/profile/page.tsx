@@ -7,10 +7,20 @@ import { getDdayMessage } from '@/lib/date-utils';
 import ddayMessages from '@/data/dday_messages.json';
 import TTSToggle from '@/app/profile-test/components/TTSToggle';
 import PushToggle from '@/app/profile-test/components/PushToggle';
-import TripInfoSection from '@/app/profile-test/components/TripInfoSection';
+import TripInfoSection from '@/app/profile/components/TripInfoSection';
 import { FiArrowLeft, FiUser } from 'react-icons/fi';
+import { checkTestMode, getCorrectPath } from '@/lib/test-mode';
+import { redirect } from 'next/navigation';
 
 export default async function ProfilePage() {
+  // 경로 보호: 테스트 모드 사용자는 /profile-test로 리다이렉트
+  const testModeInfo = await checkTestMode();
+  const correctPath = getCorrectPath('/profile', testModeInfo);
+  
+  if (correctPath !== '/profile') {
+    redirect(correctPath);
+  }
+  
   // 1) 세션 (❗️중요: await 필수)
   const session = await getServerSession();
 

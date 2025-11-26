@@ -150,7 +150,7 @@ export function handleAskTerminal(message: string, originHint?: string): ChatMes
       links: relatedPorts.map(t => {
         const q = t.value;
         const href = originHint
-          ? buildDirectionsUrl(originHint, q)
+          ? gmDirUrl({ origin: originHint, destination: q, mode: 'driving' })
           : buildSearchUrl(q);
         return { label: `🚗 ${t.label}`, href, kind: 'directions' };
       }),

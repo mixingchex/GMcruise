@@ -146,3 +146,4 @@ YOUTUBE_API_KEY=AIzaSyDscvNSjhrahZDH5JXxEpBpk0xBWlybCsM
 **상태**: 설정 가이드 작성 완료
 
 
+

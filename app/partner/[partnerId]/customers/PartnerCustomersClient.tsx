@@ -28,6 +28,7 @@ import {
   FiInfo,
   FiSend,
   FiArrowRight,
+  FiLayers,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
@@ -131,6 +132,7 @@ type PartnerCustomer = {
   // 고객 상태 정보 (딱지 표시용)
   testModeStartedAt?: string | null;
   customerStatus?: string | null;
+  customerSource?: string | null; // 고객 출처 추가 (명확한 구분용)
   mallUserId?: string | null;
   // 전화상담 고객용 추가 정보
   userId?: number | null;
@@ -2132,6 +2134,13 @@ export default function PartnerCustomersClient({
               >
                 <FiUpload /> 엑셀 업로드
               </button>
+              {/* 고객 그룹관리 빠른버튼 (판매원, 대리점장 모두 사용 가능) */}
+              <Link
+                href={`/partner/${partnerId}/customer-groups`}
+                className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
+              >
+                <FiLayers /> 고객 그룹관리
+              </Link>
               {/* DB 보내기 버튼은 대리점장만 사용 가능 (판매원은 DB를 보낼 수 없음) */}
               {partner.type === 'BRANCH_MANAGER' && (
                 <Link
@@ -2235,6 +2244,7 @@ export default function PartnerCustomersClient({
                                         <CustomerStatusBadges
                                           testModeStartedAt={customer.testModeStartedAt}
                                           customerStatus={customer.customerStatus}
+                                          customerSource={customer.customerSource}
                                           mallUserId={customer.mallUserId}
                                         />
                                       </div>
@@ -2335,6 +2345,7 @@ export default function PartnerCustomersClient({
                                   <CustomerStatusBadges
                                     testModeStartedAt={customer.testModeStartedAt}
                                     customerStatus={customer.customerStatus}
+                                    customerSource={customer.customerSource}
                                     mallUserId={customer.mallUserId}
                                   />
                                 </div>
@@ -2492,35 +2503,79 @@ export default function PartnerCustomersClient({
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-600">
                         <div className="flex flex-col gap-1">
-                          <span>
-                            {customer.ownership === 'AGENT'
-                              ? '내 고객'
-                              : customer.ownership === 'MANAGER'
-                              ? '대리점 고객'
-                              : '협업 고객'}
-                          </span>
-                          {customer.agent && customer.ownership === 'MANAGER' && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-slate-500">
-                                담당: {customer.agent.displayName ?? '판매원'}
-                              </span>
-                              {partner.type === 'BRANCH_MANAGER' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRecallDb([customer.id])}
-                                  className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
-                                  title="DB 회수"
-                                >
-                                  회수
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {customer.counterpart?.label && !customer.agent && (
-                            <span className="text-xs text-slate-500">
-                              담당: {customer.counterpart.label}
-                            </span>
-                          )}
+                          {/* 고객 분류 표시 */}
+                          {(() => {
+                            // 1. 자신의 개개인 몰에서 구매고객
+                            const hasPurchase = customer.sales.some((sale) => 
+                              sale.status === 'CONFIRMED' || sale.status === 'PENDING' || sale.status === 'PAID'
+                            );
+                            // 자신의 개개인 몰에서 구매한 고객만 구매고객으로 표시
+                            const customerMallUserId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
+                            const isMallPurchase = hasPurchase && (
+                              customer.source === `mall-${partner.mallUserId}` ||
+                              customerMallUserId === partner.mallUserId ||
+                              (customer.source?.startsWith('mall-') && customer.ownership === 'AGENT' && partner.type === 'SALES_AGENT')
+                            );
+                            
+                            // 2. 상담신청고객 (구매고객이 아닌 경우에만)
+                            const isInquiry = !isMallPurchase && (
+                              customer.source?.startsWith('mall-') || 
+                              customer.source === 'product-inquiry' || 
+                              customer.source === 'phone-consultation'
+                            );
+                            
+                            // 3. 내가입력한 고객 (구매고객, 상담신청고객이 아닌 경우에만)
+                            const isManualInput = !isMallPurchase && !isInquiry && customer.ownership === 'AGENT' && (
+                              customer.source === 'affiliate-manual' || 
+                              customer.source === 'partner-manual'
+                            );
+                            
+                            // 4. 대리점장이 DB 보내줘서 받은 고객 (구매고객, 상담신청고객, 내가입력한 고객이 아닌 경우에만)
+                            const isDbReceived = !isMallPurchase && !isInquiry && !isManualInput && 
+                              customer.ownership === 'MANAGER' && customer.agent?.id;
+                            
+                            return (
+                              <>
+                                <span className="font-semibold">
+                                  {isMallPurchase
+                                    ? '구매고객'
+                                    : isInquiry
+                                    ? '상담신청고객'
+                                    : isManualInput
+                                    ? '내가입력한 고객'
+                                    : isDbReceived
+                                    ? 'DB 받은 고객'
+                                    : customer.ownership === 'AGENT'
+                                    ? '내 고객'
+                                    : customer.ownership === 'MANAGER'
+                                    ? '대리점 고객'
+                                    : '협업 고객'}
+                                </span>
+                                {customer.agent && customer.ownership === 'MANAGER' && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs text-slate-500">
+                                      담당: {customer.agent.displayName ?? '판매원'}
+                                    </span>
+                                    {partner.type === 'BRANCH_MANAGER' && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRecallDb([customer.id])}
+                                        className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
+                                        title="DB 회수"
+                                      >
+                                        회수
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                                {customer.counterpart?.label && !customer.agent && (
+                                  <span className="text-xs text-slate-500">
+                                    담당: {customer.counterpart.label}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right text-sm">
