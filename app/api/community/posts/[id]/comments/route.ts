@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
-// import { saveCommentToSheets } from '@/lib/google-sheets'; // 일시적으로 비활성화
+import { saveCommentToSheets } from '@/lib/google-sheets';
 
 // 한글 아이디 목록
 const KOREAN_NICKNAMES = [
@@ -801,6 +801,15 @@ export async function POST(
         }
       });
       console.log('[COMMENT CREATE] Comment created successfully:', comment.id);
+
+      // Google Sheets 백업 (비동기, 응답 차단 안 함)
+      saveCommentToSheets({
+        id: comment.id,
+        postId: comment.postId,
+        content: comment.content,
+        authorName: comment.authorName,
+        createdAt: comment.createdAt
+      }).catch(err => console.error('[COMMENT CREATE] Google Sheets 백업 실패:', err));
     } catch (dbError: any) {
       console.error('[COMMENT CREATE] ========== DATABASE ERROR START ==========');
       console.error('[COMMENT CREATE] Database error:', dbError);

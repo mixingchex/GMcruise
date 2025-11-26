@@ -9,7 +9,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import ReviewCarousel from '@/components/community/ReviewCarousel';
 import KakaoChannelButton from '@/components/KakaoChannelButton';
 import KakaoShareButton from '@/components/KakaoShareButton';
-import { isAllowedCruisedotMallId } from '@/lib/cruisedot-news-access';
 
 interface Review {
   id: number;
@@ -41,7 +40,6 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [postsWithKeywordInComments, setPostsWithKeywordInComments] = useState<number[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [canAccessNews, setCanAccessNews] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchKeyword, setSearchKeyword] = useState<string>('');
@@ -148,16 +146,10 @@ export default function CommunityPage() {
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        const role = (data?.user?.role ?? '').toLowerCase();
-        const mallUserId = (data?.user?.mallUserId ?? '').toLowerCase();
-        const isAdmin = role === 'admin';
-        const allowedNews = isAdmin || isAllowedCruisedotMallId(mallUserId);
-        setCanAccessNews(allowedNews);
         setIsLoggedIn(!!(data.ok && data.user));
       })
       .catch(() => {
         setIsLoggedIn(false);
-        setCanAccessNews(false);
       });
 
     // 커뮤니티 게시글 로드
@@ -536,15 +528,13 @@ export default function CommunityPage() {
                 >
                   질문 답변
                 </button>
-                    {canAccessNews && (
-                      <Link
-                        href="/community/cruisedot-news"
-                        className="flex items-center gap-2 px-6 py-2.5 font-semibold rounded-lg shadow-md bg-gradient-to-r from-rose-500 to-rose-600 text-white transition hover:from-rose-400 hover:to-rose-600"
-                      >
-                        <span role="img" aria-hidden>🚢</span>
-                        크루즈닷늬우스 바로가기
-                      </Link>
-                    )}
+                    <Link
+                      href="/community/cruisedot-news"
+                      className="flex items-center gap-2 px-6 py-2.5 font-semibold rounded-lg shadow-md bg-gradient-to-r from-rose-500 to-rose-600 text-white transition hover:from-rose-400 hover:to-rose-600"
+                    >
+                      <span role="img" aria-hidden>🚢</span>
+                      크루즈닷늬우스 바로가기
+                    </Link>
               </div>
             </div>
 

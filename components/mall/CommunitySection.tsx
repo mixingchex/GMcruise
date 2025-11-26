@@ -71,8 +71,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
   const linkUrl = config?.linkUrl ?? '/community';
 
   useEffect(() => {
-    // 페이지를 먼저 표시하고 백그라운드에서 로드
-    setLoading(false);
+    console.log('[CommunitySection] 컴포넌트 마운트, 게시글 로드 시작');
     
     // 로그인 상태 확인
     const authAbortController = new AbortController();
@@ -86,21 +85,29 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       .then(data => {
         clearTimeout(authTimeoutId);
         // 모든 로그인한 사용자가 게시글을 볼 수 있도록 변경
-        setIsLoggedIn(data.ok && !!data.user);
+        const loggedIn = data.ok && !!data.user;
+        console.log('[CommunitySection] 로그인 상태:', loggedIn);
+        setIsLoggedIn(loggedIn);
       })
       .catch(() => {
         clearTimeout(authTimeoutId);
+        console.log('[CommunitySection] 로그인 상태 확인 실패, 비로그인으로 처리');
         setIsLoggedIn(false);
       });
     
-    loadPosts();
+    // 게시글 로드 시작 (로딩 상태는 loadPosts 내부에서 관리)
+    loadPosts().finally(() => {
+      // 게시글 로드 완료 후 로딩 상태 해제
+      setLoading(false);
+      console.log('[CommunitySection] 게시글 로드 완료');
+    });
   }, []);
 
   const loadPosts = async () => {
     try {
       // 모든 API 호출을 병렬로 처리
       const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
+      const timeoutId = setTimeout(() => abortController.abort(), 10000); // 10초 타임아웃으로 증가
       
       // 최근 게시글 6개
       const recentResponse = fetch('/api/community/posts?limit=6', {
@@ -128,75 +135,61 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       
       // 최근 게시글 처리
       if (recentRes.status === 'fulfilled') {
-        const recentData = await recentRes.value.json();
-        if (recentData.ok && recentData.posts) {
-          setRecentPosts(recentData.posts.slice(0, 6));
+        try {
+          const response = recentRes.value;
+          if (!response.ok) {
+            console.error('[CommunitySection] 최근 게시글 API 응답 오류:', response.status, response.statusText);
+          } else {
+            const recentData = await response.json();
+            if (recentData.ok && Array.isArray(recentData.posts)) {
+              console.log('[CommunitySection] 최근 게시글 로드 성공:', recentData.posts.length, '개');
+              setRecentPosts(recentData.posts.slice(0, 6));
+            } else {
+              console.warn('[CommunitySection] 최근 게시글 데이터 형식 오류:', recentData);
+            }
+          }
+        } catch (error) {
+          console.error('[CommunitySection] 최근 게시글 파싱 오류:', error);
         }
+      } else {
+        console.error('[CommunitySection] 최근 게시글 API 호출 실패:', recentRes.reason);
       }
 
       // 인기 게시글 처리
       if (popularRes.status === 'fulfilled') {
-        const popularData = await popularRes.value.json();
-        if (popularData.ok && popularData.posts) {
-          // 조회수 + 좋아요 기준으로 정렬
-          const sorted = [...popularData.posts].sort((a, b) => {
-            const scoreA = a.views + (a.likes * 10);
-            const scoreB = b.views + (b.likes * 10);
-            return scoreB - scoreA;
-          });
-          setPopularPosts(sorted.slice(0, 6));
+        try {
+          const response = popularRes.value;
+          if (!response.ok) {
+            console.error('[CommunitySection] 인기 게시글 API 응답 오류:', response.status, response.statusText);
+          } else {
+            const popularData = await response.json();
+            if (popularData.ok && Array.isArray(popularData.posts)) {
+              // 조회수 + 좋아요 기준으로 정렬
+              const sorted = [...popularData.posts].sort((a, b) => {
+                const scoreA = a.views + (a.likes * 10);
+                const scoreB = b.views + (b.likes * 10);
+                return scoreB - scoreA;
+              });
+              console.log('[CommunitySection] 인기 게시글 로드 성공:', sorted.length, '개');
+              setPopularPosts(sorted.slice(0, 6));
+            } else {
+              console.warn('[CommunitySection] 인기 게시글 데이터 형식 오류:', popularData);
+            }
+          }
+        } catch (error) {
+          console.error('[CommunitySection] 인기 게시글 파싱 오류:', error);
         }
+      } else {
+        console.error('[CommunitySection] 인기 게시글 API 호출 실패:', popularRes.reason);
       }
 
       // 크루즈뉘우스 미리보기 게시글 처리
       if (newsRes.status === 'fulfilled') {
-        const newsData = await newsRes.value.json();
-
-        if (newsData.ok && Array.isArray(newsData.posts)) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          
-          const mappedNews = newsData.posts
-            .filter((post: any) => post?.title)
-            .map((post: any) => {
-              const postDate = new Date(post.createdAt);
-              postDate.setHours(0, 0, 0, 0);
-              const isToday = postDate.getTime() === today.getTime();
-              
-              return {
-                id: post.id,
-                title: post.title,
-                content: post.summary || post.highlight || post.content || '',
-                category: post.category || 'cruisedot-news',
-                authorName: post.authorName || '크루즈닷 본사',
-                images: Array.isArray(post.images) ? post.images : [],
-                views: typeof post.views === 'number' ? post.views : 0,
-                likes: typeof post.likes === 'number' ? post.likes : 0,
-                comments: typeof post.comments === 'number' ? post.comments : 0,
-                createdAt: post.createdAt || new Date().toISOString(),
-                href: `/community/cruisedot-news?post=db-${post.id}`,
-                isToday: isToday, // 오늘 생성된 글인지 표시
-              };
-            }) as (CommunityNewsPost & { isToday?: boolean })[];
-          
-          // 최신순 정렬 (오늘 생성된 글을 맨 앞으로, 그 다음 최신순)
-          const sortedNews = mappedNews.sort((a, b) => {
-            // 오늘 생성된 글을 맨 앞으로
-            const aIsToday = a.isToday || false;
-            const bIsToday = b.isToday || false;
-            if (aIsToday && !bIsToday) return -1;
-            if (!aIsToday && bIsToday) return 1;
-            
-            // 둘 다 오늘이거나 둘 다 아니면 최신순 (최신이 앞으로)
-            const aTime = new Date(a.createdAt).getTime();
-            const bTime = new Date(b.createdAt).getTime();
-            return bTime - aTime; // 최신이 앞으로 (큰 값이 앞으로)
-          });
-
-          if (sortedNews.length > 0) {
-            setNewsPosts(sortedNews.slice(0, 12) as CommunityNewsPost[]);
-          } else {
-            // fallback to static news posts when no DB news available
+        try {
+          const response = newsRes.value;
+          if (!response.ok) {
+            console.error('[CommunitySection] 크루즈뉘우스 API 응답 오류:', response.status, response.statusText);
+            // API 실패 시 fallback
             const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
               id: `static-${post.id}`,
               title: post.title,
@@ -211,8 +204,91 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
               href: `/community/cruisedot-news?post=${post.id}`,
             })) as CommunityNewsPost[];
             setNewsPosts(fallbackNews);
+          } else {
+            const newsData = await response.json();
+
+            if (newsData.ok && Array.isArray(newsData.posts)) {
+              console.log('[CommunitySection] 크루즈뉘우스 로드 성공:', newsData.posts.length, '개');
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              const mappedNews = newsData.posts
+                .filter((post: any) => post?.title)
+                .map((post: any) => {
+                  const postDate = new Date(post.createdAt);
+                  postDate.setHours(0, 0, 0, 0);
+                  const isToday = postDate.getTime() === today.getTime();
+                  
+                  return {
+                    id: post.id,
+                    title: post.title,
+                    content: post.summary || post.highlight || post.content || '',
+                    category: post.category || 'cruisedot-news',
+                    authorName: post.authorName || '크루즈닷 본사',
+                    images: Array.isArray(post.images) ? post.images : [],
+                    views: typeof post.views === 'number' ? post.views : 0,
+                    likes: typeof post.likes === 'number' ? post.likes : 0,
+                    comments: typeof post.comments === 'number' ? post.comments : 0,
+                    createdAt: post.createdAt || new Date().toISOString(),
+                    href: `/community/cruisedot-news?post=db-${post.id}`,
+                    isToday: isToday, // 오늘 생성된 글인지 표시
+                  };
+                }) as (CommunityNewsPost & { isToday?: boolean })[];
+              
+              // 최신순 정렬 (오늘 생성된 글을 맨 앞으로, 그 다음 최신순)
+              const sortedNews = mappedNews.sort((a, b) => {
+                // 오늘 생성된 글을 맨 앞으로
+                const aIsToday = a.isToday || false;
+                const bIsToday = b.isToday || false;
+                if (aIsToday && !bIsToday) return -1;
+                if (!aIsToday && bIsToday) return 1;
+                
+                // 둘 다 오늘이거나 둘 다 아니면 최신순 (최신이 앞으로)
+                const aTime = new Date(a.createdAt).getTime();
+                const bTime = new Date(b.createdAt).getTime();
+                return bTime - aTime; // 최신이 앞으로 (큰 값이 앞으로)
+              });
+
+              if (sortedNews.length > 0) {
+                setNewsPosts(sortedNews.slice(0, 12) as CommunityNewsPost[]);
+              } else {
+                // fallback to static news posts when no DB news available
+                const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
+                  id: `static-${post.id}`,
+                  title: post.title,
+                  content: post.summary,
+                  category: 'cruisedot-news',
+                  authorName: '크루즈닷 본사',
+                  images: [],
+                  views: post.baseViews,
+                  likes: post.baseLikes,
+                  comments: Math.max(12, Math.floor(post.baseLikes / 2)),
+                  createdAt: post.publishedAt,
+                  href: `/community/cruisedot-news?post=${post.id}`,
+                })) as CommunityNewsPost[];
+                setNewsPosts(fallbackNews);
+              }
+            } else {
+              console.warn('[CommunitySection] 크루즈뉘우스 데이터 형식 오류:', newsData);
+              // fallback to static news posts when no DB news available
+              const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
+                id: `static-${post.id}`,
+                title: post.title,
+                content: post.summary,
+                category: 'cruisedot-news',
+                authorName: '크루즈닷 본사',
+                images: [],
+                views: post.baseViews,
+                likes: post.baseLikes,
+                comments: Math.max(12, Math.floor(post.baseLikes / 2)),
+                createdAt: post.publishedAt,
+                href: `/community/cruisedot-news?post=${post.id}`,
+              })) as CommunityNewsPost[];
+              setNewsPosts(fallbackNews);
+            }
           }
-        } else {
+        } catch (error) {
+          console.error('[CommunitySection] 크루즈뉘우스 파싱 오류:', error);
           // fallback to static news posts when no DB news available
           const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
             id: `static-${post.id}`,
@@ -230,6 +306,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
           setNewsPosts(fallbackNews);
         }
       } else {
+        console.error('[CommunitySection] 크루즈뉘우스 API 호출 실패:', newsRes.reason);
         // API 호출 실패 시 fallback
         const fallbackNews = STATIC_NEWS_POSTS.slice(0, 12).map((post) => ({
           id: `static-${post.id}`,
@@ -704,19 +781,21 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
           </div>
         </div>
 
-      {/* 게시글이 없을 때 - 로그인한 사용자에게만 표시 */}
-      {isLoggedIn && !loading && recentPosts.length === 0 && popularPosts.length === 0 && (
+      {/* 게시글이 없을 때 - 모든 사용자에게 표시 */}
+      {!loading && recentPosts.length === 0 && popularPosts.length === 0 && (
         <div className="text-center py-12 md:py-16">
           <p className="text-lg md:text-xl lg:text-2xl text-gray-600 font-semibold mb-5 md:mb-6">
-            아직 게시글이 없습니다.
+            {isLoggedIn ? '아직 게시글이 없습니다.' : '커뮤니티 게시글을 불러오는 중입니다...'}
           </p>
-          <Link
-            href="/community/write"
-            className="inline-flex items-center gap-2 px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-base md:text-lg font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 min-h-[48px] md:min-h-[52px]"
-          >
-            <span>첫 게시글 작성하기</span>
-            <span>→</span>
-          </Link>
+          {isLoggedIn && (
+            <Link
+              href="/community/write"
+              className="inline-flex items-center gap-2 px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-base md:text-lg font-bold rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 min-h-[48px] md:min-h-[52px]"
+            >
+              <span>첫 게시글 작성하기</span>
+              <span>→</span>
+            </Link>
+          )}
         </div>
       )}
 

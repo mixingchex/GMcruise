@@ -57,7 +57,6 @@ function CruisedotNewsPageContent() {
   const [apiPosts, setApiPosts] = useState<ApiNewsPost[]>([]);
   const [canWrite, setCanWrite] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
-  const [isAuthorized, setIsAuthorized] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -94,20 +93,17 @@ function CruisedotNewsPageContent() {
   }, []);
 
   useEffect(() => {
+    // 관리자 권한만 확인 (작성 권한 체크용)
     fetch("/api/auth/me", { credentials: "include" })
       .then((res) => res.json())
       .then((data) => {
         const role = (data?.user?.role ?? "").toLowerCase();
         const isAdmin = role === "admin";
-        // 로그인한 유저는 모두 볼 수 있음
-        const isLoggedIn = !!data?.user?.id;
         // 작성은 관리자만 가능
         setCanWrite(isAdmin);
-        setIsAuthorized(isLoggedIn);
       })
       .catch(() => {
         setCanWrite(false);
-        setIsAuthorized(false);
       })
       .finally(() => {
         setAuthChecked(true);
@@ -289,37 +285,7 @@ function CruisedotNewsPageContent() {
         <div className="flex min-h-screen items-center justify-center px-6">
           <div className="flex flex-col items-center gap-4 rounded-3xl border border-slate-200 bg-white/70 px-10 py-12 shadow-lg backdrop-blur">
             <div className="h-12 w-12 animate-spin rounded-full border-2 border-rose-500 border-t-transparent" />
-            <p className="text-sm font-medium text-slate-500">본사 계정 확인 중입니다...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-white">
-        <div className="flex min-h-screen items-center justify-center px-6">
-          <div className="max-w-lg rounded-3xl border border-rose-100 bg-white p-10 text-center shadow-xl">
-            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-2xl">🔒</div>
-            <h1 className="text-2xl font-bold text-slate-900">로그인이 필요합니다</h1>
-            <p className="mt-4 text-base text-slate-500">
-              크루즈닷늬우스는 회원가입하고 로그인한 유저만 열람할 수 있습니다.
-            </p>
-            <div className="mt-6 flex flex-col gap-3">
-              <Link
-                href="/community/login"
-                className="inline-flex items-center justify-center rounded-full bg-rose-600 px-6 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-rose-500"
-              >
-                로그인하기
-              </Link>
-              <Link
-                href="/community"
-                className="inline-flex items-center justify-center rounded-full border border-slate-200 px-6 py-2 text-sm font-semibold text-slate-600 transition hover:border-rose-300 hover:text-rose-500"
-              >
-                ← 커뮤니티 홈으로 이동
-              </Link>
-            </div>
+            <p className="text-sm font-medium text-slate-500">로딩 중...</p>
           </div>
         </div>
       </div>
