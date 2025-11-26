@@ -71,6 +71,11 @@ type AdminInfo = {
   pgVirtualAccountUrl: string;
   sendMethod: string;
   youtubeApiKey: string;
+  googleDriveServiceAccountEmail: string;
+  googleDriveServiceAccountPrivateKey: string;
+  googleDriveSharedDriveId: string;
+  googleDriveRootFolderId: string;
+  googleDrivePassportFolderId: string;
   kakaoApiManagers?: KakaoApiManager[];
   kakaoApiKeys?: KakaoApiKey[];
   kakaoSenderKeys?: KakaoSenderKey[];
@@ -143,6 +148,7 @@ export default function AdminSettingsPage() {
   const [showPgSignkeyNonAuth, setShowPgSignkeyNonAuth] = useState(false);
   const [showPgFieldEncryptKeyNonAuth, setShowPgFieldEncryptKeyNonAuth] = useState(false);
   const [showYoutubeApiKey, setShowYoutubeApiKey] = useState(false);
+  const [showGoogleDrivePrivateKey, setShowGoogleDrivePrivateKey] = useState(false);
   
   // 마케팅 설정 (DB에서 관리)
   const [marketingConfig, setMarketingConfig] = useState<MarketingConfig | null>(null);
@@ -421,6 +427,11 @@ export default function AdminSettingsPage() {
           pgVirtualAccountUrl: '',
           sendMethod: '',
           youtubeApiKey: '',
+          googleDriveServiceAccountEmail: '',
+          googleDriveServiceAccountPrivateKey: '',
+          googleDriveSharedDriveId: '',
+          googleDriveRootFolderId: '',
+          googleDrivePassportFolderId: '',
           kakaoApiManagers: [],
           kakaoApiKeys: [],
           kakaoSenderKeys: [],
@@ -473,6 +484,11 @@ export default function AdminSettingsPage() {
         pgVirtualAccountUrl: '',
         sendMethod: '',
         youtubeApiKey: '',
+        googleDriveServiceAccountEmail: '',
+        googleDriveServiceAccountPrivateKey: '',
+        googleDriveSharedDriveId: '',
+        googleDriveRootFolderId: '',
+        googleDrivePassportFolderId: '',
         kakaoApiManagers: [],
         kakaoApiKeys: [],
         kakaoSenderKeys: [],
@@ -532,6 +548,11 @@ export default function AdminSettingsPage() {
         pgMerchantName: 'PG_MERCHANT_NAME',
         baseUrl: 'NEXT_PUBLIC_BASE_URL',
         youtubeApiKey: 'YOUTUBE_API_KEY',
+        googleDriveServiceAccountEmail: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL',
+        googleDriveServiceAccountPrivateKey: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY',
+        googleDriveSharedDriveId: 'GOOGLE_DRIVE_SHARED_DRIVE_ID',
+        googleDriveRootFolderId: 'GOOGLE_DRIVE_ROOT_FOLDER_ID',
+        googleDrivePassportFolderId: 'GOOGLE_DRIVE_PASSPORT_FOLDER_ID',
       };
 
       const updates: Record<string, string> = {};
@@ -556,7 +577,21 @@ export default function AdminSettingsPage() {
 
       const data = await response.json();
       if (data.ok) {
-        alert(data.message + '\n\n' + (data.warning || ''));
+        let message = data.message || '저장되었습니다.';
+        
+        // Vercel 업데이트 결과 추가
+        if (data.vercelUpdated && data.vercelUpdated.length > 0) {
+          message += `\n\n✅ Vercel 자동 업데이트: ${data.vercelUpdated.length}개 환경변수 업데이트 완료`;
+        }
+        if (data.vercelErrors && data.vercelErrors.length > 0) {
+          message += `\n\n⚠️ Vercel 업데이트 경고:\n${data.vercelErrors.join('\n')}`;
+        }
+        
+        if (data.warning) {
+          message += '\n\n' + data.warning;
+        }
+        
+        alert(message);
         setIsEditing(false);
         await loadAdminInfo(); // 다시 로드
       } else {
@@ -612,6 +647,11 @@ export default function AdminSettingsPage() {
         pgMerchantName: 'PG_MERCHANT_NAME',
         baseUrl: 'NEXT_PUBLIC_BASE_URL',
         youtubeApiKey: 'YOUTUBE_API_KEY',
+        googleDriveServiceAccountEmail: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL',
+        googleDriveServiceAccountPrivateKey: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY',
+        googleDriveSharedDriveId: 'GOOGLE_DRIVE_SHARED_DRIVE_ID',
+        googleDriveRootFolderId: 'GOOGLE_DRIVE_ROOT_FOLDER_ID',
+        googleDrivePassportFolderId: 'GOOGLE_DRIVE_PASSPORT_FOLDER_ID',
       };
 
       const updates: Record<string, string> = {};
@@ -641,7 +681,21 @@ export default function AdminSettingsPage() {
 
       const data = await response.json();
       if (data.ok) {
-        alert(data.message + '\n\n' + (data.warning || ''));
+        let message = data.message || '저장되었습니다.';
+        
+        // Vercel 업데이트 결과 추가
+        if (data.vercelUpdated && data.vercelUpdated.length > 0) {
+          message += `\n\n✅ Vercel 자동 업데이트: ${data.vercelUpdated.length}개 환경변수 업데이트 완료`;
+        }
+        if (data.vercelErrors && data.vercelErrors.length > 0) {
+          message += `\n\n⚠️ Vercel 업데이트 경고:\n${data.vercelErrors.join('\n')}`;
+        }
+        
+        if (data.warning) {
+          message += '\n\n' + data.warning;
+        }
+        
+        alert(message);
         setEditingCategory(null);
         setCategoryEditableInfo({});
         await loadAdminInfo(); // 다시 로드
@@ -2413,6 +2467,116 @@ export default function AdminSettingsPage() {
             </ol>
             <p className="text-sm text-blue-800 mt-2">
               <strong>⚠️ 중요:</strong> API 키가 없으면 YouTube 영상 수집 스크립트를 실행할 수 없습니다.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Google Drive 설정 */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-3xl">☁️</span>
+            Google Drive 설정
+          </h2>
+          <div className="flex gap-3">
+            {editingCategory === 'googledrive' && (
+              <button
+                onClick={handleCancelCategory}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 font-semibold"
+              >
+                취소
+              </button>
+            )}
+            <button
+              onClick={editingCategory === 'googledrive' 
+                ? () => handleSaveCategory('googledrive', ['googleDriveServiceAccountEmail', 'googleDriveServiceAccountPrivateKey', 'googleDriveSharedDriveId', 'googleDriveRootFolderId', 'googleDrivePassportFolderId'])
+                : () => handleStartEditCategory('googledrive', ['googleDriveServiceAccountEmail', 'googleDriveServiceAccountPrivateKey', 'googleDriveSharedDriveId', 'googleDriveRootFolderId', 'googleDrivePassportFolderId'])
+              }
+              disabled={categorySaving === 'googledrive'}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
+                editingCategory === 'googledrive'
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              } ${categorySaving === 'googledrive' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {categorySaving === 'googledrive' ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                  저장 중...
+                </>
+              ) : editingCategory === 'googledrive' ? (
+                <>
+                  <FiSave size={18} />
+                  저장하기
+                </>
+              ) : (
+                <>
+                  <FiEdit2 size={18} />
+                  수정하기
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <InfoRow
+            label="서비스 계정 이메일"
+            value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveServiceAccountEmail || '') : (adminInfo?.googleDriveServiceAccountEmail || 'N/A')}
+            onCopy={() => copyToClipboard(adminInfo?.googleDriveServiceAccountEmail || '', 'googleDriveServiceAccountEmail')}
+            copied={copiedField === 'googleDriveServiceAccountEmail'}
+            isEditing={editingCategory === 'googledrive'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveServiceAccountEmail: value })}
+          />
+          <EditablePasswordRow
+            label="서비스 계정 Private Key"
+            value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveServiceAccountPrivateKey || '') : (adminInfo?.googleDriveServiceAccountPrivateKey || '')}
+            onCopy={() => copyToClipboard(adminInfo?.googleDriveServiceAccountPrivateKey || '', 'googleDriveServiceAccountPrivateKey')}
+            copied={copiedField === 'googleDriveServiceAccountPrivateKey'}
+            isEditing={editingCategory === 'googledrive'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveServiceAccountPrivateKey: value })}
+            show={showGoogleDrivePrivateKey}
+            onToggleShow={() => setShowGoogleDrivePrivateKey(!showGoogleDrivePrivateKey)}
+          />
+          <InfoRow
+            label="공유 드라이브 ID"
+            value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveSharedDriveId || '') : (adminInfo?.googleDriveSharedDriveId || 'N/A')}
+            onCopy={() => copyToClipboard(adminInfo?.googleDriveSharedDriveId || '', 'googleDriveSharedDriveId')}
+            copied={copiedField === 'googleDriveSharedDriveId'}
+            isEditing={editingCategory === 'googledrive'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveSharedDriveId: value })}
+          />
+          <InfoRow
+            label="루트 폴더 ID"
+            value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveRootFolderId || '') : (adminInfo?.googleDriveRootFolderId || 'N/A')}
+            onCopy={() => copyToClipboard(adminInfo?.googleDriveRootFolderId || '', 'googleDriveRootFolderId')}
+            copied={copiedField === 'googleDriveRootFolderId'}
+            isEditing={editingCategory === 'googledrive'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveRootFolderId: value })}
+          />
+          <InfoRow
+            label="여권 폴더 ID"
+            value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDrivePassportFolderId || '') : (adminInfo?.googleDrivePassportFolderId || 'N/A')}
+            onCopy={() => copyToClipboard(adminInfo?.googleDrivePassportFolderId || '', 'googleDrivePassportFolderId')}
+            copied={copiedField === 'googleDrivePassportFolderId'}
+            isEditing={editingCategory === 'googledrive'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDrivePassportFolderId: value })}
+          />
+          <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800 mb-2">
+              <strong>💡 안내:</strong> Google Drive 자동화 기능을 위한 설정입니다.
+            </p>
+            <p className="text-sm text-blue-800 mb-2">
+              <strong>📝 설정 방법:</strong>
+            </p>
+            <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1 ml-2">
+              <li>Google Cloud Console에서 서비스 계정 생성</li>
+              <li>서비스 계정 키(JSON) 다운로드</li>
+              <li>JSON 파일의 <code>client_email</code>과 <code>private_key</code> 값을 입력</li>
+              <li>Google Drive에서 공유 드라이브 및 폴더 ID 확인</li>
+            </ol>
+            <p className="text-sm text-blue-800 mt-2">
+              <strong>⚠️ 중요:</strong> Private Key는 여러 줄로 입력해야 하며, <code>\n</code> 문자를 실제 줄바꿈으로 변환해야 합니다.
             </p>
           </div>
         </div>

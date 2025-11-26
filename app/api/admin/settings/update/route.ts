@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { promises as fs } from 'fs';
 import path from 'path';
 import prisma from '@/lib/prisma';
+import { updateVercelEnvVariables } from '@/lib/vercel-api';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 각 환경 변수 업데이트
+    // 각 환경 변수 업데이트 (로컬 .env.local)
     const updatedKeys: string[] = [];
     const errors: string[] = [];
 
@@ -123,11 +124,39 @@ export async function POST(req: NextRequest) {
 
         await updateEnvVariable(key, String(value));
         updatedKeys.push(key);
-        console.log(`[Admin Settings Update] Updated ${key}`);
+        console.log(`[Admin Settings Update] Updated ${key} in .env.local`);
       } catch (error) {
         const errorMsg = `환경 변수 ${key} 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`;
         errors.push(errorMsg);
         console.error(`[Admin Settings Update] ${errorMsg}`, error);
+      }
+    }
+
+    // Vercel 환경변수도 자동 업데이트 시도
+    let vercelResult: { ok: boolean; updated: string[]; errors: string[] } | null = null;
+    const hasVercelConfig = !!(process.env.VERCEL_API_TOKEN && (process.env.VERCEL_PROJECT_ID || process.env.NEXT_PUBLIC_VERCEL_PROJECT_ID));
+    
+    if (hasVercelConfig && updatedKeys.length > 0) {
+      try {
+        console.log('[Admin Settings Update] Updating Vercel environment variables...');
+        vercelResult = await updateVercelEnvVariables(
+          Object.fromEntries(
+            Object.entries(updates).filter(([key]) => updatedKeys.includes(key))
+          )
+        );
+        
+        if (vercelResult.ok) {
+          console.log(`[Admin Settings Update] Vercel: ${vercelResult.updated.length}개 환경변수 업데이트 완료`);
+        } else {
+          console.warn(`[Admin Settings Update] Vercel 업데이트 일부 실패:`, vercelResult.errors);
+        }
+      } catch (error) {
+        console.error('[Admin Settings Update] Vercel 업데이트 중 오류:', error);
+        vercelResult = {
+          ok: false,
+          updated: [],
+          errors: [`Vercel 업데이트 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`],
+        };
       }
     }
 
@@ -138,12 +167,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 메시지 구성
+    let message = `${updatedKeys.length}개의 환경 변수가 로컬(.env.local)에 업데이트되었습니다.`;
+    let warning = '변경사항을 적용하려면 서버를 재시작해야 합니다.';
+    
+    if (vercelResult) {
+      if (vercelResult.updated.length > 0) {
+        message += `\nVercel: ${vercelResult.updated.length}개 환경변수 업데이트 완료.`;
+        warning = 'Vercel 환경변수는 자동으로 반영되며, 새 배포가 필요할 수 있습니다.';
+      }
+      if (vercelResult.errors.length > 0) {
+        message += `\nVercel 업데이트 경고: ${vercelResult.errors.length}개 실패`;
+      }
+    } else if (!hasVercelConfig) {
+      message += '\n⚠️ Vercel 자동 업데이트를 사용하려면 VERCEL_API_TOKEN과 VERCEL_PROJECT_ID를 설정하세요.';
+    }
+
     return NextResponse.json({
       ok: true,
       updatedKeys,
+      vercelUpdated: vercelResult?.updated || [],
+      vercelErrors: vercelResult?.errors || [],
       errors: errors.length > 0 ? errors : undefined,
-      message: `${updatedKeys.length}개의 환경 변수가 업데이트되었습니다.${errors.length > 0 ? ` (${errors.length}개 실패)` : ''}`,
-      warning: '변경사항을 적용하려면 서버를 재시작해야 합니다.',
+      message,
+      warning,
     });
   } catch (error) {
     console.error('[Admin Settings Update] Error:', error);

@@ -36,17 +36,48 @@ export async function POST(req: Request) {
     const isTrialUser = !!userWithTestMode?.testModeStartedAt;
     logger.debug('[Stream API] User type:', { isTrialUser, userId: user.id });
 
-    // 환경 변수에서 API 키 가져오기
+    // 환경 변수에서 API 키 가져오기 (GEMINI_API_KEY 우선 사용)
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    
+    // GOOGLE_GENERATIVE_AI_API_KEY가 잘못된 형식이면 경고
+    if (process.env.GOOGLE_GENERATIVE_AI_API_KEY && 
+        (process.env.GOOGLE_GENERATIVE_AI_API_KEY.length < 30 || !process.env.GOOGLE_GENERATIVE_AI_API_KEY.startsWith('AIza'))) {
+      logger.warn('[Stream API] GOOGLE_GENERATIVE_AI_API_KEY has invalid format, using GEMINI_API_KEY instead:', {
+        GOOGLE_GENERATIVE_AI_API_KEY_length: process.env.GOOGLE_GENERATIVE_AI_API_KEY.length,
+        GEMINI_API_KEY_length: process.env.GEMINI_API_KEY?.length || 0
+      });
+    }
+    
     logger.debug('[Stream API] API key check:', {
       hasGEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
+      GEMINI_API_KEY_length: process.env.GEMINI_API_KEY?.length || 0,
       hasGOOGLE_GENERATIVE_AI_API_KEY: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-      apiKeyLength: apiKey?.length || 0
+      GOOGLE_GENERATIVE_AI_API_KEY_length: process.env.GOOGLE_GENERATIVE_AI_API_KEY?.length || 0,
+      apiKeyLength: apiKey?.length || 0,
+      apiKeyPrefix: apiKey?.substring(0, 10) || 'N/A',
+      usingKey: process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : 'GOOGLE_GENERATIVE_AI_API_KEY'
     });
     
     if (!apiKey) {
       logger.error('[Stream API] Missing Gemini API key');
       return new Response(JSON.stringify({ error: 'Server configuration error: Missing API key. Please set GEMINI_API_KEY environment variable.' }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    // API 키 형식 검증 (Gemini API 키는 보통 39자이고 "AIza"로 시작)
+    if (apiKey.length < 30 || !apiKey.startsWith('AIza')) {
+      logger.error('[Stream API] Invalid API key format:', {
+        length: apiKey.length,
+        prefix: apiKey.substring(0, 10),
+        expectedLength: '39 characters',
+        expectedPrefix: 'AIza'
+      });
+      return new Response(JSON.stringify({ 
+        error: 'Invalid API key format. GEMINI_API_KEY should be approximately 39 characters and start with "AIza". Please check your Vercel environment variables.',
+        details: `Current key length: ${apiKey.length}, prefix: ${apiKey.substring(0, 10)}...`
+      }), { 
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -270,6 +301,82 @@ export async function POST(req: Request) {
       logger.error('[Stream API] Gemini API error:', response.status, errorText);
       logger.error('[Stream API] Request URL was:', url.replace(/key=[^&]+/, 'key=***'));
       logger.error('[Stream API] Model name used:', modelName);
+      
+      // 403 에러인 경우 API 키 문제 (유출된 키 등)
+      if (response.status === 403) {
+        let errorMessage = 'Gemini API 접근이 거부되었습니다 (403).';
+        let suggestion = 'API 키를 확인해주세요.';
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          const apiErrorMessage = errorJson?.error?.message || '';
+          
+          if (apiErrorMessage.includes('leaked') || apiErrorMessage.includes('reported as leaked')) {
+            errorMessage = 'API 키가 유출로 보고되어 차단되었습니다.';
+            suggestion = '새로운 API 키를 발급받아 GEMINI_API_KEY 환경 변수를 업데이트해주세요.';
+          } else if (apiErrorMessage.includes('PERMISSION_DENIED')) {
+            errorMessage = 'API 키 권한이 없습니다.';
+            suggestion = 'API 키가 올바른지, 그리고 Gemini API가 활성화되어 있는지 확인해주세요.';
+          } else if (apiErrorMessage) {
+            errorMessage = `API 오류: ${apiErrorMessage}`;
+          }
+        } catch (e) {
+          // JSON 파싱 실패 시 원본 에러 텍스트 사용
+          if (errorText.includes('leaked') || errorText.includes('reported as leaked')) {
+            errorMessage = 'API 키가 유출로 보고되어 차단되었습니다.';
+            suggestion = '새로운 API 키를 발급받아 GEMINI_API_KEY 환경 변수를 업데이트해주세요.';
+          }
+        }
+        
+        return new Response(JSON.stringify({ 
+          error: errorMessage,
+          details: errorText,
+          suggestion: suggestion,
+          status: 403
+        }), { 
+          status: 500, // 클라이언트에는 500으로 반환 (내부 서버 설정 오류로 처리)
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // 400 에러인 경우 API 키 문제일 가능성이 높음
+      if (response.status === 400) {
+        let errorMessage = 'Gemini API 키가 유효하지 않습니다 (400).';
+        let suggestion = 'Vercel 환경변수에서 GEMINI_API_KEY를 확인하고 올바른 키로 업데이트해주세요.';
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          const apiErrorMessage = errorJson?.error?.message || '';
+          
+          if (apiErrorMessage.includes('API key not valid') || apiErrorMessage.includes('INVALID_ARGUMENT')) {
+            errorMessage = 'API 키가 유효하지 않거나 잘못되었습니다.';
+            suggestion = `1. Google AI Studio (https://aistudio.google.com/apikey)에서 새 API 키 발급\n2. Vercel → Settings → Environment Variables → GEMINI_API_KEY 업데이트\n3. Redeploy 실행\n\n현재 키 길이: ${apiKey.length}자 (정상: 약 39자)`;
+          } else if (apiErrorMessage) {
+            errorMessage = `API 오류: ${apiErrorMessage}`;
+          }
+        } catch (e) {
+          // JSON 파싱 실패 시 원본 에러 텍스트 사용
+          if (errorText.includes('API key not valid') || errorText.includes('INVALID_ARGUMENT')) {
+            errorMessage = 'API 키가 유효하지 않습니다.';
+            suggestion = `Vercel 환경변수에서 GEMINI_API_KEY를 확인해주세요. 현재 키 길이: ${apiKey.length}자`;
+          }
+        }
+        
+        return new Response(JSON.stringify({ 
+          error: errorMessage,
+          details: errorText,
+          suggestion: suggestion,
+          status: 400,
+          apiKeyInfo: {
+            length: apiKey.length,
+            prefix: apiKey.substring(0, 10) + '...',
+            isValidFormat: apiKey.length >= 30 && apiKey.startsWith('AIza')
+          }
+        }), { 
+          status: 500, // 클라이언트에는 500으로 반환 (내부 서버 설정 오류로 처리)
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
       
       // 404 에러인 경우 모델 이름 문제일 가능성이 높음
       if (response.status === 404) {
