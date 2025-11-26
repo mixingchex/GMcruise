@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiDownloadCloud, FiSmartphone } from 'react-icons/fi';
+import { FiDownloadCloud, FiSmartphone, FiX } from 'react-icons/fi';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: Array<string>;
@@ -16,6 +16,7 @@ export default function PWAInstallButtonMall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
     // iOS 체크
@@ -28,18 +29,8 @@ export default function PWAInstallButtonMall() {
                       (window.navigator as any).standalone === true;
     setIsStandalone(standalone);
 
-    // Service Worker 등록 (PWA 설치 조건 만족을 위해)
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js', {
-        scope: '/',
-      }).then((registration) => {
-        console.log('[PWA Install Mall] Service Worker 등록 완료:', registration.scope);
-      }).catch((error) => {
-        console.warn('[PWA Install Mall] Service Worker 등록 실패:', error);
-      });
-    }
-
     // PWA 설치 프롬프트 이벤트 리스너
+    // Service Worker는 PWASetup 컴포넌트에서 페이지 로드 시 등록됨
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -55,38 +46,9 @@ export default function PWAInstallButtonMall() {
 
   const handleInstallClick = async () => {
     if (isIOS) {
-      // iOS는 프로그래밍적으로 설치 프롬프트를 띄울 수 없으므로 조용히 처리
-      console.log('[PWA Install Mall] iOS에서는 Safari 공유 버튼을 통해 수동으로 추가해야 합니다.');
+      // iOS는 프로그래밍적으로 설치 프롬프트를 띄울 수 없으므로 수동 설치 가이드 표시
+      setShowIOSGuide(true);
       return;
-    }
-
-    // manifest 링크를 mall로 강제 변경 (다른 버튼이 덮어쓴 경우 대비)
-    const link = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
-    if (link) {
-      link.href = '/manifest-mall.json';
-      console.log('[PWA Install Mall] manifest를 /manifest-mall.json으로 변경');
-    } else {
-      // manifest 링크가 없으면 생성
-      const newLink = document.createElement('link');
-      newLink.rel = 'manifest';
-      newLink.href = '/manifest-mall.json';
-      document.head.appendChild(newLink);
-      console.log('[PWA Install Mall] manifest 링크 생성: /manifest-mall.json');
-    }
-    
-    // 페이지 새로고침하여 manifest 변경사항 적용 (필요시)
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Service Worker 등록 (PWA 설치 조건 만족을 위해)
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/',
-        });
-        console.log('[PWA Install] Service Worker 등록 완료:', registration.scope);
-      } catch (error) {
-        console.warn('[PWA Install] Service Worker 등록 실패:', error);
-      }
     }
 
     // deferredPrompt가 있으면 바로 설치 프롬프트 표시
@@ -183,8 +145,9 @@ export default function PWAInstallButtonMall() {
       return;
     }
 
-    // 여전히 프롬프트가 없으면 조용히 실패 처리 (alert 제거)
-    console.warn('[PWA Install Mall] beforeinstallprompt 이벤트가 발생하지 않았습니다. 브라우저가 자동 설치를 지원하지 않거나 이미 설치되어 있을 수 있습니다.');
+    // 여전히 프롬프트가 없으면 사용자에게 안내
+    console.warn('[PWA Install Mall] beforeinstallprompt 이벤트가 발생하지 않았습니다.');
+    alert('자동 설치가 지원되지 않는 브라우저입니다.\n\nAndroid Chrome에서는 자동 설치가 가능하며, 다른 브라우저에서는 수동으로 설치해주세요.\n\n설치 방법:\n1. 브라우저 메뉴(⋮) 클릭\n2. "앱 설치" 또는 "홈 화면에 추가" 선택');
   };
 
   // 이미 설치되어 있으면 버튼 숨김
@@ -196,16 +159,68 @@ export default function PWAInstallButtonMall() {
     );
   }
 
-  // 항상 버튼 표시 (설치 가능 여부와 관계없이)
   return (
-    <button
-      onClick={handleInstallClick}
-      disabled={false}
-      className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 ease-in-out transform hover:scale-105 border-2 border-gray-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-    >
-      <FiSmartphone className="text-2xl" />
-      <span className="text-lg">📲 크루즈몰 바탕화면에 추가하기</span>
-    </button>
+    <>
+      {/* iOS 설치 가이드 모달 */}
+      {showIOSGuide && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900">iOS에서 홈 화면에 추가하기</h3>
+              <button
+                onClick={() => setShowIOSGuide(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                iOS Safari에서는 자동 설치가 지원되지 않습니다. 아래 방법으로 수동으로 추가해주세요.
+              </p>
+              <ol className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">1</span>
+                  <span>Safari 하단의 <strong>공유 버튼(□↑)</strong> 클릭</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">2</span>
+                  <span>스크롤하여 <strong>"홈 화면에 추가"</strong> 선택</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">3</span>
+                  <span><strong>"추가"</strong> 버튼 클릭</span>
+                </li>
+              </ol>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
+                <p className="text-sm text-yellow-800">
+                  💡 <strong>참고:</strong> Android Chrome에서는 버튼 클릭 시 자동으로 설치할 수 있습니다.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowIOSGuide(false)}
+              className="w-full mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 설치 버튼 */}
+      <button
+        onClick={handleInstallClick}
+        disabled={false}
+        className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 ease-in-out transform hover:scale-105 border-2 border-gray-300 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+      >
+        <FiSmartphone className="text-2xl" />
+        <span className="text-lg">📲 크루즈몰 바탕화면에 추가하기</span>
+        {isIOS && (
+          <span className="text-xs text-gray-500 ml-2">(수동 설치)</span>
+        )}
+      </button>
+    </>
   );
 }
 

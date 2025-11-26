@@ -5,9 +5,11 @@ import { validateEnv } from "@/lib/env";
 import { initializeApp } from "@/lib/init";
 import Providers from "./providers";
 import ConditionalBottomNavBar from "@/components/layout/ConditionalBottomNavBar";
+import ConditionalBottomPadding from "@/components/layout/ConditionalBottomPadding";
 import ConditionalPushNotification from "@/components/ConditionalPushNotification";
 import MarketingPixelsLoader from "@/components/marketing/MarketingPixelsLoader";
 import ConditionalSEO from "@/components/seo/ConditionalSEO";
+import PWASetup from "@/components/PWASetup";
 import Script from "next/script";
 
 if (typeof window === "undefined") {
@@ -205,11 +207,12 @@ export default async function RootLayout({
         />
         
         <ConditionalSEO />
+        <PWASetup />
         <Providers>
           <MarketingPixelsLoader />
-          <div className="pb-20" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom))" }}>
+          <ConditionalBottomPadding>
             {children}
-          </div>
+          </ConditionalBottomPadding>
           <ConditionalBottomNavBar />
           <ConditionalPushNotification />
         </Providers>
