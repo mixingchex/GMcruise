@@ -469,27 +469,20 @@ export async function POST(req: Request) {
         } else {
           // 기존 사용자: 이름/전화번호/비밀번호 업데이트 (입력한 값으로 업데이트, 중복이면 수정)
           // 비밀번호를 1101로 업데이트하여 무조건 로그인 가능하게 함
+          // 비밀번호 1101로 로그인하면 무조건 무료체험 사용자로 전환 (유료 고객 상태 무시)
           await prisma.user.update({
             where: { id: testUser.id },
             data: {
               name: name || testUser.name, // 입력한 이름으로 업데이트
               phone: phone || testUser.phone, // 입력한 전화번호로 업데이트
               password: normalizedTestPassword, // 비밀번호를 1101로 업데이트 (무조건 로그인 가능)
+              customerSource: 'test-guide', // 무조건 무료체험 사용자로 전환 (유료 고객이어도 무시)
             },
           });
           testUser.name = name || testUser.name;
           testUser.phone = phone || testUser.phone;
           testUser.password = normalizedTestPassword;
-          
-          // customerSource는 기존 값 유지 (구매고객이 3일체험 하는 경우 'cruise-guide' 유지)
-          // 단, customerSource가 없으면 'test-guide'로 설정
-          if (!testUser.customerSource) {
-            await prisma.user.update({
-              where: { id: testUser.id },
-              data: { customerSource: 'test-guide' },
-            });
-            testUser.customerSource = 'test-guide';
-          }
+          testUser.customerSource = 'test-guide'; // 무료체험 사용자로 강제 전환
         }
 
         const now = new Date();
@@ -625,19 +618,18 @@ export async function POST(req: Request) {
         }
 
         // 테스트 모드 활성화
-        // customerStatus는 기존 값 유지 (구매고객이 3일체험 하는 경우 'active' 유지)
-        // 단, customerStatus가 없거나 'locked'인 경우에만 'test'로 설정
+        // 비밀번호 1101로 로그인하면 무조건 무료체험 사용자로 전환 (유료 고객이어도 무시)
         // 72시간 경과 시 'test-locked'로 이미 설정되었으므로 덮어쓰지 않음
-        const shouldSetTestStatus = !isExpired && (!testUser.customerStatus || testUser.customerStatus === 'locked');
+        const shouldSetTestStatus = !isExpired; // 72시간 경과가 아니면 무조건 'test'로 설정
         await prisma.user.update({
           where: { id: testUser.id },
           data: {
-            ...(shouldSetTestStatus && { customerStatus: 'test' }), // 기존 상태가 있으면 유지, 72시간 경과 시에는 test-locked 유지
+            ...(shouldSetTestStatus && { customerStatus: 'test' }), // 무조건 무료체험 모드로 전환 (유료 고객 상태 무시)
             testModeStartedAt: testModeStartedAt || now, // null 체크 후 할당
             isLocked: false,
             isHibernated: false,
             loginCount: { increment: 1 },
-            customerSource: trialCode ? 'trial-invite-link' : (testUser.customerSource || 'test-guide'), // customerSource는 기존 값 유지 (구매고객이면 'cruise-guide' 유지)
+            customerSource: trialCode ? 'trial-invite-link' : 'test-guide', // 무조건 무료체험 사용자로 전환 (유료 고객이어도 무시)
             password: normalizedTestPassword, // 비밀번호는 항상 1101로 업데이트
           },
         });
@@ -918,7 +910,8 @@ export async function POST(req: Request) {
         }
 
         const userId = testUser.id;
-        const next = '/chat-test'; // 테스트 모드는 별도 경로로 이동
+        // 비밀번호 1101 = 크루즈 가이드 지니 3일 체험 → /chat-test로 강제 리다이렉트
+        const next = '/chat-test';
 
         // 기존 세션 정리 (동시 로그인 방지 및 세션 테이블 정리)
         try {
@@ -2132,6 +2125,8 @@ export async function POST(req: Request) {
     }
 
     let userId: number;
+    // 비밀번호 3800 = 크루즈 가이드 지니 (일반) → /chat으로 리다이렉트
+    // 비밀번호 1101 = 크루즈 가이드 지니 3일 체험 → /chat-test로 리다이렉트 (위에서 이미 처리됨)
     let next = '/chat';
 
     if (existing) {
@@ -2151,7 +2146,8 @@ export async function POST(req: Request) {
       // 관리자 패널에서 온보딩 등록되어 있고 활성 상태인 고객은 자동으로 채팅으로 이동
       // customerStatus가 null이면 활성 상태로 간주 (하위 호환성)
       const isActive = existing.customerStatus === 'active' || existing.customerStatus === null;
-      next = '/chat'; // 항상 채팅으로 이동
+      // 비밀번호 3800 = 크루즈 가이드 지니 (일반) → /chat으로 리다이렉트
+      next = '/chat';
       
       console.log('[Login] 리다이렉트 결정:', {
         userId: existing.id,
@@ -2177,7 +2173,8 @@ export async function POST(req: Request) {
       });
       // @ts-ignore
       userId = created.id as unknown as number;
-      next = '/chat'; // 신규 고객도 바로 채팅으로 이동
+      // 비밀번호 3800 = 크루즈 가이드 지니 (일반) → /chat으로 리다이렉트
+      next = '/chat';
     }
 
     // 기존 세션 정리 (동시 로그인 방지 및 세션 테이블 정리)
@@ -2225,6 +2222,17 @@ export async function POST(req: Request) {
     // 생애주기 관리: 재활성화 및 활동 시각 업데이트
     await reactivateUser(userId);
     await updateLastActive(userId);
+
+    // 최종 안전장치: 비밀번호 기반으로 리다이렉트 경로 강제 설정
+    // 비밀번호 1101 = 크루즈 가이드 지니 3일 체험 → /chat-test
+    // 비밀번호 3800 = 크루즈 가이드 지니 (일반) → /chat
+    if (password === '1101') {
+      next = '/chat-test';
+      console.log('[Login] 비밀번호 1101 감지 - /chat-test로 강제 리다이렉트');
+    } else if (password === '3800') {
+      next = '/chat';
+      console.log('[Login] 비밀번호 3800 감지 - /chat으로 리다이렉트');
+    }
 
     return NextResponse.json({ 
       ok: true, 

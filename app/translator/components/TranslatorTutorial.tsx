@@ -5,11 +5,6 @@ import { useState } from 'react';
 
 const STEPS = [
   {
-    title: '사진을 찍으면 메뉴판을 번역해드려요!',
-    description: '일본어, 중국어 메뉴판도 한글로 보세요. 상단의 📷 사진으로 번역 버튼을 눌러보세요.',
-    emoji: '📷',
-  },
-  {
     title: '말하기 버튼을 꾹 누르고 말하세요',
     description: '한국어로 말하면 자동으로 번역됩니다. 버튼을 누른 채로 말씀하시면 됩니다.',
     emoji: '🎤',

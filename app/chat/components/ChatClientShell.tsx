@@ -8,6 +8,7 @@ import { ChatMessage, TextMessage } from '@/lib/chat-types';
 import { ChatMessageSkeleton } from '@/components/ui/Skeleton';
 import { csrfFetch } from '@/lib/csrf-client';
 import tts, { extractPlainText } from '@/lib/tts';
+import { checkTestModeClient } from '@/lib/test-mode-client';
 
 // 성능 최적화: 큰 컴포넌트들을 동적 임포트
 const ChatWindow = dynamic(() => import('@/components/ChatWindow'), {
@@ -42,6 +43,21 @@ export default function ChatClientShell({
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const prevModeRef = useRef<ChatInputMode | null>(null); // 이전 모드 추적
   const hasLoadedHistoryRef = useRef(false); // 히스토리 로드 여부 추적
+  const [isTestMode, setIsTestMode] = useState(false); // test 모드 여부
+
+  // test 모드 확인
+  useEffect(() => {
+    const checkTestMode = async () => {
+      try {
+        const testModeInfo = await checkTestModeClient();
+        setIsTestMode(testModeInfo.isTestMode);
+      } catch (error) {
+        console.error('[ChatClientShell] Test mode check error:', error);
+        setIsTestMode(false);
+      }
+    };
+    checkTestMode();
+  }, []);
 
   // 초기 마운트 시 채팅 히스토리 불러오기
   useEffect(() => {
@@ -56,11 +72,15 @@ export default function ChatClientShell({
       
       try {
         setIsLoading(true);
-        // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리)
-        const sessionId = mode === 'general' ? 'general' : 
+        // test 모드 확인
+        const testModeInfo = await checkTestModeClient();
+        const testSuffix = testModeInfo.isTestMode ? '_test' : '';
+        
+        // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리 + test 모드 구분)
+        const sessionId = (mode === 'general' ? 'general' : 
                          mode === 'go' ? 'go' : 
                          mode === 'show' ? 'show' : 
-                         mode === 'translate' ? 'translate' : 'default';
+                         mode === 'translate' ? 'translate' : 'default') + testSuffix;
         
         const response = await fetch(`/api/chat/history?sessionId=${sessionId}`, {
           credentials: 'include',
@@ -116,11 +136,15 @@ export default function ChatClientShell({
   const saveChatHistory = async (messagesToSave: ChatMessage[]) => {
     if (!ENABLE_CHAT_HISTORY) return;
     try {
-      // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리)
-      const sessionId = mode === 'general' ? 'general' : 
+      // test 모드 확인
+      const testModeInfo = await checkTestModeClient();
+      const testSuffix = testModeInfo.isTestMode ? '_test' : '';
+      
+      // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리 + test 모드 구분)
+      const sessionId = (mode === 'general' ? 'general' : 
                        mode === 'go' ? 'go' : 
                        mode === 'show' ? 'show' : 
-                       mode === 'translate' ? 'translate' : 'default';
+                       mode === 'translate' ? 'translate' : 'default') + testSuffix;
       
       // ChatMessage 형식을 API 형식으로 변환
       const apiMessages = messagesToSave.map(msg => {

@@ -29,7 +29,7 @@ async function main() {
     const post = await prisma.communityPost.findUnique({
       where: { id: postId },
       include: {
-        Comments: true
+        CommunityComment: true
       }
     });
 
@@ -91,13 +91,13 @@ async function main() {
     const updatedPost = await prisma.communityPost.findUnique({
       where: { id: postId },
       include: {
-        Comments: true
+        CommunityComment: true
       }
     });
 
     console.log(`\n✅ 설정 완료!`);
     console.log(`   최종 좋아요: ${updatedPost.likes}`);
-    console.log(`   최종 댓글 수: ${updatedPost.Comments.length}`);
+    console.log(`   최종 댓글 수: ${updatedPost.CommunityComment.length}`);
 
   } catch (error) {
     console.error('❌ 오류 발생:', error);

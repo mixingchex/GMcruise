@@ -117,7 +117,7 @@ async function main() {
     const post = await prisma.communityPost.findUnique({
       where: { id: postId },
       include: {
-        Comments: true
+        CommunityComment: true
       }
     });
 
@@ -174,16 +174,16 @@ async function main() {
     const updatedPost = await prisma.communityPost.findUnique({
       where: { id: postId },
       include: {
-        Comments: {
+        CommunityComment: {
           orderBy: { createdAt: 'asc' }
         }
       }
     });
 
     console.log(`\n✅ 설정 완료!`);
-    console.log(`   최종 댓글 수: ${updatedPost.Comments.length}`);
+    console.log(`   최종 댓글 수: ${updatedPost.CommunityComment.length}`);
     console.log(`\n작성된 댓글 미리보기:`);
-    updatedPost.Comments.forEach((comment, idx) => {
+    updatedPost.CommunityComment.forEach((comment, idx) => {
       console.log(`   ${idx + 1}. [${comment.authorName}] ${comment.content.substring(0, 60)}...`);
     });
 

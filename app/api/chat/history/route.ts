@@ -23,7 +23,25 @@ export async function GET(req: NextRequest) {
 
     const tripIdParam = req.nextUrl.searchParams.get('tripId');
     const tripId = tripIdParam ? parseInt(tripIdParam) : null;
-    const sessionId = req.nextUrl.searchParams.get('sessionId') || 'default';
+    let sessionId = req.nextUrl.searchParams.get('sessionId') || 'default';
+
+    // 사용자의 test 모드 여부 확인
+    const userFromDb = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { customerStatus: true },
+    });
+    const isTestMode = userFromDb?.customerStatus === 'test';
+    
+    // sessionId에 test 모드 여부가 포함되어 있는지 확인하고, 없으면 추가
+    // test 모드 사용자는 _test 접미사가 있어야 하고, 일반 사용자는 없어야 함
+    const hasTestSuffix = sessionId.endsWith('_test');
+    if (isTestMode && !hasTestSuffix) {
+      // test 모드 사용자인데 _test 접미사가 없으면 추가
+      sessionId = sessionId + '_test';
+    } else if (!isTestMode && hasTestSuffix) {
+      // 일반 사용자인데 _test 접미사가 있으면 제거
+      sessionId = sessionId.replace(/_test$/, '');
+    }
 
     // 가장 최근 히스토리 조회
     const history = await prisma.chatHistory.findFirst({
@@ -76,13 +94,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { messages, tripId, sessionId = 'default' } = await req.json();
+    let { messages, tripId, sessionId = 'default' } = await req.json();
 
     if (!Array.isArray(messages)) {
       return NextResponse.json(
         { ok: false, error: '메시지 배열이 필요합니다' },
         { status: 400 }
       );
+    }
+
+    // 사용자의 test 모드 여부 확인
+    const userFromDb = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { customerStatus: true },
+    });
+    const isTestMode = userFromDb?.customerStatus === 'test';
+    
+    // sessionId에 test 모드 여부가 포함되어 있는지 확인하고, 없으면 추가
+    // test 모드 사용자는 _test 접미사가 있어야 하고, 일반 사용자는 없어야 함
+    const hasTestSuffix = sessionId.endsWith('_test');
+    if (isTestMode && !hasTestSuffix) {
+      // test 모드 사용자인데 _test 접미사가 없으면 추가
+      sessionId = sessionId + '_test';
+    } else if (!isTestMode && hasTestSuffix) {
+      // 일반 사용자인데 _test 접미사가 있으면 제거
+      sessionId = sessionId.replace(/_test$/, '');
     }
 
     // tripId가 있으면 여행 소유권 확인 (UserTrip 사용)

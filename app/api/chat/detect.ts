@@ -119,6 +119,30 @@ export function gmapSearch(query: string) {
 
 // 근처 키워드
 export const NEARBY_KEYWORDS = ["스타벅스", "카페", "편의점", "마트", "market", "식당", "약국", "호텔"];
+
+// 검색 키워드 (NEARBY_KEYWORDS 확장)
+export const SEARCH_KEYWORDS = [
+  ...NEARBY_KEYWORDS,
+  "맛집", "restaurant", "food", "dining", "eatery",
+  "관광지", "tourist", "attraction", "sightseeing", "landmark", "spot",
+  "은행", "bank",
+  "병원", "hospital", "clinic", "medical",
+  "주유소", "gas station", "gasoline", "petrol",
+  "ATM", "atm",
+  "마트", "supermarket", "grocery",
+  "약국", "pharmacy", "drugstore",
+  "호텔", "hotel", "accommodation"
+];
+
 export function extractNearbyKeyword(t: string) {
   return NEARBY_KEYWORDS.find(k => t.toLowerCase().includes(k.toLowerCase()));
+}
+
+export function extractSearchKeyword(t: string): string | null {
+  const lower = t.toLowerCase();
+  return SEARCH_KEYWORDS.find(k => lower.includes(k.toLowerCase())) || null;
+}
+
+export function isKeywordSearch(text: string): boolean {
+  return extractSearchKeyword(text) !== null;
 } 

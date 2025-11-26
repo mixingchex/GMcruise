@@ -407,9 +407,13 @@ export default function ChecklistPage() {
         if (formattedItems.length === 0 && !skipError && !hasCreatedDefaultsRef.current) {
           hasCreatedDefaultsRef.current = true;
           const defaultItems = getDefaultItems();
+          // 즉시 UI에 표시
           setItems(defaultItems);
           // 백그라운드에서 서버에 저장 (한 번만 실행되도록 플래그 사용)
-          createDefaultItemsOnServer(defaultItems).catch(console.error);
+          createDefaultItemsOnServer(defaultItems).catch((error) => {
+            console.error('[Checklist] Error creating default items:', error);
+            // 서버 저장 실패해도 UI에는 표시됨
+          });
         } else {
           setItems(formattedItems);
         }
@@ -424,7 +428,8 @@ export default function ChecklistPage() {
       }
       
       // 401이나 429 오류가 아니고, 아직 기본 항목을 생성하지 않았으면 생성
-      if (err.message && !err.message.includes('인증') && !err.message.includes('너무 많') && !hasCreatedDefaultsRef.current) {
+      const errorMessage = err?.message || '';
+      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많') && !hasCreatedDefaultsRef.current) {
         hasCreatedDefaultsRef.current = true;
         const defaultItems = getDefaultItems();
         setItems(defaultItems);
@@ -439,10 +444,17 @@ export default function ChecklistPage() {
   // 마운트 시 불러오기 및 마이그레이션
   useEffect(() => {
     // 먼저 localStorage에서 서버로 마이그레이션 (한 번만)
-    migrateFromLocalStorage().then(() => {
-      // 마이그레이션 후 서버에서 로드
-      loadItems();
-    });
+    // 마이그레이션이 실패해도 loadItems는 실행되도록 보장
+    migrateFromLocalStorage()
+      .then(() => {
+        // 마이그레이션 후 서버에서 로드
+        loadItems();
+      })
+      .catch((error) => {
+        // 마이그레이션 실패해도 로드 시도
+        console.error('[Checklist] Migration error, loading items anyway:', error);
+        loadItems();
+      });
     
     // iOS 키보드 가림 방지용 safest area 여백
     document.body.classList.add('pb-24', 'sm:pb-0');

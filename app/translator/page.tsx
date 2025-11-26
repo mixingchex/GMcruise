@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { FiArrowLeft, FiCamera, FiMic, FiMicOff } from 'react-icons/fi';
+import { FiArrowLeft, FiMic, FiMicOff } from 'react-icons/fi';
 import { csrfFetch } from '@/lib/csrf-client';
 import dynamic from 'next/dynamic';
 import { trackFeature } from '@/lib/analytics';
@@ -159,8 +159,6 @@ export default function TranslatorPage() {
   const [finalText, setFinalText] = useState(''); // 최종 확정된 텍스트
   const [interimText, setInterimText] = useState(''); // 인식 중인 텍스트 (실시간 업데이트)
 
-  // 카메라 입력
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // 기능 사용 추적
   useEffect(() => {
@@ -657,53 +655,6 @@ export default function TranslatorPage() {
     speak(translated, pair.to.code);
   }
 
-  // 사진 번역
-  async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append('image', file);
-    try {
-      const res = await csrfFetch('/api/vision', { method: 'POST', body: fd });
-      
-      if (!res.ok) {
-        throw new Error(`서버 오류: ${res.status}`);
-      }
-      
-      const data = await res.json();
-      
-      // API 응답이 실패했을 때 처리
-      if (!data?.success) {
-        const errorMsg = data?.error || data?.translatedText || '이미지 분석에 실패했습니다. 다시 시도해주세요.';
-        alert(`❌ ${errorMsg}`);
-        return;
-      }
-      
-      // 한국어 번역 결과만 사용 (원본 텍스트 제거, TTS 비활성화)
-      const translated = data?.translatedText || data?.fullResponse || '번역 실패';
-      
-      setItems((prev) => [
-        {
-          id: Date.now().toString(),
-          from: { flag: '🖼️', name: '이미지', code: undefined },
-          to: { flag: '🇰🇷', name: '한국어', code: 'ko-KR' }, // 언어 코드 추가
-          source: '', // 원본 텍스트 제거
-          translated, // 한국어 번역만 표시
-          when: new Date().toLocaleTimeString('ko-KR'),
-          kind: 'photo',
-        },
-        ...prev,
-      ]);
-      // TTS 제거: speak(translated, 'ko-KR'); 삭제 - 문자로만 표시
-    } catch (error: any) {
-      console.error('[Photo Translation Error]', error);
-      const errorMsg = error?.message || '이미지 분석 중 오류가 발생했습니다.';
-      alert(`❌ ${errorMsg}\n\n💡 해결 방법:\n1. 이미지 파일이 올바른 형식인지 확인 (JPG, PNG)\n2. 이미지 크기가 너무 크지 않은지 확인\n3. 인터넷 연결 확인`);
-    } finally {
-      // 같은 파일 다시 선택 가능하도록 reset
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  }
 
   // 언어 이름을 한국어에서 영어로 변환 (API 호출용) - API와 동일한 매핑 사용
   function getEnglishLanguageName(koreanName: string): string {
@@ -896,16 +847,6 @@ export default function TranslatorPage() {
             <span className="font-medium">뒤로가기</span>
           </button>
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">AI 통번역기</h1>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center gap-3 rounded-xl bg-green-600 text-white px-6 md:px-8 py-4 md:py-5 text-lg md:text-xl font-bold shadow-lg hover:bg-green-700 active:scale-95 transition-all min-h-[60px] md:min-h-[70px]"
-            >
-              <FiCamera size={28} className="md:w-8 md:h-8" />
-              <span>📷 사진으로 번역</span>
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPickImage} className="hidden" />
-          </div>
         </div>
         <div className="max-w-3xl mx-auto mt-3 flex flex-col sm:flex-row sm:items-center gap-3 text-base md:text-lg">
           <div className={`inline-flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-lg ${
@@ -1184,29 +1125,8 @@ export default function TranslatorPage() {
           {items.map((it) => (
             <div key={it.id} className="rounded-xl border-2 bg-white p-5 md:p-6 shadow-md">
               <div className="text-sm md:text-base text-gray-500 mb-3 font-semibold">{it.when} · {it.kind === 'photo' ? '📸 사진' : '🎤 음성'}</div>
-              {/* 사진 번역: 한국어만 표시 (원본 텍스트 없음) */}
-              {it.kind === 'photo' ? (
-                <div className="rounded-lg bg-blue-50 p-5 md:p-6">
-                  <div className="text-sm md:text-base text-blue-600 mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl md:text-2xl">{it.to.flag}</span>
-                      <span className="font-semibold">{it.to.name}</span>
-                    </div>
-                    {/* 사진 번역 결과 재생 버튼 */}
-                    {it.translated && (
-                      <button
-                        onClick={() => speak(it.translated, it.to.code || 'ko-KR')}
-                        className="text-blue-500 hover:text-blue-700 active:scale-110 transition-all text-xl md:text-2xl"
-                        title={`${it.to.name}로 재생`}
-                      >
-                        🔊
-                      </button>
-                    )}
-                  </div>
-                  <div className="text-xl md:text-2xl font-semibold text-gray-900 leading-relaxed">{it.translated}</div>
-                  {/* 사진 번역 결과는 항상 한국어이므로 발음 불필요 */}
-                </div>
-              ) : (
+              {/* 사진 번역 기능 제거됨 */}
+              {it.kind === 'photo' ? null : (
                 /* 음성 번역: 원본 + 번역 함께 표시 */
               <div className="grid gap-4 md:gap-5 sm:grid-cols-2">
                 <div className="rounded-lg bg-gray-50 p-4 md:p-5">

@@ -1606,7 +1606,20 @@ export default function DailyBriefingCard() {
                           <p className="text-xs text-gray-500 mb-2">
                             {date.toLocaleDateString('ko-KR', { weekday: 'short' })}
                           </p>
-                          <div className="text-2xl mb-1">{day.day.condition.icon}</div>
+                          <div className="mb-1 flex justify-center">
+                            {day.day.condition.icon ? (
+                              <img 
+                                src={day.day.condition.icon.startsWith('//') 
+                                  ? `https:${day.day.condition.icon}` 
+                                  : day.day.condition.icon
+                                }
+                                alt={day.day.condition.text}
+                                className="w-12 h-12"
+                              />
+                            ) : (
+                              <span className="text-2xl">🌤️</span>
+                            )}
+                          </div>
                           <p className="text-lg font-bold text-gray-900 mb-1">{Math.round(day.day.maxtemp_c)}°C</p>
                           <div className="flex items-center justify-center gap-1 text-xs text-gray-600 mb-1">
                             <span className="text-blue-600 font-semibold">↓{Math.round(day.day.mintemp_c)}°</span>
