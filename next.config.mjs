@@ -70,7 +70,7 @@ const nextConfig = {
       '@radix-ui/react-tabs',
       '@radix-ui/react-toast',
     ],
-    // Vercel Function 크기 줄이기 위해 불필요한 파일 제외 (강화 버전)
+    // Vercel Function 크기 줄이기 위해 불필요한 파일 제외 (최대 강화 버전)
     outputFileTracingExcludes: {
       '*': [
         // Node.js 바이너리 제외
@@ -89,14 +89,23 @@ const nextConfig = {
         'node_modules/prettier',
         'node_modules/eslint',
         'node_modules/typescript',
+        // Google APIs 불필요한 파일들
+        'node_modules/googleapis/build/src/apis/!(sheets|drive)/**',
+        'node_modules/google-auth-library/build/src/auth/!(googleauth|jwtclient|oauth2client).js',
+        'node_modules/gaxios/node_modules/**',
+        // Puppeteer 불필요한 파일들
+        'node_modules/puppeteer/.local-chromium/**',
+        'node_modules/puppeteer-core/.local-chromium/**',
         // Git 및 캐시
         '.git',
         '.next/cache',
         // 정적 파일 (동영상은 이미지로 대체되어 제외)
-        'public/videos/**',  // 모든 동영상을 고화질 이미지로 대체 (빠른 로딩)
+        'public/videos/**',
         'public/크루즈정보사진/**',
         'public/크루즈사진/**',
         'public/audio/**',
+        // 큰 데이터 파일
+        'data/image_manifest.json',
         // 스크립트 및 문서
         'scripts/**',
         '**/*.md',
@@ -111,8 +120,19 @@ const nextConfig = {
     },
   },
 
-  // Next.js 14+는 외부 패키지를 자동으로 처리하므로 serverExternalPackages 제거
-  // @prisma/client, @node-rs/argon2, sharp, canvas는 자동으로 최적화됨
+  // 큰 패키지들을 외부 패키지로 처리하여 번들 크기 줄이기
+  serverExternalPackages: [
+    '@prisma/client',
+    '@node-rs/argon2',
+    'sharp',
+    'canvas',
+    'googleapis',
+    'google-auth-library',
+    'gaxios',
+    'puppeteer',
+    'pdf-lib',
+    'bcryptjs',
+  ],
 
   // 라이브러리 임포트 최적화
   modularizeImports: {
