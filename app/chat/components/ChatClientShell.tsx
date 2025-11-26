@@ -1,16 +1,31 @@
 'use client';
 
-import ChatWindow from '@/components/ChatWindow';
 import type { ChatInputMode } from '@/lib/types';
-import SuggestChips from './suggestchips';
-import InputBar from './InputBar';
+import dynamic from 'next/dynamic';
 import { ChatInputPayload } from '@/components/chat/types';
 import { useState, useEffect, useRef } from 'react';
 import { ChatMessage, TextMessage } from '@/lib/chat-types';
-import DeleteChatHistoryModal from './DeleteChatHistoryModal';
 import { ChatMessageSkeleton } from '@/components/ui/Skeleton';
 import { csrfFetch } from '@/lib/csrf-client';
 import tts, { extractPlainText } from '@/lib/tts';
+
+// 성능 최적화: 큰 컴포넌트들을 동적 임포트
+const ChatWindow = dynamic(() => import('@/components/ChatWindow'), {
+  loading: () => <ChatMessageSkeleton />,
+  ssr: false,
+});
+
+const SuggestChips = dynamic(() => import('./suggestchips'), {
+  ssr: false,
+});
+
+const InputBar = dynamic(() => import('./InputBar'), {
+  ssr: false,
+});
+
+const DeleteChatHistoryModal = dynamic(() => import('./DeleteChatHistoryModal'), {
+  ssr: false,
+});
 
 const ENABLE_CHAT_HISTORY = true; // 채팅 히스토리 활성화
 

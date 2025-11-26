@@ -1,25 +1,99 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import ChatClientShell from './ChatClientShell';
-import DdayPushModal from '@/components/DdayPushModal'; // DdayPushModal 임포트
-import ddayMessages from '@/data/dday_messages.json'; // D-Day 메시지 데이터 임포트
+import dynamic from 'next/dynamic';
 import { getDdayMessage } from '@/lib/date-utils'; // D-Day 계산 함수 임포트
-import { ChatTabs } from '@/components/chat/ChatTabs'; // ChatTabs import
 import { ChatInputMode } from '@/lib/types';
-import DailyBriefingCard from './DailyBriefingCard'; // 데일리 브리핑 임포트
-import PushNotificationPrompt from '@/components/PushNotificationPrompt'; // 푸시 알림 프롬프트
-import { ReturnToShipBanner } from '@/components/ReturnToShipBanner'; // 배로 돌아가기 배너
-import AdminMessageModal from '@/components/AdminMessageModal'; // 관리자 메시지 모달
-import KakaoChannelButton from '@/components/KakaoChannelButton'; // 카카오 채널 추가 버튼
-import GenieAITutorial from './GenieAITutorial'; // 지니 AI 튜토리얼
+
+// 성능 최적화: 큰 컴포넌트들을 동적 임포트
+const ChatClientShell = dynamic(() => import('./ChatClientShell'), {
+  loading: () => (
+    <div className="animate-pulse space-y-4 p-4">
+      <div className="h-32 bg-gray-200 rounded"></div>
+      <div className="h-64 bg-gray-200 rounded"></div>
+    </div>
+  ),
+  ssr: false,
+});
+
+const DdayPushModal = dynamic(() => import('@/components/DdayPushModal'), {
+  ssr: false,
+});
+
+const ChatTabs = dynamic(() => import('@/components/chat/ChatTabs').then(mod => ({ default: mod.ChatTabs })), {
+  ssr: false,
+});
+
+const DailyBriefingCard = dynamic(() => import('./DailyBriefingCard'), {
+  loading: () => <div className="animate-pulse h-32 bg-gray-200 rounded"></div>,
+  ssr: false,
+});
+
+const PushNotificationPrompt = dynamic(() => import('@/components/PushNotificationPrompt'), {
+  ssr: false,
+});
+
+const ReturnToShipBanner = dynamic(() => import('@/components/ReturnToShipBanner').then(mod => ({ default: mod.ReturnToShipBanner })), {
+  ssr: false,
+});
+
+const AdminMessageModal = dynamic(() => import('@/components/AdminMessageModal'), {
+  ssr: false,
+});
+
+const KakaoChannelButton = dynamic(() => import('@/components/KakaoChannelButton'), {
+  ssr: false,
+});
+
+const GenieAITutorial = dynamic(() => import('./GenieAITutorial'), {
+  ssr: false,
+});
+
+// D-Day 메시지 타입 정의
+type DdayMessage = {
+  title: string;
+  message: string;
+};
+
+type DdayMessages = {
+  messages: Record<string, DdayMessage>;
+};
+
+// D-Day 메시지 데이터도 동적 임포트
+let ddayMessages: DdayMessages | null = null;
+const loadDdayMessages = async (): Promise<DdayMessages> => {
+  if (!ddayMessages) {
+    const module = await import('@/data/dday_messages.json');
+    ddayMessages = module.default as DdayMessages;
+  }
+  return ddayMessages;
+};
 
 export default function ChatInteractiveUI() {
   const [mode, setMode] = useState<ChatInputMode>('general');
   const [showDdayModal, setShowDdayModal] = useState(false);
   const [ddayMessageData, setDdayMessageData] = useState<{title: string; message: string} | null>(null);
   const [hasShownDdayModal, setHasShownDdayModal] = useState(false);
+  
+  // 성능 최적화: ddayMessages 동적 로딩
+  const [ddayMessagesData, setDdayMessagesData] = useState<DdayMessages | null>(null);
+  
+  useEffect(() => {
+    loadDdayMessages()
+      .then((data) => {
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          setDdayMessagesData(data);
+        } else {
+          console.warn('[ChatInteractiveUI] Invalid ddayMessages data format');
+          setDdayMessagesData({ messages: {} }); // 기본값
+        }
+      })
+      .catch((error) => {
+        console.error('[ChatInteractiveUI] Failed to load ddayMessages:', error);
+        setDdayMessagesData({ messages: {} }); // 기본값
+      });
+  }, []);
   
   // 동적 사용자 및 여행 정보
   const [userName, setUserName] = useState<string>('');
@@ -56,9 +130,8 @@ export default function ChatInteractiveUI() {
         setUserId(userData.user?.id);
         setUserPhone(userData.user?.phone || userData.data?.phone || null);
         
-        // 3일 체험 모드 확인 (testModeStartedAt이 있으면 체험 모드)
-        // 일단 일반 사용자와 동일하게 처리하되, 나중에 구분 가능하도록 준비
-        setIsTestMode(false); // 필요시 userData에서 testModeStartedAt 확인
+        // 결제 고객용이므로 테스트 모드 아님 (항상 false)
+        setIsTestMode(false);
 
         // 활성 여행 조회
         const tripResponse = await fetch('/api/trips/active');
@@ -159,19 +232,19 @@ export default function ChatInteractiveUI() {
 
     if (today < startDateObj) {
       const ddayKey = diffDays.toString();
-      if (ddayMessages.messages[ddayKey]) {
-        setDdayMessageData(ddayMessages.messages[ddayKey]);
+      if (ddayMessagesData?.messages?.[ddayKey]) {
+        setDdayMessageData(ddayMessagesData.messages[ddayKey]);
         setShowDdayModal(true);
         setHasShownDdayModal(false);
       }
     } else if (today.getTime() === startDateObj.getTime()) {
-      if (ddayMessages.messages["0"]) {
-        setDdayMessageData(ddayMessages.messages["0"]);
+      if (ddayMessagesData?.messages?.["0"]) {
+        setDdayMessageData(ddayMessagesData.messages["0"]);
         setShowDdayModal(true);
         setHasShownDdayModal(false);
       }
     }
-  }, [trip, hasShownDdayModal, userPhone]);
+  }, [trip, hasShownDdayModal, userPhone, ddayMessagesData]);
 
   const onChangeTab = (newMode: ChatInputMode) => {
     setMode(newMode);

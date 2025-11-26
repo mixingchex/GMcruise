@@ -1,10 +1,27 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiSearch, FiFilter, FiArrowUp, FiArrowDown, FiChevronLeft, FiChevronRight, FiUser, FiPlus, FiX, FiInfo, FiDownload } from 'react-icons/fi';
-import CustomerTable from '@/components/admin/CustomerTable';
+import dynamic from 'next/dynamic';
 import { Customer } from '@/types/customer';
+
+// 성능 최적화: 큰 컴포넌트를 동적 임포트로 분리하여 초기 번들 크기 감소
+const CustomerTable = dynamic(
+  () => import('@/components/admin/CustomerTable'),
+  {
+    loading: () => (
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-12 bg-gray-200 rounded"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-12 bg-gray-200 rounded"></div>
+        </div>
+      </div>
+    ),
+    ssr: false, // 클라이언트 전용 컴포넌트
+  }
+);
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
 
@@ -119,6 +136,10 @@ export default function CustomersPage() {
 
   // 검색어 debounce
   const [searchInput, setSearchInput] = useState('');
+  
+  // 로딩 중복 방지를 위한 ref
+  const isLoadingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // URL 파라미터 변경 시 customerGroup 업데이트
   useEffect(() => {
@@ -136,12 +157,23 @@ export default function CustomersPage() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  useEffect(() => {
-    loadCustomers();
-  }, [search, status, certificateType, monthFilter, sortBy, sortOrder, pagination.page, selectedManagerId, customerGroup, pageSize]);
-
-  const loadCustomers = async () => {
+  // loadCustomers를 useCallback으로 메모이제이션하여 불필요한 재생성 방지
+  const loadCustomers = useCallback(async () => {
+    // 중복 요청 방지
+    if (isLoadingRef.current) {
+      return;
+    }
+    
+    // 이전 요청 취소
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // 새로운 AbortController 생성
+    abortControllerRef.current = new AbortController();
+    
     try {
+      isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
 
@@ -158,9 +190,57 @@ export default function CustomersPage() {
         ...(customerGroup && { customerGroup }), // customerGroup 파라미터 전달 (all 포함)
       });
 
+      // 성능 최적화: 클라이언트 측 캐싱 (30초)
+      // 캐시 키 생성: undefined 값 처리로 정확성 향상
+      const cacheKey = `customers_${customerGroup || 'all'}_${search || ''}_${status || 'all'}_${certificateType || 'all'}_${monthFilter || ''}_${sortBy || 'createdAt'}_${sortOrder || 'desc'}_${pagination.page || 1}_${pageSize || 50}_${selectedManagerId || ''}`;
+      const CACHE_DURATION = 30 * 1000; // 30초
+      
+      // 캐시 확인
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        const cacheTime = sessionStorage.getItem(`${cacheKey}_time`);
+        const now = Date.now();
+        
+        if (cached && cacheTime) {
+          const cacheAge = now - parseInt(cacheTime, 10);
+          if (cacheAge < CACHE_DURATION) {
+            // 캐시된 데이터 사용
+            const data = JSON.parse(cached);
+            console.log('[Customers Page] Using cached data:', {
+              customersCount: data.customers?.length || 0,
+              cacheAge: Math.round(cacheAge / 1000) + '초',
+            });
+            
+            setCustomers(data.customers || []);
+            setPagination({
+              ...(data.pagination || pagination),
+              limit: pageSize,
+            });
+            if (data.managers) {
+              setManagers(data.managers);
+            }
+            if (data.groupCounts) {
+              setGroupCounts(data.groupCounts);
+              const total = Object.values(data.groupCounts as Record<string, number>).reduce((sum: number, count: number) => sum + count, 0);
+              setTotalCustomers(total);
+            }
+            setIsLoading(false);
+            isLoadingRef.current = false;
+            return; // 캐시된 데이터 사용, API 호출 스킵
+          } else {
+            // 캐시 만료, 삭제
+            sessionStorage.removeItem(cacheKey);
+            sessionStorage.removeItem(`${cacheKey}_time`);
+          }
+        }
+      } catch (cacheError) {
+        // 캐시 읽기 실패 시 무시하고 API 호출 진행
+        console.warn('[Customers Page] Cache read error:', cacheError);
+      }
+
       const response = await fetch(`/api/admin/customers?${params.toString()}`, {
         credentials: 'include',
-        cache: 'no-store', // 캐시 방지로 최신 데이터 가져오기
+        signal: abortControllerRef.current.signal, // 요청 취소 지원
       });
 
       if (!response.ok) {
@@ -200,16 +280,43 @@ export default function CustomersPage() {
         setTotalCustomers(total);
       }
       
+      // 성능 최적화: 응답 데이터를 캐시에 저장
+      try {
+        const now = Date.now();
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        sessionStorage.setItem(`${cacheKey}_time`, now.toString());
+        console.log('[Customers Page] Data cached:', cacheKey);
+      } catch (cacheError) {
+        // 캐시 저장 실패 시 무시 (용량 제한 등)
+        console.warn('[Customers Page] Cache write error:', cacheError);
+      }
+      
       if (!data.customers || data.customers.length === 0) {
         console.warn('[Customers Page] No customers found. Query params:', params.toString());
       }
-    } catch (error) {
+    } catch (error: any) {
+      // AbortError는 무시 (요청 취소)
+      if (error?.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to load customers:', error);
       setError(error instanceof Error ? error.message : '고객 목록을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
+      isLoadingRef.current = false;
     }
-  };
+  }, [search, status, certificateType, monthFilter, sortBy, sortOrder, pagination.page, selectedManagerId, customerGroup, pageSize]);
+
+  useEffect(() => {
+    loadCustomers();
+    
+    // cleanup: 컴포넌트 언마운트 시 요청 취소
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [loadCustomers]);
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
@@ -231,6 +338,24 @@ export default function CustomersPage() {
     return sortOrder === 'asc' ? <FiArrowUp className="w-4 h-4" /> : <FiArrowDown className="w-4 h-4" />;
   };
 
+  // 캐시 무효화 함수
+  const invalidateCache = useCallback(() => {
+    try {
+      // 'customers_'로 시작하는 모든 캐시 키 삭제
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('customers_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => sessionStorage.removeItem(key));
+      console.log('[Customers Page] Cache invalidated:', keysToRemove.length, 'keys');
+    } catch (error) {
+      console.warn('[Customers Page] Cache invalidation error:', error);
+    }
+  }, []);
+
   const handleCreateGenieCustomer = async () => {
     if (!createFormData.name || !createFormData.phone) {
       alert('이름과 연락처를 모두 입력해주세요.');
@@ -251,6 +376,9 @@ export default function CustomersPage() {
         throw new Error(data.error || '고객 추가에 실패했습니다.');
       }
 
+      // 고객 추가 후 캐시 무효화
+      invalidateCache();
+      
       alert('지니가이드 고객이 추가되었습니다.');
       setIsCreateModalOpen(false);
       setCreateFormData({ name: '', phone: '' });
@@ -423,10 +551,14 @@ export default function CustomersPage() {
               <button
                 key={category.value}
                 onClick={() => {
+                  // 즉시 UI 업데이트 (낙관적 업데이트)
                   setCustomerGroup(category.value);
                   setPagination(prev => ({ ...prev, page: 1 }));
+                  // URL 업데이트로 브라우저 히스토리 관리
+                  router.push(`/admin/customers?customerGroup=${category.value}`, { scroll: false });
                 }}
-                className={`relative p-5 rounded-xl border-2 transition-all text-left transform hover:scale-[1.02] hover:shadow-md ${colorClasses[category.color as keyof typeof colorClasses]}`}
+                disabled={isLoading}
+                className={`relative p-5 rounded-xl border-2 transition-all text-left transform hover:scale-[1.02] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${colorClasses[category.color as keyof typeof colorClasses]}`}
                 title={category.description}
               >
                 <div className="flex items-start justify-between mb-3">
@@ -824,7 +956,13 @@ export default function CustomersPage() {
         </div>
       ) : (
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-          <CustomerTable customers={customers} onRefresh={loadCustomers} />
+          <CustomerTable 
+            customers={customers} 
+            onRefresh={() => {
+              invalidateCache();
+              loadCustomers();
+            }} 
+          />
         </div>
       )}
 

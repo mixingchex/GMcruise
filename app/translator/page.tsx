@@ -1,12 +1,38 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, Suspense } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import { FiArrowLeft, FiCamera, FiMic, FiMicOff } from 'react-icons/fi';
 import { csrfFetch } from '@/lib/csrf-client';
-import TranslatorTutorial from './components/TranslatorTutorial';
-import { PHRASE_CATEGORIES_DATA } from './PHRASE_CATEGORIES_DATA';
+import dynamic from 'next/dynamic';
 import { trackFeature } from '@/lib/analytics';
+import { checkTestModeClient, getCorrectPath } from '@/lib/test-mode-client';
+
+// 성능 최적화: 큰 컴포넌트와 데이터를 동적 임포트
+const TranslatorTutorial = dynamic(() => import('./components/TranslatorTutorial'), {
+  loading: () => <div className="animate-pulse">튜토리얼 로딩 중...</div>,
+  ssr: false,
+});
+
+// PHRASE_CATEGORIES_DATA 타입 정의
+type PhraseCategory = {
+  id: string;
+  name: string;
+  emoji: string;
+  phrases: Array<{ ko: string; target: string; pronunciation?: string; emoji: string }>;
+};
+
+type PhraseCategoriesData = Record<string, PhraseCategory[]>;
+
+// PHRASE_CATEGORIES_DATA도 동적 임포트 (큰 데이터 파일)
+let PHRASE_CATEGORIES_DATA: PhraseCategoriesData | null = null;
+const loadPhraseCategories = async (): Promise<PhraseCategoriesData> => {
+  if (!PHRASE_CATEGORIES_DATA) {
+    const module = await import('./PHRASE_CATEGORIES_DATA');
+    PHRASE_CATEGORIES_DATA = module.PHRASE_CATEGORIES_DATA as PhraseCategoriesData;
+  }
+  return PHRASE_CATEGORIES_DATA;
+};
 
 // 국가별 → 현지어 매핑
 const DESTINATION_LANGUAGE_MAP: Record<string, { code: string; name: string; flag: string }> = {
@@ -50,6 +76,21 @@ const STORAGE_KEY = 'translator:conversation';
 
 export default function TranslatorPage() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // 경로 보호: 테스트 모드 사용자는 /translator-test로 리다이렉트
+  useEffect(() => {
+    const checkPath = async () => {
+      const testModeInfo = await checkTestModeClient();
+      const correctPath = getCorrectPath(pathname || '/translator', testModeInfo);
+      
+      if (correctPath !== pathname) {
+        router.replace(correctPath);
+      }
+    };
+    
+    checkPath();
+  }, [pathname, router]);
 
   // 튜토리얼 상태
   const [showTutorial, setShowTutorial] = useState(false);
@@ -69,6 +110,29 @@ export default function TranslatorPage() {
   const [destination, setDestination] = useState<string>('확인 중...');
   const [portInfo, setPortInfo] = useState<string>('');
   const [isCruising, setIsCruising] = useState(false);
+  
+  // 성능 최적화: PHRASE_CATEGORIES_DATA 동적 로딩
+  const [phraseCategoriesData, setPhraseCategoriesData] = useState<PhraseCategoriesData | null>(null);
+  const [isLoadingPhraseData, setIsLoadingPhraseData] = useState(true);
+  
+  useEffect(() => {
+    loadPhraseCategories()
+      .then((data) => {
+        if (data && typeof data === 'object' && !Array.isArray(data)) {
+          setPhraseCategoriesData(data);
+        } else {
+          console.warn('[Translator] Invalid PHRASE_CATEGORIES_DATA format');
+          setPhraseCategoriesData({}); // 기본값
+        }
+      })
+      .catch((error) => {
+        console.error('[Translator] Failed to load PHRASE_CATEGORIES_DATA:', error);
+        setPhraseCategoriesData({}); // 기본값
+      })
+      .finally(() => {
+        setIsLoadingPhraseData(false);
+      });
+  }, []);
 
   // 첫 방문 시 튜토리얼 표시
   useEffect(() => {
@@ -724,16 +788,30 @@ export default function TranslatorPage() {
     );
   }
 
-  // 카테고리별 빠른 문장 데이터 (50대 이상 사용자 친화적)
-  type PhraseCategory = {
-    id: string;
-    name: string;
-    emoji: string;
-    phrases: Array<{ ko: string; target: string; pronunciation?: string; emoji: string }>;
-  };
+  // PhraseCategory 타입은 위에서 이미 정의됨
 
   // 사용자가 제공한 샘플 데이터 사용 (발음 포함)
-  const PHRASE_CATEGORIES: Record<string, PhraseCategory[]> = PHRASE_CATEGORIES_DATA as Record<string, PhraseCategory[]>;
+  // 빌드 시점 안전성을 위해 항상 객체로 보장
+  const PHRASE_CATEGORIES: PhraseCategoriesData = 
+    (phraseCategoriesData && typeof phraseCategoriesData === 'object' && !Array.isArray(phraseCategoriesData))
+      ? phraseCategoriesData
+      : {};
+  
+  // 안전한 카테고리 배열 가져오기 헬퍼 함수 (빌드 시점 안전성 보장)
+  const getCategoriesForLang = (langCode: string): PhraseCategory[] => {
+    try {
+      if (!PHRASE_CATEGORIES || typeof PHRASE_CATEGORIES !== 'object' || Array.isArray(PHRASE_CATEGORIES)) {
+        return [];
+      }
+      const categories = PHRASE_CATEGORIES[langCode] || PHRASE_CATEGORIES['en-US'];
+      if (!categories) return [];
+      return Array.isArray(categories) ? categories : [];
+    } catch (error) {
+      // 빌드 시점 에러 방지
+      return [];
+    }
+  };
+  
   // 빠른 문장 데이터 (자주 쓰는 문장) - 하위 호환을 위해 유지
   const QUICK_PHRASES: Record<string, Array<{ ko: string; target: string; emoji: string }>> = {
     'ja-JP': [ // 일본어
@@ -944,36 +1022,78 @@ export default function TranslatorPage() {
             
             {/* 카테고리 버튼 (선택된 카테고리가 없을 때) - 접힘 상태일 때 숨김 */}
             {isPhraseHelperExpanded && !selectedCategory && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5 mb-5">
-                {(PHRASE_CATEGORIES[localLang.code] || PHRASE_CATEGORIES['en-US'] || []).map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className="
-                      p-6 md:p-8 bg-white border-2 border-blue-300 rounded-xl 
-                      hover:border-blue-500 hover:shadow-lg
-                      active:scale-95 transition-all min-h-[120px] md:min-h-[140px]
-                      flex flex-col items-center justify-center gap-3 shadow-md
-                    "
-                  >
-                    <span className="text-5xl md:text-6xl">{category.emoji}</span>
-                    <span className="font-bold text-base md:text-lg text-center leading-tight">{category.name}</span>
-                  </button>
-                ))}
-              </div>
+              isLoadingPhraseData ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5 mb-5">
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div
+                      key={i}
+                      className="
+                        p-6 md:p-8 bg-white border-2 border-gray-200 rounded-xl 
+                        min-h-[120px] md:min-h-[140px]
+                        flex flex-col items-center justify-center gap-3 shadow-md
+                        animate-pulse
+                      "
+                    >
+                      <div className="w-16 h-16 bg-gray-200 rounded-full"></div>
+                      <div className="h-4 w-20 bg-gray-200 rounded"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 md:gap-5 mb-5">
+                  {getCategoriesForLang(localLang.code).map((category) => (
+                    <button
+                      key={category.id}
+                      onClick={() => setSelectedCategory(category.id)}
+                      className="
+                        p-6 md:p-8 bg-white border-2 border-blue-300 rounded-xl 
+                        hover:border-blue-500 hover:shadow-lg
+                        active:scale-95 transition-all min-h-[120px] md:min-h-[140px]
+                        flex flex-col items-center justify-center gap-3 shadow-md
+                      "
+                    >
+                      <span className="text-5xl md:text-6xl">{category.emoji}</span>
+                      <span className="font-bold text-base md:text-lg text-center leading-tight">{category.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )
             )}
 
             {/* 선택된 카테고리의 문장들 - 접힘 상태일 때 숨김 */}
             {isPhraseHelperExpanded && selectedCategory && (
-              <div>
-                <button
-                  onClick={() => setSelectedCategory(null)}
-                  className="mb-5 px-5 md:px-6 py-3 md:py-3.5 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold text-base md:text-lg transition-all shadow-md"
-                >
-                  ← 카테고리 목록으로
-                </button>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
-                  {((PHRASE_CATEGORIES[localLang.code] || PHRASE_CATEGORIES['en-US'] || []).find(c => c.id === selectedCategory)?.phrases || []).map((phrase, idx) => (
+              isLoadingPhraseData ? (
+                <div>
+                  <div className="mb-5 h-12 bg-gray-200 rounded-lg animate-pulse"></div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className="
+                          p-5 md:p-6 bg-white border-2 border-gray-200 rounded-xl 
+                          min-h-[120px] md:min-h-[140px]
+                          shadow-md animate-pulse
+                        "
+                      >
+                        <div className="h-6 bg-gray-200 rounded mb-3"></div>
+                        <div className="h-4 bg-gray-200 rounded"></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <button
+                    onClick={() => setSelectedCategory(null)}
+                    className="mb-5 px-5 md:px-6 py-3 md:py-3.5 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold text-base md:text-lg transition-all shadow-md"
+                  >
+                    ← 카테고리 목록으로
+                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+                    {(() => {
+                      const category = getCategoriesForLang(localLang.code).find(c => c.id === selectedCategory);
+                      const phrases = (category?.phrases && Array.isArray(category.phrases)) ? category.phrases : [];
+                      return phrases.map((phrase, idx) => (
                     <button
                       key={idx}
                       onClick={() => {
@@ -1033,9 +1153,11 @@ export default function TranslatorPage() {
                         pronunciationCache={pronunciationCache}
                       />
                     </button>
-                  ))}
+                  ));
+                  })()}
+                  </div>
                 </div>
-              </div>
+              )
             )}
         </div>
 

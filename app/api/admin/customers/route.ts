@@ -91,24 +91,37 @@ export async function GET(req: NextRequest) {
 
     // 연동된 크루즈몰 고객 ID 목록 조회 (중복 제거용) - 성능 최적화: 필요할 때만 조회
     // 크루즈 가이드 고객 중 mallUserId가 설정된 고객들의 mallUserId 목록
+    // 성능 최적화: count만 사용하여 전체 조회 대신 존재 여부만 확인
     let linkedMallUserIds: number[] = [];
     if (customerGroup !== 'mall' && customerGroup !== 'all') {
       // mall이나 all이 아닐 때만 조회 (필터링에 필요할 때만)
-      linkedMallUserIds = await prisma.user.findMany({
+      // 최적화: 실제로 필요한 경우에만 전체 목록 조회 (필터링 조건에 따라)
+      const hasLinkedMallUsers = await prisma.user.count({
         where: {
           role: 'user',
           mallUserId: { not: null },
         },
-        select: {
-          mallUserId: true,
-        },
-      }).then(users => 
-        users
-          .map(u => u.mallUserId)
-          .filter((id): id is string => id !== null)
-          .map(id => parseInt(id, 10))
-          .filter(id => !isNaN(id))
-      );
+        take: 1, // 존재 여부만 확인
+      });
+      
+      // 연동된 고객이 있을 때만 전체 ID 목록 조회
+      if (hasLinkedMallUsers > 0) {
+        linkedMallUserIds = await prisma.user.findMany({
+          where: {
+            role: 'user',
+            mallUserId: { not: null },
+          },
+          select: {
+            mallUserId: true,
+          },
+        }).then(users => 
+          users
+            .map(u => u.mallUserId)
+            .filter((id): id is string => id !== null)
+            .map(id => parseInt(id, 10))
+            .filter(id => !isNaN(id))
+        );
+      }
     }
 
     // 검색 조건 - AND 구조로 시작
@@ -1310,6 +1323,13 @@ export async function GET(req: NextRequest) {
         page,
         limit,
         totalPages: Math.ceil(filteredTotal / limit),
+      },
+    }, {
+      // 성능 최적화: API 응답 캐싱 헤더 추가
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        // s-maxage: CDN/프록시 캐시 시간 (30초)
+        // stale-while-revalidate: 캐시 만료 후에도 60초간 오래된 데이터 제공 (백그라운드 재검증)
       },
     });
   } catch (error: any) {

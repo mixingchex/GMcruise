@@ -43,6 +43,12 @@ const prodCsp = [
 ].join('; ');
 
 const nextConfig = {
+  // 성능 최적화: 응답 압축 활성화
+  compress: true,
+  
+  // 성능 최적화: X-Powered-By 헤더 제거 (보안 및 성능)
+  poweredByHeader: false,
+  
   // TypeScript 타입 체크 무시 (임시)
   typescript: {
     ignoreBuildErrors: true,
@@ -56,6 +62,14 @@ const nextConfig = {
   // useSearchParams를 Suspense 없이 사용 가능하도록 설정 (동적 라우팅 자동 적용)
   experimental: {
     missingSuspenseWithCSRBailout: false,
+    // 성능 최적화: 패키지 임포트 최적화
+    optimizePackageImports: [
+      'react-icons',
+      'lodash',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toast',
+    ],
     // Vercel Function 크기 줄이기 위해 불필요한 파일 제외 (강화 버전)
     outputFileTracingExcludes: {
       '*': [
@@ -179,7 +193,9 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 31536000, // 1년으로 증가 (정적 이미지 캐싱 강화)
+    unoptimized: false, // 이미지 최적화 활성화
+    loader: 'default', // Next.js 기본 로더 사용
     dangerouslyAllowSVG: true,
     contentDispositionType: 'attachment',
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",

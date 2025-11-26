@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import NotificationBell from '@/components/admin/NotificationBell';
@@ -16,30 +16,85 @@ export default function AdminLayout({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [customerGroupExpanded, setCustomerGroupExpanded] = useState(true); // 기본값: true (항상 펼침)
+  
+  // 인증 상태를 세션 스토리지에 캐시하여 불필요한 API 호출 방지
+  const authCheckRef = useRef(false);
+  const lastAuthCheckRef = useRef<number>(0);
+  const AUTH_CACHE_DURATION = 5 * 60 * 1000; // 5분 캐시
+
+  const checkAuth = useCallback(async () => {
+    // 캐시된 인증 상태 확인 (5분 이내)
+    const now = Date.now();
+    const cachedAuth = sessionStorage.getItem('admin_auth');
+    const cachedTime = sessionStorage.getItem('admin_auth_time');
+    
+    if (cachedAuth && cachedTime) {
+      const cacheTime = parseInt(cachedTime, 10);
+      if (now - cacheTime < AUTH_CACHE_DURATION) {
+        const isCachedAuth = cachedAuth === 'true';
+        setIsAuthenticated(isCachedAuth);
+        setIsLoading(false);
+        return;
+      }
+    }
+    
+    // 중복 요청 방지
+    if (authCheckRef.current) {
+      return;
+    }
+    
+    try {
+      authCheckRef.current = true;
+      const response = await fetch('/api/admin/auth-check', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const data = await response.json();
+
+      const authenticated = data.ok && data.authenticated;
+      setIsAuthenticated(authenticated);
+      
+      // 세션 스토리지에 캐시
+      sessionStorage.setItem('admin_auth', authenticated.toString());
+      sessionStorage.setItem('admin_auth_time', now.toString());
+      lastAuthCheckRef.current = now;
+    } catch (error) {
+      console.error('[AdminLayout] 인증 확인 오류:', error);
+      setIsAuthenticated(false);
+      sessionStorage.removeItem('admin_auth');
+      sessionStorage.removeItem('admin_auth_time');
+    } finally {
+      setIsLoading(false);
+      authCheckRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch('/api/admin/auth-check', {
-          credentials: 'include',
-        });
-        const data = await response.json();
-
-        if (data.ok && data.authenticated) {
-          setIsAuthenticated(true);
-        } else {
-          setIsAuthenticated(false);
-        }
-      } catch (error) {
-        console.error('[AdminLayout] 인증 확인 오류:', error);
-        setIsAuthenticated(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     checkAuth();
-  }, []);
+  }, [checkAuth]);
+  
+  // 경로 변경 시 캐시된 인증 상태만 확인 (빠른 응답)
+  useEffect(() => {
+    if (!isLoading && pathname !== '/admin/login') {
+      const cachedAuth = sessionStorage.getItem('admin_auth');
+      const cachedTime = sessionStorage.getItem('admin_auth_time');
+      const now = Date.now();
+      
+      // 캐시가 있고 유효하면 즉시 사용, 아니면 재확인
+      if (cachedAuth && cachedTime) {
+        const cacheTime = parseInt(cachedTime, 10);
+        if (now - cacheTime < AUTH_CACHE_DURATION) {
+          // 캐시 유효, 재확인은 백그라운드에서
+          if (now - lastAuthCheckRef.current > 60000) { // 1분마다 백그라운드 확인
+            checkAuth();
+          }
+        } else {
+          // 캐시 만료, 즉시 재확인
+          checkAuth();
+        }
+      }
+    }
+  }, [pathname, isLoading, checkAuth]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && pathname !== '/admin/login') {
@@ -229,6 +284,7 @@ export default function AdminLayout({
                           <li key={item.href}>
                             <Link
                               href={item.href}
+                              prefetch={true}
                               target={(item as any).external ? '_blank' : undefined}
                               rel={(item as any).external ? 'noopener noreferrer' : undefined}
                               className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
@@ -275,6 +331,7 @@ export default function AdminLayout({
                         <li key={item.href}>
                           <Link
                             href={item.href}
+                            prefetch={true}
                             className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
                               isActive
                                 ? 'bg-purple-100 text-purple-700 shadow'

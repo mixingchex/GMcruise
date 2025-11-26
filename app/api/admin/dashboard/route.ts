@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 // app/api/admin/dashboard/route.ts
 // 관리자 대시보드 통계 API
 
@@ -77,6 +75,7 @@ export async function GET() {
     }
 
     // 1. 사용자 통계 (전체 - 크루즈몰 + 지니AI 가이드)
+    // 성능 최적화: 모든 count 쿼리를 병렬로 실행
     let totalUsers = 0;
     let activeUsers = 0;
     let hibernatedUsers = 0;
@@ -84,19 +83,25 @@ export async function GET() {
     let mallUsers = 0;
     
     try {
-      totalUsers = await prisma.user.count();
-      activeUsers = await prisma.user.count({
-        where: { isHibernated: false },
-      });
-      hibernatedUsers = await prisma.user.count({
-        where: { isHibernated: true },
-      });
-      genieUsers = await prisma.user.count({
-        where: { role: 'user' },
-      });
-      mallUsers = await prisma.user.count({
-        where: { role: 'community' },
-      });
+      const [
+        totalUsersResult,
+        activeUsersResult,
+        hibernatedUsersResult,
+        genieUsersResult,
+        mallUsersResult
+      ] = await Promise.all([
+        prisma.user.count(),
+        prisma.user.count({ where: { isHibernated: false } }),
+        prisma.user.count({ where: { isHibernated: true } }),
+        prisma.user.count({ where: { role: 'user' } }),
+        prisma.user.count({ where: { role: 'community' } }),
+      ]);
+      
+      totalUsers = totalUsersResult;
+      activeUsers = activeUsersResult;
+      hibernatedUsers = hibernatedUsersResult;
+      genieUsers = genieUsersResult;
+      mallUsers = mallUsersResult;
     } catch (userError: any) {
       console.error('[Admin Dashboard] User stats error:', userError);
       console.error('[Admin Dashboard] User stats error details:', {
@@ -569,6 +574,13 @@ export async function GET() {
           })),
         },
       },
+    }, {
+      // 성능 최적화: API 응답 캐싱 헤더 추가
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        // s-maxage: CDN/프록시 캐시 시간 (60초) - 대시보드는 조금 더 길게
+        // stale-while-revalidate: 캐시 만료 후에도 120초간 오래된 데이터 제공
+      },
     });
   } catch (error) {
     console.error('[Admin Dashboard API] Error:', error);
@@ -584,3 +596,4 @@ export async function GET() {
     );
   }
 }
+

@@ -1,12 +1,47 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { FiArrowLeft } from 'react-icons/fi';
-import ComparativeQuote from '@/components/admin/documents/ComparativeQuote';
-import Certificate from '@/components/admin/documents/Certificate';
-import CertificateApprovals from '@/components/admin/documents/CertificateApprovals';
+import dynamic from 'next/dynamic';
+
+// 성능 최적화: PDF 관련 큰 컴포넌트들을 동적 임포트
+const ComparativeQuote = dynamic(
+  () => import('@/components/admin/documents/ComparativeQuote'),
+  {
+    loading: () => (
+      <div className="animate-pulse bg-gray-100 rounded-lg p-8">
+        <div className="h-64 bg-gray-200 rounded"></div>
+      </div>
+    ),
+    ssr: false,
+  }
+);
+
+const Certificate = dynamic(
+  () => import('@/components/admin/documents/Certificate'),
+  {
+    loading: () => (
+      <div className="animate-pulse bg-gray-100 rounded-lg p-8">
+        <div className="h-64 bg-gray-200 rounded"></div>
+      </div>
+    ),
+    ssr: false,
+  }
+);
+
+const CertificateApprovals = dynamic(
+  () => import('@/components/admin/documents/CertificateApprovals'),
+  {
+    loading: () => (
+      <div className="animate-pulse bg-gray-100 rounded-lg p-8">
+        <div className="h-64 bg-gray-200 rounded"></div>
+      </div>
+    ),
+    ssr: false,
+  }
+);
 
 type TabType = 'comparison' | 'purchase' | 'refund' | 'approvals';
 
