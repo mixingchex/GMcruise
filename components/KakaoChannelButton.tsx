@@ -20,23 +20,45 @@ export default function KakaoChannelButton({ className = '', variant = 'banner' 
     checkChannelStatus();
 
     // 카카오 SDK 로드
-    if (typeof window !== 'undefined' && !window.Kakao) {
-      const script = document.createElement('script');
-      script.src = 'https://developers.kakao.com/sdk/js/kakao.js';
-      script.async = true;
-      script.onload = () => {
-        const kakaoJsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-        if (kakaoJsKey && window.Kakao) {
-          if (!window.Kakao.isInitialized()) {
-            window.Kakao.init(kakaoJsKey);
-          }
-        }
-      };
-      document.head.appendChild(script);
-    } else if (window.Kakao && !window.Kakao.isInitialized()) {
+    if (typeof window !== 'undefined') {
       const kakaoJsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-      if (kakaoJsKey) {
-        window.Kakao.init(kakaoJsKey);
+      
+      if (!kakaoJsKey) {
+        console.warn('[Kakao Channel] NEXT_PUBLIC_KAKAO_JS_KEY가 설정되지 않았습니다.');
+        return;
+      }
+
+      if (!window.Kakao) {
+        const script = document.createElement('script');
+        script.src = 'https://developers.kakao.com/sdk/js/kakao.js';
+        script.async = true;
+        script.onload = () => {
+          if (window.Kakao && kakaoJsKey) {
+            try {
+              if (!window.Kakao.isInitialized()) {
+                window.Kakao.init(kakaoJsKey);
+                console.log('[Kakao Channel] SDK 초기화 완료');
+              } else {
+                console.log('[Kakao Channel] SDK가 이미 초기화되어 있습니다.');
+              }
+            } catch (error) {
+              console.error('[Kakao Channel] SDK 초기화 실패:', error);
+            }
+          }
+        };
+        script.onerror = (error) => {
+          console.error('[Kakao Channel] SDK 스크립트 로드 실패:', error);
+        };
+        document.head.appendChild(script);
+      } else if (!window.Kakao.isInitialized()) {
+        try {
+          window.Kakao.init(kakaoJsKey);
+          console.log('[Kakao Channel] SDK 재초기화 완료');
+        } catch (error) {
+          console.error('[Kakao Channel] SDK 재초기화 실패:', error);
+        }
+      } else {
+        console.log('[Kakao Channel] SDK가 이미 초기화되어 있습니다.');
       }
     }
 
@@ -87,8 +109,18 @@ export default function KakaoChannelButton({ className = '', variant = 'banner' 
     try {
       setLoading(true);
 
+      // 환경 변수 확인
+      const kakaoJsKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+      if (!kakaoJsKey) {
+        console.error('[Kakao Channel] NEXT_PUBLIC_KAKAO_JS_KEY가 설정되지 않았습니다.');
+        alert('카카오톡 SDK 설정이 완료되지 않았습니다. 관리자에게 문의하세요.\n\n오류: NEXT_PUBLIC_KAKAO_JS_KEY가 없습니다.');
+        setLoading(false);
+        return;
+      }
+
       // 카카오 채널 공개 ID 가져오기 (API를 통해)
       let channelId = '';
+      let missingVars: string[] = [];
       
       try {
         // 공개 API에서 채널 정보 가져오기
@@ -97,7 +129,13 @@ export default function KakaoChannelButton({ className = '', variant = 'banner' 
         
         if (channelInfoData.ok && channelInfoData.channelId) {
           channelId = channelInfoData.channelId;
+          console.log('[Kakao Channel] 채널 ID 조회 성공:', channelId);
         } else {
+          // 누락된 환경 변수 정보 저장
+          if (channelInfoData.missingVars) {
+            missingVars = channelInfoData.missingVars;
+          }
+          console.warn('[Kakao Channel] 공개 API에서 채널 ID를 가져오지 못했습니다. 관리자 API 시도...');
           // 공개 API가 실패하면 관리자 API 시도 (로그인한 경우)
           const configResponse = await fetch('/api/admin/settings/info', {
             credentials: 'include',
@@ -105,95 +143,161 @@ export default function KakaoChannelButton({ className = '', variant = 'banner' 
           const configData = await configResponse.json();
           if (configData.ok && configData.info?.kakaoChannelId) {
             channelId = configData.info.kakaoChannelId;
+            console.log('[Kakao Channel] 관리자 API에서 채널 ID 조회 성공:', channelId);
           }
         }
       } catch (error) {
-        console.error('Failed to get channel ID:', error);
+        console.error('[Kakao Channel] 채널 ID 조회 실패:', error);
       }
       
       if (!channelId) {
-        alert('카카오 채널 ID가 설정되지 않았습니다. 관리자에게 문의하세요.');
+        console.error('[Kakao Channel] 채널 ID가 설정되지 않았습니다.');
+        
+        // 상세한 오류 메시지 생성
+        let errorMessage = '카카오 채널 ID가 설정되지 않았습니다.\n\n';
+        
+        if (missingVars.length > 0) {
+          errorMessage += `누락된 환경 변수:\n${missingVars.map(v => `- ${v}`).join('\n')}\n\n`;
+        } else {
+          errorMessage += `누락된 환경 변수: NEXT_PUBLIC_KAKAO_CHANNEL_ID\n\n`;
+        }
+        
+        errorMessage += '해결 방법:\n';
+        errorMessage += '1. Vercel 대시보드에서 환경 변수를 확인하세요\n';
+        errorMessage += '2. Settings > Environment Variables에서 다음 변수를 설정하세요:\n';
+        errorMessage += '   - NEXT_PUBLIC_KAKAO_CHANNEL_ID\n';
+        errorMessage += '   - NEXT_PUBLIC_KAKAO_JS_KEY\n';
+        errorMessage += '3. 환경 변수 설정 후 재배포가 필요합니다\n\n';
+        errorMessage += '자세한 내용은 관리자에게 문의하세요.';
+        
+        alert(errorMessage);
         setLoading(false);
         return;
       }
       
+      // 카카오 SDK 상태 확인
+      const hasKakaoSDK = typeof window !== 'undefined' && window.Kakao;
+      const isKakaoInitialized = hasKakaoSDK && window.Kakao.isInitialized();
+      const hasChannelAPI = hasKakaoSDK && window.Kakao.Channel;
+      
+      console.log('[Kakao Channel] SDK 상태 확인:', {
+        hasKakaoSDK,
+        isKakaoInitialized,
+        hasChannelAPI,
+        channelId,
+        kakaoJsKey: kakaoJsKey ? '설정됨' : '없음',
+      });
+      
+      // SDK가 로드되지 않았거나 초기화되지 않은 경우 재시도
+      if (!hasKakaoSDK || !isKakaoInitialized) {
+        console.warn('[Kakao Channel] SDK가 로드되지 않았습니다. 재시도 중...');
+        
+        // SDK 재로드 시도
+        if (!hasKakaoSDK) {
+          const script = document.createElement('script');
+          script.src = 'https://developers.kakao.com/sdk/js/kakao.js';
+          script.async = true;
+          script.onload = () => {
+            if (window.Kakao && kakaoJsKey) {
+              window.Kakao.init(kakaoJsKey);
+              console.log('[Kakao Channel] SDK 재로드 및 초기화 완료');
+              // 재로드 후 다시 시도
+              setTimeout(() => handleAddChannel(), 500);
+            }
+          };
+          script.onerror = () => {
+            console.error('[Kakao Channel] SDK 스크립트 로드 실패');
+            // SDK 로드 실패 시 URL로 직접 이동
+            fallbackToDirectUrl(channelId);
+          };
+          document.head.appendChild(script);
+          return;
+        } else if (!isKakaoInitialized && kakaoJsKey) {
+          window.Kakao.init(kakaoJsKey);
+          console.log('[Kakao Channel] SDK 재초기화 완료');
+          // 재초기화 후 다시 시도
+          setTimeout(() => handleAddChannel(), 500);
+          return;
+        }
+      }
+      
       // 카카오 SDK가 로드되고 초기화되었는지 확인
-      if (window.Kakao && window.Kakao.isInitialized() && window.Kakao.Channel) {
+      if (hasKakaoSDK && isKakaoInitialized && hasChannelAPI) {
+        console.log('[Kakao Channel] SDK를 사용하여 채널 추가 시도');
         // 카카오 채널 추가 팝업 열기
         window.Kakao.Channel.addChannel({
           channelPublicId: channelId, // 카카오 비즈니스 채널 공개 ID
           success: async () => {
+            console.log('[Kakao Channel] 채널 추가 성공 (SDK)');
             // 채널 추가 성공 시 서버에 기록
-            const response = await fetch('/api/kakao/add-channel', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              credentials: 'include',
-            });
-            const data = await response.json();
-            if (data.ok) {
-              setIsAdded(true);
-              setShowManualConfirm(false);
-              alert('카카오톡 채널이 추가되었습니다!');
+            try {
+              const response = await fetch('/api/kakao/add-channel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+              });
+              const data = await response.json();
+              if (data.ok) {
+                setIsAdded(true);
+                setShowManualConfirm(false);
+                alert('카카오톡 채널이 추가되었습니다!');
+              } else {
+                console.error('[Kakao Channel] 서버 기록 실패:', data.error);
+                alert('채널은 추가되었지만 서버 기록에 실패했습니다: ' + (data.error || 'Unknown error'));
+              }
+            } catch (error) {
+              console.error('[Kakao Channel] 서버 기록 중 오류:', error);
+              alert('채널은 추가되었지만 서버 기록 중 오류가 발생했습니다.');
             }
           },
           fail: (err: any) => {
-            console.error('Failed to add channel:', err);
+            console.error('[Kakao Channel] SDK 채널 추가 실패:', err);
             // 실패 시 URL로 직접 이동하고 자동 확인 시작
-            const channelUrl = `https://pf.kakao.com/_${channelId}`;
-            window.open(channelUrl, '_blank');
-            
-            // 자동 확인 시작 (카카오톡에서 돌아왔을 때 자동으로 확인)
-            setShowManualConfirm(true);
-            
-            // 주기적으로 채널 추가 여부 확인 (최대 10회, 3초 간격)
-            let checkCount = 0;
-            const maxChecks = 10;
-            const checkInterval = setInterval(async () => {
-              checkCount++;
-              const wasAdded = await checkChannelStatus();
-              
-              if (wasAdded || checkCount >= maxChecks) {
-                clearInterval(checkInterval);
-                if (wasAdded) {
-                  setShowManualConfirm(false);
-                  alert('카카오톡 채널이 자동으로 확인되었습니다!');
-                }
-              }
-            }, 3000);
-            
-            alert('카카오톡 채널 페이지로 이동합니다. 채널을 추가하면 자동으로 확인됩니다.');
+            fallbackToDirectUrl(channelId);
           },
         });
       } else {
+        console.warn('[Kakao Channel] SDK를 사용할 수 없습니다. URL로 직접 이동합니다.');
         // SDK가 로드되지 않은 경우 직접 URL로 이동하고 자동 확인 시작
-        const channelUrl = `https://pf.kakao.com/_${channelId}`;
-        window.open(channelUrl, '_blank');
-        setShowManualConfirm(true);
-        
-        // 주기적으로 채널 추가 여부 확인 (최대 10회, 3초 간격)
-        let checkCount = 0;
-        const maxChecks = 10;
-        const checkInterval = setInterval(async () => {
-          checkCount++;
-          const wasAdded = await checkChannelStatus();
-          
-          if (wasAdded || checkCount >= maxChecks) {
-            clearInterval(checkInterval);
-            if (wasAdded) {
-              setShowManualConfirm(false);
-              alert('카카오톡 채널이 자동으로 확인되었습니다!');
-            }
-          }
-        }, 3000);
-        
-        alert('카카오톡 채널 페이지로 이동합니다. 채널을 추가하면 자동으로 확인됩니다.');
+        fallbackToDirectUrl(channelId);
       }
     } catch (error) {
-      console.error('Failed to add channel:', error);
-      alert('카카오톡 채널 추가 중 오류가 발생했습니다.');
+      console.error('[Kakao Channel] 예상치 못한 오류:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`카카오톡 채널 추가 중 오류가 발생했습니다.\n\n오류: ${errorMessage}\n\n브라우저 콘솔을 확인하세요.`);
     } finally {
       setLoading(false);
     }
+  };
+
+  // URL로 직접 이동하는 폴백 함수
+  const fallbackToDirectUrl = (channelId: string) => {
+    const channelUrl = `https://pf.kakao.com/_${channelId}`;
+    console.log('[Kakao Channel] 채널 페이지로 직접 이동:', channelUrl);
+    window.open(channelUrl, '_blank');
+    
+    // 자동 확인 시작 (카카오톡에서 돌아왔을 때 자동으로 확인)
+    setShowManualConfirm(true);
+    
+    // 주기적으로 채널 추가 여부 확인 (최대 10회, 3초 간격)
+    let checkCount = 0;
+    const maxChecks = 10;
+    const checkInterval = setInterval(async () => {
+      checkCount++;
+      const wasAdded = await checkChannelStatus();
+      
+      if (wasAdded || checkCount >= maxChecks) {
+        clearInterval(checkInterval);
+        if (wasAdded) {
+          setShowManualConfirm(false);
+          alert('카카오톡 채널이 자동으로 확인되었습니다!');
+        } else if (checkCount >= maxChecks) {
+          console.log('[Kakao Channel] 자동 확인 시간 초과');
+        }
+      }
+    }, 3000);
+    
+    alert('카카오톡 채널 페이지로 이동합니다. 채널을 추가하면 자동으로 확인됩니다.');
   };
 
   // 수동으로 채널 추가 완료 처리
