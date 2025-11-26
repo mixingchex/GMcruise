@@ -253,6 +253,7 @@ export default function KakaoChannelButton({ className = '', variant = 'banner' 
       if (wasAdded || checkCount >= maxChecks) {
         clearInterval(checkInterval);
         if (wasAdded) {
+          setIsAdded(true); // 명시적으로 상태 업데이트 (배너 숨김)
           setShowManualConfirm(false);
           alert('카카오톡 채널이 자동으로 확인되었습니다!');
         } else if (checkCount >= maxChecks) {
