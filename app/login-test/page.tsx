@@ -167,13 +167,23 @@ function TestLoginPageContent() {
       // 서버가 알려준 next로 이동 (테스트 모드는 /chat-test로만 이동)
       const nextParam = sp.get('next');
       const decodedNext = nextParam ? decodeURIComponent(nextParam) : null;
-      const next = data.next || decodedNext || '/chat-test'; // 테스트 모드는 /chat-test로 기본 이동
+      let next = data.next || decodedNext || '/chat-test'; // 테스트 모드는 /chat-test로 기본 이동
       
-      // 안전장치: /chat-test가 아니면 강제로 /chat-test로 변경
-      const safeNext = next.startsWith('/chat-test') ? next : '/chat-test';
+      // 안전장치: test 모드 사용자는 항상 /chat-test로만 이동
+      // /chat으로 가려는 시도 차단 - /chat-test로 강제 변경
+      if (next === '/chat' || next.startsWith('/chat/')) {
+        console.warn('[TEST LOGIN] /chat 리다이렉트 차단, /chat-test로 변경:', next);
+        next = next.replace('/chat', '/chat-test');
+      }
       
-      console.log('[TEST LOGIN] Redirecting to:', safeNext);
-      router.push(safeNext);
+      // 최종 안전장치: /chat-test로 시작하지 않으면 강제로 /chat-test로 변경
+      if (!next.startsWith('/chat-test')) {
+        console.warn('[TEST LOGIN] 안전장치: /chat-test가 아닌 경로 감지, 강제 변경:', next);
+        next = '/chat-test';
+      }
+      
+      console.log('[TEST LOGIN] Redirecting to:', next);
+      window.location.href = next; // router.push 대신 window.location.href 사용하여 확실하게 리다이렉트
     } catch (error) {
       console.error('[TEST LOGIN] Network error:', error);
       setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
@@ -233,9 +243,9 @@ function TestLoginPageContent() {
           <div className="mb-4 md:mb-6 rounded-xl md:rounded-2xl overflow-hidden shadow-xl md:shadow-2xl border-2 border-gray-200 bg-white">
             <div className="aspect-video w-full">
               <iframe
-                src="https://www.youtube.com/embed/-p_6G69MgyQ?si=Z4ILad3Exz9aU0PW&autoplay=1&mute=1&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1"
+                src="https://www.youtube.com/embed/-p_6G69MgyQ?autoplay=1&mute=1&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1&rel=0&enablejsapi=1"
                 title="크루즈 지니 AI 소개 영상"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen
                 className="w-full h-full"
