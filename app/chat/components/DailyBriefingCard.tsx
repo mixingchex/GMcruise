@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { BriefingSkeleton } from '@/components/ui/Skeleton';
 import { scheduleAlarm, removeAlarm, requestNotificationPermission } from '@/lib/notifications/scheduleAlarm';
 import { formatDateK } from '@/lib/utils';
+import type { WeatherResponse } from '@/lib/weather';
 
 type BriefingData = {
   date: string;
@@ -80,6 +81,8 @@ export default function DailyBriefingCard() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isAddingSchedule, setIsAddingSchedule] = useState(false); // 일정 추가 중 플래그
   const [showWeatherModal, setShowWeatherModal] = useState(false);
+  const [selectedWeatherData, setSelectedWeatherData] = useState<WeatherResponse | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
   const [selectedWeatherCountry, setSelectedWeatherCountry] = useState<{
     country: string;
     countryCode?: string;
@@ -602,6 +605,15 @@ export default function DailyBriefingCard() {
     }
   };
 
+  // 일정 추가 모달이 열릴 때 현재 보기 모드에 따라 날짜 자동 설정
+  useEffect(() => {
+    if (showScheduleModal) {
+      // 모달이 열릴 때 현재 보기 모드에 따라 날짜 자동 설정
+      setSelectedScheduleDate(scheduleViewMode);
+      console.log('[DailyBriefingCard] 일정 추가 모달 열림, 날짜 자동 설정:', scheduleViewMode);
+    }
+  }, [showScheduleModal, scheduleViewMode]);
+
   // 브리핑이 변경될 때 일정 불러오기 및 내일 예정 알람 설정 (스마트폰 현재 시간 기준)
   // briefing.date만 의존성으로 사용하여 무한 리렌더링 방지
   useEffect(() => {
@@ -851,8 +863,17 @@ export default function DailyBriefingCard() {
         if (lastCheckedDate && lastCheckedDate !== todayStr) {
           console.log('[DailyBriefingCard] 자정 경과 감지! 일정 다시 불러오기:', { lastCheckedDate, todayStr });
           // 자정이 지나면 일정 다시 불러오기 (내일 일정이 오늘 일정이 됨)
-          loadSchedules(todayStr);
-          loadSchedules(tomorrowStr);
+          // 오늘 날짜로 일정 불러오기 (이전 내일 일정이 오늘 일정으로 표시됨)
+          loadSchedules(todayStr).then(() => {
+            console.log('[DailyBriefingCard] 자정 경과 후 오늘 일정 불러오기 완료');
+          });
+          // 새로운 내일 날짜로 일정 불러오기
+          loadSchedules(tomorrowStr).then(() => {
+            console.log('[DailyBriefingCard] 자정 경과 후 내일 일정 불러오기 완료');
+          });
+          // 보기 모드를 오늘로 자동 전환 (내일 일정이 오늘로 이동했으므로)
+          setScheduleViewMode('today');
+          console.log('[DailyBriefingCard] 자정 경과로 인해 보기 모드를 오늘로 자동 전환');
         }
         localStorage.setItem('lastCheckedDate', todayStr);
       }
@@ -1041,7 +1062,8 @@ export default function DailyBriefingCard() {
         setNewScheduleTitle('');
         setNewScheduleAlarm(true);
         setNewScheduleAlarmTime('');
-        setSelectedScheduleDate('today'); // 기본값으로 리셋
+        // 현재 보기 모드에 맞게 날짜 유지 (오늘 탭이면 오늘, 내일 탭이면 내일)
+        setSelectedScheduleDate(scheduleViewMode);
         
         // 모달 닫기
         setShowScheduleModal(false);
@@ -1121,32 +1143,31 @@ export default function DailyBriefingCard() {
     }
   };
 
-  // 30일치(1개월) 날씨 데이터 생성 (더미 데이터)
-  const generateMonthlyWeather = (country: string, countryCode?: string) => {
-    const conditions = ['맑음', '구름 조금', '흐림', '비'];
-    const icons = ['☀️', '⛅', '☁️', '🌧️'];
-    const today = new Date();
+  // 날씨 모달 열기 시 실제 API 데이터 가져오기
+  const handleOpenWeatherModal = async (country: string, location: string | null) => {
+    setShowWeatherModal(true);
+    setWeatherLoading(true);
     
-    return Array.from({ length: 30 }, (_, i) => {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
+    // 도시명 결정 (location이 있으면 location 사용, 없으면 country 사용)
+    const cityName = location || country;
+    
+    try {
+      // API Route를 통해 서버에서 날씨 정보 가져오기
+      const response = await fetch(`/api/weather/forecast?city=${encodeURIComponent(cityName)}&days=14`);
+      const result = await response.json();
       
-      const randomCondition = Math.floor(Math.random() * 4);
-      const baseTemp = 20 + Math.floor(Math.random() * 15); // 20-35도
-      
-      return {
-        date: date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }),
-        day: i === 0 ? '오늘' : i === 1 ? '내일' : date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
-        dayOfWeek: date.toLocaleDateString('ko-KR', { weekday: 'short' }),
-        temp: baseTemp,
-        minTemp: baseTemp - 3 - Math.floor(Math.random() * 3),
-        maxTemp: baseTemp + 3 + Math.floor(Math.random() * 3),
-        condition: conditions[randomCondition],
-        icon: icons[randomCondition],
-        humidity: 50 + Math.floor(Math.random() * 30),
-        windSpeed: Math.floor(Math.random() * 10) + 5,
-      };
-    });
+      if (result.ok && result.data) {
+        setSelectedWeatherData(result.data);
+      } else {
+        console.error('[DailyBriefingCard] 날씨 데이터 가져오기 실패:', result.error);
+        setSelectedWeatherData(null);
+      }
+    } catch (error) {
+      console.error('[DailyBriefingCard] 날씨 데이터 가져오기 실패:', error);
+      setSelectedWeatherData(null);
+    } finally {
+      setWeatherLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -1292,7 +1313,7 @@ export default function DailyBriefingCard() {
               </div>
               <button
                 onClick={() => {
-                  // 현재 보기 모드에 따라 선택된 날짜 설정
+                  // 현재 보기 모드에 따라 선택된 날짜 설정 (내일 탭이면 내일로 설정)
                   setSelectedScheduleDate(scheduleViewMode);
                   setShowScheduleModal(true);
                 }}
@@ -1449,7 +1470,7 @@ export default function DailyBriefingCard() {
                           countryCode: w.countryCode,
                           location: w.location,
                         });
-                        setShowWeatherModal(true);
+                        handleOpenWeatherModal(w.country, w.location);
                       }}
                       className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-2 border border-blue-100 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer"
                     >
@@ -1543,7 +1564,7 @@ export default function DailyBriefingCard() {
               <div>
                 <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                   <FiSun className="text-orange-500" />
-                  {selectedWeatherCountry.country} 30일 날씨 (1개월)
+                  {selectedWeatherCountry.country} 14일 날씨 예보
                 </h3>
                 {selectedWeatherCountry.location && (
                   <p className="text-sm text-gray-600 mt-1">📍 {selectedWeatherCountry.location}</p>
@@ -1553,6 +1574,7 @@ export default function DailyBriefingCard() {
                 onClick={() => {
                   setShowWeatherModal(false);
                   setSelectedWeatherCountry(null);
+                  setSelectedWeatherData(null);
                 }}
                 className="text-gray-500 hover:text-gray-700 p-2"
               >
@@ -1561,30 +1583,46 @@ export default function DailyBriefingCard() {
             </div>
 
             <div className="p-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-10 gap-2">
-                {generateMonthlyWeather(selectedWeatherCountry.country, selectedWeatherCountry.countryCode).map((day, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100 shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="text-center">
-                      <p className="text-xs font-semibold text-gray-700 mb-0.5">{day.day}</p>
-                      <p className="text-xs text-gray-500 mb-2">{day.dayOfWeek}</p>
-                      <div className="text-2xl mb-1">{day.icon}</div>
-                      <p className="text-lg font-bold text-gray-900 mb-1">{day.temp}°C</p>
-                      <div className="flex items-center justify-center gap-1 text-xs text-gray-600 mb-1">
-                        <span className="text-blue-600 font-semibold">↓{day.minTemp}°</span>
-                        <span className="text-red-600 font-semibold">↑{day.maxTemp}°</span>
+              {weatherLoading ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">날씨 정보를 불러오는 중...</p>
+                </div>
+              ) : selectedWeatherData ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2">
+                  {selectedWeatherData.forecast.forecastday.map((day, idx) => {
+                    const date = new Date(day.date);
+                    const isToday = idx === 0;
+                    const isTomorrow = idx === 1;
+                    
+                    return (
+                      <div
+                        key={idx}
+                        className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100 shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="text-center">
+                          <p className="text-xs font-semibold text-gray-700 mb-0.5">
+                            {isToday ? '오늘' : isTomorrow ? '내일' : date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                          </p>
+                          <p className="text-xs text-gray-500 mb-2">
+                            {date.toLocaleDateString('ko-KR', { weekday: 'short' })}
+                          </p>
+                          <div className="text-2xl mb-1">{day.day.condition.icon}</div>
+                          <p className="text-lg font-bold text-gray-900 mb-1">{Math.round(day.day.maxtemp_c)}°C</p>
+                          <div className="flex items-center justify-center gap-1 text-xs text-gray-600 mb-1">
+                            <span className="text-blue-600 font-semibold">↓{Math.round(day.day.mintemp_c)}°</span>
+                            <span className="text-red-600 font-semibold">↑{Math.round(day.day.maxtemp_c)}°</span>
+                          </div>
+                          <p className="text-xs font-medium text-gray-700 mb-1.5">{day.day.condition.text}</p>
+                        </div>
                       </div>
-                      <p className="text-xs font-medium text-gray-700 mb-1.5">{day.condition}</p>
-                      <div className="text-xs text-gray-500 space-y-0.5 pt-1.5 border-t border-blue-200">
-                        <p>💧 {day.humidity}%</p>
-                        <p>💨 {day.windSpeed}km/h</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">날씨 정보를 불러올 수 없습니다.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
