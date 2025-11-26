@@ -221,46 +221,10 @@ export default function KakaoChannelButton({ className = '', variant = 'banner' 
         }
       }
       
-      // 카카오 SDK가 로드되고 초기화되었는지 확인
-      if (hasKakaoSDK && isKakaoInitialized && hasChannelAPI) {
-        console.log('[Kakao Channel] SDK를 사용하여 채널 추가 시도');
-        // 카카오 채널 추가 팝업 열기
-        window.Kakao.Channel.addChannel({
-          channelPublicId: channelId, // 카카오 비즈니스 채널 공개 ID
-          success: async () => {
-            console.log('[Kakao Channel] 채널 추가 성공 (SDK)');
-            // 채널 추가 성공 시 서버에 기록
-            try {
-              const response = await fetch('/api/kakao/add-channel', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-              });
-              const data = await response.json();
-              if (data.ok) {
-                setIsAdded(true);
-                setShowManualConfirm(false);
-                alert('카카오톡 채널이 추가되었습니다!');
-              } else {
-                console.error('[Kakao Channel] 서버 기록 실패:', data.error);
-                alert('채널은 추가되었지만 서버 기록에 실패했습니다: ' + (data.error || 'Unknown error'));
-              }
-            } catch (error) {
-              console.error('[Kakao Channel] 서버 기록 중 오류:', error);
-              alert('채널은 추가되었지만 서버 기록 중 오류가 발생했습니다.');
-            }
-          },
-          fail: (err: any) => {
-            console.error('[Kakao Channel] SDK 채널 추가 실패:', err);
-            // 실패 시 URL로 직접 이동하고 자동 확인 시작
-            fallbackToDirectUrl(channelId);
-          },
-        });
-      } else {
-        console.warn('[Kakao Channel] SDK를 사용할 수 없습니다. URL로 직접 이동합니다.');
-        // SDK가 로드되지 않은 경우 직접 URL로 이동하고 자동 확인 시작
-        fallbackToDirectUrl(channelId);
-      }
+      // 카카오 SDK의 Channel.addChannel은 최신 버전에서 success/fail 콜백을 지원하지 않음
+      // 따라서 직접 채널 URL로 이동하는 방식 사용
+      console.log('[Kakao Channel] 채널 페이지로 직접 이동합니다.');
+      fallbackToDirectUrl(channelId);
     } catch (error) {
       console.error('[Kakao Channel] 예상치 못한 오류:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
