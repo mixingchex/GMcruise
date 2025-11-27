@@ -37,6 +37,11 @@ export function getDriveClient() {
     console.error('  - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
     console.error('  - GOOGLE_PRIVATE_KEY');
     console.error('  - PRIVATE_KEY');
+    console.error('[GoogleDrive] 환경변수 존재 여부:');
+    console.error(`  - GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY: ${!!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY}`);
+    console.error(`  - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${!!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY}`);
+    console.error(`  - GOOGLE_PRIVATE_KEY: ${!!process.env.GOOGLE_PRIVATE_KEY}`);
+    console.error(`  - PRIVATE_KEY: ${!!process.env.PRIVATE_KEY}`);
     throw new Error('Google Drive Private Key 설정 오류');
   }
 
