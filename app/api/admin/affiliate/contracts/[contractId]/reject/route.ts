@@ -12,9 +12,10 @@ function requireAdmin(role?: string | null) {
   return null;
 }
 
-export async function POST(req: NextRequest, { params }: { params: { contractId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ contractId: string }> }) {
+  const { contractId: contractIdStr } = await params;
   try {
-    const contractId = Number(params.contractId);
+    const contractId = Number(contractIdStr);
     if (!contractId || Number.isNaN(contractId)) {
       return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
     }

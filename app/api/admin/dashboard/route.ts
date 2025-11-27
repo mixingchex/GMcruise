@@ -130,22 +130,19 @@ export async function GET() {
       inProgressTrips = tripsByStatus.find(s => s.status === 'InProgress')?._count || 0;
       completedTrips = tripsByStatus.find(s => s.status === 'Completed')?._count || 0;
       
-      // 현재 진행 중인 여행 (최대 10개만)
+      // 현재 진행 중인 여행 (최대 10개만) - Trip 모델의 실제 필드 사용
       currentTrips = await prisma.trip.findMany({
         where: { status: 'InProgress' },
-        take: 10, // 성능 최적화: 최대 10개만 가져오기
+        take: 10,
         select: {
           id: true,
-          cruiseName: true,
-          startDate: true,
+          shipName: true,
+          departureDate: true,
           endDate: true,
-          destination: true,
-          User: {
-            select: { name: true, phone: true },
-          },
+          productCode: true,
         },
         orderBy: {
-          startDate: 'asc',
+          departureDate: 'asc',
         },
       });
     } catch (tripError: any) {
@@ -261,18 +258,18 @@ export async function GET() {
     sevenDaysAgo.setDate(now.getDate() - 7);
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    // 일별 사용자 가입 수 (SQLite 호환)
+    // 일별 사용자 가입 수 (PostgreSQL 호환)
     let dailyUsers: Array<{ date: string; count: number }> = [];
     let dailyTrips: Array<{ date: string; count: number }> = [];
     
     try {
       const dailyUsersRaw = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
         SELECT 
-          date(createdAt) as date,
+          DATE("createdAt") as date,
           COUNT(*) as count
-        FROM User
-        WHERE createdAt >= ${sevenDaysAgo}
-        GROUP BY date(createdAt)
+        FROM "User"
+        WHERE "createdAt" >= ${sevenDaysAgo}
+        GROUP BY DATE("createdAt")
         ORDER BY date ASC
       `;
       dailyUsers = dailyUsersRaw.map(d => ({
@@ -283,15 +280,15 @@ export async function GET() {
       console.error('[Admin Dashboard] Daily users query error:', dailyUsersError);
     }
 
-    // 일별 여행 등록 수 (SQLite 호환)
+    // 일별 여행 등록 수 (PostgreSQL 호환)
     try {
       const dailyTripsRaw = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
         SELECT 
-          date(createdAt) as date,
+          DATE("createdAt") as date,
           COUNT(*) as count
-        FROM Trip
-        WHERE createdAt >= ${sevenDaysAgo}
-        GROUP BY date(createdAt)
+        FROM "Trip"
+        WHERE "createdAt" >= ${sevenDaysAgo}
+        GROUP BY DATE("createdAt")
         ORDER BY date ASC
       `;
       dailyTrips = dailyTripsRaw.map(d => ({
@@ -504,12 +501,12 @@ export async function GET() {
         },
         currentTrips: currentTrips.map(trip => ({
           id: trip.id,
-          cruiseName: trip.cruiseName,
-          userName: trip.User?.name || 'Unknown',  // ✅ null 체크 추가
-          userPhone: trip.User?.phone || '',  // ✅ null 체크 추가
-          startDate: trip.startDate,
+          cruiseName: trip.shipName,
+          userName: 'N/A',
+          userPhone: '',
+          startDate: trip.departureDate,
           endDate: trip.endDate,
-          destination: trip.destination,
+          destination: null,
         })),
         satisfaction: {
           average: avgSatisfaction ? Math.round(avgSatisfaction * 10) / 10 : 0,

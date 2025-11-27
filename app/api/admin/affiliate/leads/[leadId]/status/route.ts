@@ -13,7 +13,7 @@ import prisma from '@/lib/prisma';
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { leadId: string } }
+  { params }: { params: Promise<{ leadId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -21,7 +21,8 @@ export async function PUT(
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const leadId = Number(params.leadId);
+    const { leadId: leadIdStr } = await params;
+    const leadId = Number(leadIdStr);
     if (isNaN(leadId)) {
       return NextResponse.json({ ok: false, message: 'Invalid lead ID' }, { status: 400 });
     }

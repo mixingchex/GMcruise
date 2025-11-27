@@ -3,9 +3,9 @@ import { getSessionUser } from '@/lib/auth';
 import { PartnerApiError, requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
 
-export default async function SnsProfilePage({ params }: { params: { partnerId: string } }) {
+export default async function SnsProfilePage({ params }: { params: Promise<{ partnerId: string }> }) {
   try {
-    const partnerId = params.partnerId;
+    const { partnerId } = await params;
     const sessionUser = await getSessionUser();
 
     if (!sessionUser) {

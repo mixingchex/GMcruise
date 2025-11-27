@@ -4,8 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { uploadFileToDrive, findOrCreateFolder } from '@/lib/google-drive';
 import path from 'path';
 import sharp from 'sharp';
 
@@ -58,53 +57,85 @@ export async function POST(req: NextRequest) {
 
     // 폴더 경로 설정
     const folderPath = folder ? folder.trim() : 'images';
-    const uploadDir = path.join(process.cwd(), 'public', 'image-library', folderPath);
+    
+    // 원본 파일 버퍼
+    const originalBuffer = Buffer.from(await file.arrayBuffer());
 
-    // 디렉토리 생성
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    // Google Drive 폴더 ID 가져오기 (기본 images 폴더 사용)
+    const baseFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+    if (!baseFolderId) {
+      return NextResponse.json(
+        { ok: false, message: 'Google Drive 이미지 폴더 ID가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
     }
 
-    // 원본 파일 저장
-    const originalBuffer = Buffer.from(await file.arrayBuffer());
-    const originalPath = path.join(uploadDir, originalName);
-    await writeFile(originalPath, originalBuffer);
+    // 서브폴더 생성 (folderPath가 있으면)
+    let targetFolderId = baseFolderId;
+    if (folderPath && folderPath !== 'images') {
+      const subfolderResult = await findOrCreateFolder(folderPath, baseFolderId);
+      if (subfolderResult.ok && subfolderResult.folderId) {
+        targetFolderId = subfolderResult.folderId;
+      }
+    }
 
-    // WebP 변환
-    let webpPath: string | null = null;
+    // 원본 파일을 Google Drive에 업로드
+    const originalUploadResult = await uploadFileToDrive({
+      folderId: targetFolderId,
+      fileName: originalName,
+      mimeType: file.type,
+      buffer: originalBuffer,
+      makePublic: true, // 공개 링크로 제공 (로딩 최적화)
+    });
+
+    if (!originalUploadResult.ok || !originalUploadResult.url) {
+      return NextResponse.json(
+        { ok: false, message: `원본 파일 업로드 실패: ${originalUploadResult.error}` },
+        { status: 500 }
+      );
+    }
+
+    const originalUrl = originalUploadResult.url;
+
+    // WebP 변환 및 업로드
     let webpUrl: string | null = null;
+    let webpBuffer: Buffer | null = null;
 
     try {
-      const webpBuffer = await sharp(originalBuffer)
+      webpBuffer = await sharp(originalBuffer)
         .webp({ quality: 80 })
         .toBuffer();
 
       const webpFileName = `${nameWithoutExt}.webp`;
-      webpPath = path.join(uploadDir, webpFileName);
-      await writeFile(webpPath, webpBuffer);
+      const webpUploadResult = await uploadFileToDrive({
+        folderId: targetFolderId,
+        fileName: webpFileName,
+        mimeType: 'image/webp',
+        buffer: webpBuffer,
+        makePublic: true, // 공개 링크로 제공
+      });
 
-      webpUrl = `/image-library/${folderPath}/${webpFileName}`;
+      if (webpUploadResult.ok && webpUploadResult.url) {
+        webpUrl = webpUploadResult.url;
+      }
     } catch (error) {
       console.error('[Image Upload] WebP 변환 실패:', error);
       // WebP 변환 실패해도 원본은 저장됨
     }
-
-    const originalUrl = `/image-library/${folderPath}/${originalName}`;
 
     return NextResponse.json({
       ok: true,
       image: {
         original: {
           url: originalUrl,
-          path: originalPath,
           name: originalName,
           size: originalBuffer.length,
+          fileId: originalUploadResult.fileId,
         },
         webp: webpUrl ? {
           url: webpUrl,
-          path: webpPath,
           name: `${nameWithoutExt}.webp`,
-          size: webpPath ? (await import('fs/promises')).stat(webpPath).then(s => s.size).catch(() => 0) : 0,
+          size: webpBuffer?.length || 0,
         } : null,
         folder: folderPath,
       },

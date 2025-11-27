@@ -892,6 +892,25 @@ export default function NewProductPage() {
                   />
                   <span className="text-sm font-medium text-gray-700">Cruisedot</span>
                 </label>
+                <label className="flex items-center gap-2 cursor-pointer p-3 border-2 rounded-lg hover:border-blue-500 transition-colors flex-1">
+                  <input
+                    type="radio"
+                    name="source"
+                    value="lottejtb"
+                    checked={formData.source === 'lottejtb'}
+                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <img 
+                    src="/images/롯데제이티비.png" 
+                    alt="롯데 제이티비" 
+                    className="w-8 h-8 object-contain"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <span className="text-sm font-medium text-gray-700">롯데 제이티비</span>
+                </label>
               </div>
             </div>
 

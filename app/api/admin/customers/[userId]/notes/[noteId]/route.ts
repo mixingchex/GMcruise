@@ -37,12 +37,12 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ isAdmin: boole
 // PATCH: 고객 기록 수정
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { userId: string; noteId: string } }
+  { params }: { params: Promise<{ userId: string; noteId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
-    
+
     if (!auth.isAdmin || !auth.userId) {
       return NextResponse.json(
         { ok: false, error: '인증이 필요합니다.' },
@@ -50,9 +50,10 @@ export async function PATCH(
       );
     }
 
-    const customerId = parseInt(params.userId);
-    const noteId = parseInt(params.noteId);
-    
+    const { userId: userIdStr, noteId: noteIdStr } = await params;
+    const customerId = parseInt(userIdStr);
+    const noteId = parseInt(noteIdStr);
+
     if (isNaN(customerId) || isNaN(noteId)) {
       return NextResponse.json(
         { ok: false, error: '유효하지 않은 ID입니다.' },
@@ -134,7 +135,7 @@ export async function PATCH(
 // DELETE: 고객 기록 삭제
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { userId: string; noteId: string } }
+  { params }: { params: Promise<{ userId: string; noteId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
@@ -147,9 +148,10 @@ export async function DELETE(
       );
     }
 
-    const customerId = parseInt(params.userId);
-    const noteId = parseInt(params.noteId);
-    
+    const { userId: userIdStr, noteId: noteIdStr } = await params;
+    const customerId = parseInt(userIdStr);
+    const noteId = parseInt(noteIdStr);
+
     if (isNaN(customerId) || isNaN(noteId)) {
       return NextResponse.json(
         { ok: false, error: '유효하지 않은 ID입니다.' },

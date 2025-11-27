@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { uploadFileToDrive, findOrCreateFolder } from '@/lib/google-drive';
+import { updatePassportLinkInApis } from '@/lib/google-sheets';
 import { logger } from '@/lib/logger';
 import { join } from 'path';
 import { existsSync } from 'fs';
@@ -121,6 +122,19 @@ export async function POST(req: NextRequest) {
 
     // 로그 기록
     logger.info(`[Customer Passport Upload] 여권 이미지 저장 완료: reservationId=${reservationIdNum}, fileId=${uploadResult.fileId}, url=${fileUrl}`);
+
+    // APIS 스프레드시트에 여권 링크 자동 기록 (비동기, 실패해도 계속 진행)
+    try {
+      const apisResult = await updatePassportLinkInApis(reservationIdNum, fileUrl);
+      if (apisResult.ok) {
+        logger.info(`[Customer Passport Upload] APIS 스프레드시트에 여권 링크 기록 완료: reservationId=${reservationIdNum}`);
+      } else {
+        logger.warn(`[Customer Passport Upload] APIS 스프레드시트 링크 기록 실패: ${apisResult.error}`);
+      }
+    } catch (apisError) {
+      // APIS 기록 실패해도 여권 업로드는 성공으로 처리
+      logger.error(`[Customer Passport Upload] APIS 스프레드시트 링크 기록 중 오류:`, apisError);
+    }
 
     return NextResponse.json({
       ok: true,

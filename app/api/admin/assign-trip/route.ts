@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { normalizeItineraryPattern, extractDestinationsFromItineraryPattern, extractVisitedCountriesFromItineraryPattern } from '@/lib/utils/itineraryPattern';
+import { syncApisSpreadsheet } from '@/lib/google-sheets';
 
 /**
  * POST /api/admin/assign-trip
@@ -147,6 +148,19 @@ export async function POST(req: NextRequest) {
         onboarded: true,
       },
     });
+
+    // APIS 스프레드시트 자동 생성 (비동기, 실패해도 계속 진행)
+    try {
+      const apisResult = await syncApisSpreadsheet(trip.id);
+      if (apisResult.ok) {
+        console.log(`[Assign Trip] APIS 스프레드시트 생성 완료: tripId=${trip.id}, spreadsheetId=${apisResult.spreadsheetId}`);
+      } else {
+        console.warn(`[Assign Trip] APIS 스프레드시트 생성 실패: ${apisResult.error}`);
+      }
+    } catch (apisError) {
+      // APIS 생성 실패해도 여행 배정은 성공으로 처리
+      console.error(`[Assign Trip] APIS 스프레드시트 생성 중 오류:`, apisError);
+    }
 
     // 연동된 크루즈몰 사용자 상태 자동 활성화
     try {

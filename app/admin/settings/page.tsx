@@ -76,6 +76,32 @@ type AdminInfo = {
   googleDriveSharedDriveId: string;
   googleDriveRootFolderId: string;
   googleDrivePassportFolderId: string;
+  // Google Sheets
+  communityBackupSpreadsheetId?: string;
+  tripApisArchiveSpreadsheetId?: string;
+  // Upload folders
+  googleDriveUploadsImagesFolderId?: string;
+  googleDriveUploadsProfilesFolderId?: string;
+  googleDriveUploadsReviewsFolderId?: string;
+  googleDriveUploadsAudioFolderId?: string;
+  googleDriveUploadsDocumentsFolderId?: string;
+  googleDriveUploadsVideosFolderId?: string;
+  googleDriveUploadsSalesAudioFolderId?: string;
+  googleDriveUploadsFontsFolderId?: string;
+  googleDriveContractsPdfsFolderId?: string;
+  googleDriveProductsFolderId?: string;
+  googleDriveCruiseImagesFolderId?: string;
+  // Affiliate documents
+  googleDriveContractsFolderId?: string;
+  googleDriveContractSignaturesFolderId?: string;
+  googleDriveContractAudioFolderId?: string;
+  googleDriveIdCardFolderId?: string;
+  googleDriveBankbookFolderId?: string;
+  // Additional folders
+  googleDriveCompanyLogoFolderId?: string;
+  googleDriveAffiliateInfoFolderId?: string;
+  // Automation settings
+  automationSettings?: Record<string, boolean>;
   kakaoApiManagers?: KakaoApiManager[];
   kakaoApiKeys?: KakaoApiKey[];
   kakaoSenderKeys?: KakaoSenderKey[];
@@ -149,6 +175,16 @@ export default function AdminSettingsPage() {
   const [showPgFieldEncryptKeyNonAuth, setShowPgFieldEncryptKeyNonAuth] = useState(false);
   const [showYoutubeApiKey, setShowYoutubeApiKey] = useState(false);
   const [showGoogleDrivePrivateKey, setShowGoogleDrivePrivateKey] = useState(false);
+  
+  // 자동화 설정 (DB에서 관리)
+  const [automationSettings, setAutomationSettings] = useState<Record<string, boolean>>({});
+  const [isSavingAutomation, setIsSavingAutomation] = useState(false);
+  
+  // 스프레드시트 복사 기능
+  const [copySpreadsheetId, setCopySpreadsheetId] = useState('');
+  const [copyTargetFolderId, setCopyTargetFolderId] = useState('');
+  const [copyFolderName, setCopyFolderName] = useState('');
+  const [isCopyingSpreadsheet, setIsCopyingSpreadsheet] = useState(false);
   
   // 마케팅 설정 (DB에서 관리)
   const [marketingConfig, setMarketingConfig] = useState<MarketingConfig | null>(null);
@@ -384,6 +420,10 @@ export default function AdminSettingsPage() {
       if (data.ok && data.info) {
         setAdminInfo(data.info);
         setEditableInfo(data.info);
+        // 자동화 설정 로드
+        if (data.info.automationSettings) {
+          setAutomationSettings(data.info.automationSettings);
+        }
       } else {
         console.error('Failed to load admin info:', data.error || 'Unknown error', data);
         // 에러가 발생해도 빈 객체라도 설정하여 UI가 깨지지 않도록
@@ -553,6 +593,26 @@ export default function AdminSettingsPage() {
         googleDriveSharedDriveId: 'GOOGLE_DRIVE_SHARED_DRIVE_ID',
         googleDriveRootFolderId: 'GOOGLE_DRIVE_ROOT_FOLDER_ID',
         googleDrivePassportFolderId: 'GOOGLE_DRIVE_PASSPORT_FOLDER_ID',
+        communityBackupSpreadsheetId: 'COMMUNITY_BACKUP_SPREADSHEET_ID',
+        tripApisArchiveSpreadsheetId: 'TRIP_APIS_ARCHIVE_SPREADSHEET_ID',
+        googleDriveUploadsImagesFolderId: 'GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID',
+        googleDriveUploadsProfilesFolderId: 'GOOGLE_DRIVE_UPLOADS_PROFILES_FOLDER_ID',
+        googleDriveUploadsReviewsFolderId: 'GOOGLE_DRIVE_UPLOADS_REVIEWS_FOLDER_ID',
+        googleDriveUploadsAudioFolderId: 'GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID',
+        googleDriveUploadsDocumentsFolderId: 'GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID',
+        googleDriveUploadsVideosFolderId: 'GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID',
+        googleDriveUploadsSalesAudioFolderId: 'GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID',
+        googleDriveUploadsFontsFolderId: 'GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID',
+        googleDriveContractsPdfsFolderId: 'GOOGLE_DRIVE_CONTRACTS_PDFS_FOLDER_ID',
+        googleDriveProductsFolderId: 'GOOGLE_DRIVE_PRODUCTS_FOLDER_ID',
+        googleDriveCruiseImagesFolderId: 'GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID',
+        googleDriveContractsFolderId: 'GOOGLE_DRIVE_CONTRACTS_FOLDER_ID',
+        googleDriveContractSignaturesFolderId: 'GOOGLE_DRIVE_CONTRACT_SIGNATURES_FOLDER_ID',
+        googleDriveContractAudioFolderId: 'GOOGLE_DRIVE_CONTRACT_AUDIO_FOLDER_ID',
+        googleDriveIdCardFolderId: 'GOOGLE_DRIVE_ID_CARD_FOLDER_ID',
+        googleDriveBankbookFolderId: 'GOOGLE_DRIVE_BANKBOOK_FOLDER_ID',
+        googleDriveCompanyLogoFolderId: 'GOOGLE_DRIVE_COMPANY_LOGO_FOLDER_ID',
+        googleDriveAffiliateInfoFolderId: 'GOOGLE_DRIVE_AFFILIATE_INFO_FOLDER_ID',
       };
 
       const updates: Record<string, string> = {};
@@ -652,6 +712,26 @@ export default function AdminSettingsPage() {
         googleDriveSharedDriveId: 'GOOGLE_DRIVE_SHARED_DRIVE_ID',
         googleDriveRootFolderId: 'GOOGLE_DRIVE_ROOT_FOLDER_ID',
         googleDrivePassportFolderId: 'GOOGLE_DRIVE_PASSPORT_FOLDER_ID',
+        communityBackupSpreadsheetId: 'COMMUNITY_BACKUP_SPREADSHEET_ID',
+        tripApisArchiveSpreadsheetId: 'TRIP_APIS_ARCHIVE_SPREADSHEET_ID',
+        googleDriveUploadsImagesFolderId: 'GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID',
+        googleDriveUploadsProfilesFolderId: 'GOOGLE_DRIVE_UPLOADS_PROFILES_FOLDER_ID',
+        googleDriveUploadsReviewsFolderId: 'GOOGLE_DRIVE_UPLOADS_REVIEWS_FOLDER_ID',
+        googleDriveUploadsAudioFolderId: 'GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID',
+        googleDriveUploadsDocumentsFolderId: 'GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID',
+        googleDriveUploadsVideosFolderId: 'GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID',
+        googleDriveUploadsSalesAudioFolderId: 'GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID',
+        googleDriveUploadsFontsFolderId: 'GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID',
+        googleDriveContractsPdfsFolderId: 'GOOGLE_DRIVE_CONTRACTS_PDFS_FOLDER_ID',
+        googleDriveProductsFolderId: 'GOOGLE_DRIVE_PRODUCTS_FOLDER_ID',
+        googleDriveCruiseImagesFolderId: 'GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID',
+        googleDriveContractsFolderId: 'GOOGLE_DRIVE_CONTRACTS_FOLDER_ID',
+        googleDriveContractSignaturesFolderId: 'GOOGLE_DRIVE_CONTRACT_SIGNATURES_FOLDER_ID',
+        googleDriveContractAudioFolderId: 'GOOGLE_DRIVE_CONTRACT_AUDIO_FOLDER_ID',
+        googleDriveIdCardFolderId: 'GOOGLE_DRIVE_ID_CARD_FOLDER_ID',
+        googleDriveBankbookFolderId: 'GOOGLE_DRIVE_BANKBOOK_FOLDER_ID',
+        googleDriveCompanyLogoFolderId: 'GOOGLE_DRIVE_COMPANY_LOGO_FOLDER_ID',
+        googleDriveAffiliateInfoFolderId: 'GOOGLE_DRIVE_AFFILIATE_INFO_FOLDER_ID',
       };
 
       const updates: Record<string, string> = {};
@@ -726,6 +806,77 @@ export default function AdminSettingsPage() {
   const handleCancelCategory = () => {
     setCategoryEditableInfo({});
     setEditingCategory(null);
+  };
+
+  // 자동화 설정 저장
+  const handleSaveAutomation = async () => {
+    try {
+      setIsSavingAutomation(true);
+      const response = await fetch('/api/admin/settings/automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ settings: automationSettings }),
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        alert(data.message || '자동화 설정이 저장되었습니다.');
+        await loadAdminInfo(); // 다시 로드
+      } else {
+        alert('저장 실패: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to save automation settings:', error);
+      alert('자동화 설정 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingAutomation(false);
+    }
+  };
+
+  // 자동화 설정 토글
+  const toggleAutomation = (key: string) => {
+    setAutomationSettings(prev => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  };
+
+  // 스프레드시트 복사
+  const handleCopySpreadsheet = async () => {
+    if (!copySpreadsheetId || !copyTargetFolderId) {
+      alert('스프레드시트 ID와 대상 폴더 ID를 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsCopyingSpreadsheet(true);
+      const response = await fetch('/api/admin/google-drive/copy-spreadsheet-folder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          spreadsheetId: copySpreadsheetId,
+          targetFolderId: copyTargetFolderId,
+          folderName: copyFolderName || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        alert(`✅ ${data.message}\n\n새 스프레드시트 URL:\n${data.spreadsheetUrl}`);
+        setCopySpreadsheetId('');
+        setCopyTargetFolderId('');
+        setCopyFolderName('');
+      } else {
+        alert('복사 실패: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to copy spreadsheet:', error);
+      alert('스프레드시트 복사 중 오류가 발생했습니다.');
+    } finally {
+      setIsCopyingSpreadsheet(false);
+    }
   };
 
   const copyToClipboard = async (text: string, fieldName: string) => {
@@ -2562,6 +2713,236 @@ export default function AdminSettingsPage() {
             isEditing={editingCategory === 'googledrive'}
             onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDrivePassportFolderId: value })}
           />
+          
+          <div className="mt-6 pt-6 border-t-2 border-gray-200">
+            <h3 className="text-lg font-bold text-gray-700 mb-4">📊 Google Sheets 설정</h3>
+            <InfoRow
+              label="구매자APIS 템플릿 시트 ID"
+              value={editingCategory === 'googledrive' ? (categoryEditableInfo.communityBackupSpreadsheetId || '') : (adminInfo?.communityBackupSpreadsheetId || 'N/A')}
+              onCopy={() => copyToClipboard(adminInfo?.communityBackupSpreadsheetId || '', 'communityBackupSpreadsheetId')}
+              copied={copiedField === 'communityBackupSpreadsheetId'}
+              isEditing={editingCategory === 'googledrive'}
+              onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, communityBackupSpreadsheetId: value })}
+            />
+            <InfoRow
+              label="여행별 APIS 보관 폴더 ID"
+              value={editingCategory === 'googledrive' ? (categoryEditableInfo.tripApisArchiveSpreadsheetId || '') : (adminInfo?.tripApisArchiveSpreadsheetId || 'N/A')}
+              onCopy={() => copyToClipboard(adminInfo?.tripApisArchiveSpreadsheetId || '', 'tripApisArchiveSpreadsheetId')}
+              copied={copiedField === 'tripApisArchiveSpreadsheetId'}
+              isEditing={editingCategory === 'googledrive'}
+              onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, tripApisArchiveSpreadsheetId: value })}
+            />
+            
+            <div className="mt-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+              <h4 className="font-bold text-gray-800 mb-3">📋 스프레드시트 복사 기능</h4>
+              <p className="text-sm text-gray-600 mb-4">
+                Google 스프레드시트 ID를 입력하면 해당 폴더에 복사본을 생성합니다.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    복사할 스프레드시트 ID
+                  </label>
+                  <input
+                    type="text"
+                    value={copySpreadsheetId}
+                    onChange={(e) => setCopySpreadsheetId(e.target.value)}
+                    placeholder="예: 1Le6IPNzyvMqpn-6ZnqgvH0JTQ8O5rKymWMU_pkfbQ5Q"
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    대상 폴더 ID
+                  </label>
+                  <input
+                    type="text"
+                    value={copyTargetFolderId}
+                    onChange={(e) => setCopyTargetFolderId(e.target.value)}
+                    placeholder="예: 185t2eIIPDsEm-QW9KmhTbxkrywFJhGdk"
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    새 폴더 이름 (선택사항)
+                  </label>
+                  <input
+                    type="text"
+                    value={copyFolderName}
+                    onChange={(e) => setCopyFolderName(e.target.value)}
+                    placeholder="비워두면 원본 이름 사용"
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={handleCopySpreadsheet}
+                  disabled={isCopyingSpreadsheet || !copySpreadsheetId || !copyTargetFolderId}
+                  className={`w-full px-4 py-2 rounded-lg font-semibold transition-colors ${
+                    isCopyingSpreadsheet || !copySpreadsheetId || !copyTargetFolderId
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                >
+                  {isCopyingSpreadsheet ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent inline-block mr-2"></div>
+                      복사 중...
+                    </>
+                  ) : (
+                    '📋 스프레드시트 복사하기'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t-2 border-gray-200">
+            <h3 className="text-lg font-bold text-gray-700 mb-4">📁 업로드 폴더 설정</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoRow
+                label="이미지 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveUploadsImagesFolderId || '') : (adminInfo?.googleDriveUploadsImagesFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveUploadsImagesFolderId || '', 'googleDriveUploadsImagesFolderId')}
+                copied={copiedField === 'googleDriveUploadsImagesFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveUploadsImagesFolderId: value })}
+              />
+              <InfoRow
+                label="프로필 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveUploadsProfilesFolderId || '') : (adminInfo?.googleDriveUploadsProfilesFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveUploadsProfilesFolderId || '', 'googleDriveUploadsProfilesFolderId')}
+                copied={copiedField === 'googleDriveUploadsProfilesFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveUploadsProfilesFolderId: value })}
+              />
+              <InfoRow
+                label="리뷰 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveUploadsReviewsFolderId || '') : (adminInfo?.googleDriveUploadsReviewsFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveUploadsReviewsFolderId || '', 'googleDriveUploadsReviewsFolderId')}
+                copied={copiedField === 'googleDriveUploadsReviewsFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveUploadsReviewsFolderId: value })}
+              />
+              <InfoRow
+                label="오디오 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveUploadsAudioFolderId || '') : (adminInfo?.googleDriveUploadsAudioFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveUploadsAudioFolderId || '', 'googleDriveUploadsAudioFolderId')}
+                copied={copiedField === 'googleDriveUploadsAudioFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveUploadsAudioFolderId: value })}
+              />
+              <InfoRow
+                label="문서 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveUploadsDocumentsFolderId || '') : (adminInfo?.googleDriveUploadsDocumentsFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveUploadsDocumentsFolderId || '', 'googleDriveUploadsDocumentsFolderId')}
+                copied={copiedField === 'googleDriveUploadsDocumentsFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveUploadsDocumentsFolderId: value })}
+              />
+              <InfoRow
+                label="계약서 PDF 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveContractsPdfsFolderId || '') : (adminInfo?.googleDriveContractsPdfsFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveContractsPdfsFolderId || '', 'googleDriveContractsPdfsFolderId')}
+                copied={copiedField === 'googleDriveContractsPdfsFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveContractsPdfsFolderId: value })}
+              />
+              <InfoRow
+                label="제품 이미지 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveProductsFolderId || '') : (adminInfo?.googleDriveProductsFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveProductsFolderId || '', 'googleDriveProductsFolderId')}
+                copied={copiedField === 'googleDriveProductsFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveProductsFolderId: value })}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t-2 border-gray-200">
+            <h3 className="text-lg font-bold text-gray-700 mb-4">📄 어필리에이트 문서 폴더 설정</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoRow
+                label="계약서 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveContractsFolderId || '') : (adminInfo?.googleDriveContractsFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveContractsFolderId || '', 'googleDriveContractsFolderId')}
+                copied={copiedField === 'googleDriveContractsFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveContractsFolderId: value })}
+              />
+              <InfoRow
+                label="계약서 서명 이미지 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveContractSignaturesFolderId || '') : (adminInfo?.googleDriveContractSignaturesFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveContractSignaturesFolderId || '', 'googleDriveContractSignaturesFolderId')}
+                copied={copiedField === 'googleDriveContractSignaturesFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveContractSignaturesFolderId: value })}
+              />
+              <InfoRow
+                label="계약서 녹음 파일 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveContractAudioFolderId || '') : (adminInfo?.googleDriveContractAudioFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveContractAudioFolderId || '', 'googleDriveContractAudioFolderId')}
+                copied={copiedField === 'googleDriveContractAudioFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveContractAudioFolderId: value })}
+              />
+              <InfoRow
+                label="신분증 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveIdCardFolderId || '') : (adminInfo?.googleDriveIdCardFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveIdCardFolderId || '', 'googleDriveIdCardFolderId')}
+                copied={copiedField === 'googleDriveIdCardFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveIdCardFolderId: value })}
+              />
+              <InfoRow
+                label="통장 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveBankbookFolderId || '') : (adminInfo?.googleDriveBankbookFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveBankbookFolderId || '', 'googleDriveBankbookFolderId')}
+                copied={copiedField === 'googleDriveBankbookFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveBankbookFolderId: value })}
+              />
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t-2 border-gray-200">
+            <h3 className="text-lg font-bold text-gray-700 mb-4">🏢 추가 폴더 설정</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoRow
+                label="크루즈정보사진 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveCruiseImagesFolderId || '') : (adminInfo?.googleDriveCruiseImagesFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveCruiseImagesFolderId || '', 'googleDriveCruiseImagesFolderId')}
+                copied={copiedField === 'googleDriveCruiseImagesFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveCruiseImagesFolderId: value })}
+              />
+              <InfoRow
+                label="상품 상세페이지 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveProductsFolderId || '') : (adminInfo?.googleDriveProductsFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveProductsFolderId || '', 'googleDriveProductsFolderId')}
+                copied={copiedField === 'googleDriveProductsFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveProductsFolderId: value })}
+              />
+              <InfoRow
+                label="회사 로고 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveCompanyLogoFolderId || '') : (adminInfo?.googleDriveCompanyLogoFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveCompanyLogoFolderId || '', 'googleDriveCompanyLogoFolderId')}
+                copied={copiedField === 'googleDriveCompanyLogoFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveCompanyLogoFolderId: value })}
+              />
+              <InfoRow
+                label="판매원/대리점장 정보 폴더 ID"
+                value={editingCategory === 'googledrive' ? (categoryEditableInfo.googleDriveAffiliateInfoFolderId || '') : (adminInfo?.googleDriveAffiliateInfoFolderId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.googleDriveAffiliateInfoFolderId || '', 'googleDriveAffiliateInfoFolderId')}
+                copied={copiedField === 'googleDriveAffiliateInfoFolderId'}
+                isEditing={editingCategory === 'googledrive'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDriveAffiliateInfoFolderId: value })}
+              />
+            </div>
+          </div>
+
           <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800 mb-2">
               <strong>💡 안내:</strong> Google Drive 자동화 기능을 위한 설정입니다.
@@ -2578,6 +2959,198 @@ export default function AdminSettingsPage() {
             <p className="text-sm text-blue-800 mt-2">
               <strong>⚠️ 중요:</strong> Private Key는 여러 줄로 입력해야 하며, <code>\n</code> 문자를 실제 줄바꿈으로 변환해야 합니다.
             </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Google Drive 자동화 설정 */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-3xl">🤖</span>
+            Google Drive 자동화 설정
+          </h2>
+          <button
+            onClick={handleSaveAutomation}
+            disabled={isSavingAutomation}
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
+              isSavingAutomation
+                ? 'bg-gray-400 text-white cursor-not-allowed'
+                : 'bg-green-600 text-white hover:bg-green-700'
+            }`}
+          >
+            {isSavingAutomation ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                저장 중...
+              </>
+            ) : (
+              <>
+                <FiSave size={18} />
+                저장하기
+              </>
+            )}
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg mb-4">
+            <p className="text-sm text-yellow-800 mb-2">
+              <strong>💡 안내:</strong> 각 자동화 기능을 켜고 끌 수 있습니다. 설정 변경 후 저장 버튼을 클릭하세요.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 여권 업로드 자동화 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">여권 업로드 자동화</h3>
+                  <p className="text-sm text-gray-600">고객이 여권을 업로드하면 Google Drive에 자동 저장</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.passportUpload || false}
+                    onChange={() => toggleAutomation('passportUpload')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* APIS 스프레드시트 자동 생성 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">APIS 스프레드시트 자동 생성</h3>
+                  <p className="text-sm text-gray-600">여행 생성 시 구매자APIS 템플릿 복제하여 자동 생성</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.apisSpreadsheet || false}
+                    onChange={() => toggleAutomation('apisSpreadsheet')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* 계약서 PDF 자동 백업 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">계약서 PDF 자동 백업</h3>
+                  <p className="text-sm text-gray-600">계약서 PDF 생성 시 Google Drive에 자동 백업</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.contractPdf || false}
+                    onChange={() => toggleAutomation('contractPdf')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* 제품 이미지 자동 업로드 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">제품 이미지 자동 업로드</h3>
+                  <p className="text-sm text-gray-600">제품 이미지 업로드 시 Google Drive에 자동 저장</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.productImages || false}
+                    onChange={() => toggleAutomation('productImages')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* 데이터베이스 자동 백업 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">데이터베이스 자동 백업</h3>
+                  <p className="text-sm text-gray-600">매일 정해진 시간에 DB를 Excel로 변환하여 백업</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.databaseBackup || false}
+                    onChange={() => toggleAutomation('databaseBackup')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* 지급명세서 자동 생성 및 발송 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">지급명세서 자동 생성 및 발송</h3>
+                  <p className="text-sm text-gray-600">매월 1일에 전월 지급명세서 자동 생성 및 발송</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.payslipAutoSend || false}
+                    onChange={() => toggleAutomation('payslipAutoSend')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* 어필리에이트 문서 자동 업로드 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">어필리에이트 문서 자동 업로드</h3>
+                  <p className="text-sm text-gray-600">신분증/통장 사본 업로드 시 Google Drive에 자동 저장</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.affiliateDocuments || false}
+                    onChange={() => toggleAutomation('affiliateDocuments')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* 커뮤니티 이미지 자동 업로드 */}
+            <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1">커뮤니티 이미지 자동 업로드</h3>
+                  <p className="text-sm text-gray-600">게시글/댓글/리뷰 이미지가 Google Drive에 자동 저장</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={automationSettings.communityImages || false}
+                    onChange={() => toggleAutomation('communityImages')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>

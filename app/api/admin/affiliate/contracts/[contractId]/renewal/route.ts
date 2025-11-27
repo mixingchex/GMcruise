@@ -11,7 +11,7 @@ import { notifyContractRenewalApproved, notifyContractRenewalRejected, notifyDbR
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { contractId: string } }
+  { params }: { params: Promise<{ contractId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -22,7 +22,8 @@ export async function POST(
       );
     }
 
-    const contractId = parseInt(params.contractId);
+    const { contractId: contractIdStr } = await params;
+    const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {
       return NextResponse.json(
         { ok: false, message: '유효하지 않은 계약서 ID입니다.' },

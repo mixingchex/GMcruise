@@ -57,34 +57,14 @@ export function getDriveClient() {
     throw new Error('Google Drive Client Email 설정 오류');
   }
 
-  // 3. 줄바꿈 문자 처리 (가장 중요!)
-  // 여러 형태의 줄바꿈 문자를 실제 개행으로 변환
+  // 3. 줄바꿈 문자 처리 (google-sheets.ts와 동일한 방식 사용)
   let privateKey = rawPrivateKey
     // 앞뒤 따옴표 제거 (환경변수에 따옴표가 포함된 경우)
-    .replace(/^["']|["']$/g, '')
+    .replace(/^["']+|["']+$/g, '')
     // 앞뒤 공백 제거
-    .trim();
-
-  // 이스케이프된 줄바꿈 문자 처리 (여러 패턴 시도)
-  // 1. 이미 실제 개행 문자가 있는 경우 (환경변수에 직접 포함된 경우)
-  if (privateKey.includes('\n')) {
-    // 이미 개행 문자가 있으면 그대로 사용
-    console.log('[GoogleDrive] Private key에 실제 개행 문자가 포함되어 있습니다.');
-  } else {
-    // 2. 이스케이프된 형태 처리
-    // \\n (이중 이스케이프) -> \n
-    privateKey = privateKey.replace(/\\\\n/g, '\n');
-    // \\r\\n (이중 이스케이프) -> \n
-    privateKey = privateKey.replace(/\\\\r\\\\n/g, '\n');
-    // \\r (이중 이스케이프) -> \n
-    privateKey = privateKey.replace(/\\\\r/g, '\n');
-    // \n (단일 이스케이프) -> \n
-    privateKey = privateKey.replace(/\\n/g, '\n');
-    // \r\n (단일 이스케이프) -> \n
-    privateKey = privateKey.replace(/\\r\\n/g, '\n');
-    // \r (단일 이스케이프) -> \n
-    privateKey = privateKey.replace(/\\r/g, '\n');
-  }
+    .trim()
+    // 이스케이프된 줄바꿈 문자를 실제 줄바꿈으로 변환 (google-sheets.ts 방식)
+    .replace(/\\n/g, '\n');
 
   // 4. BEGIN/END 라인 확인
   if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
@@ -212,6 +192,88 @@ export async function findOrCreateFolder(
   }
 }
 
+/**
+ * Google Drive 폴더 내 파일 목록 가져오기
+ */
+export async function listFilesInFolder(
+  folderId: string,
+  subfolderPath?: string
+): Promise<{ ok: boolean; files?: Array<{ name: string; url: string; mimeType: string; id: string }>; error?: string }> {
+  try {
+    const drive = getDriveClient();
+    
+    // 서브폴더 경로가 있으면 해당 폴더 찾기
+    let targetFolderId = folderId;
+    if (subfolderPath) {
+      const pathParts = subfolderPath.split('/').filter(Boolean);
+      for (const part of pathParts) {
+        const result = await findOrCreateFolder(part, targetFolderId);
+        if (result.ok && result.folderId) {
+          targetFolderId = result.folderId;
+        } else {
+          return { ok: false, error: `서브폴더를 찾을 수 없습니다: ${part}` };
+        }
+      }
+    }
+
+    // 폴더 내 파일 목록 가져오기
+    const response = await drive.files.list({
+      q: `'${targetFolderId}' in parents and trashed=false`,
+      fields: 'files(id, name, mimeType, webViewLink, webContentLink)',
+      orderBy: 'name',
+    });
+
+    const files = (response.data.files || []).map(file => {
+      const fileId = file.id || '';
+      const mimeType = file.mimeType || '';
+      const isImage = mimeType.startsWith('image/');
+      
+      return {
+        name: file.name || '',
+        url: getDriveFileUrl(fileId, isImage),
+        mimeType,
+        id: fileId,
+      };
+    });
+
+    return { ok: true, files };
+  } catch (error: any) {
+    console.error('[GoogleDrive] listFilesInFolder error:', error);
+    return { ok: false, error: error?.message || '파일 목록 가져오기 실패' };
+  }
+}
+
+/**
+ * Google Drive 파일 ID를 직접 다운로드 URL로 변환 (CDN 최적화)
+ * 이미지의 경우 미리보기 링크 사용, 다른 파일은 다운로드 링크 사용
+ */
+export function getDriveFileUrl(fileId: string, isImage: boolean = false): string {
+  if (isImage) {
+    // 이미지는 미리보기 링크 사용 (최적화된 크기)
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+  }
+  // 다른 파일은 다운로드 링크 사용
+  return `https://drive.google.com/uc?export=download&id=${fileId}`;
+}
+
+/**
+ * Google Drive 공개 링크를 최적화된 URL로 변환
+ */
+export function optimizeDriveUrl(url: string, fileId?: string): string {
+  // fileId가 있으면 직접 다운로드 링크 사용 (더 빠름)
+  if (fileId) {
+    // URL에서 fileId 추출 시도
+    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (idMatch) {
+      return getDriveFileUrl(idMatch[1], true);
+    }
+    return getDriveFileUrl(fileId, true);
+  }
+  
+  // fileId가 없으면 원본 URL 사용
+  return url;
+}
+
 export async function uploadFileToDrive(params: UploadParams): Promise<UploadResult> {
   const { folderId, fileName, mimeType = 'application/octet-stream', buffer, makePublic = false } = params;
 
@@ -290,10 +352,11 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       await drive.permissions.create(permissionOptions);
     }
 
-    const url =
-      response.data.webViewLink ||
-      response.data.webContentLink ||
-      `https://drive.google.com/file/d/${fileId}/view`;
+    // 이미지인지 확인
+    const isImage = mimeType?.startsWith('image/') || false;
+    
+    // 최적화된 URL 사용 (CDN 캐싱 최적화)
+    const url = getDriveFileUrl(fileId, isImage);
 
     return { ok: true, fileId, url };
   } catch (error: any) {
@@ -313,6 +376,47 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
     }
     
     return { ok: false, error: error?.message || 'Google Drive 업로드 실패' };
+  }
+}
+
+/**
+ * Google Drive에서 파일 삭제
+ * @param fileId - Google Drive 파일 ID 또는 URL
+ * @returns 삭제 성공 여부
+ */
+export async function deleteFileFromDrive(
+  fileIdOrUrl: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const drive = getDriveClient();
+    
+    // URL에서 파일 ID 추출
+    let fileId = fileIdOrUrl;
+    if (fileIdOrUrl.includes('drive.google.com')) {
+      const idMatch = fileIdOrUrl.match(/[\/=]([a-zA-Z0-9_-]{25,})/);
+      if (idMatch) {
+        fileId = idMatch[1];
+      } else {
+        return { ok: false, error: '유효하지 않은 Google Drive URL입니다.' };
+      }
+    }
+
+    // 파일 삭제
+    await drive.files.delete({
+      fileId: fileId,
+    });
+
+    console.log(`[GoogleDrive] File deleted: ${fileId}`);
+    return { ok: true };
+  } catch (error: any) {
+    console.error('[GoogleDrive] deleteFileFromDrive error:', error);
+    
+    // 파일이 이미 삭제된 경우 성공으로 처리
+    if (error?.code === 404 || error?.message?.includes('not found')) {
+      return { ok: true };
+    }
+    
+    return { ok: false, error: error?.message || '파일 삭제 실패' };
   }
 }
 

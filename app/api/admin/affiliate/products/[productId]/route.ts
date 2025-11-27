@@ -64,9 +64,10 @@ interface UpdateBody {
   }>;
 }
 
-export async function PUT(request: Request, { params }: { params: { productId: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ productId: string }> }) {
   try {
-    const productId = Number(params.productId);
+    const { productId: productIdStr } = await params;
+    const productId = Number(productIdStr);
     if (!Number.isInteger(productId)) {
       return NextResponse.json({ ok: false, error: '잘못된 상품 ID 입니다.' }, { status: 400 });
     }
@@ -182,9 +183,10 @@ export async function PUT(request: Request, { params }: { params: { productId: s
  * - 관련된 AffiliateLink 삭제 (또는 비활성화)
  * - 구매몰에서 즉시 노출 중지 (isPublished = false로 설정 후 삭제)
  */
-export async function DELETE(request: Request, { params }: { params: { productId: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ productId: string }> }) {
   try {
-    const productId = Number(params.productId);
+    const { productId: productIdStr } = await params;
+    const productId = Number(productIdStr);
     if (!Number.isInteger(productId)) {
       return NextResponse.json({ ok: false, error: '잘못된 상품 ID 입니다.' }, { status: 400 });
     }

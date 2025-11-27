@@ -28,7 +28,7 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { adminId: string } }
+  { params }: { params: Promise<{ adminId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
@@ -97,7 +97,7 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { adminId: string } }
+  { params }: { params: Promise<{ adminId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
@@ -185,7 +185,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { adminId: string } }
+  { params }: { params: Promise<{ adminId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;

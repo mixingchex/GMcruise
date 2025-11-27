@@ -33,7 +33,7 @@ async function checkAdminAuth() {
 // GET: 고객 상세 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const isAdmin = await checkAdminAuth();
@@ -41,7 +41,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     if (isNaN(userId)) {
       return NextResponse.json({ ok: false, error: 'Invalid user ID' }, { status: 400 });
     }
@@ -160,7 +160,7 @@ export async function GET(
 // PATCH: 고객 정보 수정
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const isAdmin = await checkAdminAuth();
@@ -168,7 +168,7 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     if (isNaN(userId)) {
       return NextResponse.json({ ok: false, error: 'Invalid user ID' }, { status: 400 });
     }

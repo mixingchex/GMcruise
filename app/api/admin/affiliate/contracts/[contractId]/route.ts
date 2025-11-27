@@ -14,7 +14,7 @@ function requireAdmin(role?: string | null) {
 // GET: 계약서 상세 정보 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { contractId: string } }
+  { params }: { params: Promise<{ contractId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -26,7 +26,8 @@ export async function GET(
     const guard = requireAdmin(admin?.role);
     if (guard) return guard;
 
-    const contractId = parseInt(params.contractId);
+    const { contractId: contractIdStr } = await params;
+    const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {
       return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
     }
@@ -114,7 +115,7 @@ export async function GET(
 // DELETE: 계약서 삭제
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { contractId: string } }
+  { params }: { params: Promise<{ contractId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -126,7 +127,8 @@ export async function DELETE(
     const guard = requireAdmin(admin?.role);
     if (guard) return guard;
 
-    const contractId = parseInt(params.contractId);
+    const { contractId: contractIdStr } = await params;
+    const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {
       return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
     }

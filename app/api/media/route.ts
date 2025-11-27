@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as fs from 'fs';
+import { listFilesInFolder } from '@/lib/google-drive';
 import * as path from 'path';
 
 export const dynamic = 'force-dynamic';
@@ -14,30 +14,39 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'slug is required' }, { status: 400 });
     }
 
-    // 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
-    const root = path.join(process.cwd(), 'public', '크루즈정보사진');
-    const abs = path.join(root, slug);
-
-    // 경로 검증 및 존재 확인
-    if (!abs.startsWith(root) || !fs.existsSync(abs)) {
-      return NextResponse.json({ error: 'not found' }, { status: 404 });
+    // Google Drive 폴더 ID 가져오기
+    const cruiseImagesFolderId = process.env.GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID;
+    if (!cruiseImagesFolderId) {
+      return NextResponse.json(
+        { error: 'Google Drive 크루즈 이미지 폴더 ID가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
     }
 
-    // 디렉토리인지 확인 (파일일 수도 있음)
-    const stat = fs.statSync(abs);
-    if (!stat.isDirectory()) {
-      return NextResponse.json({ error: 'not a directory' }, { status: 400 });
+    // Google Drive에서 파일 목록 가져오기
+    const result = await listFilesInFolder(cruiseImagesFolderId, slug);
+
+    if (!result.ok || !result.files) {
+      return NextResponse.json(
+        { error: result.error || '파일 목록을 가져올 수 없습니다.' },
+        { status: 404 }
+      );
     }
 
-    const all = fs.readdirSync(abs);
     const images: string[] = [];
     const videos: string[] = [];
 
-    for (const f of all) {
-      const ext = path.extname(f).toLowerCase();
-      const rel = `/크루즈정보사진/${slug}/${f}`;
-      if (['.jpg','.jpeg','.png','.gif','.webp'].includes(ext)) images.push(rel);
-      if (['.mp4','.webm','.mov'].includes(ext)) videos.push(rel);
+    for (const file of result.files) {
+      const ext = path.extname(file.name).toLowerCase();
+      // Google Drive URL 사용 (공개 링크)
+      const fileUrl = file.url;
+      
+      if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
+        images.push(fileUrl);
+      }
+      if (['.mp4', '.webm', '.mov'].includes(ext)) {
+        videos.push(fileUrl);
+      }
     }
 
     const want = type === 'videos' ? { videos } :
@@ -45,7 +54,11 @@ export async function GET(req: NextRequest) {
                  { images, videos };
 
     return NextResponse.json({ slug, ...want });
-  } catch (e) {
-    return NextResponse.json({ error: 'server error' }, { status: 500 });
+  } catch (e: any) {
+    console.error('[Media API] Error:', e);
+    return NextResponse.json(
+      { error: e?.message || 'server error' },
+      { status: 500 }
+    );
   }
 } 

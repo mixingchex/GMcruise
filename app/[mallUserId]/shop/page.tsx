@@ -9,8 +9,8 @@ import prisma from '@/lib/prisma';
  * /[mallUserId]/shop 형식으로 접근
  * 예: /user1/shop, /boss1/shop
  */
-export default async function PersonalShopPage({ params }: { params: { mallUserId: string } }) {
-  const { mallUserId } = params;
+export default async function PersonalShopPage({ params }: { params: Promise<{ mallUserId: string }> }) {
+  const { mallUserId } = await params;
 
   if (!mallUserId) {
     notFound();

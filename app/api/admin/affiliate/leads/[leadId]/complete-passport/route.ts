@@ -22,7 +22,7 @@ function requireAdmin(role?: string | null) {
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { leadId: string } }
+  { params }: { params: Promise<{ leadId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -47,7 +47,8 @@ export async function POST(
     const guard = requireAdmin(user.role);
     if (guard) return guard;
 
-    const leadId = Number(params.leadId);
+    const { leadId: leadIdStr } = await params;
+    const leadId = Number(leadIdStr);
     if (isNaN(leadId)) {
       return NextResponse.json({ ok: false, message: 'Invalid lead ID' }, { status: 400 });
     }

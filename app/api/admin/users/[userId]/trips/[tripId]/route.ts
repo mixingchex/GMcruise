@@ -39,7 +39,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     const tripId = parseInt(params.tripId);
 
     if (isNaN(userId) || isNaN(tripId)) {
@@ -116,7 +116,7 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     const tripId = parseInt(params.tripId);
 
     if (isNaN(userId) || isNaN(tripId)) {

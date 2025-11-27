@@ -8,11 +8,11 @@ import { notifyRequesterOfRejection } from '@/lib/notifications/certificateNotif
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getSessionUser();
-    
+
     if (!user) {
       return NextResponse.json(
         { ok: false, error: '로그인이 필요합니다.' },
@@ -20,7 +20,8 @@ export async function POST(
       );
     }
 
-    const approvalId = parseInt(params.id);
+    const { id: idStr } = await params;
+    const approvalId = parseInt(idStr);
     const body = await req.json();
     const { reason } = body;
 

@@ -12,10 +12,11 @@ import prisma from '@/lib/prisma';
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { saleId: string } }
+  { params }: { params: Promise<{ saleId: string }> }
 ) {
   try {
-    const saleId = Number(params.saleId);
+    const { saleId: saleIdStr } = await params;
+    const saleId = Number(saleIdStr);
     if (!saleId || Number.isNaN(saleId)) {
       return NextResponse.json({ ok: false, message: 'Invalid sale ID' }, { status: 400 });
     }
@@ -67,7 +68,8 @@ export async function POST(
       },
     });
   } catch (error: any) {
-    console.error(`POST /api/admin/affiliate/sales/${params.saleId}/receipt error:`, error);
+    const { saleId: saleIdStr } = await params;
+    console.error(`POST /api/admin/affiliate/sales/${saleIdStr}/receipt error:`, error);
     return NextResponse.json(
       { ok: false, message: error.message || '현금영수증 처리 중 오류가 발생했습니다.' },
       { status: 500 }

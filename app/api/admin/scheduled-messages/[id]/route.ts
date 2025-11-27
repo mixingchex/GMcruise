@@ -50,8 +50,8 @@ export async function PUT(
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });
     }
 
-    const params = await context.params;
-    const id = parseInt(params.id);
+    const { id: idStr } = await context.params;
+    const id = parseInt(idStr);
     if (isNaN(id)) {
       return NextResponse.json({ ok: false, error: 'Invalid message ID' }, { status: 400 });
     }
@@ -151,8 +151,8 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });
     }
 
-    const params = await context.params;
-    const id = parseInt(params.id);
+    const { id: idStr } = await context.params;
+    const id = parseInt(idStr);
     if (isNaN(id)) {
       return NextResponse.json({ ok: false, error: 'Invalid message ID' }, { status: 400 });
     }

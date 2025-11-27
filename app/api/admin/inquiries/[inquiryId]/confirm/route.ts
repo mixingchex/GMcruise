@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { syncApisSpreadsheet } from '@/lib/google-sheets';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -246,6 +247,19 @@ export async function POST(
         onboarded: true,
       },
     });
+
+    // APIS 스프레드시트 자동 생성 (비동기, 실패해도 계속 진행)
+    try {
+      const apisResult = await syncApisSpreadsheet(trip.id);
+      if (apisResult.ok) {
+        console.log(`[Inquiry Confirm] APIS 스프레드시트 생성 완료: tripId=${trip.id}, spreadsheetId=${apisResult.spreadsheetId}`);
+      } else {
+        console.warn(`[Inquiry Confirm] APIS 스프레드시트 생성 실패: ${apisResult.error}`);
+      }
+    } catch (apisError) {
+      // APIS 생성 실패해도 여행 확정은 성공으로 처리
+      console.error(`[Inquiry Confirm] APIS 스프레드시트 생성 중 오류:`, apisError);
+    }
 
     // 재구매 체크: tripCount >= 2이면 RePurchaseTrigger 생성 및 converted: true 설정
     if (updatedUser.tripCount >= 2) {

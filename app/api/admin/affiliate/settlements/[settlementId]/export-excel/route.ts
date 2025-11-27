@@ -25,7 +25,7 @@ import * as XLSX from 'xlsx';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { settlementId: string } }
+  { params }: { params: Promise<{ settlementId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -45,7 +45,8 @@ export async function GET(
       return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
     }
 
-    const settlementId = Number(params.settlementId);
+    const { settlementId: settlementIdStr } = await params;
+    const settlementId = Number(settlementIdStr);
     if (isNaN(settlementId)) {
       return NextResponse.json({ ok: false, message: 'Invalid settlement ID' }, { status: 400 });
     }

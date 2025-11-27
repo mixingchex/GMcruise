@@ -145,11 +145,38 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
     if (!session?.userId) {
-      return NextResponse.json({ ok: false, error: '인증이 필요합니다' }, { status: 401 });
+      console.error('[API] Schedules POST: 세션 없음');
+      return NextResponse.json({ 
+        ok: false, 
+        error: '인증이 필요합니다',
+        details: '세션이 만료되었거나 로그인이 필요합니다. 다시 로그인해주세요.'
+      }, { status: 401 });
     }
 
     const userId = parseInt(session.userId);
-    const body = await req.json();
+    
+    // userId 유효성 검사
+    if (isNaN(userId) || userId <= 0) {
+      console.error('[API] Schedules POST: 유효하지 않은 userId:', session.userId);
+      return NextResponse.json({ 
+        ok: false, 
+        error: '사용자 정보가 올바르지 않습니다',
+        details: `userId: ${session.userId}`
+      }, { status: 400 });
+    }
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError) {
+      console.error('[API] Schedules POST: 요청 본문 파싱 실패:', parseError);
+      return NextResponse.json({ 
+        ok: false, 
+        error: '요청 데이터 형식이 올바르지 않습니다',
+        details: String(parseError)
+      }, { status: 400 });
+    }
+
     const { time, title, alarm, alarmTime, date } = body;
 
     console.log('[API] Schedules POST 요청:', { userId, time, title, alarm, alarmTime, date });

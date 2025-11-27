@@ -39,7 +39,7 @@ export async function POST(
       return NextResponse.json({ ok: false, error: 'Admin access required' }, { status: 403 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     if (isNaN(userId)) {
       return NextResponse.json({ ok: false, error: 'Invalid user ID' }, { status: 400 });
     }

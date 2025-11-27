@@ -12,7 +12,7 @@ import prisma from '@/lib/prisma';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { leadId: string } }
+  { params }: { params: Promise<{ leadId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -20,7 +20,8 @@ export async function GET(
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const leadId = Number(params.leadId);
+    const { leadId: leadIdStr } = await params;
+    const leadId = Number(leadIdStr);
     if (isNaN(leadId)) {
       return NextResponse.json({ ok: false, message: 'Invalid lead ID' }, { status: 400 });
     }
@@ -234,7 +235,7 @@ export async function GET(
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { leadId: string } }
+  { params }: { params: Promise<{ leadId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -242,7 +243,8 @@ export async function PUT(
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    const leadId = Number(params.leadId);
+    const { leadId: leadIdStr } = await params;
+    const leadId = Number(leadIdStr);
     if (isNaN(leadId)) {
       return NextResponse.json({ ok: false, message: 'Invalid lead ID' }, { status: 400 });
     }
@@ -580,7 +582,7 @@ export async function PUT(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { leadId: string } }
+  { params }: { params: Promise<{ leadId: string }> }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -600,7 +602,8 @@ export async function DELETE(
       return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
     }
 
-    const leadId = Number(params.leadId);
+    const { leadId: leadIdStr } = await params;
+    const leadId = Number(leadIdStr);
     if (isNaN(leadId)) {
       return NextResponse.json({ ok: false, message: 'Invalid lead ID' }, { status: 400 });
     }

@@ -44,7 +44,7 @@ export async function PUT(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = parseInt(params.id);
+    const { id: idStr } = await params; const id = parseInt(idStr);
     if (isNaN(id)) {
       return NextResponse.json(
         { ok: false, error: '유효하지 않은 섹션 ID입니다.' },
@@ -98,7 +98,7 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const id = parseInt(params.id);
+    const { id: idStr } = await params; const id = parseInt(idStr);
     if (isNaN(id)) {
       return NextResponse.json(
         { ok: false, error: '유효하지 않은 섹션 ID입니다.' },

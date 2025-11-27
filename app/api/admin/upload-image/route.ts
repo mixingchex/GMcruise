@@ -3,9 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { uploadFileToDrive } from '@/lib/google-drive';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -66,26 +64,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: '이미지 파일만 업로드 가능합니다.' }, { status: 400 });
     }
 
-    // 파일 저장
+    // 파일 버퍼 변환
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
     // 파일명 생성 (타임스탬프 + 원본 파일명)
     const timestamp = Date.now();
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `${timestamp}_${originalName}`;
+    const fileName = `messages_${timestamp}_${originalName}`;
     
-    // public/images/messages 디렉토리에 저장
-    const uploadDir = join(process.cwd(), 'public', 'images', 'messages');
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    // Google Drive 이미지 폴더 ID 가져오기
+    const imagesFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+    
+    if (!imagesFolderId) {
+      return NextResponse.json(
+        { ok: false, error: 'Google Drive 이미지 폴더 ID가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
     }
 
-    const filePath = join(uploadDir, fileName);
-    await writeFile(filePath, buffer);
+    // Google Drive에 업로드
+    const uploadResult = await uploadFileToDrive({
+      folderId: imagesFolderId,
+      fileName: fileName,
+      mimeType: file.type,
+      buffer: buffer,
+      makePublic: true, // 공개 링크로 제공
+    });
 
-    // URL 생성
-    const imageUrl = `/images/messages/${fileName}`;
+    if (!uploadResult.ok || !uploadResult.url) {
+      return NextResponse.json(
+        { ok: false, error: uploadResult.error || '이미지 업로드 실패' },
+        { status: 500 }
+      );
+    }
+
+    const imageUrl = uploadResult.url;
 
     return NextResponse.json({
       ok: true,

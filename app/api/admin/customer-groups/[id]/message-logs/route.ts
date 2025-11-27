@@ -48,7 +48,7 @@ async function checkAdminAuth() {
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin = await checkAdminAuth();
@@ -56,7 +56,8 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '권한이 없습니다.' }, { status: 403 });
     }
 
-    const groupId = parseInt(params.id);
+    const { id } = await params;
+    const groupId = parseInt(id);
     if (isNaN(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }

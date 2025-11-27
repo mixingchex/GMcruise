@@ -9,9 +9,9 @@ import { PartnerApiError, requirePartnerContext } from '@/app/api/partner/_utils
 import { getSessionUser } from '@/lib/auth';
 import PartnerLinksClient from './PartnerLinksClient';
 
-export default async function PartnerLinksPage({ params }: { params: { partnerId: string } }) {
+export default async function PartnerLinksPage({ params }: { params: Promise<{ partnerId: string }> }) {
   try {
-    const partnerId = params.partnerId;
+    const { partnerId } = await params;
     const sessionUser = await getSessionUser();
 
     if (!sessionUser) {

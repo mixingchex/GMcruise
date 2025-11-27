@@ -336,3 +336,4 @@ await redis.setex(cacheKey, cacheTime, weather);
 
 **구현 후 더미 데이터를 실제 데이터로 교체하세요!** 🌤️
 
+

@@ -268,32 +268,66 @@ export async function POST(req: NextRequest) {
         subPath: cleanSubFolders.length > 0 ? cleanSubFolders.join('/') : undefined,
       });
     } else {
-      // 기존 방식 (uploads 폴더)
-      uploadDir = join(process.cwd(), 'public', 'uploads', subDir);
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
+      // Google Drive에 직접 업로드 (기존 방식 대체)
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
 
       // 파일명 생성 (타임스탬프 + 원본 파일명)
       const timestamp = Date.now();
       const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const finalFilename = `${timestamp}_${originalName}`;
-      const filepath = join(uploadDir, finalFilename);
 
-      // 파일 저장
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filepath, buffer);
+      // 타입별 Google Drive 폴더 ID 매핑
+      const folderIdMap: Record<string, string | undefined> = {
+        images: process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID,
+        videos: process.env.GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID,
+        fonts: process.env.GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID,
+        documents: process.env.GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID,
+      };
 
-      // URL 생성
-      const url = `/uploads/${subDir}/${finalFilename}`;
+      const targetFolderId = folderIdMap[subDir] || process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+
+      if (!targetFolderId) {
+        return NextResponse.json(
+          { ok: false, error: `${subDir} 폴더 ID가 설정되지 않았습니다.` },
+          { status: 500 }
+        );
+      }
+
+      // 카테고리가 있으면 서브폴더 생성
+      let uploadFolderId = targetFolderId;
+      if (category) {
+        const { findOrCreateFolder } = await import('@/lib/google-drive');
+        const categoryFolderResult = await findOrCreateFolder(category, targetFolderId);
+        if (categoryFolderResult.ok && categoryFolderResult.folderId) {
+          uploadFolderId = categoryFolderResult.folderId;
+        }
+      }
+
+      // Google Drive에 업로드
+      const { uploadFileToDrive } = await import('@/lib/google-drive');
+      const uploadResult = await uploadFileToDrive({
+        folderId: uploadFolderId,
+        fileName: finalFilename,
+        mimeType: file.type,
+        buffer: buffer,
+        makePublic: true, // 공개 링크로 제공
+      });
+
+      if (!uploadResult.ok || !uploadResult.url) {
+        return NextResponse.json(
+          { ok: false, error: uploadResult.error || '파일 업로드 실패' },
+          { status: 500 }
+        );
+      }
 
       return NextResponse.json({
         ok: true,
-        url,
+        url: uploadResult.url,
         filename: finalFilename,
         size: file.size,
         type: file.type,
+        fileId: uploadResult.fileId,
       });
     }
   } catch (error) {

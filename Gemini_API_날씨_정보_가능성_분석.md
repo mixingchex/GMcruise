@@ -179,3 +179,4 @@ const explanation = await askGemini([
 
 **결론: Gemini API만으로는 날씨 정보를 가져오기 어렵고, WeatherAPI.com 사용을 권장합니다.** 🌤️
 
+

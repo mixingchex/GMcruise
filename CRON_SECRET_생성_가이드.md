@@ -246,3 +246,4 @@ curl -X POST https://your-domain.vercel.app/api/cron/community-bot \
 
 **완료되면 Cron 작업이 안전하게 보호됩니다!** 🔒
 
+

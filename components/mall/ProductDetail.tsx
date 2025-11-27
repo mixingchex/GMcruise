@@ -589,6 +589,12 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
           W크루즈 제공
         </span>
       );
+    } else if (product.source === 'lottejtb') {
+      return (
+        <span className="inline-block px-3 py-1 text-sm font-semibold bg-purple-100 text-purple-800 rounded-full">
+          롯데 제이티비 제공
+        </span>
+      );
     }
     return null;
   };

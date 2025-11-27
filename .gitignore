@@ -71,3 +71,10 @@ next-env.d.ts
 *.so.node
 *.dylib
 *.dll
+
+# 업로드 파일들 (Google Drive로 마이그레이션 예정)
+/public/uploads/**
+/public/contracts/pdfs/**
+cruisedot-478810-79ba5282a938.json
+# Google Cloud Service Account Keys
+cruisedot-*.json

@@ -239,3 +239,4 @@ Environment: All (또는 Production, Preview, Development 모두)
 
 **이제 Vercel에서 환경변수를 설정하고 재배포하면 날씨 기능이 작동합니다!** 🌤️
 
+

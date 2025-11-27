@@ -242,3 +242,4 @@ type PhraseCategoriesData = Record<string, PhraseCategory[]>; // 키: 언어 코
 
 **보고서 작성 완료** ✅
 
+

@@ -12,9 +12,9 @@ import { getSession } from '@/lib/session';
 
 interface PageProps {
 
-  params: { productCode: string };
+  params: Promise<{ productCode: string }>;
 
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 
 }
 
@@ -22,9 +22,11 @@ interface PageProps {
 
 export default async function ProductDetailPage({ params, searchParams }: PageProps) {
 
-  const { productCode } = params;
+  const { productCode } = await params;
 
-  const partnerId = typeof searchParams.partner === 'string' ? searchParams.partner : undefined;
+  const resolvedSearchParams = await searchParams;
+
+  const partnerId = typeof resolvedSearchParams.partner === 'string' ? resolvedSearchParams.partner : undefined;
 
 
 

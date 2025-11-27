@@ -59,13 +59,14 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 // GET: 상품 상세 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { productCode: string } }
+  { params }: { params: Promise<{ productCode: string }> }
 ) {
   try {
-    console.log('[Admin Products Detail GET] Request received for productCode:', params.productCode);
+    const { productCode } = await params;
+    console.log('[Admin Products Detail GET] Request received for productCode:', productCode);
     const sid = cookies().get(SESSION_COOKIE)?.value;
     console.log('[Admin Products Detail GET] Session cookie:', sid ? sid.substring(0, 10) + '...' : 'not found');
-    
+
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {
@@ -76,7 +77,7 @@ export async function GET(
     console.log('[Admin Products Detail GET] Admin check passed, fetching product');
 
     const product = await prisma.cruiseProduct.findUnique({
-      where: { productCode: params.productCode },
+      where: { productCode: productCode },
       select: {
         id: true,
         productCode: true,
@@ -160,9 +161,10 @@ export async function GET(
 // PUT: 상품 수정
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { productCode: string } }
+  { params }: { params: Promise<{ productCode: string }> }
 ) {
   try {
+    const { productCode: productCodeParam } = await params;
     const sid = cookies().get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
@@ -217,8 +219,8 @@ export async function PUT(
     } = body;
 
     // 상품 코드 변경 처리
-    const updateProductCode = newProductCode && newProductCode !== params.productCode;
-    const targetProductCode = updateProductCode ? newProductCode : params.productCode;
+    const updateProductCode = newProductCode && newProductCode !== productCodeParam;
+    const targetProductCode = updateProductCode ? newProductCode : productCodeParam;
 
     // 상품 업데이트
     const updateData: any = {
@@ -253,7 +255,7 @@ export async function PUT(
     } else if (destination !== undefined && Array.isArray(destination)) {
       // destination이 전달된 경우 - itineraryPattern에 destination 저장 및 각 day에 국가 코드 할당
       const currentProduct = await prisma.cruiseProduct.findUnique({
-        where: { productCode: params.productCode },
+        where: { productCode: productCodeParam },
         select: { itineraryPattern: true },
       });
       
@@ -414,9 +416,9 @@ export async function PUT(
     if (updateProductCode) {
       // 기존 상품 삭제 후 새 코드로 생성
       await prisma.cruiseProduct.delete({
-        where: { productCode: params.productCode }
+        where: { productCode: productCodeParam }
       });
-      
+
       const product = await prisma.cruiseProduct.create({
         data: {
           productCode: targetProductCode,
@@ -426,18 +428,18 @@ export async function PUT(
 
       // MallProductContent도 새 코드로 이동
       const existingContent = await prisma.mallProductContent.findUnique({
-        where: { productCode: params.productCode }
+        where: { productCode: productCodeParam }
       });
 
       if (existingContent) {
         await prisma.mallProductContent.delete({
-          where: { productCode: params.productCode }
+          where: { productCode: productCodeParam }
         });
       }
     } else {
       // 상품 업데이트
       await prisma.cruiseProduct.update({
-        where: { productCode: params.productCode },
+        where: { productCode: productCodeParam },
         data: finalUpdateData
       });
     }

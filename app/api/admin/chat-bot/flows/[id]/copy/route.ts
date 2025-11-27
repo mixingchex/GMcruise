@@ -11,11 +11,12 @@ type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin = await requireAdmin();
-    const flowId = Number(params.id);
+    const { id: idStr } = await params;
+    const flowId = Number(idStr);
 
     if (Number.isNaN(flowId)) {
       return NextResponse.json(

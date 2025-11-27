@@ -11,9 +11,9 @@ import prisma from '@/lib/prisma';
 import Link from 'next/link';
 import SalesList from './components/SalesList';
 
-export default async function PartnerPaymentPage({ params }: { params: { partnerId: string } }) {
+export default async function PartnerPaymentPage({ params }: { params: Promise<{ partnerId: string }> }) {
   try {
-    const partnerId = params.partnerId;
+    const { partnerId } = await params;
     const sessionUser = await getSessionUser();
 
     if (!sessionUser) {

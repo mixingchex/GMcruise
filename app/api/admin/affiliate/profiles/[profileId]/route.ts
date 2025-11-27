@@ -19,7 +19,7 @@ function normalizePhone(phone: string | null | undefined) {
   return digits;
 }
 
-export async function GET(req: NextRequest, { params }: { params: { profileId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ profileId: string }> }) {
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
@@ -35,7 +35,8 @@ export async function GET(req: NextRequest, { params }: { params: { profileId: s
       return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
     }
 
-    const profileId = Number(params.profileId);
+    const { profileId: profileIdStr } = await params;
+    const profileId = Number(profileIdStr);
     if (!profileId || Number.isNaN(profileId)) {
       return NextResponse.json({ ok: false, message: '유효한 프로필 ID가 필요합니다.' }, { status: 400 });
     }
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: { profileId: s
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { profileId: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ profileId: string }> }) {
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
@@ -72,7 +73,8 @@ export async function PUT(req: NextRequest, { params }: { params: { profileId: s
       return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
     }
 
-    const profileId = Number(params.profileId);
+    const { profileId: profileIdStr } = await params;
+    const profileId = Number(profileIdStr);
     if (!profileId || Number.isNaN(profileId)) {
       return NextResponse.json({ ok: false, message: '유효한 프로필 ID가 필요합니다.' }, { status: 400 });
     }
@@ -249,7 +251,7 @@ export async function PUT(req: NextRequest, { params }: { params: { profileId: s
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { profileId: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ profileId: string }> }) {
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
@@ -265,7 +267,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: { profileI
       return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
     }
 
-    const profileId = Number(params.profileId);
+    const { profileId: profileIdStr } = await params;
+    const profileId = Number(profileIdStr);
     if (!profileId || Number.isNaN(profileId)) {
       return NextResponse.json({ ok: false, message: '유효한 프로필 ID가 필요합니다.' }, { status: 400 });
     }

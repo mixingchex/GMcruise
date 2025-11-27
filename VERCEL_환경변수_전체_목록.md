@@ -158,12 +158,22 @@ GOOGLE_DRIVE_PRODUCTS_FOLDER_ID=18YuEBt313yyKI3F7PSzjFFRF3Af-bVPH
 GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID=your_folder_id_here
 GOOGLE_DRIVE_SALES_AUDIO_FOLDER_ID=your_folder_id_here
 GOOGLE_DRIVE_AUDIO_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_PROFILES_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_REVIEWS_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID=your_folder_id_here
+GOOGLE_DRIVE_CONTRACTS_PDFS_FOLDER_ID=your_folder_id_here
 ```
 - **설명**: Google Drive 폴더 ID (각 기능별 저장 폴더)
 - **필수**: ❌ 아니오 (코드에서 기본값 사용)
 - **실제 값**: 
   - `GOOGLE_DRIVE_SHARED_DRIVE_ID`: `0AJVz1C-KYWR0Uk9PVA` (이미 설정된 값)
   - `GOOGLE_DRIVE_PRODUCTS_FOLDER_ID`: `18YuEBt313yyKI3F7PSzjFFRF3Af-bVPH` (이미 설정된 값)
+- **새 폴더**: `public/uploads/**`와 `public/contracts/pdfs`를 Google Drive로 옮겼다면 위 `GOOGLE_DRIVE_UPLOADS_*`·`GOOGLE_DRIVE_CONTRACTS_PDFS_FOLDER_ID` 값도 반드시 채워야 합니다.
 - **확인 방법**: Google Drive에서 폴더 열기 → URL에서 `folders/` 뒤의 ID
 
 ---

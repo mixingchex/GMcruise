@@ -36,7 +36,7 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 // POST: 테스트 고객 재활성 (72시간 연장)
 export async function POST(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     // 관리자 권한 확인
@@ -58,7 +58,7 @@ export async function POST(
       }, { status: 403 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     if (isNaN(userId)) {
       return NextResponse.json(
         { ok: false, error: 'Invalid user ID' },

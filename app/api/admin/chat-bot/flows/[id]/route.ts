@@ -10,11 +10,11 @@ import { requireAdmin, AdminAuthError } from '@/lib/auth/requireAdmin';
 // GET: 플로우 상세 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin();
-    const flowId = parseInt(params.id);
+    const { id: idStr } = await params; const flowId = parseInt(idStr);
 
     const flow = await prisma.chatBotFlow.findUnique({
       where: { id: flowId },
@@ -59,11 +59,11 @@ export async function GET(
 // PATCH: 플로우 수정
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin();
-    const flowId = parseInt(params.id);
+    const { id: idStr } = await params; const flowId = parseInt(idStr);
     const body = await req.json();
 
     // 업데이트할 데이터 준비 (undefined인 필드는 업데이트하지 않음)
@@ -106,11 +106,11 @@ export async function PATCH(
 // DELETE: 플로우 삭제
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin();
-    const flowId = parseInt(params.id);
+    const { id: idStr } = await params; const flowId = parseInt(idStr);
 
     // 플로우와 관련된 모든 질문도 함께 삭제됨 (Cascade)
     await prisma.chatBotFlow.delete({

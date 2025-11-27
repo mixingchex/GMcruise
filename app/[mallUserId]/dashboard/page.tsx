@@ -7,9 +7,9 @@ import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import PartnerDashboard from '@/app/partner/[partnerId]/dashboard/PartnerDashboard';
 
-export default async function PersonalDashboardPage({ params }: { params: { mallUserId: string } }) {
+export default async function PersonalDashboardPage({ params }: { params: Promise<{ mallUserId: string }> }) {
   try {
-    const mallUserId = params.mallUserId;
+    const { mallUserId } = await params;
     const sessionUser = await getSessionUser();
 
     // 세션이 없으면 파트너 로그인으로 리다이렉트

@@ -86,9 +86,13 @@ export async function POST(req: NextRequest) {
     
     let imageUrl: string;
     
-    // Google Drive에 업로드 시도 (Shared Drive 사용)
+    // Google Drive 프로필 폴더 ID 가져오기
+    const profilesFolderId = process.env.GOOGLE_DRIVE_UPLOADS_PROFILES_FOLDER_ID;
+    
+    // Google Drive에 업로드 시도
     console.log('[upload-image] Attempting Google Drive upload, fileName:', fileName);
     const uploadResult = await uploadFileToDrive({
+      folderId: profilesFolderId || undefined,
       fileName,
       mimeType: file.type,
       buffer,

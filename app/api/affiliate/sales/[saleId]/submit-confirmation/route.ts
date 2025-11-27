@@ -173,87 +173,49 @@ export async function POST(
     const fileExtension = audioFile.name.split('.').pop() || 'mp3';
     const fileName = `sale_${saleId}_${audioFileType}_${Date.now()}.${fileExtension}`;
     
-    // 7. 서버에 파일 저장
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'audio');
+    // 7. Google Drive에 직접 업로드
+    const { uploadFileToDrive } = await import('@/lib/google-drive');
     
-    // 디렉토리가 없으면 생성
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    // Google Drive 오디오 폴더 ID 가져오기
+    const audioFolderId = process.env.GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID || 
+                         process.env.GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID ||
+                         '1dhTmPheRvOsc0V0ukpKOqD2Ry1IN-OrH'; // 기본값
     
-    // 서버 파일 경로
-    const serverFilePath = path.join(uploadsDir, fileName);
-    const serverFileUrl = `/uploads/audio/${fileName}`;
-    
-    // 파일을 서버에 저장
-    try {
-      fs.writeFileSync(serverFilePath, fileBuffer);
-      console.log('[Submit Confirmation] 파일 서버 저장 완료:', serverFilePath);
-    } catch (serverSaveError: any) {
-      console.error('[Submit Confirmation] 서버 파일 저장 실패:', serverSaveError);
-      return NextResponse.json(
-        { ok: false, error: '서버에 파일 저장에 실패했습니다: ' + serverSaveError.message },
-        { status: 500 }
-      );
-    }
-
-    // 8. Google Drive에 백업 업로드 (실패해도 서버 저장은 유지)
     let googleDriveFileId: string | null = null;
     let googleDriveUrl: string | null = null;
+    let serverFileUrl: string | null = null;
     let googleDriveError: string | null = null;
     
     try {
-      const { uploadFileToDrive } = await import('@/lib/google-drive');
-      
-      // Google Drive 폴더 ID (DB 설정 > 환경 변수 > 기본값 순서로 확인)
-      let audioFolderId: string | null = null;
-      
-      // 1. DB 설정에서 가져오기
-      try {
-        const audioConfig = await prisma.systemConfig.findUnique({
-          where: { configKey: 'google_drive_sales_audio_folder_id' },
-        });
-        if (audioConfig?.configValue) {
-          audioFolderId = audioConfig.configValue;
-        }
-      } catch (dbError) {
-        console.warn('[Submit Confirmation] DB에서 폴더 ID 조회 실패:', dbError);
-      }
-      
-      // 2. 환경 변수에서 가져오기
-      if (!audioFolderId) {
-        audioFolderId = process.env.GOOGLE_DRIVE_SALES_AUDIO_FOLDER_ID || 
-                       process.env.GOOGLE_DRIVE_AUDIO_FOLDER_ID || 
-                       process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID || 
-                       null;
-      }
-      
-      // 3. 기본값 사용 (사용자가 제공한 폴더 ID)
-      if (!audioFolderId) {
-        audioFolderId = '1dhTmPheRvOsc0V0ukpKOqD2Ry1IN-OrH';
-      }
-      
-      // Google Drive에 백업 업로드
+      // Google Drive에 업로드
       const uploadResult = await uploadFileToDrive({
         folderId: audioFolderId,
         fileName,
         mimeType: audioFile.type || 'audio/mpeg',
         buffer: fileBuffer,
-        makePublic: false,
+        makePublic: false, // 오디오 파일은 비공개
       });
       
       if (uploadResult.ok && uploadResult.fileId && uploadResult.url) {
         googleDriveFileId = uploadResult.fileId;
         googleDriveUrl = uploadResult.url;
-        console.log('[Submit Confirmation] Google Drive 백업 완료:', googleDriveUrl);
+        console.log('[Submit Confirmation] Google Drive 업로드 완료:', googleDriveUrl);
       } else {
-        googleDriveError = uploadResult.error || '알 수 없는 오류';
-        console.warn('[Submit Confirmation] Google Drive 백업 실패 (서버 저장은 유지):', googleDriveError);
+        throw new Error(uploadResult.error || 'Google Drive 업로드 실패');
       }
     } catch (driveError: any) {
-      googleDriveError = driveError.message || '알 수 없는 오류';
-      console.warn('[Submit Confirmation] Google Drive 백업 실패 (서버 저장은 유지):', googleDriveError);
-      // Google Drive 백업 실패해도 서버 저장은 성공했으므로 계속 진행
+      console.error('[Submit Confirmation] Google Drive 업로드 실패, 로컬 저장으로 fallback:', driveError);
+      googleDriveError = driveError?.message || 'Google Drive 업로드 실패';
+      
+      // Google Drive 업로드 실패 시 로컬 저장으로 fallback
+      const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'audio');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const serverFilePath = path.join(uploadsDir, fileName);
+      fs.writeFileSync(serverFilePath, fileBuffer);
+      serverFileUrl = `/uploads/audio/${fileName}`;
+      console.log('[Submit Confirmation] 로컬 저장 완료:', serverFileUrl);
     }
 
     // 9. 데이터베이스 업데이트
@@ -265,13 +227,14 @@ export async function POST(
       submittedAt: new Date(),
     };
 
-    // 서버 파일 경로 저장 (항상 저장)
-    updateData.audioFileServerPath = serverFileUrl;
-    
-    // Google Drive 정보 저장 (백업 성공한 경우만)
+    // Google Drive 정보 저장 (우선)
     if (googleDriveFileId && googleDriveUrl) {
       updateData.audioFileGoogleDriveId = googleDriveFileId;
       updateData.audioFileGoogleDriveUrl = googleDriveUrl;
+      updateData.audioFileServerPath = googleDriveUrl; // Google Drive URL을 기본 경로로 사용
+    } else if (serverFileUrl) {
+      // Google Drive 실패 시 로컬 경로 저장
+      updateData.audioFileServerPath = serverFileUrl;
     }
 
     const updatedSale = await prisma.affiliateSale.update({

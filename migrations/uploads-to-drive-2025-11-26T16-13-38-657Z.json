@@ -1,0 +1,572 @@
+[
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762503064429___________________________.png",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762503653660_____________55_____________50____.png",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762522260941_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762522263920_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762522297940_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762523417764_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524898634_____260507_1_OqJPiew.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524906958_____260507_2_WuoL2dO.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524911177_____260507_2_WuoL2dO__1_.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524915952_____260507_3_Te06Vpl.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524921806_____260507_4_HCCASn8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524931437_____260507_5_QISyLDT.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524934347_____260507_6.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524977536_____260507_7.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524991597_____260507_8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762524994492_____260507_9.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762525012518_____260507_10.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526136977_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526365279_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526415659_____260507_10.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526426790_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526513467_____260507_9.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526535770_____260507_1_OqJPiew.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526552619_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526596009_____260507_2_WuoL2dO.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526599672_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526634831_____260507_3_Te06Vpl.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526652216_____260507_4_HCCASn8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526665422_____260507_6.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526680728_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762526719084_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762527005120_____260507_7.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762527024951_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762527532355_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528652978_____260507_10.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528652978_____260507_8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528652979_____260507_6__1_.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528652979_____260507_9.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528652980_____260507_10__1_.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528652980_____260507_7.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653205_____260507_4_HCCASn8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653205_____260507_5_QISyLDT.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653205_____260507_6.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653206_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653206_____260507_2_WuoL2dO__1_.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653206_____260507_3_Te06Vpl.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653399_____260507_1_OqJPiew.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762528653399_____260507_2_WuoL2dO.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762529415701_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762529978631_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689261_____260507_10.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689262_____260507_9.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689263_____260507_6.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689263_____260507_7.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689264_____260507_4_HCCASn8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689264_____260507_8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689619_____260507_2_WuoL2dO.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689619_____260507_3_Te06Vpl.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689619_____260507_5_QISyLDT.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530689620_____260507_1_OqJPiew.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530754776_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530788334_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762530909053_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762531038872_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762531076668_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762531281901_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534548940_____260507_10.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534548941_____260507_9.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534548942_____260507_6__1_.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534548942_____260507_7.gif",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534548943_____260507_5_QISyLDT.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534548943_____260507_8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534549393_____260507_4_HCCASn8.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534549393_____260507_6.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534549394_____260507_1_OqJPiew.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534549394_____260507_2_WuoL2dO__1_.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534549394_____260507_3_Te06Vpl.jpeg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534901115_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762534919849_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762535112855_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762535405512_________2___3__CUT_sUwoY7j.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762535596381_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762535941507_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762535983971_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762536138979_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762536311087_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762536820996_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762537075387_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762537096898_____.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1762773353516_____________.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1763900524145______2024-04-30_034331.png",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1763901415963_KakaoTalk_20251027_130824624_01.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1763902024627_KakaoTalk_20251116_144440389_01.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1763903928165_KakaoTalk_20251027_130824624_05.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  },
+  {
+    "target": "images",
+    "localPath": "public/uploads/images/1763904672537_KakaoTalk_20251116_144647561.jpg",
+    "status": "skipped",
+    "reason": "dry-run"
+  }
+]

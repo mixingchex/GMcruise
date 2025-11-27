@@ -196,3 +196,4 @@ https://api.openweathermap.org/data/2.5/weather?q=Seoul,kr&appid=YOUR_API_KEY&un
 
 **완료되면 커뮤니티 봇의 날씨 기능이 정상적으로 작동합니다!** 🌤️
 
+

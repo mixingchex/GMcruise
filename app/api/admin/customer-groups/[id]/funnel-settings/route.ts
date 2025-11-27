@@ -42,7 +42,7 @@ async function checkAdminAuth() {
 // PUT: 퍼널 설정 업데이트
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin = await checkAdminAuth();
@@ -50,7 +50,7 @@ export async function PUT(
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });
     }
 
-    const resolvedParams = await Promise.resolve(params);
+    const resolvedParams = await params;
     const groupId = parseInt(resolvedParams.id);
 
     if (isNaN(groupId)) {

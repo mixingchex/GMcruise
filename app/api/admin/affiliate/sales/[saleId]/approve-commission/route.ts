@@ -23,10 +23,11 @@ function requireAdmin(role?: string | null) {
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { saleId: string } }
+  { params }: { params: Promise<{ saleId: string }> }
 ) {
   try {
-    const saleId = Number(params.saleId);
+    const { saleId: saleIdStr } = await params;
+    const saleId = Number(saleIdStr);
     if (!saleId || Number.isNaN(saleId)) {
       return NextResponse.json({ ok: false, message: 'Invalid sale ID' }, { status: 400 });
     }
@@ -155,10 +156,11 @@ export async function POST(
       message: '구매 완료가 승인되고 수당이 확정되었습니다.',
     });
   } catch (error: any) {
-    console.error(`POST /api/admin/affiliate/sales/${params.saleId}/approve-commission error:`, error);
-    return NextResponse.json({ 
-      ok: false, 
-      message: error.message || 'Server error' 
+    const { saleId: saleIdStr } = await params;
+    console.error(`POST /api/admin/affiliate/sales/${saleIdStr}/approve-commission error:`, error);
+    return NextResponse.json({
+      ok: false,
+      message: error.message || 'Server error'
     }, { status: 500 });
   }
 }

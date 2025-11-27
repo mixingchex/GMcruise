@@ -12,7 +12,7 @@ import prisma from '@/lib/prisma';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { profileId: string } }
+  { params }: { params: Promise<{ profileId: string }> }
 ) {
   try {
     // 1. 관리자 확인
@@ -37,7 +37,8 @@ export async function GET(
     }
 
     // 2. 프로필 ID 확인
-    const profileId = parseInt(params.profileId);
+    const { profileId: profileIdStr } = await params;
+    const profileId = parseInt(profileIdStr);
     if (isNaN(profileId)) {
       return NextResponse.json(
         { ok: false, error: '올바른 프로필 ID가 아닙니다' },
@@ -133,7 +134,7 @@ export async function GET(
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { profileId: string } }
+  { params }: { params: Promise<{ profileId: string }> }
 ) {
   try {
     // 1. 관리자 확인
@@ -182,7 +183,8 @@ export async function POST(
     }
 
     // 프로필 ID 일치 확인
-    const profileId = parseInt(params.profileId);
+    const { profileId: profileIdStr } = await params;
+    const profileId = parseInt(profileIdStr);
     if (document.profileId !== profileId) {
       return NextResponse.json(
         { ok: false, error: '프로필과 문서가 일치하지 않습니다' },

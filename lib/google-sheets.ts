@@ -31,7 +31,10 @@ function resolveServiceAccount(): { clientEmail: string; privateKey: string } {
 function getSheetsClient() {
   const credentials = resolveServiceAccount();
   const auth = new google.auth.GoogleAuth({
-    credentials,
+    credentials: {
+      client_email: credentials.clientEmail,
+      private_key: credentials.privateKey,
+    },
     scopes: ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive'],
   });
 
@@ -113,30 +116,59 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
     let spreadsheetId = trip.spreadsheetId;
 
     if (!spreadsheetId) {
-      const createResponse = await sheets.spreadsheets.create({
-        requestBody: {
-          properties: { title: spreadsheetTitle },
-          sheets: [
-            {
-              properties: {
-                title: 'Passengers',
-                gridProperties: {
-                  frozenRowCount: 1,
+      // 템플릿 스프레드시트 ID 가져오기
+      const templateSpreadsheetId = process.env.COMMUNITY_BACKUP_SPREADSHEET_ID;
+      
+      if (templateSpreadsheetId) {
+        // 템플릿 복제 방식 사용
+        const drive = getDriveClient();
+        const copiedFile = await drive.files.copy({
+          fileId: templateSpreadsheetId,
+          requestBody: {
+            name: spreadsheetTitle,
+          },
+        });
+
+        if (!copiedFile.data.id) {
+          throw new Error('템플릿 스프레드시트 복제 실패');
+        }
+
+        spreadsheetId = copiedFile.data.id;
+
+        // 복제된 스프레드시트를 여행별 폴더로 이동
+        await drive.files.update({
+          fileId: spreadsheetId,
+          addParents: folderId,
+          removeParents: 'root',
+          fields: 'id, parents',
+        } as any);
+      } else {
+        // 템플릿이 없으면 새로 생성
+        const createResponse = await sheets.spreadsheets.create({
+          requestBody: {
+            properties: { title: spreadsheetTitle },
+            sheets: [
+              {
+                properties: {
+                  title: 'Passengers',
+                  gridProperties: {
+                    frozenRowCount: 1,
+                  },
                 },
               },
-            },
-          ],
-        },
-      });
+            ],
+          },
+        });
 
-      spreadsheetId = createResponse.data.spreadsheetId!;
+        spreadsheetId = createResponse.data.spreadsheetId!;
 
-      const drive = getDriveClient();
-      await drive.files.update({
-        fileId: spreadsheetId,
-        addParents: folderId,
-        fields: 'id, parents',
-      } as any);
+        const drive = getDriveClient();
+        await drive.files.update({
+          fileId: spreadsheetId,
+          addParents: folderId,
+          fields: 'id, parents',
+        } as any);
+      }
 
       await prisma.trip.update({
         where: { id: tripId },
@@ -147,30 +179,37 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
       });
     }
 
+    // 헤더 업데이트 (X열 비고 추가)
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Passengers!A1:H1',
+      range: 'Passengers!A1:X1',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [['이름', '여권번호', '생년월일', '국적', '성별', '전화번호', '이메일', '제출상태']],
+        values: [['이름', '여권번호', '생년월일', '국적', '성별', '전화번호', '이메일', '제출상태', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '비고']],
       },
     });
 
-    const rows = trip.Reservation.map((reservation) => [
-      reservation.User?.name || '',
-      reservation.passportNumber || '미제출',
-      reservation.passportBirthDate || '',
-      reservation.passportNationality || '',
-      reservation.passportGender || '',
-      reservation.User?.phone || '',
-      reservation.User?.email || '',
-      reservation.passportNumber ? '제출완료' : '미제출',
-    ]);
+    // 여권 링크 정보 가져오기 (Reservation에서 passportDriveUrl 또는 passportUrl 확인)
+    const rows = trip.Reservation.map((reservation) => {
+      const passportLink = (reservation as any).passportDriveUrl || (reservation as any).passportUrl || '';
+      return [
+        reservation.User?.name || '',
+        reservation.passportNumber || '미제출',
+        reservation.passportBirthDate || '',
+        reservation.passportNationality || '',
+        reservation.passportGender || '',
+        reservation.User?.phone || '',
+        reservation.User?.email || '',
+        reservation.passportNumber ? '제출완료' : '미제출',
+        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', // H열부터 W열까지 빈 값
+        passportLink, // X열에 여권 링크
+      ];
+    });
 
     if (rows.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Passengers!A2:H${rows.length + 1}`,
+        range: `Passengers!A2:X${rows.length + 1}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: rows,
@@ -292,6 +331,81 @@ export type SaveReviewPayload = {
   authorName: string;
   createdAt: Date | string;
 };
+
+/**
+ * 여권 제출 시 APIS 스프레드시트 X열에 링크 기록
+ */
+export async function updatePassportLinkInApis(
+  reservationId: number,
+  passportLink: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // Reservation에서 Trip 정보 가져오기
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: reservationId },
+      include: {
+        Trip: {
+          select: {
+            id: true,
+            spreadsheetId: true,
+          },
+        },
+        User: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    });
+
+    if (!reservation || !reservation.Trip || !reservation.Trip.spreadsheetId) {
+      return { ok: false, error: 'APIS 스프레드시트를 찾을 수 없습니다.' };
+    }
+
+    const spreadsheetId = reservation.Trip.spreadsheetId;
+    const sheets = getSheetsClient();
+
+    // 스프레드시트에서 해당 사용자 행 찾기
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: 'Passengers!A:A', // 이름 열
+    });
+
+    const names = response.data.values || [];
+    const userName = reservation.User?.name || '';
+    
+    // 사용자 이름으로 행 찾기 (1-based index, 헤더 제외)
+    let rowIndex = -1;
+    for (let i = 1; i < names.length; i++) {
+      if (names[i] && names[i][0] === userName) {
+        rowIndex = i + 1; // 1-based index
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      // 사용자를 찾을 수 없으면 스프레드시트 동기화 필요
+      console.warn(`[updatePassportLinkInApis] 사용자 ${userName}를 스프레드시트에서 찾을 수 없습니다. 스프레드시트 동기화를 실행하세요.`);
+      return { ok: false, error: '스프레드시트에 해당 사용자가 없습니다. 스프레드시트 동기화를 먼저 실행하세요.' };
+    }
+
+    // X열(24번째 열)에 여권 링크 업데이트
+    await sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `Passengers!X${rowIndex}:X${rowIndex}`,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [[passportLink]],
+      },
+    });
+
+    console.log(`[updatePassportLinkInApis] 여권 링크 업데이트 완료: ${userName} (행 ${rowIndex})`);
+    return { ok: true };
+  } catch (error: any) {
+    console.error('[updatePassportLinkInApis] 오류:', error);
+    return { ok: false, error: error?.message || '여권 링크 업데이트 중 오류가 발생했습니다.' };
+  }
+}
 
 export async function saveReviewToSheets(reviewData: SaveReviewPayload): Promise<{ ok: boolean; error?: string }> {
   try {

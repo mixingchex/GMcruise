@@ -191,3 +191,4 @@ KAKAO_ADMIN_KEY=6f2872dfa8ac40ab0d9a93a70c542d10
 2. Vercel Deployments 탭의 배포 로그
 3. 환경 변수가 정확히 설정되었는지 스크린샷
 
+

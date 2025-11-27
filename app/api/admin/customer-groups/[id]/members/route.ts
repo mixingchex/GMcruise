@@ -42,7 +42,7 @@ async function checkAdminAuth() {
 // GET: 그룹 멤버 목록 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin = await checkAdminAuth();
@@ -102,7 +102,7 @@ export async function GET(
 // POST: 그룹에 고객 추가
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin = await checkAdminAuth();
@@ -254,7 +254,7 @@ export async function POST(
 // DELETE: 그룹에서 고객 제거
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin = await checkAdminAuth();

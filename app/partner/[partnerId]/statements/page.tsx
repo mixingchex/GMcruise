@@ -10,9 +10,9 @@ import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import PartnerStatementsClient from './PartnerStatementsClient';
 
-export default async function PartnerStatementsPage({ params }: { params: { partnerId: string } }) {
+export default async function PartnerStatementsPage({ params }: { params: Promise<{ partnerId: string }> }) {
   try {
-    const partnerId = params.partnerId;
+    const { partnerId } = await params;
     const sessionUser = await getSessionUser();
 
     if (!sessionUser) {

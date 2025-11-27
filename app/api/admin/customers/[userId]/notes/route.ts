@@ -45,12 +45,12 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ isAdmin: boole
 // GET: 고객 기록 목록 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
-    
+
     if (!auth.isAdmin) {
       return NextResponse.json(
         { ok: false, error: '인증이 필요합니다.' },
@@ -58,7 +58,8 @@ export async function GET(
       );
     }
 
-    const customerId = parseInt(params.userId);
+    const { userId: userIdStr } = await params;
+    const customerId = parseInt(userIdStr);
     if (isNaN(customerId)) {
       return NextResponse.json(
         { ok: false, error: '유효하지 않은 고객 ID입니다.' },
@@ -139,7 +140,7 @@ export async function GET(
 // POST: 고객 기록 작성
 export async function POST(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
@@ -152,7 +153,8 @@ export async function POST(
       );
     }
 
-    const customerId = parseInt(params.userId);
+    const { userId: userIdStr } = await params;
+    const customerId = parseInt(userIdStr);
     if (isNaN(customerId)) {
       return NextResponse.json(
         { ok: false, error: '유효하지 않은 고객 ID입니다.' },

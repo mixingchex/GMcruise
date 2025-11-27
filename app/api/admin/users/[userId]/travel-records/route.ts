@@ -41,7 +41,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 403 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     if (isNaN(userId)) {
       return NextResponse.json({ ok: false, error: 'Invalid user ID' }, { status: 400 });
     }

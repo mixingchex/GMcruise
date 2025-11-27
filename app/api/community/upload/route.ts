@@ -5,10 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import { join } from 'path';
-// Google Drive 업로드는 배치 작업으로 처리되므로 import 제거
+import { uploadFileToDrive } from '@/lib/google-drive';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -51,39 +48,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 업로드 디렉토리 확인/생성
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'reviews');
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
     // 파일명 생성 (타임스탬프 + 랜덤 + 원본 파일명)
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const filename = `${timestamp}_${random}_${originalName}`;
-    const filepath = join(uploadDir, filename);
 
-    // 파일 저장
+    // 파일 버퍼 변환
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
 
-    // 로컬 URL 생성
-    const localUrl = `/uploads/reviews/${filename}`;
+    // Google Drive 리뷰 폴더 ID 가져오기
+    const reviewsFolderId = process.env.GOOGLE_DRIVE_UPLOADS_REVIEWS_FOLDER_ID;
+    
+    if (!reviewsFolderId) {
+      return NextResponse.json(
+        { ok: false, error: 'Google Drive 리뷰 폴더 ID가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
+    }
 
-    // Google Drive 업로드는 배치 작업으로 처리 (1시간마다)
-    // 실시간 업로드 제거 - /api/batch/sync-to-google에서 처리
-    // 로컬 URL만 반환
-    const driveUrl = localUrl;
+    // Google Drive에 업로드
+    const uploadResult = await uploadFileToDrive({
+      folderId: reviewsFolderId,
+      fileName: filename,
+      mimeType: file.type,
+      buffer,
+      makePublic: true, // 공개 링크로 제공
+    });
+
+    if (!uploadResult.ok || !uploadResult.url) {
+      return NextResponse.json(
+        { ok: false, error: uploadResult.error || '파일 업로드 실패' },
+        { status: 500 }
+      );
+    }
+
+    const driveUrl = uploadResult.url;
 
     return NextResponse.json({
       ok: true,
-      url: driveUrl, // Google Drive URL 우선 사용
-      localUrl, // 로컬 URL도 함께 반환
+      url: driveUrl, // Google Drive URL
       filename,
       size: file.size,
       type: file.type,
+      fileId: uploadResult.fileId,
     });
   } catch (error) {
     console.error('[Community Upload API] Error:', error);

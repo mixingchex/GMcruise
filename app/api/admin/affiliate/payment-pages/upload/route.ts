@@ -3,8 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { uploadFileToDrive } from '@/lib/google-drive';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -77,7 +76,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '파일 크기는 10MB 이하여야 합니다.' }, { status: 400 });
     }
 
-    // 파일 저장
+    // 파일 버퍼 변환
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
@@ -85,17 +84,34 @@ export async function POST(req: NextRequest) {
     const ext = file.name.split('.').pop() || 'png';
     const timestamp = Date.now();
     const fileName = `payment-page-${contractType}-${timestamp}.${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'payment-pages');
-    const filePath = path.join(uploadDir, fileName);
 
-    // 디렉토리 생성
-    await mkdir(uploadDir, { recursive: true });
+    // Google Drive 이미지 폴더 ID 가져오기
+    const imagesFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+    
+    if (!imagesFolderId) {
+      return NextResponse.json(
+        { ok: false, message: 'Google Drive 이미지 폴더 ID가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
+    }
 
-    // 파일 저장
-    await writeFile(filePath, buffer);
+    // Google Drive에 업로드
+    const uploadResult = await uploadFileToDrive({
+      folderId: imagesFolderId,
+      fileName: `payment-pages/${fileName}`,
+      mimeType: file.type || `image/${ext}`,
+      buffer: buffer,
+      makePublic: true, // 공개 링크로 제공
+    });
 
-    // URL 반환
-    const url = `/payment-pages/${fileName}`;
+    if (!uploadResult.ok || !uploadResult.url) {
+      return NextResponse.json(
+        { ok: false, message: uploadResult.error || '파일 업로드 실패' },
+        { status: 500 }
+      );
+    }
+
+    const url = uploadResult.url;
 
     console.log('[Admin Payment Pages Upload] 파일 업로드 성공:', {
       contractType,

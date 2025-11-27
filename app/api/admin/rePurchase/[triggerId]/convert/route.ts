@@ -51,7 +51,7 @@ async function checkAdminAuth() {
 // PUT: 전환 처리
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { triggerId: string } }
+  { params }: { params: Promise<{ triggerId: string }> }
 ) {
   try {
     const admin = await checkAdminAuth();
@@ -59,7 +59,7 @@ export async function PUT(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const triggerId = parseInt(params.triggerId);
+    const { triggerId: triggerIdStr } = await params; const triggerId = parseInt(triggerIdStr);
     if (isNaN(triggerId)) {
       return NextResponse.json(
         { ok: false, error: 'Invalid triggerId' },

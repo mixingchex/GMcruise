@@ -47,7 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });
     }
 
-    const id = parseInt(params.id);
+    const { id: idStr } = await params; const id = parseInt(idStr);
     const body = await req.json();
     const { name, email, phone, source, notes, tags, isActive } = body;
 
@@ -110,7 +110,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });
     }
 
-    const id = parseInt(params.id);
+    const { id: idStr } = await params; const id = parseInt(idStr);
 
     await prisma.prospect.delete({
       where: { id },

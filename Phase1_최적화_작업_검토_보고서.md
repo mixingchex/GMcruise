@@ -355,3 +355,4 @@ type PhraseCategoriesData = Record<string, PhraseCategory[]>;
 
 **보고서 작성 완료** ✅
 
+

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
         select: { configValue: true },
       });
 
-      const folderId = config?.configValue || process.env.GOOGLE_DRIVE_SIGNATURES_FOLDER_ID;
+      const folderId = config?.configValue || process.env.GOOGLE_DRIVE_CONTRACT_SIGNATURES_FOLDER_ID;
 
       if (folderId && folderId !== 'root') {
         const { uploadFileToDrive } = await import('@/lib/google-drive');

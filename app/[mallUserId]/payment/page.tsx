@@ -12,18 +12,19 @@ import { notFound } from 'next/navigation';
  * 
  * productCode가 있으면 결제 페이지로, 없으면 정산 내역 확인 페이지로 사용
  */
-export default async function PersonalPaymentPage({ 
+export default async function PersonalPaymentPage({
   params,
-  searchParams 
-}: { 
-  params: { mallUserId: string };
-  searchParams?: { productCode?: string; amount?: string; sessionId?: string };
+  searchParams
+}: {
+  params: Promise<{ mallUserId: string }>;
+  searchParams?: Promise<{ productCode?: string; amount?: string; sessionId?: string }>;
 }) {
   const sessionUser = await getSessionUser();
-  const mallUserId = params.mallUserId;
-  const productCode = searchParams?.productCode;
-  const amount = searchParams?.amount ? parseInt(searchParams.amount) : null;
-  const sessionId = searchParams?.sessionId;
+  const { mallUserId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const productCode = resolvedSearchParams?.productCode;
+  const amount = resolvedSearchParams?.amount ? parseInt(resolvedSearchParams.amount) : null;
+  const sessionId = resolvedSearchParams?.sessionId;
 
   // 세션이 없으면 파트너 로그인으로 리다이렉트
   if (!sessionUser) {

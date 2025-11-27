@@ -85,6 +85,21 @@ export async function GET(req: NextRequest) {
     const settings = await readSettingsFile();
     const currentIp = getCurrentIp(req);
 
+    // 자동화 설정 읽기 (SystemConfig에서)
+    const automationConfigs = await prisma.systemConfig.findMany({
+      where: {
+        configKey: {
+          startsWith: 'automation_',
+        },
+      },
+    });
+
+    const automationSettings: Record<string, boolean> = {};
+    automationConfigs.forEach((config) => {
+      const key = config.configKey.replace('automation_', '');
+      automationSettings[key] = config.configValue === 'true' || config.configValue === '1';
+    });
+
     // 환경 변수에서 정보 가져오기 (민감한 정보는 마스킹하지 않고 그대로 반환)
     const info = {
       email: process.env.EMAIL_SMTP_USER || '',
@@ -131,11 +146,36 @@ export async function GET(req: NextRequest) {
       googleDriveSharedDriveId: process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID || '',
       googleDriveRootFolderId: process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || '',
       googleDrivePassportFolderId: process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID || '',
+      // Google Sheets
+      communityBackupSpreadsheetId: process.env.COMMUNITY_BACKUP_SPREADSHEET_ID || '',
+      tripApisArchiveSpreadsheetId: process.env.TRIP_APIS_ARCHIVE_SPREADSHEET_ID || '',
+      // Upload folders
+      googleDriveUploadsImagesFolderId: process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID || '',
+      googleDriveUploadsProfilesFolderId: process.env.GOOGLE_DRIVE_UPLOADS_PROFILES_FOLDER_ID || '',
+      googleDriveUploadsReviewsFolderId: process.env.GOOGLE_DRIVE_UPLOADS_REVIEWS_FOLDER_ID || '',
+      googleDriveUploadsAudioFolderId: process.env.GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID || '',
+      googleDriveUploadsDocumentsFolderId: process.env.GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID || '',
+      googleDriveUploadsVideosFolderId: process.env.GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID || '',
+      googleDriveUploadsSalesAudioFolderId: process.env.GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID || '',
+      googleDriveUploadsFontsFolderId: process.env.GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID || '',
+      googleDriveContractsPdfsFolderId: process.env.GOOGLE_DRIVE_CONTRACTS_PDFS_FOLDER_ID || '',
+      googleDriveProductsFolderId: process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID || '',
+      googleDriveCruiseImagesFolderId: process.env.GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID || '',
+      // Affiliate documents
+      googleDriveContractsFolderId: process.env.GOOGLE_DRIVE_CONTRACTS_FOLDER_ID || '',
+      googleDriveContractSignaturesFolderId: process.env.GOOGLE_DRIVE_CONTRACT_SIGNATURES_FOLDER_ID || '',
+      googleDriveContractAudioFolderId: process.env.GOOGLE_DRIVE_CONTRACT_AUDIO_FOLDER_ID || '',
+      googleDriveIdCardFolderId: process.env.GOOGLE_DRIVE_ID_CARD_FOLDER_ID || '',
+      googleDriveBankbookFolderId: process.env.GOOGLE_DRIVE_BANKBOOK_FOLDER_ID || '',
+      // Additional folders
+      googleDriveCompanyLogoFolderId: process.env.GOOGLE_DRIVE_COMPANY_LOGO_FOLDER_ID || '',
+      googleDriveAffiliateInfoFolderId: process.env.GOOGLE_DRIVE_AFFILIATE_INFO_FOLDER_ID || '',
       kakaoApiManagers: settings.kakaoApiManagers || [],
       kakaoApiKeys: settings.kakaoApiKeys || [],
       kakaoSenderKeys: settings.kakaoSenderKeys || [],
       serverIps: settings.serverIps || [],
       currentIp: currentIp,
+      automationSettings: automationSettings,
     };
 
     return NextResponse.json({ ok: true, info });

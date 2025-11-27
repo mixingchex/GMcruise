@@ -40,7 +40,7 @@ async function checkAdminAuth() {
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { saleId: string } }
+  { params }: { params: Promise<{ saleId: string }> }
 ) {
   try {
     // 1. 관리자 권한 확인
@@ -53,7 +53,8 @@ export async function POST(
     }
 
     // 2. 판매 ID 확인
-    const saleId = parseInt(params.saleId);
+    const { saleId: saleIdStr } = await params;
+    const saleId = parseInt(saleIdStr);
     if (isNaN(saleId)) {
       return NextResponse.json(
         { ok: false, error: '올바른 판매 ID가 아닙니다' },

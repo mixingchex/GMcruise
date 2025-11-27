@@ -1,0 +1,68 @@
+[
+  {
+    "target": "images",
+    "localPath": "public/uploads/images",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID missing"
+  },
+  {
+    "target": "profiles",
+    "localPath": "public/uploads/profiles",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_PROFILES_FOLDER_ID missing"
+  },
+  {
+    "target": "reviews",
+    "localPath": "public/uploads/reviews",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_REVIEWS_FOLDER_ID missing"
+  },
+  {
+    "target": "audio",
+    "localPath": "public/uploads/audio",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID missing"
+  },
+  {
+    "target": "documents",
+    "localPath": "public/uploads/documents",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID missing"
+  },
+  {
+    "target": "videos",
+    "localPath": "public/uploads/videos",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID missing"
+  },
+  {
+    "target": "sales-audio",
+    "localPath": "public/uploads/sales-audio",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID missing"
+  },
+  {
+    "target": "fonts",
+    "localPath": "public/uploads/fonts",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID missing"
+  },
+  {
+    "target": "contracts-pdfs",
+    "localPath": "public/contracts/pdfs",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_CONTRACTS_PDFS_FOLDER_ID missing"
+  },
+  {
+    "target": "pages",
+    "localPath": "public/uploads/pages",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID missing"
+  },
+  {
+    "target": "cruise-images",
+    "localPath": "public/크루즈정보사진",
+    "status": "skipped",
+    "reason": "GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID missing"
+  }
+]

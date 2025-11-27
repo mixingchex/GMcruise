@@ -6,9 +6,9 @@ import AgentsManagement from './AgentsManagement';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function AgentsPage({ params }: { params: { partnerId: string } }) {
+export default async function AgentsPage({ params }: { params: Promise<{ partnerId: string }> }) {
   try {
-    const partnerId = params.partnerId;
+    const { partnerId } = await params;
     const sessionUser = await getSessionUser();
 
     if (!sessionUser) {

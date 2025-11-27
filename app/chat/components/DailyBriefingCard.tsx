@@ -892,12 +892,26 @@ export default function DailyBriefingCard() {
   const handleAddSchedule = async (): Promise<boolean> => {
     // 중복 클릭 방지
     if (isAddingSchedule) {
+      console.warn('[DailyBriefingCard] 일정 추가 중복 클릭 방지');
       return false;
     }
 
     setIsAddingSchedule(true);
 
     try {
+      // 세션 확인 (API 호출 전에 미리 확인)
+      try {
+        const sessionCheck = await fetch('/api/user/profile', { credentials: 'include' });
+        if (!sessionCheck.ok) {
+          throw new Error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        }
+      } catch (sessionError) {
+        console.error('[DailyBriefingCard] 세션 확인 실패:', sessionError);
+        alert('로그인 상태를 확인할 수 없습니다. 다시 로그인해주세요.');
+        setIsAddingSchedule(false);
+        return false;
+      }
+
       if (!newScheduleTime || !newScheduleTitle) {
         alert('시간과 일정을 모두 입력해주세요.');
         setIsAddingSchedule(false);

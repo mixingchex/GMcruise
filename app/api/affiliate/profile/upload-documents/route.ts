@@ -9,6 +9,7 @@ import { getSession } from '@/lib/session';
 import prisma from '@/lib/prisma';
 
 import { uploadFileToDrive } from '@/lib/google-drive';
+import { uploadAffiliateInfoFile } from '@/lib/google-drive-affiliate-info';
 
 import { writeFile, mkdir } from 'fs/promises';
 
@@ -144,52 +145,46 @@ export async function POST(req: NextRequest) {
 
 
 
-    // 2단계: 구글 드라이브 백업 (실패해도 계속 진행)
-
+    // 2단계: 구글 드라이브 백업 (판매원별 폴더 구조로 저장)
     let backupUrl: string | null = null;
-
     let backupError: string | null = null;
 
     try {
-
-      const backupResult = await uploadFileToDrive({
-
-        folderId: targetFolderId,
-
-        fileName: `${session.userId}_${documentType}_${file.name}`,
-
-        mimeType: file.type,
-
-        buffer: buffer,
-
-        makePublic: false, // 개인정보는 공개하지 않음
-
-      });
-
-
+      // 판매원별 폴더 구조로 저장
+      const fileType = documentType === 'ID_CARD' ? 'idCard' : 'bankbook';
+      const backupResult = await uploadAffiliateInfoFile(
+        session.userId,
+        buffer,
+        `${documentType}_${file.name}`,
+        file.type,
+        fileType
+      );
 
       if (backupResult.ok && backupResult.url) {
-
         backupUrl = backupResult.url;
-
-        console.log('[Upload Documents] 구글 드라이브 백업 성공:', backupUrl);
-
+        console.log('[Upload Documents] 구글 드라이브 백업 성공 (판매원별 폴더):', backupUrl);
       } else {
+        // 폴더 구조 저장 실패 시 기존 방식으로 폴백
+        const fallbackResult = await uploadFileToDrive({
+          folderId: targetFolderId,
+          fileName: `${session.userId}_${documentType}_${file.name}`,
+          mimeType: file.type,
+          buffer: buffer,
+          makePublic: false,
+        });
 
-        backupError = backupResult.error || '구글 드라이브 백업 실패';
-
-        console.warn('[Upload Documents] 구글 드라이브 백업 실패 (서버 저장은 성공):', backupError);
-
+        if (fallbackResult.ok && fallbackResult.url) {
+          backupUrl = fallbackResult.url;
+          console.log('[Upload Documents] 구글 드라이브 백업 성공 (기존 방식):', backupUrl);
+        } else {
+          backupError = backupResult.error || fallbackResult.error || '구글 드라이브 백업 실패';
+          console.warn('[Upload Documents] 구글 드라이브 백업 실패 (서버 저장은 성공):', backupError);
+        }
       }
-
     } catch (backupErr: any) {
-
       backupError = backupErr?.message || '구글 드라이브 백업 중 오류 발생';
-
       console.warn('[Upload Documents] 구글 드라이브 백업 중 오류 (서버 저장은 성공):', backupError);
-
       // 백업 실패해도 서버 저장은 성공했으므로 계속 진행
-
     }
 
 

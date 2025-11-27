@@ -4,9 +4,9 @@ import prisma from '@/lib/prisma';
 import { profileInclude, serializeProfile } from '@/app/api/admin/affiliate/profiles/shared';
 import MyProfileClient from '@/app/affiliate/my-profile/MyProfileClient';
 
-export default async function PersonalProfilePage({ params }: { params: { mallUserId: string } }) {
+export default async function PersonalProfilePage({ params }: { params: Promise<{ mallUserId: string }> }) {
   const sessionUser = await getSessionUser();
-  const mallUserId = params.mallUserId;
+  const { mallUserId } = await params;
 
   // 세션이 없으면 파트너 로그인으로 리다이렉트
   if (!sessionUser) {

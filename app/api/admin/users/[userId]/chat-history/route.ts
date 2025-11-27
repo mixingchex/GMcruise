@@ -38,7 +38,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Admin access required' }, { status: 403 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
 
     // URL 파라미터
     const { searchParams } = new URL(req.url);

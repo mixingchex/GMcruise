@@ -22,3 +22,4 @@ CREATE INDEX IF NOT EXISTS "User_customerStatus_createdAt_idx" ON "User"("custom
 -- WHERE tablename = 'User' 
 -- AND indexname LIKE '%customerSource%' OR indexname LIKE '%mallUserId%' OR indexname LIKE '%testModeStartedAt%';
 
+

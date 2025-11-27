@@ -8,10 +8,10 @@ import prisma from '@/lib/prisma';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const flowId = parseInt(params.id);
+    const { id: idStr } = await params; const flowId = parseInt(idStr);
     const { nodes, edges } = await req.json();
 
     if (!nodes || !Array.isArray(nodes)) {

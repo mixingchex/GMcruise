@@ -62,7 +62,7 @@ export async function DELETE(
       }, { status: 403 });
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     console.log('[Delete User] Parsed userId:', userId);
     
     if (isNaN(userId)) {

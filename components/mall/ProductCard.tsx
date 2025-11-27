@@ -189,14 +189,21 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
               <img 
                 src="/images/ai-cruise-logo.png" 
                 alt="크루즈닷" 
-                className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0 mt-0.5"
+                className="w-10 h-10 md:w-12 md:h-12 object-contain flex-shrink-0 mt-0.5"
               />
             )}
             {product.source === 'wcruise' && (
               <img 
                 src="/images/wcruise-logo.png" 
                 alt="W크루즈" 
-                className="w-5 h-5 md:w-6 md:h-6 object-contain flex-shrink-0 mt-0.5"
+                className="w-10 h-10 md:w-12 md:h-12 object-contain flex-shrink-0 mt-0.5"
+              />
+            )}
+            {product.source === 'lottejtb' && (
+              <img 
+                src="/images/롯데제이티비.png" 
+                alt="롯데 제이티비" 
+                className="w-10 h-10 md:w-12 md:h-12 object-contain flex-shrink-0 mt-0.5"
               />
             )}
             <h3 className="text-base md:text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors flex-1 leading-snug">

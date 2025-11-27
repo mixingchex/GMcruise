@@ -9,12 +9,13 @@ import { requireAdmin, AdminAuthError } from '@/lib/auth/requireAdmin';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin();
 
-    const templateId = Number(params.id);
+    const { id: idStr } = await params;
+    const templateId = Number(idStr);
     if (Number.isNaN(templateId)) {
       return NextResponse.json(
         { ok: false, error: '유효한 템플릿 ID가 필요합니다.' },

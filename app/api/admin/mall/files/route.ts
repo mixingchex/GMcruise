@@ -1,14 +1,10 @@
-export const dynamic = 'force-dynamic';
-
 // app/api/admin/mall/files/route.ts
 // 업로드된 파일 목록 조회 API
 
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { readdir, stat, unlink } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { listFilesInFolder, deleteFileFromDrive } from '@/lib/google-drive';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 
@@ -65,68 +61,54 @@ export async function GET(req: NextRequest) {
       uploadedAt: number;
     }> = [];
 
-    // 이미지 파일 목록
+    // 이미지 파일 목록 (Google Drive에서 가져오기)
     if (type === 'image' || type === 'all') {
-      const imageDir = join(process.cwd(), 'public', 'uploads', 'images');
-      if (existsSync(imageDir)) {
+      const imagesFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+      if (imagesFolderId) {
         try {
-          const imageFiles = await readdir(imageDir);
-          for (const filename of imageFiles) {
-            const filepath = join(imageDir, filename);
-            try {
-              const stats = await stat(filepath);
-              if (stats.isFile()) {
-                const ext = filename.toLowerCase().split('.').pop() || '';
-                if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-                  files.push({
-                    url: `/uploads/images/${filename}`,
-                    filename,
-                    size: stats.size,
-                    type: 'image',
-                    uploadedAt: stats.mtimeMs,
-                  });
-                }
+          const result = await listFilesInFolder(imagesFolderId);
+          if (result.ok && result.files) {
+            for (const file of result.files) {
+              const ext = file.name.toLowerCase().split('.').pop() || '';
+              if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+                files.push({
+                  url: file.url,
+                  filename: file.name,
+                  size: 0, // Google Drive에서 크기 정보는 별도로 가져와야 함
+                  type: 'image',
+                  uploadedAt: Date.now(), // Google Drive에서 수정 시간은 별도로 가져와야 함
+                });
               }
-            } catch (err) {
-              // 개별 파일 읽기 실패는 무시
-              console.warn(`Failed to stat ${filepath}:`, err);
             }
           }
         } catch (err) {
-          console.error('Failed to read image directory:', err);
+          console.error('Failed to read images from Google Drive:', err);
         }
       }
     }
 
-    // 영상 파일 목록
+    // 영상 파일 목록 (Google Drive에서 가져오기)
     if (type === 'video' || type === 'all') {
-      const videoDir = join(process.cwd(), 'public', 'uploads', 'videos');
-      if (existsSync(videoDir)) {
+      const videosFolderId = process.env.GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID;
+      if (videosFolderId) {
         try {
-          const videoFiles = await readdir(videoDir);
-          for (const filename of videoFiles) {
-            const filepath = join(videoDir, filename);
-            try {
-              const stats = await stat(filepath);
-              if (stats.isFile()) {
-                const ext = filename.toLowerCase().split('.').pop() || '';
-                if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
-                  files.push({
-                    url: `/uploads/videos/${filename}`,
-                    filename,
-                    size: stats.size,
-                    type: 'video',
-                    uploadedAt: stats.mtimeMs,
-                  });
-                }
+          const result = await listFilesInFolder(videosFolderId);
+          if (result.ok && result.files) {
+            for (const file of result.files) {
+              const ext = file.name.toLowerCase().split('.').pop() || '';
+              if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
+                files.push({
+                  url: file.url,
+                  filename: file.name,
+                  size: 0, // Google Drive에서 크기 정보는 별도로 가져와야 함
+                  type: 'video',
+                  uploadedAt: Date.now(), // Google Drive에서 수정 시간은 별도로 가져와야 함
+                });
               }
-            } catch (err) {
-              // 개별 파일 읽기 실패는 무시
-              console.warn(`Failed to stat ${filepath}:`, err);
             }
           }
         } catch (err) {
-          console.error('Failed to read video directory:', err);
+          console.error('Failed to read videos from Google Drive:', err);
         }
       }
     }
@@ -180,40 +162,61 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    // URL에서 실제 파일 경로 추출
-    let filepath: string;
-    if (fileUrl.startsWith('/uploads/images/')) {
-      const filename = fileUrl.replace('/uploads/images/', '');
-      filepath = join(process.cwd(), 'public', 'uploads', 'images', filename);
-    } else if (fileUrl.startsWith('/uploads/videos/')) {
-      const filename = fileUrl.replace('/uploads/videos/', '');
-      filepath = join(process.cwd(), 'public', 'uploads', 'videos', filename);
+    // Google Drive URL인지 확인
+    if (fileUrl.includes('drive.google.com')) {
+      // Google Drive에서 삭제
+      const deleteResult = await deleteFileFromDrive(fileUrl);
+      if (!deleteResult.ok) {
+        return NextResponse.json(
+          { ok: false, error: deleteResult.error || '파일 삭제 실패' },
+          { status: 500 }
+        );
+      }
+    } else if (fileUrl.startsWith('/uploads/')) {
+      // 로컬 파일 삭제 (하위 호환성)
+      const { readdir, stat, unlink } = await import('fs/promises');
+      const { join } = await import('path');
+      const { existsSync } = await import('fs');
+      
+      let filepath: string;
+      if (fileUrl.startsWith('/uploads/images/')) {
+        const filename = fileUrl.replace('/uploads/images/', '');
+        filepath = join(process.cwd(), 'public', 'uploads', 'images', filename);
+      } else if (fileUrl.startsWith('/uploads/videos/')) {
+        const filename = fileUrl.replace('/uploads/videos/', '');
+        filepath = join(process.cwd(), 'public', 'uploads', 'videos', filename);
+      } else {
+        return NextResponse.json(
+          { ok: false, error: '유효하지 않은 파일 경로입니다.' },
+          { status: 400 }
+        );
+      }
+
+      // 보안: public/uploads 디렉토리 내부인지 확인
+      const uploadsDir = join(process.cwd(), 'public', 'uploads');
+      if (!filepath.startsWith(uploadsDir)) {
+        return NextResponse.json(
+          { ok: false, error: '접근할 수 없는 경로입니다.' },
+          { status: 403 }
+        );
+      }
+
+      // 파일 존재 확인
+      if (!existsSync(filepath)) {
+        return NextResponse.json(
+          { ok: false, error: '파일을 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
+      // 파일 삭제
+      await unlink(filepath);
     } else {
       return NextResponse.json(
-        { ok: false, error: '유효하지 않은 파일 경로입니다.' },
+        { ok: false, error: '유효하지 않은 파일 URL입니다.' },
         { status: 400 }
       );
     }
-
-    // 보안: public/uploads 디렉토리 내부인지 확인
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if (!filepath.startsWith(uploadsDir)) {
-      return NextResponse.json(
-        { ok: false, error: '접근할 수 없는 경로입니다.' },
-        { status: 403 }
-      );
-    }
-
-    // 파일 존재 확인
-    if (!existsSync(filepath)) {
-      return NextResponse.json(
-        { ok: false, error: '파일을 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    // 파일 삭제
-    await unlink(filepath);
 
     return NextResponse.json({
       ok: true,
@@ -230,3 +233,6 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+
+
+

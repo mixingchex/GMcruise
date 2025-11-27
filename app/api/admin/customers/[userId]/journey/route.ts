@@ -24,7 +24,7 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
@@ -44,7 +44,7 @@ export async function GET(
       );
     }
 
-    const userId = parseInt(params.userId);
+    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
     if (isNaN(userId)) {
       return NextResponse.json(
         { ok: false, error: '유효하지 않은 사용자 ID입니다.' },

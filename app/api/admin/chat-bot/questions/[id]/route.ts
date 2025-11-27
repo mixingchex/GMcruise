@@ -9,10 +9,11 @@ import prisma from '@/lib/prisma';
 // GET: 질문 상세 조회
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const questionId = parseInt(params.id);
+    const { id: idStr } = await params;
+    const questionId = parseInt(idStr);
 
     const question = await prisma.chatBotQuestion.findUnique({
       where: { id: questionId },
@@ -41,10 +42,11 @@ export async function GET(
 // PATCH: 질문 수정
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const questionId = parseInt(params.id);
+    const { id: idStr } = await params;
+    const questionId = parseInt(idStr);
     const body = await req.json();
 
     const question = await prisma.chatBotQuestion.update({
@@ -79,10 +81,11 @@ export async function PATCH(
 // DELETE: 질문 삭제
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const questionId = parseInt(params.id);
+    const { id: idStr } = await params;
+    const questionId = parseInt(idStr);
 
     await prisma.chatBotQuestion.delete({
       where: { id: questionId },

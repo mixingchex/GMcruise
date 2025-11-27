@@ -70,69 +70,84 @@ const nextConfig = {
       '@radix-ui/react-tabs',
       '@radix-ui/react-toast',
     ],
-    // Vercel Function 크기 줄이기 위해 불필요한 파일 제외 (최대 강화 버전)
+    // Vercel Function 크기 줄이기 위해 불필요한 파일 제외 (극대화 버전)
     outputFileTracingExcludes: {
       '*': [
-        // Node.js 바이너리 제외
-        'node_modules/@swc/core-linux-x64-gnu',
-        'node_modules/@swc/core-linux-x64-musl',
-        'node_modules/@swc/core-darwin-x64',
-        'node_modules/@swc/core-darwin-arm64',
+        // Node.js 바이너리 및 빌드 도구 완전 제외
+        'node_modules/@swc/**',
         'node_modules/@esbuild/**',
-        'node_modules/@next/swc-linux-x64-gnu',
-        'node_modules/@next/swc-linux-x64-musl',
-        'node_modules/@next/swc-darwin-x64',
-        'node_modules/@next/swc-darwin-arm64',
-        // 빌드 도구 제외
-        'node_modules/webpack',
-        'node_modules/terser',
-        'node_modules/prettier',
-        'node_modules/eslint',
-        'node_modules/typescript',
-        // Google APIs 불필요한 파일들
-        'node_modules/googleapis/build/src/apis/!(sheets|drive)/**',
-        'node_modules/google-auth-library/build/src/auth/!(googleauth|jwtclient|oauth2client).js',
-        'node_modules/gaxios/node_modules/**',
-        // Puppeteer 불필요한 파일들
-        'node_modules/puppeteer/.local-chromium/**',
-        'node_modules/puppeteer-core/.local-chromium/**',
+        'node_modules/@next/swc*/**',
+        'node_modules/webpack/**',
+        'node_modules/terser/**',
+        'node_modules/prettier/**',
+        'node_modules/eslint/**',
+        'node_modules/typescript/**',
+        'node_modules/@typescript-eslint/**',
+        // Google APIs - 전체 제외 (serverExternalPackages로 처리)
+        'node_modules/googleapis/**',
+        'node_modules/google-auth-library/**',
+        'node_modules/gaxios/**',
+        'node_modules/gcp-metadata/**',
+        'node_modules/google-p12-pem/**',
+        // Puppeteer 완전 제외
+        'node_modules/puppeteer/**',
+        'node_modules/puppeteer-core/**',
+        // PDF 라이브러리 제외
+        'node_modules/pdf-lib/**',
+        'node_modules/pdfjs-dist/**',
+        // 이미지 처리 라이브러리 제외
+        'node_modules/sharp/**',
+        'node_modules/canvas/**',
+        // 암호화 라이브러리 제외
+        'node_modules/bcryptjs/**',
+        'node_modules/@node-rs/argon2/**',
+        // Prisma 바이너리 제외 (런타임에 필요한 것만 포함됨)
+        'node_modules/@prisma/engines/**',
+        'node_modules/.prisma/**',
         // Git 및 캐시
-        '.git',
-        '.next/cache',
-        // 정적 파일 (동영상은 이미지로 대체되어 제외)
-        'public/videos/**',
+        '.git/**',
+        '.next/cache/**',
+        // 큰 정적 파일들만 제외 (필요한 파일은 유지)
         'public/크루즈정보사진/**',
         'public/크루즈사진/**',
+        'public/videos/**',
         'public/audio/**',
+        // 업로드 파일들 제외 (Google Drive로 마이그레이션 완료)
+        'public/uploads/**',
+        'public/contracts/pdfs/**',
+        'public/payment-pages/**',
         // 큰 데이터 파일
         'data/image_manifest.json',
-        // 스크립트 및 문서
+        // 문서 및 스크립트
         'scripts/**',
         '**/*.md',
         'docs/**',
+        '*.md',
         // 테스트 파일
-        '**/*.test.ts',
-        '**/*.test.tsx',
-        '**/*.spec.ts',
-        '**/*.spec.tsx',
+        '**/*.test.*',
+        '**/*.spec.*',
         '__tests__/**',
+        'test/**',
+        'tests/**',
       ],
     },
   },
 
-  // 큰 패키지들을 외부 패키지로 처리하여 번들 크기 줄이기
-  serverExternalPackages: [
-    '@prisma/client',
-    '@node-rs/argon2',
-    'sharp',
-    'canvas',
-    'googleapis',
-    'google-auth-library',
-    'gaxios',
-    'puppeteer',
-    'pdf-lib',
-    'bcryptjs',
-  ],
+  // ⚠️ serverExternalPackages는 Next.js 14에서 deprecated되었습니다.
+  // 대신 outputFileTracingExcludes에서 해당 패키지들을 제외하도록 설정했습니다.
+  // 큰 패키지들은 런타임에 node_modules에서 직접 로드되므로 별도 설정 불필요.
+  // serverExternalPackages: [
+  //   '@prisma/client',
+  //   '@node-rs/argon2',
+  //   'sharp',
+  //   'canvas',
+  //   'googleapis',
+  //   'google-auth-library',
+  //   'gaxios',
+  //   'puppeteer',
+  //   'pdf-lib',
+  //   'bcryptjs',
+  // ],
 
   // 라이브러리 임포트 최적화
   modularizeImports: {

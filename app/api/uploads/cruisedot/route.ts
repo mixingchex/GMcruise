@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
+import { uploadFileToDrive, findOrCreateFolder } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -135,16 +136,55 @@ export async function POST(req: Request) {
     }
 
     const finalName = `${baseName}${extension}`;
-    const targetDir = safeSubfolder ? path.join(MEDIA_ROOT, safeSubfolder) : MEDIA_ROOT;
-    await fs.mkdir(targetDir, { recursive: true });
-
-    const targetPath = path.join(targetDir, finalName);
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    await fs.writeFile(targetPath, buffer);
 
+    // Google Drive 폴더 ID 가져오기
+    const baseFolderId = process.env.GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID;
+    if (!baseFolderId) {
+      return NextResponse.json(
+        { ok: false, error: 'Google Drive 크루즈 이미지 폴더 ID가 설정되지 않았습니다.' },
+        { status: 500 }
+      );
+    }
+
+    // 서브폴더 생성 (safeSubfolder가 있으면)
+    let targetFolderId = baseFolderId;
+    if (safeSubfolder) {
+      const subfolderResult = await findOrCreateFolder(safeSubfolder, baseFolderId);
+      if (subfolderResult.ok && subfolderResult.folderId) {
+        targetFolderId = subfolderResult.folderId;
+      }
+    }
+
+    // Google Drive에 업로드
+    const uploadResult = await uploadFileToDrive({
+      folderId: targetFolderId,
+      fileName: finalName,
+      mimeType: file.type || 'image/jpeg',
+      buffer: buffer,
+      makePublic: true, // 공개 링크로 제공 (로딩 최적화)
+    });
+
+    if (!uploadResult.ok || !uploadResult.url) {
+      return NextResponse.json(
+        { ok: false, error: `파일 업로드 실패: ${uploadResult.error}` },
+        { status: 500 }
+      );
+    }
+
+    // 기존 경로 형식 유지 (하위 호환성)
     const relativePath = `/${path.join("크루즈정보사진", safeSubfolder, finalName).replace(/\\/g, "/")}`;
-    return NextResponse.json({ ok: true, file: { path: relativePath, name: finalName } });
+    
+    return NextResponse.json({ 
+      ok: true, 
+      file: { 
+        path: relativePath, 
+        name: finalName,
+        url: uploadResult.url, // Google Drive URL 추가
+        fileId: uploadResult.fileId,
+      } 
+    });
   } catch (error: any) {
     console.error("[CRUISEDOT MEDIA] POST error:", error);
     return NextResponse.json(

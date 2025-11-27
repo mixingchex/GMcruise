@@ -30,7 +30,7 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
@@ -44,17 +44,18 @@ export async function GET(
 
     const isAdmin = await checkAdminAuth(sid);
     if (!isAdmin) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '관리자 권한이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '관리자 권한이 필요합니다.'
       }, { status: 403 });
     }
 
-    const customerId = parseInt(params.userId);
+    const { userId: userIdStr } = await params;
+    const customerId = parseInt(userIdStr);
     if (isNaN(customerId)) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '유효하지 않은 고객 ID입니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '유효하지 않은 고객 ID입니다.'
       }, { status: 400 });
     }
 

@@ -4,9 +4,9 @@ import { PartnerApiError, requirePartnerContext } from '@/app/api/partner/_utils
 import prisma from '@/lib/prisma';
 import MyContractClient from './MyContractClient';
 
-export default async function PartnerContractPage({ params }: { params: { partnerId: string } }) {
+export default async function PartnerContractPage({ params }: { params: Promise<{ partnerId: string }> }) {
   try {
-    const partnerId = params.partnerId;
+    const { partnerId } = await params;
     const sessionUser = await getSessionUser();
 
     if (!sessionUser) {

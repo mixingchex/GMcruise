@@ -42,7 +42,7 @@ async function checkAdminAuth() {
 // GET: 그룹별 고객 리스트 조회 (유입날짜, 일차 포함)
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const admin = await checkAdminAuth();
@@ -50,7 +50,7 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });
     }
 
-    const resolvedParams = await Promise.resolve(params);
+    const resolvedParams = await params;
     const groupId = parseInt(resolvedParams.id);
     if (isNaN(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });

@@ -7,9 +7,9 @@ import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import PartnerAdjustmentsClient from './PartnerAdjustmentsClient';
 
-export default async function PartnerAdjustmentsPage({ params }: { params: { partnerId: string } }) {
+export default async function PartnerAdjustmentsPage({ params }: { params: Promise<{ partnerId: string }> }) {
   try {
-    const partnerId = params.partnerId;
+    const { partnerId } = await params;
     const sessionUser = await getSessionUser();
 
     if (!sessionUser) {
