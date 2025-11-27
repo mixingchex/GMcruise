@@ -1145,7 +1145,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 관리자 로그인 처리 - 간단하게 이름, 전화번호, 비밀번호만 확인
+    // 관리자 로그인 처리 - 허용된 관리자만 로그인 가능
     if (mode === 'admin') {
       console.log('[Admin Login] ========================================');
       console.log('[Admin Login] 시작:', { 
@@ -1157,50 +1157,51 @@ export async function POST(req: Request) {
         passwordLength: password?.length
       });
       
-      // 실제 연결된 DATABASE_URL 확인 (더 자세히)
-      const dbUrl = process.env.DATABASE_URL || '';
-      if (dbUrl) {
-        try {
-          const urlParts = new URL(dbUrl);
-          const dbName = urlParts.pathname.replace('/', '');
-          console.log('[Admin Login] 연결 DB:', `${urlParts.username}@${urlParts.hostname}${urlParts.port ? ':' + urlParts.port : ''}/${dbName}`);
-        } catch {
-          console.log('[Admin Login] 연결 DB (원본):', dbUrl.substring(0, 50) + '...');
-        }
-      } else {
-        console.log('[Admin Login] DATABASE_URL: 설정 안됨');
-      }
-      
-      // 전체 사용자 수 확인 (DB 연결 테스트)
-      try {
-        const totalUsers = await prisma.user.count();
-        console.log('[Admin Login] DB 전체 사용자 수:', totalUsers);
-      } catch (dbError) {
-        console.error('[Admin Login] DB 연결 오류:', dbError);
-      }
-      
       try {
         if (!name || !phone || !password) {
           console.log('[Admin Login] 입력값 누락:', { hasName: !!name, hasPhone: !!phone, hasPassword: !!password });
           return NextResponse.json({ ok: false, error: '이름, 전화번호, 비밀번호를 모두 입력해주세요.' }, { status: 400 });
         }
 
-        // 입력값 정확히 확인 (문자 코드 포함)
-        console.log('[Admin Login] 검색 조건:', {
-          name: JSON.stringify(name),
-          nameCodes: name?.split('').map(c => c.charCodeAt(0)),
-          phone: JSON.stringify(phone),
-          phoneCodes: phone?.split('').map(c => c.charCodeAt(0)),
-          role: 'admin'
-        });
-
         // 입력값 정규화
         const normalizedName = name.trim();
         const normalizedPhone = phone.replace(/[-\s]/g, '');
 
-        // 모든 관리자 계정 조회하여 정규화된 값으로 비교
-        const allAdmins = await prisma.user.findMany({
-          where: { role: 'admin' },
+        // 허용된 관리자 목록 (2명만)
+        const ALLOWED_ADMINS = [
+          { name: '저스틴', phone: '01038609161', password: '0313' },
+          { name: '모니카', phone: '01024958013', password: '0313' },
+        ];
+
+        // 허용된 관리자인지 확인
+        const allowedAdmin = ALLOWED_ADMINS.find(
+          admin => admin.name === normalizedName && admin.phone === normalizedPhone
+        );
+
+        if (!allowedAdmin) {
+          console.log('[Admin Login] 허용되지 않은 관리자:', { name: normalizedName, phone: normalizedPhone });
+          return NextResponse.json({ 
+            ok: false, 
+            error: '관리자 권한이 없습니다.' 
+          }, { status: 403 });
+        }
+
+        // 비밀번호 확인
+        if (password !== allowedAdmin.password) {
+          console.log('[Admin Login] 비밀번호 불일치');
+          return NextResponse.json({ 
+            ok: false, 
+            error: '비밀번호가 올바르지 않습니다.' 
+          }, { status: 401 });
+        }
+
+        // DB에서 관리자 계정 조회 또는 생성
+        let adminUser = await prisma.user.findFirst({
+          where: {
+            name: normalizedName,
+            phone: normalizedPhone,
+            role: 'admin',
+          },
           select: { 
             id: true,
             password: true,
@@ -1210,38 +1211,16 @@ export async function POST(req: Request) {
           },
         });
 
-        // 정규화된 값으로 관리자 계정 찾기
-        let adminUser = allAdmins.find(admin => {
-          const adminName = admin.name?.trim() || '';
-          const adminPhone = admin.phone?.replace(/[-\s]/g, '') || '';
-          return adminName === normalizedName && adminPhone === normalizedPhone;
-        });
-
-        console.log('[Admin Login] 계정 조회 결과:', adminUser ? { 
-          id: adminUser.id, 
-          hasPassword: !!adminUser.password,
-          passwordLength: adminUser.password?.length,
-          dbName: JSON.stringify(adminUser.name),
-          dbPhone: JSON.stringify(adminUser.phone),
-          inputName: JSON.stringify(name),
-          inputPhone: JSON.stringify(phone),
-          normalizedName: JSON.stringify(normalizedName),
-          normalizedPhone: normalizedPhone,
-          nameMatch: (adminUser.name?.trim() || '') === normalizedName,
-          phoneMatch: (adminUser.phone?.replace(/[-\s]/g, '') || '') === normalizedPhone
-        } : '없음');
-
+        // 관리자 계정이 없으면 생성
         if (!adminUser) {
-          // 관리자 계정이 없으면 자동 생성 (개발 편의성)
-          console.log('[Admin Login] 관리자 계정이 없어서 자동 생성합니다:', { name: normalizedName, phone: normalizedPhone });
-          
+          console.log('[Admin Login] 관리자 계정 생성:', { name: normalizedName, phone: normalizedPhone });
           try {
             const now = new Date();
             adminUser = await prisma.user.create({
               data: {
                 name: normalizedName,
                 phone: normalizedPhone,
-                password: password, // 입력한 비밀번호로 설정
+                password: password,
                 role: 'admin',
                 onboarded: true,
                 loginCount: 0,
@@ -1256,7 +1235,7 @@ export async function POST(req: Request) {
                 phone: true,
               },
             });
-            console.log('[Admin Login] 관리자 계정 자동 생성 완료:', { userId: adminUser.id, name: adminUser.name, phone: adminUser.phone });
+            console.log('[Admin Login] 관리자 계정 생성 완료:', { userId: adminUser.id });
           } catch (createError: any) {
             console.error('[Admin Login] 관리자 계정 생성 실패:', createError);
             // 중복 키 에러인 경우 다시 조회 시도
@@ -1274,12 +1253,8 @@ export async function POST(req: Request) {
                   phone: true,
                 },
               });
-              if (adminUser) {
-                console.log('[Admin Login] 중복 계정 발견, 재조회 완료:', { userId: adminUser.id });
-              }
             }
             
-            // 여전히 계정이 없으면 에러 반환
             if (!adminUser) {
               return NextResponse.json({ 
                 ok: false, 
@@ -1289,15 +1264,17 @@ export async function POST(req: Request) {
           }
         }
 
-        // 비밀번호 확인
+        // 비밀번호 확인 (DB에 저장된 비밀번호도 확인)
         const isPasswordValid = adminUser.password === password;
-        console.log('[Admin Login] 비밀번호 확인:', { isValid: isPasswordValid, storedLength: adminUser.password?.length, inputLength: password?.length });
+        console.log('[Admin Login] 비밀번호 확인:', { isValid: isPasswordValid });
 
         if (!isPasswordValid) {
-          return NextResponse.json({ 
-            ok: false, 
-            error: '비밀번호가 올바르지 않습니다.' 
-          }, { status: 401 });
+          // DB 비밀번호와 일치하지 않으면 업데이트
+          await prisma.user.update({
+            where: { id: adminUser.id },
+            data: { password: password },
+          });
+          console.log('[Admin Login] 비밀번호 업데이트 완료');
         }
         
         console.log('[Admin Login] 성공:', { userId: adminUser.id });

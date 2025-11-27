@@ -70,14 +70,20 @@ export default function AdminLogin() {
       // 새 사용자 로그인 시 이전 사용자의 localStorage 데이터 정리
       clearAllLocalStorage();
       
+      // 세션 스토리지의 인증 캐시도 정리
+      sessionStorage.removeItem('admin_auth');
+      sessionStorage.removeItem('admin_auth_time');
+      
       // CSRF 토큰 저장
       if (data.csrfToken) {
         setCsrfToken(data.csrfToken);
         console.log('[AdminLogin] CSRF 토큰 저장됨');
       }
       
-      console.log('[AdminLogin] 리다이렉트:', data.next || '/admin');
-      window.location.replace(data.next || '/admin');
+      // 대시보드로 리다이렉트
+      const redirectPath = data.next || '/admin/dashboard';
+      console.log('[AdminLogin] 리다이렉트:', redirectPath);
+      window.location.replace(redirectPath);
     } catch (error) {
       console.error('[AdminLogin] 요청 오류:', error);
       alert('로그인 요청 중 오류가 발생했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'));

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import NotificationBell from '@/components/admin/NotificationBell';
 
-export default function AdminLayout({
+// searchParams를 조건부로 사용하기 위한 래퍼 컴포넌트
+function AdminLayoutContent({
   children,
 }: {
   children: React.ReactNode;
@@ -22,7 +23,16 @@ export default function AdminLayout({
   const lastAuthCheckRef = useRef<number>(0);
   const AUTH_CACHE_DURATION = 5 * 60 * 1000; // 5분 캐시
 
+  // 로그인 페이지인지 확인
+  const isLoginPage = pathname === '/admin/login';
+
   const checkAuth = useCallback(async () => {
+    // 로그인 페이지에서는 인증 체크 건너뛰기
+    if (isLoginPage) {
+      setIsLoading(false);
+      return;
+    }
+
     // 캐시된 인증 상태 확인 (5분 이내)
     const now = Date.now();
     const cachedAuth = sessionStorage.getItem('admin_auth');
@@ -67,7 +77,7 @@ export default function AdminLayout({
       setIsLoading(false);
       authCheckRef.current = false;
     }
-  }, []);
+  }, [isLoginPage]);
 
   useEffect(() => {
     checkAuth();
@@ -75,6 +85,11 @@ export default function AdminLayout({
   
   // 경로 변경 시 캐시된 인증 상태만 확인 (빠른 응답)
   useEffect(() => {
+    if (isLoginPage) {
+      setIsLoading(false);
+      return;
+    }
+
     if (!isLoading && pathname !== '/admin/login') {
       const cachedAuth = sessionStorage.getItem('admin_auth');
       const cachedTime = sessionStorage.getItem('admin_auth_time');
@@ -94,13 +109,17 @@ export default function AdminLayout({
         }
       }
     }
-  }, [pathname, isLoading, checkAuth]);
+  }, [pathname, isLoading, checkAuth, isLoginPage]);
 
   useEffect(() => {
+    if (isLoginPage) {
+      return;
+    }
+
     if (!isLoading && !isAuthenticated && pathname !== '/admin/login') {
       router.push('/admin/login');
     }
-  }, [isAuthenticated, isLoading, pathname, router]);
+  }, [isAuthenticated, isLoading, pathname, router, isLoginPage]);
 
   const handleLogout = async () => {
     try {
@@ -354,5 +373,24 @@ export default function AdminLayout({
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
+  );
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-red"></div>
+          <p className="mt-4 text-lg text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    }>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </Suspense>
   );
 }
