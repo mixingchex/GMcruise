@@ -444,7 +444,7 @@ async function generateContractHTML(data: ContractPDFData): Promise<string> {
 }
 
 /**
- * 이미지를 base64로 변환
+ * 이미지를 base64로 변환 (재시도 및 타임아웃 포함)
  */
 async function getImageAsBase64(url: string): Promise<string | null> {
   try {
@@ -457,15 +457,70 @@ async function getImageAsBase64(url: string): Promise<string | null> {
     let filePath: string;
     
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      // 외부 URL인 경우 fetch로 가져와서 base64로 변환
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.warn('[Contract PDF] Failed to fetch image from URL:', url);
-        return null;
+      // 외부 URL인 경우 fetch로 가져와서 base64로 변환 (재시도 포함)
+      const maxRetries = 3;
+      let lastError: any = null;
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // 타임아웃 10초로 설정
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000);
+          
+          const response = await fetch(url, {
+            signal: controller.signal,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; ContractPDFGenerator/1.0)',
+            },
+          });
+          
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const buffer = Buffer.from(await response.arrayBuffer());
+          
+          // 빈 파일 체크
+          if (buffer.length === 0) {
+            throw new Error('이미지 파일이 비어있습니다.');
+          }
+          
+          // 이미지 파일 무결성 검증 (매직 넘버 확인)
+          const isPNG = buffer.length >= 4 && 
+            buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
+          const isJPEG = buffer.length >= 3 && 
+            buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
+          const isWEBP = buffer.length >= 12 && 
+            buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && // RIFF
+            buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50; // WEBP
+          
+          if (!isPNG && !isJPEG && !isWEBP) {
+            throw new Error('유효하지 않은 이미지 파일 형식입니다.');
+          }
+          
+          const mimeType = response.headers.get('content-type') || 
+            (isPNG ? 'image/png' : isJPEG ? 'image/jpeg' : 'image/webp');
+          
+          const base64 = buffer.toString('base64');
+          console.log(`[Contract PDF] Successfully loaded signature image (attempt ${attempt}): ${url.substring(0, 50)}... (${buffer.length} bytes)`);
+          return `data:${mimeType};base64,${base64}`;
+        } catch (error: any) {
+          lastError = error;
+          console.warn(`[Contract PDF] Failed to fetch image (attempt ${attempt}/${maxRetries}):`, error?.message || error);
+          
+          // 마지막 시도가 아니면 재시도
+          if (attempt < maxRetries) {
+            const backoffDelay = Math.min(1000 * Math.pow(2, attempt - 1), 3000); // 1초, 2초 (최대 3초)
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
+          }
+        }
       }
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const mimeType = response.headers.get('content-type') || 'image/png';
-      return `data:${mimeType};base64,${buffer.toString('base64')}`;
+      
+      // 모든 재시도 실패
+      console.error('[Contract PDF] All attempts failed to fetch signature image:', url, lastError);
+      return null;
     }
 
     // 상대 경로인 경우 public 폴더에서 찾기

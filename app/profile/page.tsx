@@ -42,6 +42,7 @@ export default async function ProfilePage() {
         companionType?: string | null;
       }
     | null = null;
+  let signatureUrl: string | null = null;
 
   if (session?.userId) {
     const userId = session.userId;
@@ -80,6 +81,25 @@ export default async function ProfilePage() {
         days: trip.days,
         destination: trip.destination
       } : 'null');
+
+      // 계약서 싸인 이미지 조회
+      const contract = await prisma.affiliateContract.findFirst({
+        where: { 
+          userId: user.id,
+          status: { in: ['completed', 'approved'] }
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { metadata: true }
+      });
+
+      if (contract?.metadata) {
+        const metadata = contract.metadata as any;
+        if (metadata?.signatures?.main?.url) {
+          signatureUrl = metadata.signatures.main.url;
+        } else if (metadata?.signature?.url) {
+          signatureUrl = metadata.signature.url;
+        }
+      }
     }
   }
 
@@ -251,6 +271,21 @@ export default async function ProfilePage() {
                       <span className="text-gray-600 font-semibold text-base md:text-lg min-w-[100px]">연락처:</span>
                       <span className="font-bold text-gray-900 text-base md:text-lg break-all">{user.phone ?? '정보 없음'}</span>
                     </div>
+                    {signatureUrl && (
+                      <div className="p-4 md:p-5 bg-gray-50 rounded-lg">
+                        <span className="text-gray-600 font-semibold text-base md:text-lg block mb-3">계약서 싸인:</span>
+                        <div className="flex items-center justify-center p-4 bg-white rounded-lg border-2 border-purple-200">
+                          <img
+                            src={signatureUrl}
+                            alt="계약서 싸인"
+                            className="max-h-32 md:max-h-40 w-auto rounded-lg shadow-md"
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-center text-gray-600">
+                          계약서에 등록된 싸인 이미지입니다
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </section>
 

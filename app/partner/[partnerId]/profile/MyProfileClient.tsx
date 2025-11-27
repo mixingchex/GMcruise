@@ -548,7 +548,21 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
       }
     };
     
+    const loadContractForSignature = async () => {
+      try {
+        const res = await fetch('/api/affiliate/my-contract', { credentials: 'include' });
+        const json = await res.json();
+
+        if (res.ok && json?.ok && json.contract) {
+          setContract(json.contract);
+        }
+      } catch (error: any) {
+        console.error('[MyProfileClient] load contract for signature error', error);
+      }
+    };
+    
     loadUserProfile();
+    loadContractForSignature();
   }, []);
 
   // 나의 계약서 로드 함수
@@ -684,6 +698,28 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
                     className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
                 </div>
+
+                {/* 계약서 싸인 이미지 */}
+                {getSignatureUrl() && (
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                      <FiFileText className="inline mr-1" />
+                      계약서 싸인
+                    </label>
+                    <div className="rounded-lg border-2 border-blue-200 bg-blue-50 p-4">
+                      <div className="flex items-center justify-center">
+                        <img
+                          src={getSignatureUrl() || ''}
+                          alt="계약서 싸인"
+                          className="max-h-32 w-auto rounded-lg shadow-md"
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-center text-gray-600">
+                        계약서에 등록된 싸인 이미지입니다
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="mt-4 flex items-center justify-end gap-3">
                 <button
