@@ -150,16 +150,33 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
         method: 'POST',
         credentials: 'include',
       });
-      const json = await res.json();
+      
+      const text = await res.text();
+      if (!text) {
+        throw new Error('Empty response');
+      }
+      
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('[MyContract] JSON parse error:', parseError, 'Response text:', text);
+        throw new Error('Invalid JSON response from server');
+      }
       
       if (!res.ok || !json.ok) {
-        throw new Error(json.message || '계약서 완료 처리에 실패했습니다.');
+        throw new Error(json.message || json.error || '계약서 완료 처리에 실패했습니다.');
       }
 
-      showSuccess(json.message || '계약서가 완료되었고 이메일로 전송되었습니다.');
+      // 이메일 전송 성공 여부에 따라 메시지 표시
+      if (json.emailSent) {
+        showSuccess(json.message || '계약서가 완료되었고 이메일로 전송되었습니다.');
+      } else {
+        showSuccess(json.message || '계약서가 완료되었으나 이메일 전송에 실패했습니다.');
+      }
       loadManagedContracts(); // 목록 새로고침
       
-      // 완료 페이지로 리다이렉트 (새 창에서 열기)
+      // 완료 페이지로 리다이렉트 (새 창에서 열기) - 이메일 전송 실패해도 redirectUrl이 있으면 이동
       if (json.redirectUrl) {
         window.open(json.redirectUrl, '_blank');
       }
@@ -179,10 +196,22 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
         method: 'POST',
         credentials: 'include',
       });
-      const json = await res.json();
+      
+      const text = await res.text();
+      if (!text) {
+        throw new Error('Empty response');
+      }
+      
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('[MyContract] JSON parse error:', parseError, 'Response text:', text);
+        throw new Error('Invalid JSON response from server');
+      }
       
       if (!res.ok || !json.ok) {
-        throw new Error(json.message || 'PDF 전송에 실패했습니다.');
+        throw new Error(json.message || json.error || 'PDF 전송에 실패했습니다.');
       }
 
       showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');

@@ -36,6 +36,7 @@ import SalesConfirmationModal from '@/components/affiliate/SalesConfirmationModa
 import { leadStatusOptions } from '@/app/api/partner/constants';
 import { getAffiliateTerm } from '@/lib/utils';
 import NotificationBell from '@/components/admin/NotificationBell';
+import { canUseFeatureClient, getFeatureRestrictionMessageClient } from '@/lib/subscription-limits-client';
 
 type PartnerDashboardProps = {
   user: {
@@ -272,10 +273,108 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     updatedAt: string;
   }>>([]);
   const [loadingLandingPages, setLoadingLandingPages] = useState(false);
+  
+  // 정액제 구독 정보
+  const [subscriptionInfo, setSubscriptionInfo] = useState<{
+    isTrial: boolean;
+    status: 'trial' | 'active' | 'expired' | 'cancelled';
+    trialEndDate?: string;
+    endDate?: string;
+  } | null>(null);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showFeatureRestrictionModal, setShowFeatureRestrictionModal] = useState(false);
+  const [restrictionMessage, setRestrictionMessage] = useState<string>('');
+  const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
+  const [pendingPaymentAction, setPendingPaymentAction] = useState<(() => void) | null>(null);
+  
+  // 실시간 카운트다운 상태
+  const [countdown, setCountdown] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+    seconds: number;
+  } | null>(null);
 
   // 프로필 타입 확인 (useEffect보다 먼저 선언)
   const isBranchManager = profile?.type === 'BRANCH_MANAGER';
   const isSalesAgent = profile?.type === 'SALES_AGENT';
+  
+  // 정액제 구독 정보 로드
+  useEffect(() => {
+    const loadSubscriptionInfo = async () => {
+      try {
+        const res = await fetch('/api/partner/subscription/check', {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.ok && json.subscription) {
+            setSubscriptionInfo({
+              isTrial: json.subscription.isTrial || false,
+              status: json.subscription.status || 'expired',
+              trialEndDate: json.subscription.trialEndDate,
+              endDate: json.subscription.endDate,
+            });
+            // 정액제 판매원인 경우 튜토리얼 자동 표시
+            if (json.subscription.status === 'active' || json.subscription.isTrial) {
+              setShowTutorial(true);
+            }
+          } else {
+            setSubscriptionInfo(null);
+          }
+        }
+      } catch (error) {
+        console.error('[PartnerDashboard] Failed to load subscription info:', error);
+        setSubscriptionInfo(null);
+      }
+    };
+    loadSubscriptionInfo();
+  }, [user.mallUserId, user.phone]);
+
+  // 실시간 카운트다운 업데이트
+  useEffect(() => {
+    if (!subscriptionInfo) {
+      setCountdown(null);
+      return;
+    }
+
+    // 무료 체험 중이면 trialEndDate 사용, 아니면 endDate 사용
+    const targetDate = subscriptionInfo.isTrial && subscriptionInfo.trialEndDate
+      ? new Date(subscriptionInfo.trialEndDate)
+      : subscriptionInfo.endDate
+      ? new Date(subscriptionInfo.endDate)
+      : null;
+
+    if (!targetDate) {
+      setCountdown(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const diffMs = targetDate.getTime() - now.getTime();
+
+      if (diffMs <= 0) {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+
+      const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+
+      setCountdown({ days, hours, minutes, seconds });
+    };
+
+    // 즉시 한 번 실행
+    updateCountdown();
+
+    // 1초마다 업데이트
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [subscriptionInfo]);
 
   useEffect(() => {
     if (user.mallUserId && typeof window !== 'undefined') {
@@ -345,9 +444,13 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     
     loadCommonLinks();
   }, []);
-  const roleLabel = isBranchManager ? '대리점장' : isSalesAgent ? '판매원' : '파트너';
-  const roleColor = isBranchManager ? 'from-purple-600 via-indigo-600 to-blue-600' : 'from-blue-600 via-cyan-600 to-teal-600';
-  const roleIcon = isBranchManager ? <FiBriefcase className="text-2xl" /> : <FiUser className="text-2xl" />;
+  // 정액제 판매원 확인
+  const isSubscriptionAgent = subscriptionInfo !== null;
+  const roleLabel = isSubscriptionAgent ? '정액제' : (isBranchManager ? '대리점장' : isSalesAgent ? '판매원' : '파트너');
+  const roleColor = isSubscriptionAgent 
+    ? 'from-yellow-500 via-yellow-400 to-yellow-600' 
+    : (isBranchManager ? 'from-purple-600 via-indigo-600 to-blue-600' : 'from-blue-600 via-cyan-600 to-teal-600');
+  const roleIcon = isSubscriptionAgent ? <FiUser className="text-2xl" /> : (isBranchManager ? <FiBriefcase className="text-2xl" /> : <FiUser className="text-2xl" />);
 
   const partnerId = user.phone || user.mallUserId;
   const isBossId = partnerId?.startsWith('boss');
@@ -770,13 +873,30 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
         method: 'POST',
         credentials: 'include',
       });
-      const json = await res.json();
+      
+      const text = await res.text();
+      if (!text) {
+        throw new Error('Empty response');
+      }
+      
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('[PartnerDashboard] JSON parse error:', parseError, 'Response text:', text);
+        throw new Error('Invalid JSON response from server');
+      }
       
       if (!res.ok || !json.ok) {
-        throw new Error(json.message || '계약서 완료 처리에 실패했습니다.');
+        throw new Error(json.message || json.error || '계약서 완료 처리에 실패했습니다.');
       }
 
-      showSuccess(json.message || '계약서가 완료되었고 이메일로 전송되었습니다.');
+      // 이메일 전송 성공 여부에 따라 메시지 표시
+      if (json.emailSent) {
+        showSuccess(json.message || '계약서가 완료되었고 이메일로 전송되었습니다.');
+      } else {
+        showSuccess(json.message || '계약서가 완료되었으나 이메일 전송에 실패했습니다.');
+      }
       
       // 모달 닫기
       setShowContractDetail(false);
@@ -786,7 +906,7 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
       loadContracts(); // 목록 새로고침
       loadMyContract(); // 나의 계약서도 새로고침 (대리점장 자신의 계약서가 완료된 경우)
       
-      // 완료 페이지로 리다이렉트 (새 창에서 열기)
+      // 완료 페이지로 리다이렉트 (새 창에서 열기) - 이메일 전송 실패해도 redirectUrl이 있으면 이동
       if (json.redirectUrl) {
         window.open(json.redirectUrl, '_blank');
       }
@@ -821,18 +941,34 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
           const errorText = await res.text();
           let errorJson;
           try {
+            if (!errorText) {
+              throw new Error('Empty response');
+            }
             errorJson = JSON.parse(errorText);
-          } catch {
+          } catch (parseError) {
+            console.error('[PartnerDashboard] JSON parse error:', parseError, 'Response text:', errorText);
             errorJson = { message: errorText || '서버 오류가 발생했습니다.' };
           }
-          throw new Error(errorJson.message || `서버 오류 (${res.status})`);
+          throw new Error(errorJson.message || errorJson.error || `서버 오류 (${res.status})`);
         }
         
-        const json = await res.json();
+        const text = await res.text();
+        if (!text) {
+          throw new Error('Empty response');
+        }
+        
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseError) {
+          console.error('[PartnerDashboard] JSON parse error:', parseError, 'Response text:', text);
+          throw new Error('Invalid JSON response from server');
+        }
+        
         console.log('[PartnerDashboard] PDF send response:', json);
         
         if (!json.ok) {
-          throw new Error(json.message || 'PDF 전송에 실패했습니다.');
+          throw new Error(json.message || json.error || 'PDF 전송에 실패했습니다.');
         }
 
         showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
@@ -1195,7 +1331,105 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-6 md:gap-8 md:px-6 md:pt-10">
+      {/* 정액제 구독 정보 고정 배너 */}
+      {subscriptionInfo && countdown && (
+        <div className={`fixed top-0 left-0 right-0 z-50 ${
+          subscriptionInfo.isTrial 
+            ? 'bg-gradient-to-r from-orange-500 via-orange-400 to-orange-600' 
+            : subscriptionInfo.status === 'active'
+            ? 'bg-gradient-to-r from-blue-500 via-blue-400 to-blue-600'
+            : 'bg-gradient-to-r from-red-500 via-red-400 to-red-600'
+        } text-white shadow-lg`}>
+          <div className="mx-auto max-w-7xl px-4 py-3 md:py-4">
+            <div className="flex items-center justify-center gap-3 md:gap-4 flex-wrap">
+              {subscriptionInfo.isTrial ? (
+                <>
+                  <span className="text-2xl md:text-3xl">🎁</span>
+                  <div className="flex flex-col md:flex-row md:items-center md:gap-3">
+                    <span className="text-base font-bold md:text-lg">무료 체험 중 (30% 기능)</span>
+                    {(countdown.days > 0 || countdown.hours > 0 || countdown.minutes > 0 || countdown.seconds > 0) && (
+                      <span className="text-sm md:text-base font-extrabold bg-white/30 px-4 py-1.5 rounded-full">
+                        D-{countdown.days} {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')} 남음
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPendingPaymentAction(async () => {
+                        try {
+                          const res = await fetch('/api/partner/subscription/payment', {
+                            method: 'POST',
+                            credentials: 'include',
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.ok && data.payurl) {
+                            window.location.href = data.payurl;
+                          } else {
+                            alert(data.message || '결제 요청에 실패했습니다.');
+                          }
+                        } catch (error) {
+                          console.error('[Subscription Payment] Error:', error);
+                          alert('결제 요청 중 오류가 발생했습니다.');
+                        }
+                      });
+                      setShowPaymentConfirmModal(true);
+                    }}
+                    className="px-4 py-2 bg-white text-orange-600 font-bold rounded-lg hover:bg-orange-50 transition-colors shadow-md text-sm md:text-base"
+                  >
+                    정액제 구독하기 (10만원)
+                  </button>
+                </>
+              ) : subscriptionInfo.status === 'active' ? (
+                <>
+                  <span className="text-2xl md:text-3xl">✅</span>
+                  <div className="flex flex-col md:flex-row md:items-center md:gap-3">
+                    <span className="text-base font-bold md:text-lg">정식 구독 중 (50% 기능)</span>
+                    {(countdown.days > 0 || countdown.hours > 0 || countdown.minutes > 0 || countdown.seconds > 0) && (
+                      <span className="text-sm md:text-base font-extrabold bg-white/30 px-4 py-1.5 rounded-full">
+                        D-{countdown.days} {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')} 남음
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className="text-2xl md:text-3xl">❌</span>
+                  <span className="text-base font-bold md:text-lg">구독 만료</span>
+                  <button
+                    onClick={() => {
+                      setPendingPaymentAction(async () => {
+                        try {
+                          const res = await fetch('/api/partner/subscription/payment', {
+                            method: 'POST',
+                            credentials: 'include',
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.ok && data.payurl) {
+                            window.location.href = data.payurl;
+                          } else {
+                            alert(data.message || '결제 요청에 실패했습니다.');
+                          }
+                        } catch (error) {
+                          console.error('[Subscription Payment] Error:', error);
+                          alert('결제 요청 중 오류가 발생했습니다.');
+                        }
+                      });
+                      setShowPaymentConfirmModal(true);
+                    }}
+                    className="px-4 py-2 bg-white text-red-600 font-bold rounded-lg hover:bg-red-50 transition-colors shadow-md text-sm md:text-base"
+                  >
+                    정액제 구독하기 (10만원)
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      <div className={`mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 md:gap-8 md:px-6 ${
+        subscriptionInfo ? 'pt-20 md:pt-24' : 'pt-6 md:pt-10'
+      }`}>
         {/* 헤더 - 역할 명확하게 표시 */}
         <header className={`relative overflow-hidden bg-gradient-to-r ${roleColor} text-white rounded-2xl md:rounded-3xl shadow-xl`}>
           <div className="relative z-10 flex flex-col gap-6 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-6 md:py-12">
@@ -1216,9 +1450,11 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 </div>
               </div>
               <p className="max-w-2xl text-sm text-white/90 md:text-base">
-                {isBranchManager 
-                  ? '팀 관리, 판매 실적, 고객 관리 등 모든 업무를 한 곳에서 관리하세요.'
-                  : '나의 판매 실적, 고객 관리, 링크 관리를 한 곳에서 확인하세요.'}
+                {isSubscriptionAgent
+                  ? '정액제 판매원 대시보드입니다. 사용 가능한 기능은 빨간색 테두리로 표시됩니다.'
+                  : (isBranchManager 
+                    ? '팀 관리, 판매 실적, 고객 관리 등 모든 업무를 한 곳에서 관리하세요.'
+                    : '나의 판매 실적, 고객 관리, 링크 관리를 한 곳에서 확인하세요.')}
               </p>
               <div className="flex flex-wrap gap-2 text-xs md:text-sm">
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 font-bold text-white backdrop-blur-sm">
@@ -1226,9 +1462,10 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white/90 backdrop-blur-sm">
                   ID: {partnerId}
-                  {isBranchManager && <span className="ml-1 text-xs">(대리점장)</span>}
-                  {isSalesAgent && <span className="ml-1 text-xs">(판매원)</span>}
-                  {!isBranchManager && !isSalesAgent && <span className="ml-1 text-xs">(파트너)</span>}
+                  {isSubscriptionAgent && <span className="ml-1 text-xs">(정액제 판매원)</span>}
+                  {!isSubscriptionAgent && isBranchManager && <span className="ml-1 text-xs">(대리점장)</span>}
+                  {!isSubscriptionAgent && isSalesAgent && <span className="ml-1 text-xs">(판매원)</span>}
+                  {!isSubscriptionAgent && !isBranchManager && !isSalesAgent && <span className="ml-1 text-xs">(파트너)</span>}
                 </span>
                 {profile.branchLabel && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white/90 backdrop-blur-sm">
@@ -1465,90 +1702,297 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
           <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl">빠른 메뉴</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
             {(user.mallUserId || user.phone) && (
-              <Link 
-                href={`/${user.mallUserId || user.phone || partnerId}/shop`} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"
+              subscriptionInfo ? (
+                <button
+                  onClick={() => {
+                    if (canUseFeatureClient('my-mall', subscriptionInfo)) {
+                      window.open(`/${user.mallUserId || user.phone || partnerId}/shop`, '_blank');
+                    } else {
+                      const message = getFeatureRestrictionMessageClient('my-mall', subscriptionInfo);
+                      setRestrictionMessage(message);
+                      setShowFeatureRestrictionModal(true);
+                    }
+                  }}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-md md:p-6 ${
+                    isSubscriptionAgent 
+                      ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200' 
+                      : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
+                  } ${subscriptionInfo && canUseFeatureClient('my-mall', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''}`}
+                >
+                  <span className="text-2xl md:text-3xl">🛍️</span>
+                  <span className={`text-xs font-semibold md:text-sm ${isSubscriptionAgent ? 'text-yellow-700' : 'text-blue-700'}`}>나의 판매몰</span>
+                </button>
+              ) : (
+                <Link 
+                  href={`/${user.mallUserId || user.phone || partnerId}/shop`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-md md:p-6 ${
+                    isSubscriptionAgent 
+                      ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200' 
+                      : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
+                  }`}
+                >
+                  <span className="text-2xl md:text-3xl">🛍️</span>
+                  <span className={`text-xs font-semibold md:text-sm ${isSubscriptionAgent ? 'text-yellow-700' : 'text-blue-700'}`}>나의 판매몰</span>
+                </Link>
+              )
+            )}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  if (canUseFeatureClient('link-create', subscriptionInfo)) {
+                    router.push(`${partnerBase}/links`);
+                  } else {
+                    const message = getFeatureRestrictionMessageClient('link-create', subscriptionInfo);
+                    setRestrictionMessage(message);
+                    setShowFeatureRestrictionModal(true);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('link-create', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
               >
-                <span className="text-2xl md:text-3xl">🛍️</span>
-                <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 판매몰</span>
+                <FiLink className="text-2xl text-green-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-green-700 md:text-sm">링크 관리</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/links`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6"
+              >
+                <FiLink className="text-2xl text-green-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-green-700 md:text-sm">링크 관리</span>
               </Link>
             )}
-            <Link 
-              href={`${partnerBase}/links`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6"
-            >
-              <FiLink className="text-2xl text-green-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-green-700 md:text-sm">링크 관리</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/customers`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
-            >
-              <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-purple-700 md:text-sm">
-                {isBranchManager ? '나의 고객' : isSalesAgent ? '나의 고객관리' : '고객 관리'}
-              </span>
-            </Link>
-            {isBranchManager && (
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  if (canUseFeatureClient('customer-management', subscriptionInfo)) {
+                    router.push(`${partnerBase}/customers`);
+                  } else {
+                    const message = getFeatureRestrictionMessageClient('customer-management', subscriptionInfo);
+                    setRestrictionMessage(message);
+                    setShowFeatureRestrictionModal(true);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('customer-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-purple-700 md:text-sm">나의 고객관리</span>
+              </button>
+            ) : (
               <Link 
-                href={`${partnerBase}/purchased-customers`} 
+                href={`${partnerBase}/customers`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+              >
+                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-purple-700 md:text-sm">
+                  {isBranchManager ? '나의 고객' : isSalesAgent ? '나의 고객관리' : '고객 관리'}
+                </span>
+              </Link>
+            )}
+            {(isBranchManager || subscriptionInfo) && (
+              subscriptionInfo ? (
+                <button
+                  onClick={() => {
+                    if (canUseFeatureClient('purchased-customers', subscriptionInfo)) {
+                      router.push(`${partnerBase}/purchased-customers`);
+                    } else {
+                      const message = getFeatureRestrictionMessageClient('purchased-customers', subscriptionInfo);
+                      setRestrictionMessage(message);
+                      setShowFeatureRestrictionModal(true);
+                    }
+                  }}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6 ${
+                    canUseFeatureClient('purchased-customers', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                  }`}
+                >
+                  <FiUsers className="text-2xl text-orange-600 md:text-3xl" />
+                  <span className="text-xs font-semibold text-orange-700 md:text-sm">구매고객<br />관리</span>
+                </button>
+              ) : (
+                <Link 
+                  href={`${partnerBase}/purchased-customers`} 
+                  className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
+                >
+                  <FiUsers className="text-2xl text-orange-600 md:text-3xl" />
+                  <span className="text-xs font-semibold text-orange-700 md:text-sm">구매고객<br />관리</span>
+                </Link>
+              )
+            )}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  if (canUseFeatureClient('companion-registration', subscriptionInfo)) {
+                    setShowCustomerRegisterModal(true);
+                  } else {
+                    const message = getFeatureRestrictionMessageClient('companion-registration', subscriptionInfo);
+                    setRestrictionMessage(message);
+                    setShowFeatureRestrictionModal(true);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('companion-registration', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiUser className="text-2xl text-green-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-green-700 md:text-sm">크루즈가이드<br />동행인 등록</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowCustomerRegisterModal(true)}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6"
+              >
+                <FiUser className="text-2xl text-green-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-green-700 md:text-sm">크루즈가이드<br />동행인 등록</span>
+              </button>
+            )}
+            {/* 고객 그룹 관리 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  if (canUseFeatureClient('customer-group-management', subscriptionInfo)) {
+                    router.push(`${partnerBase}/customer-groups`);
+                  } else {
+                    const message = getFeatureRestrictionMessageClient('customer-group-management', subscriptionInfo);
+                    setRestrictionMessage(message);
+                    setShowFeatureRestrictionModal(true);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('customer-group-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiUsers className="text-2xl text-indigo-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-indigo-700 md:text-sm">고객 그룹<br />관리</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/customer-groups`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6"
+              >
+                <FiUsers className="text-2xl text-indigo-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-indigo-700 md:text-sm">고객 그룹<br />관리</span>
+              </Link>
+            )}
+            
+            {/* 예약 메시지 관리 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('scheduled-messages', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+              >
+                <FiClock className="text-2xl text-purple-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-purple-700 md:text-sm">예약 메시지<br />관리</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/scheduled-messages`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+              >
+                <FiClock className="text-2xl text-purple-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-purple-700 md:text-sm">예약 메시지<br />관리</span>
+              </Link>
+            )}
+            
+            {/* 문자 보내기 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('sms-send', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-emerald-200 hover:shadow-md md:p-6"
+              >
+                <FiMessageSquare className="text-2xl text-emerald-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-emerald-700 md:text-sm">문자 보내기</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/customers?action=sms`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-emerald-200 hover:shadow-md md:p-6"
+              >
+                <FiMessageSquare className="text-2xl text-emerald-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-emerald-700 md:text-sm">문자 보내기</span>
+              </Link>
+            )}
+            
+            {/* 결제/정산 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('payment-settlement', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
                 className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
               >
-                <FiUsers className="text-2xl text-orange-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-orange-700 md:text-sm">구매고객<br />관리</span>
+                <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/payment`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
+              >
+                <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
               </Link>
             )}
-            <button
-              onClick={() => setShowCustomerRegisterModal(true)}
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6"
-            >
-              <FiUser className="text-2xl text-green-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-green-700 md:text-sm">크루즈가이드<br />동행인 등록</span>
-            </button>
-            <Link 
-              href={`${partnerBase}/customer-groups`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6"
-            >
-              <FiUsers className="text-2xl text-indigo-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-indigo-700 md:text-sm">고객 그룹<br />관리</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/scheduled-messages`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
-            >
-              <FiClock className="text-2xl text-purple-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-purple-700 md:text-sm">예약 메시지<br />관리</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/customers?action=sms`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-emerald-200 hover:shadow-md md:p-6"
-            >
-              <FiMessageSquare className="text-2xl text-emerald-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-emerald-700 md:text-sm">문자 보내기</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/payment`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
-            >
-              <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/documents`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
-            >
-              <span className="text-2xl md:text-3xl">📄</span>
-              <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/reservation/new`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
-            >
-              <FiFileText className="text-2xl text-teal-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
-            </Link>
+            
+            {/* 서류관리 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('document-management', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
+              >
+                <span className="text-2xl md:text-3xl">📄</span>
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/documents`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
+              >
+                <span className="text-2xl md:text-3xl">📄</span>
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
+              </Link>
+            )}
+            
+            {/* 수동여권 등록 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('manual-passport', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
+              >
+                <FiFileText className="text-2xl text-teal-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/reservation/new`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
+              >
+                <FiFileText className="text-2xl text-teal-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
+              </Link>
+            )}
             {/* 대리점장 전용 기능 (정액제 판매원도 표시하되 제한) */}
             {/* 랜딩페이지 관리 */}
             {subscriptionInfo ? (
@@ -1649,27 +2093,81 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 <span className="text-xs font-semibold text-pink-700 md:text-sm">계약서 보내기</span>
               </button>
             ) : null}
-            <Link 
-              href={`${partnerBase}/profile`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 text-center transition-all hover:from-gray-100 hover:to-gray-200 hover:shadow-md md:p-6"
-            >
-              <FiUser className="text-2xl text-gray-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-gray-700 md:text-sm">프로필 수정</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/sns-profile`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6"
-            >
-              <FiLink className="text-2xl text-pink-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-pink-700 md:text-sm">나의 SNS<br />프로필</span>
-            </Link>
-            <Link 
-              href={`${partnerBase}/contract`} 
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"
-            >
-              <FiFileText className="text-2xl text-blue-600 md:text-3xl" />
-              <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 계약서<br />보기</span>
-            </Link>
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  if (canUseFeatureClient('profile-edit', subscriptionInfo)) {
+                    router.push(`${partnerBase}/profile`);
+                  } else {
+                    const message = getFeatureRestrictionMessageClient('profile-edit', subscriptionInfo);
+                    setRestrictionMessage(message);
+                    setShowFeatureRestrictionModal(true);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 text-center transition-all hover:from-gray-100 hover:to-gray-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('profile-edit', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiUser className="text-2xl text-gray-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-gray-700 md:text-sm">프로필 수정</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/profile`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 text-center transition-all hover:from-gray-100 hover:to-gray-200 hover:shadow-md md:p-6"
+              >
+                <FiUser className="text-2xl text-gray-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-gray-700 md:text-sm">프로필 수정</span>
+              </Link>
+            )}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  if (canUseFeatureClient('sns-profile', subscriptionInfo)) {
+                    router.push(`${partnerBase}/sns-profile`);
+                  } else {
+                    const message = getFeatureRestrictionMessageClient('sns-profile', subscriptionInfo);
+                    setRestrictionMessage(message);
+                    setShowFeatureRestrictionModal(true);
+                  }
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('sns-profile', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiLink className="text-2xl text-pink-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-pink-700 md:text-sm">나의 SNS<br />프로필</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/sns-profile`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6"
+              >
+                <FiLink className="text-2xl text-pink-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-pink-700 md:text-sm">나의 SNS<br />프로필</span>
+              </Link>
+            )}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('view-contract', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"
+              >
+                <FiFileText className="text-2xl text-blue-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 계약서<br />보기</span>
+              </button>
+            ) : (
+              <Link 
+                href={`${partnerBase}/contract`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"
+              >
+                <FiFileText className="text-2xl text-blue-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 계약서<br />보기</span>
+              </Link>
+            )}
           </div>
         </section>
 
@@ -1681,12 +2179,29 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-lg font-bold text-slate-900 md:text-xl">고객 관리</h2>
-                  <Link
-                    href={`${partnerBase}/customers${customerTab === 'inquiries' ? '?tab=inquiries' : ''}`}
-                    className="text-xs text-blue-600 hover:text-blue-700 md:text-sm"
-                  >
-                    전체보기 <FiArrowRight className="inline ml-1" />
-                  </Link>
+                  {subscriptionInfo ? (
+                    <button
+                      onClick={() => {
+                        if (canUseFeatureClient('customer-management', subscriptionInfo)) {
+                          router.push(`${partnerBase}/customers${customerTab === 'inquiries' ? '?tab=inquiries' : ''}`);
+                        } else {
+                          const message = getFeatureRestrictionMessageClient('customer-management', subscriptionInfo);
+                          setRestrictionMessage(message);
+                          setShowFeatureRestrictionModal(true);
+                        }
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 md:text-sm"
+                    >
+                      전체보기 <FiArrowRight className="inline ml-1" />
+                    </button>
+                  ) : (
+                    <Link
+                      href={`${partnerBase}/customers${customerTab === 'inquiries' ? '?tab=inquiries' : ''}`}
+                      className="text-xs text-blue-600 hover:text-blue-700 md:text-sm"
+                    >
+                      전체보기 <FiArrowRight className="inline ml-1" />
+                    </Link>
+                  )}
                 </div>
                 {/* 탭 버튼 */}
                 <div className="flex gap-2 border-b border-gray-200">
@@ -1718,26 +2233,50 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 <>
                   {stats.recentLeads.length > 0 ? (
                     <div className="space-y-3">
-                      {stats.recentLeads.map((lead) => (
-                        <Link
-                          key={lead.id}
-                          href={`${partnerBase}/customers?leadId=${lead.id}`}
-                          className="block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="font-semibold text-gray-900 text-sm md:text-base">
-                                {lead.customerName || '이름 없음'}
-                              </p>
-                              <p className="text-xs text-gray-500 md:text-sm">{lead.customerPhone || '-'}</p>
+                      {stats.recentLeads.map((lead) => {
+                        const content = (
+                          <>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <p className="font-semibold text-gray-900 text-sm md:text-base">
+                                  {lead.customerName || '이름 없음'}
+                                </p>
+                                <p className="text-xs text-gray-500 md:text-sm">{lead.customerPhone || '-'}</p>
+                              </div>
+                              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getLeadStatusStyle(lead.status)}`}>
+                                {formatLeadStatus(lead.status)}
+                              </span>
                             </div>
-                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getLeadStatusStyle(lead.status)}`}>
-                              {formatLeadStatus(lead.status)}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-xs text-gray-400">{formatDate(lead.createdAt)}</p>
-                        </Link>
-                      ))}
+                            <p className="mt-2 text-xs text-gray-400">{formatDate(lead.createdAt)}</p>
+                          </>
+                        );
+
+                        return subscriptionInfo ? (
+                          <button
+                            key={lead.id}
+                            onClick={() => {
+                              if (canUseFeatureClient('customer-management', subscriptionInfo)) {
+                                router.push(`${partnerBase}/customers?leadId=${lead.id}`);
+                              } else {
+                                const message = getFeatureRestrictionMessageClient('customer-management', subscriptionInfo);
+                                setRestrictionMessage(message);
+                                setShowFeatureRestrictionModal(true);
+                              }
+                            }}
+                            className="w-full text-left block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors"
+                          >
+                            {content}
+                          </button>
+                        ) : (
+                          <Link
+                            key={lead.id}
+                            href={`${partnerBase}/customers?leadId=${lead.id}`}
+                            className="block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors"
+                          >
+                            {content}
+                          </Link>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="py-8 text-center text-sm text-gray-500">리드가 없습니다.</p>
@@ -1755,36 +2294,60 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                     </div>
                   ) : inquiryCustomers.length > 0 ? (
                     <div className="space-y-3">
-                      {inquiryCustomers.map((customer) => (
-                        <Link
-                          key={customer.id}
-                          href={`${partnerBase}/customers?leadId=${customer.id}&tab=inquiries`}
-                          className="block rounded-lg border border-pink-200 bg-pink-50 p-3 md:p-4 hover:border-pink-300 hover:bg-pink-100 transition-colors"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-semibold text-gray-900 text-sm md:text-base">
-                                  {customer.customerName || '이름 없음'}
-                                </p>
-                                <span className="px-2 py-0.5 bg-pink-100 text-pink-800 rounded-full text-xs font-semibold">
-                                  전화상담
-                                </span>
+                      {inquiryCustomers.map((customer) => {
+                        const content = (
+                          <>
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-semibold text-gray-900 text-sm md:text-base">
+                                    {customer.customerName || '이름 없음'}
+                                  </p>
+                                  <span className="px-2 py-0.5 bg-pink-100 text-pink-800 rounded-full text-xs font-semibold">
+                                    전화상담
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-500 md:text-sm">{customer.customerPhone || '-'}</p>
+                                {customer.productName && (
+                                  <p className="text-xs text-pink-600 font-semibold mt-1 truncate">
+                                    {customer.productName}
+                                  </p>
+                                )}
                               </div>
-                              <p className="text-xs text-gray-500 md:text-sm">{customer.customerPhone || '-'}</p>
-                              {customer.productName && (
-                                <p className="text-xs text-pink-600 font-semibold mt-1 truncate">
-                                  {customer.productName}
-                                </p>
-                              )}
+                              <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getLeadStatusStyle(customer.status)}`}>
+                                {formatLeadStatus(customer.status)}
+                              </span>
                             </div>
-                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${getLeadStatusStyle(customer.status)}`}>
-                              {formatLeadStatus(customer.status)}
-                            </span>
-                          </div>
-                          <p className="mt-2 text-xs text-gray-400">{formatDate(customer.createdAt)}</p>
-                        </Link>
-                      ))}
+                            <p className="mt-2 text-xs text-gray-400">{formatDate(customer.createdAt)}</p>
+                          </>
+                        );
+
+                        return subscriptionInfo ? (
+                          <button
+                            key={customer.id}
+                            onClick={() => {
+                              if (canUseFeatureClient('customer-management', subscriptionInfo)) {
+                                router.push(`${partnerBase}/customers?leadId=${customer.id}&tab=inquiries`);
+                              } else {
+                                const message = getFeatureRestrictionMessageClient('customer-management', subscriptionInfo);
+                                setRestrictionMessage(message);
+                                setShowFeatureRestrictionModal(true);
+                              }
+                            }}
+                            className="w-full text-left block rounded-lg border border-pink-200 bg-pink-50 p-3 md:p-4 hover:border-pink-300 hover:bg-pink-100 transition-colors"
+                          >
+                            {content}
+                          </button>
+                        ) : (
+                          <Link
+                            key={customer.id}
+                            href={`${partnerBase}/customers?leadId=${customer.id}&tab=inquiries`}
+                            className="block rounded-lg border border-pink-200 bg-pink-50 p-3 md:p-4 hover:border-pink-300 hover:bg-pink-100 transition-colors"
+                          >
+                            {content}
+                          </Link>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="py-8 text-center text-sm text-gray-500">전화상담고객이 없습니다.</p>
@@ -2711,46 +3274,93 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
             )}
 
             {/* 최근 판매 */}
-            <div
-              onClick={() => router.push(`${partnerBase}/payment`)}
-              className="block rounded-2xl bg-white p-4 shadow-lg transition-all hover:shadow-xl md:rounded-3xl md:p-6 cursor-pointer"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-900 md:text-xl">최근 판매</h2>
-                <span className="text-xs text-blue-600 hover:text-blue-700 md:text-sm">
-                  전체보기 <FiArrowRight className="inline ml-1" />
-                </span>
-              </div>
-              {stats.recentSales.length > 0 ? (
-                <div className="space-y-3">
-                  {stats.recentSales.map((sale) => (
-                    <div key={sale.id} className="rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-bold text-gray-900 text-base md:text-lg">
-                            {formatCurrency(sale.saleAmount)}
-                          </p>
-                          <p className="text-xs text-gray-500 md:text-sm">
-                            {formatDate(sale.saleDate || sale.createdAt)}
-                          </p>
-                        </div>
-                        <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                          sale.status === 'CONFIRMED' || sale.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                          sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                          sale.status === 'PENDING_APPROVAL' ? 'bg-blue-100 text-blue-700' :
-                          sale.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {formatSaleStatus(sale.status)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+            {subscriptionInfo ? (
+              <div
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('payment-settlement', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className="block rounded-2xl bg-white p-4 shadow-lg transition-all hover:shadow-xl md:rounded-3xl md:p-6 cursor-pointer"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-slate-900 md:text-xl">최근 판매</h2>
+                  <span className="text-xs text-blue-600 hover:text-blue-700 md:text-sm">
+                    전체보기 <FiArrowRight className="inline ml-1" />
+                  </span>
                 </div>
-              ) : (
-                <p className="py-8 text-center text-sm text-gray-500">판매 기록이 없습니다.</p>
-              )}
-            </div>
+                {stats.recentSales.length > 0 ? (
+                  <div className="space-y-3">
+                    {stats.recentSales.map((sale) => (
+                      <div key={sale.id} className="rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-bold text-gray-900 text-base md:text-lg">
+                              {formatCurrency(sale.saleAmount)}
+                            </p>
+                            <p className="text-xs text-gray-500 md:text-sm">
+                              {formatDate(sale.saleDate || sale.createdAt)}
+                            </p>
+                          </div>
+                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                            sale.status === 'CONFIRMED' || sale.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                            sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                            sale.status === 'PENDING_APPROVAL' ? 'bg-blue-100 text-blue-700' :
+                            sale.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {formatSaleStatus(sale.status)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm text-gray-500">판매 기록이 없습니다.</p>
+                )}
+              </div>
+            ) : (
+              <div
+                onClick={() => router.push(`${partnerBase}/payment`)}
+                className="block rounded-2xl bg-white p-4 shadow-lg transition-all hover:shadow-xl md:rounded-3xl md:p-6 cursor-pointer"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-slate-900 md:text-xl">최근 판매</h2>
+                  <span className="text-xs text-blue-600 hover:text-blue-700 md:text-sm">
+                    전체보기 <FiArrowRight className="inline ml-1" />
+                  </span>
+                </div>
+                {stats.recentSales.length > 0 ? (
+                  <div className="space-y-3">
+                    {stats.recentSales.map((sale) => (
+                      <div key={sale.id} className="rounded-lg border border-gray-200 p-3 md:p-4 hover:border-blue-300 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <p className="font-bold text-gray-900 text-base md:text-lg">
+                              {formatCurrency(sale.saleAmount)}
+                            </p>
+                            <p className="text-xs text-gray-500 md:text-sm">
+                              {formatDate(sale.saleDate || sale.createdAt)}
+                            </p>
+                          </div>
+                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                            sale.status === 'CONFIRMED' || sale.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
+                            sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                            sale.status === 'PENDING_APPROVAL' ? 'bg-blue-100 text-blue-700' :
+                            sale.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {formatSaleStatus(sale.status)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm text-gray-500">판매 기록이 없습니다.</p>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -3644,6 +4254,110 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
         </div>
       )}
 
+      {/* 튜토리얼 모달 */}
+      {showTutorial && subscriptionInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">정액제 대시보드 튜토리얼</h2>
+              <button
+                onClick={() => setShowTutorial(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="text-xl text-gray-600" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                <h3 className="font-bold text-yellow-900 mb-2">
+                  {subscriptionInfo.isTrial ? '🎁 무료 체험 중 (30% 기능)' : '✅ 정식 구독 중 (50% 기능)'}
+                </h3>
+                {subscriptionInfo.endDate && (
+                  <p className="text-sm text-yellow-800">
+                    남은 기간: {Math.max(0, Math.ceil((new Date(subscriptionInfo.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}일
+                  </p>
+                )}
+              </div>
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                <h3 className="font-bold text-blue-900 mb-2">사용 가능한 기능</h3>
+                <p className="text-sm text-blue-800 mb-2">빨간색 테두리로 표시된 기능을 사용할 수 있습니다:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-blue-700">
+                  {subscriptionInfo.isTrial ? (
+                    <>
+                      <li>링크 생성</li>
+                      <li>판매 확정</li>
+                      <li>기본 대시보드 조회</li>
+                      <li>리드 조회</li>
+                      <li>프로필 수정</li>
+                    </>
+                  ) : (
+                    <>
+                      <li>링크 생성</li>
+                      <li>판매 확정</li>
+                      <li>기본 대시보드 조회</li>
+                      <li>리드 조회</li>
+                      <li>기본 통계</li>
+                      <li>고객 관리</li>
+                      <li>프로필 수정</li>
+                    </>
+                  )}
+                </ul>
+              </div>
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4">
+                <h3 className="font-bold text-red-900 mb-2">사용 불가능한 기능</h3>
+                <p className="text-sm text-red-800 mb-2">다음 기능들은 클릭 시 제한 메시지가 표시됩니다:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
+                  <li>대리점장 전용 기능 (팀 관리, 판매원별 DB 관리, 랜딩페이지 관리 등)</li>
+                  <li>마비즈 VIP 판매원 전용 기능</li>
+                  {subscriptionInfo.isTrial && <li>정액제 구독 후 사용 가능한 기능</li>}
+                </ul>
+              </div>
+            </div>
+            {subscriptionInfo && subscriptionInfo.isTrial && (
+              <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 mb-4">
+                <h3 className="font-bold text-orange-900 mb-2">🎁 정액제 구독하고 더 많은 기능 사용하기</h3>
+                <p className="text-sm text-orange-800 mb-3">
+                  무료 체험 중이시군요! 정액제를 구독하시면 50% 기능을 사용하실 수 있습니다. (10만원/월)
+                </p>
+                <button
+                  onClick={() => {
+                    setPendingPaymentAction(async () => {
+                      try {
+                        const res = await fetch('/api/partner/subscription/payment', {
+                          method: 'POST',
+                          credentials: 'include',
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.ok && data.payurl) {
+                          window.location.href = data.payurl;
+                        } else {
+                          alert(data.message || '결제 요청에 실패했습니다.');
+                        }
+                      } catch (error) {
+                        console.error('[Subscription Payment] Error:', error);
+                        alert('결제 요청 중 오류가 발생했습니다.');
+                      }
+                    });
+                    setShowPaymentConfirmModal(true);
+                  }}
+                  className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-colors shadow-md"
+                >
+                  정액제 구독하기 (10만원)
+                </button>
+              </div>
+            )}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => setShowTutorial(false)}
+                className="px-6 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                시작하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 기능 제한 모달 */}
       {showFeatureRestrictionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -3671,8 +4385,40 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                   💡 더 많은 기능을 사용하려면 담당 점장님과 상의해 주세요.
                 </p>
               </div>
+              {subscriptionInfo && subscriptionInfo.isTrial && (
+                <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
+                  <p className="text-sm text-orange-800 mb-3">
+                    🎁 무료 체험 중이시군요! 정액제를 구독하시면 더 많은 기능을 사용하실 수 있습니다.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setPendingPaymentAction(async () => {
+                        try {
+                          const res = await fetch('/api/partner/subscription/payment', {
+                            method: 'POST',
+                            credentials: 'include',
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.ok && data.payurl) {
+                            window.location.href = data.payurl;
+                          } else {
+                            alert(data.message || '결제 요청에 실패했습니다.');
+                          }
+                        } catch (error) {
+                          console.error('[Subscription Payment] Error:', error);
+                          alert('결제 요청 중 오류가 발생했습니다.');
+                        }
+                      });
+                      setShowPaymentConfirmModal(true);
+                    }}
+                    className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-colors shadow-md"
+                  >
+                    정액제 구독하기 (10만원)
+                  </button>
+                </div>
+              )}
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowFeatureRestrictionModal(false);
@@ -3681,6 +4427,67 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors"
               >
                 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 결제 확인 모달 */}
+      {showPaymentConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">결제 확인</h2>
+              <button
+                onClick={() => {
+                  setShowPaymentConfirmModal(false);
+                  setPendingPaymentAction(null);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="text-xl text-gray-600" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-900 font-semibold mb-2">
+                  ⚠️ 결제 전 확인사항
+                </p>
+                <p className="text-sm text-blue-800 leading-relaxed">
+                  이 플랫폼은 크루즈닷과 함께 하는 <strong>(주)마비즈컴퍼니 마비즈스쿨 원격 평생교육원</strong> 회원으로 가입하며 <strong>마케팅 서비스 제공 회원</strong>으로 가입하게 됩니다.
+                </p>
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-700">
+                  <strong>결제 금액:</strong> 10만원 (1개월 구독)
+                </p>
+                <p className="text-sm text-gray-700 mt-2">
+                  <strong>결제 후:</strong> 정식 구독으로 전환되어 50% 기능을 사용하실 수 있습니다.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowPaymentConfirmModal(false);
+                  setPendingPaymentAction(null);
+                }}
+                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setShowPaymentConfirmModal(false);
+                  if (pendingPaymentAction) {
+                    pendingPaymentAction();
+                  }
+                  setPendingPaymentAction(null);
+                }}
+                className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-semibold transition-colors"
+              >
+                확인하고 결제하기
               </button>
             </div>
           </div>

@@ -1105,12 +1105,25 @@ export default function AdminAffiliateContractsPage() {
       const res = await fetch(`/api/admin/affiliate/contracts/${contractId}/send-pdf`, {
         method: 'POST',
       });
-      const json = await res.json();
+      
+      const text = await res.text();
+      if (!text) {
+        throw new Error('Empty response');
+      }
+      
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch (parseError) {
+        console.error('[AdminContracts] JSON parse error:', parseError, 'Response text:', text);
+        throw new Error('Invalid JSON response from server');
+      }
+      
       if (!res.ok || !json.ok) {
         const errorMsg = json.message || json.error || 'PDF 전송에 실패했습니다.';
         throw new Error(errorMsg);
       }
-      showSuccess('PDF가 성공적으로 전송되었습니다.');
+      showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
       // PDF 보기를 통한 계약서 열람 확인 추가
       setViewedContractIds(prev => new Set(prev).add(contractId));
     } catch (error: any) {
