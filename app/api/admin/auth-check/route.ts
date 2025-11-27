@@ -28,18 +28,23 @@ export async function GET() {
       return NextResponse.json({ ok: false, authenticated: false });
     }
 
-    // 관리자 패널 접근 권한: 01024958013 또는 01038619161만 허용, user1~user10은 차단
+    // 관리자 패널 접근 권한: 01024958013 또는 01038609161만 허용, user1~user10은 차단
     const user = await prisma.user.findUnique({
       where: { id: session.User.id },
       select: { role: true, phone: true }
     });
 
     if (!user || user.role !== 'admin') {
+      console.log('[Admin Auth Check] 관리자가 아님:', { userId: session.User.id, role: user?.role });
       return NextResponse.json({ ok: false, authenticated: false });
     }
 
+    // 전화번호 정규화 (로그인 시와 동일하게 처리)
+    const normalizedPhone = user.phone?.replace(/[-\s]/g, '') || '';
+
     // user1~user10은 관리자 패널 접근 불가
-    if (user.phone && /^user(1[0]|[1-9])$/.test(user.phone)) {
+    if (normalizedPhone && /^user(1[0]|[1-9])$/.test(normalizedPhone)) {
+      console.log('[Admin Auth Check] user1~user10 차단:', { phone: normalizedPhone });
       return NextResponse.json({ 
         ok: false, 
         authenticated: false,
@@ -47,8 +52,14 @@ export async function GET() {
       });
     }
 
-    // 01024958013 또는 01038609161만 접근 허용
-    const isAuthorized = user.phone === '01024958013' || user.phone === '01038609161';
+    // 01024958013 또는 01038609161만 접근 허용 (정규화된 전화번호로 비교)
+    const isAuthorized = normalizedPhone === '01024958013' || normalizedPhone === '01038609161';
+    
+    console.log('[Admin Auth Check] 권한 확인:', { 
+      phone: normalizedPhone, 
+      isAuthorized,
+      originalPhone: user.phone 
+    });
 
     return NextResponse.json({
       ok: true,
@@ -62,8 +73,19 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[Admin Auth Check] Error:', error);
+    console.error('[Admin Auth Check] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return NextResponse.json(
-      { ok: false, authenticated: false },
+      { 
+        ok: false, 
+        authenticated: false,
+        error: process.env.NODE_ENV === 'development' 
+          ? (error instanceof Error ? error.message : String(error))
+          : '인증 확인 중 오류가 발생했습니다.'
+      },
       { status: 500 }
     );
   }
