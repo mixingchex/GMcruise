@@ -192,30 +192,61 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
     if (!confirm('계약서 PDF를 계약자 이메일 주소로 전송하시겠습니까? (본사 이메일은 참조로 추가됩니다)')) return;
     try {
       setSendingPdfContractId(contractId);
-      const res = await fetch(`/api/partner/contracts/${contractId}/send-pdf`, {
-        method: 'POST',
-        credentials: 'include',
-      });
       
-      const text = await res.text();
-      if (!text) {
-        throw new Error('Empty response');
-      }
+      // 타임아웃 설정 (60초)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
       
-      let json;
       try {
-        json = JSON.parse(text);
-      } catch (parseError) {
-        console.error('[MyContract] JSON parse error:', parseError, 'Response text:', text);
-        throw new Error('Invalid JSON response from server');
-      }
-      
-      if (!res.ok || !json.ok) {
-        throw new Error(json.message || json.error || 'PDF 전송에 실패했습니다.');
-      }
+        const res = await fetch(`/api/partner/contracts/${contractId}/send-pdf`, {
+          method: 'POST',
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          let errorJson;
+          try {
+            if (!errorText) {
+              throw new Error('Empty response');
+            }
+            errorJson = JSON.parse(errorText);
+          } catch (parseError) {
+            console.error('[MyContract] JSON parse error:', parseError, 'Response text:', errorText);
+            errorJson = { message: errorText || '서버 오류가 발생했습니다.' };
+          }
+          throw new Error(errorJson.message || errorJson.error || `서버 오류 (${res.status})`);
+        }
+        
+        const text = await res.text();
+        if (!text) {
+          throw new Error('Empty response');
+        }
+        
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseError) {
+          console.error('[MyContract] JSON parse error:', parseError, 'Response text:', text);
+          throw new Error('Invalid JSON response from server');
+        }
+        
+        if (!json.ok) {
+          throw new Error(json.message || json.error || 'PDF 전송에 실패했습니다.');
+        }
 
-      showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
-      loadManagedContracts();
+        showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
+        loadManagedContracts();
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('PDF 전송 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+        }
+        throw fetchError;
+      }
     } catch (error: any) {
       console.error('[MyContract] Send PDF error:', error);
       showError(error.message || 'PDF 전송 중 오류가 발생했습니다.');

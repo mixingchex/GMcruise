@@ -8,7 +8,7 @@ import { google } from 'googleapis';
 // 구글 스프레드시트에 잠재고객 정보 저장
 async function saveToProspectSpreadsheet(name: string, phone: string) {
   try {
-    const spreadsheetId = process.env.SUBSCRIPTION_PROSPECTS_SPREADSHEET_ID;
+    const spreadsheetId = process.env.SUBSCRIPTION_PROSPECTS_SPREADSHEET_ID || '1Cpp7zgWK-Rf13VnnGagfsMMMpPGDhe9sFyYcrZN0ZQY';
     if (!spreadsheetId) {
       console.warn('[Subscription Trial] 구글 스프레드시트 ID가 설정되지 않았습니다.');
       return { ok: false, error: '스프레드시트 ID가 설정되지 않았습니다.' };
@@ -36,6 +36,7 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
     const sheets = google.sheets({ version: 'v4', auth });
 
     // 헤더 확인 및 추가 (없으면)
+    // 컬럼 순서: A열=가입일시, B열=상태, C열=이름, D열=연락처
     const headerRange = 'Prospects!A1:D1';
     const headerResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -50,12 +51,13 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
         range: headerRange,
         valueInputOption: 'RAW',
         requestBody: {
-          values: [['이름', '연락처', '가입일시', '상태']],
+          values: [['가입일시', '상태', '이름', '연락처']],
         },
       });
     }
 
     // 데이터 추가
+    // 컬럼 순서: A열=가입일시, B열=상태, C열=이름, D열=연락처
     const now = new Date();
     const formattedDate = now.toLocaleString('ko-KR', { 
       timeZone: 'Asia/Seoul',
@@ -72,7 +74,7 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
       range: 'Prospects!A:D',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[name, phone, formattedDate, '무료 체험 중']],
+        values: [[formattedDate, '무료 체험 중', name, phone]],
       },
     });
 

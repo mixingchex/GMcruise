@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { FiArrowRight } from 'react-icons/fi';
 
 interface PartnerLoginProps {
   forceReauth?: boolean;
@@ -228,6 +229,20 @@ export default function PartnerLogin({ forceReauth = false }: PartnerLoginProps)
           <div>계정 정보는 본사에서 발급한 파트너 전용 자격을 사용합니다.</div>
           <div>(주)마비즈컴퍼니 마비즈스쿨 원격평생교육원 수강생들만 사용 가능한 플랫폼 입니다.</div>
           <div>교육문의 jmonica@cruisedot.co.kr</div>
+        </div>
+
+        {/* 7일 무료 체험 버튼 */}
+        <div className="mt-6 pt-6 border-t border-slate-200">
+          <button
+            onClick={() => router.push('/subscription/login')}
+            className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-semibold py-3 px-4 shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            <span>7일 무료 마비즈인 체험하기</span>
+            <FiArrowRight className="h-5 w-5" />
+          </button>
+          <p className="mt-2 text-xs text-slate-500">
+            클릭하면 정액제 로그인이 뜨고, 이름과 연락처를 입력하시면 7일 무료 마케터 체험을 할 수 있어요.
+          </p>
         </div>
       </div>
     </div>

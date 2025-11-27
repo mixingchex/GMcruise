@@ -75,9 +75,23 @@ export default function SubscriptionLoginPage() {
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             정액제 무료 체험
           </h1>
-          <p className="text-gray-600">
-            7일간 무료로 정액제 기능을 체험해보세요
+          <p className="text-gray-600 mb-4 text-lg font-semibold">
+            이름과 연락처를 입력하시면 7일 무료 마케터 체험을 할 수 있어요.
           </p>
+          
+          {/* 유튜브 영상 */}
+          <div className="mt-6 mb-6 rounded-lg overflow-hidden shadow-lg max-w-2xl mx-auto">
+            <iframe
+              width="100%"
+              height="315"
+              src="https://www.youtube.com/embed/OIGkqQHfLgw?autoplay=1&mute=1&loop=1&playlist=OIGkqQHfLgw"
+              title="정액제 소개 영상"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="w-full"
+            ></iframe>
+          </div>
         </div>
 
         {/* 로그인 폼 */}
