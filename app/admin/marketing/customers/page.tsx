@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { FiSearch, FiUpload, FiDownload, FiPlus, FiX, FiMessageSquare, FiCalendar, FiUsers } from 'react-icons/fi';
 import { showSuccess, showError, showWarning } from '@/components/ui/Toast';
 
@@ -103,7 +103,7 @@ export default function MarketingCustomersPage() {
   useEffect(() => {
     fetchGroups();
     fetchCustomers();
-  }, [includeGroups, excludeGroups, inflowDateStart, inflowDateEnd, daySearch, currentPage, pageSize]);
+  }, [fetchGroups, fetchCustomers]);
 
   const loadCustomerInteractions = async (leadId: number | null, phone: string | null) => {
     if (!leadId && !phone) {
@@ -141,7 +141,7 @@ export default function MarketingCustomersPage() {
     console.log('[GroupMessage] Selected customers:', selectedIds.size);
   }, [showGroupMessageModal, selectedIds]);
 
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       const response = await fetch('/api/admin/customer-groups', {
         credentials: 'include',
@@ -153,9 +153,9 @@ export default function MarketingCustomersPage() {
     } catch (error) {
       console.error('Failed to fetch groups:', error);
     }
-  };
+  }, []);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -191,7 +191,16 @@ export default function MarketingCustomersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [
+    currentPage,
+    pageSize,
+    includeGroups,
+    includeGroupsOperator,
+    excludeGroups,
+    inflowDateStart,
+    inflowDateEnd,
+    daySearch,
+  ]);
 
   const handleSelectCustomer = (customerId: number, index: number, shiftKey: boolean) => {
     if (shiftKey && lastSelectedIndex !== null) {
@@ -1346,7 +1355,7 @@ export default function MarketingCustomersPage() {
                 <ol className="text-sm space-y-1 list-decimal list-inside">
                   <li>위 양식파일을 다운로드 합니다.</li>
                   <li>양식파일의 항목에 맞게 고객 정보를 입력합니다.</li>
-                  <li>저장 후 '찾아보기'를 클릭하여 양식파일을 업로드 합니다.</li>
+                  <li>저장 후 &apos;찾아보기&apos;를 클릭하여 양식파일을 업로드 합니다.</li>
                 </ol>
               </div>
             </div>

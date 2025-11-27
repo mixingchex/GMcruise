@@ -37,7 +37,11 @@ type AdminInfo = {
   emailSmtpHost: string;
   emailSmtpPort: string;
   emailSmtpPassword: string;
+  adminEmail: string; // 관리자 문의 알림 이메일 주소
   geminiApiKey: string;
+  geminiModel: string;
+  weatherApiKey: string;
+  openweatherApiKey: string;
   kakaoJsKey: string;
   kakaoAppName: string;
   kakaoAppId: string;
@@ -66,6 +70,12 @@ type AdminInfo = {
   pgAdminUrl: string;
   pgMerchantName: string;
   baseUrl: string;
+  welcomePayUrl: string;
+  payappUserid: string;
+  payappLinkkey: string;
+  payappLinkval: string;
+  socketUrl: string;
+  cronSecret: string;
   pgCallbackUrl: string;
   pgNotifyUrl: string;
   pgVirtualAccountUrl: string;
@@ -433,7 +443,11 @@ export default function AdminSettingsPage() {
           emailSmtpHost: '',
           emailSmtpPort: '',
           emailSmtpPassword: '',
+          adminEmail: '',
           geminiApiKey: '',
+          geminiModel: '',
+          weatherApiKey: '',
+          openweatherApiKey: '',
           kakaoJsKey: '',
           kakaoAppName: '',
           kakaoAppId: '',
@@ -462,6 +476,12 @@ export default function AdminSettingsPage() {
           pgAdminUrl: '',
           pgMerchantName: '',
           baseUrl: '',
+          welcomePayUrl: '',
+          payappUserid: '',
+          payappLinkkey: '',
+          payappLinkval: '',
+          socketUrl: '',
+          cronSecret: '',
           pgCallbackUrl: '',
           pgNotifyUrl: '',
           pgVirtualAccountUrl: '',
@@ -490,7 +510,11 @@ export default function AdminSettingsPage() {
         emailSmtpHost: '',
         emailSmtpPort: '',
         emailSmtpPassword: '',
+        adminEmail: '',
         geminiApiKey: '',
+        geminiModel: '',
+        weatherApiKey: '',
+        openweatherApiKey: '',
         kakaoJsKey: '',
         kakaoAppName: '',
         kakaoAppId: '',
@@ -517,9 +541,15 @@ export default function AdminSettingsPage() {
         pgMidPassword: '',
         pgMidNonAuth: '',
         pgAdminUrl: '',
-        pgMerchantName: '',
-        baseUrl: '',
-        pgCallbackUrl: '',
+          pgMerchantName: '',
+          baseUrl: '',
+          welcomePayUrl: '',
+          payappUserid: '',
+          payappLinkkey: '',
+          payappLinkval: '',
+          socketUrl: '',
+          cronSecret: '',
+          pgCallbackUrl: '',
         pgNotifyUrl: '',
         pgVirtualAccountUrl: '',
         sendMethod: '',
@@ -558,7 +588,11 @@ export default function AdminSettingsPage() {
         emailSmtpHost: 'EMAIL_SMTP_HOST',
         emailSmtpPort: 'EMAIL_SMTP_PORT',
         emailSmtpPassword: 'EMAIL_SMTP_PASSWORD',
+        adminEmail: 'ADMIN_EMAIL',
         geminiApiKey: 'GEMINI_API_KEY',
+        geminiModel: 'GEMINI_MODEL',
+        weatherApiKey: 'WEATHER_API_KEY',
+        openweatherApiKey: 'OPENWEATHER_API_KEY',
         kakaoJsKey: 'NEXT_PUBLIC_KAKAO_JS_KEY',
         kakaoAppName: 'KAKAO_APP_NAME',
         kakaoAppId: 'KAKAO_APP_ID',
@@ -587,6 +621,12 @@ export default function AdminSettingsPage() {
         pgAdminUrl: 'PG_ADMIN_URL',
         pgMerchantName: 'PG_MERCHANT_NAME',
         baseUrl: 'NEXT_PUBLIC_BASE_URL',
+        welcomePayUrl: 'NEXT_PUBLIC_WELCOME_PAY_URL',
+        payappUserid: 'PAYAPP_USERID',
+        payappLinkkey: 'PAYAPP_LINKKEY',
+        payappLinkval: 'PAYAPP_LINKVAL',
+        socketUrl: 'NEXT_PUBLIC_SOCKET_URL',
+        cronSecret: 'CRON_SECRET',
         youtubeApiKey: 'YOUTUBE_API_KEY',
         googleDriveServiceAccountEmail: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL',
         googleDriveServiceAccountPrivateKey: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY',
@@ -682,7 +722,11 @@ export default function AdminSettingsPage() {
         emailSmtpHost: 'EMAIL_SMTP_HOST',
         emailSmtpPort: 'EMAIL_SMTP_PORT',
         emailSmtpPassword: 'EMAIL_SMTP_PASSWORD',
+        adminEmail: 'ADMIN_EMAIL',
         geminiApiKey: 'GEMINI_API_KEY',
+        geminiModel: 'GEMINI_MODEL',
+        weatherApiKey: 'WEATHER_API_KEY',
+        openweatherApiKey: 'OPENWEATHER_API_KEY',
         kakaoJsKey: 'NEXT_PUBLIC_KAKAO_JS_KEY',
         kakaoAppName: 'KAKAO_APP_NAME',
         kakaoAppId: 'KAKAO_APP_ID',
@@ -706,6 +750,12 @@ export default function AdminSettingsPage() {
         pgAdminUrl: 'PG_ADMIN_URL',
         pgMerchantName: 'PG_MERCHANT_NAME',
         baseUrl: 'NEXT_PUBLIC_BASE_URL',
+        welcomePayUrl: 'NEXT_PUBLIC_WELCOME_PAY_URL',
+        payappUserid: 'PAYAPP_USERID',
+        payappLinkkey: 'PAYAPP_LINKKEY',
+        payappLinkval: 'PAYAPP_LINKVAL',
+        socketUrl: 'NEXT_PUBLIC_SOCKET_URL',
+        cronSecret: 'CRON_SECRET',
         youtubeApiKey: 'YOUTUBE_API_KEY',
         googleDriveServiceAccountEmail: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL',
         googleDriveServiceAccountPrivateKey: 'GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY',
@@ -1165,8 +1215,8 @@ export default function AdminSettingsPage() {
             )}
             <button
               onClick={editingCategory === 'email' 
-                ? () => handleSaveCategory('email', ['email', 'emailFromName', 'emailSmtpHost', 'emailSmtpPort', 'emailSmtpPassword'])
-                : () => handleStartEditCategory('email', ['email', 'emailFromName', 'emailSmtpHost', 'emailSmtpPort', 'emailSmtpPassword'])
+                ? () => handleSaveCategory('email', ['email', 'emailFromName', 'emailSmtpHost', 'emailSmtpPort', 'emailSmtpPassword', 'adminEmail'])
+                : () => handleStartEditCategory('email', ['email', 'emailFromName', 'emailSmtpHost', 'emailSmtpPort', 'emailSmtpPassword', 'adminEmail'])
               }
               disabled={categorySaving === 'email'}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
@@ -1238,11 +1288,25 @@ export default function AdminSettingsPage() {
             onToggleShow={() => setShowPassword(!showPassword)}
           />
           <InfoRow
+            label="관리자 문의 알림 이메일"
+            value={editingCategory === 'email' ? (categoryEditableInfo.adminEmail || '') : (adminInfo?.adminEmail || 'N/A')}
+            onCopy={() => copyToClipboard(adminInfo?.adminEmail || '', 'adminEmail')}
+            copied={copiedField === 'adminEmail'}
+            isEditing={editingCategory === 'email'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, adminEmail: value })}
+          />
+          <InfoRow
             label="발송 방식"
             value={adminInfo?.sendMethod || 'Gmail SMTP'}
             onCopy={() => copyToClipboard(adminInfo?.sendMethod || '', 'sendMethod')}
             copied={copiedField === 'sendMethod'}
           />
+          <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>ℹ️ 관리자 문의 알림:</strong> 고객 문의 접수 시 이 이메일 주소로 알림이 전송됩니다.
+              설정하지 않으면 SMTP 이메일 주소를 사용합니다.
+            </p>
+          </div>
           <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
               <strong>⚠️ 발송 제한:</strong> Gmail SMTP는 일일 500통까지 발송 가능합니다. 
@@ -1270,8 +1334,8 @@ export default function AdminSettingsPage() {
             )}
             <button
               onClick={editingCategory === 'gemini' 
-                ? () => handleSaveCategory('gemini', ['geminiApiKey'])
-                : () => handleStartEditCategory('gemini', ['geminiApiKey'])
+                ? () => handleSaveCategory('gemini', ['geminiApiKey', 'geminiModel', 'weatherApiKey', 'openweatherApiKey'])
+                : () => handleStartEditCategory('gemini', ['geminiApiKey', 'geminiModel', 'weatherApiKey', 'openweatherApiKey'])
               }
               disabled={categorySaving === 'gemini'}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
@@ -1310,6 +1374,40 @@ export default function AdminSettingsPage() {
             show={showApiKey}
             onToggleShow={() => setShowApiKey(!showApiKey)}
           />
+          <InfoRow
+            label="모델"
+            value={editingCategory === 'gemini' ? (categoryEditableInfo.geminiModel || 'gemini-flash-latest') : (adminInfo?.geminiModel || 'gemini-flash-latest')}
+            onCopy={() => copyToClipboard(adminInfo?.geminiModel || 'gemini-flash-latest', 'geminiModel')}
+            copied={copiedField === 'geminiModel'}
+            isEditing={editingCategory === 'gemini'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, geminiModel: value })}
+          />
+          <EditablePasswordRow
+            label="Weather API 키 (14일 날씨 예보)"
+            value={editingCategory === 'gemini' ? (categoryEditableInfo.weatherApiKey || '') : (adminInfo?.weatherApiKey || '')}
+            onCopy={() => copyToClipboard(adminInfo?.weatherApiKey || '', 'weatherApiKey')}
+            copied={copiedField === 'weatherApiKey'}
+            isEditing={editingCategory === 'gemini'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, weatherApiKey: value })}
+            show={showApiKey}
+            onToggleShow={() => setShowApiKey(!showApiKey)}
+          />
+          <EditablePasswordRow
+            label="OpenWeather API 키 (커뮤니티 봇)"
+            value={editingCategory === 'gemini' ? (categoryEditableInfo.openweatherApiKey || '') : (adminInfo?.openweatherApiKey || '')}
+            onCopy={() => copyToClipboard(adminInfo?.openweatherApiKey || '', 'openweatherApiKey')}
+            copied={copiedField === 'openweatherApiKey'}
+            isEditing={editingCategory === 'gemini'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, openweatherApiKey: value })}
+            show={showApiKey}
+            onToggleShow={() => setShowApiKey(!showApiKey)}
+          />
+          <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다. 
+              VERCEL_API_TOKEN과 VERCEL_PROJECT_ID가 설정되어 있어야 자동 동기화가 작동합니다.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -1464,6 +1562,12 @@ export default function AdminSettingsPage() {
             <p className="text-sm text-yellow-800">
               <strong>💡 안내:</strong> 카카오톡 공유 기능은 이 JavaScript 키를 사용합니다. 
               키가 설정되어 있으면 로그인 페이지에서 카카오톡 공유 버튼이 활성화됩니다.
+            </p>
+          </div>
+          <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 Kakao 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다. 
+              VERCEL_API_TOKEN과 VERCEL_PROJECT_ID가 설정되어 있어야 자동 동기화가 작동합니다.
             </p>
           </div>
         </div>
@@ -1692,19 +1796,19 @@ export default function AdminSettingsPage() {
                           Google Search Console 접속 (클릭)
                         </a>
                       </li>
-                      <li>왼쪽 상단의 <strong>"속성 추가"</strong> 버튼 클릭</li>
-                      <li><strong>"URL 접두어"</strong> 선택 (예: https://cruisedot.co.kr)</li>
-                      <li>사이트 URL 입력 후 <strong>"계속"</strong> 클릭</li>
-                      <li><strong>"HTML 태그"</strong> 방법 선택</li>
-                      <li>표시된 메타 태그에서 <code className="bg-gray-100 px-1 rounded">content="..."</code> 부분의 따옴표 안 값만 복사</li>
-                      <li>아래 입력란에 붙여넣고 <strong>"저장하기"</strong> 클릭</li>
+                      <li>왼쪽 상단의 <strong>&quot;속성 추가&quot;</strong> 버튼 클릭</li>
+                      <li><strong>&quot;URL 접두어&quot;</strong> 선택 (예: https://cruisedot.co.kr)</li>
+                      <li>사이트 URL 입력 후 <strong>&quot;계속&quot;</strong> 클릭</li>
+                      <li><strong>&quot;HTML 태그&quot;</strong> 방법 선택</li>
+                      <li>표시된 메타 태그에서 <code className="bg-gray-100 px-1 rounded">content=&quot;...&quot;</code> 부분의 따옴표 안 값만 복사</li>
+                      <li>아래 입력란에 붙여넣고 <strong>&quot;저장하기&quot;</strong> 클릭</li>
                     </ol>
                     <div className="mt-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg">
                       <p className="text-xs text-green-800 font-semibold mb-1">
                         ✅ <strong>자동 적용:</strong> 저장하면 자동으로 사이트에 적용됩니다!
                       </p>
                       <p className="text-xs text-green-700">
-                        Google Search Console에서 <strong>"확인"</strong> 버튼을 클릭하면 사이트 소유권이 확인됩니다.
+                        Google Search Console에서 <strong>&quot;확인&quot;</strong> 버튼을 클릭하면 사이트 소유권이 확인됩니다.
                       </p>
                     </div>
                   </div>
@@ -1758,11 +1862,11 @@ export default function AdminSettingsPage() {
                         Google Analytics 접속 (클릭)
                       </a>
                     </li>
-                    <li>왼쪽 하단의 <strong>"관리"</strong> (톱니바퀴 아이콘) 클릭</li>
-                    <li><strong>"속성"</strong> 열에서 <strong>"속성 설정"</strong> 클릭</li>
-                    <li><strong>"측정 ID"</strong> 섹션에서 <code className="bg-gray-100 px-1 rounded">G-XXXXXXXXXX</code> 형식의 ID 확인</li>
+                    <li>왼쪽 하단의 <strong>&quot;관리&quot;</strong> (톱니바퀴 아이콘) 클릭</li>
+                    <li><strong>&quot;속성&quot;</strong> 열에서 <strong>&quot;속성 설정&quot;</strong> 클릭</li>
+                    <li><strong>&quot;측정 ID&quot;</strong> 섹션에서 <code className="bg-gray-100 px-1 rounded">G-XXXXXXXXXX</code> 형식의 ID 확인</li>
                     <li>ID를 복사하여 아래 입력란에 붙여넣기</li>
-                    <li><strong>"저장하기"</strong> 클릭하면 자동으로 적용됩니다</li>
+                    <li><strong>&quot;저장하기&quot;</strong> 클릭하면 자동으로 적용됩니다</li>
                   </ol>
                   <div className="mt-3 p-3 bg-green-50 border-2 border-green-200 rounded-lg">
                     <p className="text-xs text-green-800 font-semibold">
@@ -2298,8 +2402,8 @@ export default function AdminSettingsPage() {
             )}
             <button
               onClick={editingCategory === 'pg' 
-                ? () => handleSaveCategory('pg', ['pgMerchantName', 'pgMidAuth', 'pgMidNonAuth', 'pgMidPassword', 'pgSignkey', 'pgFieldEncryptIv', 'pgFieldEncryptKey', 'pgSignkeyNonAuth', 'pgFieldEncryptIvNonAuth', 'pgFieldEncryptKeyNonAuth', 'pgAdminUrl', 'baseUrl'])
-                : () => handleStartEditCategory('pg', ['pgMerchantName', 'pgMidAuth', 'pgMidNonAuth', 'pgMidPassword', 'pgSignkey', 'pgFieldEncryptIv', 'pgFieldEncryptKey', 'pgSignkeyNonAuth', 'pgFieldEncryptIvNonAuth', 'pgFieldEncryptKeyNonAuth', 'pgAdminUrl', 'baseUrl'])
+                ? () => handleSaveCategory('pg', ['pgMerchantName', 'pgMidAuth', 'pgMidNonAuth', 'pgMidPassword', 'pgSignkey', 'pgFieldEncryptIv', 'pgFieldEncryptKey', 'pgSignkeyNonAuth', 'pgFieldEncryptIvNonAuth', 'pgFieldEncryptKeyNonAuth', 'pgAdminUrl', 'baseUrl', 'welcomePayUrl'])
+                : () => handleStartEditCategory('pg', ['pgMerchantName', 'pgMidAuth', 'pgMidNonAuth', 'pgMidPassword', 'pgSignkey', 'pgFieldEncryptIv', 'pgFieldEncryptKey', 'pgSignkeyNonAuth', 'pgFieldEncryptIvNonAuth', 'pgFieldEncryptKeyNonAuth', 'pgAdminUrl', 'baseUrl', 'welcomePayUrl'])
               }
               disabled={categorySaving === 'pg'}
               className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
@@ -2442,6 +2546,14 @@ export default function AdminSettingsPage() {
                 isEditing={editingCategory === 'pg'}
                 onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, baseUrl: value })}
               />
+              <InfoRow
+                label="웰컴페이먼츠 결제 페이지 URL"
+                value={editingCategory === 'pg' ? (categoryEditableInfo.welcomePayUrl || 'https://pay.welcomepayments.co.kr/payment') : (adminInfo?.welcomePayUrl || 'https://pay.welcomepayments.co.kr/payment')}
+                onCopy={() => copyToClipboard(adminInfo?.welcomePayUrl || 'https://pay.welcomepayments.co.kr/payment', 'welcomePayUrl')}
+                copied={copiedField === 'welcomePayUrl'}
+                isEditing={editingCategory === 'pg'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, welcomePayUrl: value })}
+              />
               {adminInfo?.pgCallbackUrl && (
                 <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
                   <div className="flex-1">
@@ -2516,6 +2628,90 @@ export default function AdminSettingsPage() {
               인증 결제는 MID (인증)을, 비인증 결제는 MID (비인증)을 사용합니다.
               <br />
               <strong>⚠️ 중요:</strong> 위 콜백 URL들을 웰컴페이먼츠 관리자 페이지에 설정해야 합니다.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 페이앱 결제 설정 */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-3xl">💳</span>
+            페이앱 결제 설정
+          </h2>
+          <div className="flex gap-3">
+            {editingCategory === 'payapp' && (
+              <button
+                onClick={handleCancelCategory}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 font-semibold"
+              >
+                취소
+              </button>
+            )}
+            <button
+              onClick={editingCategory === 'payapp' 
+                ? () => handleSaveCategory('payapp', ['payappUserid', 'payappLinkkey', 'payappLinkval'])
+                : () => handleStartEditCategory('payapp', ['payappUserid', 'payappLinkkey', 'payappLinkval'])
+              }
+              disabled={categorySaving === 'payapp'}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
+                editingCategory === 'payapp'
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              } ${categorySaving === 'payapp' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {categorySaving === 'payapp' ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                  저장 중...
+                </>
+              ) : editingCategory === 'payapp' ? (
+                <>
+                  <FiSave size={18} />
+                  저장하기
+                </>
+              ) : (
+                <>
+                  <FiEdit2 size={18} />
+                  수정하기
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <InfoRow
+            label="사용자 ID"
+            value={editingCategory === 'payapp' ? (categoryEditableInfo.payappUserid || '') : (adminInfo?.payappUserid || 'N/A')}
+            onCopy={() => copyToClipboard(adminInfo?.payappUserid || '', 'payappUserid')}
+            copied={copiedField === 'payappUserid'}
+            isEditing={editingCategory === 'payapp'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, payappUserid: value })}
+          />
+          <EditablePasswordRow
+            label="Link Key"
+            value={editingCategory === 'payapp' ? (categoryEditableInfo.payappLinkkey || '') : (adminInfo?.payappLinkkey || '')}
+            onCopy={() => copyToClipboard(adminInfo?.payappLinkkey || '', 'payappLinkkey')}
+            copied={copiedField === 'payappLinkkey'}
+            isEditing={editingCategory === 'payapp'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, payappLinkkey: value })}
+            show={showKakaoRestApiKey}
+            onToggleShow={() => setShowKakaoRestApiKey(!showKakaoRestApiKey)}
+          />
+          <EditablePasswordRow
+            label="Link Value"
+            value={editingCategory === 'payapp' ? (categoryEditableInfo.payappLinkval || '') : (adminInfo?.payappLinkval || '')}
+            onCopy={() => copyToClipboard(adminInfo?.payappLinkval || '', 'payappLinkval')}
+            copied={copiedField === 'payappLinkval'}
+            isEditing={editingCategory === 'payapp'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, payappLinkval: value })}
+            show={showKakaoAdminKey}
+            onToggleShow={() => setShowKakaoAdminKey(!showKakaoAdminKey)}
+          />
+          <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다.
             </p>
           </div>
         </div>
@@ -2612,12 +2808,86 @@ export default function AdminSettingsPage() {
             <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1 ml-2">
               <li>Google Cloud Console (https://console.cloud.google.com/) 접속</li>
               <li>프로젝트 선택 또는 새 프로젝트 생성</li>
-              <li>API 및 서비스 → 라이브러리 → "YouTube Data API v3" 검색 및 활성화</li>
+              <li>API 및 서비스 → 라이브러리 → &quot;YouTube Data API v3&quot; 검색 및 활성화</li>
               <li>사용자 인증 정보 → API 키 만들기</li>
               <li>생성된 API 키를 위에 입력하세요</li>
             </ol>
             <p className="text-sm text-blue-800 mt-2">
               <strong>⚠️ 중요:</strong> API 키가 없으면 YouTube 영상 수집 스크립트를 실행할 수 없습니다.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 기타 서비스 설정 */}
+      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-3xl">⚙️</span>
+            기타 서비스 설정
+          </h2>
+          <div className="flex gap-3">
+            {editingCategory === 'other' && (
+              <button
+                onClick={handleCancelCategory}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 font-semibold"
+              >
+                취소
+              </button>
+            )}
+            <button
+              onClick={editingCategory === 'other' 
+                ? () => handleSaveCategory('other', ['socketUrl', 'cronSecret'])
+                : () => handleStartEditCategory('other', ['socketUrl', 'cronSecret'])
+              }
+              disabled={categorySaving === 'other'}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
+                editingCategory === 'other'
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              } ${categorySaving === 'other' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {categorySaving === 'other' ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                  저장 중...
+                </>
+              ) : editingCategory === 'other' ? (
+                <>
+                  <FiSave size={18} />
+                  저장하기
+                </>
+              ) : (
+                <>
+                  <FiEdit2 size={18} />
+                  수정하기
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <InfoRow
+            label="소켓 서버 URL"
+            value={editingCategory === 'other' ? (categoryEditableInfo.socketUrl || 'http://localhost:3001') : (adminInfo?.socketUrl || 'http://localhost:3001')}
+            onCopy={() => copyToClipboard(adminInfo?.socketUrl || 'http://localhost:3001', 'socketUrl')}
+            copied={copiedField === 'socketUrl'}
+            isEditing={editingCategory === 'other'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, socketUrl: value })}
+          />
+          <EditablePasswordRow
+            label="Cron Secret"
+            value={editingCategory === 'other' ? (categoryEditableInfo.cronSecret || '') : (adminInfo?.cronSecret || '')}
+            onCopy={() => copyToClipboard(adminInfo?.cronSecret || '', 'cronSecret')}
+            copied={copiedField === 'cronSecret'}
+            isEditing={editingCategory === 'other'}
+            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, cronSecret: value })}
+            show={showKakaoAdminKey}
+            onToggleShow={() => setShowKakaoAdminKey(!showKakaoAdminKey)}
+          />
+          <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800">
+              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다.
             </p>
           </div>
         </div>

@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { logger } from '@/lib/logger';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { FiPlus, FiEdit, FiTrash2, FiSend, FiUsers, FiUser, FiSearch, FiX, FiAlertCircle, FiCheckCircle, FiUpload, FiDownload, FiFileText } from 'react-icons/fi';
 import DOMPurify from 'isomorphic-dompurify';
 import SymbolPicker from '@/components/ui/SymbolPicker';
@@ -289,19 +291,19 @@ export default function AdminMessagesPage() {
           // 이메일: 크루즈몰 고객만 (이름, 이메일 주소만)
           if (recipientCategory === 'all' || recipientCategory === 'mall') {
             try {
-              console.log('[Email Search] Fetching mall users with emailOnly=true...');
+              logger.log('[Email Search] Fetching mall users with emailOnly=true...');
               const response = await fetch(`/api/admin/mall-users?emailOnly=true`, {
                 credentials: 'include',
               });
-              console.log('[Email Search] Response status:', response.status);
+              logger.log('[Email Search] Response status:', response.status);
               const data = await response.json();
-              console.log('[Email Search] Response data:', { ok: data.ok, usersCount: data.users?.length, error: data.error });
-              console.log('[Email Search] Full response:', JSON.stringify(data, null, 2));
+              logger.log('[Email Search] Response data:', { ok: data.ok, usersCount: data.users?.length, error: data.error });
+              logger.log('[Email Search] Full response:', JSON.stringify(data, null, 2));
               if (data.ok && data.users) {
-                console.log('[Email Search] Processing users:', data.users.length);
+                logger.log('[Email Search] Processing users:', data.users.length);
                 data.users.forEach((u: any) => {
                   if (!u.email || u.email.trim() === '') {
-                    console.log('[Email Search] Skipping user without email:', u.id, u.name);
+                    logger.log('[Email Search] Skipping user without email:', u.id, u.name);
                     return;
                   }
                   if (
@@ -320,7 +322,7 @@ export default function AdminMessagesPage() {
                     });
                   }
                 });
-                console.log('[Email Search] Final results count:', results.length);
+                logger.log('[Email Search] Final results count:', results.length);
               } else {
                 console.error('[Email Search] API error:', data.error || 'Unknown error');
               }
@@ -529,19 +531,19 @@ export default function AdminMessagesPage() {
         // 이메일: 크루즈몰 고객만 (이름, 이메일 주소만)
         if (recipientCategory === 'all' || recipientCategory === 'mall') {
           try {
-            console.log('[Email Dropdown] Fetching mall users with emailOnly=true...');
+            logger.log('[Email Dropdown] Fetching mall users with emailOnly=true...');
             const response = await fetch(`/api/admin/mall-users?emailOnly=true`, {
               credentials: 'include',
             });
-            console.log('[Email Dropdown] Response status:', response.status);
+            logger.log('[Email Dropdown] Response status:', response.status);
             const data = await response.json();
-            console.log('[Email Dropdown] Response data:', { ok: data.ok, usersCount: data.users?.length, error: data.error });
-            console.log('[Email Dropdown] Full response:', JSON.stringify(data, null, 2));
+            logger.log('[Email Dropdown] Response data:', { ok: data.ok, usersCount: data.users?.length, error: data.error });
+            logger.log('[Email Dropdown] Full response:', JSON.stringify(data, null, 2));
             if (data.ok && data.users) {
-              console.log('[Email Dropdown] Processing users:', data.users.length);
+              logger.log('[Email Dropdown] Processing users:', data.users.length);
               data.users.forEach((u: any) => {
                 if (!u.email || u.email.trim() === '') {
-                  console.log('[Email Dropdown] Skipping user without email:', u.id, u.name);
+                  logger.log('[Email Dropdown] Skipping user without email:', u.id, u.name);
                   return;
                 }
                 results.push({
@@ -554,7 +556,7 @@ export default function AdminMessagesPage() {
                   mallUserId: u.mallUserId,
                 });
               });
-              console.log('[Email Dropdown] Final results count:', results.length);
+              logger.log('[Email Dropdown] Final results count:', results.length);
             } else {
               console.error('[Email Dropdown] API error:', data.error || 'Unknown error');
             }
@@ -677,7 +679,7 @@ export default function AdminMessagesPage() {
   };
 
   // 전체 선택 상태 업데이트
-  const updateSelectAllState = (recipients: Array<{
+  const updateSelectAllState = useCallback((recipients: Array<{
     id: number;
     name: string | null;
     email: string | null;
@@ -694,7 +696,7 @@ export default function AdminMessagesPage() {
       selectedRecipients.find((sr) => sr.id === r.id && sr.type === r.type)
     );
     setSelectAllChecked(allSelected);
-  };
+  }, [selectedRecipients]);
 
   // 드롭다운 열기
   const handleOpenDropdown = () => {
@@ -726,7 +728,7 @@ export default function AdminMessagesPage() {
     if (dropdownRecipients.length > 0 && showDropdown) {
       updateSelectAllState(dropdownRecipients);
     }
-  }, [selectedRecipients, dropdownRecipients, showDropdown]);
+  }, [selectedRecipients, dropdownRecipients, showDropdown, updateSelectAllState]);
 
   // 드롭다운에서 개별 선택/해제
   const handleDropdownSelect = (recipient: {
@@ -2542,7 +2544,7 @@ export default function AdminMessagesPage() {
                     <option value="announcement">크루즈가이드 메시지</option>
                   </select>
                   {formData.isUrgent && (
-                    <p className="text-sm text-red-600 mt-1">긴급공지로 설정되어 자동으로 "크루즈가이드 메시지" 타입이 선택됩니다.</p>
+                    <p className="text-sm text-red-600 mt-1">긴급공지로 설정되어 자동으로 &quot;크루즈가이드 메시지&quot; 타입이 선택됩니다.</p>
                   )}
                 </div>
               )}
@@ -2687,10 +2689,13 @@ export default function AdminMessagesPage() {
                   </div>
                 ) : (
                   <div className="relative">
-                    <img
-                      src={formData.imageUrl || imagePreview}
+                    <Image
+                      src={formData.imageUrl || imagePreview || '/images/promotion-banner-bg.png'}
                       alt="첨부 이미지"
+                      width={600}
+                      height={400}
                       className="max-w-full h-auto rounded-lg border-2 border-gray-300"
+                      unoptimized
                     />
                     <button
                       type="button"

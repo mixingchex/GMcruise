@@ -19,6 +19,7 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run socket\"",
     "deploy:check": "sh scripts/pre-deploy-check.sh",
     "env:check": "node scripts/check-env.js",
+    "check:env": "tsx scripts/check-env-before-deploy.ts",
     "migrate:check-env": "tsx scripts/check-migration-env.ts",
     "migrate:add-private-key": "tsx scripts/add-private-key.ts",
     "migrate:uploads": "tsx scripts/migrate-uploads-to-drive.ts",
@@ -29,7 +30,12 @@
     "test:contract-pdf": "tsx scripts/test-contract-pdf.ts",
     "generate-embeddings": "tsx scripts/generate-knowledge-embeddings.ts",
     "analyze": "ANALYZE=true npm run build",
-    "create:sample-products": "tsx scripts/create-sample-products.ts"
+    "create:sample-products": "tsx scripts/create-sample-products.ts",
+    "update:dashboard-stats": "tsx scripts/update-dashboard-stats.ts",
+    "apply:indexes": "tsx scripts/apply-indexes.ts",
+    "create:dashboard-stats-table": "tsx scripts/create-dashboard-stats-table.ts",
+    "simulate:admin-panel": "tsx scripts/simulate-admin-panel.ts",
+    "test:redis": "tsx scripts/test-redis-connection.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.23",
@@ -41,12 +47,15 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
     "@types/bcryptjs": "^2.4.6",
+    "@types/ioredis": "^4.28.10",
     "@types/node-cron": "^3.0.11",
     "@types/nodemailer": "^7.0.3",
     "@types/react-select": "^5.0.0",
+    "@upstash/redis": "^1.35.7",
     "ai": "^5.0.76",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
+    "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "csv-parser": "^3.2.0",
     "d3-geo": "^3.1.1",
@@ -56,6 +65,7 @@
     "framer-motion": "^12.23.14",
     "googleapis": "^164.1.0",
     "html2canvas": "^1.4.1",
+    "ioredis": "^5.8.2",
     "iron-session": "^8.0.4",
     "isomorphic-dompurify": "^2.31.0",
     "jose": "^6.1.0",
@@ -127,6 +137,8 @@
     "d3-selection": "3.0.0",
     "d3-zoom": "3.0.0",
     "d3-drag": "3.0.0",
-    "d3-transition": "3.0.0"
+    "d3-transition": "3.0.0",
+    "quill": "2.0.3",
+    "glob": "11.1.0"
   }
 }

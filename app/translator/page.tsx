@@ -1,5 +1,6 @@
 'use client';
 
+import { logger } from '@/lib/logger';
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { FiArrowLeft, FiMic, FiMicOff } from 'react-icons/fi';
@@ -28,8 +29,8 @@ type PhraseCategoriesData = Record<string, PhraseCategory[]>;
 let PHRASE_CATEGORIES_DATA: PhraseCategoriesData | null = null;
 const loadPhraseCategories = async (): Promise<PhraseCategoriesData> => {
   if (!PHRASE_CATEGORIES_DATA) {
-    const module = await import('./PHRASE_CATEGORIES_DATA');
-    PHRASE_CATEGORIES_DATA = module.PHRASE_CATEGORIES_DATA as PhraseCategoriesData;
+    const phraseModule = await import('./PHRASE_CATEGORIES_DATA');
+    PHRASE_CATEGORIES_DATA = phraseModule.PHRASE_CATEGORIES_DATA as PhraseCategoriesData;
   }
   return PHRASE_CATEGORIES_DATA;
 };
@@ -266,7 +267,7 @@ export default function TranslatorPage() {
         return pronunciationCache[cacheKey];
       }
       
-      console.log('[Pronunciation] Calling API:', { text: foreignText, langCode, cacheKey, retryCount });
+      logger.log('[Pronunciation] Calling API:', { text: foreignText, langCode, cacheKey, retryCount });
       const res = await csrfFetch('/api/translation/pronunciation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -279,7 +280,7 @@ export default function TranslatorPage() {
         
         // 재시도 (최대 2번)
         if (retryCount < 2) {
-          console.log(`[Pronunciation] Retrying... (${retryCount + 1}/2)`);
+          logger.log(`[Pronunciation] Retrying... (${retryCount + 1}/2)`);
           await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1))); // 지수 백오프
           return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
         }
@@ -288,14 +289,14 @@ export default function TranslatorPage() {
       }
       
       const data = await res.json();
-      console.log('[Pronunciation] API response:', JSON.stringify(data, null, 2));
+      logger.log('[Pronunciation] API response:', JSON.stringify(data, null, 2));
       
       if (!data.ok) {
         console.error('[Pronunciation] API returned error:', data.error);
         
         // 재시도 (최대 2번)
         if (retryCount < 2) {
-          console.log(`[Pronunciation] Retrying after error... (${retryCount + 1}/2)`);
+          logger.log(`[Pronunciation] Retrying after error... (${retryCount + 1}/2)`);
           await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
           return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
         }
@@ -310,7 +311,7 @@ export default function TranslatorPage() {
         
         // 재시도 (최대 2번)
         if (retryCount < 2) {
-          console.log(`[Pronunciation] Retrying after empty response... (${retryCount + 1}/2)`);
+          logger.log(`[Pronunciation] Retrying after empty response... (${retryCount + 1}/2)`);
           await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
           return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
         }
@@ -323,13 +324,13 @@ export default function TranslatorPage() {
         pronunciation = `(${pronunciation.trim()})`;
       }
       
-      console.log('[Pronunciation] Final pronunciation:', pronunciation);
+      logger.log('[Pronunciation] Final pronunciation:', pronunciation);
       
       // 캐시에 저장
       if (useCache && pronunciation) {
         setPronunciationCache(prev => {
           const newCache = { ...prev, [cacheKey]: pronunciation };
-          console.log('[Pronunciation] Updated cache:', newCache);
+          logger.log('[Pronunciation] Updated cache:', newCache);
           return newCache;
         });
       }
@@ -340,7 +341,7 @@ export default function TranslatorPage() {
       
       // 재시도 (최대 2번)
       if (retryCount < 2) {
-        console.log(`[Pronunciation] Retrying after exception... (${retryCount + 1}/2)`);
+        logger.log(`[Pronunciation] Retrying after exception... (${retryCount + 1}/2)`);
         await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
         return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
       }
@@ -358,7 +359,7 @@ export default function TranslatorPage() {
       const fromEnglish = getEnglishLanguageName(fromLabel);
       const toEnglish = getEnglishLanguageName(toLabel);
 
-      console.log(`[Translation] Translating from ${fromLabel}(${fromEnglish}) to ${toLabel}(${toEnglish}):`, text);
+      logger.log(`[Translation] Translating from ${fromLabel}(${fromEnglish}) to ${toLabel}(${toEnglish}):`, text);
 
       // 텍스트가 비어있거나 너무 짧으면 그대로 반환
       if (!text || text.trim().length === 0) {
@@ -467,7 +468,7 @@ export default function TranslatorPage() {
           // Permissions Policy 경고는 무시하고 getUserMedia 시도
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch((err) => {
             // Permissions Policy 경고는 무시 (실제 권한은 있을 수 있음)
-            console.log('[getUserMedia] Caught error (may be Permissions Policy warning):', err);
+            logger.log('[getUserMedia] Caught error (may be Permissions Policy warning):', err);
             throw err;
           });
           stream.getTracks().forEach(track => track.stop());
@@ -536,7 +537,7 @@ export default function TranslatorPage() {
         
         // ⚡ 권한이 허용된 경우 → 모든 에러 조용히 처리 (메시지 없음)
         if (micPermissionRef.current) {
-          console.log('[Speech Recognition] Permission granted, error silently handled:', errorType);
+          logger.log('[Speech Recognition] Permission granted, error silently handled:', errorType);
       setListening('none');
       setPreview('');
           return; // 조용히 종료 (사용자에게 알림 안 함)
@@ -550,7 +551,7 @@ export default function TranslatorPage() {
           alert('❌ 마이크 권한이 필요합니다.\n\n💡 해결 방법:\n1. 브라우저 주소창 왼쪽 🔒 아이콘 클릭\n2. "마이크" → "허용" 선택\n3. 페이지 새로고침 (F5)\n4. 버튼을 다시 눌러주세요');
         } else if (errorType === 'no-speech') {
           // 말이 없으면 조용히 처리 (알림 없음)
-          console.log('음성이 감지되지 않았습니다.');
+          logger.log('음성이 감지되지 않았습니다.');
         } else if (errorType === 'network') {
           alert('⚠️ 네트워크 오류가 발생했습니다.\n인터넷 연결을 확인해주세요.');
         } else {
@@ -565,7 +566,7 @@ export default function TranslatorPage() {
       } catch (startError: any) {
         // ⚡ 권한이 허용된 경우 → 에러 무시 (메시지 없음)
         if (micPermissionRef.current) {
-          console.log('[Speech Recognition Start] Permission granted, error silently handled:', startError);
+          logger.log('[Speech Recognition Start] Permission granted, error silently handled:', startError);
           setListening('none');
           setPreview('');
           return; // 조용히 종료
@@ -596,7 +597,7 @@ export default function TranslatorPage() {
     } catch (error: any) {
       // ⚡ 권한이 허용된 경우 → 에러 무시 (메시지 없음)
       if (micPermissionRef.current) {
-        console.log('[Speech Recognition] Permission granted, catch block error silently handled:', error);
+        logger.log('[Speech Recognition] Permission granted, catch block error silently handled:', error);
         setListening('none');
         setPreview('');
         return; // 조용히 종료

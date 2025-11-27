@@ -64,8 +64,8 @@ type DdayMessages = {
 let ddayMessages: DdayMessages | null = null;
 const loadDdayMessages = async (): Promise<DdayMessages> => {
   if (!ddayMessages) {
-    const module = await import('@/data/dday_messages.json');
-    ddayMessages = module.default as DdayMessages;
+    const ddayModule = await import('@/data/dday_messages.json');
+    ddayMessages = ddayModule.default as DdayMessages;
   }
   return ddayMessages;
 };

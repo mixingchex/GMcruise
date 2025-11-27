@@ -1,11 +1,13 @@
 'use client';
 
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { FiSave, FiX, FiPlus, FiTrash2, FiEye } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { normalizeLandingHtmlContent, normalizeLandingImageUrl } from '@/lib/landing-html';
+import Image from 'next/image';
 
 // 리치 텍스트 에디터 동적 임포트 (SSR 방지)
 const ReactQuill = dynamic(() => import('react-quill'), { 
@@ -162,17 +164,17 @@ export default function EditLandingPagePage() {
     if (pageId) {
       fetchLandingPage();
     }
-  }, [pageId]);
+  }, [pageId, fetchLandingPage]);
 
   // 댓글 기능이 활성화되면 댓글 목록 가져오기
   useEffect(() => {
     if (pageId && formData.commentEnabled) {
       fetchComments();
     }
-  }, [pageId, formData.commentEnabled]);
+  }, [pageId, formData.commentEnabled, fetchComments]);
 
   // 댓글 목록 가져오기
-  const fetchComments = async () => {
+  const fetchComments = useCallback(async () => {
     if (!pageId || !formData.commentEnabled) return;
     try {
       setIsLoadingComments(true);
@@ -196,7 +198,7 @@ export default function EditLandingPagePage() {
     } finally {
       setIsLoadingComments(false);
     }
-  };
+  }, [pageId, formData.commentEnabled]);
 
   // 댓글 삭제
   const handleDeleteComment = async (commentId: number) => {
@@ -228,7 +230,7 @@ export default function EditLandingPagePage() {
   };
 
   // 기존 랜딩페이지 데이터 불러오기
-  const fetchLandingPage = async () => {
+  const fetchLandingPage = useCallback(async () => {
     try {
       setInitialLoading(true);
       const response = await fetch(`/api/admin/landing-pages/${pageId}`, {
@@ -348,7 +350,7 @@ export default function EditLandingPagePage() {
     } finally {
       setInitialLoading(false);
     }
-  };
+  }, [pageId, router]);
 
   // quillValue 초기화
   useEffect(() => {
@@ -356,7 +358,7 @@ export default function EditLandingPagePage() {
       setQuillValue(formData.htmlContent);
       quillValueRef.current = formData.htmlContent;
     }
-  }, [formData.htmlContent]);
+  }, [quillValue, formData.htmlContent]);
   
   // quillValueRef 동기화
   useEffect(() => {
@@ -562,7 +564,7 @@ export default function EditLandingPagePage() {
             return;
           }
         } catch (e) {
-          console.log('Waiting for Quill instance...', e);
+          logger.log('Waiting for Quill instance...', e);
         }
       }
 
@@ -895,7 +897,7 @@ export default function EditLandingPagePage() {
             // 각 이미지를 개별적으로 삽입 (더 안정적)
             preparedImages.forEach((img, index) => {
               try {
-                console.log('[Image Insert] Original URL:', img.url, 'Persistent URL:', img.persistentUrl);
+                logger.log('[Image Insert] Original URL:', img.url, 'Persistent URL:', img.persistentUrl);
                 
                 // Quill의 insertEmbed를 사용하여 이미지 삽입 (더 안정적)
                 const length = quill.getLength();
@@ -934,7 +936,7 @@ export default function EditLandingPagePage() {
             
             // Quill의 내용을 ref와 state에 반영
             const quillContent = quill.root.innerHTML;
-            console.log('[Image Insert] Final Quill content:', quillContent.substring(0, 500));
+            logger.log('[Image Insert] Final Quill content:', quillContent.substring(0, 500));
             quillValueRef.current = quillContent;
             setQuillValue(quillContent);
           } catch (error) {
@@ -1403,7 +1405,7 @@ export default function EditLandingPagePage() {
     dataFields, 
     additionalFields,
     productPurchase,
-    previewComments.length,
+    previewComments,
     businessInfoFields,
     exposureImageUrl, // [수술용 코드 2] 크루즈정보사진 이미지 URL
     exposureImagePreview // [수술용 코드 2] 크루즈정보사진 미리보기 URL
@@ -1657,7 +1659,7 @@ export default function EditLandingPagePage() {
         }
       });
 
-      console.log('Submitting landing page data:', {
+      logger.log('Submitting landing page data:', {
         title: submitData.title,
         hasHtmlContent: !!submitData.htmlContent,
         htmlContentLength: submitData.htmlContent?.length || 0,
@@ -1671,7 +1673,7 @@ export default function EditLandingPagePage() {
       let requestBody;
       try {
         requestBody = JSON.stringify(submitData);
-        console.log('Request body size:', requestBody.length, 'bytes');
+        logger.log('Request body size:', requestBody.length, 'bytes');
       } catch (stringifyError: any) {
         console.error('Failed to stringify submitData:', stringifyError);
         console.error('Problematic data:', submitData);
@@ -1690,8 +1692,8 @@ export default function EditLandingPagePage() {
       let data;
       try {
         const responseText = await response.text();
-        console.log('Server response status:', response.status);
-        console.log('Server response text (first 500 chars):', responseText.substring(0, 500));
+        logger.log('Server response status:', response.status);
+        logger.log('Server response text (first 500 chars):', responseText.substring(0, 500));
         
         try {
           data = JSON.parse(responseText);
@@ -3489,10 +3491,13 @@ export default function EditLandingPagePage() {
                       <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-700 font-medium mb-2">현재 저장된 이미지:</p>
                         <div className="flex items-center gap-3">
-                          <img
+                          <Image
                             src={exposureImageUrl.startsWith('http') ? exposureImageUrl : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${exposureImageUrl}`}
                             alt="저장된 노출용 이미지"
+                            width={80}
+                            height={80}
                             className="w-20 h-20 object-cover rounded border border-gray-300"
+                            unoptimized
                           />
                           <div className="flex-1">
                             <p className="text-xs text-gray-600 break-all">{exposureImageUrl}</p>
@@ -3534,11 +3539,13 @@ export default function EditLandingPagePage() {
                     <h3 className="text-sm font-semibold text-gray-700 mb-3">SNS 공유 미리보기</h3>
                     <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm max-w-md">
                       {/* 이미지 */}
-                      <div className="w-full aspect-[1.91/1] bg-gray-100 overflow-hidden">
-                        <img
+                      <div className="w-full aspect-[1.91/1] bg-gray-100 overflow-hidden relative">
+                        <Image
                           src={exposureImagePreview || exposureImageUrl || ''}
                           alt="노출용 이미지"
-                          className="w-full h-full object-cover"
+                          fill
+                          className="object-cover"
+                          unoptimized
                         />
                       </div>
                       {/* 제목 및 설명 */}
@@ -3695,11 +3702,13 @@ export default function EditLandingPagePage() {
                             <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded z-10">
                               {index + 1}
                             </div>
-                            <img
+                            <Image
                               src={img.url}
                               alt={img.name}
+                              width={400}
+                              height={128}
                               className="w-full h-32 object-cover rounded-lg border-2 border-gray-200 pointer-events-none"
-                              draggable={false}
+                              unoptimized
                             />
                             <button
                               onClick={() => {
@@ -3769,14 +3778,17 @@ export default function EditLandingPagePage() {
                             }
                           }}
                         >
-                          <img
+                          <Image
                             src={photo.url}
                             alt={photo.title || `사진 ${index + 1}`}
+                            width={400}
+                            height={128}
                             className={`w-full h-32 object-cover rounded-lg border-2 transition-all ${
                               selectedImages.some((img) => img.url === photo.url)
                                 ? 'border-blue-500 ring-2 ring-blue-200'
                                 : 'border-gray-200'
                             }`}
+                            unoptimized
                           />
                           {selectedImages.some((img) => img.url === photo.url) && (
                             <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center">

@@ -1,7 +1,8 @@
+'use client';
+
+import { logger } from '@/lib/logger';
 // app/admin/products/[productCode]/page.tsx
 // 상품 상세 편집 페이지
-
-'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
@@ -856,7 +857,7 @@ export default function ProductEditPage() {
         saleStatus: formData.saleStatus || 'active',
       };
 
-      console.log('[Product Save] Payload:', JSON.stringify(payload, null, 2));
+      logger.log('[Product Save] Payload:', JSON.stringify(payload, null, 2));
 
       const res = await fetch(`/api/admin/products/${productCode}`, {
         method: 'PUT',
@@ -2061,4 +2062,3 @@ export default function ProductEditPage() {
     </div>
   );
 }
-

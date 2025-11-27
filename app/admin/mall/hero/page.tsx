@@ -1,6 +1,8 @@
 'use client';
 
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { FiImage, FiX, FiPlus, FiChevronUp, FiChevronDown, FiTrash2, FiSave, FiEye } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
 
@@ -41,10 +43,10 @@ export default function HeroBannerManagement() {
       }
 
       const data = await response.json();
-      console.log('[Hero Banner] API Response:', data);
+      logger.log('[Hero Banner] API Response:', data);
 
       if (data.ok && data.banners) {
-        console.log('[Hero Banner] Loaded banners:', data.banners.length);
+        logger.log('[Hero Banner] Loaded banners:', data.banners.length);
         setBanners(data.banners);
       } else {
         console.warn('[Hero Banner] No banners found or invalid response');
@@ -346,13 +348,16 @@ export default function HeroBannerManagement() {
                 {/* 이미지 미리보기 */}
                 <div className="w-32 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                   {banner.image ? (
-                    <img
+                    <Image
                       src={banner.image}
-                      alt={banner.title}
+                      alt={banner.title || '배너 이미지'}
                       className="w-full h-full object-cover"
+                      width={320}
+                      height={200}
+                      unoptimized
                       onError={(e) => {
                         console.error('[Hero Banner] Image load error:', banner.image);
-                        (e.target as HTMLImageElement).src = '/images/promotion-banner-bg.png';
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
                   ) : (
@@ -422,7 +427,7 @@ export default function HeroBannerManagement() {
           {banners.length === 0 && (
             <div className="text-center py-12 text-gray-400">
               <FiImage size={48} className="mx-auto mb-4" />
-              <p>배너가 없습니다. "배너 추가" 버튼을 클릭하여 배너를 추가하세요.</p>
+              <p>배너가 없습니다. &quot;배너 추가&quot; 버튼을 클릭하여 배너를 추가하세요.</p>
             </div>
           )}
         </div>
@@ -456,14 +461,17 @@ export default function HeroBannerManagement() {
                   </label>
                   <div className="flex gap-4">
                     {editingBanner.image && (
-                      <div className="w-48 h-32 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        <img
+                      <div className="w-48 h-32 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 relative">
+                        <Image
                           src={editingBanner.image}
                           alt="배너 미리보기"
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="192px"
+                          className="object-cover"
+                          unoptimized
                           onError={(e) => {
                             console.error('[Hero Banner] Preview image load error:', editingBanner.image);
-                            (e.target as HTMLImageElement).src = '/images/promotion-banner-bg.png';
+                            e.currentTarget.style.display = 'none';
                           }}
                         />
                       </div>
@@ -601,4 +609,3 @@ export default function HeroBannerManagement() {
     </div>
   );
 }
-

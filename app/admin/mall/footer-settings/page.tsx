@@ -108,7 +108,7 @@ export default function FooterSettingsPage() {
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-gray-800">상담하기 버튼</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Footer 상단의 "상담하기" 버튼 활성화 여부
+                  Footer 상단의 &quot;상담하기&quot; 버튼 활성화 여부
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
@@ -133,8 +133,8 @@ export default function FooterSettingsPage() {
                 )}
                 {' '}
                 {settings.consultButtonEnabled 
-                  ? '사용자가 "상담하기" 버튼을 클릭할 수 있습니다.' 
-                  : '사용자가 "상담하기" 버튼을 클릭할 수 없습니다. (회색으로 표시됨)'}
+                  ? '사용자가 &quot;상담하기&quot; 버튼을 클릭할 수 있습니다.' 
+                  : '사용자가 &quot;상담하기&quot; 버튼을 클릭할 수 없습니다. (회색으로 표시됨)'}
               </p>
             </div>
           </div>
@@ -198,7 +198,7 @@ export default function FooterSettingsPage() {
         <h3 className="text-lg font-bold text-blue-900 mb-2">💡 안내</h3>
         <ul className="space-y-2 text-sm text-blue-800">
           <li>• 버튼을 비활성화하면 사용자가 클릭할 수 없으며, 회색으로 표시됩니다.</li>
-          <li>• 설정 변경 후 "설정 저장" 버튼을 클릭해야 적용됩니다.</li>
+          <li>• 설정 변경 후 &quot;설정 저장&quot; 버튼을 클릭해야 적용됩니다.</li>
           <li>• 변경 사항은 즉시 메인 페이지에 반영됩니다.</li>
         </ul>
       </div>

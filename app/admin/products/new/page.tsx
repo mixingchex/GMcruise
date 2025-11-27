@@ -1,7 +1,8 @@
+'use client';
+
+import { logger } from '@/lib/logger';
 // app/admin/products/new/page.tsx
 // 새 상품 등록 페이지 (상품 편집 페이지와 동일한 UI)
-
-'use client';
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -662,7 +663,7 @@ export default function NewProductPage() {
             });
 
             if (affiliateResponse.ok) {
-              console.log('[New Product] AffiliateProduct 자동 생성 완료');
+              logger.log('[New Product] AffiliateProduct 자동 생성 완료');
             } else {
               console.error('[New Product] AffiliateProduct 자동 생성 실패:', await affiliateResponse.text());
             }
@@ -1741,4 +1742,3 @@ export default function NewProductPage() {
     </div>
   );
 }
-

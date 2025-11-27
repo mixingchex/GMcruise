@@ -11,6 +11,10 @@ import {
   FiUsers,
   FiPhone,
   FiArrowRight,
+  FiMessageSquare,
+  FiX,
+  FiSend,
+  FiTrash2,
 } from 'react-icons/fi';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -189,10 +193,46 @@ export default function AffiliateTeamDashboardPage() {
     mallUserId: string | null;
     managerId: number | null;
   }>>([]);
+  const [teamMessages, setTeamMessages] = useState<Array<{
+    id: number;
+    title: string;
+    content: string;
+    createdAt: string;
+    admin?: { id: number; name: string | null };
+    sender?: { id: number; name: string | null };
+    recipient?: { id: number; name: string | null };
+    messageType?: string;
+    isRead: boolean;
+    isSent?: boolean;
+  }>>([]);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [showSendMessageModal, setShowSendMessageModal] = useState(false);
+  const [messageTitle, setMessageTitle] = useState('');
+  const [messageContent, setMessageContent] = useState('');
+  const [selectedRecipient, setSelectedRecipient] = useState<number | null>(null);
+  const [recipients, setRecipients] = useState<Array<{id: number; name: string | null; phone: string | null; role: string}>>([]);
+  const [loadingRecipients, setLoadingRecipients] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [messageTab, setMessageTab] = useState<'received' | 'sent'>('received');
+  const [sentMessages, setSentMessages] = useState<Array<{
+    id: number;
+    title: string;
+    content: string;
+    createdAt: string;
+    recipient: { id: number; name: string | null } | null;
+    isRead: boolean;
+  }>>([]);
 
   useEffect(() => {
     loadMetrics();
     loadPhoneInquiries();
+    loadTeamMessages();
+    // 5분마다 메시지 갱신
+    const interval = setInterval(() => {
+      loadTeamMessages();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -266,6 +306,124 @@ export default function AffiliateTeamDashboardPage() {
     }
   };
 
+  const loadTeamMessages = async (showAll: boolean = false) => {
+    try {
+      const url = showAll 
+        ? '/api/admin/affiliate/my-messages' 
+        : '/api/admin/affiliate/my-messages?unreadOnly=true';
+      const res = await fetch(url, {
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (res.ok && json?.ok) {
+        // 받은 메시지와 보낸 메시지 분리
+        const received = (json.messages || []).filter((m: any) => !m.isSent);
+        const sent = (json.messages || []).filter((m: any) => m.isSent);
+        setTeamMessages(received);
+        setSentMessages(sent);
+        setUnreadMessageCount(json.unreadCount || 0);
+      } else {
+        console.error('[TeamDashboard] Failed to load team messages:', json.error);
+      }
+    } catch (error) {
+      console.error('[TeamDashboard] Failed to load team messages:', error);
+    }
+  };
+
+  const loadRecipients = async () => {
+    setLoadingRecipients(true);
+    try {
+      const res = await fetch('/api/admin/affiliate/messages/recipients', {
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (res.ok && json?.ok) {
+        setRecipients(json.recipients || []);
+      }
+    } catch (error) {
+      console.error('[TeamDashboard] Failed to load recipients:', error);
+    } finally {
+      setLoadingRecipients(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!messageTitle.trim() || !messageContent.trim() || !selectedRecipient) {
+      return;
+    }
+
+    setSendingMessage(true);
+    try {
+      const res = await fetch('/api/admin/affiliate/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          recipientUserId: selectedRecipient,
+          title: messageTitle,
+          content: messageContent,
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json?.ok) {
+        setShowSendMessageModal(false);
+        setMessageTitle('');
+        setMessageContent('');
+        setSelectedRecipient(null);
+        loadTeamMessages(true);
+      } else {
+        showError(json.error || '메시지 전송에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[TeamDashboard] Failed to send message:', error);
+      showError('메시지 전송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!confirm('이 메시지를 삭제하시겠습니까?')) return;
+
+    try {
+      const res = await fetch(`/api/admin/affiliate/messages/${messageId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const json = await res.json();
+      if (res.ok && json?.ok) {
+        loadTeamMessages(true);
+      } else {
+        showError(json.error || '메시지 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[TeamDashboard] Failed to delete message:', error);
+      showError('메시지 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleMarkAsRead = async (messageId: number) => {
+    try {
+      const res = await fetch('/api/admin/affiliate/my-messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messageId }),
+      });
+      if (res.ok) {
+        // 읽음 처리 후 전체 메시지 다시 로드 (읽음 상태 반영)
+        loadTeamMessages(true);
+      } else {
+        const json = await res.json();
+        console.error('Failed to mark as read:', json.error);
+      }
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+    }
+  };
+
   const overviewCards = useMemo(() => {
     if (!totals) return [];
     const cards = [
@@ -329,6 +487,23 @@ export default function AffiliateTeamDashboardPage() {
           <p className="mt-1 text-sm text-slate-600">대리점장별 판매/리드/커미션 현황과 판매원 실적을 한눈에 확인할 수 있습니다.</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* 팀 대시보드 메시지 빠른 메뉴 */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowMessagesModal(true);
+              loadTeamMessages(true); // 모달 열 때는 전체 메시지 로드
+            }}
+            className="relative flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
+          >
+            <FiMessageSquare className="w-4 h-4" />
+            팀 메시지
+            {unreadMessageCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white">
+                {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             onClick={() => loadMetrics()}
@@ -618,6 +793,271 @@ export default function AffiliateTeamDashboardPage() {
           })
         )}
       </section>
+
+      {/* 팀 대시보드 메시지 모달 */}
+      {showMessagesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowMessagesModal(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">메시지</h2>
+                {messageTab === 'received' && unreadMessageCount > 0 && (
+                  <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
+                    {unreadMessageCount}개 미읽음
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setShowSendMessageModal(true);
+                    loadRecipients();
+                  }}
+                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm flex items-center gap-1"
+                >
+                  <FiSend className="w-4 h-4" />
+                  보내기
+                </button>
+                <button
+                  onClick={() => setShowMessagesModal(false)}
+                  className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded"
+                >
+                  <FiX className="text-xl" />
+                </button>
+              </div>
+            </div>
+
+            {/* 탭 */}
+            <div className="flex gap-2 mb-4 border-b">
+              <button
+                onClick={() => setMessageTab('received')}
+                className={`px-4 py-2 font-medium ${
+                  messageTab === 'received'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                받은 메시지 ({teamMessages.length})
+              </button>
+              <button
+                onClick={() => setMessageTab('sent')}
+                className={`px-4 py-2 font-medium ${
+                  messageTab === 'sent'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                보낸 메시지 ({sentMessages.length})
+              </button>
+            </div>
+
+            {messageTab === 'received' ? (
+              teamMessages.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <FiMessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                  <p>받은 메시지가 없습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {teamMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`p-4 rounded-lg border-2 ${
+                        message.isRead 
+                          ? 'bg-gray-50 border-gray-200' 
+                          : 'bg-teal-50 border-teal-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {!message.isRead && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">
+                                <FiUsers className="w-3 h-3 mr-1" />
+                                팀 대시보드
+                              </span>
+                            )}
+                            <h3 className="font-semibold text-gray-900">{message.title}</h3>
+                          </div>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{message.content}</p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>발신: {(message.sender || message.admin)?.name || '알 수 없음'}</span>
+                            {message.messageType && message.messageType !== 'team-dashboard' && (
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                                {message.messageType === 'agent-manager' ? '판매원→대리점장' :
+                                 message.messageType === 'manager-agent' ? '대리점장→판매원' :
+                                 message.messageType === 'manager-manager' ? '대리점장→대리점장' :
+                                 message.messageType === 'agent-admin' ? '판매원→관리자' :
+                                 message.messageType === 'manager-admin' ? '대리점장→관리자' : message.messageType}
+                              </span>
+                            )}
+                            <span>
+                              {new Date(message.createdAt).toLocaleString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                        {!message.isRead && (
+                          <button
+                            onClick={() => handleMarkAsRead(message.id)}
+                            className="ml-4 px-3 py-1 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm"
+                          >
+                            읽음 처리
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              sentMessages.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <FiMessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                  <p>보낸 메시지가 없습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {sentMessages.map((message) => (
+                    <div
+                      key={message.id}
+                      className="p-4 rounded-lg border-2 bg-blue-50 border-blue-200"
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 mb-1">{message.title}</h3>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{message.content}</p>
+                          <div className="flex items-center gap-4 text-xs text-gray-500">
+                            <span>수신: {message.recipient?.name || '알 수 없음'}</span>
+                            <span>
+                              {new Date(message.createdAt).toLocaleString('ko-KR', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {message.isRead && (
+                              <span className="text-green-600">읽음</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteMessage(message.id)}
+                          className="ml-4 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center gap-1"
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 메시지 보내기 모달 */}
+      {showSendMessageModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowSendMessageModal(false)}>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">메시지 보내기</h2>
+              <button
+                onClick={() => {
+                  setShowSendMessageModal(false);
+                  setMessageTitle('');
+                  setMessageContent('');
+                  setSelectedRecipient(null);
+                }}
+                className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  수신자 <span className="text-red-500">*</span>
+                </label>
+                {loadingRecipients ? (
+                  <div className="text-sm text-gray-500">로딩 중...</div>
+                ) : (
+                  <select
+                    value={selectedRecipient || ''}
+                    onChange={(e) => setSelectedRecipient(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">수신자를 선택하세요</option>
+                    {recipients.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name || '이름 없음'} ({r.phone || '연락처 없음'}) - {r.role === 'manager' ? '대리점장' : r.role === 'admin' ? '관리자' : '판매원'}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  제목 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={messageTitle}
+                  onChange={(e) => setMessageTitle(e.target.value)}
+                  placeholder="메시지 제목을 입력하세요"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  내용 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  placeholder="메시지 내용을 입력하세요"
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => {
+                    setShowSendMessageModal(false);
+                    setMessageTitle('');
+                    setMessageContent('');
+                    setSelectedRecipient(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!messageTitle.trim() || !messageContent.trim() || !selectedRecipient || sendingMessage}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <FiSend className="w-4 h-4" />
+                  {sendingMessage ? '전송 중...' : '보내기'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

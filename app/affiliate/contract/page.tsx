@@ -1,8 +1,10 @@
 'use client';
 
+import { logger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import SignaturePad from 'signature_pad';
 import { FiX } from 'react-icons/fi';
@@ -598,17 +600,17 @@ function AffiliateContractPublicPageContent() {
   const signaturePadRef = useRef<SignaturePad | null>(null);
   const invitedBy = useMemo(() => {
     const value = searchParams?.get('invitedBy');
-    console.log('[AffiliateContract] invitedBy 파라미터 파싱:', {
+    logger.log('[AffiliateContract] invitedBy 파라미터 파싱:', {
       rawValue: value,
       searchParams: searchParams?.toString(),
     });
     if (!value) {
-      console.log('[AffiliateContract] invitedBy 파라미터 없음 - 본사로 설정');
+      logger.log('[AffiliateContract] invitedBy 파라미터 없음 - 본사로 설정');
       return null;
     }
     const parsed = Number(value);
     const result = Number.isNaN(parsed) ? null : parsed;
-    console.log('[AffiliateContract] invitedBy 파싱 결과:', {
+    logger.log('[AffiliateContract] invitedBy 파싱 결과:', {
       rawValue: value,
       parsed,
       result,
@@ -629,7 +631,7 @@ function AffiliateContractPublicPageContent() {
       const urlPhone = searchParams?.get('phone');
       
       if (urlName || urlPhone) {
-        console.log('[AffiliateContract] URL 파라미터에서 개인정보 가져오기:', {
+        logger.log('[AffiliateContract] URL 파라미터에서 개인정보 가져오기:', {
           name: urlName,
           phone: urlPhone,
         });
@@ -643,18 +645,18 @@ function AffiliateContractPublicPageContent() {
 
       // 2. invitedBy가 있으면 다른 사람의 계약서이므로 자동 채우기 안 함
       if (invitedBy) {
-        console.log('[AffiliateContract] invitedBy가 있어서 자동 채우기 건너뜀');
+        logger.log('[AffiliateContract] invitedBy가 있어서 자동 채우기 건너뜀');
         return;
       }
 
       // 3. 현재 로그인한 사용자의 정보 자동 채우기
       try {
-        console.log('[AffiliateContract] 현재 사용자 정보 로드 시작');
+        logger.log('[AffiliateContract] 현재 사용자 정보 로드 시작');
         const response = await fetch('/api/affiliate/my-profile');
         
         if (response.ok) {
           const data = await response.json();
-          console.log('[AffiliateContract] 사용자 정보 API 응답:', data);
+          logger.log('[AffiliateContract] 사용자 정보 API 응답:', data);
           
           if (data.ok && data.profile) {
             const profile = data.profile;
@@ -667,7 +669,7 @@ function AffiliateContractPublicPageContent() {
                 ...(profile.phone && !prev.phone && { phone: profile.phone }),
                 ...(profile.email && !prev.email && { email: profile.email }),
               }));
-              console.log('[AffiliateContract] 사용자 정보 자동 채우기 완료:', {
+              logger.log('[AffiliateContract] 사용자 정보 자동 채우기 완료:', {
                 name: profile.name,
                 phone: profile.phone,
                 email: profile.email,
@@ -686,14 +688,14 @@ function AffiliateContractPublicPageContent() {
   // 멘토 정보 로드
   useEffect(() => {
     const loadMentorInfo = async () => {
-      console.log('[AffiliateContract] 멘토 정보 로드 시작:', { invitedBy, contractType });
+      logger.log('[AffiliateContract] 멘토 정보 로드 시작:', { invitedBy, contractType });
       
       // invitedBy가 있으면 그 프로필을 멘토로 사용
       if (invitedBy) {
         try {
-          console.log('[AffiliateContract] API 호출 시작:', `/api/affiliate/profiles/${invitedBy}`);
+          logger.log('[AffiliateContract] API 호출 시작:', `/api/affiliate/profiles/${invitedBy}`);
           const response = await fetch(`/api/affiliate/profiles/${invitedBy}`);
-          console.log('[AffiliateContract] API 응답 상태:', {
+          logger.log('[AffiliateContract] API 응답 상태:', {
             status: response.status,
             statusText: response.statusText,
             ok: response.ok,
@@ -701,7 +703,7 @@ function AffiliateContractPublicPageContent() {
           
           if (response.ok) {
             const data = await response.json();
-            console.log('[AffiliateContract] API 응답 데이터:', data);
+            logger.log('[AffiliateContract] API 응답 데이터:', data);
             
             if (data.ok && data.profile) {
               const profile = data.profile;
@@ -709,7 +711,7 @@ function AffiliateContractPublicPageContent() {
               const mentorPhone = profile.phone || profile.contactPhone || '';
               const mentorType = profile.contractType || profile.type || 'BRANCH_MANAGER';
               
-              console.log('[AffiliateContract] 멘토 정보 로드 성공:', {
+              logger.log('[AffiliateContract] 멘토 정보 로드 성공:', {
                 invitedBy,
                 mentorName,
                 mentorPhone,
@@ -740,12 +742,12 @@ function AffiliateContractPublicPageContent() {
 
       // invitedBy가 없으면 현재 로그인한 사용자의 담당 멘토 조회
       try {
-        console.log('[AffiliateContract] 현재 사용자의 담당 멘토 조회 시작');
+        logger.log('[AffiliateContract] 현재 사용자의 담당 멘토 조회 시작');
         const response = await fetch('/api/affiliate/my-mentor');
         
         if (response.ok) {
           const data = await response.json();
-          console.log('[AffiliateContract] 담당 멘토 API 응답:', data);
+          logger.log('[AffiliateContract] 담당 멘토 API 응답:', data);
           
           if (data.ok && data.mentor) {
             setMentorInfo(data.mentor);
@@ -757,7 +759,7 @@ function AffiliateContractPublicPageContent() {
       }
 
       // 모든 조회 실패 시 본사로 설정 (고정값)
-      console.log('[AffiliateContract] 모든 조회 실패 - 본사로 설정');
+      logger.log('[AffiliateContract] 모든 조회 실패 - 본사로 설정');
       setMentorInfo({
         name: '전혜선',
         phone: '01024958013',
@@ -1065,7 +1067,7 @@ function AffiliateContractPublicPageContent() {
         }),
       });
       
-      console.log('[AffiliateContract] 계약서 제출:', {
+      logger.log('[AffiliateContract] 계약서 제출:', {
         invitedBy,
         invitedByProfileId: invitedBy || undefined,
         contractType,
@@ -1093,7 +1095,7 @@ function AffiliateContractPublicPageContent() {
         throw new Error(errorMessage);
       }
 
-      console.log('[AffiliateContract] 계약서 제출 성공:', {
+      logger.log('[AffiliateContract] 계약서 제출 성공:', {
         contractId: json.contractId,
         contractType: json.contractType,
       });
@@ -1348,10 +1350,13 @@ function AffiliateContractPublicPageContent() {
                           {signatureLabel}
                         </span>
                         <div className="rounded-lg border-2 border-green-200 bg-green-50 p-2 max-w-xs">
-                          <img
+                          <Image
                             src={signatureUrl}
                             alt="계약서 서명"
+                            width={320}
+                            height={160}
                             className="max-w-full h-auto"
+                            unoptimized
                           />
                         </div>
                       </div>
@@ -1597,10 +1602,10 @@ function AffiliateContractPublicPageContent() {
               <div className="space-y-2">
                 <h4 className="font-semibold text-slate-900">B2B 계약서</h4>
                 <p className="text-slate-700">
-                  본 B2B 계약서는 주식회사 크루즈닷(이하 "갑")과 대리점장(이하 "을") 간의 B2B 거래에 관한 사항을 규정합니다.
+                  본 B2B 계약서는 주식회사 크루즈닷(이하 &quot;갑&quot;)과 대리점장(이하 &quot;을&quot;) 간의 B2B 거래에 관한 사항을 규정합니다.
                 </p>
                 <p className="text-slate-700">
-                  본 계약서는 "750 B2B 계약서 .docx" 문서의 내용을 따릅니다.
+                  본 계약서는 &quot;750 B2B 계약서 .docx&quot; 문서의 내용을 따릅니다.
                 </p>
                 <p className="text-slate-700">
                   대리점장은 본 B2B 계약서의 모든 조항을 이해하고 동의한 것으로 간주됩니다.
@@ -1674,7 +1679,6 @@ export default function AffiliateContractPublicPage() {
     </Suspense>
   );
 }
-
 
 
 

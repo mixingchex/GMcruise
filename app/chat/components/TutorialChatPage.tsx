@@ -52,7 +52,7 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
     }, 3000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [chatFeatures.length]);
 
   useEffect(() => {
     // 환영 팝업 표시 (페이지 진입 시마다 항상 표시)
@@ -165,7 +165,7 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
                 {currentFeatureIndex === 2 && '💬'}
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 leading-tight">
-                "{chatFeatures[currentFeatureIndex].title}"
+                &quot;{chatFeatures[currentFeatureIndex].title}&quot;
               </h3>
               <p className="text-gray-700 mb-3 text-lg md:text-xl leading-relaxed">
                 {chatFeatures[currentFeatureIndex].description}

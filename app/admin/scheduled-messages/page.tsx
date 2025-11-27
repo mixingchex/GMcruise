@@ -836,7 +836,7 @@ export default function ScheduledMessagesPage() {
                           onChange={(e) => setFormData({ ...formData, autoAddAdTag: e.target.checked })}
                           className="w-5 h-5"
                         />
-                        <span className="text-gray-900">제목에 "(광고)" 자동 추가</span>
+                        <span className="text-gray-900">제목에 &quot;(광고)&quot; 자동 추가</span>
                       </label>
                       <label className="flex items-center gap-3 cursor-pointer">
                         <input
@@ -845,7 +845,7 @@ export default function ScheduledMessagesPage() {
                           onChange={(e) => setFormData({ ...formData, autoAddOptOut: e.target.checked })}
                           className="w-5 h-5"
                         />
-                        <span className="text-gray-900">메시지 끝에 "무료수신거부" 자동 추가</span>
+                        <span className="text-gray-900">메시지 끝에 &quot;무료수신거부&quot; 자동 추가</span>
                       </label>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">

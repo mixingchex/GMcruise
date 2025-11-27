@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiX, FiInfo, FiAlertTriangle, FiGift, FiBell, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiX, FiInfo, FiAlertTriangle, FiGift, FiBell, FiChevronLeft, FiChevronRight, FiUsers } from 'react-icons/fi';
 import DOMPurify from 'isomorphic-dompurify';
 
 type Message = {
@@ -88,6 +88,8 @@ export default function AdminMessageModal() {
   // 메시지 타입별 아이콘
   const getIcon = () => {
     switch (currentMessage?.messageType) {
+      case 'team-dashboard':
+        return <FiUsers className="text-teal-600" size={20} />;
       case 'warning':
         return <FiAlertTriangle className="text-yellow-600" size={20} />;
       case 'promotion':
@@ -102,6 +104,8 @@ export default function AdminMessageModal() {
   // 메시지 타입별 배경색
   const getBgColor = () => {
     switch (currentMessage?.messageType) {
+      case 'team-dashboard':
+        return 'bg-teal-50 border-teal-200';
       case 'warning':
         return 'bg-yellow-50 border-yellow-200';
       case 'promotion':
@@ -133,6 +137,8 @@ export default function AdminMessageModal() {
             // 각 메시지의 배경색 계산
             const getMessageBgColor = () => {
               switch (message.messageType) {
+                case 'team-dashboard':
+                  return 'bg-teal-50 border-teal-200';
                 case 'warning':
                   return 'bg-yellow-50 border-yellow-200';
                 case 'promotion':
@@ -147,6 +153,8 @@ export default function AdminMessageModal() {
             // 각 메시지의 아이콘 계산
             const getMessageIcon = () => {
               switch (message.messageType) {
+                case 'team-dashboard':
+                  return <FiUsers className="text-teal-600" size={20} />;
                 case 'warning':
                   return <FiAlertTriangle className="text-yellow-600" size={20} />;
                 case 'promotion':
@@ -168,6 +176,11 @@ export default function AdminMessageModal() {
                 <div className="flex items-center justify-between p-3 border-b border-gray-200 flex-shrink-0">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {getMessageIcon()}
+                    {message.messageType === 'team-dashboard' && (
+                      <span className="text-xs bg-teal-100 text-teal-800 px-2 py-0.5 rounded font-medium">
+                        팀 대시보드
+                      </span>
+                    )}
                     <h2 className="text-base font-bold text-gray-900 truncate">{message.title}</h2>
                   </div>
                   <button

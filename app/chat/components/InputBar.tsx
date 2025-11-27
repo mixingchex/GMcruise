@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger';
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import HelpModal from '@/components/HelpModal';
 import { type POI } from '@/lib/terminals'; // Terminal 대신 POI 임포트
@@ -116,7 +117,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       setOriginPick(null);
       setDestPick(null);
       // 초기 제안은 다음 useEffect에서 자동으로 로드됨 (originText가 빈 문자열이면 자동 실행)
-      console.log('[InputBar] Mode changed to "go", will load initial suggestions');
+      logger.log('[InputBar] Mode changed to "go", will load initial suggestions');
     }
   }, [mode])
 
@@ -128,13 +129,13 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     
     // 캐시 확인 (5분 이내면 캐시 사용)
     if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-      console.log('[InputBar] ✅ Using cached suggestions:', { cacheKey, itemCount: cached.data.length });
+      logger.log('[InputBar] ✅ Using cached suggestions:', { cacheKey, itemCount: cached.data.length });
       return cached.data;
     }
     
     try {
       const url = `/api/nav/suggest?slot=${role}&q=${encodeURIComponent(q)}&hint=${encodeURIComponent(hint)}`;
-      console.log('[InputBar] fetchSuggestions calling:', { url, role, q, hint });
+      logger.log('[InputBar] fetchSuggestions calling:', { url, role, q, hint });
       
       const res = await fetch(url);
       
@@ -150,7 +151,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         throw new Error('검색 결과 형식이 올바르지 않습니다.');
       }
       
-      console.log('[InputBar] fetchSuggestions response:', { 
+      logger.log('[InputBar] fetchSuggestions response:', { 
         url, 
         role, 
         q, 
@@ -173,7 +174,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         cacheRef.current.delete(firstKey);
       }
       
-      console.log('[InputBar] ✅ fetchSuggestions returning:', mapped.length, 'items (cached)');
+      logger.log('[InputBar] ✅ fetchSuggestions returning:', mapped.length, 'items (cached)');
       return mapped;
     } catch (error) {
       console.error('[InputBar] ❌ fetchSuggestions error:', error);
@@ -187,11 +188,11 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   useEffect(()=>{
     window.clearTimeout(typingO.current)
     if (mode !== 'go') {
-      console.log('[InputBar] useEffect originText: mode is not "go", skipping:', { mode });
+      logger.log('[InputBar] useEffect originText: mode is not "go", skipping:', { mode });
       return; // Only fetch suggestions for 'go' mode
     }
 
-    console.log('[InputBar] useEffect originText triggered:', { originText, mode, destText });
+    logger.log('[InputBar] useEffect originText triggered:', { originText, mode, destText });
 
     if (!originText.trim()) {
       // 텍스트 없으면 고정 버튼 + 초기 제안 (주요 공항/크루즈 터미널)
@@ -201,7 +202,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           const fetchedChips = await fetchSuggestions('origin', '', destText.trim());
           // 고정 버튼 + 초기 제안 (모든 결과 표시, 최대 11개 추가)
           const chips = [...fixedOriginButtons, ...fetchedChips.slice(0, 11)];
-          console.log('[InputBar] Initial origin suggestions (no text):', {
+          logger.log('[InputBar] Initial origin suggestions (no text):', {
             fetchedCount: fetchedChips.length,
             chips: chips,
             chipsLabels: chips.map(c => c.label)
@@ -223,11 +224,11 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       const hint = destText.trim();
 
       setOriginLoading(true);
-      console.log('[InputBar] 📡 Fetching origin suggestions for "go" mode:', { q, hint, mode });
+      logger.log('[InputBar] 📡 Fetching origin suggestions for "go" mode:', { q, hint, mode });
 
       try {
         const fetchedChips = await fetchSuggestions('origin', q, hint);
-        console.log('[InputBar] ✅ Fetched chips from API:', {
+        logger.log('[InputBar] ✅ Fetched chips from API:', {
           fetchedCount: fetchedChips.length,
           fetchedChips: fetchedChips.slice(0, 5),
           allChips: fetchedChips.map(c => c.label)
@@ -237,7 +238,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         const maxResults = q.length <= 3 ? 19 : 11; // 국가명(짧은 입력)이면 19개, 아니면 11개
         // 고정 버튼 + 연관검색 결과 (국가별 검색 시 최대 19개 추가)
         const chips = [...fixedOriginButtons, ...fetchedChips.slice(0, maxResults)];
-        console.log('[InputBar] ✅ Origin suggestions final (calling setOSug):', {
+        logger.log('[InputBar] ✅ Origin suggestions final (calling setOSug):', {
           q,
           hint,
           fetchedCount: fetchedChips.length,
@@ -248,7 +249,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           maxResults
         });
         setOSug(chips);
-        console.log('[InputBar] ✅ setOSug called with', chips.length, 'items');
+        logger.log('[InputBar] ✅ setOSug called with', chips.length, 'items');
       } catch (error) {
         console.error('[InputBar] ❌ Error fetching suggestions:', error);
         // 에러 발생 시에도 고정 버튼은 유지
@@ -262,11 +263,11 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   useEffect(()=>{
     window.clearTimeout(typingD.current)
     if (mode !== 'go' && mode !== 'show') {
-      console.log('[InputBar] useEffect destText: mode is not "go" or "show", skipping:', { mode });
+      logger.log('[InputBar] useEffect destText: mode is not "go" or "show", skipping:', { mode });
       return; // Only fetch suggestions for 'go' or 'show' mode
     }
     
-    console.log('[InputBar] useEffect destText triggered:', { destText, originText, mode });
+    logger.log('[InputBar] useEffect destText triggered:', { destText, originText, mode });
 
     if (!destText.trim()) {
       // 텍스트 없으면 고정 버튼 + 초기 제안 (출발지 국가의 공항/크루즈 터미널)
@@ -276,7 +277,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           const fetchedChips = await fetchSuggestions('dest', '', originText.trim());
           // 고정 버튼 + 초기 제안 (최대 7개 추가)
           const chips = [...fixedDestButtons, ...fetchedChips.slice(0, 7)];
-          console.log('[InputBar] Initial dest suggestions (no text):', {
+          logger.log('[InputBar] Initial dest suggestions (no text):', {
             fetchedCount: fetchedChips.length,
             chips: chips,
             chipsLabels: chips.map(c => c.label)
@@ -302,17 +303,17 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
 
       if (isKeyword) {
         // 키워드인 경우: 고정 버튼만 표시 (연관검색 불필요)
-        console.log('[InputBar] ✅ Dest is keyword, showing fixed buttons only:', { q });
+        logger.log('[InputBar] ✅ Dest is keyword, showing fixed buttons only:', { q });
         setDSug(fixedDestButtons);
         return;
       }
 
       setDestLoading(true);
-      console.log('[InputBar] 📡 Fetching dest suggestions for "go" mode:', { q, hint, mode });
+      logger.log('[InputBar] 📡 Fetching dest suggestions for "go" mode:', { q, hint, mode });
 
       try {
         const fetchedChips = await fetchSuggestions('dest', q, hint);
-        console.log('[InputBar] ✅ Fetched dest chips from API:', {
+        logger.log('[InputBar] ✅ Fetched dest chips from API:', {
           fetchedCount: fetchedChips.length,
           fetchedChips: fetchedChips.slice(0, 5),
           allChips: fetchedChips.map(c => c.label)
@@ -322,7 +323,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         const maxResults = q.length <= 3 ? 15 : 7; // 국가명(짧은 입력)이면 15개, 아니면 7개
         // 고정 버튼 + 연관검색 결과 (국가별 검색 시 최대 15개 추가)
         const chips = [...fixedDestButtons, ...fetchedChips.slice(0, maxResults)];
-        console.log('[InputBar] ✅ Dest suggestions final (calling setDSug):', {
+        logger.log('[InputBar] ✅ Dest suggestions final (calling setDSug):', {
           q,
           hint,
           fetchedCount: fetchedChips.length,
@@ -333,7 +334,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           maxResults
         });
         setDSug(chips);
-        console.log('[InputBar] ✅ setDSug called with', chips.length, 'items');
+        logger.log('[InputBar] ✅ setDSug called with', chips.length, 'items');
       } catch (error) {
         console.error('[InputBar] ❌ Error fetching dest suggestions:', error);
         // 에러 발생 시에도 고정 버튼은 유지
@@ -385,7 +386,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
 
   const submit = () => {
     if (!canSend) {
-      console.log('[InputBar] Cannot send:', { mode, canSend, originText, destText, generalText });
+      logger.log('[InputBar] Cannot send:', { mode, canSend, originText, destText, generalText });
       return;
     }
 
@@ -410,7 +411,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         return;
       }
       
-      console.log('[InputBar] Sending:', { mode, combinedText, finalOrigin, finalDest, originPick, destPick });
+      logger.log('[InputBar] Sending:', { mode, combinedText, finalOrigin, finalDest, originPick, destPick });
       
       onSend({
         mode: mode === 'go' ? 'go' : 'show', 
@@ -455,7 +456,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch((err) => {
-            console.log('[InputBar] getUserMedia error:', err);
+            logger.log('[InputBar] getUserMedia error:', err);
             throw err;
           });
           stream.getTracks().forEach(track => track.stop());
@@ -495,13 +496,13 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       };
 
       r.onstart = () => {
-        console.log('[InputBar] Voice recognition started (origin)');
+        logger.log('[InputBar] Voice recognition started (origin)');
       };
 
       r.onerror = (e: any) => {
         const errorType = e?.error || 'unknown';
         if (micPermissionRef.current) {
-          console.log('[InputBar] Permission granted, error silently handled:', errorType);
+          logger.log('[InputBar] Permission granted, error silently handled:', errorType);
           setListeningOrigin(false);
           return;
         }
@@ -515,7 +516,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         r.start();
       } catch (startError: any) {
         if (micPermissionRef.current) {
-          console.log('[InputBar] Permission granted, start error silently handled');
+          logger.log('[InputBar] Permission granted, start error silently handled');
           setListeningOrigin(false);
           return;
         }
@@ -524,7 +525,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       }
     } catch (error: any) {
       if (micPermissionRef.current) {
-        console.log('[InputBar] Permission granted, catch error silently handled');
+        logger.log('[InputBar] Permission granted, catch error silently handled');
         setListeningOrigin(false);
         return;
       }
@@ -553,7 +554,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch((err) => {
-            console.log('[InputBar] getUserMedia error:', err);
+            logger.log('[InputBar] getUserMedia error:', err);
             throw err;
           });
           stream.getTracks().forEach(track => track.stop());
@@ -593,13 +594,13 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       };
 
       r.onstart = () => {
-        console.log('[InputBar] Voice recognition started (dest)');
+        logger.log('[InputBar] Voice recognition started (dest)');
       };
 
       r.onerror = (e: any) => {
         const errorType = e?.error || 'unknown';
         if (micPermissionRef.current) {
-          console.log('[InputBar] Permission granted, error silently handled:', errorType);
+          logger.log('[InputBar] Permission granted, error silently handled:', errorType);
           setListeningDest(false);
           return;
         }
@@ -613,7 +614,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         r.start();
       } catch (startError: any) {
         if (micPermissionRef.current) {
-          console.log('[InputBar] Permission granted, start error silently handled');
+          logger.log('[InputBar] Permission granted, start error silently handled');
           setListeningDest(false);
           return;
         }
@@ -622,7 +623,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       }
     } catch (error: any) {
       if (micPermissionRef.current) {
-        console.log('[InputBar] Permission granted, catch error silently handled');
+        logger.log('[InputBar] Permission granted, catch error silently handled');
         setListeningDest(false);
         return;
       }
@@ -651,7 +652,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true }).catch((err) => {
-            console.log('[InputBar] getUserMedia error:', err);
+            logger.log('[InputBar] getUserMedia error:', err);
             throw err;
           });
           stream.getTracks().forEach(track => track.stop());
@@ -690,13 +691,13 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       };
 
       r.onstart = () => {
-        console.log('[InputBar] Voice recognition started (general)');
+        logger.log('[InputBar] Voice recognition started (general)');
       };
 
       r.onerror = (e: any) => {
         const errorType = e?.error || 'unknown';
         if (micPermissionRef.current) {
-          console.log('[InputBar] Permission granted, error silently handled:', errorType);
+          logger.log('[InputBar] Permission granted, error silently handled:', errorType);
           setListeningGeneral(false);
           return;
         }
@@ -710,7 +711,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         r.start();
       } catch (startError: any) {
         if (micPermissionRef.current) {
-          console.log('[InputBar] Permission granted, start error silently handled');
+          logger.log('[InputBar] Permission granted, start error silently handled');
           setListeningGeneral(false);
           return;
         }
@@ -719,7 +720,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       }
     } catch (error: any) {
       if (micPermissionRef.current) {
-        console.log('[InputBar] Permission granted, catch error silently handled');
+        logger.log('[InputBar] Permission granted, catch error silently handled');
         setListeningGeneral(false);
         return;
       }
@@ -908,7 +909,7 @@ function Input({id, value, onChange, placeholder, onKeyDown, onFocus, onBlur, cl
   )
 }
 function Chips({items, onClick, compact = false, loading = false}:{items:SItem[], onClick:(it:SItem)=>void, compact?: boolean, loading?: boolean}) {
-  console.log('[Chips] Rendering with items:', items?.length, items?.map(i => ({ id: i.id, label: i.label })), 'compact:', compact, 'loading:', loading);
+  logger.log('[Chips] Rendering with items:', items?.length, items?.map(i => ({ id: i.id, label: i.label })), 'compact:', compact, 'loading:', loading);
   
   // 로딩 중일 때 스켈레톤 UI 표시
   if (loading) {
@@ -931,7 +932,7 @@ function Chips({items, onClick, compact = false, loading = false}:{items:SItem[]
   }
   
   if (!items?.length) {
-    console.log('[Chips] No items, returning null');
+    logger.log('[Chips] No items, returning null');
     return null;
   }
   

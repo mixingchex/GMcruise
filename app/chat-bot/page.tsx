@@ -1,12 +1,14 @@
+'use client';
+
+import { logger } from '@/lib/logger';
 // app/chat-bot/page.tsx
 // AI 지니 채팅봇 (구매) - SPIN 기반 상담
-
-'use client';
 
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useRef, useMemo, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import ReviewModal from '@/components/chat-bot/ReviewModal';
 
 const supportsAbortSignalTimeout =
@@ -88,25 +90,21 @@ type ChatAttachment = DestinationGalleryAttachment | VideoAttachment;
 function DestinationGalleryAttachmentBlock({ attachment }: { attachment: DestinationGalleryAttachment }) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
-  if (!attachment.items || attachment.items.length === 0) {
-    return null;
-  }
-
-  const handlePrev = () => {
+  const handlePrev = useCallback(() => {
     setOpenIndex((prev) => {
       if (prev === null) return null;
       const nextIndex = (prev - 1 + attachment.items.length) % attachment.items.length;
       return nextIndex;
     });
-  };
+  }, [attachment.items.length]);
 
-  const handleNext = () => {
+  const handleNext = useCallback(() => {
     setOpenIndex((prev) => {
       if (prev === null) return null;
       const nextIndex = (prev + 1) % attachment.items.length;
       return nextIndex;
     });
-  };
+  }, [attachment.items.length]);
 
   useEffect(() => {
     if (openIndex === null) return;
@@ -125,7 +123,11 @@ function DestinationGalleryAttachmentBlock({ attachment }: { attachment: Destina
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [openIndex, attachment.items.length]);
+  }, [openIndex, handlePrev, handleNext]);
+
+  if (!attachment.items || attachment.items.length === 0) {
+    return null;
+  }
 
   return (
     <div className="mt-6">
@@ -146,11 +148,13 @@ function DestinationGalleryAttachmentBlock({ attachment }: { attachment: Destina
             onClick={() => setOpenIndex(index)}
             className="group relative overflow-hidden rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            <img
+            <Image
               src={item.url}
               alt={item.title}
-              loading="lazy"
+              width={400}
+              height={144}
               className="w-full h-32 sm:h-36 object-cover transition-transform duration-200 group-hover:scale-105"
+              unoptimized
               onError={(event) => {
                 event.currentTarget.classList.add('hidden');
               }}
@@ -169,10 +173,13 @@ function DestinationGalleryAttachmentBlock({ attachment }: { attachment: Destina
             onClick={() => setOpenIndex(null)}
           />
           <div className="relative z-10 max-w-4xl w-full">
-            <img
+            <Image
               src={attachment.items[openIndex].url}
               alt={attachment.items[openIndex].title}
+              width={800}
+              height={600}
               className="w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
+              unoptimized
               onError={(event) => {
                 event.currentTarget.classList.add('hidden');
               }}
@@ -514,6 +521,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     initializedRef.current = true;
 
     createSessionAndLoadQuestion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
 
     // 페이지 이탈 시 추적
     const handleBeforeUnload = () => {
@@ -567,6 +575,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 의존성 배열로 한 번만 실행
 
   useEffect(() => {
@@ -689,7 +698,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           const sessionData = await sessionResponse.json().catch(() => ({ ok: false }));
           if (sessionData.ok && sessionData.data) {
             setSessionId(sessionData.data.sessionId || sessionData.data.id);
-            console.log('[createSessionAndLoadQuestion] Session ID set:', sessionData.data.sessionId || sessionData.data.id);
+            logger.log('[createSessionAndLoadQuestion] Session ID set:', sessionData.data.sessionId || sessionData.data.id);
           }
         }
       } catch (error) {
@@ -697,7 +706,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         // 세션 생성 실패해도 계속 진행 (로컬 세션 ID 생성)
         const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
         setSessionId(localSessionId);
-        console.log('[createSessionAndLoadQuestion] Using local session ID:', localSessionId);
+        logger.log('[createSessionAndLoadQuestion] Using local session ID:', localSessionId);
       }
 
       // 4. 질문 표시
@@ -735,7 +744,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
   };
 
   const loadQuestion = async (questionId: number) => {
-    console.log('[loadQuestion] Loading question:', questionId);
+    logger.log('[loadQuestion] Loading question:', questionId);
     try {
       setIsLoading(true);
       const queryParams = new URLSearchParams();
@@ -746,7 +755,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         queryParams.set('partner', partnerId); // 파트너 ID 전달 (구매 추적용)
       }
       const url = `/api/chat-bot/question/${questionId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      console.log('[loadQuestion] Fetching URL:', url);
+      logger.log('[loadQuestion] Fetching URL:', url);
       
       let response: Response;
       try {
@@ -770,10 +779,10 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         throw new Error('서버 응답을 파싱할 수 없습니다.');
       }
       
-      console.log('[loadQuestion] Response data:', data);
+      logger.log('[loadQuestion] Response data:', data);
       
       if (data.ok && data.question) {
-        console.log('[loadQuestion] Question loaded:', data.question);
+        logger.log('[loadQuestion] Question loaded:', data.question);
         setCurrentQuestion(data.question);
         setQuestionStartTime(Date.now());
         
@@ -884,7 +893,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
   };
 
   const addBotMessage = (text: string, question?: ChatBotQuestion, reviews?: Review[]) => {
-    console.log('[addBotMessage] Called with:', { text, question, reviews });
+    logger.log('[addBotMessage] Called with:', { text, question, reviews });
 
     const sanitizeContent = (input?: string | null) => {
       if (!input) return '';
@@ -920,20 +929,20 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         label: opt,
         nextId: nextIds[index] || undefined,
       }));
-      console.log('[addBotMessage] Prepared options:', optionsToAdd);
+      logger.log('[addBotMessage] Prepared options:', optionsToAdd);
     } else if (question?.optionA && question?.optionB) {
       // A/B 선택지
       optionsToAdd = [
         { label: question.optionA, nextId: question.nextQuestionIdA || undefined },
         { label: question.optionB, nextId: question.nextQuestionIdB || undefined },
       ];
-      console.log('[addBotMessage] Prepared A/B options:', optionsToAdd);
+      logger.log('[addBotMessage] Prepared A/B options:', optionsToAdd);
     } else if (question?.optionA && !question?.optionB) {
       // optionA만 있는 경우 (결제 버튼 등)
       optionsToAdd = [
         { label: question.optionA, nextId: question.nextQuestionIdA || undefined },
       ];
-      console.log('[addBotMessage] Prepared single option:', optionsToAdd);
+      logger.log('[addBotMessage] Prepared single option:', optionsToAdd);
     }
     
     const attachments = question?.attachments ?? [];
@@ -971,7 +980,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       );
       
       if (hasExactMessage) {
-        console.log('[addBotMessage] Duplicate message detected, skipping');
+        logger.log('[addBotMessage] Duplicate message detected, skipping');
         return prev; // 중복 메시지이면 추가하지 않음
       }
       
@@ -984,20 +993,20 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           m.options.every((opt, idx) => opt.label === optionsToAdd![idx].label)
         );
         if (hasOptions) {
-          console.log('[addBotMessage] Options already exist for this question, skipping');
+          logger.log('[addBotMessage] Options already exist for this question, skipping');
           return prev;
         }
       }
       
-      console.log('[addBotMessage] Adding message with options:', { content, optionsToAdd, questionId: question?.id });
+      logger.log('[addBotMessage] Adding message with options:', { content, optionsToAdd, questionId: question?.id });
       return [...prev, message];
     });
   };
 
   const handleOptionClick = async (option: { label: string; nextId?: number }) => {
-    console.log('[handleOptionClick] Called with option:', option);
-    console.log('[handleOptionClick] currentQuestion:', currentQuestion);
-    console.log('[handleOptionClick] sessionId:', sessionId);
+    logger.log('[handleOptionClick] Called with option:', option);
+    logger.log('[handleOptionClick] currentQuestion:', currentQuestion);
+    logger.log('[handleOptionClick] sessionId:', sessionId);
     
     if (!currentQuestion) {
       console.error('[handleOptionClick] No currentQuestion');
@@ -1064,7 +1073,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     if (!effectiveSessionId) {
       effectiveSessionId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       setSessionId(effectiveSessionId);
-      console.log('[handleOptionClick] Created local session ID:', effectiveSessionId);
+      logger.log('[handleOptionClick] Created local session ID:', effectiveSessionId);
     }
 
     // 응답 시간 계산
@@ -1199,11 +1208,11 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
 
     // 다음 질문 로드
     if (option.nextId) {
-      console.log('[handleOptionClick] Loading next question:', option.nextId);
+      logger.log('[handleOptionClick] Loading next question:', option.nextId);
       setPendingNextQuestionId(null);
       await loadQuestion(option.nextId);
     } else {
-      console.log('[handleOptionClick] No nextId, checking finalPageUrl');
+      logger.log('[handleOptionClick] No nextId, checking finalPageUrl');
       // 최종 페이지로 이동
       if (currentQuestion) {
         setPendingNextQuestionId(null);
@@ -1318,13 +1327,16 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                 {reviewImages.length === 1 ? (
                                   // 이미지가 1개면 큰 사이즈로
                                   <div className="w-full">
-                                    <img
+                                    <Image
                                       src={reviewImages[0]}
                                       alt={`${review.authorName}님의 후기 사진`}
+                                      width={800}
+                                      height={384}
                                       className="w-full h-auto max-h-96 object-cover rounded-lg shadow-md border-2 border-gray-200"
+                                      unoptimized
                                       onError={(e) => {
                                         // 이미지 로드 실패 시 숨기기
-                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        e.currentTarget.style.display = 'none';
                                       }}
                                     />
                                   </div>
@@ -1332,14 +1344,17 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                   // 이미지가 2개면 2열
                                   <div className="grid grid-cols-2 gap-3">
                                     {reviewImages.slice(0, 2).map((image, imgIndex) => (
-                                      <img
+                                      <Image
                                         key={imgIndex}
                                         src={image}
                                         alt={`${review.authorName}님의 후기 사진 ${imgIndex + 1}`}
+                                        width={400}
+                                        height={192}
                                         className="w-full h-48 object-cover rounded-lg shadow-md border-2 border-gray-200 hover:scale-105 transition-transform cursor-pointer"
+                                        unoptimized
                                         onError={(e) => {
                                           // 이미지 로드 실패 시 숨기기
-                                          (e.target as HTMLImageElement).style.display = 'none';
+                                          e.currentTarget.style.display = 'none';
                                         }}
                                       />
                                     ))}
@@ -1347,23 +1362,29 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                 ) : (
                                   // 이미지가 3개 이상이면 첫 번째는 크게, 나머지는 작게
                                   <div className="space-y-3">
-                                    <img
+                                    <Image
                                       src={reviewImages[0]}
                                       alt={`${review.authorName}님의 후기 사진 1`}
+                                      width={800}
+                                      height={320}
                                       className="w-full h-auto max-h-80 object-cover rounded-lg shadow-md border-2 border-gray-200"
+                                      unoptimized
                                       onError={(e) => {
                                         // 이미지 로드 실패 시 숨기기
-                                        (e.target as HTMLImageElement).style.display = 'none';
+                                        e.currentTarget.style.display = 'none';
                                       }}
                                     />
                                     {reviewImages.length > 1 && (
                                       <div className="grid grid-cols-2 gap-3">
                                         {reviewImages.slice(1, 3).map((image, imgIndex) => (
-                                          <img
+                                          <Image
                                             key={imgIndex + 1}
                                             src={image}
                                             alt={`${review.authorName}님의 후기 사진 ${imgIndex + 2}`}
+                                            width={400}
+                                            height={160}
                                             className="w-full h-40 object-cover rounded-lg shadow-md border-2 border-gray-200 hover:scale-105 transition-transform cursor-pointer"
+                                            unoptimized
                                             onError={(e) => {
                                               (e.target as HTMLImageElement).src = '/images/placeholder.jpg';
                                             }}
@@ -1630,7 +1651,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                   
                   {/* 선택지 버튼 - message.options만 사용 (중복 방지) */}
                   {(() => {
-                    console.log('[Render] Checking options for message:', {
+                    logger.log('[Render] Checking options for message:', {
                       messageId: message.questionId,
                       hasOptions: !!message.options,
                       optionsLength: message.options?.length,
@@ -1720,12 +1741,14 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                     window.open(url, '_blank');
                   }}
                 >
-                  <img 
+                  <Image 
                     src={url} 
                     alt={`크루즈 사진 ${index + 1}`}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
                     onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
+                      e.currentTarget.style.display = 'none';
                     }}
                   />
                 </div>
@@ -1745,4 +1768,3 @@ export default function ChatBotPage() {
     </Suspense>
   );
 }
-

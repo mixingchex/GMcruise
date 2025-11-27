@@ -1,5 +1,6 @@
 'use client';
 
+import { logger } from '@/lib/logger';
 import { useState, useEffect, useRef } from 'react';
 import { FiChevronDown, FiChevronUp, FiMapPin, FiClock, FiSun, FiCalendar, FiPlus, FiX, FiBell } from 'react-icons/fi';
 import Link from 'next/link';
@@ -153,7 +154,7 @@ export default function DailyBriefingCard() {
     if ('Notification' in window && Notification.permission === 'default') {
       requestNotificationPermission().then(hasPermission => {
         if (hasPermission) {
-          console.log('[DailyBriefingCard] 알림 권한이 허용되었습니다.');
+          logger.log('[DailyBriefingCard] 알림 권한이 허용되었습니다.');
         }
       });
     }
@@ -168,18 +169,18 @@ export default function DailyBriefingCard() {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
     
-    console.log(`[DailyBriefingCard] loadSchedules 호출: date=${date}, 오늘=${todayStr}, 내일=${tomorrowStr}`);
+    logger.log(`[DailyBriefingCard] loadSchedules 호출: date=${date}, 오늘=${todayStr}, 내일=${tomorrowStr}`);
     
     try {
       const response = await fetch(`/api/schedules?date=${date}`, {
         credentials: 'include',
       });
       
-      console.log(`[DailyBriefingCard] loadSchedules API 응답: status=${response.status}, date=${date}`);
+      logger.log(`[DailyBriefingCard] loadSchedules API 응답: status=${response.status}, date=${date}`);
       
       if (response.ok) {
         const data = await response.json();
-        console.log(`[DailyBriefingCard] loadSchedules API 데이터:`, data);
+        logger.log(`[DailyBriefingCard] loadSchedules API 데이터:`, data);
         
         if (data.ok && Array.isArray(data.schedules)) {
           const scheduleItems = data.schedules.map((s: any) => ({
@@ -191,7 +192,7 @@ export default function DailyBriefingCard() {
             date: s.date,
           }));
           
-          console.log(`[DailyBriefingCard] loadSchedules 파싱된 일정:`, scheduleItems);
+          logger.log(`[DailyBriefingCard] loadSchedules 파싱된 일정:`, scheduleItems);
           
           // 현재 시간 기준으로 과거 일정 필터링 (핸드폰 시간 기준)
           const currentTime = now.getHours() * 60 + now.getMinutes(); // 분 단위로 변환
@@ -216,7 +217,7 @@ export default function DailyBriefingCard() {
           // 스마트폰 현재 날짜 기준으로 오늘/내일 판단
           if (date === todayStr) {
             const filteredSchedules = filterPastSchedules(scheduleItems, date);
-            console.log(`[DailyBriefingCard] 오늘 일정 설정 (스마트폰 시간 기준):`, filteredSchedules.length, '개 (전체:', scheduleItems.length, '개)');
+            logger.log(`[DailyBriefingCard] 오늘 일정 설정 (스마트폰 시간 기준):`, filteredSchedules.length, '개 (전체:', scheduleItems.length, '개)');
             
             // 과거 일정이 있으면 서버에서 삭제하고 알람도 제거
             const pastSchedules = scheduleItems.filter((item) => {
@@ -234,7 +235,7 @@ export default function DailyBriefingCard() {
                     // alarmTime이 있으면 그 시간으로 제거, 없으면 일정 시간으로 제거
                     const alarmDateTime = schedule.alarmTime || schedule.time;
                     removeAlarm(date, alarmDateTime);
-                    console.log(`[DailyBriefingCard] 과거 일정 알람 제거:`, alarmDateTime, schedule.title);
+                    logger.log(`[DailyBriefingCard] 과거 일정 알람 제거:`, alarmDateTime, schedule.title);
                   }
                   
                   // 서버에서 일정 삭제
@@ -242,7 +243,7 @@ export default function DailyBriefingCard() {
                     method: 'DELETE',
                     credentials: 'include',
                   });
-                  console.log(`[DailyBriefingCard] 과거 일정 삭제:`, schedule.id, schedule.time);
+                  logger.log(`[DailyBriefingCard] 과거 일정 삭제:`, schedule.id, schedule.time);
                 } catch (error) {
                   console.error(`[DailyBriefingCard] 과거 일정 삭제 실패:`, error);
                 }
@@ -264,7 +265,7 @@ export default function DailyBriefingCard() {
             });
           } else if (date === tomorrowStr) {
             // 내일 일정은 모든 일정 표시 (시간이 지나도 표시)
-            console.log(`[DailyBriefingCard] 내일 일정 설정 (스마트폰 시간 기준):`, scheduleItems.length, '개');
+            logger.log(`[DailyBriefingCard] 내일 일정 설정 (스마트폰 시간 기준):`, scheduleItems.length, '개');
             
             setTomorrowSchedules(scheduleItems);
             // 저장된 일정의 알람 재설정 (내일 일정)
@@ -332,23 +333,23 @@ export default function DailyBriefingCard() {
   // D-day 팝업 표시 로직
   useEffect(() => {
     if (!briefing || !user) {
-      console.log('[DailyBriefingCard] D-day 팝업 체크: briefing 또는 user 없음', { briefing: !!briefing, user: !!user });
+      logger.log('[DailyBriefingCard] D-day 팝업 체크: briefing 또는 user 없음', { briefing: !!briefing, user: !!user });
       return;
     }
 
     // D-day 키 생성 (페이지 진입 시마다 한 번씩 표시)
     let ddayKey: string | null = null;
 
-    console.log('[DailyBriefingCard] D-day 팝업 체크:', { dday: briefing.dday, ddayType: briefing.ddayType });
+    logger.log('[DailyBriefingCard] D-day 팝업 체크:', { dday: briefing.dday, ddayType: briefing.ddayType });
 
     // 출발일 기준 D-day 팝업
     if (briefing.ddayType === 'departure' && briefing.dday >= 0) {
       const validDdays = [0, 1, 2, 3, 7, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100];
       if (validDdays.includes(briefing.dday)) {
         ddayKey = String(briefing.dday);
-        console.log('[DailyBriefingCard] D-day 팝업: 출발일 기준', { ddayKey });
+        logger.log('[DailyBriefingCard] D-day 팝업: 출발일 기준', { ddayKey });
       } else {
-        console.log('[DailyBriefingCard] D-day 팝업: 유효하지 않은 D-day', { dday: briefing.dday, validDdays });
+        logger.log('[DailyBriefingCard] D-day 팝업: 유효하지 않은 D-day', { dday: briefing.dday, validDdays });
         return;
       }
     } 
@@ -356,18 +357,18 @@ export default function DailyBriefingCard() {
     else if (briefing.ddayType === 'return' && (briefing.dday === 0 || briefing.dday === 1)) {
       if (briefing.dday === 1) {
         ddayKey = 'end_1'; // 종료일 하루 전
-        console.log('[DailyBriefingCard] D-day 팝업: 종료일 하루 전', { ddayKey });
+        logger.log('[DailyBriefingCard] D-day 팝업: 종료일 하루 전', { ddayKey });
       } else if (briefing.dday === 0) {
         ddayKey = 'end_0'; // 종료일
-        console.log('[DailyBriefingCard] D-day 팝업: 종료일', { ddayKey });
+        logger.log('[DailyBriefingCard] D-day 팝업: 종료일', { ddayKey });
       }
     } else {
-      console.log('[DailyBriefingCard] D-day 팝업: 표시할 D-day 없음', { dday: briefing.dday, ddayType: briefing.ddayType });
+      logger.log('[DailyBriefingCard] D-day 팝업: 표시할 D-day 없음', { dday: briefing.dday, ddayType: briefing.ddayType });
       return;
     }
 
     if (!ddayKey) {
-      console.log('[DailyBriefingCard] D-day 팝업: ddayKey 없음');
+      logger.log('[DailyBriefingCard] D-day 팝업: ddayKey 없음');
       return;
     }
     
@@ -383,22 +384,22 @@ export default function DailyBriefingCard() {
     
     // 다른 페이지에서 왔거나, 이 페이지에서 아직 표시하지 않았으면 표시
     if (alreadyShown && lastShownPage === pageKey) {
-      console.log('[DailyBriefingCard] D-day 팝업: 이미 이 페이지에서 표시됨', { localStorageKey, lastShownPage, pageKey });
+      logger.log('[DailyBriefingCard] D-day 팝업: 이미 이 페이지에서 표시됨', { localStorageKey, lastShownPage, pageKey });
       return;
     }
     
     // 이전 페이지 키가 다르면 이 페이지의 키 초기화 (다른 페이지에서 돌아왔으므로 다시 표시)
     if (lastShownPage && lastShownPage !== pageKey) {
       localStorage.removeItem(`dday_popup_${lastShownPage}_${ddayKey}`);
-      console.log('[DailyBriefingCard] D-day 팝업: 다른 페이지에서 돌아옴, 이전 페이지 키 초기화', { lastShownPage, pageKey });
+      logger.log('[DailyBriefingCard] D-day 팝업: 다른 페이지에서 돌아옴, 이전 페이지 키 초기화', { lastShownPage, pageKey });
     }
     
-    console.log('[DailyBriefingCard] D-day 팝업: 메시지 로드 시작 (페이지 진입 시마다 한 번씩 표시)', { ddayKey, localStorageKey });
+    logger.log('[DailyBriefingCard] D-day 팝업: 메시지 로드 시작 (페이지 진입 시마다 한 번씩 표시)', { ddayKey, localStorageKey });
 
     // D-day 메시지 불러오기
     (async () => {
       try {
-        console.log('[DailyBriefingCard] D-day 메시지 파일 요청:', '/data/dday_messages.json');
+        logger.log('[DailyBriefingCard] D-day 메시지 파일 요청:', '/data/dday_messages.json');
         const response = await fetch('/data/dday_messages.json', { cache: 'no-store' });
         if (!response.ok) {
           console.error('[DailyBriefingCard] D-day 메시지 파일 로드 실패:', response.status, response.statusText);
@@ -406,7 +407,7 @@ export default function DailyBriefingCard() {
         }
         
         const data = await response.json();
-        console.log('[DailyBriefingCard] D-day 메시지 데이터:', { ddayKey, availableKeys: Object.keys(data.messages || {}) });
+        logger.log('[DailyBriefingCard] D-day 메시지 데이터:', { ddayKey, availableKeys: Object.keys(data.messages || {}) });
         const ddayMessage = data.messages?.[ddayKey];
         
         if (!ddayMessage) {
@@ -414,7 +415,7 @@ export default function DailyBriefingCard() {
           return;
         }
 
-        console.log('[DailyBriefingCard] D-day 메시지 찾음:', ddayMessage);
+        logger.log('[DailyBriefingCard] D-day 메시지 찾음:', ddayMessage);
 
         // 메시지 변수 치환
         const fillMessage = (text: string) => {
@@ -427,7 +428,7 @@ export default function DailyBriefingCard() {
         const title = fillMessage(ddayMessage.title);
         const message = fillMessage(ddayMessage.message);
 
-        console.log('[DailyBriefingCard] D-day 팝업 표시 (페이지 진입 시마다 한 번씩):', { title, message: message.substring(0, 50) + '...' });
+        logger.log('[DailyBriefingCard] D-day 팝업 표시 (페이지 진입 시마다 한 번씩):', { title, message: message.substring(0, 50) + '...' });
         setDdayPopup({ title, message });
         
         // 이 페이지에서 표시했음을 localStorage에 저장
@@ -438,7 +439,7 @@ export default function DailyBriefingCard() {
         const setupDdayAlarm = async () => {
           const hasPermission = await requestNotificationPermission();
           if (!hasPermission) {
-            console.log('[DailyBriefingCard] 알람 권한이 없어 D-day 알람을 설정할 수 없습니다.');
+            logger.log('[DailyBriefingCard] 알람 권한이 없어 D-day 알람을 설정할 수 없습니다.');
             return;
           }
 
@@ -472,7 +473,7 @@ export default function DailyBriefingCard() {
               const success = await scheduleAlarm(todayStr, alarmTime, alarmTitle);
               if (success) {
                 localStorage.setItem(todayAlarmKey, '1');
-                console.log('[DailyBriefingCard] 오늘 D-day 알람 설정 완료:', { ddayKey, ddayType: briefing.ddayType, date: todayStr, alarmTime });
+                logger.log('[DailyBriefingCard] 오늘 D-day 알람 설정 완료:', { ddayKey, ddayType: briefing.ddayType, date: todayStr, alarmTime });
               }
             } catch (error) {
               console.error('[DailyBriefingCard] 오늘 D-day 알람 설정 실패:', error);
@@ -485,7 +486,7 @@ export default function DailyBriefingCard() {
               const success = await scheduleAlarm(tomorrowStr, alarmTime, alarmTitle);
               if (success) {
                 localStorage.setItem(tomorrowAlarmKey, '1');
-                console.log('[DailyBriefingCard] 내일 D-day 알람 설정 완료:', { ddayKey, ddayType: briefing.ddayType, date: tomorrowStr, alarmTime });
+                logger.log('[DailyBriefingCard] 내일 D-day 알람 설정 완료:', { ddayKey, ddayType: briefing.ddayType, date: tomorrowStr, alarmTime });
               }
             } catch (error) {
               console.error('[DailyBriefingCard] 내일 D-day 알람 설정 실패:', error);
@@ -512,7 +513,7 @@ export default function DailyBriefingCard() {
 
         if (response.ok) {
           const data = await response.json();
-          console.log('[DailyBriefingCard] API response:', { 
+          logger.log('[DailyBriefingCard] API response:', { 
             ok: data.ok, 
             hasTrip: data.hasTrip, 
             hasBriefing: !!data.briefing,
@@ -526,10 +527,10 @@ export default function DailyBriefingCard() {
           });
           
           // 전체 응답 데이터를 JSON으로 출력 (디버깅용)
-          console.log('[DailyBriefingCard] Full API response data:', JSON.stringify(data, null, 2));
+          logger.log('[DailyBriefingCard] Full API response data:', JSON.stringify(data, null, 2));
           
           if (data.ok && data.hasTrip && data.briefing) {
-            console.log('[DailyBriefingCard] 브리핑 설정:', data.briefing);
+            logger.log('[DailyBriefingCard] 브리핑 설정:', data.briefing);
             setBriefing(data.briefing);
           } else {
             console.warn('[DailyBriefingCard] 브리핑을 표시할 수 없음:', {
@@ -540,7 +541,7 @@ export default function DailyBriefingCard() {
               fullData: data // 전체 데이터도 출력
             });
             // 전체 응답 데이터도 JSON으로 출력
-            console.log('[DailyBriefingCard] Full response (cannot display):', JSON.stringify(data, null, 2));
+            logger.log('[DailyBriefingCard] Full response (cannot display):', JSON.stringify(data, null, 2));
           }
         } else {
           console.error('[DailyBriefingCard] 브리핑 API 오류:', response.status, response.statusText);
@@ -610,7 +611,7 @@ export default function DailyBriefingCard() {
     if (showScheduleModal) {
       // 모달이 열릴 때 현재 보기 모드에 따라 날짜 자동 설정
       setSelectedScheduleDate(scheduleViewMode);
-      console.log('[DailyBriefingCard] 일정 추가 모달 열림, 날짜 자동 설정:', scheduleViewMode);
+      logger.log('[DailyBriefingCard] 일정 추가 모달 열림, 날짜 자동 설정:', scheduleViewMode);
     }
   }, [showScheduleModal, scheduleViewMode]);
 
@@ -636,26 +637,26 @@ export default function DailyBriefingCard() {
     tomorrowDate.setDate(tomorrowDate.getDate() + 1);
     const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
 
-    console.log('[DailyBriefingCard] 스마트폰 시간 기준 일정 불러오기:', { todayStr, tomorrowStr });
+    logger.log('[DailyBriefingCard] 스마트폰 시간 기준 일정 불러오기:', { todayStr, tomorrowStr });
 
     // 스마트폰 현재 시간 기준으로 일정 불러오기
     loadSchedules(todayStr).then(() => {
-      console.log('[DailyBriefingCard] 오늘 일정 불러오기 완료');
+      logger.log('[DailyBriefingCard] 오늘 일정 불러오기 완료');
     });
     loadSchedules(tomorrowStr).then(() => {
-      console.log('[DailyBriefingCard] 내일 일정 불러오기 완료');
+      logger.log('[DailyBriefingCard] 내일 일정 불러오기 완료');
     });
 
     // 내일 예정 정보가 있으면 알람 자동 설정
     const setupTomorrowAlarms = async () => {
       if (!briefing.tomorrow || !briefing.tomorrow.arrival) {
-        console.log('[DailyBriefingCard] 내일 예정 정보가 없어 알람을 설정하지 않습니다.');
+        logger.log('[DailyBriefingCard] 내일 예정 정보가 없어 알람을 설정하지 않습니다.');
         return;
       }
 
       const hasPermission = await requestNotificationPermission();
       if (!hasPermission) {
-        console.log('[DailyBriefingCard] 알림 권한이 없어 내일 예정 알람을 설정할 수 없습니다.');
+        logger.log('[DailyBriefingCard] 알림 권한이 없어 내일 예정 알람을 설정할 수 없습니다.');
         return;
       }
 
@@ -675,7 +676,7 @@ export default function DailyBriefingCard() {
             const success = await scheduleAlarm(tomorrowStr, alarm30MinBefore, alarmTitle30Min);
             if (success) {
               localStorage.setItem(alarmKey30Min, tomorrowStr);
-              console.log('[DailyBriefingCard] 입항 30분 전 알람 설정 완료:', { 
+              logger.log('[DailyBriefingCard] 입항 30분 전 알람 설정 완료:', { 
                 date: tomorrowStr, 
                 time: alarm30MinBefore,
                 arrivalTime,
@@ -700,7 +701,7 @@ export default function DailyBriefingCard() {
           const success = await scheduleAlarm(todayStr, alarmTime1Day, alarmTitle1Day);
           if (success) {
             localStorage.setItem(alarmKey1Day, tomorrowStr);
-            console.log('[DailyBriefingCard] 1일 전 알람 설정 완료:', { 
+            logger.log('[DailyBriefingCard] 1일 전 알람 설정 완료:', { 
               date: todayStr, 
               time: alarmTime1Day,
               tomorrowLocation,
@@ -728,7 +729,7 @@ export default function DailyBriefingCard() {
       
       if (scheduleKeys.length === 0) return;
       
-      console.log('[DailyBriefingCard] localStorage에서 서버로 마이그레이션 시작...');
+      logger.log('[DailyBriefingCard] localStorage에서 서버로 마이그레이션 시작...');
       
       for (const key of scheduleKeys) {
         try {
@@ -763,7 +764,7 @@ export default function DailyBriefingCard() {
         }
       }
       
-      console.log('[DailyBriefingCard] 마이그레이션 완료');
+      logger.log('[DailyBriefingCard] 마이그레이션 완료');
     };
     
     // 마이그레이션 실행 (한 번만)
@@ -779,7 +780,7 @@ export default function DailyBriefingCard() {
     // 페이지가 다시 보일 때 일정 다시 불러오기 및 필터링 (탭 전환, 창 이동 등)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && briefing?.date) {
-        console.log('[DailyBriefingCard] 페이지가 다시 보임, 일정 다시 불러오기 및 필터링');
+        logger.log('[DailyBriefingCard] 페이지가 다시 보임, 일정 다시 불러오기 및 필터링');
         // 스마트폰 현재 시간 기준으로 일정 불러오기
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
@@ -794,7 +795,7 @@ export default function DailyBriefingCard() {
     // 포커스 이벤트 (페이지 전환 후 돌아올 때)
     const handleFocus = () => {
       if (briefing?.date) {
-        console.log('[DailyBriefingCard] 페이지 포커스, 일정 다시 불러오기 및 필터링');
+        logger.log('[DailyBriefingCard] 페이지 포커스, 일정 다시 불러오기 및 필터링');
         // 스마트폰 현재 시간 기준으로 일정 불러오기
         const now = new Date();
         const todayStr = now.toISOString().split('T')[0];
@@ -827,7 +828,7 @@ export default function DailyBriefingCard() {
         
         // 필터링된 일정과 현재 일정이 다르면 업데이트
         if (filtered.length !== schedules.length) {
-          console.log('[DailyBriefingCard] 오늘 일정 자동 필터링:', filtered.length, '개 (전체:', schedules.length, '개)');
+          logger.log('[DailyBriefingCard] 오늘 일정 자동 필터링:', filtered.length, '개 (전체:', schedules.length, '개)');
           setSchedules(filtered);
           
           // 과거 일정 삭제 및 알람 제거
@@ -841,7 +842,7 @@ export default function DailyBriefingCard() {
                   // alarmTime이 있으면 그 시간으로 제거, 없으면 일정 시간으로 제거
                   const alarmDateTime = schedule.alarmTime || schedule.time;
                   removeAlarm(todayStr, alarmDateTime);
-                  console.log(`[DailyBriefingCard] 과거 일정 알람 자동 제거:`, alarmDateTime, schedule.title);
+                  logger.log(`[DailyBriefingCard] 과거 일정 알람 자동 제거:`, alarmDateTime, schedule.title);
                 }
                 
                 // 서버에서 일정 삭제
@@ -849,7 +850,7 @@ export default function DailyBriefingCard() {
                   method: 'DELETE',
                   credentials: 'include',
                 });
-                console.log(`[DailyBriefingCard] 과거 일정 자동 삭제:`, schedule.id, schedule.time);
+                logger.log(`[DailyBriefingCard] 과거 일정 자동 삭제:`, schedule.id, schedule.time);
               } catch (error) {
                 console.error(`[DailyBriefingCard] 과거 일정 삭제 실패:`, error);
               }
@@ -861,19 +862,19 @@ export default function DailyBriefingCard() {
         // 이전 날짜를 저장해두고 비교하여 자정 경과 감지
         const lastCheckedDate = localStorage.getItem('lastCheckedDate');
         if (lastCheckedDate && lastCheckedDate !== todayStr) {
-          console.log('[DailyBriefingCard] 자정 경과 감지! 일정 다시 불러오기:', { lastCheckedDate, todayStr });
+          logger.log('[DailyBriefingCard] 자정 경과 감지! 일정 다시 불러오기:', { lastCheckedDate, todayStr });
           // 자정이 지나면 일정 다시 불러오기 (내일 일정이 오늘 일정이 됨)
           // 오늘 날짜로 일정 불러오기 (이전 내일 일정이 오늘 일정으로 표시됨)
           loadSchedules(todayStr).then(() => {
-            console.log('[DailyBriefingCard] 자정 경과 후 오늘 일정 불러오기 완료');
+            logger.log('[DailyBriefingCard] 자정 경과 후 오늘 일정 불러오기 완료');
           });
           // 새로운 내일 날짜로 일정 불러오기
           loadSchedules(tomorrowStr).then(() => {
-            console.log('[DailyBriefingCard] 자정 경과 후 내일 일정 불러오기 완료');
+            logger.log('[DailyBriefingCard] 자정 경과 후 내일 일정 불러오기 완료');
           });
           // 보기 모드를 오늘로 자동 전환 (내일 일정이 오늘로 이동했으므로)
           setScheduleViewMode('today');
-          console.log('[DailyBriefingCard] 자정 경과로 인해 보기 모드를 오늘로 자동 전환');
+          logger.log('[DailyBriefingCard] 자정 경과로 인해 보기 모드를 오늘로 자동 전환');
         }
         localStorage.setItem('lastCheckedDate', todayStr);
       }
@@ -958,7 +959,7 @@ export default function DailyBriefingCard() {
         return false;
       }
 
-      console.log('[DailyBriefingCard] 일정 추가 시도:', {
+      logger.log('[DailyBriefingCard] 일정 추가 시도:', {
         time: newScheduleTime,
         title: newScheduleTitle,
         alarm: newScheduleAlarm,
@@ -995,20 +996,20 @@ export default function DailyBriefingCard() {
         throw new Error(`네트워크 오류: ${fetchError.message || '알 수 없는 오류'}`);
       }
 
-      console.log('[DailyBriefingCard] API 응답 상태:', response.status, response.statusText);
+      logger.log('[DailyBriefingCard] API 응답 상태:', response.status, response.statusText);
 
       // 응답 본문 읽기 (에러든 성공이든)
       let data;
       try {
         const text = await response.text();
-        console.log('[DailyBriefingCard] API 응답 본문 (raw):', text);
+        logger.log('[DailyBriefingCard] API 응답 본문 (raw):', text);
         data = JSON.parse(text);
       } catch (parseError) {
         console.error('[DailyBriefingCard] 응답 파싱 실패:', parseError);
         throw new Error(`서버 응답을 읽을 수 없습니다 (HTTP ${response.status})`);
       }
 
-      console.log('[DailyBriefingCard] API 응답 데이터:', data);
+      logger.log('[DailyBriefingCard] API 응답 데이터:', data);
 
       if (!response.ok) {
         console.error('[DailyBriefingCard] API 에러:', {
@@ -1021,7 +1022,7 @@ export default function DailyBriefingCard() {
       }
 
       if (data.ok && data.schedule) {
-        console.log('[DailyBriefingCard] 일정 추가 성공, 서버에서 다시 불러오기');
+        logger.log('[DailyBriefingCard] 일정 추가 성공, 서버에서 다시 불러오기');
         
         // 스마트폰 현재 시간 기준으로 일정 다시 불러오기
         if (!briefing || !briefing.date) {
@@ -1033,7 +1034,7 @@ export default function DailyBriefingCard() {
           try {
             // 선택된 날짜에 따라 해당 날짜의 일정만 다시 불러오기
             if (selectedScheduleDate === 'today') {
-              console.log('[DailyBriefingCard] 오늘 일정 다시 불러오기 (스마트폰 시간 기준):', todayStr);
+              logger.log('[DailyBriefingCard] 오늘 일정 다시 불러오기 (스마트폰 시간 기준):', todayStr);
               await loadSchedules(todayStr);
               // 알람 설정 (웹 알림) - 오늘 일정
               if (newScheduleAlarm && newScheduleAlarmTime) {
@@ -1049,7 +1050,7 @@ export default function DailyBriefingCard() {
                 const tomorrowDate = new Date(now);
                 tomorrowDate.setDate(tomorrowDate.getDate() + 1);
                 const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
-                console.log('[DailyBriefingCard] 내일 일정 다시 불러오기 (스마트폰 시간 기준):', tomorrowStr);
+                logger.log('[DailyBriefingCard] 내일 일정 다시 불러오기 (스마트폰 시간 기준):', tomorrowStr);
                 await loadSchedules(tomorrowStr);
                 // 알람 설정 (웹 알림) - 내일 일정
                 if (newScheduleAlarm && newScheduleAlarmTime) {
@@ -1082,7 +1083,7 @@ export default function DailyBriefingCard() {
         // 모달 닫기
         setShowScheduleModal(false);
         
-        console.log('[DailyBriefingCard] 일정 추가 완료');
+        logger.log('[DailyBriefingCard] 일정 추가 완료');
         setIsAddingSchedule(false);
         return true; // 성공
       } else {
@@ -1128,7 +1129,7 @@ export default function DailyBriefingCard() {
       
       // 성공 또는 이미 삭제된 경우 (404도 성공으로 처리)
       if (response.ok || response.status === 404) {
-        console.log('[DailyBriefingCard] 일정 삭제 성공:', schedule.id);
+        logger.log('[DailyBriefingCard] 일정 삭제 성공:', schedule.id);
       }
 
       // 서버에서 최신 일정 다시 불러오기 (스마트폰 현재 시간 기준)
@@ -1345,7 +1346,7 @@ export default function DailyBriefingCard() {
                 {/* 오늘 일정 정보는 표시하지 않음 (사용자가 추가한 일정만 표시) */}
 
                 {/* 추가된 일정 목록 - 메모지 스타일, 5열 그리드 */}
-                {console.log('[DailyBriefingCard] 오늘 일정 렌더링:', schedules.length, '개', schedules)}
+                {logger.log('[DailyBriefingCard] 오늘 일정 렌더링:', schedules.length, '개', schedules)}
                 {(() => {
                   // 렌더링 시에도 현재 시간 기준으로 필터링 (스마트폰 시간 기준)
                   const now = new Date();
@@ -1418,7 +1419,7 @@ export default function DailyBriefingCard() {
                 )}
                 
                 {/* 내일 추가된 일정 목록 */}
-                {console.log('[DailyBriefingCard] 내일 일정 렌더링:', tomorrowSchedules.length, '개', tomorrowSchedules)}
+                {logger.log('[DailyBriefingCard] 내일 일정 렌더링:', tomorrowSchedules.length, '개', tomorrowSchedules)}
                 {(() => {
                   // 내일 일정은 모든 일정 표시 (시간이 지나도 표시)
                   const filteredSchedules = tomorrowSchedules;
@@ -1474,7 +1475,7 @@ export default function DailyBriefingCard() {
               </h3>
               <div className="grid grid-cols-3 gap-1.5">
                 {briefing.weathers.map((w, idx) => {
-                  console.log('[DailyBriefingCard] Rendering weather item:', { idx, w });
+                  logger.log('[DailyBriefingCard] Rendering weather item:', { idx, w });
                   return (
                     <button
                       key={idx}
@@ -1831,4 +1832,3 @@ export default function DailyBriefingCard() {
     </div>
   );
 }
-

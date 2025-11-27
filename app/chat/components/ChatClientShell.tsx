@@ -1,5 +1,6 @@
 'use client';
 
+import { logger } from '@/lib/logger';
 import type { ChatInputMode } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { ChatInputPayload } from '@/components/chat/types';
@@ -102,7 +103,7 @@ export default function ChatClientShell({
                 ...(msg.chips && { chips: msg.chips }),
               }));
             setMessages(loadedMessages);
-            console.log('[ChatClientShell] 히스토리 로드 완료:', loadedMessages.length, '개 메시지 (모드:', mode, ')');
+            logger.log('[ChatClientShell] 히스토리 로드 완료:', loadedMessages.length, '개 메시지 (모드:', mode, ')');
           }
         }
       } catch (error) {
@@ -122,7 +123,7 @@ export default function ChatClientShell({
     // 첫 마운트가 아닐 때만 (즉, 모드가 실제로 변경되었을 때만) 메시지 초기화
     if (prevModeRef.current !== null && prevModeRef.current !== mode) {
       if (process.env.NODE_ENV === 'development') {
-        console.log('[ChatClientShell] Mode changed from', prevModeRef.current, 'to', mode, '- Clearing messages');
+        logger.log('[ChatClientShell] Mode changed from', prevModeRef.current, 'to', mode, '- Clearing messages');
       }
       // 빈 상태 UI는 ChatWindow에서 처리하므로 메시지는 비워둠
       setMessages([]);
@@ -226,7 +227,7 @@ export default function ChatClientShell({
         
         // 개발 환경에서만 디버그 로그
         if (process.env.NODE_ENV === 'development') {
-          console.log('[ChatClientShell] Sending request to /api/chat/stream:', {
+          logger.log('[ChatClientShell] Sending request to /api/chat/stream:', {
             messageCount: requestBody.messages.length,
             lastMessage: requestBody.messages[requestBody.messages.length - 1]?.content?.substring(0, 50)
           });
@@ -245,7 +246,7 @@ export default function ChatClientShell({
           response.headers.forEach((value, key) => {
             responseHeaders[key] = value;
           });
-          console.log('[ChatClientShell] Response received:', {
+          logger.log('[ChatClientShell] Response received:', {
             status: response.status,
             statusText: response.statusText,
             ok: response.ok,
@@ -290,7 +291,7 @@ export default function ChatClientShell({
 
         const isDev = process.env.NODE_ENV === 'development';
         if (isDev) {
-          console.log('[ChatClientShell] Starting stream read');
+          logger.log('[ChatClientShell] Starting stream read');
         }
 
         let readCount = 0;
@@ -298,12 +299,12 @@ export default function ChatClientShell({
           const { done, value } = await reader.read();
           readCount++;
           if (isDev) {
-            console.log('[ChatClientShell] Read #' + readCount + ', done:', done, 'hasValue:', !!value);
+            logger.log('[ChatClientShell] Read #' + readCount + ', done:', done, 'hasValue:', !!value);
           }
           
           if (done) {
             if (isDev) {
-              console.log('[ChatClientShell] Stream done, total reads:', readCount, 'accumulated:', accumulatedText.substring(0, 100));
+              logger.log('[ChatClientShell] Stream done, total reads:', readCount, 'accumulated:', accumulatedText.substring(0, 100));
             }
             if (accumulatedText.length === 0) {
               // 에러는 항상 로깅
@@ -329,11 +330,11 @@ export default function ChatClientShell({
 
           const chunk = decoder.decode(value, { stream: true });
           if (isDev) {
-            console.log('[ChatClientShell] Received chunk #' + readCount + ', length:', chunk.length, 'content:', chunk.substring(0, 200));
+            logger.log('[ChatClientShell] Received chunk #' + readCount + ', length:', chunk.length, 'content:', chunk.substring(0, 200));
           }
           const lines = chunk.split('\n');
           if (isDev) {
-            console.log('[ChatClientShell] Split into', lines.length, 'lines');
+            logger.log('[ChatClientShell] Split into', lines.length, 'lines');
           }
 
           for (const line of lines) {
@@ -343,7 +344,7 @@ export default function ChatClientShell({
                 const jsonStr = line.substring(2);
                 const parsed = JSON.parse(jsonStr);
                 if (isDev) {
-                  console.log('[ChatClientShell] Parsed text:', typeof parsed, parsed?.substring?.(0, 50));
+                  logger.log('[ChatClientShell] Parsed text:', typeof parsed, parsed?.substring?.(0, 50));
                 }
                 
                 if (parsed && typeof parsed === 'string') {
@@ -367,7 +368,7 @@ export default function ChatClientShell({
                 console.error('[ChatClientShell] JSON parse error:', e, 'line:', line.substring(0, 100));
               }
             } else if (line.trim() && isDev) {
-              console.log('[ChatClientShell] Non-matching line:', line.substring(0, 100));
+              logger.log('[ChatClientShell] Non-matching line:', line.substring(0, 100));
             }
           }
         }
@@ -420,7 +421,7 @@ export default function ChatClientShell({
         
         // 개발 환경에서만 디버그 로그
         if (process.env.NODE_ENV === 'development') {
-          console.log('[ChatClientShell] API Response:', { 
+          logger.log('[ChatClientShell] API Response:', { 
             ok: data.ok, 
             messagesCount: data.messages?.length,
             messages: data.messages 
@@ -430,7 +431,7 @@ export default function ChatClientShell({
           if (data.messages && Array.isArray(data.messages)) {
             data.messages.forEach((msg: any, idx: number) => {
               if (msg.type === 'show-me') {
-                console.log(`[ChatClientShell] Message ${idx} (show-me):`, {
+                logger.log(`[ChatClientShell] Message ${idx} (show-me):`, {
                   id: msg.id,
                   query: msg.query,
                   hasSubfolders: !!msg.subfolders,
@@ -541,7 +542,7 @@ export default function ChatClientShell({
         
         // 성공 메시지 표시 (선택사항)
         if (process.env.NODE_ENV === 'development') {
-          console.log('채팅 기록이 삭제되었습니다.');
+          logger.log('채팅 기록이 삭제되었습니다.');
         }
       } else {
         console.error('Failed to delete chat history:', response.statusText);
@@ -568,10 +569,10 @@ export default function ChatClientShell({
   //       if (response.ok) {
   //         const data = await response.json();
   //         if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
-  //           console.log('[ChatClientShell] 채팅 히스토리 복원:', data.messages.length, '개 메시지');
+  //           logger.log('[ChatClientShell] 채팅 히스토리 복원:', data.messages.length, '개 메시지');
   //           setMessages(data.messages);
   //         } else {
-  //           console.log('[ChatClientShell] 저장된 채팅 히스토리가 없습니다.');
+  //           logger.log('[ChatClientShell] 저장된 채팅 히스토리가 없습니다.');
   //         }
   //       } else {
   //         console.error('Failed to load chat history:', response.statusText);
@@ -641,7 +642,7 @@ export default function ChatClientShell({
             // 가장 최근의 show-me 타입 메시지 찾기
             const showMeMessages = messages.filter((msg) => msg.type === 'show-me');
             if (process.env.NODE_ENV === 'development') {
-              console.log('[ChatClientShell] Show-me messages:', showMeMessages.length, showMeMessages);
+              logger.log('[ChatClientShell] Show-me messages:', showMeMessages.length, showMeMessages);
             }
             
             const latestShowMeMessage = [...showMeMessages].reverse().find(
@@ -649,7 +650,7 @@ export default function ChatClientShell({
                 const showMeMsg = msg as ChatMessage & { subfolders?: Array<{ name: string; displayName: string; icon: string; photoCount: number }> };
                 const hasSubfolders = showMeMsg.subfolders && showMeMsg.subfolders.length > 0;
                 if (process.env.NODE_ENV === 'development') {
-                  console.log('[ChatClientShell] Checking message:', { 
+                  logger.log('[ChatClientShell] Checking message:', { 
                     id: showMeMsg.id, 
                     type: showMeMsg.type, 
                     hasSubfolders,
@@ -661,7 +662,7 @@ export default function ChatClientShell({
             ) as ChatMessage & { subfolders?: Array<{ name: string; displayName: string; icon: string; photoCount: number }> };
             
             if (process.env.NODE_ENV === 'development') {
-              console.log('[ChatClientShell] Latest show-me message with subfolders:', latestShowMeMessage ? {
+              logger.log('[ChatClientShell] Latest show-me message with subfolders:', latestShowMeMessage ? {
                 id: latestShowMeMessage.id,
                 subfoldersCount: latestShowMeMessage.subfolders?.length,
                 subfolders: latestShowMeMessage.subfolders?.map(s => s.displayName)

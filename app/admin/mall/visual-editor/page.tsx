@@ -4,6 +4,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import { FiEdit2, FiSave, FiEye, FiX, FiPlus, FiTrash2, FiImage, FiLink, FiChevronUp, FiChevronDown, FiMove, FiFolder } from 'react-icons/fi';
 import ThemeProductSectionsEditor from './ThemeProductSectionsEditor';
 import LandingPageMenuBarEditor from './LandingPageMenuBarEditor';
@@ -846,12 +847,15 @@ export default function VisualEditorPage() {
                 <div className="max-w-3xl mx-auto text-center">
                   {config.hero.logoUrl && (
                     <div className="mb-6">
-                      <img 
-                        src={config.hero.logoUrl} 
-                        alt="로고" 
-                        className="mx-auto h-16 md:h-20"
+                      <Image
+                        src={config.hero.logoUrl}
+                        alt="로고"
+                        width={320}
+                        height={120}
+                        className="mx-auto h-16 md:h-20 w-auto object-contain"
+                        unoptimized
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/images/ai-cruise-logo.png';
+                          e.currentTarget.src = '/images/ai-cruise-logo.png';
                         }}
                       />
                     </div>
@@ -2053,7 +2057,14 @@ export default function VisualEditorPage() {
                     >
                       <div className="text-3xl mb-2">
                         {category.icon && (category.icon.startsWith('http') || category.icon.startsWith('/')) ? (
-                          <img src={category.icon} alt={category.text || '카테고리'} className="w-8 h-8 mx-auto object-contain" />
+                          <Image
+                            src={category.icon}
+                            alt={category.text || '카테고리'}
+                            width={32}
+                            height={32}
+                            className="mx-auto object-contain"
+                            unoptimized
+                          />
                         ) : (
                           <span>{category.icon || '🔗'}</span>
                         )}
@@ -2962,9 +2973,17 @@ function HeroEditor({
         <p className="text-xs text-gray-500 mt-1">로고 이미지 URL을 입력하거나 저장된 이미지를 불러오세요</p>
         {localConfig.logoUrl && (
           <div className="mt-2">
-            <img src={localConfig.logoUrl} alt="로고 미리보기" className="max-h-20 object-contain" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }} />
+            <Image
+              src={localConfig.logoUrl}
+              alt="로고 미리보기"
+              width={240}
+              height={80}
+              className="max-h-20 object-contain w-auto"
+              unoptimized
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
           </div>
         )}
       </div>
@@ -3585,12 +3604,15 @@ function PopupEditor({
                 </div>
                 {localConfig.imageUrl && (
                   <div className="mt-2">
-                    <img
+                    <Image
                       src={localConfig.imageUrl}
                       alt="미리보기"
+                      width={800}
+                      height={200}
                       className="w-full h-32 object-cover rounded-lg border border-gray-300"
+                      unoptimized
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
                   </div>
@@ -3982,7 +4004,7 @@ function ProductListEditor({
           <span className="font-semibold">섹션 활성화</span>
         </label>
         <p className="text-xs text-gray-500 mt-2">
-          상품 목록의 세부 설정은 "상품 섹션 관리"와 "카테고리 메뉴"에서 관리할 수 있습니다.
+          상품 목록의 세부 설정은 &quot;상품 섹션 관리&quot;와 &quot;카테고리 메뉴&quot;에서 관리할 수 있습니다.
         </p>
       </div>
 
@@ -4285,7 +4307,7 @@ function ProductSectionsEditor({
                 placeholder="더보기"
               />
               <p className="text-xs text-gray-500 mt-1">
-                • 더보기 버튼에 표시될 텍스트를 입력하세요. 비워두면 "더보기"로 표시됩니다.
+                • 더보기 버튼에 표시될 텍스트를 입력하세요. 비워두면 &quot;더보기&quot;로 표시됩니다.
               </p>
             </div>
           </div>
@@ -4295,7 +4317,7 @@ function ProductSectionsEditor({
       {localConfig.length === 0 && (
         <div className="text-center py-8 text-gray-400">
           <p>추가된 상품 섹션이 없습니다.</p>
-          <p className="text-xs mt-2">위의 "새 상품 섹션 추가" 버튼을 클릭하여 추가하세요.</p>
+          <p className="text-xs mt-2">위의 &quot;새 상품 섹션 추가&quot; 버튼을 클릭하여 추가하세요.</p>
         </div>
       )}
       <button
@@ -4565,7 +4587,14 @@ function CategoryMenuEditor({
                 {category.icon && (
                   <div className="mt-2 text-2xl">
                     {category.icon.startsWith('http') || category.icon.startsWith('/') ? (
-                      <img src={category.icon} alt="아이콘" className="w-8 h-8 object-contain" />
+                      <Image
+                        src={category.icon}
+                        alt="아이콘"
+                        width={32}
+                        height={32}
+                        className="object-contain"
+                        unoptimized
+                      />
                     ) : (
                       <span>{category.icon}</span>
                     )}
@@ -4631,7 +4660,7 @@ function CategoryMenuEditor({
                   placeholder="/category/activity"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 "/"로 시작해야 합니다. 예: /category/activity, /products/class
+                  • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 &quot;/&quot;로 시작해야 합니다. 예: /category/activity, /products/class
                 </p>
                 <p className="text-xs text-red-600 mt-1">
                   ⚠️ 주의: 올바른 형식이 아니면 링크가 작동하지 않습니다. 예: /category/activity (O), category/activity (X)
@@ -4644,7 +4673,7 @@ function CategoryMenuEditor({
       {localConfig.categories.length === 0 && (
         <div className="text-center py-8 text-gray-400">
           <p>추가된 카테고리가 없습니다.</p>
-          <p className="text-xs mt-2">위의 "새 카테고리 추가" 버튼을 클릭하여 추가하세요.</p>
+          <p className="text-xs mt-2">위의 &quot;새 카테고리 추가&quot; 버튼을 클릭하여 추가하세요.</p>
         </div>
       )}
 
@@ -4942,7 +4971,7 @@ function TopMenuEditor({
                   placeholder="/community"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 "/"로 시작해야 합니다. 예: /community, /products
+                  • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 &quot;/&quot;로 시작해야 합니다. 예: /community, /products
                 </p>
                 <p className="text-xs text-red-600 mt-1">
                   ⚠️ 주의: 올바른 형식이 아니면 링크가 작동하지 않습니다. 예: /community (O), community (X)
@@ -5003,7 +5032,7 @@ function TopMenuEditor({
       {localConfig.menuItems.length === 0 && (
         <div className="text-center py-8 text-gray-400">
           <p>추가된 메뉴 항목이 없습니다.</p>
-          <p className="text-xs mt-2">위의 "새 메뉴 항목 추가" 버튼을 클릭하여 추가하세요.</p>
+          <p className="text-xs mt-2">위의 &quot;새 메뉴 항목 추가&quot; 버튼을 클릭하여 추가하세요.</p>
         </div>
       )}
 
@@ -5124,7 +5153,7 @@ function FooterEditor({
           placeholder="상호: 크루즈닷 | 대표: 배연성 | 주소: 경기 화성시..."
         />
         <p className="text-xs text-gray-500 mt-1">
-          • 회사 정보를 입력하세요. 여러 줄로 입력할 수 있으며, "|"로 구분하여 한 줄에 여러 정보를 표시할 수 있습니다.
+          • 회사 정보를 입력하세요. 여러 줄로 입력할 수 있으며, &quot;|&quot;로 구분하여 한 줄에 여러 정보를 표시할 수 있습니다.
         </p>
       </div>
 
@@ -5332,7 +5361,7 @@ function FooterEditor({
                     placeholder="/support/notice"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 "/"로 시작해야 합니다. 예: /support/notice, /terms/0
+                    • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 &quot;/&quot;로 시작해야 합니다. 예: /support/notice, /terms/0
                   </p>
                   <p className="text-xs text-red-600 mt-1">
                     ⚠️ 주의: 올바른 형식이 아니면 링크가 작동하지 않습니다. 예: /support/notice (O), support/notice (X)
@@ -5365,7 +5394,7 @@ function FooterEditor({
         {localConfig.menuItems.length === 0 && (
           <div className="text-center py-8 text-gray-400">
             <p>추가된 메뉴 항목이 없습니다.</p>
-            <p className="text-xs mt-2">위의 "새 메뉴 항목 추가" 버튼을 클릭하여 추가하세요.</p>
+            <p className="text-xs mt-2">위의 &quot;새 메뉴 항목 추가&quot; 버튼을 클릭하여 추가하세요.</p>
           </div>
         )}
       </div>
@@ -5478,7 +5507,14 @@ function GlobalSettingsEditor({
             </button>
             {localConfig.banners.heroBanner && (
               <div className="flex-1">
-                <img src={localConfig.banners.heroBanner} alt="히어로 배너" className="max-h-20 object-contain" />
+                <Image
+                  src={localConfig.banners.heroBanner}
+                  alt="히어로 배너"
+                  width={400}
+                  height={160}
+                  className="max-h-20 object-contain w-auto"
+                  unoptimized
+                />
                 <button
                   onClick={() => setLocalConfig({
                     ...localConfig,
@@ -5525,7 +5561,14 @@ function GlobalSettingsEditor({
             </button>
             {localConfig.banners.promotionBanner && (
               <div className="flex-1">
-                <img src={localConfig.banners.promotionBanner} alt="프로모션 배너" className="max-h-20 object-contain" />
+                <Image
+                  src={localConfig.banners.promotionBanner}
+                  alt="프로모션 배너"
+                  width={400}
+                  height={160}
+                  className="max-h-20 object-contain w-auto"
+                  unoptimized
+                />
                 <button
                   onClick={() => setLocalConfig({
                     ...localConfig,
@@ -5572,7 +5615,14 @@ function GlobalSettingsEditor({
             </button>
             {localConfig.banners.categoryBanner && (
               <div className="flex-1">
-                <img src={localConfig.banners.categoryBanner} alt="카테고리 배너" className="max-h-20 object-contain" />
+                <Image
+                  src={localConfig.banners.categoryBanner}
+                  alt="카테고리 배너"
+                  width={400}
+                  height={160}
+                  className="max-h-20 object-contain w-auto"
+                  unoptimized
+                />
                 <button
                   onClick={() => setLocalConfig({
                     ...localConfig,
@@ -6044,7 +6094,7 @@ function ProductMenuBarEditor({
                   placeholder="/"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 "/"로 시작해야 합니다. 예: /, /products
+                  • 메뉴를 클릭했을 때 이동할 페이지의 영어 주소(URL)를 입력하세요. 반드시 &quot;/&quot;로 시작해야 합니다. 예: /, /products
                 </p>
                 <p className="text-xs text-red-600 mt-1">
                   ⚠️ 주의: 올바른 형식이 아니면 링크가 작동하지 않습니다. 예: /products (O), products (X)
@@ -6057,7 +6107,7 @@ function ProductMenuBarEditor({
       {localConfig.menuItems.length === 0 && (
         <div className="text-center py-8 text-gray-400">
           <p>추가된 메뉴 항목이 없습니다.</p>
-          <p className="text-xs mt-2">위의 "새 메뉴 항목 추가" 버튼을 클릭하여 추가하세요.</p>
+          <p className="text-xs mt-2">위의 &quot;새 메뉴 항목 추가&quot; 버튼을 클릭하여 추가하세요.</p>
         </div>
       )}
 
