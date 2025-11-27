@@ -1102,13 +1102,34 @@ export default function AdminAffiliateContractsPage() {
     if (!confirm('계약서 PDF를 계약자 이메일 주소로 전송하시겠습니까? (본사 이메일은 참조로 추가됩니다)')) return;
     try {
       setSendingPdfContractId(contractId);
-      const res = await fetch(`/api/admin/affiliate/contracts/${contractId}/send-pdf`, {
-        method: 'POST',
-      });
+      
+      // 타임아웃 설정 (120초 - PDF 생성 시간 고려)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
+      
+      try {
+        const res = await fetch(`/api/admin/affiliate/contracts/${contractId}/send-pdf`, {
+          method: 'POST',
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) {
+          const errorText = await res.text();
+          let errorJson;
+          try {
+            errorJson = errorText ? JSON.parse(errorText) : { message: `서버 오류 (${res.status})` };
+          } catch {
+            errorJson = { message: errorText || `서버 오류 (${res.status})` };
+          }
+          throw new Error(errorJson.message || errorJson.error || `서버 오류 (${res.status})`);
+        }
       
       const text = await res.text();
-      if (!text) {
-        throw new Error('Empty response');
+      if (!text || text.trim() === '') {
+        throw new Error('서버에서 응답이 없습니다. 잠시 후 다시 시도해주세요.');
       }
       
       let json;
@@ -1116,16 +1137,24 @@ export default function AdminAffiliateContractsPage() {
         json = JSON.parse(text);
       } catch (parseError) {
         console.error('[AdminContracts] JSON parse error:', parseError, 'Response text:', text);
-        throw new Error('Invalid JSON response from server');
+          throw new Error('서버 응답 형식 오류가 발생했습니다.');
+        }
+        
+        if (!json.ok) {
+          const errorMsg = json.message || json.error || 'PDF 전송에 실패했습니다.';
+          throw new Error(errorMsg);
+        }
+        
+        showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
+        // PDF 보기를 통한 계약서 열람 확인 추가
+        setViewedContractIds(prev => new Set(prev).add(contractId));
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('PDF 전송 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+        }
+        throw fetchError;
       }
-      
-      if (!res.ok || !json.ok) {
-        const errorMsg = json.message || json.error || 'PDF 전송에 실패했습니다.';
-        throw new Error(errorMsg);
-      }
-      showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
-      // PDF 보기를 통한 계약서 열람 확인 추가
-      setViewedContractIds(prev => new Set(prev).add(contractId));
     } catch (error: any) {
       console.error('[AdminContracts] send PDF error', error);
       const errorMsg = error.message || 'PDF 전송 중 오류가 발생했습니다.';

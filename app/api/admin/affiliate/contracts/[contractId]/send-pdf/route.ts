@@ -22,17 +22,37 @@ export async function POST(
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, message: 'Unauthorized' },
+        { 
+          status: 401,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const admin = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true } });
     const guard = requireAdmin(admin?.role);
-    if (guard) return guard;
+    if (guard) {
+      return NextResponse.json(
+        guard.body ? JSON.parse(guard.body as string) : { ok: false, message: 'Admin access required' },
+        {
+          status: guard.status,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     const { contractId: contractIdStr } = await params;
     const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {
-      return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, message: 'Invalid contract ID' },
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // 계약서 조회
@@ -49,7 +69,13 @@ export async function POST(
     });
 
     if (!contract) {
-      return NextResponse.json({ ok: false, message: '계약서를 찾을 수 없습니다.' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, message: '계약서를 찾을 수 없습니다.' },
+        { 
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // 이메일 주소 확인 (계약서 기본정보의 이메일)
@@ -57,7 +83,10 @@ export async function POST(
     if (!recipientEmail) {
       return NextResponse.json(
         { ok: false, message: '계약서에 이메일 주소가 없습니다. 이메일을 입력해주세요.' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
@@ -90,18 +119,29 @@ export async function POST(
     if (!pdfResult.success) {
       console.error('[Admin Contract Send PDF] PDF 전송 실패:', pdfResult.error);
       const errorMessage = pdfResult.error || '알 수 없는 오류';
-      return NextResponse.json({
-        ok: false,
-        message: `PDF 전송에 실패했습니다: ${errorMessage}`,
-        error: errorMessage,
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          ok: false,
+          message: `PDF 전송에 실패했습니다: ${errorMessage}`,
+          error: errorMessage,
+        },
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    return NextResponse.json({
-      ok: true,
-      message: 'PDF가 성공적으로 전송되었습니다.',
-      emailSent: true,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        message: 'PDF가 성공적으로 전송되었습니다.',
+        emailSent: true,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   } catch (error: any) {
     console.error(`[Admin Contract Send PDF] error:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
