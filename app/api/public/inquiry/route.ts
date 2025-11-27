@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { normalizePhone, isValidPhone } from '@/lib/phone-utils';
 
 /**
  * POST: 구매 문의 제출
@@ -25,6 +26,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { ok: false, error: '필수 정보를 모두 입력해주세요.' },
         { status: 400 }
+      );
+    }
+
+    // 전화번호 정규화 및 검증
+    const normalizedPhone = normalizePhone(customerPhone);
+    if (!normalizedPhone || !isValidPhone(normalizedPhone)) {
+      return NextResponse.json(
+        { ok: false, error: '올바른 전화번호를 입력해주세요.' },
+        { status: 400 }
+      );
+    }
+
+    // 24시간 내 중복 상담신청 체크 (스팸 방지)
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const recentInquiry = await prisma.productInquiry.findFirst({
+      where: {
+        phone: normalizedPhone,
+        productCode,
+        createdAt: { gte: oneDayAgo }
+      },
+      select: { id: true, createdAt: true }
+    });
+
+    if (recentInquiry) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: '이미 24시간 이내에 동일한 상품에 대한 상담신청이 있습니다.',
+          recentInquiryId: recentInquiry.id
+        },
+        { status: 409 }
       );
     }
 
@@ -99,13 +131,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ProductInquiry 테이블에 저장
+    // ProductInquiry 테이블에 저장 (정규화된 전화번호 사용)
     const inquiry = await prisma.productInquiry.create({
       data: {
         productCode,
         userId,
         name: customerName,
-        phone: customerPhone,
+        phone: normalizedPhone, // 정규화된 전화번호 저장
         passportNumber: passportNumber || null,
         message: message || null,
         status: 'pending'
@@ -114,8 +146,7 @@ export async function POST(req: NextRequest) {
 
     // 전화번호로 User 찾기 (CustomerNoteModal을 위해 필요)
     let userForLead: { id: number } | null = null;
-    if (customerPhone) {
-      const normalizedPhone = customerPhone.replace(/\D/g, '');
+    if (normalizedPhone) {
       userForLead = await prisma.user.findFirst({
         where: { phone: normalizedPhone },
         select: { id: true },
@@ -170,7 +201,7 @@ export async function POST(req: NextRequest) {
             managerId: managerId || null,
             agentId: agentId || null,
             customerName: customerName,
-            customerPhone: customerPhone ? customerPhone.replace(/\D/g, '') : null,
+            customerPhone: normalizedPhone, // 정규화된 전화번호 저장
             status: 'NEW',
             source: isPhoneConsult ? 'phone-consultation' : (affiliateMallUserId ? `mall-${affiliateMallUserId}` : 'product-inquiry'),
             metadata: {
