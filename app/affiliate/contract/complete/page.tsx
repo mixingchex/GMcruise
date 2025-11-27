@@ -31,6 +31,7 @@ function ContractCompletePageInner() {
   const [loading, setLoading] = useState(true);
   const [contract, setContract] = useState<any>(null);
   const [redirecting, setRedirecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (contractId) {
@@ -38,22 +39,30 @@ function ContractCompletePageInner() {
       fetch(`/api/affiliate/contracts/${contractId}`)
         .then(async (res) => {
           if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
+            const errorText = await res.text();
+            let errorJson;
+            try {
+              errorJson = errorText ? JSON.parse(errorText) : { message: `HTTP error! status: ${res.status}` };
+            } catch {
+              errorJson = { message: errorText || `HTTP error! status: ${res.status}` };
+            }
+            throw new Error(errorJson.message || `서버 오류 (${res.status})`);
           }
           const text = await res.text();
           if (!text) {
-            throw new Error('Empty response');
+            throw new Error('서버에서 응답이 없습니다.');
           }
           try {
             return JSON.parse(text);
           } catch (parseError) {
             console.error('[ContractComplete] JSON parse error:', parseError, 'Response text:', text);
-            throw new Error('Invalid JSON response');
+            throw new Error('서버 응답 형식 오류');
           }
         })
         .then((data) => {
           if (data.ok) {
             setContract(data.contract);
+            setError(null);
             // metadata에서 contractType 가져오기
             if (!contractType && data.contract.metadata?.contractType) {
               const url = new URL(window.location.href);
@@ -61,11 +70,15 @@ function ContractCompletePageInner() {
               window.history.replaceState({}, '', url.toString());
             }
           } else {
-            console.error('[ContractComplete] API error:', data.message);
+            const errorMsg = data.message || '계약서 정보를 불러올 수 없습니다.';
+            console.error('[ContractComplete] API error:', errorMsg);
+            setError(errorMsg);
           }
         })
         .catch((err) => {
           console.error('[ContractComplete] Error:', err);
+          const errorMsg = err.message || '계약서 정보를 불러오는 중 오류가 발생했습니다.';
+          setError(errorMsg);
           // 에러 발생 시에도 로딩 해제하여 사용자가 결제 페이지로 이동할 수 있도록 함
         })
         .finally(() => {
@@ -73,6 +86,7 @@ function ContractCompletePageInner() {
         });
     } else {
       setLoading(false);
+      setError('계약서 ID가 없습니다.');
     }
   }, [contractId, contractType]);
 
@@ -90,6 +104,24 @@ function ContractCompletePageInner() {
     window.location.href = paymentLink;
   };
 
+  const finalContractType = contractType || contract?.metadata?.contractType || 'SALES_AGENT';
+  const contractTypeLabel = CONTRACT_TYPE_LABELS[finalContractType as ContractType] || '어필리에이트';
+
+  // 계약서가 완료된 경우 자동으로 결제 페이지로 이동 (3초 후)
+  useEffect(() => {
+    if (!loading && !error && contract?.status === 'completed') {
+      const timer = setTimeout(() => {
+        const paymentLink = PAYMENT_LINKS[finalContractType as ContractType] || PAYMENT_LINKS.SALES_AGENT;
+        if (paymentLink) {
+          setRedirecting(true);
+          window.location.href = paymentLink;
+        }
+      }, 3000); // 3초 후 자동 이동
+
+      return () => clearTimeout(timer);
+    }
+  }, [loading, error, contract?.status, finalContractType]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white">
@@ -101,47 +133,57 @@ function ContractCompletePageInner() {
     );
   }
 
-  const finalContractType = contractType || contract?.metadata?.contractType || 'SALES_AGENT';
-  const contractTypeLabel = CONTRACT_TYPE_LABELS[finalContractType as ContractType] || '어필리에이트';
-
-  // 계약서가 완료된 경우 자동으로 결제 페이지로 이동 (3초 후)
-  useEffect(() => {
-    if (!loading && contract?.status === 'completed') {
-      const timer = setTimeout(() => {
-        const paymentLink = PAYMENT_LINKS[finalContractType as ContractType] || PAYMENT_LINKS.SALES_AGENT;
-        if (paymentLink) {
-          setRedirecting(true);
-          window.location.href = paymentLink;
-        }
-      }, 3000); // 3초 후 자동 이동
-
-      return () => clearTimeout(timer);
-    }
-  }, [loading, contract?.status, finalContractType]);
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-8">
       <div className="max-w-2xl w-full bg-white rounded-3xl shadow-lg p-8">
-        <div className="text-center mb-6">
-          <FiCheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-4">
-            계약서 접수 완료되었습니다
-          </h1>
-          <p className="text-slate-600 mb-6 text-lg">
-            {contract?.status === 'completed' 
-              ? '계약서가 완료되었습니다. 잠시 후 결제 페이지로 자동 이동합니다.'
-              : '다음 결제 페이지로 안내 드리도록 하겠습니다.'}
-          </p>
-          {contractId && (
-            <div className="bg-slate-50 rounded-xl p-4 mb-6">
-              <p className="text-sm text-slate-500">계약서 번호</p>
-              <p className="text-lg font-semibold text-slate-900">{contractId}</p>
-              {contractTypeLabel && (
-                <p className="text-sm text-slate-500 mt-1">계약 유형: {contractTypeLabel}</p>
+        {error ? (
+          <div className="text-center mb-6">
+            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-4xl">⚠️</span>
+            </div>
+            <h1 className="text-2xl font-bold text-slate-900 mb-4">
+              오류가 발생했습니다
+            </h1>
+            <p className="text-red-600 mb-6 text-lg">
+              {error}
+            </p>
+            {contractId && (
+              <div className="bg-slate-50 rounded-xl p-4 mb-6">
+                <p className="text-sm text-slate-500">계약서 번호</p>
+                <p className="text-lg font-semibold text-slate-900">{contractId}</p>
+              </div>
+            )}
+            <div className="mt-6">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                다시 시도
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="text-center mb-6">
+              <FiCheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
+              <h1 className="text-2xl font-bold text-slate-900 mb-4">
+                계약서 접수 완료되었습니다
+              </h1>
+              <p className="text-slate-600 mb-6 text-lg">
+                {contract?.status === 'completed' 
+                  ? '계약서가 완료되었습니다. 잠시 후 결제 페이지로 자동 이동합니다.'
+                  : '다음 결제 페이지로 안내 드리도록 하겠습니다.'}
+              </p>
+              {contractId && (
+                <div className="bg-slate-50 rounded-xl p-4 mb-6">
+                  <p className="text-sm text-slate-500">계약서 번호</p>
+                  <p className="text-lg font-semibold text-slate-900">{contractId}</p>
+                  {contractTypeLabel && (
+                    <p className="text-sm text-slate-500 mt-1">계약 유형: {contractTypeLabel}</p>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
 
         {/* 결제 페이지 안내 배너 */}
         <div className="mb-6 p-6 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl shadow-lg">
@@ -172,17 +214,19 @@ function ContractCompletePageInner() {
           </div>
         </div>
 
-        <div className="text-center">
-          <p className="text-sm text-slate-500 mb-4">
-            결제는 안전한 결제 시스템을 통해 진행됩니다.
-          </p>
-          <button
-            onClick={() => router.push('/')}
-            className="text-sm text-slate-600 hover:text-slate-900 underline"
-          >
-            홈으로 이동
-          </button>
-        </div>
+            <div className="text-center">
+              <p className="text-sm text-slate-500 mb-4">
+                결제는 안전한 결제 시스템을 통해 진행됩니다.
+              </p>
+              <button
+                onClick={() => router.push('/')}
+                className="text-sm text-slate-600 hover:text-slate-900 underline"
+              >
+                홈으로 이동
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
