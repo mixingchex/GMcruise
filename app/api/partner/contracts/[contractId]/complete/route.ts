@@ -20,12 +20,18 @@ export async function POST(
     const resolvedParams = await Promise.resolve(params);
     const sessionUser = await getSessionUser();
 
-    if (!sessionUser) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    if (!sessionUser) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { 
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
 
     const contractId = parseInt(resolvedParams.contractId);
 
     if (!contractId || Number.isNaN(contractId)) {
-      return NextResponse.json({ ok: false, error: 'Invalid contract ID' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: 'Invalid contract ID' }, { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // 1. 계약서 정보 조회
@@ -34,11 +40,17 @@ export async function POST(
       include: { user: true }
     });
 
-    if (!contract) return NextResponse.json({ ok: false, error: 'Contract not found' }, { status: 404 });
+    if (!contract) return NextResponse.json({ ok: false, error: 'Contract not found' }, { 
+      status: 404,
+      headers: { 'Content-Type': 'application/json' }
+    });
 
     // 계약서가 이미 완료된 경우
     if (contract.status === 'completed') {
-      return NextResponse.json({ ok: false, error: '이미 완료된 계약서입니다.' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: '이미 완료된 계약서입니다.' }, { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // 계약서가 서명되지 않은 경우
@@ -47,7 +59,10 @@ export async function POST(
     const hasSignature = signatures.main?.url || signatures.education?.url || signatures.b2b?.url;
     
     if (!hasSignature) {
-      return NextResponse.json({ ok: false, error: '서명이 완료되지 않은 계약서입니다.' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: '서명이 완료되지 않은 계약서입니다.' }, { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // 2. 상태 업데이트 (먼저 완료 처리)
@@ -131,10 +146,15 @@ export async function POST(
       message: '계약서가 완료되었으며 구글 드라이브에 백업되었습니다.',
       emailSent: !!recipientEmail,
       redirectUrl: `/affiliate/contract/complete?contractId=${contractId}&type=${metadata?.contractType || 'SALES_AGENT'}`,
+    }, {
+      headers: { 'Content-Type': 'application/json' }
     });
 
   } catch (error: any) {
     console.error('[Contract Complete Error]', error);
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: error.message }, { 
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }

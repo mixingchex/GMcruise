@@ -16,6 +16,7 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ contractId: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
@@ -26,7 +27,7 @@ export async function GET(
     const guard = requireAdmin(admin?.role);
     if (guard) return guard;
 
-    const { contractId: contractIdStr } = await params;
+    const { contractId: contractIdStr } = resolvedParams;
     const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {
       return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
@@ -100,7 +101,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, contract: transformedContract });
   } catch (error) {
-    console.error(`GET /api/admin/affiliate/contracts/${params.contractId} error:`, error);
+    console.error(`GET /api/admin/affiliate/contracts/${resolvedParams.contractId} error:`, error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('Error details:', { errorMessage, errorStack });
@@ -117,6 +118,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ contractId: string }> }
 ) {
+  const resolvedParams = await params;
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
@@ -127,7 +129,7 @@ export async function DELETE(
     const guard = requireAdmin(admin?.role);
     if (guard) return guard;
 
-    const { contractId: contractIdStr } = await params;
+    const { contractId: contractIdStr } = resolvedParams;
     const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {
       return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
@@ -150,7 +152,7 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true, message: '계약서가 삭제되었습니다.' });
   } catch (error) {
-    console.error(`DELETE /api/admin/affiliate/contracts/${params.contractId} error:`, error);
+    console.error(`DELETE /api/admin/affiliate/contracts/${resolvedParams.contractId} error:`, error);
     return NextResponse.json({ ok: false, message: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

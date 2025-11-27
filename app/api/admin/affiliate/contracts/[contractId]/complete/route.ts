@@ -19,12 +19,18 @@ export async function POST(
     const resolvedParams = await Promise.resolve(params);
     const contractId = Number(resolvedParams.contractId);
     if (!contractId || Number.isNaN(contractId)) {
-      return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
+      return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { 
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { 
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     const admin = await prisma.user.findUnique({
@@ -35,7 +41,10 @@ export async function POST(
     if (admin?.role !== 'admin') {
       return NextResponse.json(
         { ok: false, message: 'Admin access required' },
-        { status: 403 }
+        { 
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
@@ -53,12 +62,15 @@ export async function POST(
     });
 
     if (!contract) {
-      return NextResponse.json({ ok: false, message: '계약서를 찾을 수 없습니다.' }, { status: 404 });
+      return NextResponse.json({ ok: false, message: '계약서를 찾을 수 없습니다.' }, { 
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // 계약서가 이미 완료된 경우
     if (contract.status === 'completed') {
-      return NextResponse.json({ ok: false, message: '이미 완료된 계약서입니다.' }, { status: 400 });
+      return NextResponse.json({ ok: false, message: '이미 완료된 계약서입니다.' }, { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     // 계약서가 서명되지 않은 경우
@@ -67,7 +79,7 @@ export async function POST(
     const hasSignature = signatures.main?.url || signatures.education?.url || signatures.b2b?.url;
     
     if (!hasSignature) {
-      return NextResponse.json({ ok: false, message: '서명이 완료되지 않은 계약서입니다.' }, { status: 400 });
+      return NextResponse.json({ ok: false, message: '서명이 완료되지 않은 계약서입니다.' }, { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     // 이메일 주소 확인
@@ -217,6 +229,8 @@ export async function POST(
         emailSent: false,
         error: pdfResult.error,
         redirectUrl: `/affiliate/contract/complete?contractId=${contractId}&type=${contractType}`,
+      }, {
+        headers: { 'Content-Type': 'application/json' }
       });
     }
 
@@ -225,12 +239,17 @@ export async function POST(
       message: '계약서가 완료되었고 이메일로 전송되었습니다.',
       emailSent: true,
       redirectUrl: `/affiliate/contract/complete?contractId=${contractId}&type=${contractType}`,
+    }, {
+      headers: { 'Content-Type': 'application/json' }
     });
   } catch (error: any) {
     console.error(`[Admin Contract Complete] error:`, error);
     return NextResponse.json(
       { ok: false, message: error.message || '계약서 완료 처리 중 오류가 발생했습니다.' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   }
 }

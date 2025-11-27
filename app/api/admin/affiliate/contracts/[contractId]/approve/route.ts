@@ -80,8 +80,10 @@ function generateAffiliateCode(name: string, id: number) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ contractId: string }> }) {
-  const { contractId: contractIdStr } = await params;
+  let resolvedParams: { contractId: string } | undefined;
   try {
+    resolvedParams = await params;
+    const { contractId: contractIdStr } = resolvedParams;
     const contractId = Number(contractIdStr);
     if (!contractId || Number.isNaN(contractId)) {
       return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
@@ -439,7 +441,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
 
     return NextResponse.json({ ok: true, profile, profileId: profile.id });
   } catch (error: any) {
-    console.error(`POST /api/admin/affiliate/contracts/${params.contractId}/approve error:`, error);
+    const errorContractId = resolvedParams ? resolvedParams.contractId : 'unknown';
+    console.error(`POST /api/admin/affiliate/contracts/${errorContractId}/approve error:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('[Approve Contract] Error details:', { errorMessage, errorStack });

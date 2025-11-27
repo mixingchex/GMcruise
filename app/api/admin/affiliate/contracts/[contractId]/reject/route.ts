@@ -13,7 +13,8 @@ function requireAdmin(role?: string | null) {
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ contractId: string }> }) {
-  const { contractId: contractIdStr } = await params;
+  const resolvedParams = await params;
+  const { contractId: contractIdStr } = resolvedParams;
   try {
     const contractId = Number(contractIdStr);
     if (!contractId || Number.isNaN(contractId)) {
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error(`POST /api/admin/affiliate/contracts/${params.contractId}/reject error:`, error);
+    console.error(`POST /api/admin/affiliate/contracts/${resolvedParams.contractId}/reject error:`, error);
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
