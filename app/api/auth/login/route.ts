@@ -526,6 +526,7 @@ export async function POST(req: Request) {
         // 3일 체험 초대 링크 처리
         let managerProfileId: number | null = null;
         let agentProfileId: number | null = null;
+        let linkId: number | null = null;
         
         if (trialCode) {
           // AffiliateLink에서 trialCode로 링크 찾기
@@ -544,8 +545,10 @@ export async function POST(req: Request) {
           if (trialLink) {
             managerProfileId = trialLink.managerId;
             agentProfileId = trialLink.agentId;
+            linkId = trialLink.id; // linkId 저장
             console.log('[Login] 3일 체험 초대 링크 확인:', { 
               trialCode, 
+              linkId: linkId,
               managerId: managerProfileId, 
               agentId: agentProfileId 
             });
@@ -593,6 +596,7 @@ export async function POST(req: Request) {
                 source: trialCode ? 'trial-invite-link' : (affiliateCode ? 'affiliate-link' : 'test-guide'),
                 managerId: managerProfileId || existingLead.managerId,
                 agentId: agentProfileId || existingLead.agentId,
+                linkId: linkId || existingLead.linkId, // linkId 업데이트 (새 링크가 있으면 업데이트)
                 updatedAt: now,
               },
             });
@@ -606,11 +610,13 @@ export async function POST(req: Request) {
                 source: trialCode ? 'trial-invite-link' : (affiliateCode ? 'affiliate-link' : 'test-guide'),
                 managerId: managerProfileId || null,
                 agentId: agentProfileId || null,
+                linkId: linkId || null, // linkId 저장
                 updatedAt: now,
               },
             });
           }
           console.log('[Login] AffiliateLead 생성/업데이트 완료 (잠재고객):', { 
+            linkId: linkId,
             managerId: managerProfileId, 
             agentId: agentProfileId,
             phone: phone ? `${phone.substring(0, 3)}***` : 'empty'

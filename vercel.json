@@ -1,4 +1,9 @@
 {
+  "build": {
+    "env": {
+      "PRISMA_GENERATE_SKIP_AUTOINSTALL": "false"
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/database-backup",
