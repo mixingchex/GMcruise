@@ -20,6 +20,10 @@ export async function POST(
   { params }: { params: Promise<{ contractId: string }> }
 ) {
   try {
+    // Next.js 15: params는 Promise이므로 await 필요
+    const resolvedParams = await params;
+    const contractIdStr = resolvedParams.contractId;
+    
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
       return NextResponse.json(
@@ -42,8 +46,6 @@ export async function POST(
         }
       );
     }
-
-    const { contractId: contractIdStr } = await params;
     const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {
       return NextResponse.json(

@@ -13,10 +13,17 @@ export async function POST(
   { params }: { params: Promise<{ contractId: string }> }
 ) {
   try {
-    const resolvedParams = await Promise.resolve(params);
+    // Next.js 15: params는 Promise이므로 await 필요
+    const resolvedParams = await params;
     const contractId = Number(resolvedParams.contractId);
     if (!contractId || Number.isNaN(contractId)) {
-      return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, message: 'Invalid contract ID' },
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const { profile } = await requirePartnerContext();
@@ -25,7 +32,10 @@ export async function POST(
     if (profile.type !== 'BRANCH_MANAGER') {
       return NextResponse.json(
         { ok: false, message: '대리점장만 PDF를 전송할 수 있습니다.' },
-        { status: 403 }
+        { 
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
@@ -43,7 +53,13 @@ export async function POST(
     });
 
     if (!contract) {
-      return NextResponse.json({ ok: false, message: '계약서를 찾을 수 없습니다.' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, message: '계약서를 찾을 수 없습니다.' },
+        { 
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // 대리점장이 초대한 계약서이거나 대리점장 자신의 계약서인지 확인
@@ -58,7 +74,10 @@ export async function POST(
     if (!isInvitedContract && !isOwnContract) {
       return NextResponse.json(
         { ok: false, message: '이 계약서에 대한 권한이 없습니다.' },
-        { status: 403 }
+        { 
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
@@ -67,7 +86,10 @@ export async function POST(
     if (!recipientEmail) {
       return NextResponse.json(
         { ok: false, message: '계약서에 이메일 주소가 없습니다. 이메일을 입력해주세요.' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
       );
     }
 
@@ -100,18 +122,29 @@ export async function POST(
     if (!pdfResult.success) {
       console.error('[Partner Contract Send PDF] PDF 전송 실패:', pdfResult.error);
       const errorMessage = pdfResult.error || '알 수 없는 오류';
-      return NextResponse.json({
-        ok: false,
-        message: `PDF 전송에 실패했습니다: ${errorMessage}`,
-        error: errorMessage,
-      }, { status: 500 });
+      return NextResponse.json(
+        {
+          ok: false,
+          message: `PDF 전송에 실패했습니다: ${errorMessage}`,
+          error: errorMessage,
+        },
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      );
     }
 
-    return NextResponse.json({
-      ok: true,
-      message: 'PDF가 성공적으로 전송되었습니다.',
-      emailSent: true,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        message: 'PDF가 성공적으로 전송되었습니다.',
+        emailSent: true,
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
   } catch (error: any) {
     console.error(`[Partner Contract Send PDF] error:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);

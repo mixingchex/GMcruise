@@ -212,21 +212,21 @@ const EDUCATION_CONTRACT_SUMMARY: Record<string, Array<{ title: string; clauses:
       ],
     },
   ],
-  PRIMARKETER: [
+  SUBSCRIPTION_AGENT: [
     {
-      title: '교육 계약서 (프리마케터) - 요약',
+      title: '교육 계약서 (정액제) - 요약',
       clauses: [
-        '본 교육 계약서는 "100만원 판매원 계약서 .docx" 문서의 내용을 기반으로 합니다.',
+        '본 교육 계약서는 "정액제 판매원 계약서" 문서의 내용을 기반으로 합니다.',
         '',
         '【핵심 내용】',
-        '• 을은 갑이 제공하는 크루즈 상품 판매 및 프리마케터 전용 교육 프로그램을 성실히 이수해야 합니다.',
-        '• 교육 내용: 크루즈 상품 이해, 판매 프로세스, 프리마케터 업무, 고객 상담 방법, 정산 절차, 법적 사항',
-        '• 교육 이수 후 갑이 지정한 평가를 통과해야 정식 프리마케터로 활동할 수 있습니다.',
+        '• 을은 갑이 제공하는 크루즈 상품 판매 및 정액제 판매원 전용 교육 프로그램을 성실히 이수해야 합니다.',
+        '• 교육 내용: 크루즈 상품 이해, 판매 프로세스, 정액제 판매원 업무, 고객 상담 방법, 정산 절차, 법적 사항',
+        '• 교육 이수 후 갑이 지정한 평가를 통과해야 정식 정액제 판매원으로 활동할 수 있습니다.',
         '• 평가 미통과 시 재교육 및 재평가를 통해 인증을 받을 수 있습니다.',
-        '• 교육 자료는 판매 활동 및 프리마케터 업무 목적으로만 사용하며, 제3자에게 제공하거나 무단 복제할 수 없습니다.',
+        '• 교육 자료는 판매 활동 및 정액제 판매원 업무 목적으로만 사용하며, 제3자에게 제공하거나 무단 복제할 수 없습니다.',
         '• 본 계약서는 전자 서명으로 체결되며, 갑의 최종 승인을 통해 효력이 발생합니다.',
         '',
-        '※ 아래 전문에서 "100만원 판매원 계약서 .docx" 문서의 전체 내용을 확인하실 수 있습니다.',
+        '※ 아래 전문에서 "정액제 판매원 계약서" 문서의 전체 내용을 확인하실 수 있습니다.',
       ],
     },
   ],
@@ -469,11 +469,11 @@ const EDUCATION_CONTRACT_SECTIONS: Record<string, Array<{ title: string; clauses
       ],
     },
   ],
-  PRIMARKETER: [
+  SUBSCRIPTION_AGENT: [
     {
-      title: '교육 계약서 (프리마케터) - 100만원 판매원 계약서 .docx',
+      title: '교육 계약서 (정액제) - 정액제 판매원 계약서',
       clauses: [
-        '크루즈 전문 판매원 위촉 및 교육 서비스 계약서',
+        '정액제 판매원 위촉 및 교육 서비스 계약서',
         '본 서비스 제휴 계약(이하 "본 계약")은 주식회사 마비즈컴퍼니(이하 "회사"), 판매원(이하 "고객사"), 그리고 멘토(이하 "멘토") 사이에서 체결되었다. 이하 "회사", "고객사", "멘토" 중 1인을 가리켜 "당사자", 그 전부를 가리켜 "당사자들"이라 한다.',
         '',
         '제1조 (목적)',
@@ -519,11 +519,11 @@ const EDUCATION_CONTRACT_SECTIONS: Record<string, Array<{ title: string; clauses
         '③ 리크루팅 금지: "고객사"는 계약 기간 중 및 종료 후 7년간 "회사" 또는 "멘토"의 의뢰인이나 관계자들을 대상으로 직원이나 판매원을 모집하는 행위를 할 수 없다.',
         '',
         '제9조 (비용 지급)',
-        '① 비용: "고객사"는 본 계약에 따른 가입비, 교육비 및 시스템 세팅비로 일금 일백만 원정(\\1,000,000, VAT 별도)을 계약 체결 시 선불로 지급한다.',
+        '① 비용: "고객사"는 본 계약에 따른 정액제 구독료로 월 10만 원(\\100,000, VAT 별도)을 매월 선불로 지급한다.',
         '② 결제 계좌 및 방식은 "회사"가 별도로 안내하는 바에 따른다.',
         '',
         '제10조 (제공 서비스 상세)',
-        '"고객사"가 지급하는 100만 원에 대한 서비스 구성은 다음과 같다.',
+        '"고객사"가 지급하는 월 10만 원 정액제 구독료에 대한 서비스 구성은 다음과 같다.',
         '',
         '1. 유료 서비스: 마케팅 & 세일즈 실전 통합 과정 (총 8주)',
         '1~2주차 (마케팅): SNS 채널 개설, 기초 브랜딩, 트래픽 생성 기초, 콘텐츠 기획 (4시간)',
@@ -536,8 +536,8 @@ const EDUCATION_CONTRACT_SECTIONS: Record<string, Array<{ title: string; clauses
         '',
         '제11조 (계약의 해지 및 환불 기준)',
         '① 본 계약의 환불 규정은 「평생교육법」 및 「전자상거래 등에서의 소비자보호에 관한 법률」을 준수한다.',
-        '② 초기 세팅비 공제: 본 계약 체결 즉시 "고객사" 전용의 \'판매원몰(쇼핑몰)\' 개설 및 서버 세팅이 진행되므로, 교육 수강 여부와 관계없이 초기 세팅비 및 행정 수수료 명목으로 금 500,000원이 공제된다.',
-        '③ 환불 금액 산정: 환불 요청 시, 결제 금액(100만 원)에서 위 세팅비(50만 원)를 우선 차감한 잔액(50만 원)을 기준으로 아래와 같이 산정한다.',
+        '② 정액제 구독 환불: 정액제는 월 구독형으로 결제일 기준 잔여 기간에 비례하여 환불됩니다.',
+        '③ 환불 금액 산정: 환불 요청 시, 결제 금액(10만 원)에서 사용한 기간에 해당하는 금액을 차감한 잔액을 기준으로 아래와 같이 산정한다.',
         '수업 시작 전: 잔액 전액 환불',
         '총 수업시간의 1/3 경과 전: 잔액의 2/3 해당액 환불',
         '총 수업시간의 1/2 경과 전: 잔액의 1/2 해당액 환불',
@@ -711,7 +711,7 @@ export default function AdminAffiliateContractsPage() {
   });
   const [searchInput, setSearchInput] = useState('');
   const [showSendContractModal, setShowSendContractModal] = useState(false);
-  const [contractType, setContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
+  const [contractType, setContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'SUBSCRIPTION_AGENT'>('SALES_AGENT');
   const [profiles, setProfiles] = useState<AffiliateProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<AffiliateProfile | null>(null);
   const [contractLink, setContractLink] = useState<string | null>(null);
@@ -754,7 +754,7 @@ export default function AdminAffiliateContractsPage() {
   const [deletingContractId, setDeletingContractId] = useState<number | null>(null);
   const [sendingPdfContractId, setSendingPdfContractId] = useState<number | null>(null);
   const [showEducationContractModal, setShowEducationContractModal] = useState(false);
-  const [educationContractType, setEducationContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
+  const [educationContractType, setEducationContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'SUBSCRIPTION_AGENT'>('SALES_AGENT');
   // 계약서 열람 확인 추적 (계약서 ID Set)
   const [viewedContractIds, setViewedContractIds] = useState<Set<number>>(new Set());
 
@@ -1341,13 +1341,13 @@ export default function AdminAffiliateContractsPage() {
               </button>
               <button
                 onClick={() => {
-                  setContractType('PRIMARKETER');
+                  setContractType('SUBSCRIPTION_AGENT');
                   handleOpenSendContractModal();
                 }}
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-orange-600 hover:bg-orange-50 shadow-md"
               >
                 <FiSend className="text-base" />
-                프리마케터 계약서 보내기
+                정액제 계약서 보내기
               </button>
               <button
                 onClick={loadContracts}
@@ -2184,7 +2184,7 @@ export default function AdminAffiliateContractsPage() {
                       <span className="font-semibold">
                         {contractType === 'SALES_AGENT' && '환불 조항(제11조)을 확인하고 동의합니다. 결제 금액(330만 원)에서 세팅비(50만 원)를 차감한 잔액(280만 원) 기준으로 환불됩니다.'}
                         {contractType === 'CRUISE_STAFF' && '환불 조항(제11조)을 확인하고 동의합니다. 결제 금액(540만 원)에서 세팅비(50만 원)를 차감한 잔액(490만 원) 기준으로 환불됩니다.'}
-                        {contractType === 'PRIMARKETER' && '환불 조항(제11조)을 확인하고 동의합니다. 결제 금액(100만 원)에서 세팅비(50만 원)를 차감한 잔액(50만 원) 기준으로 환불됩니다.'}
+                        {contractType === 'SUBSCRIPTION_AGENT' && '환불 조항(제11조)을 확인하고 동의합니다. 정액제는 월 구독형으로 결제일 기준 잔여 기간에 비례하여 환불됩니다.'}
                         {contractType === 'BRANCH_MANAGER' && '환불 조항(제11조)을 확인하고 동의합니다. 결제 금액(750만 원)에서 세팅비(50만 원)를 차감한 잔액(700만 원) 기준으로 환불됩니다.'}
                       </span>
                       <br />
@@ -2658,8 +2658,8 @@ export default function AdminAffiliateContractsPage() {
                         ? '대리점장' 
                         : selectedContract.metadata?.contractType === 'CRUISE_STAFF'
                         ? '크루즈스탭'
-                        : selectedContract.metadata?.contractType === 'PRIMARKETER'
-                        ? '프리마케터'
+                        : selectedContract.metadata?.contractType === 'SUBSCRIPTION_AGENT'
+                        ? '정액제'
                         : '판매원'}
                     </span>
                   </div>
@@ -2901,7 +2901,7 @@ export default function AdminAffiliateContractsPage() {
           >
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <h3 className="text-lg font-bold text-slate-900">
-                {educationContractType === 'BRANCH_MANAGER' ? '대리점장' : educationContractType === 'CRUISE_STAFF' ? '크루즈스탭' : educationContractType === 'PRIMARKETER' ? '프리마케터' : '판매원'} 교육 계약서 전문
+                {educationContractType === 'BRANCH_MANAGER' ? '대리점장' : educationContractType === 'CRUISE_STAFF' ? '크루즈스탭' : educationContractType === 'SUBSCRIPTION_AGENT' ? '정액제' : '판매원'} 교육 계약서 전문
               </h3>
               <button
                 type="button"
