@@ -101,9 +101,9 @@ const nextConfig = {
         // 암호화 라이브러리 제외
         'node_modules/bcryptjs/**',
         'node_modules/@node-rs/argon2/**',
-        // Prisma 바이너리 제외 (런타임에 필요한 것만 포함됨)
+        // Prisma 엔진만 제외 (클라이언트는 포함되어야 함)
         'node_modules/@prisma/engines/**',
-        'node_modules/.prisma/**',
+        // 'node_modules/.prisma/**', // ⚠️ 제거: Prisma 클라이언트는 배포에 포함되어야 함
         // Git 및 캐시
         '.git/**',
         '.next/cache/**',
