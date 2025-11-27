@@ -36,7 +36,21 @@ function ContractCompletePageInner() {
     if (contractId) {
       // 계약서 정보 조회
       fetch(`/api/affiliate/contracts/${contractId}`)
-        .then((res) => res.json())
+        .then(async (res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          const text = await res.text();
+          if (!text) {
+            throw new Error('Empty response');
+          }
+          try {
+            return JSON.parse(text);
+          } catch (parseError) {
+            console.error('[ContractComplete] JSON parse error:', parseError, 'Response text:', text);
+            throw new Error('Invalid JSON response');
+          }
+        })
         .then((data) => {
           if (data.ok) {
             setContract(data.contract);
@@ -46,10 +60,13 @@ function ContractCompletePageInner() {
               url.searchParams.set('type', data.contract.metadata.contractType);
               window.history.replaceState({}, '', url.toString());
             }
+          } else {
+            console.error('[ContractComplete] API error:', data.message);
           }
         })
         .catch((err) => {
           console.error('[ContractComplete] Error:', err);
+          // 에러 발생 시에도 로딩 해제하여 사용자가 결제 페이지로 이동할 수 있도록 함
         })
         .finally(() => {
           setLoading(false);
@@ -87,6 +104,21 @@ function ContractCompletePageInner() {
   const finalContractType = contractType || contract?.metadata?.contractType || 'SALES_AGENT';
   const contractTypeLabel = CONTRACT_TYPE_LABELS[finalContractType as ContractType] || '어필리에이트';
 
+  // 계약서가 완료된 경우 자동으로 결제 페이지로 이동 (3초 후)
+  useEffect(() => {
+    if (!loading && contract?.status === 'completed') {
+      const timer = setTimeout(() => {
+        const paymentLink = PAYMENT_LINKS[finalContractType as ContractType] || PAYMENT_LINKS.SALES_AGENT;
+        if (paymentLink) {
+          setRedirecting(true);
+          window.location.href = paymentLink;
+        }
+      }, 3000); // 3초 후 자동 이동
+
+      return () => clearTimeout(timer);
+    }
+  }, [loading, contract?.status, finalContractType]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex items-center justify-center px-4 py-8">
       <div className="max-w-2xl w-full bg-white rounded-3xl shadow-lg p-8">
@@ -96,7 +128,9 @@ function ContractCompletePageInner() {
             계약서 접수 완료되었습니다
           </h1>
           <p className="text-slate-600 mb-6 text-lg">
-            다음 결제 페이지로 안내 드리도록 하겠습니다.
+            {contract?.status === 'completed' 
+              ? '계약서가 완료되었습니다. 잠시 후 결제 페이지로 자동 이동합니다.'
+              : '다음 결제 페이지로 안내 드리도록 하겠습니다.'}
           </p>
           {contractId && (
             <div className="bg-slate-50 rounded-xl p-4 mb-6">

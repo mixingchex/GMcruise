@@ -205,6 +205,10 @@ export async function POST(
       }
     }
 
+    // 계약서 타입 가져오기 (기존 metadata 변수 사용)
+    const contractType = metadata?.contractType || 'SALES_AGENT';
+
+    // 이메일 전송 실패해도 계약서 완료는 성공으로 처리
     if (!pdfResult.success) {
       console.error('[Admin Contract Complete] PDF 전송 실패:', pdfResult.error);
       return NextResponse.json({
@@ -212,11 +216,9 @@ export async function POST(
         message: '계약서가 완료되었으나 이메일 전송에 실패했습니다.',
         emailSent: false,
         error: pdfResult.error,
+        redirectUrl: `/affiliate/contract/complete?contractId=${contractId}&type=${contractType}`,
       });
     }
-
-    // 계약서 타입 가져오기 (기존 metadata 변수 사용)
-    const contractType = metadata?.contractType || 'SALES_AGENT';
 
     return NextResponse.json({
       ok: true,

@@ -107,13 +107,36 @@ export async function POST(
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('[Admin Contract Send PDF] Error details:', { errorMessage, errorStack });
-    return NextResponse.json(
-      { 
-        ok: false, 
-        message: `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
-        error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
-      },
-      { status: 500 }
-    );
+    
+    // JSON 응답이 항상 유효하도록 보장
+    try {
+      return NextResponse.json(
+        { 
+          ok: false, 
+          message: `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
+          error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+        },
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    } catch (jsonError) {
+      // JSON 응답 생성 실패 시 텍스트 응답
+      return new NextResponse(
+        JSON.stringify({ 
+          ok: false, 
+          message: `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
+        }),
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+    }
   }
 }
