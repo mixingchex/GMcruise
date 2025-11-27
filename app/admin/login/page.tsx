@@ -22,17 +22,36 @@ export default function AdminLogin() {
       return;
     }
     
-    console.log('[AdminLogin] 로그인 시도:', { name: trimmedName, phone: trimmedPhone, password: '***' });
+    // 상세한 디버깅 정보 출력
+    console.log('[AdminLogin] 로그인 시도:', { 
+      name: trimmedName, 
+      nameLength: trimmedName.length,
+      nameCodes: trimmedName.split('').map(c => c.charCodeAt(0)),
+      phone: trimmedPhone, 
+      phoneLength: trimmedPhone.length,
+      phoneCodes: trimmedPhone.split('').map(c => c.charCodeAt(0)),
+      password: '***',
+      passwordLength: trimmedPassword.length
+    });
     
     try {
+      const requestBody = { name: trimmedName, phone: trimmedPhone, password: trimmedPassword, mode: 'admin' };
+      console.log('[AdminLogin] 요청 본문:', JSON.stringify(requestBody).replace(/"password":"[^"]*"/, '"password":"***"'));
+      
       const r = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: trimmedName, phone: trimmedPhone, password: trimmedPassword, mode: 'admin' }),
+        body: JSON.stringify(requestBody),
       });
       
-      console.log('[AdminLogin] 응답 상태:', r.status);
+      console.log('[AdminLogin] 응답 상태:', r.status, r.statusText);
+      const headersObj: Record<string, string> = {};
+      r.headers.forEach((value, key) => {
+        headersObj[key] = value;
+      });
+      console.log('[AdminLogin] 응답 헤더:', headersObj);
+      
       const data = await r.json().catch((err) => {
         console.error('[AdminLogin] JSON 파싱 오류:', err);
         return {};
@@ -42,8 +61,9 @@ export default function AdminLogin() {
       
       if (!r.ok || !data?.ok) {
         const errorMsg = data?.error ?? `HTTP ${r.status}`;
-        console.error('[AdminLogin] 로그인 실패:', errorMsg);
-        alert('관리자 로그인 실패: ' + errorMsg);
+        const errorDetails = data?.details ?? '';
+        console.error('[AdminLogin] 로그인 실패:', { error: errorMsg, details: errorDetails, status: r.status });
+        alert(`관리자 로그인 실패: ${errorMsg}${errorDetails ? '\n' + errorDetails : ''}`);
         return;
       }
       

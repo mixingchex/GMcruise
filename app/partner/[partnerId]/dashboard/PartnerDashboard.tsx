@@ -1549,38 +1549,106 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               <FiFileText className="text-2xl text-teal-600 md:text-3xl" />
               <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
             </Link>
-            {isBranchManager && (
-              <>
-                <Link 
-                  href={`${partnerBase}/landing-pages`} 
-                  className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 p-4 text-center transition-all hover:from-amber-100 hover:to-amber-200 hover:shadow-md md:p-6"
-                >
-                  <FiLayers className="text-2xl text-amber-600 md:text-3xl" />
-                  <span className="text-xs font-semibold text-amber-700 md:text-sm">랜딩페이지<br />관리</span>
-                </Link>
-                <Link 
-                  href={`${partnerBase}/customers`} 
-                  className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
-                >
-                  <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
-                  <span className="text-xs font-semibold text-purple-700 md:text-sm">판매원별<br />DB 관리</span>
-                </Link>
-                <Link 
-                  href={`${partnerBase}/team`} 
-                  className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6"
-                >
-                  <FiTrendingUp className="text-2xl text-indigo-600 md:text-3xl" />
-                  <span className="text-xs font-semibold text-indigo-700 md:text-sm">팀 관리</span>
-                </Link>
-                <button
-                  onClick={() => setShowContractTypeModal(true)}
-                  className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6"
-                >
-                  <FiSend className="text-2xl text-pink-600 md:text-3xl" />
-                  <span className="text-xs font-semibold text-pink-700 md:text-sm">계약서 보내기</span>
-                </button>
-              </>
-            )}
+            {/* 대리점장 전용 기능 (정액제 판매원도 표시하되 제한) */}
+            {/* 랜딩페이지 관리 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 p-4 text-center transition-all hover:from-amber-100 hover:to-amber-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiLayers className="text-2xl text-amber-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-amber-700 md:text-sm">랜딩페이지<br />관리</span>
+              </button>
+            ) : isBranchManager ? (
+              <Link 
+                href={`${partnerBase}/landing-pages`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 p-4 text-center transition-all hover:from-amber-100 hover:to-amber-200 hover:shadow-md md:p-6"
+              >
+                <FiLayers className="text-2xl text-amber-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-amber-700 md:text-sm">랜딩페이지<br />관리</span>
+              </Link>
+            ) : null}
+            
+            {/* 판매원별 DB 관리 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-purple-700 md:text-sm">판매원별<br />DB 관리</span>
+              </button>
+            ) : isBranchManager ? (
+              <Link 
+                href={`${partnerBase}/customers`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+              >
+                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-purple-700 md:text-sm">판매원별<br />DB 관리</span>
+              </Link>
+            ) : null}
+            
+            {/* 팀 관리 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiTrendingUp className="text-2xl text-indigo-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-indigo-700 md:text-sm">팀 관리</span>
+              </button>
+            ) : isBranchManager ? (
+              <Link 
+                href={`${partnerBase}/team`} 
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6"
+              >
+                <FiTrendingUp className="text-2xl text-indigo-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-indigo-700 md:text-sm">팀 관리</span>
+              </Link>
+            ) : null}
+            
+            {/* 계약서 보내기 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('contract-invite', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6 ${
+                  canUseFeatureClient('contract-invite', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                }`}
+              >
+                <FiSend className="text-2xl text-pink-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-pink-700 md:text-sm">계약서 보내기</span>
+              </button>
+            ) : isBranchManager ? (
+              <button
+                onClick={() => setShowContractTypeModal(true)}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6"
+              >
+                <FiSend className="text-2xl text-pink-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-pink-700 md:text-sm">계약서 보내기</span>
+              </button>
+            ) : null}
             <Link 
               href={`${partnerBase}/profile`} 
               className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 text-center transition-all hover:from-gray-100 hover:to-gray-200 hover:shadow-md md:p-6"
@@ -1725,8 +1793,8 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               )}
             </div>
 
-            {/* 판매원별 DB 관리 현황 (대리점장만) */}
-            {isBranchManager && (
+            {/* 판매원별 DB 관리 현황 (대리점장만 / 정액제 판매원은 제한) */}
+            {(isBranchManager || subscriptionInfo) && (
               <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
@@ -1734,18 +1802,45 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                     판매원별 DB 관리 현황
                   </h2>
                   <div className="flex items-center gap-2">
-                    <Link
-                      href={`${partnerBase}/customers`}
-                      className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
-                    >
-                      전체보기 <FiArrowRight className="inline ml-1" />
-                    </Link>
-                    <Link
-                      href={`${partnerBase}/customers/send-db`}
-                      className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
-                    >
-                      DB 보내기 <FiArrowRight className="inline ml-1" />
-                    </Link>
+                    {subscriptionInfo ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                            setRestrictionMessage(message);
+                            setShowFeatureRestrictionModal(true);
+                          }}
+                          className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
+                        >
+                          전체보기 <FiArrowRight className="inline ml-1" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                            setRestrictionMessage(message);
+                            setShowFeatureRestrictionModal(true);
+                          }}
+                          className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
+                        >
+                          DB 보내기 <FiArrowRight className="inline ml-1" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <Link
+                          href={`${partnerBase}/customers`}
+                          className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
+                        >
+                          전체보기 <FiArrowRight className="inline ml-1" />
+                        </Link>
+                        <Link
+                          href={`${partnerBase}/customers/send-db`}
+                          className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
+                        >
+                          DB 보내기 <FiArrowRight className="inline ml-1" />
+                        </Link>
+                      </>
+                    )}
                   </div>
                 </div>
                 {loadingAgentDbStats ? (
@@ -1762,12 +1857,8 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                         : '0';
                       const isActive = parseFloat(activityRate) >= 30; // 30% 이상 활동률
                       
-                      return (
-                        <Link
-                          key={agent.agentId}
-                          href={`${partnerBase}/customers?agentId=${agent.agentId}`}
-                          className="block rounded-lg border border-gray-200 p-4 hover:border-purple-300 hover:bg-purple-50 transition-all"
-                        >
+                      const content = (
+                        <>
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
@@ -1806,6 +1897,28 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                               <p className="text-sm font-semibold text-gray-700">{agent.stats.recentAssigned.toLocaleString()}명</p>
                             </div>
                           </div>
+                        </>
+                      );
+
+                      return subscriptionInfo ? (
+                        <button
+                          key={agent.agentId}
+                          onClick={() => {
+                            const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                            setRestrictionMessage(message);
+                            setShowFeatureRestrictionModal(true);
+                          }}
+                          className="w-full text-left block rounded-lg border border-gray-200 p-4 hover:border-purple-300 hover:bg-purple-50 transition-all"
+                        >
+                          {content}
+                        </button>
+                      ) : (
+                        <Link
+                          key={agent.agentId}
+                          href={`${partnerBase}/customers?agentId=${agent.agentId}`}
+                          className="block rounded-lg border border-gray-200 p-4 hover:border-purple-300 hover:bg-purple-50 transition-all"
+                        >
+                          {content}
                         </Link>
                       );
                     })}
@@ -1814,8 +1927,8 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               </section>
             )}
 
-            {/* 구매고객관리 (대리점장만) */}
-            {isBranchManager && (
+            {/* 구매고객관리 (대리점장만 / 정액제 판매원은 제한) */}
+            {(isBranchManager || subscriptionInfo) && (
               <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <div>
@@ -1928,35 +2041,52 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               </section>
             )}
 
-            {/* 랜딩페이지 목록 (대리점장만) */}
-            {isBranchManager && (
+            {/* 랜딩페이지 목록 (대리점장만 / 정액제 판매원은 제한) */}
+            {(isBranchManager || subscriptionInfo) && (
               <div className="block rounded-2xl bg-white p-4 shadow-lg transition-all hover:shadow-xl md:rounded-3xl md:p-6">
-                <Link 
-                  href={`${partnerBase}/landing-pages`}
-                  className="block"
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
-                      <FiLayers className="text-amber-600" />
-                      최근 랜딩페이지
-                    </h2>
-                    <span className="text-xs text-amber-600 hover:text-amber-700 md:text-sm">
-                      전체보기 <FiArrowRight className="inline ml-1" />
-                    </span>
-                  </div>
-                </Link>
+                {subscriptionInfo ? (
+                  <button
+                    onClick={() => {
+                      const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                      setRestrictionMessage(message);
+                      setShowFeatureRestrictionModal(true);
+                    }}
+                    className="w-full text-left block"
+                  >
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
+                        <FiLayers className="text-amber-600" />
+                        최근 랜딩페이지
+                      </h2>
+                      <span className="text-xs text-amber-600 hover:text-amber-700 md:text-sm">
+                        전체보기 <FiArrowRight className="inline ml-1" />
+                      </span>
+                    </div>
+                  </button>
+                ) : (
+                  <Link 
+                    href={`${partnerBase}/landing-pages`}
+                    className="block"
+                  >
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
+                        <FiLayers className="text-amber-600" />
+                        최근 랜딩페이지
+                      </h2>
+                      <span className="text-xs text-amber-600 hover:text-amber-700 md:text-sm">
+                        전체보기 <FiArrowRight className="inline ml-1" />
+                      </span>
+                    </div>
+                  </Link>
+                )}
                 {loadingLandingPages ? (
                   <div className="py-8 text-center text-sm text-gray-500">
                     랜딩페이지를 불러오는 중입니다...
                   </div>
                 ) : recentLandingPages.length > 0 ? (
                   <div className="space-y-3">
-                    {recentLandingPages.map((page) => (
-                      <Link
-                        key={page.id}
-                        href={`${partnerBase}/landing-pages/${page.id}/edit`}
-                        className="block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-amber-300 transition-colors"
-                      >
+                    {recentLandingPages.map((page) => {
+                      const pageContent = (
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
@@ -1983,20 +2113,56 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                           </div>
                           <FiArrowRight className="text-gray-400" />
                         </div>
-                      </Link>
-                    ))}
+                      );
+
+                      return subscriptionInfo ? (
+                        <button
+                          key={page.id}
+                          onClick={() => {
+                            const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                            setRestrictionMessage(message);
+                            setShowFeatureRestrictionModal(true);
+                          }}
+                          className="w-full text-left block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-amber-300 transition-colors"
+                        >
+                          {pageContent}
+                        </button>
+                      ) : (
+                        <Link
+                          key={page.id}
+                          href={`${partnerBase}/landing-pages/${page.id}/edit`}
+                          className="block rounded-lg border border-gray-200 p-3 md:p-4 hover:border-amber-300 transition-colors"
+                        >
+                          {pageContent}
+                        </Link>
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="py-8 text-center">
                     <p className="text-sm text-gray-500 mb-3">랜딩페이지가 없습니다.</p>
-                    <Link
-                      href={`${partnerBase}/landing-pages/new`}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-semibold"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <FiPlus />
-                      새 랜딩페이지 만들기
-                    </Link>
+                    {subscriptionInfo ? (
+                      <button
+                        onClick={() => {
+                          const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                          setRestrictionMessage(message);
+                          setShowFeatureRestrictionModal(true);
+                        }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-semibold"
+                      >
+                        <FiPlus />
+                        새 랜딩페이지 만들기
+                      </button>
+                    ) : (
+                      <Link
+                        href={`${partnerBase}/landing-pages/new`}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm font-semibold"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <FiPlus />
+                        새 랜딩페이지 만들기
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
@@ -3472,6 +3638,49 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 기능 제한 모달 */}
+      {showFeatureRestrictionModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900">기능 사용 제한</h2>
+              <button
+                onClick={() => {
+                  setShowFeatureRestrictionModal(false);
+                  setRestrictionMessage('');
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="text-xl text-gray-600" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800 whitespace-pre-line">
+                  {restrictionMessage}
+                </p>
+              </div>
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  💡 더 많은 기능을 사용하려면 담당 점장님과 상의해 주세요.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowFeatureRestrictionModal(false);
+                  setRestrictionMessage('');
+                }}
+                className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors"
+              >
+                확인
               </button>
             </div>
           </div>
