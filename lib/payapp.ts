@@ -103,6 +103,8 @@ export function getContractPrice(contractType: string): number {
       return 5400000; // 크루즈스탭: 540만원
     case 'PRIMARKETER':
       return 1000000; // 프리마케터: 100만원
+    case 'SUBSCRIPTION_AGENT':
+      return 100000; // 정액제 판매원: 10만원
     default:
       return 0;
   }
@@ -121,6 +123,8 @@ export function getContractGoodName(contractType: string): string {
       return '크루즈스탭 계약서';
     case 'PRIMARKETER':
       return '프리마케터 계약서';
+    case 'SUBSCRIPTION_AGENT':
+      return '정액제 판매원 1개월 구독';
     default:
       return '계약서';
   }

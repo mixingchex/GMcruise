@@ -723,47 +723,66 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     rightBadge: { topText: '신뢰할 수 있는', bottomText: '한국 여행사' },
   };
 
-  const renderPartnerHero = () => (
-    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-2xl">
-      <div className="absolute inset-0">
-        {partnerContext?.coverImage && String(partnerContext.coverImage).trim() ? (
-          <Image
-            src={String(partnerContext.coverImage)}
-            alt="파트너 커버"
-            fill
-            sizes="100vw"
-            className="object-cover opacity-60"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-700 via-purple-700 to-indigo-700 opacity-80" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 via-blue-900/60 to-purple-900/60" />
-      </div>
-      <div className="relative z-10 flex flex-col gap-6 p-8 md:p-10 lg:p-12">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/95 shadow-xl">
-              <Image src="/images/ai-cruise-logo.png" alt="크루즈닷" width={56} height={56} sizes="56px" className="w-12 h-12 object-contain" />
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-white/70">Cruisedot Partner Mall</p>
-              <h1 className="mt-2 text-3xl md:text-4xl lg:text-5xl font-black leading-tight">
-                {partnerProfileTitle}
-              </h1>
-              {partnerAnnouncement && (
-                <p className="mt-3 text-sm md:text-base text-white/80 whitespace-pre-line">{partnerAnnouncement}</p>
-              )}
-            </div>
-          </div>
+  const renderPartnerHero = () => {
+    // gest 계정 확인
+    const isGestAccount = partnerId?.toLowerCase().startsWith('gest');
+    
+    // gest 계정이면 노란색 테마, 아니면 기존 파란색-보라색 테마
+    const headerGradient = isGestAccount 
+      ? 'bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500'
+      : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600';
+    const overlayGradient = isGestAccount
+      ? 'bg-gradient-to-r from-yellow-500/80 via-yellow-400/80 to-yellow-600/80'
+      : 'bg-gradient-to-r from-blue-700 via-purple-700 to-indigo-700 opacity-80';
+    const textColor = isGestAccount ? 'text-gray-900' : 'text-white';
+    const textMutedColor = isGestAccount ? 'text-gray-700' : 'text-white/70';
+    
+    return (
+      <section className={`relative overflow-hidden rounded-3xl ${headerGradient} ${textColor} shadow-2xl`}>
+        <div className="absolute inset-0">
+          {partnerContext?.coverImage && String(partnerContext.coverImage).trim() ? (
+            <Image
+              src={String(partnerContext.coverImage)}
+              alt="파트너 커버"
+              fill
+              sizes="100vw"
+              className="object-cover opacity-60"
+            />
+          ) : (
+            <div className={`absolute inset-0 ${overlayGradient}`} />
+          )}
+          {!isGestAccount && (
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 via-blue-900/60 to-purple-900/60" />
+          )}
         </div>
-        {partnerWelcome && (
-          <div className="rounded-2xl bg-white/10 border border-white/15 p-5 text-sm md:text-base text-white/90 whitespace-pre-line">
-            {partnerWelcome}
+        <div className="relative z-10 flex flex-col gap-6 p-8 md:p-10 lg:p-12">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-4">
+              <div className={`flex h-16 w-16 items-center justify-center rounded-2xl ${isGestAccount ? 'bg-white/95' : 'bg-white/95'} shadow-xl`}>
+                <Image src="/images/ai-cruise-logo.png" alt="크루즈닷" width={56} height={56} sizes="56px" className="w-12 h-12 object-contain" />
+              </div>
+              <div>
+                <p className={`text-xs uppercase tracking-[0.35em] ${isGestAccount ? 'text-gray-800 font-semibold' : textMutedColor}`}>Cruisedot Partner Mall</p>
+                <h1 className={`mt-2 text-3xl md:text-4xl lg:text-5xl font-black leading-tight ${isGestAccount ? 'text-gray-900' : textColor}`}>
+                  {partnerProfileTitle}
+                </h1>
+                {partnerAnnouncement && (
+                  <p className={`mt-3 text-sm md:text-base font-medium ${isGestAccount ? 'text-gray-900' : 'text-white/80'} whitespace-pre-line`}>
+                    {partnerAnnouncement}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-    </section>
-  );
+          {partnerWelcome && (
+            <div className={`rounded-2xl ${isGestAccount ? 'bg-white/90 border-2 border-gray-400 shadow-lg' : 'bg-white/10 border border-white/15'} p-5 text-sm md:text-base ${isGestAccount ? 'text-gray-900 font-semibold' : 'text-white/90'} whitespace-pre-line`}>
+              {partnerWelcome}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  };
 
   const productDisplay = settings['product-display-settings'] || {
     popularRows: 1,

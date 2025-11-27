@@ -91,6 +91,7 @@ export async function POST(req: Request) {
     }
 
     // 정액제 판매원 계약서 생성
+    const now = new Date();
     const contract = await prisma.affiliateContract.create({
       data: {
         userId: user.id,
@@ -107,7 +108,8 @@ export async function POST(req: Request) {
           createdByProfileId: profile.id,
           manualEntry: true,
         },
-        submittedAt: new Date(),
+        submittedAt: now,
+        updatedAt: now,
       },
     });
 

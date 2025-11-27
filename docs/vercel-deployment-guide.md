@@ -46,6 +46,15 @@ UPSTASH_REDIS_REST_TOKEN=AWRoAAIncDJjZGQ4YjBiNjFiNWE0ZjZkYWE1YjY3M2FiZWIxNmJjY3A
 - `REDIS_URL`은 **설정하지 마세요** (로컬 Redis 연결 시도로 인한 오류 발생)
 - Upstash Redis는 REST API만 지원하므로 `UPSTASH_REDIS_REST_URL`과 `UPSTASH_REDIS_REST_TOKEN`만 사용합니다
 
+#### PayApp 결제 설정 (정액제 결제용)
+```
+PAYAPP_USERID=your_payapp_userid
+PAYAPP_LINKKEY=your_payapp_linkkey
+PAYAPP_LINKVAL=your_payapp_linkval
+```
+
+**참고**: 관리자 패널(`/admin/settings`)에서 설정하면 자동으로 Vercel 환경변수에 동기화됩니다.
+
 #### 기타 필수 환경 변수
 ```
 NEXT_PUBLIC_BASE_URL=https://your-domain.vercel.app

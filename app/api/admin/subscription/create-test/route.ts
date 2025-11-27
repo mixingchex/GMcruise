@@ -78,6 +78,7 @@ export async function POST(req: Request) {
       const subscriptionEndDate = new Date(subscriptionStartDate);
       subscriptionEndDate.setMonth(subscriptionEndDate.getMonth() + 1); // 1개월 정액제
 
+      const now = new Date();
       const contract = await prisma.affiliateContract.create({
         data: {
           userId: user.id,
@@ -103,7 +104,8 @@ export async function POST(req: Request) {
             paymentRequired: true,
             testAccount: true,
           },
-          submittedAt: new Date(),
+          submittedAt: now,
+          updatedAt: now,
         },
       });
 

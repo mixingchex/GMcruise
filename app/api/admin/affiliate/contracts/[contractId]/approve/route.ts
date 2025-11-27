@@ -136,8 +136,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     let partnerType: 'BRANCH_MANAGER' | 'SALES_AGENT' = 'SALES_AGENT';
     if (contractType === 'BRANCH_MANAGER') {
       partnerType = 'BRANCH_MANAGER';
-    } else if (contractType === 'CRUISE_STAFF' || contractType === 'PRIMARKETER') {
-      // 크루즈스탭과 프리마케터는 판매원 아이디로 생성되지만 타입은 SALES_AGENT
+    } else if (contractType === 'CRUISE_STAFF' || contractType === 'SUBSCRIPTION_AGENT') {
+      // 크루즈스탭과 정액제는 판매원 아이디로 생성되지만 타입은 SALES_AGENT
       partnerType = 'SALES_AGENT';
     } else if (!invitedByProfileId) {
       // contractType이 없고 invitedByProfileId도 없으면 대리점장

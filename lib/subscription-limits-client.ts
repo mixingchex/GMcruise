@@ -15,6 +15,7 @@ function getFeatureTypeClient(feature: string): 'branch-manager' | 'sales-agent'
     'contract-invite',
     'commission-adjust',
     'advanced-settings',
+    'view-contract', // 나의 계약서 보기
   ];
 
   // 판매원 전용 기능 (마비즈 VIP 판매원)
@@ -50,11 +51,11 @@ export function canUseFeatureClient(
   // 무료 체험 중인 경우 (30% 기능만)
   if (subscriptionInfo.isTrial) {
     const allowedFeatures = [
-      'link-create',      // 링크 생성
-      'sale-confirm',     // 판매 확정
-      'dashboard-basic',   // 기본 대시보드 조회
-      'lead-view',        // 리드 조회
-      'profile-edit',     // 프로필 수정 (3.3% 수당 및 통장사본 필요)
+      'my-mall',              // 나의 판매몰
+      'link-create',         // 링크 관리
+      'customer-management', // 나의 고객관리
+      'purchased-customers', // 구매고객 관리
+      'profile-edit',        // 프로필 수정
     ];
     return allowedFeatures.includes(feature);
   }
@@ -62,13 +63,14 @@ export function canUseFeatureClient(
   // 정식 구독 중인 경우 (50% 기능만)
   if (subscriptionInfo.status === 'active') {
     const allowedFeatures = [
-      'link-create',           // 링크 생성
-      'sale-confirm',          // 판매 확정
-      'dashboard-basic',       // 기본 대시보드 조회
-      'lead-view',             // 리드 조회
-      'stats-basic',           // 기본 통계
-      'customer-management',   // 고객 관리
-      'profile-edit',          // 프로필 수정 (3.3% 수당 및 통장사본 필요)
+      'my-mall',              // 나의 판매몰
+      'link-create',         // 링크 관리
+      'customer-management', // 나의 고객관리
+      'purchased-customers', // 구매고객 관리
+      'companion-registration', // 크루즈 가이드 동행인 등록
+      'customer-group-management', // 고객 그룹 관리
+      'profile-edit',        // 프로필 수정
+      'sns-profile',         // 나의 SNS 프로필
     ];
     return allowedFeatures.includes(feature);
   }

@@ -131,6 +131,7 @@ export async function POST(req: NextRequest) {
           }),
         },
         submittedAt: new Date(),
+        updatedAt: new Date(),
       },
     });
 

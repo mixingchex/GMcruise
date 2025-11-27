@@ -112,10 +112,11 @@ export async function POST(req: Request) {
         hasPassword: !!affiliateUser.password,
       } : '사용자를 찾을 수 없음');
 
-      // 계정이 없고 기본 비밀번호(1101, qwe1)를 사용하는 경우 자동 생성
-      if (!affiliateUser && (password === '1101' || password === 'qwe1')) {
+      // 계정이 없고 기본 비밀번호(1101, qwe1, zxc1)를 사용하는 경우 자동 생성
+      if (!affiliateUser && (password === '1101' || password === 'qwe1' || password === 'zxc1')) {
         console.log('[Partner Login] 파트너 계정 자동 생성:', { identifier, identifierLower });
         const isBoss = identifierLower.startsWith('boss');
+        const isGest = identifierLower.startsWith('gest'); // gest 계정 여부 확인
         const newMallUserId = identifierLower;
         
         // phone 필드도 설정 (mallUserId와 동일하게)
@@ -126,7 +127,7 @@ export async function POST(req: Request) {
               mallUserId: newMallUserId,
               phone: newMallUserId,
               password: password,
-              name: isBoss ? '대리점장' : '판매원',
+              name: isGest ? '정액제 판매원' : (isBoss ? '대리점장' : '판매원'),
               role: 'user',
               loginCount: 1,
               customerStatus: 'active',
@@ -180,9 +181,9 @@ export async function POST(req: Request) {
       const storedPassword = affiliateUser.password ?? '';
       let isPasswordValid = false;
 
-      // 파트너 기본 비밀번호 우선 체크 (1101, qwe1)
+      // 파트너 기본 비밀번호 우선 체크 (1101, qwe1, zxc1)
       // 파트너 로그인일 때는 기본 비밀번호를 무조건 허용
-      if (password === '1101' || password === 'qwe1') {
+      if (password === '1101' || password === 'qwe1' || password === 'zxc1') {
         // 파트너 기본 비밀번호는 무조건 허용
         isPasswordValid = true;
         console.log('[Partner Login] 파트너 기본 비밀번호 허용:', { phone: identifier, password });
@@ -225,8 +226,9 @@ export async function POST(req: Request) {
       });
 
       if (!affiliateProfile) {
-        // phone 필드가 boss로 시작하면 대리점장, user로 시작하면 판매원
+        // phone 필드가 boss로 시작하면 대리점장, gest로 시작하면 정액제 판매원
         const isBoss = affiliateUser.phone?.toLowerCase().startsWith('boss') || affiliateUser.mallUserId?.toLowerCase().startsWith('boss');
+        const isGest = affiliateUser.phone?.toLowerCase().startsWith('gest') || affiliateUser.mallUserId?.toLowerCase().startsWith('gest');
         const affiliateCode = `AFF-${(affiliateUser.mallUserId || identifierLower).toUpperCase()}-${randomBytes(2)
           .toString('hex')
           .toUpperCase()}`;
@@ -236,6 +238,7 @@ export async function POST(req: Request) {
           mallUserId: affiliateUser.mallUserId, 
           phone: affiliateUser.phone,
           isBoss,
+          isGest,
           type: isBoss ? 'BRANCH_MANAGER' : 'SALES_AGENT'
         });
         
@@ -258,6 +261,42 @@ export async function POST(req: Request) {
             select: { id: true },
           });
           console.log('[Partner Login] AffiliateProfile 생성 완료:', { profileId: affiliateProfile.id });
+          
+          // gest 계정인 경우 정액제 계약서 자동 생성 (7일 무료 체험)
+          if (isGest && affiliateUser) {
+            try {
+              const trialEndDate = new Date();
+              trialEndDate.setDate(trialEndDate.getDate() + 7); // 7일 무료 체험
+              
+              const contractEndDate = new Date();
+              contractEndDate.setDate(contractEndDate.getDate() + 7); // 초기 계약 종료일도 7일 후
+              
+              await prisma.affiliateContract.create({
+                data: {
+                  userId: affiliateUser.id,
+                  name: affiliateUser.name || '정액제 판매원',
+                  residentId: '000000-0000000', // 임시 주민등록번호
+                  phone: affiliateUser.phone || '000-0000-0000',
+                  email: `${affiliateUser.mallUserId}@example.com`,
+                  address: '테스트 주소',
+                  status: 'completed', // gest1은 완료 상태로 시작
+                  metadata: {
+                    contractType: 'SUBSCRIPTION_AGENT',
+                    isTrial: true,
+                    trialEndDate: trialEndDate.toISOString(),
+                  },
+                  contractStartDate: now,
+                  contractEndDate: contractEndDate,
+                  submittedAt: now,
+                  updatedAt: now,
+                },
+              });
+              console.log('[Partner Login] Gest 계정 정액제 계약서 자동 생성 완료:', { userId: affiliateUser.id });
+            } catch (contractError: any) {
+              console.error('[Partner Login] Gest 계정 정액제 계약서 생성 실패:', contractError);
+              // 계약서 생성 실패해도 로그인은 계속 진행
+            }
+          }
         } catch (profileError: any) {
           console.error('[Partner Login] AffiliateProfile 생성 실패:', profileError);
           // 중복 키 에러인 경우 다시 조회
@@ -284,6 +323,87 @@ export async function POST(req: Request) {
             { ok: false, error: '파트너 프로필을 찾을 수 없습니다. 관리자에게 문의해주세요.' },
             { status: 500 }
           );
+        }
+      }
+      
+      // gest 계정인 경우 정액제 계약서 확인 및 자동 생성/리셋 (기존 계정도 포함)
+      if (affiliateUser && affiliateProfile) {
+        const isGest = affiliateUser.phone?.toLowerCase().startsWith('gest') || affiliateUser.mallUserId?.toLowerCase().startsWith('gest');
+        const isGest1 = (affiliateUser.phone?.toLowerCase() === 'gest1' || affiliateUser.mallUserId?.toLowerCase() === 'gest1');
+        
+        if (isGest) {
+          try {
+            // 기존 정액제 계약서 확인
+            const existingContract = await prisma.affiliateContract.findFirst({
+              where: {
+                userId: affiliateUser.id,
+                metadata: {
+                  path: ['contractType'],
+                  equals: 'SUBSCRIPTION_AGENT',
+                },
+              },
+            });
+            
+            const now = new Date();
+            
+            // gest1은 테스트용이므로 로그인할 때마다 무료 체험 리셋
+            if (isGest1 && existingContract) {
+              const trialEndDate = new Date();
+              trialEndDate.setDate(trialEndDate.getDate() + 7); // 7일 무료 체험
+              
+              const contractEndDate = new Date();
+              contractEndDate.setDate(contractEndDate.getDate() + 7);
+              
+              // 기존 계약서 업데이트 (무료 체험 리셋)
+              await prisma.affiliateContract.update({
+                where: { id: existingContract.id },
+                data: {
+                  status: 'completed',
+                  metadata: {
+                    contractType: 'SUBSCRIPTION_AGENT',
+                    isTrial: true,
+                    trialEndDate: trialEndDate.toISOString(),
+                  },
+                  contractStartDate: now,
+                  contractEndDate: contractEndDate,
+                  updatedAt: now,
+                },
+              });
+              console.log('[Partner Login] Gest1 계정 무료 체험 리셋 완료:', { userId: affiliateUser.id, contractId: existingContract.id });
+            } else if (!existingContract) {
+              // 정액제 계약서가 없으면 생성
+              const trialEndDate = new Date();
+              trialEndDate.setDate(trialEndDate.getDate() + 7); // 7일 무료 체험
+              
+              const contractEndDate = new Date();
+              contractEndDate.setDate(contractEndDate.getDate() + 7);
+              
+              await prisma.affiliateContract.create({
+                data: {
+                  userId: affiliateUser.id,
+                  name: affiliateUser.name || '정액제 판매원',
+                  residentId: '000000-0000000',
+                  phone: affiliateUser.phone || '000-0000-0000',
+                  email: `${affiliateUser.mallUserId}@example.com`,
+                  address: '테스트 주소',
+                  status: 'completed', // gest 계정은 완료 상태로 시작
+                  metadata: {
+                    contractType: 'SUBSCRIPTION_AGENT',
+                    isTrial: true,
+                    trialEndDate: trialEndDate.toISOString(),
+                  },
+                  contractStartDate: now,
+                  contractEndDate: contractEndDate,
+                  submittedAt: now,
+                  updatedAt: now,
+                },
+              });
+              console.log('[Partner Login] 기존 Gest 계정 정액제 계약서 자동 생성 완료:', { userId: affiliateUser.id });
+            }
+          } catch (contractError: any) {
+            console.error('[Partner Login] Gest 계정 정액제 계약서 확인/생성 실패:', contractError);
+            // 계약서 생성 실패해도 로그인은 계속 진행
+          }
         }
       }
 

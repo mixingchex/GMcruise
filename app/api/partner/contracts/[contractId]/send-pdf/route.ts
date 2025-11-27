@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 // 계약서 PDF 재전송 API (완료된 계약서도 재전송 가능)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requirePartnerContext } from '@/app/api/partner/_utils';
+import { requirePartnerContext, PartnerApiError } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
 import { sendContractPDFByEmail } from '@/lib/affiliate/contract-email';
 
@@ -151,16 +151,21 @@ export async function POST(
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('[Partner Contract Send PDF] Error details:', { errorMessage, errorStack });
     
+    // PartnerApiError인 경우 해당 status 사용
+    const status = error instanceof PartnerApiError ? error.status : 500;
+    
     // JSON 응답이 항상 유효하도록 보장
     try {
       return NextResponse.json(
         { 
           ok: false, 
-          message: `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
+          message: status === 401 || status === 403 
+            ? errorMessage 
+            : `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
           error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         },
         { 
-          status: 500,
+          status,
           headers: {
             'Content-Type': 'application/json',
           }
@@ -174,7 +179,7 @@ export async function POST(
           message: `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
         }),
         { 
-          status: 500,
+          status,
           headers: {
             'Content-Type': 'application/json',
           }

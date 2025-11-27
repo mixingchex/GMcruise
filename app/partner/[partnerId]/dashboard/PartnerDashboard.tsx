@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ContractInviteModal from '@/components/admin/ContractInviteModal';
 import {
@@ -81,6 +81,7 @@ interface DashboardStats {
 export default function PartnerDashboard({ user, profile }: PartnerDashboardProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const affiliateTerm = getAffiliateTerm(pathname || undefined);
   const [showContractInviteModal, setShowContractInviteModal] = useState(false);
   const [showContractTypeModal, setShowContractTypeModal] = useState(false);
@@ -286,6 +287,7 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
   const [restrictionMessage, setRestrictionMessage] = useState<string>('');
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
   const [pendingPaymentAction, setPendingPaymentAction] = useState<(() => void) | null>(null);
+  const [paymentForm, setPaymentForm] = useState({ name: '', phone: '' });
   
   // 실시간 카운트다운 상태
   const [countdown, setCountdown] = useState<{
@@ -299,39 +301,95 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
   const isBranchManager = profile?.type === 'BRANCH_MANAGER';
   const isSalesAgent = profile?.type === 'SALES_AGENT';
   
-  // 정액제 구독 정보 로드
-  useEffect(() => {
-    const loadSubscriptionInfo = async () => {
-      try {
-        const res = await fetch('/api/partner/subscription/check', {
-          credentials: 'include',
-        });
-        if (res.ok) {
-          const json = await res.json();
-          if (json.ok && json.subscription) {
-            setSubscriptionInfo({
-              isTrial: json.subscription.isTrial || false,
-              status: json.subscription.status || 'expired',
-              trialEndDate: json.subscription.trialEndDate,
-              endDate: json.subscription.endDate,
-            });
-            // 정액제 판매원인 경우 튜토리얼 자동 표시
-            if (json.subscription.status === 'active' || json.subscription.isTrial) {
+  // 정액제 구독 정보 로드 및 결제 완료 확인
+  const loadSubscriptionInfo = useCallback(async (showSuccessMessage = false) => {
+    try {
+      const res = await fetch('/api/partner/subscription/check', {
+        credentials: 'include',
+        cache: 'no-store', // 항상 최신 정보 가져오기
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.ok && json.subscription) {
+          const newSubscriptionInfo = {
+            isTrial: json.subscription.isTrial || false,
+            status: json.subscription.status || 'expired',
+            trialEndDate: json.subscription.trialEndDate,
+            endDate: json.subscription.endDate,
+          };
+          setSubscriptionInfo(newSubscriptionInfo);
+          
+          // 결제 완료 후 성공 메시지 표시
+          if (showSuccessMessage && newSubscriptionInfo.status === 'active' && !newSubscriptionInfo.isTrial) {
+            showSuccess('정액제 구독이 완료되었습니다! 이제 더 많은 기능을 사용할 수 있습니다.');
+          }
+          
+          // 정액제 판매원인 경우 튜토리얼 자동 표시 (첫 로그인 시에만)
+          if (newSubscriptionInfo.status === 'active' || newSubscriptionInfo.isTrial) {
+            const hasSeenTutorial = localStorage.getItem(`tutorial_seen_${user.id}`);
+            if (!hasSeenTutorial) {
               setShowTutorial(true);
             }
-          } else {
-            setSubscriptionInfo(null);
           }
+        } else {
+          setSubscriptionInfo(null);
+        }
+      }
+    } catch (error) {
+      console.error('[PartnerDashboard] Failed to load subscription info:', error);
+      setSubscriptionInfo(null);
+    }
+  }, [user.id]);
+
+  useEffect(() => {
+    // 결제 완료 확인 (URL 파라미터)
+    const paymentSuccess = searchParams?.get('payment');
+    if (paymentSuccess === 'success') {
+      // URL에서 파라미터 제거
+      router.replace(pathname || '', { scroll: false });
+      // 구독 정보 재로드 (성공 메시지와 함께)
+      loadSubscriptionInfo(true);
+    } else {
+      // 일반 로드
+      loadSubscriptionInfo(false);
+    }
+  }, [searchParams, router, pathname, loadSubscriptionInfo]);
+
+  // 결제 시작 함수
+  const handleInitiatePayment = useCallback(() => {
+    // 이름과 연락처 초기화 (사용자 정보로)
+    setPaymentForm({
+      name: user.name || '',
+      phone: user.phone || '',
+    });
+    setPendingPaymentAction(async () => {
+      try {
+        const res = await fetch('/api/partner/subscription/payment', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: paymentForm.name.trim(),
+            phone: paymentForm.phone.trim().replace(/[^0-9]/g, ''),
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.ok && data.payurl) {
+          window.location.href = data.payurl;
+        } else {
+          showError(data.message || '결제 요청에 실패했습니다.');
         }
       } catch (error) {
-        console.error('[PartnerDashboard] Failed to load subscription info:', error);
-        setSubscriptionInfo(null);
+        console.error('[Subscription Payment] Error:', error);
+        showError('결제 요청 중 오류가 발생했습니다.');
       }
-    };
-    loadSubscriptionInfo();
-  }, [user.mallUserId, user.phone]);
+    });
+    setShowPaymentConfirmModal(true);
+  }, [user.name, user.phone, paymentForm]);
 
-  // 실시간 카운트다운 업데이트
+  // 실시간 카운트다운 업데이트 및 무료 체험 종료 시 결제 모달 표시
   useEffect(() => {
     if (!subscriptionInfo) {
       setCountdown(null);
@@ -356,6 +414,14 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
 
       if (diffMs <= 0) {
         setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        
+        // 무료 체험 종료 시 자동으로 결제 모달 표시
+        if (subscriptionInfo.isTrial && subscriptionInfo.status === 'trial') {
+          // 이미 결제 모달이 표시되지 않은 경우에만 표시
+          if (!showPaymentConfirmModal && !showFeatureRestrictionModal) {
+            handleInitiatePayment();
+          }
+        }
         return;
       }
 
@@ -374,7 +440,7 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
     const interval = setInterval(updateCountdown, 1000);
 
     return () => clearInterval(interval);
-  }, [subscriptionInfo]);
+  }, [subscriptionInfo, showPaymentConfirmModal, showFeatureRestrictionModal, handleInitiatePayment]);
 
   useEffect(() => {
     if (user.mallUserId && typeof window !== 'undefined') {
@@ -4436,13 +4502,14 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
       {/* 결제 확인 모달 */}
       {showPaymentConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">결제 확인</h2>
+              <h2 className="text-xl font-bold text-gray-900">정액제 구독하기</h2>
               <button
                 onClick={() => {
                   setShowPaymentConfirmModal(false);
                   setPendingPaymentAction(null);
+                  setPaymentForm({ name: '', phone: '' });
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -4450,6 +4517,41 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               </button>
             </div>
             <div className="space-y-4">
+              {/* 이름 입력 */}
+              <div>
+                <label htmlFor="payment-name" className="block text-sm font-semibold text-gray-700 mb-2">
+                  이름 *
+                </label>
+                <input
+                  id="payment-name"
+                  type="text"
+                  value={paymentForm.name}
+                  onChange={(e) => setPaymentForm({ ...paymentForm, name: e.target.value })}
+                  placeholder="이름을 입력하세요"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
+                  required
+                />
+              </div>
+
+              {/* 연락처 입력 */}
+              <div>
+                <label htmlFor="payment-phone" className="block text-sm font-semibold text-gray-700 mb-2">
+                  연락처 (휴대폰 번호) *
+                </label>
+                <input
+                  id="payment-phone"
+                  type="tel"
+                  value={paymentForm.phone}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9-]/g, '');
+                    setPaymentForm({ ...paymentForm, phone: value });
+                  }}
+                  placeholder="010-1234-5678"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-gray-900"
+                  required
+                />
+              </div>
+
               <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900 font-semibold mb-2">
                   ⚠️ 결제 전 확인사항
@@ -4465,6 +4567,9 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 <p className="text-sm text-gray-700 mt-2">
                   <strong>결제 후:</strong> 정식 구독으로 전환되어 50% 기능을 사용하실 수 있습니다.
                 </p>
+                <p className="text-sm text-gray-700 mt-2">
+                  <strong>계약서:</strong> 결제 완료 후 자동으로 계약서가 생성되며, 서명 후 개인 아이디와 비밀번호가 발급됩니다.
+                </p>
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-3">
@@ -4472,6 +4577,7 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
                 onClick={() => {
                   setShowPaymentConfirmModal(false);
                   setPendingPaymentAction(null);
+                  setPaymentForm({ name: '', phone: '' });
                 }}
                 className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors"
               >
@@ -4479,9 +4585,44 @@ export default function PartnerDashboard({ user, profile }: PartnerDashboardProp
               </button>
               <button
                 onClick={() => {
+                  // 유효성 검사
+                  if (!paymentForm.name.trim()) {
+                    showError('이름을 입력해주세요.');
+                    return;
+                  }
+                  if (!paymentForm.phone.trim() || paymentForm.phone.replace(/[^0-9]/g, '').length < 10) {
+                    showError('올바른 연락처를 입력해주세요.');
+                    return;
+                  }
+
                   setShowPaymentConfirmModal(false);
                   if (pendingPaymentAction) {
-                    pendingPaymentAction();
+                    // paymentForm을 최신 상태로 사용하기 위해 즉시 실행
+                    const executePayment = async () => {
+                      try {
+                        const res = await fetch('/api/partner/subscription/payment', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                          credentials: 'include',
+                          body: JSON.stringify({
+                            name: paymentForm.name.trim(),
+                            phone: paymentForm.phone.trim().replace(/[^0-9]/g, ''),
+                          }),
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.ok && data.payurl) {
+                          window.location.href = data.payurl;
+                        } else {
+                          showError(data.message || '결제 요청에 실패했습니다.');
+                        }
+                      } catch (error) {
+                        console.error('[Subscription Payment] Error:', error);
+                        showError('결제 요청 중 오류가 발생했습니다.');
+                      }
+                    };
+                    executePayment();
                   }
                   setPendingPaymentAction(null);
                 }}

@@ -680,6 +680,169 @@ export default function SubscriptionManagementPage() {
             </div>
           </div>
         )}
+
+        {/* 삭제 확인 모달 */}
+        {showDeleteModal && deleteModalData && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">정액제 판매원 삭제 확인</h2>
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteModalData(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <FiX className="text-xl text-gray-600" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* 구독 정보 */}
+                <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-4">
+                  <h3 className="font-bold text-gray-900 mb-2">구독 정보</h3>
+                  <div className="space-y-1 text-sm text-gray-700">
+                    <p><strong>mallUserId:</strong> {deleteModalData.subscription.mallUserId}</p>
+                    <p><strong>이름:</strong> {deleteModalData.subscription.user.name || '없음'}</p>
+                    <p><strong>전화번호:</strong> {deleteModalData.subscription.user.phone || '없음'}</p>
+                    <p><strong>상태:</strong> {deleteModalData.subscription.isTrial ? '무료 체험 중' : '정식 구독 중'}</p>
+                  </div>
+                </div>
+
+                {/* 무료 체험 중인 경우 */}
+                {deleteModalData.subscription.isTrial && deleteModalData.usageData && (
+                  <div className={`border-2 rounded-lg p-4 ${
+                    deleteModalData.usageData.canDelete 
+                      ? 'bg-yellow-50 border-yellow-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <h3 className={`font-bold mb-2 ${
+                      deleteModalData.usageData.canDelete ? 'text-yellow-900' : 'text-red-900'
+                    }`}>
+                      {deleteModalData.usageData.canDelete ? '✅ 삭제 가능' : '❌ 삭제 불가능'}
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      <p className={deleteModalData.usageData.canDelete ? 'text-yellow-800' : 'text-red-800'}>
+                        <strong>데이터 사용량:</strong> {deleteModalData.usageData.dataUsage}개
+                        {deleteModalData.usageData.canDelete 
+                          ? ` (5% 미만: ${deleteModalData.usageData.threshold}개 미만)` 
+                          : ` (5% 이상: ${deleteModalData.usageData.threshold}개 이상)`
+                        }
+                      </p>
+                      <div className="ml-4 space-y-1">
+                        <p className={deleteModalData.usageData.canDelete ? 'text-yellow-700' : 'text-red-700'}>
+                          - 고객: {deleteModalData.usageData.details.leadCount}건
+                        </p>
+                        <p className={deleteModalData.usageData.canDelete ? 'text-yellow-700' : 'text-red-700'}>
+                          - 판매: {deleteModalData.usageData.details.saleCount}건
+                        </p>
+                        <p className={deleteModalData.usageData.canDelete ? 'text-yellow-700' : 'text-red-700'}>
+                          - 링크: {deleteModalData.usageData.details.linkCount}건
+                        </p>
+                      </div>
+                      {!deleteModalData.usageData.canDelete && (
+                        <p className="text-red-700 font-semibold mt-2">
+                          데이터가 5% 이상이므로 삭제할 수 없습니다.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 정식 구독 중인 경우 */}
+                {!deleteModalData.subscription.isTrial && deleteModalData.checkData && (
+                  <div className={`border-2 rounded-lg p-4 ${
+                    !deleteModalData.checkData.hasDb 
+                      ? 'bg-yellow-50 border-yellow-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <h3 className={`font-bold mb-2 ${
+                      !deleteModalData.checkData.hasDb ? 'text-yellow-900' : 'text-red-900'
+                    }`}>
+                      {!deleteModalData.checkData.hasDb ? '✅ 삭제 가능' : '❌ 삭제 불가능'}
+                    </h3>
+                    <div className="space-y-2 text-sm">
+                      {deleteModalData.checkData.hasDb ? (
+                        <>
+                          <p className="text-red-800">
+                            <strong>DB가 있어서 삭제할 수 없습니다.</strong>
+                          </p>
+                          <div className="ml-4 space-y-1">
+                            <p className="text-red-700">
+                              - 고객 데이터: {deleteModalData.checkData.leadCount}건
+                            </p>
+                            <p className="text-red-700">
+                              - 판매 데이터: {deleteModalData.checkData.saleCount}건
+                            </p>
+                          </div>
+                          <p className="text-red-700 font-semibold mt-2">
+                            먼저 DB를 백업한 후 삭제하세요.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-yellow-800">
+                          DB가 없어서 삭제 가능합니다.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 삭제 가능한 경우에만 확인 버튼 표시 */}
+                {((deleteModalData.subscription.isTrial && deleteModalData.usageData?.canDelete) ||
+                  (!deleteModalData.subscription.isTrial && !deleteModalData.checkData?.hasDb)) && (
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800 mb-2">
+                      ⚠️ 삭제 후에는 복구할 수 없습니다. 정말로 삭제하시겠습니까?
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeleteModalData(null);
+                  }}
+                  className="px-6 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-semibold transition-colors"
+                >
+                  취소
+                </button>
+                {((deleteModalData.subscription.isTrial && deleteModalData.usageData?.canDelete) ||
+                  (!deleteModalData.subscription.isTrial && !deleteModalData.checkData?.hasDb)) && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`/api/admin/subscription/${deleteModalData.subscription.id}/delete`, {
+                          method: 'DELETE',
+                          credentials: 'include',
+                        });
+
+                        const data = await response.json();
+                        if (data.ok) {
+                          showSuccess(data.message || '정액제 판매원 계약서가 삭제되었습니다.');
+                          setShowDeleteModal(false);
+                          setDeleteModalData(null);
+                          loadSubscriptions();
+                        } else {
+                          showError(data.message || '삭제에 실패했습니다.');
+                        }
+                      } catch (error: any) {
+                        logger.error('[SubscriptionManagement] Delete error:', error);
+                        showError('삭제 중 오류가 발생했습니다.');
+                      }
+                    }}
+                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+                  >
+                    삭제 확인
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

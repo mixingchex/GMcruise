@@ -107,7 +107,7 @@ interface ContractInviteModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentProfileId?: number; // 현재 사용자의 프로필 ID (대리점장인 경우)
-  contractType?: 'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'; // 계약서 타입
+  contractType?: 'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'SUBSCRIPTION_AGENT'; // 계약서 타입
   onSuccess?: () => void;
   skipLinkGeneration?: boolean; // 링크 생성 단계 건너뛰고 바로 계약서 작성 폼 열기
 }
@@ -566,7 +566,7 @@ export default function ContractInviteModal({
         <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between rounded-t-2xl">
             <h2 className="text-2xl font-bold text-gray-900">
-              {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'PRIMARKETER' ? '프리마케터' : '판매원'} 계약서 링크 생성
+              {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'SUBSCRIPTION_AGENT' ? '정액제' : '판매원'} 계약서 링크 생성
             </h2>
             <button
               onClick={onClose}
@@ -626,20 +626,20 @@ export default function ContractInviteModal({
                       <FiExternalLink /> 계약서 페이지 미리보기
                     </a>
                   </div>
-                ) : contractType === 'PRIMARKETER' ? (
+                ) : contractType === 'SUBSCRIPTION_AGENT' ? (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-700">
-                        프리마케터
+                        정액제
                       </span>
                       <span className="text-gray-700">필요한 계약서:</span>
                     </div>
                     <ul className="list-disc list-inside space-y-1 text-gray-600 ml-4">
-                      <li>교육 계약서 - "100만원 판매원 계약서 .docx" (필수)</li>
+                      <li>교육 계약서 - "정액제 판매원 계약서" (필수)</li>
                     </ul>
-                    <p className="text-xs text-gray-500 mt-1">※ 판매원 아이디(userX)로 생성됩니다</p>
+                    <p className="text-xs text-gray-500 mt-1">※ 판매원 아이디(gestX)로 생성됩니다</p>
                     <a
-                      href={`/affiliate/contract?type=PRIMARKETER${currentProfileId ? `&invitedBy=${currentProfileId}` : ''}`}
+                      href={`/affiliate/contract?type=SUBSCRIPTION_AGENT${currentProfileId ? `&invitedBy=${currentProfileId}` : ''}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 mt-2 text-blue-600 hover:text-blue-700 text-xs font-semibold"
@@ -676,7 +676,7 @@ export default function ContractInviteModal({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'PRIMARKETER' ? '프리마케터' : '판매원'} 이름 *
+                  {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'SUBSCRIPTION_AGENT' ? '정액제' : '판매원'} 이름 *
                 </label>
                 <input
                   type="text"
@@ -688,7 +688,7 @@ export default function ContractInviteModal({
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'PRIMARKETER' ? '프리마케터' : '판매원'} 연락처 *
+                  {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'SUBSCRIPTION_AGENT' ? '정액제' : '판매원'} 연락처 *
                 </label>
                 <input
                   type="text"
