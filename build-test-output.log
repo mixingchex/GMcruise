@@ -1,0 +1,942 @@
+
+> cruise-guide@0.1.0 build
+> prisma generate && npm run images:build && npm run pwa:icons && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.0) to ./node_modules/@prisma/client in 339ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+
+> cruise-guide@0.1.0 images:build
+> node scripts/gen-image-manifest.mjs
+
+✅ image_manifest.json generated (1486 images) -> data/image_manifest.json
+
+> cruise-guide@0.1.0 pwa:icons
+> node scripts/generate-pwa-icons.mjs
+
+📱 PWA 아이콘 생성 시작...
+
+🎨 크루즈가이드 지니 아이콘 생성 중...
+✅ 크루즈가이드 지니 192x192 생성 완료: /home/userhyeseon28/projects/cruise-guide/public/icons/genie-icon-192.png (192x192, 배경: #FFB6C1)
+✅ 크루즈가이드 지니 512x512 생성 완료: /home/userhyeseon28/projects/cruise-guide/public/icons/genie-icon-512.png (512x512, 배경: #FFB6C1)
+
+🛒 크루즈몰 아이콘 생성 중...
+✅ 크루즈몰 192x192 생성 완료: /home/userhyeseon28/projects/cruise-guide/public/icons/mall-icon-192.png (192x192, 배경: #FFFFFF)
+✅ 크루즈몰 512x512 생성 완료: /home/userhyeseon28/projects/cruise-guide/public/icons/mall-icon-512.png (512x512, 배경: #FFFFFF)
+
+✨ 모든 아이콘 생성 완료!
+
+생성된 파일:
+  - /public/icons/genie-icon-192.png (크루즈가이드 지니, 핑크 배경)
+  - /public/icons/genie-icon-512.png (크루즈가이드 지니, 핑크 배경)
+  - /public/icons/mall-icon-192.png (크루즈몰, 흰색 배경)
+  - /public/icons/mall-icon-512.png (크루즈몰, 흰색 배경)
+  ▲ Next.js 14.2.33
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    · missingSuspenseWithCSRBailout
+
+   Creating an optimized production build ...
+ ⚠ Compiled with warnings
+
+./components/assign-trip/AssignTripForm.tsx
+Attempted import error: 'isValidMobilePhone' is not exported from '@/lib/phone-utils' (imported as 'isValidMobilePhone').
+
+Import trace for requested module:
+./components/assign-trip/AssignTripForm.tsx
+./app/partner/[partnerId]/assign-trip/page.tsx
+
+./components/assign-trip/AssignTripForm.tsx
+Attempted import error: 'isValidMobilePhone' is not exported from '@/lib/phone-utils' (imported as 'isValidMobilePhone').
+
+Import trace for requested module:
+./components/assign-trip/AssignTripForm.tsx
+./app/partner/[partnerId]/assign-trip/page.tsx
+
+./app/api/partner/assign-trip/create-genie/route.ts
+Attempted import error: 'isValidMobilePhone' is not exported from '@/lib/phone-utils' (imported as 'isValidMobilePhone').
+
+Import trace for requested module:
+./app/api/partner/assign-trip/create-genie/route.ts
+
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/154) ...
+[getSessionUser] Error: n [Error]: Dynamic server usage: Route /api/partner/assign-trip/users couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at l (/home/userhyeseon28/projects/cruise-guide/.next/server/chunks/38948.js:1:56331)
+    at Object.f (/home/userhyeseon28/projects/cruise-guide/.next/server/chunks/48407.js:1:4676)
+    at s (/home/userhyeseon28/projects/cruise-guide/.next/server/chunks/48407.js:1:2655)
+    at o (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/contracts/[contractId]/route.js:1:4077)
+    at c (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/users/route.js:1:947)
+    at /home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/userhyeseon28/projects/cruise-guide/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)
+    at ContextAPI.with (/home/userhyeseon28/projects/cruise-guide/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NoopTracer.startActiveSpan (/home/userhyeseon28/projects/cruise-guide/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31) {
+  description: "Route /api/partner/assign-trip/users couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[Partner AssignTrip] user search error: n [PartnerApiError]: 로그인이 필요합니다.
+    at o (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/contracts/[contractId]/route.js:1:4092)
+    at async c (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/users/route.js:1:933)
+    at async /home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/export/worker.js:175:20)
+    at async Span.traceAsyncFn (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/trace/trace.js:154:20)
+    at async Object.exportPage (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/export/worker.js:237:20) {
+  status: 401
+}
+[getSessionUser] Error: n [Error]: Dynamic server usage: Route /api/partner/assign-trip/products/search couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error
+    at l (/home/userhyeseon28/projects/cruise-guide/.next/server/chunks/38948.js:1:56331)
+    at Object.c (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/create-genie/route.js:1:11682)
+    at n (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/create-genie/route.js:1:8947)
+    at o (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/create-genie/route.js:1:2670)
+    at c (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/products/search/route.js:1:921)
+    at /home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38417
+    at /home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/server/lib/trace/tracer.js:140:36
+    at NoopContextManager.with (/home/userhyeseon28/projects/cruise-guide/node_modules/@opentelemetry/api/build/src/context/NoopContextManager.js:25:19)
+    at ContextAPI.with (/home/userhyeseon28/projects/cruise-guide/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NoopTracer.startActiveSpan (/home/userhyeseon28/projects/cruise-guide/node_modules/@opentelemetry/api/build/src/trace/NoopTracer.js:65:31) {
+  description: "Route /api/partner/assign-trip/products/search couldn't be rendered statically because it used `cookies`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error",
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+[Partner AssignTrip] product search error: n [PartnerApiError]: 로그인이 필요합니다.
+    at o (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/create-genie/route.js:1:2685)
+    at async c (/home/userhyeseon28/projects/cruise-guide/.next/server/app/api/partner/assign-trip/products/search/route.js:1:907)
+    at async /home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:38411
+    at async e_.execute (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:27880)
+    at async e_.handle (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-route.runtime.prod.js:6:39943)
+    at async exportAppRoute (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/export/routes/app-route.js:77:26)
+    at async exportPageImpl (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/export/worker.js:175:20)
+    at async Span.traceAsyncFn (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/trace/trace.js:154:20)
+    at async Object.exportPage (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/export/worker.js:237:20) {
+  status: 401
+}
+   Generating static pages (38/154) 
+ ⚠ Entire page "/mall/checkout/success" deopted into client-side rendering due to "useSearchParams()". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering
+    at i (/home/userhyeseon28/projects/cruise-guide/.next/server/chunks/4904.js:1:11699)
+    at s (/home/userhyeseon28/projects/cruise-guide/.next/server/chunks/4904.js:1:22682)
+    at n (/home/userhyeseon28/projects/cruise-guide/.next/server/app/mall/checkout/success/page.js:1:3070)
+    at nj (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:46252)
+    at nM (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47572)
+    at nN (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64547)
+    at nI (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47011)
+    at nM (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:47718)
+    at nM (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:61547)
+    at nN (/home/userhyeseon28/projects/cruise-guide/node_modules/next/dist/compiled/next-server/app-page.runtime.prod.js:12:64547)
+   Generating static pages (76/154) 
+   Generating static pages (115/154) 
+ ✓ Generating static pages (154/154)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                            Size     First Load JS
+┌ ƒ /                                                                  14.5 kB         156 kB
+├ ○ /_not-found                                                        186 B          89.1 kB
+├ ƒ /[mallUserId]/customers                                            153 B           136 kB
+├ ƒ /[mallUserId]/dashboard                                            157 B           145 kB
+├ ƒ /[mallUserId]/payment                                              152 B           114 kB
+├ ƒ /[mallUserId]/profile                                              7.77 kB         116 kB
+├ ƒ /[mallUserId]/shop                                                 484 B           125 kB
+├ ○ /admin                                                             577 B          89.5 kB
+├ ○ /admin/admin-panel-admins                                          5.04 kB        99.5 kB
+├ ○ /admin/affiliate/adjustments                                       5.48 kB         100 kB
+├ ○ /admin/affiliate/agent-dashboard                                   8.03 kB         107 kB
+├ ○ /admin/affiliate/contracts                                         23.1 kB         138 kB
+├ ○ /admin/affiliate/customers                                         3.03 kB         104 kB
+├ ƒ /admin/affiliate/customers/[leadId]                                8.66 kB         103 kB
+├ ○ /admin/affiliate/documents                                         14.4 kB         164 kB
+├ ○ /admin/affiliate/links                                             10.6 kB         105 kB
+├ ○ /admin/affiliate/links/cleanup                                     3.52 kB          98 kB
+├ ○ /admin/affiliate/mall                                              6.25 kB         101 kB
+├ ƒ /admin/affiliate/mall/invite/[profileId]                           4.26 kB        98.7 kB
+├ ○ /admin/affiliate/payment-pages                                     5.2 kB          105 kB
+├ ○ /admin/affiliate/products                                          11.2 kB         145 kB
+├ ○ /admin/affiliate/profiles                                          15.3 kB         110 kB
+├ ○ /admin/affiliate/refunds                                           5.54 kB         100 kB
+├ ○ /admin/affiliate/sales-confirmation/pending                        4.77 kB        99.3 kB
+├ ○ /admin/affiliate/settlements                                       10.5 kB         105 kB
+├ ○ /admin/affiliate/statements                                        5.06 kB        99.5 kB
+├ ○ /admin/affiliate/team-dashboard                                    8.1 kB          107 kB
+├ ○ /admin/affiliate/test-simulation                                   9.11 kB         217 kB
+├ ○ /admin/apis                                                        8.51 kB         103 kB
+├ ○ /admin/assign-trip                                                 8.05 kB         103 kB
+├ ○ /admin/broadcast                                                   4.53 kB          99 kB
+├ ○ /admin/chat-bot                                                    4.59 kB         108 kB
+├ ƒ /admin/chat-bot/flows/[id]                                         37.1 kB         148 kB
+├ ○ /admin/chat-bot/flows/new                                          5.13 kB        99.6 kB
+├ ○ /admin/chat-bot/insights                                           4.84 kB        99.3 kB
+├ ○ /admin/community                                                   5.07 kB        99.6 kB
+├ ○ /admin/community-bot                                               2.28 kB        91.2 kB
+├ ○ /admin/cruise-guide-customers                                      526 B          89.5 kB
+├ ○ /admin/cruisedot-news                                              2.65 kB         100 kB
+├ ○ /admin/customer-groups                                             11.8 kB         106 kB
+├ ○ /admin/customers                                                   8.68 kB         103 kB
+├ ƒ /admin/customers/[userId]                                          13 kB           107 kB
+├ ○ /admin/dashboard                                                   7.92 kB         102 kB
+├ ○ /admin/data-analysis                                               11.8 kB         220 kB
+├ ○ /admin/documents                                                   18.4 kB         168 kB
+├ ○ /admin/feedback                                                    3.87 kB         104 kB
+├ ○ /admin/funnel                                                      3.97 kB         107 kB
+├ ƒ /admin/funnel/[type]/new                                           8.56 kB         103 kB
+├ ○ /admin/images                                                      6.35 kB         106 kB
+├ ○ /admin/inquiries                                                   4.66 kB        99.1 kB
+├ ○ /admin/knowledge                                                   3.74 kB        98.2 kB
+├ ○ /admin/landing-pages                                               9.37 kB         104 kB
+├ ƒ /admin/landing-pages/[id]/edit                                     24 kB           124 kB
+├ ○ /admin/landing-pages/new                                           22.7 kB         122 kB
+├ ○ /admin/login                                                       2.09 kB          91 kB
+├ ○ /admin/mall                                                        2.82 kB         106 kB
+├ ○ /admin/mall-admins                                                 5.96 kB         100 kB
+├ ○ /admin/mall-analytics                                              2.84 kB        97.3 kB
+├ ○ /admin/mall-customers                                              523 B          89.5 kB
+├ ƒ /admin/mall-customers/[userId]                                     4.31 kB        98.8 kB
+├ ○ /admin/mall/community                                              4.99 kB        99.5 kB
+├ ○ /admin/mall/footer-edit                                            4.65 kB        99.1 kB
+├ ○ /admin/mall/footer-settings                                        3.25 kB        97.7 kB
+├ ○ /admin/mall/hero                                                   6.08 kB         106 kB
+├ ○ /admin/mall/mobile-preview                                         2.72 kB         106 kB
+├ ○ /admin/mall/page-builder                                           6.1 kB          109 kB
+├ ○ /admin/mall/settings                                               6.1 kB          105 kB
+├ ○ /admin/mall/test-upload                                            3.29 kB        97.8 kB
+├ ○ /admin/mall/visual-editor                                          23 kB           127 kB
+├ ○ /admin/mall/visual-editor/preview                                  9.38 kB         151 kB
+├ ○ /admin/manual-passport-request                                     6.19 kB         109 kB
+├ ○ /admin/marketing/customers                                         11 kB           106 kB
+├ ○ /admin/marketing/dashboard                                         3.79 kB        98.3 kB
+├ ○ /admin/messages                                                    14 kB           122 kB
+├ ○ /admin/pages                                                       6.6 kB          110 kB
+├ ○ /admin/passport-request                                            11.6 kB         106 kB
+├ ○ /admin/products                                                    23.5 kB         240 kB
+├ ƒ /admin/products/[productCode]                                      15 kB           232 kB
+├ ○ /admin/products/new                                                11.6 kB         228 kB
+├ ○ /admin/prospects                                                   525 B          89.5 kB
+├ ○ /admin/pwa-stats                                                   2.63 kB         211 kB
+├ ○ /admin/scheduled-messages                                          8.68 kB         103 kB
+├ ○ /admin/seo                                                         5.02 kB        99.5 kB
+├ ○ /admin/settings                                                    19.2 kB         114 kB
+├ ○ /admin/subscription                                                12.4 kB         111 kB
+├ ○ /admin/system/google-drive                                         5.55 kB         100 kB
+├ ○ /admin/system/status                                               2.76 kB        97.2 kB
+├ ○ /admin/team-dashboard-messages                                     8 kB            102 kB
+├ ○ /admin/test-customers                                              523 B          89.5 kB
+├ ○ /admin/test-dashboard                                              3.77 kB        98.3 kB
+├ ƒ /admin/users/[userId]                                              25.9 kB         120 kB
+├ ○ /affiliate/contract                                                16 kB           123 kB
+├ ○ /affiliate/contract/complete                                       3.39 kB        97.9 kB
+├ ○ /affiliate/contract/sign                                           15.9 kB         118 kB
+├ ƒ /affiliate/contract/sign/[token]                                   5.49 kB         100 kB
+├ ○ /affiliate/contract/success                                        2.69 kB        97.2 kB
+├ ○ /affiliate/my-contract                                             7.3 kB          102 kB
+├ ƒ /affiliate/my-profile                                              186 B          89.1 kB
+├ ƒ /affiliate/payment/[contractType]                                  3.28 kB         103 kB
+├ ○ /affiliate/products                                                2.83 kB         127 kB
+├ ○ /affiliate/team                                                    4.44 kB         108 kB
+├ ƒ /api/admin/admin-panel-admins                                      0 B                0 B
+├ ƒ /api/admin/admin-panel-admins/[id]                                 0 B                0 B
+├ ƒ /api/admin/admin-panel-admins/batch-delete                         0 B                0 B
+├ ƒ /api/admin/affiliate/adjustments                                   0 B                0 B
+├ ƒ /api/admin/affiliate/adjustments/[adjustmentId]/approve            0 B                0 B
+├ ƒ /api/admin/affiliate/agents/metrics                                0 B                0 B
+├ ƒ /api/admin/affiliate/contracts                                     0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]                        0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]/approve                0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]/complete               0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]/reject                 0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]/renewal                0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]/retry-recovery         0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]/send-pdf               0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/[contractId]/terminate              0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/education-sections                  0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/invite                              0 B                0 B
+├ ƒ /api/admin/affiliate/contracts/manual                              0 B                0 B
+├ ƒ /api/admin/affiliate/documents/generate                            0 B                0 B
+├ ƒ /api/admin/affiliate/documents/product-info                        0 B                0 B
+├ ƒ /api/admin/affiliate/documents/sync                                0 B                0 B
+├ ƒ /api/admin/affiliate/interactions                                  0 B                0 B
+├ ƒ /api/admin/affiliate/interactions/[interactionId]/upload           0 B                0 B
+├ ƒ /api/admin/affiliate/leads                                         0 B                0 B
+├ ƒ /api/admin/affiliate/leads/[leadId]                                0 B                0 B
+├ ƒ /api/admin/affiliate/leads/[leadId]/complete-passport              0 B                0 B
+├ ƒ /api/admin/affiliate/leads/[leadId]/passport-link                  0 B                0 B
+├ ƒ /api/admin/affiliate/leads/[leadId]/request-passport               0 B                0 B
+├ ƒ /api/admin/affiliate/leads/[leadId]/status                         0 B                0 B
+├ ƒ /api/admin/affiliate/ledgers                                       0 B                0 B
+├ ƒ /api/admin/affiliate/links                                         0 B                0 B
+├ ƒ /api/admin/affiliate/links/[linkId]                                0 B                0 B
+├ ƒ /api/admin/affiliate/links/[linkId]/reissue                        0 B                0 B
+├ ƒ /api/admin/affiliate/links/cleanup                                 0 B                0 B
+├ ƒ /api/admin/affiliate/links/options                                 0 B                0 B
+├ ƒ /api/admin/affiliate/mall/[profileId]                              0 B                0 B
+├ ƒ /api/admin/affiliate/mall/create                                   0 B                0 B
+├ ƒ /api/admin/affiliate/messages/[id]                                 0 B                0 B
+├ ƒ /api/admin/affiliate/messages/recipients                           0 B                0 B
+├ ƒ /api/admin/affiliate/messages/send                                 0 B                0 B
+├ ƒ /api/admin/affiliate/monitoring                                    0 B                0 B
+├ ƒ /api/admin/affiliate/my-messages                                   0 B                0 B
+├ ƒ /api/admin/affiliate/payment-pages                                 0 B                0 B
+├ ƒ /api/admin/affiliate/payment-pages/upload                          0 B                0 B
+├ ƒ /api/admin/affiliate/products                                      0 B                0 B
+├ ƒ /api/admin/affiliate/products/[productId]                          0 B                0 B
+├ ƒ /api/admin/affiliate/products/sources                              0 B                0 B
+├ ƒ /api/admin/affiliate/profiles                                      0 B                0 B
+├ ƒ /api/admin/affiliate/profiles/[profileId]                          0 B                0 B
+├ ƒ /api/admin/affiliate/profiles/[profileId]/documents                0 B                0 B
+├ ƒ /api/admin/affiliate/profiles/fix-relations                        0 B                0 B
+├ ƒ /api/admin/affiliate/sales                                         0 B                0 B
+├ ƒ /api/admin/affiliate/sales-confirmation/pending                    0 B                0 B
+├ ƒ /api/admin/affiliate/sales/[saleId]/approve                        0 B                0 B
+├ ƒ /api/admin/affiliate/sales/[saleId]/approve-commission             0 B                0 B
+├ ƒ /api/admin/affiliate/sales/[saleId]/card-payment                   0 B                0 B
+├ ƒ /api/admin/affiliate/sales/[saleId]/confirm                        0 B                0 B
+├ ƒ /api/admin/affiliate/sales/[saleId]/receipt                        0 B                0 B
+├ ƒ /api/admin/affiliate/sales/[saleId]/refund                         0 B                0 B
+├ ƒ /api/admin/affiliate/sales/[saleId]/reject                         0 B                0 B
+├ ƒ /api/admin/affiliate/sales/pending-approval                        0 B                0 B
+├ ƒ /api/admin/affiliate/sample-data                                   0 B                0 B
+├ ƒ /api/admin/affiliate/sample-data/auto-generate                     0 B                0 B
+├ ƒ /api/admin/affiliate/settlements                                   0 B                0 B
+├ ƒ /api/admin/affiliate/settlements-list                              0 B                0 B
+├ ƒ /api/admin/affiliate/settlements/[settlementId]/export-excel       0 B                0 B
+├ ƒ /api/admin/affiliate/settlements/[settlementId]/statement          0 B                0 B
+├ ƒ /api/admin/affiliate/settlements/excel                             0 B                0 B
+├ ƒ /api/admin/affiliate/teams/metrics                                 0 B                0 B
+├ ƒ /api/admin/analytics                                               0 B                0 B
+├ ƒ /api/admin/analytics/global                                        0 B                0 B
+├ ƒ /api/admin/announcements                                           0 B                0 B
+├ ƒ /api/admin/apis/active-products                                    0 B                0 B
+├ ƒ /api/admin/apis/add-customer                                       0 B                0 B
+├ ƒ /api/admin/apis/customer-detail                                    0 B                0 B
+├ ƒ /api/admin/apis/excel                                              0 B                0 B
+├ ƒ /api/admin/apis/generate                                           0 B                0 B
+├ ƒ /api/admin/apis/generate-by-product                                0 B                0 B
+├ ƒ /api/admin/apis/product-apis-list                                  0 B                0 B
+├ ƒ /api/admin/apis/product-customers                                  0 B                0 B
+├ ƒ /api/admin/apis/update-customer                                    0 B                0 B
+├ ƒ /api/admin/assign-trip                                             0 B                0 B
+├ ƒ /api/admin/auth-check                                              0 B                0 B
+├ ƒ /api/admin/backup/trigger                                          0 B                0 B
+├ ƒ /api/admin/broadcast                                               0 B                0 B
+├ ƒ /api/admin/certificate-approvals                                   0 B                0 B
+├ ƒ /api/admin/certificate-approvals/[id]/approve                      0 B                0 B
+├ ƒ /api/admin/certificate-approvals/[id]/reject                       0 B                0 B
+├ ƒ /api/admin/certificates/certify                                    0 B                0 B
+├ ƒ /api/admin/chat                                                    0 B                0 B
+├ ƒ /api/admin/chat-bot/conversation                                   0 B                0 B
+├ ƒ /api/admin/chat-bot/create-passport-flow                           0 B                0 B
+├ ƒ /api/admin/chat-bot/flows                                          0 B                0 B
+├ ƒ /api/admin/chat-bot/flows/[id]                                     0 B                0 B
+├ ƒ /api/admin/chat-bot/flows/[id]/copy                                0 B                0 B
+├ ƒ /api/admin/chat-bot/flows/[id]/nodes                               0 B                0 B
+├ ƒ /api/admin/chat-bot/generate-flow                                  0 B                0 B
+├ ƒ /api/admin/chat-bot/insights                                       0 B                0 B
+├ ƒ /api/admin/chat-bot/questions                                      0 B                0 B
+├ ƒ /api/admin/chat-bot/questions/[id]                                 0 B                0 B
+├ ƒ /api/admin/chat-bot/stats                                          0 B                0 B
+├ ƒ /api/admin/chat-bot/templates                                      0 B                0 B
+├ ƒ /api/admin/chat-bot/templates/[id]                                 0 B                0 B
+├ ƒ /api/admin/community-bot/create-news                               0 B                0 B
+├ ƒ /api/admin/community-bot/status                                    0 B                0 B
+├ ƒ /api/admin/community-bot/toggle                                    0 B                0 B
+├ ƒ /api/admin/company/logo/upload                                     0 B                0 B
+├ ƒ /api/admin/cruise-guide-users                                      0 B                0 B
+├ ƒ /api/admin/cruise-photos                                           0 B                0 B
+├ ƒ /api/admin/cruise-photos/image                                     0 B                0 B
+├ ƒ /api/admin/customer-groups                                         0 B                0 B
+├ ƒ /api/admin/customer-groups/[id]                                    0 B                0 B
+├ ƒ /api/admin/customer-groups/[id]/customers                          0 B                0 B
+├ ƒ /api/admin/customer-groups/[id]/funnel-settings                    0 B                0 B
+├ ƒ /api/admin/customer-groups/[id]/members                            0 B                0 B
+├ ƒ /api/admin/customer-groups/[id]/message-logs                       0 B                0 B
+├ ƒ /api/admin/customer-groups/[id]/script                             0 B                0 B
+├ ƒ /api/admin/customer-groups/create-customer                         0 B                0 B
+├ ƒ /api/admin/customer-groups/customers                               0 B                0 B
+├ ƒ /api/admin/customer-groups/excel-upload                            0 B                0 B
+├ ƒ /api/admin/customers                                               0 B                0 B
+├ ƒ /api/admin/customers/[userId]/journey                              0 B                0 B
+├ ƒ /api/admin/customers/[userId]/notes                                0 B                0 B
+├ ƒ /api/admin/customers/[userId]/notes/[noteId]                       0 B                0 B
+├ ƒ /api/admin/customers/[userId]/passport                             0 B                0 B
+├ ƒ /api/admin/customers/[userId]/purchase-info                        0 B                0 B
+├ ƒ /api/admin/customers/create-genie                                  0 B                0 B
+├ ƒ /api/admin/customers/create-mall                                   0 B                0 B
+├ ƒ /api/admin/customers/create-test                                   0 B                0 B
+├ ƒ /api/admin/customers/export                                        0 B                0 B
+├ ƒ /api/admin/customers/search                                        0 B                0 B
+├ ƒ /api/admin/dashboard                                               0 B                0 B
+├ ƒ /api/admin/email-address-book                                      0 B                0 B
+├ ƒ /api/admin/email-address-book/[id]                                 0 B                0 B
+├ ƒ /api/admin/email-address-book/download                             0 B                0 B
+├ ƒ /api/admin/email-address-book/upload                               0 B                0 B
+├ ƒ /api/admin/feedback                                                0 B                0 B
+├ ƒ /api/admin/footer                                                  0 B                0 B
+├ ƒ /api/admin/funnel-messages                                         0 B                0 B
+├ ƒ /api/admin/funnel-messages/[id]                                    0 B                0 B
+├ ƒ /api/admin/google-drive/copy-spreadsheet-folder                    0 B                0 B
+├ ƒ /api/admin/images                                                  0 B                0 B
+├ ƒ /api/admin/images/download                                         0 B                0 B
+├ ƒ /api/admin/images/upload                                           0 B                0 B
+├ ƒ /api/admin/inquiries                                               0 B                0 B
+├ ƒ /api/admin/inquiries/[inquiryId]                                   0 B                0 B
+├ ƒ /api/admin/inquiries/[inquiryId]/confirm                           0 B                0 B
+├ ƒ /api/admin/inquiries/[inquiryId]/status                            0 B                0 B
+├ ƒ /api/admin/inquiries/bulk-delete                                   0 B                0 B
+├ ƒ /api/admin/insights                                                0 B                0 B
+├ ƒ /api/admin/insights/generate                                       0 B                0 B
+├ ƒ /api/admin/itinerary-groups                                        0 B                0 B
+├ ƒ /api/admin/itinerary-groups/[groupId]                              0 B                0 B
+├ ƒ /api/admin/kakao/channel-uuid                                      0 B                0 B
+├ ƒ /api/admin/kakao/find-channel-uuid                                 0 B                0 B
+├ ƒ /api/admin/knowledge                                               0 B                0 B
+├ ƒ /api/admin/knowledge/search                                        0 B                0 B
+├ ƒ /api/admin/landing-pages                                           0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]                                      0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/comments                             0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/comments/[commentId]                 0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/comments/generate                    0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/id_tmp                               0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/id_tmp/comments/generate             0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/id_tmp/duplicate                     0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/id_tmp/registrations                 0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/id_tmp/share                         0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/id_tmp/shortcut                      0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/id_tmp/stats                         0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/share                                0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/shortcut                             0 B                0 B
+├ ƒ /api/admin/landing-pages/[id]/stats                                0 B                0 B
+├ ƒ /api/admin/landing-pages/bulk-delete                               0 B                0 B
+├ ƒ /api/admin/mall-admins                                             0 B                0 B
+├ ƒ /api/admin/mall-admins/[adminId]                                   0 B                0 B
+├ ƒ /api/admin/mall-analytics                                          0 B                0 B
+├ ƒ /api/admin/mall-customers                                          0 B                0 B
+├ ƒ /api/admin/mall-customers/[userId]                                 0 B                0 B
+├ ƒ /api/admin/mall-customers/[userId]/lock                            0 B                0 B
+├ ƒ /api/admin/mall-customers/[userId]/reset-password                  0 B                0 B
+├ ƒ /api/admin/mall-users                                              0 B                0 B
+├ ƒ /api/admin/mall-users/list                                         0 B                0 B
+├ ƒ /api/admin/mall-users/search                                       0 B                0 B
+├ ƒ /api/admin/mall/community/categories                               0 B                0 B
+├ ƒ /api/admin/mall/community/categories/[id]                          0 B                0 B
+├ ƒ /api/admin/mall/community/posts/[id]                               0 B                0 B
+├ ƒ /api/admin/mall/cruise-photos                                      0 B                0 B
+├ ƒ /api/admin/mall/files                                              0 B                0 B
+├ ƒ /api/admin/mall/footer-settings                                    0 B                0 B
+├ ƒ /api/admin/mall/google-drive-image                                 0 B                0 B
+├ ƒ /api/admin/mall/google-drive-products                              0 B                0 B
+├ ƒ /api/admin/mall/hero-banner                                        0 B                0 B
+├ ƒ /api/admin/mall/page-config                                        0 B                0 B
+├ ƒ /api/admin/mall/products/[productCode]                             0 B                0 B
+├ ƒ /api/admin/mall/sections                                           0 B                0 B
+├ ƒ /api/admin/mall/sections/[id]                                      0 B                0 B
+├ ƒ /api/admin/mall/settings                                           0 B                0 B
+├ ƒ /api/admin/mall/upload                                             0 B                0 B
+├ ƒ /api/admin/marketing/customers                                     0 B                0 B
+├ ƒ /api/admin/marketing/customers/[id]                                0 B                0 B
+├ ƒ /api/admin/marketing/customers/backup                              0 B                0 B
+├ ƒ /api/admin/marketing/customers/by-group                            0 B                0 B
+├ ƒ /api/admin/marketing/customers/excel-template                      0 B                0 B
+├ ƒ /api/admin/marketing/customers/excel-upload                        0 B                0 B
+├ ƒ /api/admin/marketing/customers/export                              0 B                0 B
+├ ƒ /api/admin/marketing/customers/interactions                        0 B                0 B
+├ ƒ /api/admin/marketing/customers/phone-upload                        0 B                0 B
+├ ƒ /api/admin/marketing/customers/send-email                          0 B                0 B
+├ ƒ /api/admin/marketing/customers/send-sms                            0 B                0 B
+├ ƒ /api/admin/marketing/customers/send-team-dashboard                 0 B                0 B
+├ ƒ /api/admin/marketing/customers/sync-to-group                       0 B                0 B
+├ ƒ /api/admin/marketing/dashboard                                     0 B                0 B
+├ ƒ /api/admin/messages                                                0 B                0 B
+├ ƒ /api/admin/messages/[id]/readers                                   0 B                0 B
+├ ƒ /api/admin/messages/send-email                                     0 B                0 B
+├ ƒ /api/admin/messages/send-kakao                                     0 B                0 B
+├ ƒ /api/admin/messages/send-sms                                       0 B                0 B
+├ ƒ /api/admin/messages/statistics                                     0 B                0 B
+├ ƒ /api/admin/notifications                                           0 B                0 B
+├ ƒ /api/admin/pages/content                                           0 B                0 B
+├ ƒ /api/admin/pages/html                                              0 B                0 B
+├ ƒ /api/admin/pages/upload                                            0 B                0 B
+├ ƒ /api/admin/parse-ppt                                               0 B                0 B
+├ ƒ /api/admin/passport-request/customers                              0 B                0 B
+├ ƒ /api/admin/passport-request/history                                0 B                0 B
+├ ƒ /api/admin/passport-request/manual                                 0 B                0 B
+├ ƒ /api/admin/passport-request/manual-register                        0 B                0 B
+├ ƒ /api/admin/passport-request/ocr-to-apis                            0 B                0 B
+├ ƒ /api/admin/passport-request/search                                 0 B                0 B
+├ ƒ /api/admin/passport-request/send                                   0 B                0 B
+├ ƒ /api/admin/passport-request/templates                              0 B                0 B
+├ ƒ /api/admin/password-events                                         0 B                0 B
+├ ƒ /api/admin/payslips/[id]/approve                                   0 B                0 B
+├ ƒ /api/admin/payslips/[id]/pdf                                       0 B                0 B
+├ ƒ /api/admin/payslips/generate                                       0 B                0 B
+├ ƒ /api/admin/products                                                0 B                0 B
+├ ƒ /api/admin/products/[productCode]                                  0 B                0 B
+├ ƒ /api/admin/products/import                                         0 B                0 B
+├ ƒ /api/admin/products/search                                         0 B                0 B
+├ ƒ /api/admin/prospects                                               0 B                0 B
+├ ƒ /api/admin/prospects/[id]                                          0 B                0 B
+├ ƒ /api/admin/prospects/bulk                                          0 B                0 B
+├ ƒ /api/admin/purchase-customers/[userId]/trip-info                   0 B                0 B
+├ ƒ /api/admin/pwa-stats                                               0 B                0 B
+├ ƒ /api/admin/refund-policy-groups                                    0 B                0 B
+├ ƒ /api/admin/refund-policy-groups/[groupId]                          0 B                0 B
+├ ƒ /api/admin/rePurchase                                              0 B                0 B
+├ ƒ /api/admin/rePurchase/[triggerId]/convert                          0 B                0 B
+├ ƒ /api/admin/rePurchase/pattern                                      0 B                0 B
+├ ƒ /api/admin/rePurchase/stats                                        0 B                0 B
+├ ƒ /api/admin/rePurchase/trigger                                      0 B                0 B
+├ ƒ /api/admin/scheduled-messages                                      0 B                0 B
+├ ƒ /api/admin/scheduled-messages/[id]                                 0 B                0 B
+├ ƒ /api/admin/scheduled-messages/send                                 0 B                0 B
+├ ƒ /api/admin/scheduled-messages/test-send                            0 B                0 B
+├ ƒ /api/admin/settings/automation                                     0 B                0 B
+├ ƒ /api/admin/settings/info                                           0 B                0 B
+├ ƒ /api/admin/settings/kakao-api-keys                                 0 B                0 B
+├ ƒ /api/admin/settings/kakao-api-keys/[id]                            0 B                0 B
+├ ƒ /api/admin/settings/kakao-managers                                 0 B                0 B
+├ ƒ /api/admin/settings/kakao-managers/[id]                            0 B                0 B
+├ ƒ /api/admin/settings/marketing                                      0 B                0 B
+├ ƒ /api/admin/settings/seo                                            0 B                0 B
+├ ƒ /api/admin/settings/seo-global                                     0 B                0 B
+├ ƒ /api/admin/settings/server-ips                                     0 B                0 B
+├ ƒ /api/admin/settings/server-ips/[id]                                0 B                0 B
+├ ƒ /api/admin/settings/sms                                            0 B                0 B
+├ ƒ /api/admin/settings/update                                         0 B                0 B
+├ ƒ /api/admin/start-trip                                              0 B                0 B
+├ ƒ /api/admin/stats                                                   0 B                0 B
+├ ƒ /api/admin/subscription/[id]/backup-db                             0 B                0 B
+├ ƒ /api/admin/subscription/[id]/change-user                           0 B                0 B
+├ ƒ /api/admin/subscription/[id]/check-data-usage                      0 B                0 B
+├ ƒ /api/admin/subscription/[id]/check-db                              0 B                0 B
+├ ƒ /api/admin/subscription/[id]/delete                                0 B                0 B
+├ ƒ /api/admin/subscription/[id]/extend                                0 B                0 B
+├ ƒ /api/admin/subscription/[id]/start-trial                           0 B                0 B
+├ ƒ /api/admin/subscription/auto-backup                                0 B                0 B
+├ ƒ /api/admin/subscription/auto-delete-expired-trials                 0 B                0 B
+├ ƒ /api/admin/subscription/backup-all                                 0 B                0 B
+├ ƒ /api/admin/subscription/check-trial-payment                        0 B                0 B
+├ ƒ /api/admin/subscription/create-test                                0 B                0 B
+├ ƒ /api/admin/subscription/list                                       0 B                0 B
+├ ƒ /api/admin/system/cron                                             0 B                0 B
+├ ƒ /api/admin/system/google-drive                                     0 B                0 B
+├ ƒ /api/admin/system/status                                           0 B                0 B
+├ ƒ /api/admin/test-customers                                          0 B                0 B
+├ ƒ /api/admin/test-customers/[userId]/reactivate                      0 B                0 B
+├ ƒ /api/admin/test-users                                              0 B                0 B
+├ ƒ /api/admin/test/backup                                             0 B                0 B
+├ ƒ /api/admin/test/payslip                                            0 B                0 B
+├ ƒ /api/admin/trips/recent                                            0 B                0 B
+├ ƒ /api/admin/upload-image                                            0 B                0 B
+├ ƒ /api/admin/users                                                   0 B                0 B
+├ ƒ /api/admin/users/[userId]                                          0 B                0 B
+├ ƒ /api/admin/users/[userId]/analytics                                0 B                0 B
+├ ƒ /api/admin/users/[userId]/analytics/export                         0 B                0 B
+├ ƒ /api/admin/users/[userId]/approve-genie                            0 B                0 B
+├ ƒ /api/admin/users/[userId]/chat-history                             0 B                0 B
+├ ƒ /api/admin/users/[userId]/comments                                 0 B                0 B
+├ ƒ /api/admin/users/[userId]/delete                                   0 B                0 B
+├ ƒ /api/admin/users/[userId]/inquiries                                0 B                0 B
+├ ƒ /api/admin/users/[userId]/lock                                     0 B                0 B
+├ ƒ /api/admin/users/[userId]/posts                                    0 B                0 B
+├ ƒ /api/admin/users/[userId]/product-views                            0 B                0 B
+├ ƒ /api/admin/users/[userId]/reactivate                               0 B                0 B
+├ ƒ /api/admin/users/[userId]/reset-password                           0 B                0 B
+├ ƒ /api/admin/users/[userId]/reviews                                  0 B                0 B
+├ ƒ /api/admin/users/[userId]/sessions                                 0 B                0 B
+├ ƒ /api/admin/users/[userId]/sessions/[sessionId]                     0 B                0 B
+├ ƒ /api/admin/users/[userId]/travel-records                           0 B                0 B
+├ ƒ /api/admin/users/[userId]/trips/[tripId]                           0 B                0 B
+├ ƒ /api/admin/users/[userId]/trips/[tripId]/onboarding                0 B                0 B
+├ ƒ /api/admin/users/recent                                            0 B                0 B
+├ ƒ /api/affiliate/contract/sign                                       0 B                0 B
+├ ƒ /api/affiliate/contract/sign/[token]                               0 B                0 B
+├ ƒ /api/affiliate/contracts                                           0 B                0 B
+├ ƒ /api/affiliate/contracts/[contractId]                              0 B                0 B
+├ ƒ /api/affiliate/contracts/[contractId]/pdf                          0 B                0 B
+├ ƒ /api/affiliate/contracts/invite                                    0 B                0 B
+├ ƒ /api/affiliate/contracts/my-invites                                0 B                0 B
+├ ƒ /api/affiliate/contracts/upload                                    0 B                0 B
+├ ƒ /api/affiliate/customers/create-sample                             0 B                0 B
+├ ƒ /api/affiliate/customers/create-test                               0 B                0 B
+├ ƒ /api/affiliate/customers/product-code                              0 B                0 B
+├ ƒ /api/affiliate/customers/register                                  0 B                0 B
+├ ƒ /api/affiliate/customers/search                                    0 B                0 B
+├ ƒ /api/affiliate/me/profile                                          0 B                0 B
+├ ƒ /api/affiliate/my-contract                                         0 B                0 B
+├ ƒ /api/affiliate/my-mentor                                           0 B                0 B
+├ ƒ /api/affiliate/my-payslips                                         0 B                0 B
+├ ƒ /api/affiliate/my-profile                                          0 B                0 B
+├ ƒ /api/affiliate/profile/upload-documents                            0 B                0 B
+├ ƒ /api/affiliate/profiles/[id]                                       0 B                0 B
+├ ƒ /api/affiliate/sales/[saleId]/cancel-confirmation                  0 B                0 B
+├ ƒ /api/affiliate/sales/[saleId]/submit-confirmation                  0 B                0 B
+├ ƒ /api/affiliate/sales/my-sales                                      0 B                0 B
+├ ƒ /api/ai/ask                                                        0 B                0 B
+├ ƒ /api/ai/gemini                                                     0 B                0 B
+├ ƒ /api/analytics/track                                               0 B                0 B
+├ ƒ /api/ask                                                           0 B                0 B
+├ ƒ /api/auth/check-nickname                                           0 B                0 B
+├ ƒ /api/auth/check-username                                           0 B                0 B
+├ ƒ /api/auth/find-password                                            0 B                0 B
+├ ƒ /api/auth/login                                                    0 B                0 B
+├ ƒ /api/auth/logout                                                   0 B                0 B
+├ ƒ /api/auth/me                                                       0 B                0 B
+├ ƒ /api/auth/onboard                                                  0 B                0 B
+├ ƒ /api/auth/signup                                                   0 B                0 B
+├ ƒ /api/batch/sync-to-google                                          0 B                0 B
+├ ƒ /api/briefing/today                                                0 B                0 B
+├ ƒ /api/chat                                                          0 B                0 B
+├ ƒ /api/chat-bot/question/[id]                                        0 B                0 B
+├ ƒ /api/chat-bot/response                                             0 B                0 B
+├ ƒ /api/chat-bot/reviews                                              0 B                0 B
+├ ƒ /api/chat-bot/session                                              0 B                0 B
+├ ƒ /api/chat-bot/start                                                0 B                0 B
+├ ƒ /api/chat-bot/youtube/search                                       0 B                0 B
+├ ƒ /api/chat/history                                                  0 B                0 B
+├ ƒ /api/chat/passport-flow                                            0 B                0 B
+├ ƒ /api/chat/photo                                                    0 B                0 B
+├ ƒ /api/chat/stream                                                   0 B                0 B
+├ ƒ /api/checklist                                                     0 B                0 B
+├ ƒ /api/checklist/[id]                                                0 B                0 B
+├ ƒ /api/cms/products                                                  0 B                0 B
+├ ƒ /api/cms/templates                                                 0 B                0 B
+├ ƒ /api/community/auth/login                                          0 B                0 B
+├ ƒ /api/community/link-genie                                          0 B                0 B
+├ ƒ /api/community/my-info                                             0 B                0 B
+├ ƒ /api/community/my-info/update                                      0 B                0 B
+├ ƒ /api/community/posts                                               0 B                0 B
+├ ƒ /api/community/posts/[id]                                          0 B                0 B
+├ ƒ /api/community/posts/[id]/comments                                 0 B                0 B
+├ ƒ /api/community/posts/[id]/comments/[commentId]                     0 B                0 B
+├ ƒ /api/community/posts/[id]/like                                     0 B                0 B
+├ ƒ /api/community/posts/[id]/view                                     0 B                0 B
+├ ƒ /api/community/posts/[id]/viewers                                  0 B                0 B
+├ ƒ /api/community/profile                                             0 B                0 B
+├ ƒ /api/community/reviews                                             0 B                0 B
+├ ƒ /api/community/reviews/[id]                                        0 B                0 B
+├ ƒ /api/community/upload                                              0 B                0 B
+├ ƒ /api/cron/community-bot                                            0 B                0 B
+├ ƒ /api/cron/database-backup                                          0 B                0 B
+├ ƒ /api/cron/expire-links                                             0 B                0 B
+├ ƒ /api/cron/expire-trips                                             0 B                0 B
+├ ƒ /api/cron/payslip-sender                                           0 B                0 B
+├ ƒ /api/customer/passport-request                                     0 B                0 B
+├ ƒ /api/customer/passport-upload                                      0 B                0 B
+├ ƒ /api/customer/reservation/[reservationId]                          0 B                0 B
+├ ƒ /api/dday/today                                                    0 B                0 B
+├ ƒ /api/diary                                                         0 B                0 B
+├ ƒ /api/email/send                                                    0 B                0 B
+├ ƒ /api/exchange-rate                                                 0 B                0 B
+├ ƒ /api/exchange/[base]                                               0 B                0 B
+├ ƒ /api/expenses                                                      0 B                0 B
+├ ƒ /api/feedback                                                      0 B                0 B
+├ ƒ /api/go                                                            0 B                0 B
+├ ƒ /api/google/auth                                                   0 B                0 B
+├ ƒ /api/google/calendar/create                                        0 B                0 B
+├ ƒ /api/google/callback                                               0 B                0 B
+├ ƒ /api/google/drive/folders                                          0 B                0 B
+├ ƒ /api/google/drive/upload                                           0 B                0 B
+├ ƒ /api/google/user-info                                              0 B                0 B
+├ ƒ /api/health                                                        0 B                0 B
+├ ƒ /api/itinerary/current                                             0 B                0 B
+├ ƒ /api/kakao/add-channel                                             0 B                0 B
+├ ƒ /api/kakao/channel-info                                            0 B                0 B
+├ ƒ /api/mall-admin/check-permissions                                  0 B                0 B
+├ ƒ /api/mall/footer-settings                                          0 B                0 B
+├ ƒ /api/map-travel-records                                            0 B                0 B
+├ ƒ /api/media                                                         0 B                0 B
+├ ƒ /api/nav/resolve                                                   0 B                0 B
+├ ƒ /api/nav/suggest                                                   0 B                0 B
+├ ƒ /api/pages/content                                                 0 B                0 B
+├ ƒ /api/pages/html                                                    0 B                0 B
+├ ƒ /api/partner/affiliate/profiles                                    0 B                0 B
+├ ƒ /api/partner/agents                                                0 B                0 B
+├ ƒ /api/partner/agents/db-stats                                       0 B                0 B
+├ ƒ /api/partner/assign-trip/create-genie                              0 B                0 B
+├ ƒ /api/partner/assign-trip/products/search                           0 B                0 B
+├ ƒ /api/partner/assign-trip/purchase-customers                        0 B                0 B
+├ ƒ /api/partner/assign-trip/purchase-customers/[userId]/trip-info     0 B                0 B
+├ ƒ /api/partner/assign-trip/users                                     0 B                0 B
+├ ƒ /api/partner/assign-trip/users/[userId]/trips/[tripId]/onboarding  0 B                0 B
+├ ƒ /api/partner/certificate-approvals                                 0 B                0 B
+├ ƒ /api/partner/chat-bot/passport-flow                                0 B                0 B
+├ ƒ /api/partner/contracts                                             0 B                0 B
+├ ƒ /api/partner/contracts/[contractId]                                0 B                0 B
+├ ƒ /api/partner/contracts/[contractId]/complete                       0 B                0 B
+├ ƒ /api/partner/contracts/[contractId]/reject                         0 B                0 B
+├ ƒ /api/partner/contracts/[contractId]/renewal-request                0 B                0 B
+├ ƒ /api/partner/contracts/[contractId]/send-pdf                       0 B                0 B
+├ ƒ /api/partner/customer-groups                                       0 B                0 B
+├ ƒ /api/partner/customer-groups/[id]                                  0 B                0 B
+├ ƒ /api/partner/customer-groups/[id]/customers                        0 B                0 B
+├ ƒ /api/partner/customer-groups/[id]/funnel-settings                  0 B                0 B
+├ ƒ /api/partner/customer-groups/[id]/members                          0 B                0 B
+├ ƒ /api/partner/customer-groups/[id]/message-logs                     0 B                0 B
+├ ƒ /api/partner/customer-groups/[id]/script                           0 B                0 B
+├ ƒ /api/partner/customer-groups/customers                             0 B                0 B
+├ ƒ /api/partner/customer-groups/excel-upload                          0 B                0 B
+├ ƒ /api/partner/customers                                             0 B                0 B
+├ ƒ /api/partner/customers/[leadId]                                    0 B                0 B
+├ ƒ /api/partner/customers/[leadId]/interactions                       0 B                0 B
+├ ƒ /api/partner/customers/[leadId]/move-group                         0 B                0 B
+├ ƒ /api/partner/customers/[leadId]/payments                           0 B                0 B
+├ ƒ /api/partner/customers/[leadId]/purchase-info                      0 B                0 B
+├ ƒ /api/partner/customers/[leadId]/sales/[saleId]/confirm             0 B                0 B
+├ ƒ /api/partner/customers/[leadId]/schedule-alarm                     0 B                0 B
+├ ƒ /api/partner/customers/assign                                      0 B                0 B
+├ ƒ /api/partner/customers/excel/sample                                0 B                0 B
+├ ƒ /api/partner/customers/excel/upload                                0 B                0 B
+├ ƒ /api/partner/customers/parse-excel                                 0 B                0 B
+├ ƒ /api/partner/customers/send-sms                                    0 B                0 B
+├ ƒ /api/partner/dashboard/stats                                       0 B                0 B
+├ ƒ /api/partner/landing-pages                                         0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]                                    0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]/clone                              0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]/comments                           0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]/comments/[commentId]               0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]/comments/generate                  0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]/registrations                      0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]/share                              0 B                0 B
+├ ƒ /api/partner/landing-pages/[id]/stats                              0 B                0 B
+├ ƒ /api/partner/landing-pages/shared-by-me                            0 B                0 B
+├ ƒ /api/partner/link/generate                                         0 B                0 B
+├ ƒ /api/partner/links                                                 0 B                0 B
+├ ƒ /api/partner/links/validate                                        0 B                0 B
+├ ƒ /api/partner/orders/pending                                        0 B                0 B
+├ ƒ /api/partner/passport-request/templates                            0 B                0 B
+├ ƒ /api/partner/passport-requests                                     0 B                0 B
+├ ƒ /api/partner/passport-requests/[leadId]/passport-link              0 B                0 B
+├ ƒ /api/partner/passport-requests/manual                              0 B                0 B
+├ ƒ /api/partner/passport-requests/ocr-to-apis                         0 B                0 B
+├ ƒ /api/partner/passport-requests/send                                0 B                0 B
+├ ƒ /api/partner/passport-templates                                    0 B                0 B
+├ ƒ /api/partner/password                                              0 B                0 B
+├ ƒ /api/partner/payments                                              0 B                0 B
+├ ƒ /api/partner/products/active                                       0 B                0 B
+├ ƒ /api/partner/profile                                               0 B                0 B
+├ ƒ /api/partner/profile/password                                      0 B                0 B
+├ ƒ /api/partner/profile/upload-image                                  0 B                0 B
+├ ƒ /api/partner/reservation/create                                    0 B                0 B
+├ ƒ /api/partner/reservations                                          0 B                0 B
+├ ƒ /api/partner/reservations/[reservationId]                          0 B                0 B
+├ ƒ /api/partner/reservations/by-payment/[paymentId]                   0 B                0 B
+├ ƒ /api/partner/scheduled-messages                                    0 B                0 B
+├ ƒ /api/partner/scheduled-messages/[id]                               0 B                0 B
+├ ƒ /api/partner/scheduled-messages/send                               0 B                0 B
+├ ƒ /api/partner/settings/sms                                          0 B                0 B
+├ ƒ /api/partner/subscription/[id]/change-user                         0 B                0 B
+├ ƒ /api/partner/subscription/[id]/delete                              0 B                0 B
+├ ƒ /api/partner/subscription/[id]/start-trial                         0 B                0 B
+├ ƒ /api/partner/subscription/backup-db                                0 B                0 B
+├ ƒ /api/partner/subscription/check                                    0 B                0 B
+├ ƒ /api/partner/subscription/create                                   0 B                0 B
+├ ƒ /api/partner/subscription/list                                     0 B                0 B
+├ ƒ /api/partner/subscription/payment                                  0 B                0 B
+├ ƒ /api/partner/trial-invite-link                                     0 B                0 B
+├ ƒ /api/partner/trips                                                 0 B                0 B
+├ ƒ /api/passport/[token]                                              0 B                0 B
+├ ƒ /api/passport/[token]/submit                                       0 B                0 B
+├ ƒ /api/passport/[token]/upload                                       0 B                0 B
+├ ƒ /api/passport/chatbot-sync                                         0 B                0 B
+├ ƒ /api/passport/scan                                                 0 B                0 B
+├ ƒ /api/passport/submit                                               0 B                0 B
+├ ƒ /api/payapp/feedback                                               0 B                0 B
+├ ƒ /api/payapp/request                                                0 B                0 B
+├ ƒ /api/payment/callback                                              0 B                0 B
+├ ƒ /api/payment/notify                                                0 B                0 B
+├ ƒ /api/payment/request                                               0 B                0 B
+├ ƒ /api/payment/virtual-account                                       0 B                0 B
+├ ƒ /api/payment/webhook                                               0 B                0 B
+├ ƒ /api/photos                                                        0 B                0 B
+├ ƒ /api/products/[productCode]/reviews                                0 B                0 B
+├ ƒ /api/products/track-view                                           0 B                0 B
+├ ƒ /api/public/affiliate-link/[code]                                  0 B                0 B
+├ ƒ /api/public/footer                                                 0 B                0 B
+├ ƒ /api/public/inquiry                                                0 B                0 B
+├ ƒ /api/public/landing-pages/[slug]/comments                          0 B                0 B
+├ ƒ /api/public/landing-pages/[slug]/comments/[commentId]              0 B                0 B
+├ ƒ /api/public/landing-pages/[slug]/payment                           0 B                0 B
+├ ƒ /api/public/landing-pages/[slug]/register                          0 B                0 B
+├ ƒ /api/public/mall-settings                                          0 B                0 B
+├ ƒ /api/public/page-config                                            0 B                0 B
+├ ƒ /api/public/passport-upload                                        0 B                0 B
+├ ƒ /api/public/products                                               0 B                0 B
+├ ƒ /api/public/products/[productCode]                                 0 B                0 B
+├ ƒ /api/public/reviews                                                0 B                0 B
+├ ƒ /api/public/youtube                                                0 B                0 B
+├ ƒ /api/public/youtube/live                                           0 B                0 B
+├ ƒ /api/public/youtube/shorts                                         0 B                0 B
+├ ƒ /api/public/youtube/videos                                         0 B                0 B
+├ ƒ /api/push/subscribe                                                0 B                0 B
+├ ƒ /api/push/test                                                     0 B                0 B
+├ ƒ /api/push/unsubscribe                                              0 B                0 B
+├ ƒ /api/pwa/install                                                   0 B                0 B
+├ ƒ /api/rag/search                                                    0 B                0 B
+├ ƒ /api/redis/health                                                  0 B                0 B
+├ ƒ /api/reservations/[id]                                             0 B                0 B
+├ ƒ /api/reservations/[id]/passport-status                             0 B                0 B
+├ ƒ /api/scheduler/test                                                0 B                0 B
+├ ƒ /api/scheduler/trigger                                             0 B                0 B
+├ ƒ /api/schedules                                                     0 B                0 B
+├ ƒ /api/session                                                       0 B                0 B
+├ ƒ /api/shortlink/create                                              0 B                0 B
+├ ƒ /api/subscription/trial/start                                      0 B                0 B
+├ ƒ /api/terminals/search                                              0 B                0 B
+├ ƒ /api/test/affiliate-purchase-simulation                            0 B                0 B
+├ ƒ /api/test/google-drive-auth                                        0 B                0 B
+├ ƒ /api/translation/pronunciation                                     0 B                0 B
+├ ƒ /api/trip/sync-apis                                                0 B                0 B
+├ ƒ /api/trips                                                         0 B                0 B
+├ ƒ /api/trips/[tripId]                                                0 B                0 B
+├ ƒ /api/trips/[tripId]/itineraries                                    0 B                0 B
+├ ƒ /api/trips/[tripId]/memories                                       0 B                0 B
+├ ƒ /api/trips/active                                                  0 B                0 B
+├ ƒ /api/trips/auto-create                                             0 B                0 B
+├ ƒ /api/trips/companion                                               0 B                0 B
+├ ƒ /api/trips/has                                                     0 B                0 B
+├ ƒ /api/trips/last-completed                                          0 B                0 B
+├ ƒ /api/trips/latest                                                  0 B                0 B
+├ ƒ /api/trips/list                                                    0 B                0 B
+├ ƒ /api/upload/passport                                               0 B                0 B
+├ ƒ /api/uploads/cruisedot                                             0 B                0 B
+├ ƒ /api/user/access-check                                             0 B                0 B
+├ ƒ /api/user/affiliate-mall-url                                       0 B                0 B
+├ ƒ /api/user/hibernation                                              0 B                0 B
+├ ƒ /api/user/messages                                                 0 B                0 B
+├ ƒ /api/user/messages/[messageId]/read                                0 B                0 B
+├ ƒ /api/user/profile                                                  0 B                0 B
+├ ƒ /api/user/test-mode                                                0 B                0 B
+├ ƒ /api/video/rooms                                                   0 B                0 B
+├ ƒ /api/video/rooms/[meetingLink]                                     0 B                0 B
+├ ƒ /api/video/ws                                                      0 B                0 B
+├ ƒ /api/vision                                                        0 B                0 B
+├ ƒ /api/visited-countries                                             0 B                0 B
+├ ƒ /api/vnext/nav/suggest                                             0 B                0 B
+├ ƒ /api/wallet/budget                                                 0 B                0 B
+├ ƒ /api/wallet/countries                                              0 B                0 B
+├ ƒ /api/wallet/exchange-rate                                          0 B                0 B
+├ ƒ /api/wallet/expenses                                               0 B                0 B
+├ ƒ /api/weather/forecast                                              0 B                0 B
+├ ƒ /api/whoami                                                        0 B                0 B
+├ ƒ /chat                                                              6.62 kB         115 kB
+├ ○ /chat-bot                                                          182 B           106 kB
+├ ƒ /chat-bot/share/[token]                                            181 B           106 kB
+├ ƒ /chat-test                                                         9.12 kB         116 kB
+├ ƒ /chat/history                                                      0 B                0 B
+├ ○ /checklist                                                         7.58 kB         113 kB
+├ ○ /checklist-test                                                    9.94 kB         107 kB
+├ ○ /community                                                         9.55 kB         118 kB
+├ ○ /community/cruisedot-news                                          5.82 kB         124 kB
+├ ƒ /community/cruisedot-news/edit/[id]                                7.1 kB          118 kB
+├ ○ /community/cruisedot-news/write                                    6.53 kB         118 kB
+├ ○ /community/login                                                   1.86 kB         105 kB
+├ ○ /community/my-info                                                 6.51 kB         110 kB
+├ ƒ /community/posts/[id]                                              7.72 kB         125 kB
+├ ○ /community/profile                                                 4.97 kB         108 kB
+├ ○ /community/reviews                                                 4.04 kB         107 kB
+├ ƒ /community/reviews/[id]                                            4.17 kB         107 kB
+├ ƒ /community/reviews/[id]/edit                                       3.92 kB         112 kB
+├ ○ /community/reviews/write                                           4.66 kB         108 kB
+├ ○ /community/write                                                   3.57 kB         107 kB
+├ ƒ /customer/passport-upload/[reservationId]                          1.78 kB        90.7 kB
+├ ƒ /customer/passport/[reservationId]                                 6.95 kB        95.9 kB
+├ ○ /dormant                                                           3.29 kB        97.8 kB
+├ ○ /events                                                            3 kB            106 kB
+├ ○ /exhibition                                                        186 B          89.1 kB
+├ ○ /guide                                                             3.81 kB         104 kB
+├ ƒ /i/[shortCode]                                                     186 B          89.1 kB
+├ ○ /insurance                                                         2.18 kB         111 kB
+├ ƒ /l/[slug]                                                          3.97 kB        98.5 kB
+├ ƒ /landing/[slug]                                                    7.25 kB         102 kB
+├ ○ /login                                                             3.69 kB        92.6 kB
+├ ○ /login-test                                                        7.67 kB         102 kB
+├ ○ /mall/checkout/success                                             2.37 kB         100 kB
+├ ○ /mall/find-password                                                2.67 kB         100 kB
+├ ○ /mall/login                                                        2.62 kB         100 kB
+├ ○ /mall/signup                                                       4.67 kB         108 kB
+├ ○ /map                                                               9.38 kB         170 kB
+├ ○ /map-test                                                          11.2 kB         172 kB
+├ ○ /me                                                                1.13 kB        96.5 kB
+├ ƒ /meeting/[meetingLink]                                             17.5 kB         112 kB
+├ ƒ /memories/[tripId]                                                 3.98 kB        98.5 kB
+├ ○ /my-info                                                           4.59 kB         108 kB
+├ ○ /my-trips                                                          2.6 kB         97.1 kB
+├ ○ /onboarding                                                        575 B          89.5 kB
+├ ƒ /p/[code]                                                          0 B                0 B
+├ ○ /partner                                                           3.59 kB        98.1 kB
+├ ƒ /partner/[partnerId]/adjustments                                   5.05 kB         108 kB
+├ ƒ /partner/[partnerId]/agents                                        4.82 kB         108 kB
+├ ƒ /partner/[partnerId]/assign-trip                                   9.58 kB         104 kB
+├ ƒ /partner/[partnerId]/contract                                      9.97 kB         128 kB
+├ ƒ /partner/[partnerId]/customer-groups                               11 kB           114 kB
+├ ƒ /partner/[partnerId]/customers                                     154 B           136 kB
+├ ƒ /partner/[partnerId]/customers/send-db                             6.06 kB         101 kB
+├ ƒ /partner/[partnerId]/dashboard                                     157 B           145 kB
+├ ƒ /partner/[partnerId]/documents                                     3.3 kB          107 kB
+├ ƒ /partner/[partnerId]/landing-pages                                 9.54 kB         104 kB
+├ ƒ /partner/[partnerId]/landing-pages/[id]/edit                       23.4 kB         118 kB
+├ ƒ /partner/[partnerId]/landing-pages/new                             22.1 kB         117 kB
+├ ƒ /partner/[partnerId]/links                                         5.63 kB         109 kB
+├ ƒ /partner/[partnerId]/mall-edit                                     4.07 kB         107 kB
+├ ƒ /partner/[partnerId]/marketing                                     2.37 kB         106 kB
+├ ƒ /partner/[partnerId]/passport-requests                             6.1 kB          109 kB
+├ ƒ /partner/[partnerId]/payment                                       5.14 kB         111 kB
+├ ƒ /partner/[partnerId]/payslips                                      6.75 kB         101 kB
+├ ƒ /partner/[partnerId]/profile                                       12.8 kB         116 kB
+├ ƒ /partner/[partnerId]/purchased-customers                           7.04 kB         102 kB
+├ ƒ /partner/[partnerId]/reservation/new                               15.4 kB         110 kB
+├ ƒ /partner/[partnerId]/scheduled-messages                            7.36 kB         111 kB
+├ ƒ /partner/[partnerId]/settings                                      5.52 kB         100 kB
+├ ƒ /partner/[partnerId]/sns-profile                                   11 kB           114 kB
+├ ƒ /partner/[partnerId]/statements                                    5.61 kB         109 kB
+├ ƒ /partner/[partnerId]/team                                          9.41 kB         113 kB
+├ ƒ /passport/[token]                                                  6.47 kB         101 kB
+├ ○ /payment                                                           3.36 kB        97.8 kB
+├ ○ /payment/failed                                                    2.59 kB         106 kB
+├ ○ /payment/success                                                   2.85 kB         106 kB
+├ ○ /product                                                           1.21 kB         126 kB
+├ ○ /products                                                          2.31 kB         127 kB
+├ ƒ /products/[productCode]                                            1.54 kB         132 kB
+├ ƒ /products/[productCode]/inquiry                                    2.58 kB         100 kB
+├ ƒ /products/[productCode]/payment                                    153 B           114 kB
+├ ƒ /products/[productCode]/reviews                                    2.38 kB         106 kB
+├ ƒ /profile                                                           1.92 kB         110 kB
+├ ƒ /profile-test                                                      3.79 kB         112 kB
+├ ○ /redis-test                                                        1.28 kB        90.2 kB
+├ ○ /reviews                                                           186 B          89.1 kB
+├ ○ /robots.txt                                                        0 B                0 B
+├ ○ /schedule                                                          12.7 kB         116 kB
+├ ○ /signup                                                            4.62 kB         113 kB
+├ ○ /sitemap.xml                                                       0 B                0 B
+├ ƒ /store/[affiliateCode]/[landingSlug]                               1.42 kB         128 kB
+├ ○ /subscription/login                                                8.33 kB         103 kB
+├ ○ /support/faq                                                       5.57 kB         109 kB
+├ ○ /support/notice                                                    3.04 kB         106 kB
+├ ○ /support/service                                                   3.77 kB         107 kB
+├ ○ /terms/0                                                           3.76 kB         107 kB
+├ ○ /terms/1                                                           4.74 kB         108 kB
+├ ○ /tools                                                             3.73 kB         107 kB
+├ ○ /tools-test                                                        5.32 kB         109 kB
+├ ○ /translator                                                        10.5 kB         105 kB
+├ ○ /translator-test                                                   45.3 kB         140 kB
+├ ○ /wallet                                                            12.3 kB         115 kB
+├ ○ /wallet-test                                                       13.1 kB         108 kB
+└ ○ /youtube                                                           186 B          89.1 kB
++ First Load JS shared by all                                          88.9 kB
+  ├ chunks/2117-1210fabc858c32be.js                                    31.9 kB
+  ├ chunks/fd9d1056-f5dba78b4a5016f7.js                                53.6 kB
+  └ other shared chunks (total)                                        3.45 kB
+
+
+ƒ Middleware                                                           28 kB
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

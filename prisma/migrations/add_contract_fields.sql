@@ -14,3 +14,4 @@ ADD COLUMN IF NOT EXISTS "signatureLinkExpiresAt" TIMESTAMP;
 -- ON "AffiliateContract"("signatureLinkExpiresAt") 
 -- WHERE "signatureLink" IS NOT NULL;
 
+

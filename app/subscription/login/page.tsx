@@ -124,14 +124,61 @@ export default function SubscriptionLoginPage() {
             ></iframe>
           </div>
 
-          {/* 첫 번째 신청 폼 */}
+          {/* 7일 무료 체험 혜택 안내 */}
           <div className="bg-gray-900 max-w-2xl mx-auto p-6 md:p-8 rounded-2xl shadow-2xl border border-cyan-500/50 mt-12">
-            <h3 className="text-2xl font-bold text-center text-white mb-4">
-              <span className="text-yellow-400">7일 무료 마케터 체험</span> 지금 바로 시작하세요!
+            <h3 className="text-2xl md:text-3xl font-black text-center text-white mb-3">
+              <span className="text-yellow-400">7일 무료 마케터 체험</span>
             </h3>
-            <p className="text-center text-gray-300 mb-6">
-              이름과 연락처를 입력하시면 <strong className="text-cyan-400">7일 무료 마케터 체험</strong>을 할 수 있어요.
+            <p className="text-center text-lg text-cyan-400 font-bold mb-6">
+              지금 바로 시작하고, 크루즈 마케터 시스템을 직접 경험하세요!
             </p>
+
+            {/* 혜택 목록 */}
+            <div className="bg-gray-800 rounded-xl p-6 mb-6 border border-gray-700">
+              <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <span className="text-2xl">🎁</span>
+                7일 동안 무료로 받는 혜택
+              </h4>
+              <ul className="space-y-3 text-gray-200">
+                <li className="flex items-start gap-3">
+                  <span className="text-cyan-400 mt-1">✓</span>
+                  <div>
+                    <strong className="text-white">AI 세일즈 챗봇 '지니'</strong> - 24시간 고객 응대 지원
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-cyan-400 mt-1">✓</span>
+                  <div>
+                    <strong className="text-white">개인 판매몰 시스템</strong> - 즉시 판매 시작 가능
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-cyan-400 mt-1">✓</span>
+                  <div>
+                    <strong className="text-white">실시간 고객 관리</strong> - DB 관리 및 상담 기록
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-cyan-400 mt-1">✓</span>
+                  <div>
+                    <strong className="text-white">마케팅 자료 지원</strong> - 랜딩페이지 및 링크 생성
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-cyan-400 mt-1">✓</span>
+                  <div>
+                    <strong className="text-white">판매 수익 관리</strong> - 실시간 매출 및 정산 확인
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-orange-900/30 border border-orange-500/50 rounded-xl p-4 mb-6">
+              <p className="text-center text-white font-bold text-base">
+                ⏰ 이름과 연락처만 입력하면<br/>
+                <span className="text-yellow-400 text-lg">입력한 시점부터 7일간 무료</span>로 모든 기능을 사용할 수 있습니다!
+              </p>
+            </div>
             
             <form onSubmit={(e) => handleSubmit(e, 'top')} className="space-y-4">
               <input
@@ -668,29 +715,47 @@ export default function SubscriptionLoginPage() {
 
           <div className="bg-gray-800 p-6 md:p-8 rounded-2xl shadow-2xl border border-cyan-500/50">
             <div className="text-left mb-6 border-b border-gray-700 pb-6">
-              <h3 className="text-xl font-bold text-center text-white mb-4">
+              <h3 className="text-xl md:text-2xl font-black text-center text-white mb-4">
                 신청 즉시 <span className="text-yellow-400">100% 무료 제공</span> 혜택
               </h3>
-              <ul className="space-y-3 text-gray-300 text-lg">
+              <ul className="space-y-3 text-gray-200 text-base md:text-lg">
                 <li className="flex items-start">
-                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0" />
+                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0 text-xl" />
                   <div>
-                    <span className="font-bold text-white">7일 무료 체험</span> - 모든 기능을 자유롭게 사용
+                    <span className="font-bold text-white">7일 무료 체험</span> - 입력한 시점부터 7일간 모든 기능 사용
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0" />
+                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0 text-xl" />
                   <div>
-                    <span className="font-bold text-white">AI 챗봇 '지니'</span> - 24시간 고객 응대 지원
+                    <span className="font-bold text-white">AI 챗봇 '지니'</span> - 24시간 자동 고객 응대 지원
                   </div>
                 </li>
                 <li className="flex items-start">
-                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0" />
+                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0 text-xl" />
                   <div>
-                    <span className="font-bold text-white">개인 판매몰</span> - 즉시 판매 시작 가능
+                    <span className="font-bold text-white">개인 판매몰 시스템</span> - 나만의 크루즈 쇼핑몰로 즉시 판매
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0 text-xl" />
+                  <div>
+                    <span className="font-bold text-white">실시간 DB 관리</span> - 고객 정보 및 상담 기록 자동 관리
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <FiCheck className="text-cyan-400 mr-2 mt-1 flex-shrink-0 text-xl" />
+                  <div>
+                    <span className="font-bold text-white">마케팅 자료</span> - 랜딩페이지, 링크 생성 무제한
                   </div>
                 </li>
               </ul>
+              <div className="mt-6 bg-orange-900/30 border border-orange-500/50 rounded-lg p-3">
+                <p className="text-center text-white text-sm font-bold">
+                  💡 신청 후 <span className="text-yellow-400">7일 카운트다운</span>이 시작되며,<br className="md:hidden"/>
+                  대시보드에서 실시간으로 남은 시간을 확인할 수 있습니다!
+                </p>
+              </div>
             </div>
 
             <form id="final-form" onSubmit={(e) => handleSubmit(e, 'final')} className="space-y-4">

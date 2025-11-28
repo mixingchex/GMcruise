@@ -232,3 +232,4 @@ Vercel 대시보드 → Deployments → 최신 배포 → Build Logs 확인
 **작성자**: AI Assistant
 
 
+

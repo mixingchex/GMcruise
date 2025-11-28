@@ -4,6 +4,11 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSheetsClient } from '@/lib/google-sheets';
 import { google } from 'googleapis';
+import { cookies } from 'next/headers';
+import { randomBytes } from 'crypto';
+import { generateCsrfToken } from '@/lib/csrf';
+
+const SESSION_COOKIE = 'cg.sid.v2';
 
 // 구글 스프레드시트에 잠재고객 정보 저장
 async function saveToProspectSpreadsheet(name: string, phone: string) {
@@ -144,9 +149,32 @@ export async function POST(req: Request) {
         // 무료 체험이 아직 유효한 경우
         if (isTrial && contractTrialEndDate && now < contractTrialEndDate) {
           console.log('[Subscription Trial] 기존 무료 체험 계정 사용:', { userId: user.id });
-          
+
           // 구글 스프레드시트에 저장 (중복 방지 로직은 나중에 추가 가능)
           await saveToProspectSpreadsheet(name, normalizedPhone);
+
+          // 세션 생성
+          const sessionId = randomBytes(32).toString('hex');
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 7);
+
+          const session = await prisma.session.create({
+            data: {
+              id: sessionId,
+              userId: user.id,
+              csrfToken: generateCsrfToken(),
+              expiresAt,
+            },
+            select: { id: true, csrfToken: true },
+          });
+
+          cookies().set(SESSION_COOKIE, session.id, {
+            httpOnly: true,
+            sameSite: 'lax',
+            path: '/',
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 7 * 24 * 60 * 60,
+          });
 
           return NextResponse.json({
             ok: true,
@@ -227,7 +255,31 @@ export async function POST(req: Request) {
     // 구글 스프레드시트에 잠재고객 정보 저장
     await saveToProspectSpreadsheet(name, normalizedPhone);
 
-    console.log('[Subscription Trial] 무료 체험 시작 완료:', { userId: user.id, name, phone: normalizedPhone });
+    // 세션 생성
+    const sessionId = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7일 체험 기간에 맞춰 세션도 7일
+
+    const session = await prisma.session.create({
+      data: {
+        id: sessionId,
+        userId: user.id,
+        csrfToken: generateCsrfToken(),
+        expiresAt,
+      },
+      select: { id: true, csrfToken: true },
+    });
+
+    // 쿠키 설정
+    cookies().set(SESSION_COOKIE, session.id, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60, // 7일
+    });
+
+    console.log('[Subscription Trial] 무료 체험 시작 완료:', { userId: user.id, name, phone: normalizedPhone, sessionId });
 
     return NextResponse.json({
       ok: true,

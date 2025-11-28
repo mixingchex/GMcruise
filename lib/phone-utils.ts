@@ -93,6 +93,19 @@ export function isValidPhone(phone: string | null | undefined): boolean {
 }
 
 /**
+ * 휴대폰 번호 유효성 검증 (010, 011, 016, 017, 018, 019)
+ */
+export function isValidMobilePhone(phone: string | null | undefined): boolean {
+  if (!phone) return false;
+
+  const normalized = normalizePhone(phone);
+  if (!normalized) return false;
+
+  // 한국 휴대폰 번호 검증 (010, 011, 016, 017, 018, 019로 시작하는 11자리)
+  return /^01[0-9]{9}$/.test(normalized);
+}
+
+/**
  * 전화번호 마스킹 (로그/분석용 - 고객 관리 화면에서는 사용 안 함)
  *
  * @example

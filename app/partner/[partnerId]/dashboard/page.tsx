@@ -180,7 +180,44 @@ export default async function PartnerDashboardPage({ params }: { params: Promise
       redirect('/partner');
     }
 
-    return <PartnerDashboard user={targetUser} profile={targetProfile} />;
+    // 체험 사용자인지 확인 (mallUserId가 trial_로 시작하는지 확인)
+    const isTrialUser = targetUser.mallUserId?.startsWith('trial_');
+    let trialInfo: { trialEndDate: string | null; daysRemaining: number | null } | null = null;
+
+    if (isTrialUser) {
+      // 체험 계약서 정보 가져오기
+      const trialContract = await prisma.affiliateContract.findFirst({
+        where: {
+          userId: targetUser.id,
+          metadata: {
+            path: ['isTrial'],
+            equals: true,
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        select: {
+          metadata: true,
+        },
+      });
+
+      if (trialContract && trialContract.metadata) {
+        const metadata = trialContract.metadata as any;
+        const trialEndDate = metadata.trialEndDate ? new Date(metadata.trialEndDate) : null;
+
+        if (trialEndDate) {
+          const now = new Date();
+          const daysRemaining = Math.ceil((trialEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          trialInfo = {
+            trialEndDate: trialEndDate.toISOString(),
+            daysRemaining: daysRemaining > 0 ? daysRemaining : 0,
+          };
+        }
+      }
+    }
+
+    return <PartnerDashboard user={targetUser} profile={targetProfile} trialInfo={trialInfo} />;
   } catch (error) {
     if (error instanceof PartnerApiError && error.status === 401) {
       redirect('/partner');

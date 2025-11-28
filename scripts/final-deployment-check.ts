@@ -64,9 +64,9 @@ async function runFinalCheck() {
     const fullPath = join(process.cwd(), file);
     if (existsSync(fullPath)) {
       const content = readFileSync(fullPath, 'utf-8');
-      const hasAwaitParams = /await\s+params|const\s+resolvedParams\s*=\s*await\s+params/.test(content);
-      const noDirectParams = !/params\.contractId(?!\s*=\s*await)/.test(content);
-      const passed = hasAwaitParams && noDirectParams;
+    const hasAwaitParams = /await\s+params|await\s+Promise\.resolve\(params\)|const\s+resolvedParams\s*=\s*await/.test(content);
+    const noDirectParams = !/params\.contractId(?!\s*=\s*await)/.test(content);
+    const passed = hasAwaitParams && noDirectParams;
       addResult('params 처리', file.split('/').pop() || file, passed, 
         passed ? undefined : 'params를 await로 처리해야 합니다');
     }

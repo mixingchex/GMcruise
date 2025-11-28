@@ -240,9 +240,6 @@ export default function PartnerLogin({ forceReauth = false }: PartnerLoginProps)
             <span>7일 무료 마비즈인 체험하기</span>
             <FiArrowRight className="h-5 w-5" />
           </button>
-          <p className="mt-2 text-xs text-slate-500">
-            클릭하면 정액제 로그인이 뜨고, 이름과 연락처를 입력하시면 7일 무료 마케터 체험을 할 수 있어요.
-          </p>
         </div>
       </div>
     </div>

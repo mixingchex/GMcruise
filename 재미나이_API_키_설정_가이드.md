@@ -85,3 +85,4 @@ AIzaSyC7DeIRD9tvdBK81_MBRNv729Gh1uPxHM4
 
 재미나이 API 키 설정이 완료되었습니다. 배포 후 채팅 기능이 정상 작동하는지 확인하세요.
 
+

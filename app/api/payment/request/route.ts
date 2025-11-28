@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import prisma from '@/lib/prisma';
+import { getSessionUser } from '@/lib/auth';
 
 // 웰컴페이먼츠 결제 요청 API
 export async function POST(req: NextRequest) {
@@ -16,6 +17,47 @@ export async function POST(req: NextRequest) {
         { ok: false, error: '필수 정보를 모두 입력해주세요.' },
         { status: 400 }
       );
+    }
+
+    // 무료체험 사용자 결제 차단
+    const sessionUser = await getSessionUser();
+    if (sessionUser) {
+      // 전체 사용자 정보 조회 (mallUserId 확인)
+      const fullUser = await prisma.user.findUnique({
+        where: { id: sessionUser.id },
+        select: { id: true, mallUserId: true },
+      });
+
+      if (fullUser) {
+        // 무료체험 사용자 확인 (mallUserId가 trial_로 시작하는 경우)
+        const isTrialUser = fullUser.mallUserId?.startsWith('trial_');
+
+        if (isTrialUser) {
+          // 체험 계약 확인 (7일 체험 기간인지)
+          const trialContract = await prisma.affiliateContract.findFirst({
+            where: {
+              userId: fullUser.id,
+              metadata: {
+                path: ['isTrial'],
+                equals: true,
+              },
+            },
+          });
+
+          if (trialContract && trialContract.metadata) {
+            const metadata = trialContract.metadata as any;
+            const trialEndDate = metadata.trialEndDate ? new Date(metadata.trialEndDate) : null;
+
+            // 체험 기간 중이면 결제 차단
+            if (trialEndDate && new Date() < trialEndDate) {
+              return NextResponse.json(
+                { ok: false, error: '무료체험은 판매 결제가 연결되지 않습니다.' },
+                { status: 403 }
+              );
+            }
+          }
+        }
+      }
     }
 
     // 어필리에이트 추적 정보

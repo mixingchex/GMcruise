@@ -130,9 +130,13 @@ export default function ContractSignPage() {
       }
 
       showSuccess('서명이 완료되었습니다.');
+
+      // API에서 반환한 redirectUrl로 이동 (없으면 완료 페이지로)
+      const redirectUrl = json.redirectUrl || `/affiliate/contract/complete?contractId=${contract?.id}`;
+
       setTimeout(() => {
-        router.push('/');
-      }, 2000);
+        router.push(redirectUrl);
+      }, 1500);
     } catch (error: any) {
       console.error('[ContractSign] Submit error', error);
       showError(error.message || '서명 처리 중 오류가 발생했습니다.');

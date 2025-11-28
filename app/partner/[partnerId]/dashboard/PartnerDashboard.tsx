@@ -48,6 +48,10 @@ type PartnerDashboardProps = {
     mallNickname: string | null;
   };
   profile: any;
+  trialInfo?: {
+    trialEndDate: string | null;
+    daysRemaining: number | null;
+  } | null;
 };
 
 interface DashboardStats {
@@ -78,7 +82,7 @@ interface DashboardStats {
   selectedMonth?: string;
 }
 
-export default function PartnerDashboard({ user, profile }: PartnerDashboardProps) {
+export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDashboardProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
