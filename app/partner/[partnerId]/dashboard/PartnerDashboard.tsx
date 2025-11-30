@@ -2193,7 +2193,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
             {/* System Consultations Link */}
             <button
-              onClick={() => router.push(`${partnerBase}/b2b-prospects?tab=system`)}
+              onClick={() => router.push(`${partnerBase}/customers?tab=system-consultations`)}
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 transition-all hover:shadow-md group"
             >
               <span className="text-2xl">📞</span>
