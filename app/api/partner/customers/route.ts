@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
 
       if (sharedLandingPages.length > 0) {
         const landingPageIds = sharedLandingPages.map(slp => slp.landingPageId);
-        
+
         // 해당 랜딩페이지로 등록된 고객의 userId 조회
         const landingPageRegistrations = await prisma.landingPageRegistration.findMany({
           where: {
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
 
     // AffiliateLead 조건과 랜딩페이지 고객 조건을 OR로 결합
     let whereConditions: Prisma.AffiliateLeadWhereInput[] = [];
-    
+
     // 전화상담고객 필터 (source=mall)
     if (source === 'mall') {
       // 대리점장: 본인 + 소속 판매원의 문의고객
@@ -190,6 +190,10 @@ export async function GET(req: NextRequest) {
       where.status = statusFilter;
     }
 
+    if (source && source !== 'mall') {
+      where.source = source;
+    }
+
     if (query) {
       const variants = phoneSearchVariants(query);
       where.AND = [
@@ -198,10 +202,10 @@ export async function GET(req: NextRequest) {
             { customerName: { contains: query, mode: 'insensitive' } },
             ...(variants.length
               ? variants.map((variant) => ({
-                  customerPhone: {
-                    contains: variant,
-                  },
-                }))
+                customerPhone: {
+                  contains: variant,
+                },
+              }))
               : []),
           ],
         },
@@ -212,7 +216,7 @@ export async function GET(req: NextRequest) {
 
     // 판매원일 때는 최근 상담 기록을 더 많이 가져와서 대리점장/본인 기록 확인
     const interactionTake = profile.type === 'SALES_AGENT' ? 10 : 1;
-    
+
     console.log('[GET /api/partner/customers] Executing findMany query...', {
       whereConditions: whereConditions.length,
       skip,
@@ -244,7 +248,7 @@ export async function GET(req: NextRequest) {
     const customerPhones = leads
       .map((lead) => lead.customerPhone)
       .filter((phone): phone is string => !!phone);
-    
+
     const usersByPhone = new Map<string, {
       id: number;
       name: string | null;
@@ -384,12 +388,12 @@ export async function GET(req: NextRequest) {
     const serialized = leads.map((lead) => {
       const userInfo = lead.customerPhone ? usersByPhone.get(lead.customerPhone) : null;
       const latestTrip = userInfo?.trips?.[0] || null;
-      
+
       // customerType 결정
-      const customerType = userInfo 
+      const customerType = userInfo
         ? determineCustomerType(userInfo.customerSource, userInfo.role)
         : 'prospect'; // User가 없으면 prospect
-      
+
       // status 결정 (User의 customerStatus 사용, 없으면 lead의 status 사용)
       // customerStatus 값 매핑: 'purchase_confirmed' -> 'package', 그 외는 그대로 사용
       let status: 'active' | 'package' | 'dormant' | 'locked' | 'test-locked' | undefined = 'active';
@@ -407,18 +411,18 @@ export async function GET(req: NextRequest) {
         // AffiliateLead의 status는 그대로 사용 (이미 올바른 형식)
         status = lead.status as typeof status;
       }
-      
+
       // 담당자 정보 구성 (affiliateOwnership 형식)
       const ownership = resolveOwnership(profile.id, lead);
       const agentProfile = lead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile;
       const managerProfile = lead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile;
-      
+
       let affiliateOwnership: {
         ownerType: 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT';
         ownerName: string | null;
         managerProfile: any | null;
       } | null = null;
-      
+
       if (ownership === 'AGENT' && lead.agentId && agentProfile) {
         affiliateOwnership = {
           ownerType: 'SALES_AGENT' as const,
@@ -440,22 +444,22 @@ export async function GET(req: NextRequest) {
           managerProfile: null, // 대리점장은 managerProfile이 없음
         };
       }
-      
+
       // Customer 인터페이스 구조에 맞게 변환
       return {
         // 필수 필드
         id: userInfo?.id || lead.id, // User가 있으면 User.id, 없으면 lead.id
         name: userInfo?.name || lead.customerName || null,
         phone: lead.customerPhone || null,
-        
+
         // 선택 필드
         customerType,
         status: status as 'active' | 'package' | 'dormant' | 'locked' | 'test-locked' | undefined,
         role: (userInfo?.role as 'user' | 'admin' | undefined) || 'user',
-        
+
         // affiliateOwnership
         affiliateOwnership,
-        
+
         // trips 배열
         trips: userInfo?.trips?.map(trip => ({
           id: trip.id,
@@ -463,7 +467,7 @@ export async function GET(req: NextRequest) {
           startDate: trip.startDate?.toISOString() || null,
           endDate: trip.endDate?.toISOString() || null,
         })) || [],
-        
+
         // 기존 필드들 (하위 호환성 유지)
         ...serializeLead(lead, {
           ownership: resolveOwnership(profile.id, lead),
@@ -498,7 +502,7 @@ export async function GET(req: NextRequest) {
       // 대리점장의 profileId 찾기
       // agentRelations는 requirePartnerContext에서 매핑됨
       const managerProfileId = (profile as any).agentRelations?.[0]?.managerId || null;
-      
+
       serialized.sort((a, b) => {
         // 각 고객의 상담 기록 중 대리점장이나 본인이 기록한 최근 상담 찾기
         const aRecentByManagerOrSelf = a.interactions?.find(
@@ -511,7 +515,7 @@ export async function GET(req: NextRequest) {
             interaction.profileId === managerProfileId ||
             interaction.profileId === profile.id
         );
-        
+
         // 대리점장이나 본인이 기록한 상담이 최근인 고객을 우선 정렬
         if (aRecentByManagerOrSelf && !bRecentByManagerOrSelf) {
           return -1;
@@ -519,7 +523,7 @@ export async function GET(req: NextRequest) {
         if (!aRecentByManagerOrSelf && bRecentByManagerOrSelf) {
           return 1;
         }
-        
+
         // 둘 다 대리점장이나 본인이 기록한 상담이 있거나 둘 다 없는 경우
         // 최근 상담 기록 시간으로 정렬 (최신순)
         if (aRecentByManagerOrSelf && bRecentByManagerOrSelf) {
@@ -527,18 +531,18 @@ export async function GET(req: NextRequest) {
           const bTime = new Date(bRecentByManagerOrSelf.occurredAt).getTime();
           return bTime - aTime;
         }
-        
+
         // 둘 다 대리점장이나 본인이 기록한 상담이 없는 경우
         // 전체 최근 상담 기록 시간으로 정렬
         const aLatestInteraction = a.interactions?.[0];
         const bLatestInteraction = b.interactions?.[0];
-        
+
         if (aLatestInteraction && bLatestInteraction) {
           const aTime = new Date(aLatestInteraction.occurredAt).getTime();
           const bTime = new Date(bLatestInteraction.occurredAt).getTime();
           return bTime - aTime;
         }
-        
+
         // 상담 기록이 있는 고객을 우선 정렬
         if (aLatestInteraction && !bLatestInteraction) {
           return -1;
@@ -546,7 +550,7 @@ export async function GET(req: NextRequest) {
         if (!aLatestInteraction && bLatestInteraction) {
           return 1;
         }
-        
+
         // 기본 정렬 (updatedAt 기준)
         return 0;
       });
@@ -580,11 +584,11 @@ export async function GET(req: NextRequest) {
       console.error('[GET /api/partner/customers] Non-Error object:', JSON.stringify(error, null, 2));
     }
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         message: '고객 목록을 불러오지 못했습니다.',
         error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-      }, 
+      },
       { status: 500 }
     );
   }
@@ -683,7 +687,7 @@ export async function POST(req: NextRequest) {
 
     // User 정보 조회 또는 생성 (고객 그룹 추가용)
     let userInfo: { id: number; name: string | null; phone: string | null } | null = null;
-    
+
     if (lead.customerPhone) {
       // 기존 User 찾기
       userInfo = await prisma.user.findFirst({

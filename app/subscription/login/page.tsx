@@ -47,6 +47,7 @@ export default function SubscriptionLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [showExitIntent, setShowExitIntent] = useState(false);
   const [checkingCache, setCheckingCache] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // 캐시된 세션 확인 (페이지 로드 시)
   useEffect(() => {
@@ -65,7 +66,7 @@ export default function SubscriptionLoginPage() {
     if (loading) return;
 
     setError(null);
-    
+
     const trimmedName = name.trim();
     const trimmedPhone = phone.trim().replace(/[^0-9]/g, ''); // 숫자만 추출
 
@@ -85,13 +86,13 @@ export default function SubscriptionLoginPage() {
 
       const response = await fetch('/api/subscription/trial/start', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ 
-          name: trimmedName, 
-          phone: trimmedPhone 
+        body: JSON.stringify({
+          name: trimmedName,
+          phone: trimmedPhone
         }),
       });
 
@@ -112,7 +113,7 @@ export default function SubscriptionLoginPage() {
           startedAt: data.trial.startedAt,
           expiresAt: data.trial.expiresAt,
         });
-        
+
         // 체험용 대시보드로 이동
         router.push('/trial/dashboard');
       } else {
@@ -164,11 +165,44 @@ export default function SubscriptionLoginPage() {
             </span>
           </h1>
 
+          {/* 7일 체험 이미지 1-4 (2열 그리드 & 모달 확대) */}
+          <div className="grid grid-cols-2 gap-4 mt-8 mb-8">
+            {[
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_8859.jpg",
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_9565.jpg",
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_043.jpg",
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_1041.jpg"
+            ].map((src, index) => (
+              <div
+                key={index}
+                className="relative cursor-pointer group overflow-hidden rounded-lg shadow-lg aspect-[4/3]"
+                onClick={() => setSelectedImage(src)}
+              >
+                <img
+                  src={src}
+                  alt={`7일 체험 ${index + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 text-white font-bold bg-black/50 px-3 py-1 rounded-full text-sm transition-opacity">
+                    확대보기
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 새로운 헤드카피 */}
+          <h2 className="text-3xl md:text-5xl font-black leading-tight text-white mb-8">
+            "이제는 새로운 시대 입니다.<br />
+            <span className="text-cyan-400">나만의 시스템으로 1인 여행사를 만들으세요"</span>
+          </h2>
+
           {/* GIF 이미지 */}
           <div className="mt-8 mb-8">
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-09-12/77e030891f0e61cdcb9d7d749405b536_1757613270_0684.gif" 
-              alt="크루즈 전문가 과정 소개" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-09-12/77e030891f0e61cdcb9d7d749405b536_1757613270_0684.gif"
+              alt="크루즈 전문가 과정 소개"
               className="w-full max-w-4xl mx-auto rounded-lg shadow-2xl"
               loading="lazy"
             />
@@ -244,11 +278,11 @@ export default function SubscriptionLoginPage() {
 
             <div className="bg-orange-900/30 border border-orange-500/50 rounded-xl p-4 mb-6">
               <p className="text-center text-white font-bold text-base">
-                ⏰ 이름과 연락처만 입력하면<br/>
+                ⏰ 이름과 연락처만 입력하면<br />
                 <span className="text-yellow-400 text-lg">입력한 시점부터 7일간 무료</span>로 모든 기능을 사용할 수 있습니다!
               </p>
             </div>
-            
+
             <form onSubmit={(e) => handleSubmit(e, 'top')} className="space-y-4">
               <input
                 type="text"
@@ -271,7 +305,7 @@ export default function SubscriptionLoginPage() {
                 className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg p-4 text-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400"
                 disabled={loading}
               />
-              
+
               {error && (
                 <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
                   {error}
@@ -316,9 +350,9 @@ export default function SubscriptionLoginPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center my-8">
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750946396_3068.png" 
-                alt="과거 연구원 시절" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750946396_3068.png"
+                alt="과거 연구원 시절"
                 className="w-full rounded-lg shadow-xl"
                 loading="lazy"
               />
@@ -326,9 +360,9 @@ export default function SubscriptionLoginPage() {
               <p className="text-gray-400">반복되는 일상, 정해진 월급</p>
             </div>
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750946396_2474.png" 
-                alt="크루즈 스탭 활동" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750946396_2474.png"
+                alt="크루즈 스탭 활동"
                 className="w-full rounded-lg shadow-xl border-2 border-yellow-400"
                 loading="lazy"
               />
@@ -371,9 +405,9 @@ export default function SubscriptionLoginPage() {
               <h3 className="text-2xl font-bold text-white text-center mb-4">
                 2. <span className="text-yellow-400">대기업·중견기업</span> 협력
               </h3>
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763276384_7279.jpg" 
-                alt="대기업 중견기업 협력" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763276384_7279.jpg"
+                alt="대기업 중견기업 협력"
                 className="w-full rounded-lg shadow-xl"
                 loading="lazy"
               />
@@ -385,9 +419,9 @@ export default function SubscriptionLoginPage() {
               <h3 className="text-2xl font-bold text-white text-center mb-4">
                 3. <span className="text-yellow-400">AI 세일즈 챗봇</span> 지원
               </h3>
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763271257_8093.png" 
-                alt="크루즈 가이드 지니 세일즈 챗봇" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763271257_8093.png"
+                alt="크루즈 가이드 지니 세일즈 챗봇"
                 className="w-full rounded-lg shadow-xl"
                 loading="lazy"
               />
@@ -399,9 +433,9 @@ export default function SubscriptionLoginPage() {
               <h3 className="text-2xl font-bold text-white text-center mb-4">
                 4. <span className="text-yellow-400">라이브 방송</span> 지원
               </h3>
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275311_9215.png" 
-                alt="크루즈 라이브 방송 카톡방 지원" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275311_9215.png"
+                alt="크루즈 라이브 방송 카톡방 지원"
                 className="w-full rounded-lg shadow-xl"
                 loading="lazy"
               />
@@ -413,9 +447,9 @@ export default function SubscriptionLoginPage() {
               <h3 className="text-2xl font-bold text-white text-center mb-4">
                 5. <span className="text-yellow-400">라이브 쇼핑</span> 지원
               </h3>
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275430_2282.gif" 
-                alt="크루즈 라이브 쇼핑 방송 지원" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275430_2282.gif"
+                alt="크루즈 라이브 쇼핑 방송 지원"
                 className="w-full rounded-lg shadow-xl"
                 loading="lazy"
               />
@@ -438,6 +472,45 @@ export default function SubscriptionLoginPage() {
             단순히 강의만 파는 곳과 비교를 거부합니다.<br />
             이것이 마비즈 수강생 95.7%가 수익을 내는 이유입니다.
           </p>
+
+          {/* 추가 이미지 4장 (2열 그리드 & 모달 확대) */}
+          <div className="grid grid-cols-2 gap-4 mt-8 mb-12">
+            {[
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_8859.jpg",
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_9565.jpg",
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_043.jpg",
+              "https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_1041.jpg"
+            ].map((src, index) => (
+              <div
+                key={index}
+                className="relative cursor-pointer group overflow-hidden rounded-lg shadow-lg aspect-[4/3]"
+                onClick={() => setSelectedImage(src)}
+              >
+                <img
+                  src={src}
+                  alt={`7일 체험 ${index + 1}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 text-white font-bold bg-black/50 px-3 py-1 rounded-full text-sm transition-opacity">
+                    확대보기
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 추가 유튜브 영상 */}
+          <div className="mb-12 rounded-lg overflow-hidden shadow-2xl max-w-4xl mx-auto" style={{ paddingBottom: '56.25%', position: 'relative', height: 0, background: '#000' }}>
+            <iframe
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              src="https://www.youtube.com/embed/a2M1OQIPAv8?autoplay=1&mute=1&loop=1&playlist=a2M1OQIPAv8&modestbranding=1&iv_load_policy=3&controls=0"
+              title="크루즈 영상"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gray-800 p-6 rounded-lg border border-gray-700 flex items-start">
@@ -542,39 +615,39 @@ export default function SubscriptionLoginPage() {
           <p className="text-center text-gray-400 mb-8">(수강생들의 동의 하에 공개합니다.)</p>
 
           <div className="grid grid-cols-2 gap-4">
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750943544_0562.png" 
-              alt="수강생 후기 카톡 1" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750943544_0562.png"
+              alt="수강생 후기 카톡 1"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754193750_2256.png" 
-              alt="고객 문자 후기" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754193750_2256.png"
+              alt="고객 문자 후기"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750943544_5234.png" 
-              alt="수강생 후기 카톡 2" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750943544_5234.png"
+              alt="수강생 후기 카톡 2"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750943495_2443.png" 
-              alt="특강 후기" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-06-26/b941a75d82cb776b1c7905af131243fa_1750943495_2443.png"
+              alt="특강 후기"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754194677_3697.png" 
-              alt="수강생 크루즈 결제 후기" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754194677_3697.png"
+              alt="수강생 크루즈 결제 후기"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754194677_4423.png" 
-              alt="수강생 결제 후기" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754194677_4423.png"
+              alt="수강생 결제 후기"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
@@ -589,27 +662,27 @@ export default function SubscriptionLoginPage() {
             이론이 아닙니다. <span className="text-cyan-400">100% 실무 현장</span>입니다.
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275229_9164.jpg" 
-              alt="크루즈 터미널 인솔" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275229_9164.jpg"
+              alt="크루즈 터미널 인솔"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275230_1588.jpg" 
-              alt="기항지 투어 인솔" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275230_1588.jpg"
+              alt="기항지 투어 인솔"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275230_6515.jpg" 
-              alt="크루즈 쉽투어" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275230_6515.jpg"
+              alt="크루즈 쉽투어"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275231_6474.jpg" 
-              alt="크루즈 스탭 고객 안내" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763275231_6474.jpg"
+              alt="크루즈 스탭 고객 안내"
               className="w-full rounded-lg shadow-xl cursor-pointer hover:scale-105 transition-transform"
               loading="lazy"
             />
@@ -647,7 +720,7 @@ export default function SubscriptionLoginPage() {
                   className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg p-4 text-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400"
                   disabled={loading}
                 />
-                
+
                 {error && (
                   <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
                     {error}
@@ -690,9 +763,9 @@ export default function SubscriptionLoginPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199867_3063.png" 
-                alt="모니카 대표" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199867_3063.png"
+                alt="모니카 대표"
                 className="w-40 h-40 object-cover rounded-full mx-auto border-4 border-cyan-500"
                 loading="lazy"
               />
@@ -700,9 +773,9 @@ export default function SubscriptionLoginPage() {
               <p className="text-sm text-cyan-400">총괄 디렉터</p>
             </div>
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199901_6284.jpg" 
-                alt="로즈 코치" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199901_6284.jpg"
+                alt="로즈 코치"
                 className="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600"
                 loading="lazy"
               />
@@ -710,9 +783,9 @@ export default function SubscriptionLoginPage() {
               <p className="text-sm text-gray-400">전문 멘토</p>
             </div>
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199918_2226.jpg" 
-                alt="페르 코치" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199918_2226.jpg"
+                alt="페르 코치"
                 className="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600"
                 loading="lazy"
               />
@@ -720,9 +793,9 @@ export default function SubscriptionLoginPage() {
               <p className="text-sm text-gray-400">전문 멘토</p>
             </div>
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199981_5468.jpg" 
-                alt="해리 점장" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199981_5468.jpg"
+                alt="해리 점장"
                 className="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600"
                 loading="lazy"
               />
@@ -730,9 +803,9 @@ export default function SubscriptionLoginPage() {
               <p className="text-sm text-gray-400">전문 멘토</p>
             </div>
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7439.jpg" 
-                alt="맥스 코치" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7439.jpg"
+                alt="맥스 코치"
                 className="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600"
                 loading="lazy"
               />
@@ -740,9 +813,9 @@ export default function SubscriptionLoginPage() {
               <p className="text-sm text-gray-400">전문 멘토</p>
             </div>
             <div className="text-center">
-              <img 
-                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7938.jpg" 
-                alt="저스틴 코치" 
+              <img
+                src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7938.jpg"
+                alt="저스틴 코치"
                 className="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600"
                 loading="lazy"
               />
@@ -761,9 +834,9 @@ export default function SubscriptionLoginPage() {
             <span className="text-cyan-400">수강생들의 실제 수익 데이터로 증명합니다.</span>
           </h2>
           <div className="text-lg text-gray-200 my-12 max-w-3xl mx-auto leading-relaxed">
-            <img 
-              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-27/35678ffef7bca30be7b0a09219c12215_1756225523_6478.gif" 
-              alt="수강생 수익 인증" 
+            <img
+              src="https://leadgeny.kr/data/file/smarteditor2/2025-08-27/35678ffef7bca30be7b0a09219c12215_1756225523_6478.gif"
+              alt="수강생 수익 인증"
               className="w-full rounded-lg shadow-2xl"
               loading="lazy"
             />
@@ -821,7 +894,7 @@ export default function SubscriptionLoginPage() {
               </ul>
               <div className="mt-6 bg-orange-900/30 border border-orange-500/50 rounded-lg p-3">
                 <p className="text-center text-white text-sm font-bold">
-                  💡 신청 후 <span className="text-yellow-400">7일 카운트다운</span>이 시작되며,<br className="md:hidden"/>
+                  💡 신청 후 <span className="text-yellow-400">7일 카운트다운</span>이 시작되며,<br className="md:hidden" />
                   대시보드에서 실시간으로 남은 시간을 확인할 수 있습니다!
                 </p>
               </div>
@@ -849,7 +922,7 @@ export default function SubscriptionLoginPage() {
                 className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg p-4 text-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400"
                 disabled={loading}
               />
-              
+
               {error && (
                 <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
                   {error}
@@ -898,11 +971,11 @@ export default function SubscriptionLoginPage() {
 
       {/* Exit Intent Modal */}
       {showExitIntent && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-85 flex items-center justify-center z-50 p-4"
           onClick={() => setShowExitIntent(false)}
         >
-          <div 
+          <div
             className="bg-gray-900 border border-gray-700 rounded-xl p-8 max-w-md w-full text-center relative"
             onClick={(e) => e.stopPropagation()}
           >
@@ -932,7 +1005,7 @@ export default function SubscriptionLoginPage() {
       )}
 
       {/* Sticky CTA Banner */}
-      <div 
+      <div
         className="fixed bottom-0 left-0 w-full bg-gradient-to-r from-blue-900 to-cyan-600 text-white py-4 px-4 z-40 cursor-pointer hover:from-blue-800 hover:to-cyan-700 transition-all shadow-lg"
         onClick={() => document.getElementById('final-form')?.scrollIntoView({ behavior: 'smooth' })}
       >
@@ -942,6 +1015,31 @@ export default function SubscriptionLoginPage() {
           </span>
         </div>
       </div>
+      {/* 이미지 확대 모달 */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative max-w-5xl w-full max-h-[90vh] flex items-center justify-center">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImage(null);
+              }}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors"
+            >
+              <FiX className="w-8 h-8" />
+            </button>
+            <img
+              src={selectedImage}
+              alt="확대 이미지"
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

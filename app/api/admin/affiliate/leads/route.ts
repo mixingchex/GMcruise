@@ -24,7 +24,7 @@ function normalizePhone(phone: string | null | undefined) {
 export async function GET(req: NextRequest) {
   try {
     console.log('[admin/affiliate/leads][GET] Request started');
-    
+
     // 인증 확인
     let sessionUser: { id: number; role: string | null } | null = null;
     try {
@@ -80,18 +80,24 @@ export async function GET(req: NextRequest) {
           { source: 'phone-consultation' }, // 전화상담 신청 추가
         ],
       });
+    } else if (source === 'b2b') {
+      whereConditions.push({
+        source: { in: ['test-guide', 'TRIAL_DASHBOARD', 'B2B_LANDING'] }
+      });
+    } else if (source) {
+      whereConditions.push({ source });
     }
 
     // 검색 조건 (이름 또는 전화번호)
     if (customerName || customerPhone) {
       const searchConditions: Prisma.AffiliateLeadWhereInput[] = [];
-      
+
       if (customerName) {
         searchConditions.push({
           customerName: { contains: customerName },
         });
       }
-      
+
       if (customerPhone) {
         const normalizedPhone = normalizePhone(customerPhone);
         if (normalizedPhone) {
@@ -121,14 +127,14 @@ export async function GET(req: NextRequest) {
     }
 
     // 최종 where 조건 구성
-    const where: Prisma.AffiliateLeadWhereInput = whereConditions.length > 0 
+    const where: Prisma.AffiliateLeadWhereInput = whereConditions.length > 0
       ? { AND: whereConditions }
       : {};
 
     // 총 개수 조회
     let total = 0;
     let leads: any[] = [];
-    
+
     try {
       console.log('[admin/affiliate/leads][GET] Counting leads with where:', JSON.stringify(where));
       total = await prisma.affiliateLead.count({ where });
@@ -145,48 +151,48 @@ export async function GET(req: NextRequest) {
       console.log('[admin/affiliate/leads][GET] Fetching leads, skip:', skip, 'take:', limit);
       // 성능 최적화: include 대신 select 사용
       leads = await prisma.affiliateLead.findMany({
-      where,
-      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        customerName: true,
-        customerPhone: true,
-        status: true,
-        passportRequestedAt: true,
-        passportCompletedAt: true,
-        lastContactedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        managerId: true,
-        agentId: true,
-        AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
-          select: {
-            id: true,
-            affiliateCode: true,
-            displayName: true,
-            branchLabel: true,
+        where,
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          customerName: true,
+          customerPhone: true,
+          status: true,
+          passportRequestedAt: true,
+          passportCompletedAt: true,
+          lastContactedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          managerId: true,
+          agentId: true,
+          AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
+            select: {
+              id: true,
+              affiliateCode: true,
+              displayName: true,
+              branchLabel: true,
+            },
           },
-        },
-        AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
-          select: {
-            id: true,
-            affiliateCode: true,
-            displayName: true,
-            branchLabel: true,
+          AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+            select: {
+              id: true,
+              affiliateCode: true,
+              displayName: true,
+              branchLabel: true,
+            },
           },
-        },
-        _count: {
-          select: {
-            AffiliateInteraction: true,
-            AffiliateSale: true,
+          _count: {
+            select: {
+              AffiliateInteraction: true,
+              AffiliateSale: true,
+            },
           },
+          source: true,
+          metadata: true,
         },
-        source: true,
-        metadata: true,
-      },
-    });
+      });
       console.log('[admin/affiliate/leads][GET] Query successful, found', leads.length, 'leads');
     } catch (queryError: any) {
       console.error('[admin/affiliate/leads][GET] Query error:', queryError);
@@ -203,7 +209,7 @@ export async function GET(req: NextRequest) {
     const customerPhones = leads
       .map((lead: any) => lead.customerPhone)
       .filter((phone): phone is string => !!phone);
-    
+
     const usersByPhone = new Map<string, {
       id: number;
       name: string | null;
@@ -244,11 +250,11 @@ export async function GET(req: NextRequest) {
       try {
         const manager = lead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile;
         const agent = lead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile;
-        
+
         // User 정보 조회
         const userInfo = lead.customerPhone ? usersByPhone.get(lead.customerPhone) : null;
         const latestTrip = userInfo?.trips?.[0] || null;
-        
+
         const formatDate = (date: any) => {
           if (!date) return null;
           try {
@@ -286,17 +292,17 @@ export async function GET(req: NextRequest) {
           createdAt: formatDate(lead.createdAt) || new Date().toISOString(),
           manager: manager
             ? {
-                id: manager.id || null,
-                affiliateCode: manager.affiliateCode || null,
-                displayName: manager.displayName || null,
-              }
+              id: manager.id || null,
+              affiliateCode: manager.affiliateCode || null,
+              displayName: manager.displayName || null,
+            }
             : null,
           agent: agent
             ? {
-                id: agent.id || null,
-                affiliateCode: agent.affiliateCode || null,
-                displayName: agent.displayName || null,
-              }
+              id: agent.id || null,
+              affiliateCode: agent.affiliateCode || null,
+              displayName: agent.displayName || null,
+            }
             : null,
           _count: {
             interactions: (lead._count?.AffiliateInteraction ?? 0) || 0,
@@ -349,7 +355,7 @@ export async function GET(req: NextRequest) {
       }
     });
     console.log('[admin/affiliate/leads][GET] Formatted', formattedLeads.length, 'leads successfully');
-    
+
     return NextResponse.json({
       ok: true,
       leads: formattedLeads,
@@ -368,13 +374,13 @@ export async function GET(req: NextRequest) {
     if (error?.stack) {
       console.error('[admin/affiliate/leads][GET] Error stack:', error.stack);
     }
-    
+
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         message: '고객 목록을 불러오지 못했습니다.',
         error: error?.message || String(error),
-        ...(process.env.NODE_ENV === 'development' ? { 
+        ...(process.env.NODE_ENV === 'development' ? {
           details: {
             message: error?.message,
             code: error?.code,

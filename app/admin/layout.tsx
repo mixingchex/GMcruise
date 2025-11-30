@@ -17,7 +17,7 @@ function AdminLayoutContent({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [customerGroupExpanded, setCustomerGroupExpanded] = useState(true); // 기본값: true (항상 펼침)
-  
+
   // 인증 상태를 세션 스토리지에 캐시하여 불필요한 API 호출 방지
   const authCheckRef = useRef(false);
   const lastAuthCheckRef = useRef<number>(0);
@@ -37,7 +37,7 @@ function AdminLayoutContent({
     const now = Date.now();
     const cachedAuth = sessionStorage.getItem('admin_auth');
     const cachedTime = sessionStorage.getItem('admin_auth_time');
-    
+
     if (cachedAuth && cachedTime) {
       const cacheTime = parseInt(cachedTime, 10);
       if (now - cacheTime < AUTH_CACHE_DURATION) {
@@ -47,12 +47,12 @@ function AdminLayoutContent({
         return;
       }
     }
-    
+
     // 중복 요청 방지
     if (authCheckRef.current) {
       return;
     }
-    
+
     try {
       authCheckRef.current = true;
       const response = await fetch('/api/admin/auth-check', {
@@ -63,7 +63,7 @@ function AdminLayoutContent({
 
       const authenticated = data.ok && data.authenticated;
       setIsAuthenticated(authenticated);
-      
+
       // 세션 스토리지에 캐시
       sessionStorage.setItem('admin_auth', authenticated.toString());
       sessionStorage.setItem('admin_auth_time', now.toString());
@@ -82,7 +82,7 @@ function AdminLayoutContent({
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
-  
+
   // 경로 변경 시 캐시된 인증 상태만 확인 (빠른 응답)
   useEffect(() => {
     if (isLoginPage) {
@@ -94,7 +94,7 @@ function AdminLayoutContent({
       const cachedAuth = sessionStorage.getItem('admin_auth');
       const cachedTime = sessionStorage.getItem('admin_auth_time');
       const now = Date.now();
-      
+
       // 캐시가 있고 유효하면 즉시 사용, 아니면 재확인
       if (cachedAuth && cachedTime) {
         const cacheTime = parseInt(cachedTime, 10);
@@ -176,6 +176,7 @@ function AdminLayoutContent({
     { href: '/admin/affiliate/payment-pages', label: '어필리에이트 결제 페이지', icon: '💳', section: 'affiliate' },
     { href: '/admin/affiliate/mall', label: '판매원 개인몰 관리', icon: '🛍️', section: 'affiliate' },
     { href: '/admin/affiliate/customers', label: '어필리에이트 고객 관리', icon: '👥', section: 'affiliate' },
+    { href: '/admin/b2b-prospects', label: 'B2B 잠재고객 관리', icon: '🏢', section: 'affiliate' },
     { href: '/admin/affiliate/sales-confirmation/pending', label: '판매 확정 승인', icon: '✅', section: 'affiliate' },
     { href: '/admin/affiliate/adjustments', label: '수당 조정 승인', icon: '💰', section: 'affiliate' },
     { href: '/admin/affiliate/documents', label: '문서 관리', icon: '📄', section: 'affiliate' },
@@ -286,11 +287,10 @@ function AdminLayoutContent({
                   <li key={key} className="rounded-2xl border border-gray-100 bg-white/70 shadow-sm">
                     <button
                       onClick={() => toggleSection(key)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${
-                        sectionExpanded[key]
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${sectionExpanded[key]
                           ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
                           : 'text-gray-700 hover:bg-gray-100'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">{icon}</span>
@@ -307,11 +307,10 @@ function AdminLayoutContent({
                               prefetch={true}
                               target={(item as any).external ? '_blank' : undefined}
                               rel={(item as any).external ? 'noopener noreferrer' : undefined}
-                              className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                                pathname === item.href
+                              className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${pathname === item.href
                                   ? 'bg-blue-100 text-blue-700 shadow'
                                   : 'text-gray-700 hover:bg-gray-100'
-                              }`}
+                                }`}
                             >
                               <span className="text-lg">{item.icon}</span>
                               <span>{item.label}</span>
@@ -327,11 +326,10 @@ function AdminLayoutContent({
               <li className="rounded-2xl border border-gray-100 bg-white/70 shadow-sm">
                 <button
                   onClick={() => setCustomerGroupExpanded(!customerGroupExpanded)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${
-                    customerGroupExpanded
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${customerGroupExpanded
                       ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
                       : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center space-x-3">
                     <span className="text-2xl">👥</span>
@@ -346,17 +344,16 @@ function AdminLayoutContent({
                       const isActive = item.href.includes('customerGroup=')
                         ? pathname === '/admin/customers' && searchParams?.get('customerGroup') === item.href.split('customerGroup=')[1]?.split('&')[0]
                         : pathname === item.href || (item.href === '/admin/customers' && pathname === '/admin/customers' && !searchParams?.get('customerGroup'));
-                      
+
                       return (
                         <li key={item.href}>
                           <Link
                             href={item.href}
                             prefetch={true}
-                            className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
-                              isActive
+                            className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${isActive
                                 ? 'bg-purple-100 text-purple-700 shadow'
                                 : 'text-gray-700 hover:bg-gray-100'
-                            }`}
+                              }`}
                           >
                             <span className="text-lg">{item.icon}</span>
                             <span>{item.label}</span>

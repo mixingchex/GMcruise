@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import prisma from '@/lib/prisma';
 
 // 구글 스프레드시트에 잠재고객 정보 저장
 async function saveToProspectSpreadsheet(name: string, phone: string) {
@@ -54,7 +55,7 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
 
     // 데이터 추가
     const now = new Date();
-    const formattedDate = now.toLocaleString('ko-KR', { 
+    const formattedDate = now.toLocaleString('ko-KR', {
       timeZone: 'Asia/Seoul',
       year: 'numeric',
       month: '2-digit',
@@ -105,12 +106,64 @@ export async function POST(req: Request) {
     console.log('[Subscription Trial] 7일 무료 체험 시작:', { name, phone: normalizedPhone });
 
     // 구글 스프레드시트에 잠재고객 정보 저장 (B2B 잠재고객 추적)
-    await saveToProspectSpreadsheet(name, normalizedPhone);
+    // 비동기로 처리하여 응답 속도 개선 (실패해도 DB 저장은 진행)
+    saveToProspectSpreadsheet(name, normalizedPhone).catch(err => {
+      console.error('[Subscription Trial] 스프레드시트 저장 실패 (백그라운드):', err);
+    });
 
-    // 7일 체험 정보 생성 (클라이언트에서 localStorage에 저장할 데이터)
+    // 7일 체험 정보 생성
     const now = new Date();
     const trialEndDate = new Date(now);
     trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+    // DB에 AffiliateLead로 저장 (또는 업데이트)
+    try {
+      // 기존 리드 확인
+      const existingLead = await prisma.affiliateLead.findFirst({
+        where: {
+          customerPhone: normalizedPhone,
+          status: { not: 'CANCELLED' }
+        }
+      });
+
+      if (existingLead) {
+        // 이미 존재하는 경우, 메타데이터에 체험 정보 업데이트
+        await prisma.affiliateLead.update({
+          where: { id: existingLead.id },
+          data: {
+            metadata: {
+              ...(existingLead.metadata as any || {}),
+              trialStartedAt: now.toISOString(),
+              trialExpiresAt: trialEndDate.toISOString(),
+              lastTrialUpdate: now.toISOString(),
+            },
+            // 소스가 없는 경우에만 업데이트 (기존 소스 유지)
+            source: existingLead.source || 'TRIAL_DASHBOARD',
+            // 상태가 NEW라면 CONTACTED나 다른 상태로 변경할 수도 있지만, 일단 유지하거나 필요시 변경
+          }
+        });
+        console.log('[Subscription Trial] 기존 리드 업데이트 완료:', existingLead.id);
+      } else {
+        // 신규 리드 생성
+        const newLead = await prisma.affiliateLead.create({
+          data: {
+            customerName: name,
+            customerPhone: normalizedPhone,
+            status: 'NEW',
+            source: 'TRIAL_DASHBOARD', // 시스템 상담 신청 (체험)
+            metadata: {
+              trialStartedAt: now.toISOString(),
+              trialExpiresAt: trialEndDate.toISOString(),
+            }
+          }
+        });
+        console.log('[Subscription Trial] 신규 리드 생성 완료:', newLead.id);
+      }
+    } catch (dbError) {
+      console.error('[Subscription Trial] DB 저장 실패:', dbError);
+      // DB 저장 실패해도 클라이언트 체험은 시작되도록 할지, 에러를 낼지 결정.
+      // 여기서는 에러 로그만 남기고 진행 (클라이언트 로컬스토리지 기반으로라도 동작하게)
+    }
 
     const trialSession = {
       name,

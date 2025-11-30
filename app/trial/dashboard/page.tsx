@@ -198,7 +198,7 @@ function PreviewMall() {
           <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">지중해</span>
           <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs">알래스카</span>
         </div>
-        {[1,2].map(i => (
+        {[1, 2].map(i => (
           <div key={i} className="border rounded-lg p-3 flex gap-3">
             <div className="w-20 h-16 bg-gradient-to-br from-blue-100 to-cyan-100 rounded flex items-center justify-center">🚢</div>
             <div className="flex-1">
@@ -277,10 +277,9 @@ function PreviewCustomers() {
               <td className="p-3 font-medium">{lead.customerName}</td>
               <td className="p-3 text-gray-600">{lead.customerPhone}</td>
               <td className="p-3">
-                <span className={`px-2 py-0.5 rounded text-xs ${
-                  lead.status === 'NEW' ? 'bg-blue-100 text-blue-600' : 
-                  lead.status === 'CONTACTED' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'
-                }`}>
+                <span className={`px-2 py-0.5 rounded text-xs ${lead.status === 'NEW' ? 'bg-blue-100 text-blue-600' :
+                    lead.status === 'CONTACTED' ? 'bg-yellow-100 text-yellow-600' : 'bg-green-100 text-green-600'
+                  }`}>
                   {lead.status === 'NEW' ? '신규' : lead.status === 'CONTACTED' ? '연락완료' : '관심'}
                 </span>
               </td>
@@ -322,7 +321,7 @@ function PreviewPayment() {
       <div className="p-4 border-t">
         <h4 className="font-semibold mb-3">최근 거래</h4>
         <div className="space-y-2">
-          {[{name: '김지영', amount: 289000, date: '11/29'}, {name: '이민수', amount: 458000, date: '11/28'}].map((t, i) => (
+          {[{ name: '김지영', amount: 289000, date: '11/29' }, { name: '이민수', amount: 458000, date: '11/28' }].map((t, i) => (
             <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
               <div>
                 <p className="font-medium">{t.name}님 구매</p>
@@ -382,9 +381,9 @@ function PreviewGeneric({ type }: { type: string }) {
     passport: { title: '여권 정보', items: ['이름: KIM JIYOUNG', '여권번호: M12345678', '만료일: 2030.05.15'] },
     landing: { title: '랜딩페이지', items: ['🏝️ 여름 크루즈 특가', '🎄 연말 가족 여행', '💑 허니문 패키지'] },
   };
-  
+
   const config = configs[type] || { title: '기능 미리보기', items: [] };
-  
+
   return (
     <div className="pointer-events-none select-none bg-white rounded-xl overflow-hidden">
       <div className="p-4 border-b flex items-center justify-between">
@@ -410,15 +409,15 @@ export default function TrialDashboardPage() {
   const [trialSession, setTrialSession] = useState<TrialSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number; } | null>(null);
-  
+
   // PWA 설치 상태
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isStandalone, setIsStandalone] = useState(false);
-  
+
   // 튜토리얼 모달
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [currentTutorial, setCurrentTutorial] = useState<string | null>(null);
-  
+
   // 시스템 문의 모달
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [inquiryForm, setInquiryForm] = useState({ name: '', phone: '' });
@@ -440,6 +439,32 @@ export default function TrialDashboardPage() {
   // 카운트다운 업데이트
   useEffect(() => {
     if (!trialSession) return;
+
+    // 서버와 동기화 (연장 여부 확인)
+    const syncWithServer = async () => {
+      try {
+        const res = await fetch(`/api/subscription/trial/status?phone=${trialSession.phone}`);
+        const data = await res.json();
+        if (data.ok && data.trial && data.trial.expiresAt) {
+          const serverExpiresAt = new Date(data.trial.expiresAt);
+          const localExpiresAt = new Date(trialSession.expiresAt);
+
+          // 서버 만료일이 더 미래라면 업데이트
+          if (serverExpiresAt > localExpiresAt) {
+            const newSession = { ...trialSession, expiresAt: data.trial.expiresAt };
+            localStorage.setItem(TRIAL_CACHE_KEY, JSON.stringify(newSession));
+            setTrialSession(newSession);
+            console.log('Trial extended from server:', data.trial.expiresAt);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync trial status:', err);
+      }
+    };
+
+    // 최초 1회 및 주기적 확인 (선택사항, 여기서는 최초 1회만)
+    syncWithServer();
+
     const targetDate = new Date(trialSession.expiresAt);
     const updateCountdown = () => {
       const now = new Date();
@@ -469,19 +494,19 @@ export default function TrialDashboardPage() {
       );
     };
     checkStandalone();
-    
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setInstallPrompt(e);
     };
-    
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
   }, []);
 
   const handleInstallApp = async () => {
     if (!installPrompt) {
-      alert(/iPad|iPhone|iPod/.test(navigator.userAgent) 
+      alert(/iPad|iPhone|iPod/.test(navigator.userAgent)
         ? 'Safari에서 공유 버튼을 누른 후 "홈 화면에 추가"를 선택해주세요.'
         : 'Chrome 또는 Edge 브라우저에서 설치할 수 있습니다.');
       return;
@@ -500,7 +525,7 @@ export default function TrialDashboardPage() {
       alert('이름과 연락처를 모두 입력해주세요.');
       return;
     }
-    
+
     setSubmittingInquiry(true);
     try {
       // 시스템 문의 API 호출
@@ -584,7 +609,7 @@ export default function TrialDashboardPage() {
 
       {/* 메인 콘텐츠 */}
       <div className={`mx-auto max-w-6xl px-4 ${isStandalone ? 'pt-20' : 'pt-32'}`}>
-        
+
         {/* 헤더 */}
         <header className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-2xl shadow-xl p-6 mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -644,7 +669,7 @@ export default function TrialDashboardPage() {
               ))}
             </div>
           </section>
-          
+
           <section className="bg-white rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-bold flex items-center gap-2"><FiUsers className="text-green-500" /> 최근 고객</h2>
@@ -657,9 +682,8 @@ export default function TrialDashboardPage() {
                     <p className="font-medium text-sm">{lead.customerName}</p>
                     <p className="text-xs text-gray-500">{lead.customerPhone}</p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-xs ${
-                    lead.status === 'NEW' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
-                  }`}>
+                  <span className={`px-2 py-0.5 rounded text-xs ${lead.status === 'NEW' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                    }`}>
                     {lead.status === 'NEW' ? '신규' : '관심'}
                   </span>
                 </div>
@@ -698,7 +722,7 @@ export default function TrialDashboardPage() {
               <h3 className="text-2xl font-black">{tutorial.title}</h3>
               <p className="text-cyan-100 mt-1">{tutorial.description}</p>
             </div>
-            
+
             {/* 실제 UI 미리보기 */}
             <div className="flex-1 overflow-y-auto p-6">
               <div className="mb-4">

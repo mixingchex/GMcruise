@@ -216,14 +216,14 @@ function formatChatDate(value: string | null | undefined) {
   today.setHours(0, 0, 0, 0);
   const targetDate = new Date(date);
   targetDate.setHours(0, 0, 0, 0);
-  
+
   const diffTime = targetDate.getTime() - today.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays === 0) return '오늘';
   if (diffDays === -1) return '어제';
   if (diffDays === 1) return '내일';
-  
+
   return new Intl.DateTimeFormat('ko-KR', {
     month: 'long',
     day: 'numeric',
@@ -233,24 +233,24 @@ function formatChatDate(value: string | null | undefined) {
 
 function groupInteractionsByDate(interactions: Interaction[]) {
   const groups: Record<string, Interaction[]> = {};
-  
+
   interactions.forEach((interaction) => {
     const date = new Date(interaction.occurredAt);
     date.setHours(0, 0, 0, 0);
     const dateKey = date.toISOString().split('T')[0];
-    
+
     if (!groups[dateKey]) {
       groups[dateKey] = [];
     }
     groups[dateKey].push(interaction);
   });
-  
+
   // 날짜별로 정렬 (최신순)
   const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
-  
+
   return sortedDates.map((dateKey) => ({
     date: dateKey,
-    interactions: groups[dateKey].sort((a, b) => 
+    interactions: groups[dateKey].sort((a, b) =>
       new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime()
     ),
   }));
@@ -279,7 +279,7 @@ function StatusBadge({
   options: LeadStatusOption[];
 }) {
   const option = options.find((item) => item.value === status);
-  
+
   // leadStatusOptions에 없는 상태값들 처리
   const statusMap: Record<string, string> = {
     'NEW': '신규',
@@ -293,7 +293,7 @@ function StatusBadge({
     'CLOSED': '종료',
     'TEST_GUIDE': '3일부재',
   };
-  
+
   const styleMap: Record<string, string> = {
     'NEW': 'bg-blue-100 text-blue-700',
     'CONTACTED': 'bg-amber-100 text-amber-700',
@@ -306,10 +306,10 @@ function StatusBadge({
     'CLOSED': 'bg-slate-100 text-slate-600',
     'TEST_GUIDE': 'bg-yellow-100 text-yellow-700',
   };
-  
+
   const label = option?.label || statusMap[status] || status;
   const theme = option?.theme || styleMap[status] || 'bg-slate-200 text-slate-700';
-  
+
   return (
     <span
       className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${theme}`}
@@ -327,23 +327,23 @@ export default function PartnerCustomersClient({
   const searchParams = useSearchParams();
   const router = useRouter();
   const partnerId = params?.partnerId as string;
-  
+
   // URL 파라미터 확인
   const [selectedAgentFilter, setSelectedAgentFilter] = useState<string>('');
-  
+
   useEffect(() => {
     const action = searchParams.get('action');
     const agentId = searchParams.get('agentId');
-    
+
     if (action === 'send-db') {
       router.push(`/partner/${partnerId}/customers/send-db`);
     }
-    
+
     if (agentId) {
       setSelectedAgentFilter(agentId);
     }
   }, [searchParams, router, partnerId]);
-  
+
   // 판매원별 DB 현황 상태
   const [agentDbStats, setAgentDbStats] = useState<Array<{
     agentId: number;
@@ -359,11 +359,11 @@ export default function PartnerCustomersClient({
     };
   }>>([]);
   const [loadingAgentDbStats, setLoadingAgentDbStats] = useState(false);
-  
+
   // 판매원별 DB 현황 로드
   const loadAgentDbStats = useCallback(async () => {
     if (partner.type !== 'BRANCH_MANAGER') return;
-    
+
     try {
       setLoadingAgentDbStats(true);
       const res = await fetch('/api/partner/agents/db-stats', {
@@ -379,7 +379,7 @@ export default function PartnerCustomersClient({
       setLoadingAgentDbStats(false);
     }
   }, [partner.type]);
-  
+
   useEffect(() => {
     if (partner.type === 'BRANCH_MANAGER') {
       loadAgentDbStats();
@@ -394,6 +394,7 @@ export default function PartnerCustomersClient({
   });
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [sourceFilter, setSourceFilter] = useState<string>('ALL');
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -500,7 +501,7 @@ export default function PartnerCustomersClient({
   const [groupExcelFile, setGroupExcelFile] = useState<File | null>(null);
   const [uploadingGroupExcel, setUploadingGroupExcel] = useState(false);
   const productDropdownRef = useRef<HTMLDivElement>(null);
-  
+
   // 퍼널 설정 관련 상태
   const [showFunnelModal, setShowFunnelModal] = useState(false);
   const [funnelSettingsGroup, setFunnelSettingsGroup] = useState<{
@@ -520,7 +521,7 @@ export default function PartnerCustomersClient({
     funnelEmailIds: [] as number[],
     reEntryHandling: 'time_change_info_change' as string,
   });
-  
+
   // DB 보내기 관련 상태
   const [showDbSendModal, setShowDbSendModal] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState<string>('');
@@ -658,6 +659,30 @@ export default function PartnerCustomersClient({
     checkContractStatus();
   }, []);
 
+  const handleExtendTrial = async (leadId: number, currentName: string) => {
+    if (!confirm(`${currentName}님의 무료 체험 기간을 7일 연장하시겠습니까?`)) return;
+
+    try {
+      const res = await fetch(`/api/admin/affiliate/leads/${leadId}/extend-trial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: 7 }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        showSuccess(data.message);
+        // 목록 새로고침
+        fetchCustomers(currentPage);
+      } else {
+        showError(data.message || '연장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error extending trial:', error);
+      showError('오류가 발생했습니다.');
+    }
+  };
+
   const fetchCustomers = useCallback(
     async (pageValue: number) => {
       setLoading(true);
@@ -665,6 +690,7 @@ export default function PartnerCustomersClient({
         const params = new URLSearchParams();
         params.set('page', pageValue.toString());
         if (statusFilter !== 'ALL') params.set('status', statusFilter);
+        if (sourceFilter !== 'ALL') params.set('source', sourceFilter);
         if (searchTerm) params.set('q', searchTerm);
         if (selectedAgentFilter) {
           if (selectedAgentFilter === 'unassigned') {
@@ -681,14 +707,14 @@ export default function PartnerCustomersClient({
         if (!res.ok || !json?.ok) {
           throw new Error(json?.message || '고객 목록을 불러오지 못했습니다.');
         }
-        
+
         let customers = json.customers ?? [];
-        
+
         // 미할당 고객 필터링 (클라이언트 사이드)
         if (selectedAgentFilter === 'unassigned') {
           customers = customers.filter((c: any) => c.ownership === 'MANAGER' && !c.agent?.id);
         }
-        
+
         setCustomers(customers);
         if (json.pagination) {
           setPagination(json.pagination);
@@ -705,7 +731,7 @@ export default function PartnerCustomersClient({
         setLoading(false);
       }
     },
-    [searchTerm, statusFilter, selectedAgentFilter],
+    [searchTerm, statusFilter, selectedAgentFilter, sourceFilter],
   );
 
   const loadLeadDetail = useCallback(async (leadId: number) => {
@@ -758,12 +784,12 @@ export default function PartnerCustomersClient({
       if (customerListSearch) {
         params.set('search', customerListSearch);
       }
-      
+
       const response = await fetch(`/api/partner/customer-groups/${groupId}/customers?${params}`, {
         credentials: 'include',
       });
       const data = await response.json();
-      
+
       if (data.ok) {
         setGroupCustomers(data.customers || []);
         setCustomerListTotal(data.pagination?.total || 0);
@@ -791,12 +817,12 @@ export default function PartnerCustomersClient({
   // 고객 리스트 검색 (debounce)
   useEffect(() => {
     if (!showCustomerListModal || !customerListGroup) return;
-    
+
     const timer = setTimeout(() => {
       setCustomerListPage(1);
       loadGroupCustomers(customerListGroup.id, 1);
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [customerListSearch, showCustomerListModal, customerListGroup, loadGroupCustomers]);
 
@@ -1027,7 +1053,7 @@ export default function PartnerCustomersClient({
         if (!res.ok || !json?.ok) {
           throw new Error(json?.message || '전화상담 고객 목록을 불러오지 못했습니다.');
         }
-        
+
         setInquiryCustomers(json.customers ?? []);
         if (json.pagination) {
           setInquiryPagination(json.pagination);
@@ -1153,7 +1179,7 @@ export default function PartnerCustomersClient({
   useEffect(() => {
     if ('Notification' in window) {
       setNotificationPermission(Notification.permission);
-      
+
       // 권한이 없으면 요청
       if (Notification.permission === 'default') {
         Notification.requestPermission().then((permission) => {
@@ -1255,14 +1281,14 @@ export default function PartnerCustomersClient({
 
     const actionDate = new Date(nextActionAt);
     const now = new Date();
-    
+
     // 과거 시간이면 알람 설정 안 함
     if (actionDate <= now) {
       return;
     }
 
     const timeUntilAction = actionDate.getTime() - now.getTime();
-    
+
     // 알람 시간에 브라우저 알림 표시
     setTimeout(() => {
       if (Notification.permission === 'granted') {
@@ -1343,7 +1369,7 @@ export default function PartnerCustomersClient({
       if (!res.ok || !json?.ok) {
         throw new Error(json?.message || '고객 추가에 실패했습니다.');
       }
-      
+
       // 다음 조치 예정일이 있으면 알람 스케줄링
       if (addForm.nextActionAt && json.customer?.id) {
         scheduleNextActionAlarm(
@@ -1352,7 +1378,7 @@ export default function PartnerCustomersClient({
           json.customer.id
         );
       }
-      
+
       showSuccess('고객이 추가되었습니다.');
       setIsAddModalOpen(false);
       resetAddForm();
@@ -1425,13 +1451,13 @@ export default function PartnerCustomersClient({
       }
       showSuccess('상담 기록이 추가되었습니다.');
       setInteractionForm({ note: '', status: '', nextActionAt: '', occurredAt: '', files: [] });
-      
+
       // 파일 업로드 (있는 경우)
       if (interactionForm.files.length > 0 && json.interaction?.id) {
         for (const file of interactionForm.files) {
           const formData = new FormData();
           formData.append('file', file);
-          
+
           try {
             const uploadRes = await fetch(`/api/admin/affiliate/interactions/${json.interaction.id}/upload`, {
               method: 'POST',
@@ -1447,10 +1473,10 @@ export default function PartnerCustomersClient({
           }
         }
       }
-      
+
       await loadLeadDetail(selectedLeadId);
       fetchCustomers(currentPage);
-      
+
       // 다음 조치 시간이 설정되었으면 알람 스케줄링
       if (interactionForm.nextActionAt && selectedLead && selectedLeadId) {
         scheduleNextActionAlarm(interactionForm.nextActionAt, selectedLead.customerName, selectedLeadId);
@@ -1588,14 +1614,14 @@ export default function PartnerCustomersClient({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-        body: JSON.stringify({
-          leadId: smsRecipientMode === 'customer' ? selectedLeadId : null,
-          phone: recipientPhone,
-          message: smsMessage,
-          aligoApiKey: aligoConfig.apiKey,
-          aligoUserId: aligoConfig.userId,
-          aligoSenderPhone: aligoConfig.senderPhone,
-        }),
+          body: JSON.stringify({
+            leadId: smsRecipientMode === 'customer' ? selectedLeadId : null,
+            phone: recipientPhone,
+            message: smsMessage,
+            aligoApiKey: aligoConfig.apiKey,
+            aligoUserId: aligoConfig.userId,
+            aligoSenderPhone: aligoConfig.senderPhone,
+          }),
         });
 
         const json = await res.json();
@@ -1619,9 +1645,9 @@ export default function PartnerCustomersClient({
     } else {
       // 링크 생성 방식
       if (smsRecipientMode === 'customer' && selectedLeadId) {
-                      // 본사로 여권 전송 링크 생성
-                        const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
-        
+        // 본사로 여권 전송 링크 생성
+        const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+
         // 링크 복사만 수행
         try {
           if (typeof window !== 'undefined' && navigator.clipboard) {
@@ -1774,7 +1800,7 @@ export default function PartnerCustomersClient({
     const now = new Date();
     const sixMonthsLater = new Date();
     sixMonthsLater.setMonth(now.getMonth() + 6);
-    
+
     if (expiry <= sixMonthsLater) {
       return '임박';
     }
@@ -1856,9 +1882,8 @@ export default function PartnerCustomersClient({
       }
 
       const { results } = json;
-      const message = `처리 완료: 성공 ${results.success}건, 실패 ${results.failed}건${
-        results.errors.length > 0 ? `\n\n실패 내역:\n${results.errors.slice(0, 10).join('\n')}${results.errors.length > 10 ? `\n... 외 ${results.errors.length - 10}건` : ''}` : ''
-      }`;
+      const message = `처리 완료: 성공 ${results.success}건, 실패 ${results.failed}건${results.errors.length > 0 ? `\n\n실패 내역:\n${results.errors.slice(0, 10).join('\n')}${results.errors.length > 10 ? `\n... 외 ${results.errors.length - 10}건` : ''}` : ''
+        }`;
 
       if (results.success > 0) {
         showSuccess(message);
@@ -1938,22 +1963,20 @@ export default function PartnerCustomersClient({
             <button
               type="button"
               onClick={() => setActiveTab('customers')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'customers'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
+              className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'customers'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-slate-500 hover:text-slate-700'
+                }`}
             >
               고객 관리
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('inquiries')}
-              className={`px-4 py-2 font-semibold transition-colors ${
-                activeTab === 'inquiries'
-                  ? 'border-b-2 border-blue-600 text-blue-600'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
+              className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'inquiries'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-slate-500 hover:text-slate-700'
+                }`}
             >
               전화상담고객
             </button>
@@ -1993,11 +2016,11 @@ export default function PartnerCustomersClient({
                   ) : (
                     <div className="space-y-3">
                       {agentDbStats.map((agent) => {
-                        const activityRate = agent.stats.totalCustomers > 0 
+                        const activityRate = agent.stats.totalCustomers > 0
                           ? (agent.stats.activeCustomers30d / agent.stats.totalCustomers * 100).toFixed(1)
                           : '0';
                         const isActive = parseFloat(activityRate) >= 30; // 30% 이상 활동률
-                        
+
                         return (
                           <Link
                             key={agent.agentId}
@@ -2010,11 +2033,10 @@ export default function PartnerCustomersClient({
                                   <p className="font-bold text-gray-900 text-base md:text-lg">
                                     {agent.agentName}
                                   </p>
-                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                                    isActive 
-                                      ? 'bg-green-100 text-green-700' 
-                                      : 'bg-yellow-100 text-yellow-700'
-                                  }`}>
+                                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${isActive
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                                    }`}>
                                     {isActive ? '활발' : '비활발'}
                                   </span>
                                 </div>
@@ -2049,198 +2071,328 @@ export default function PartnerCustomersClient({
                   )}
                 </div>
               )}
-              
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <form
-              onSubmit={handleSearchSubmit}
-              className="flex w-full max-w-lg items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
-            >
-```
-            <FiSearch className="text-slate-400" />
-            <input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="고객 이름 또는 연락처 검색"
-              className="flex-1 border-none bg-transparent text-sm outline-none"
-            />
-            <button
-              type="submit"
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              검색
-            </button>
-          </form>
-          <div className="flex items-center gap-3 text-sm">
-            {/* 판매원 필터는 대리점장만 사용 가능 (판매원은 본인 고객만 관리) */}
-            {partner.type === 'BRANCH_MANAGER' && partner.teamAgents.length > 0 && (
-              <>
-                <label className="text-slate-500">판매원</label>
-                <select
-                  value={selectedAgentFilter}
-                  onChange={(event) => {
-                    setSelectedAgentFilter(event.target.value);
-                    const agentId = event.target.value;
-                    if (agentId) {
-                      router.push(`/partner/${partnerId}/customers?agentId=${agentId}`);
-                    } else {
-                      router.push(`/partner/${partnerId}/customers`);
-                    }
-                  }}
-                  className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">전체 판매원</option>
-                  <option value="unassigned">미할당 고객</option>
-                  {partner.teamAgents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.displayName ?? '판매원'}
-                    </option>
-                  ))}
-                </select>
-              </>
-            )}
-            <label className="text-slate-500">상태</label>
-            <select
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value)}
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="ALL">전체</option>
-              {leadStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAddModalOpen(true);
-                  resetAddForm();
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
-              >
-                <FiPlus /> 새 고객 추가
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowExcelModal(true);
-                  setExcelFile(null);
-                  setExcelAgentProfileId('');
-                }}
-                className="inline-flex items-center gap-2 rounded-2xl border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 shadow hover:bg-blue-50"
-              >
-                <FiUpload /> 엑셀 업로드
-              </button>
-              {/* 고객 그룹관리 빠른버튼 (판매원, 대리점장 모두 사용 가능) */}
-              <Link
-                href={`/partner/${partnerId}/customer-groups`}
-                className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
-              >
-                <FiLayers /> 고객 그룹관리
-              </Link>
-              {/* DB 보내기 버튼은 대리점장만 사용 가능 (판매원은 DB를 보낼 수 없음) */}
-              {partner.type === 'BRANCH_MANAGER' && (
-                <Link
-                  href={`/partner/${partnerId}/customers/send-db`}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-purple-700"
-                >
-                  <FiUsers /> DB 보내기
-                </Link>
-              )}
-            </div>
-        </div>
 
-        {/* ?action=sms 파라미터가 있을 때 안내 메시지 */}
-        {searchParams.get('action') === 'sms' && !selectedLeadId && (
-          <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-200 p-4 mb-6">
-            <div className="flex items-start gap-3">
-              <FiMessageSquare className="text-2xl text-emerald-600 flex-shrink-0 mt-1" />
-              <div className="flex-1">
-                <p className="font-semibold text-emerald-900 text-base mb-2">📱 문자 보내기 모드</p>
-                {customers.length === 0 ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-emerald-800">
-                      등록된 고객이 없습니다. 먼저 고객을 추가한 후 문자를 보낼 수 있습니다.
-                    </p>
+              <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <form
+                  onSubmit={handleSearchSubmit}
+                  className="flex w-full max-w-lg items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm"
+                >
+                  ```
+                  <FiSearch className="text-slate-400" />
+                  <input
+                    value={searchInput}
+                    onChange={(event) => setSearchInput(event.target.value)}
+                    placeholder="고객 이름 또는 연락처 검색"
+                    className="flex-1 border-none bg-transparent text-sm outline-none"
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    검색
+                  </button>
+                </form>
+                <div className="flex items-center gap-3 text-sm">
+                  {/* 판매원 필터는 대리점장만 사용 가능 (판매원은 본인 고객만 관리) */}
+                  {partner.type === 'BRANCH_MANAGER' && partner.teamAgents.length > 0 && (
+                    <>
+                      <label className="text-slate-500">판매원</label>
+                      <select
+                        value={selectedAgentFilter}
+                        onChange={(event) => {
+                          setSelectedAgentFilter(event.target.value);
+                          const agentId = event.target.value;
+                          if (agentId) {
+                            router.push(`/partner/${partnerId}/customers?agentId=${agentId}`);
+                          } else {
+                            router.push(`/partner/${partnerId}/customers`);
+                          }
+                        }}
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      >
+                        <option value="">전체 판매원</option>
+                        <option value="unassigned">미할당 고객</option>
+                        {partner.teamAgents.map((agent) => (
+                          <option key={agent.id} value={agent.id}>
+                            {agent.displayName ?? '판매원'}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  <label className="text-slate-500">상태</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="ALL">전체</option>
+                    {leadStatusOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* B2B 필터 버튼 */}
+                  <div className="flex items-center gap-2 ml-2">
                     <button
-                      type="button"
-                      onClick={() => {
-                        setIsAddModalOpen(true);
-                        resetAddForm();
-                      }}
-                      className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 transition-colors"
+                      onClick={() => setSourceFilter(sourceFilter === 'B2B_LANDING' ? 'ALL' : 'B2B_LANDING')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${sourceFilter === 'B2B_LANDING'
+                        ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-200'
+                        : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-100'
+                        }`}
                     >
-                      <FiPlus /> 새 고객 추가 후 문자 보내기
+                      B2B 유입
+                    </button>
+                    <button
+                      onClick={() => setSourceFilter(sourceFilter === 'TRIAL_DASHBOARD' ? 'ALL' : 'TRIAL_DASHBOARD')}
+                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${sourceFilter === 'TRIAL_DASHBOARD'
+                        ? 'bg-green-600 text-white shadow-md ring-2 ring-green-200'
+                        : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-100'
+                        }`}
+                    >
+                      B2B 컨설팅 상담
                     </button>
                   </div>
-                ) : (
-                  <p className="text-sm text-emerald-800">
-                    아래 고객 목록에서 "문자 보내기" 버튼을 클릭하거나, 고객을 선택한 후 상세 정보에서 "문자 보내기" 버튼을 클릭하세요.
-                  </p>
-                )}
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddModalOpen(true);
+                      resetAddForm();
+                    }}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+                  >
+                    <FiPlus /> 새 고객 추가
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowExcelModal(true);
+                      setExcelFile(null);
+                      setExcelAgentProfileId('');
+                    }}
+                    className="inline-flex items-center gap-2 rounded-2xl border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 shadow hover:bg-blue-50"
+                  >
+                    <FiUpload /> 엑셀 업로드
+                  </button>
+                  {/* 고객 그룹관리 빠른버튼 (판매원, 대리점장 모두 사용 가능) */}
+                  <Link
+                    href={`/partner/${partnerId}/customer-groups`}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-indigo-700"
+                  >
+                    <FiLayers /> 고객 그룹관리
+                  </Link>
+                  {/* DB 보내기 버튼은 대리점장만 사용 가능 (판매원은 DB를 보낼 수 없음) */}
+                  {partner.type === 'BRANCH_MANAGER' && (
+                    <Link
+                      href={`/partner/${partnerId}/customers/send-db`}
+                      className="inline-flex items-center gap-2 rounded-2xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-purple-700"
+                    >
+                      <FiUsers /> DB 보내기
+                    </Link>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* 전화상담 신청 고객 섹션 */}
-        {!loading && customers.length > 0 && (() => {
-          const inquiryCustomers = customers.filter(c => 
-            c.source?.startsWith('mall-') || c.source === 'product-inquiry'
-          );
-          const regularCustomers = customers.filter(c => 
-            !c.source?.startsWith('mall-') && c.source !== 'product-inquiry'
-          );
+              {/* ?action=sms 파라미터가 있을 때 안내 메시지 */}
+              {searchParams.get('action') === 'sms' && !selectedLeadId && (
+                <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-200 p-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <FiMessageSquare className="text-2xl text-emerald-600 flex-shrink-0 mt-1" />
+                    <div className="flex-1">
+                      <p className="font-semibold text-emerald-900 text-base mb-2">📱 문자 보내기 모드</p>
+                      {customers.length === 0 ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-emerald-800">
+                            등록된 고객이 없습니다. 먼저 고객을 추가한 후 문자를 보낼 수 있습니다.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAddModalOpen(true);
+                              resetAddForm();
+                            }}
+                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700 transition-colors"
+                          >
+                            <FiPlus /> 새 고객 추가 후 문자 보내기
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-emerald-800">
+                          아래 고객 목록에서 "문자 보내기" 버튼을 클릭하거나, 고객을 선택한 후 상세 정보에서 "문자 보내기" 버튼을 클릭하세요.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
-          return (
-            <>
-              {inquiryCustomers.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="mb-4 text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <FiPhone className="text-blue-600" />
-                    전화상담 신청 고객 ({inquiryCustomers.length}명)
-                  </h3>
-                  {inquiryCustomers.length >= 10 ? (
-                    // 10명 이상일 때 테이블 형태로 표시
-                    <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white">
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-slate-200">
-                          <thead className="bg-blue-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                고객
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                신청 상품
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                유입날짜
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                상태
-                              </th>
-                              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                작업
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 bg-white">
+              {/* 전화상담 신청 고객 섹션 */}
+              {!loading && customers.length > 0 && (() => {
+                const inquiryCustomers = customers.filter(c =>
+                  c.source?.startsWith('mall-') || c.source === 'product-inquiry'
+                );
+                const regularCustomers = customers.filter(c =>
+                  !c.source?.startsWith('mall-') && c.source !== 'product-inquiry'
+                );
+
+                return (
+                  <>
+                    {inquiryCustomers.length > 0 && (
+                      <div className="mb-8">
+                        <h3 className="mb-4 text-xl font-bold text-slate-900 flex items-center gap-2">
+                          <FiPhone className="text-blue-600" />
+                          전화상담 신청 고객 ({inquiryCustomers.length}명)
+                        </h3>
+                        {inquiryCustomers.length >= 10 ? (
+                          // 10명 이상일 때 테이블 형태로 표시
+                          <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white">
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-slate-200">
+                                <thead className="bg-blue-50">
+                                  <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                      고객
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                      신청 상품
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                      유입날짜
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                      상태
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                      작업
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 bg-white">
+                                  {inquiryCustomers.map((customer) => {
+                                    const productCode = customer.metadata?.productCode || customer.metadata?.product_code;
+                                    const productName = customer.metadata?.productName || customer.metadata?.product_name;
+                                    const partnerId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
+
+                                    return (
+                                      <tr key={customer.id} className="hover:bg-blue-50/50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                          <div>
+                                            <div className="flex items-center gap-2">
+                                              <div className="text-sm font-semibold text-slate-900">
+                                                {customer.customerName ?? '이름 미입력'}
+                                              </div>
+                                              <CustomerStatusBadges
+                                                testModeStartedAt={customer.testModeStartedAt}
+                                                customerStatus={customer.customerStatus}
+                                                customerSource={customer.customerSource}
+                                                mallUserId={customer.mallUserId}
+                                              />
+                                            </div>
+                                            <div className="text-xs text-slate-600">
+                                              {customer.customerPhone ?? '연락처 미입력'}
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                          {productCode ? (
+                                            <div>
+                                              <div className="text-sm font-semibold text-slate-900">
+                                                {productName || productCode}
+                                              </div>
+                                              <Link
+                                                href={partnerId
+                                                  ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
+                                                  : `/products/${productCode}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                                              >
+                                                상품 보기 →
+                                              </Link>
+                                            </div>
+                                          ) : (
+                                            <span className="text-xs text-slate-400">상품 정보 없음</span>
+                                          )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                          {formatDate(customer.createdAt)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                          <StatusBadge status={customer.status} options={leadStatusOptions} />
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                          <div className="flex items-center gap-2 justify-end">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                // 고객 ID 사용 (AffiliateLead ID)
+                                                setSelectedCustomerForNote({ id: customer.id, name: customer.customerName });
+                                                setNoteModalOpen(true);
+                                              }}
+                                              className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition-colors"
+                                              title="고객 기록 작성"
+                                            >
+                                              <FiFileText size={14} />
+                                              기록
+                                            </button>
+                                            {searchParams.get('action') === 'sms' && (
+                                              <button
+                                                type="button"
+                                                onClick={async () => {
+                                                  await openDetail(customer.id);
+                                                  if (!selectedLead && customer.id) {
+                                                    await loadLeadDetail(customer.id);
+                                                  }
+                                                  setShowSmsModal(true);
+                                                }}
+                                                className="text-emerald-600 hover:text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded text-xs"
+                                              >
+                                                문자 보내기
+                                              </button>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() => handleExtendTrial(customer.id, customer.customerName || '고객')}
+                                              className="text-green-600 hover:text-green-700 font-semibold bg-green-50 px-2 py-1 rounded text-xs"
+                                            >
+                                              +7일 연장
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => openDetail(customer.id)}
+                                              className="text-blue-600 hover:text-blue-700 font-semibold"
+                                            >
+                                              상세 보기 →
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        ) : (
+                          // 10명 미만일 때 카드 형태로 표시
+                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                             {inquiryCustomers.map((customer) => {
                               const productCode = customer.metadata?.productCode || customer.metadata?.product_code;
                               const productName = customer.metadata?.productName || customer.metadata?.product_name;
                               const partnerId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
-                              
+
                               return (
-                                <tr key={customer.id} className="hover:bg-blue-50/50 transition-colors">
-                                  <td className="px-6 py-4 whitespace-nowrap">
-                                    <div>
-                                      <div className="flex items-center gap-2">
-                                        <div className="text-sm font-semibold text-slate-900">
+                                <div key={customer.id} className="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-5 hover:shadow-lg transition-shadow">
+                                  <div className="flex items-start justify-between mb-3">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h4 className="font-bold text-slate-900">
                                           {customer.customerName ?? '이름 미입력'}
-                                        </div>
+                                        </h4>
                                         <CustomerStatusBadges
                                           testModeStartedAt={customer.testModeStartedAt}
                                           customerStatus={customer.customerStatus}
@@ -2248,52 +2400,41 @@ export default function PartnerCustomersClient({
                                           mallUserId={customer.mallUserId}
                                         />
                                       </div>
-                                      <div className="text-xs text-slate-600">
+                                      <p className="text-sm text-slate-600 mb-2">
                                         {customer.customerPhone ?? '연락처 미입력'}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    {productCode ? (
-                                      <div>
-                                        <div className="text-sm font-semibold text-slate-900">
-                                          {productName || productCode}
+                                      </p>
+                                      {productCode && (
+                                        <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
+                                          <p className="text-xs font-semibold text-slate-500 mb-1">신청 상품</p>
+                                          <p className="text-sm font-semibold text-slate-900 mb-2">
+                                            {productName || productCode}
+                                          </p>
+                                          <Link
+                                            href={partnerId
+                                              ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
+                                              : `/products/${productCode}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                                          >
+                                            상품 보기 →
+                                          </Link>
                                         </div>
-                                        <Link
-                                          href={partnerId 
-                                            ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
-                                            : `/products/${productCode}`}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                                        >
-                                          상품 보기 →
-                                        </Link>
-                                      </div>
-                                    ) : (
-                                      <span className="text-xs text-slate-400">상품 정보 없음</span>
-                                    )}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                    {formatDate(customer.createdAt)}
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap">
+                                      )}
+                                    </div>
                                     <StatusBadge status={customer.status} options={leadStatusOptions} />
-                                  </td>
-                                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <div className="flex items-center gap-2 justify-end">
+                                  </div>
+                                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-200">
+                                    <span className="text-xs text-slate-500">
+                                      {formatDate(customer.createdAt)}
+                                    </span>
+                                    <div className="flex items-center gap-2">
                                       <button
                                         type="button"
-                                        onClick={() => {
-                                          // 고객 ID 사용 (AffiliateLead ID)
-                                          setSelectedCustomerForNote({ id: customer.id, name: customer.customerName });
-                                          setNoteModalOpen(true);
-                                        }}
-                                        className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition-colors"
-                                        title="고객 기록 작성"
+                                        onClick={() => handleExtendTrial(customer.id, customer.customerName || '고객')}
+                                        className="text-xs font-semibold text-green-600 hover:text-green-700 bg-green-50 px-2 py-1 rounded"
                                       >
-                                        <FiFileText size={14} />
-                                        기록
+                                        +7일 연장
                                       </button>
                                       {searchParams.get('action') === 'sms' && (
                                         <button
@@ -2305,7 +2446,7 @@ export default function PartnerCustomersClient({
                                             }
                                             setShowSmsModal(true);
                                           }}
-                                          className="text-emerald-600 hover:text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded text-xs"
+                                          className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-2 py-1 rounded"
                                         >
                                           문자 보내기
                                         </button>
@@ -2313,335 +2454,259 @@ export default function PartnerCustomersClient({
                                       <button
                                         type="button"
                                         onClick={() => openDetail(customer.id)}
-                                        className="text-blue-600 hover:text-blue-700 font-semibold"
+                                        className="text-xs font-semibold text-blue-600 hover:text-blue-700"
                                       >
                                         상세 보기 →
                                       </button>
                                     </div>
-                                  </td>
-                                </tr>
+                                  </div>
+                                </div>
                               );
                             })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 일반 고객 목록 */}
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-slate-200">
+                          <thead className="bg-slate-100">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                고객
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                유입날짜
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                상태
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                상담 일정
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                판매 현황
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                소유
+                              </th>
+                              <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                작업
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {loading ? (
+                              <tr>
+                                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
+                                  데이터를 불러오는 중입니다...
+                                </td>
+                              </tr>
+                            ) : regularCustomers.length === 0 && inquiryCustomers.length === 0 ? (
+                              <tr>
+                                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
+                                  등록된 고객이 없습니다. &ldquo;새 고객 추가&rdquo; 버튼으로 고객을 등록해 주세요.
+                                </td>
+                              </tr>
+                            ) : regularCustomers.length === 0 ? (
+                              <tr>
+                                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
+                                  일반 고객이 없습니다.
+                                </td>
+                              </tr>
+                            ) : (
+                              regularCustomers.map((customer) => {
+                                // 구매 완료 자동 표시: 나의 구매몰에서 구매한 경우
+                                const hasPurchase = customer.sales.some((sale) => sale.status === 'CONFIRMED' || sale.status === 'PENDING');
+                                const displayStatus = hasPurchase && customer.status !== 'PURCHASED' ? 'PURCHASED' : customer.status;
+
+                                return (
+                                  <tr key={customer.id} className="hover:bg-slate-50">
+                                    <td className="px-6 py-4 text-sm text-slate-700">
+                                      <div className="flex flex-col gap-1">
+                                        <span className="font-semibold text-slate-900">
+                                          {customer.customerName ?? '이름 미입력'}
+                                        </span>
+                                        <span className="text-xs text-slate-500">
+                                          {customer.customerPhone ?? '연락처 미입력'}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                      {formatDate(customer.createdAt)}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm">
+                                      <StatusBadge status={displayStatus} options={leadStatusOptions} />
+                                      {hasPurchase && customer.status !== 'PURCHASED' && (
+                                        <span className="ml-2 text-xs text-emerald-600 font-semibold">(구매완료)</span>
+                                      )}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                      <div className="flex flex-col gap-1">
+                                        <span>최근 상담: {formatDateTime(customer.lastContactedAt)}</span>
+                                        <span className="text-xs text-slate-500">
+                                          다음 조치: {formatDate(customer.nextActionAt)}
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                      <div className="flex flex-col gap-1">
+                                        <span>총 {customer.saleSummary.totalSalesCount}건</span>
+                                        <span className="text-xs text-slate-500">
+                                          매출 {formatCurrency(customer.saleSummary.totalSalesAmount)}원
+                                        </span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-600">
+                                      <div className="flex flex-col gap-1">
+                                        {/* 고객 분류 표시 */}
+                                        {(() => {
+                                          // 1. 자신의 개개인 몰에서 구매고객
+                                          const hasPurchase = customer.sales.some((sale) =>
+                                            sale.status === 'CONFIRMED' || sale.status === 'PENDING' || sale.status === 'PAID'
+                                          );
+                                          // 자신의 개개인 몰에서 구매한 고객만 구매고객으로 표시
+                                          const customerMallUserId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
+                                          const isMallPurchase = hasPurchase && (
+                                            customer.source === `mall-${partner.mallUserId}` ||
+                                            customerMallUserId === partner.mallUserId ||
+                                            (customer.source?.startsWith('mall-') && customer.ownership === 'AGENT' && partner.type === 'SALES_AGENT')
+                                          );
+
+                                          // 2. 상담신청고객 (구매고객이 아닌 경우에만)
+                                          const isInquiry = !isMallPurchase && (
+                                            customer.source?.startsWith('mall-') ||
+                                            customer.source === 'product-inquiry' ||
+                                            customer.source === 'phone-consultation'
+                                          );
+
+                                          // 3. 내가입력한 고객 (구매고객, 상담신청고객이 아닌 경우에만)
+                                          const isManualInput = !isMallPurchase && !isInquiry && customer.ownership === 'AGENT' && (
+                                            customer.source === 'affiliate-manual' ||
+                                            customer.source === 'partner-manual'
+                                          );
+
+                                          // 4. 대리점장이 DB 보내줘서 받은 고객 (구매고객, 상담신청고객, 내가입력한 고객이 아닌 경우에만)
+                                          const isDbReceived = !isMallPurchase && !isInquiry && !isManualInput &&
+                                            customer.ownership === 'MANAGER' && customer.agent?.id;
+
+                                          return (
+                                            <>
+                                              <span className="font-semibold">
+                                                {isMallPurchase
+                                                  ? '구매고객'
+                                                  : isInquiry
+                                                    ? '상담신청고객'
+                                                    : isManualInput
+                                                      ? '내가입력한 고객'
+                                                      : isDbReceived
+                                                        ? 'DB 받은 고객'
+                                                        : customer.ownership === 'AGENT'
+                                                          ? '내 고객'
+                                                          : customer.ownership === 'MANAGER'
+                                                            ? '대리점 고객'
+                                                            : '협업 고객'}
+                                              </span>
+                                              {customer.agent && customer.ownership === 'MANAGER' && (
+                                                <div className="flex items-center gap-2">
+                                                  <span className="text-xs text-slate-500">
+                                                    담당: {customer.agent.displayName ?? '판매원'}
+                                                  </span>
+                                                  {partner.type === 'BRANCH_MANAGER' && (
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleRecallDb([customer.id])}
+                                                      className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
+                                                      title="DB 회수"
+                                                    >
+                                                      회수
+                                                    </button>
+                                                  )}
+                                                </div>
+                                              )}
+                                              {customer.counterpart?.label && !customer.agent && (
+                                                <span className="text-xs text-slate-500">
+                                                  담당: {customer.counterpart.label}
+                                                </span>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-sm">
+                                      <div className="flex items-center gap-2 justify-end">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleExtendTrial(customer.id, customer.customerName || '고객')}
+                                          className="inline-flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-100"
+                                        >
+                                          +7일 연장
+                                        </button>
+                                        {searchParams.get('action') === 'sms' && (
+                                          <button
+                                            type="button"
+                                            onClick={async () => {
+                                              await openDetail(customer.id);
+                                              if (!selectedLead && customer.id) {
+                                                await loadLeadDetail(customer.id);
+                                              }
+                                              setShowSmsModal(true);
+                                            }}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-100"
+                                          >
+                                            문자 보내기
+                                          </button>
+                                        )}
+                                        <button
+                                          type="button"
+                                          onClick={() => openDetail(customer.id)}
+                                          className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 font-semibold text-blue-600 hover:bg-blue-100"
+                                        >
+                                          상세 보기
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })
+                            )}
                           </tbody>
                         </table>
                       </div>
                     </div>
-                  ) : (
-                    // 10명 미만일 때 카드 형태로 표시
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {inquiryCustomers.map((customer) => {
-                        const productCode = customer.metadata?.productCode || customer.metadata?.product_code;
-                        const productName = customer.metadata?.productName || customer.metadata?.product_name;
-                        const partnerId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
-                        
-                        return (
-                          <div key={customer.id} className="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-5 hover:shadow-lg transition-shadow">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-bold text-slate-900">
-                                    {customer.customerName ?? '이름 미입력'}
-                                  </h4>
-                                  <CustomerStatusBadges
-                                    testModeStartedAt={customer.testModeStartedAt}
-                                    customerStatus={customer.customerStatus}
-                                    customerSource={customer.customerSource}
-                                    mallUserId={customer.mallUserId}
-                                  />
-                                </div>
-                                <p className="text-sm text-slate-600 mb-2">
-                                  {customer.customerPhone ?? '연락처 미입력'}
-                                </p>
-                                {productCode && (
-                                  <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
-                                    <p className="text-xs font-semibold text-slate-500 mb-1">신청 상품</p>
-                                    <p className="text-sm font-semibold text-slate-900 mb-2">
-                                      {productName || productCode}
-                                    </p>
-                                    <Link
-                                      href={partnerId 
-                                        ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
-                                        : `/products/${productCode}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                                    >
-                                      상품 보기 →
-                                    </Link>
-                                  </div>
-                                )}
-                              </div>
-                              <StatusBadge status={customer.status} options={leadStatusOptions} />
-                            </div>
-                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-200">
-                              <span className="text-xs text-slate-500">
-                                {formatDate(customer.createdAt)}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                {searchParams.get('action') === 'sms' && (
-                                  <button
-                                    type="button"
-                                    onClick={async () => {
-                                      await openDetail(customer.id);
-                                      if (!selectedLead && customer.id) {
-                                        await loadLeadDetail(customer.id);
-                                      }
-                                      setShowSmsModal(true);
-                                    }}
-                                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-2 py-1 rounded"
-                                  >
-                                    문자 보내기
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => openDetail(customer.id)}
-                                  className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                                >
-                                  상세 보기 →
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                  </>
+                );
+              })()}
+
+              <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
+                <span>
+                  총 {pagination.total.toLocaleString()}명 · {pagination.page} /{' '}
+                  {pagination.totalPages} 페이지
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1 || loading}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 font-semibold text-slate-600 disabled:opacity-30"
+                  >
+                    <FiChevronLeft /> 이전
+                  </button>
+                  <button
+                    type="button"
+                    disabled={currentPage >= pagination.totalPages || loading}
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.min(prev + 1, pagination.totalPages))
+                    }
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 font-semibold text-slate-600 disabled:opacity-30"
+                  >
+                    다음 <FiChevronRight />
+                  </button>
                 </div>
-              )}
-
-              {/* 일반 고객 목록 */}
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-100">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          고객
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          유입날짜
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          상태
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          상담 일정
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          판매 현황
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          소유
-                        </th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          작업
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {loading ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                            데이터를 불러오는 중입니다...
-                          </td>
-                        </tr>
-                      ) : regularCustomers.length === 0 && inquiryCustomers.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                            등록된 고객이 없습니다. &ldquo;새 고객 추가&rdquo; 버튼으로 고객을 등록해 주세요.
-                          </td>
-                        </tr>
-                      ) : regularCustomers.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
-                            일반 고객이 없습니다.
-                          </td>
-                        </tr>
-                      ) : (
-                        regularCustomers.map((customer) => {
-                    // 구매 완료 자동 표시: 나의 구매몰에서 구매한 경우
-                    const hasPurchase = customer.sales.some((sale) => sale.status === 'CONFIRMED' || sale.status === 'PENDING');
-                    const displayStatus = hasPurchase && customer.status !== 'PURCHASED' ? 'PURCHASED' : customer.status;
-                    
-                    return (
-                      <tr key={customer.id} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 text-sm text-slate-700">
-                          <div className="flex flex-col gap-1">
-                            <span className="font-semibold text-slate-900">
-                              {customer.customerName ?? '이름 미입력'}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {customer.customerPhone ?? '연락처 미입력'}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-600">
-                          {formatDate(customer.createdAt)}
-                        </td>
-                        <td className="px-6 py-4 text-sm">
-                          <StatusBadge status={displayStatus} options={leadStatusOptions} />
-                          {hasPurchase && customer.status !== 'PURCHASED' && (
-                            <span className="ml-2 text-xs text-emerald-600 font-semibold">(구매완료)</span>
-                          )}
-                        </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        <div className="flex flex-col gap-1">
-                          <span>최근 상담: {formatDateTime(customer.lastContactedAt)}</span>
-                          <span className="text-xs text-slate-500">
-                            다음 조치: {formatDate(customer.nextActionAt)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        <div className="flex flex-col gap-1">
-                          <span>총 {customer.saleSummary.totalSalesCount}건</span>
-                          <span className="text-xs text-slate-500">
-                            매출 {formatCurrency(customer.saleSummary.totalSalesAmount)}원
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-600">
-                        <div className="flex flex-col gap-1">
-                          {/* 고객 분류 표시 */}
-                          {(() => {
-                            // 1. 자신의 개개인 몰에서 구매고객
-                            const hasPurchase = customer.sales.some((sale) => 
-                              sale.status === 'CONFIRMED' || sale.status === 'PENDING' || sale.status === 'PAID'
-                            );
-                            // 자신의 개개인 몰에서 구매한 고객만 구매고객으로 표시
-                            const customerMallUserId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
-                            const isMallPurchase = hasPurchase && (
-                              customer.source === `mall-${partner.mallUserId}` ||
-                              customerMallUserId === partner.mallUserId ||
-                              (customer.source?.startsWith('mall-') && customer.ownership === 'AGENT' && partner.type === 'SALES_AGENT')
-                            );
-                            
-                            // 2. 상담신청고객 (구매고객이 아닌 경우에만)
-                            const isInquiry = !isMallPurchase && (
-                              customer.source?.startsWith('mall-') || 
-                              customer.source === 'product-inquiry' || 
-                              customer.source === 'phone-consultation'
-                            );
-                            
-                            // 3. 내가입력한 고객 (구매고객, 상담신청고객이 아닌 경우에만)
-                            const isManualInput = !isMallPurchase && !isInquiry && customer.ownership === 'AGENT' && (
-                              customer.source === 'affiliate-manual' || 
-                              customer.source === 'partner-manual'
-                            );
-                            
-                            // 4. 대리점장이 DB 보내줘서 받은 고객 (구매고객, 상담신청고객, 내가입력한 고객이 아닌 경우에만)
-                            const isDbReceived = !isMallPurchase && !isInquiry && !isManualInput && 
-                              customer.ownership === 'MANAGER' && customer.agent?.id;
-                            
-                            return (
-                              <>
-                                <span className="font-semibold">
-                                  {isMallPurchase
-                                    ? '구매고객'
-                                    : isInquiry
-                                    ? '상담신청고객'
-                                    : isManualInput
-                                    ? '내가입력한 고객'
-                                    : isDbReceived
-                                    ? 'DB 받은 고객'
-                                    : customer.ownership === 'AGENT'
-                                    ? '내 고객'
-                                    : customer.ownership === 'MANAGER'
-                                    ? '대리점 고객'
-                                    : '협업 고객'}
-                                </span>
-                                {customer.agent && customer.ownership === 'MANAGER' && (
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-slate-500">
-                                      담당: {customer.agent.displayName ?? '판매원'}
-                                    </span>
-                                    {partner.type === 'BRANCH_MANAGER' && (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleRecallDb([customer.id])}
-                                        className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
-                                        title="DB 회수"
-                                      >
-                                        회수
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                                {customer.counterpart?.label && !customer.agent && (
-                                  <span className="text-xs text-slate-500">
-                                    담당: {customer.counterpart.label}
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm">
-                        <div className="flex items-center gap-2 justify-end">
-                          {searchParams.get('action') === 'sms' && (
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                await openDetail(customer.id);
-                                if (!selectedLead && customer.id) {
-                                  await loadLeadDetail(customer.id);
-                                }
-                                setShowSmsModal(true);
-                              }}
-                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600 hover:bg-emerald-100"
-                            >
-                              문자 보내기
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => openDetail(customer.id)}
-                            className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 font-semibold text-blue-600 hover:bg-blue-100"
-                          >
-                            상세 보기
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-            </>
-          );
-        })()}
-
-        <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
-          <span>
-            총 {pagination.total.toLocaleString()}명 · {pagination.page} /{' '}
-            {pagination.totalPages} 페이지
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={currentPage <= 1 || loading}
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 font-semibold text-slate-600 disabled:opacity-30"
-            >
-              <FiChevronLeft /> 이전
-            </button>
-            <button
-              type="button"
-              disabled={currentPage >= pagination.totalPages || loading}
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, pagination.totalPages))
-              }
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 font-semibold text-slate-600 disabled:opacity-30"
-            >
-              다음 <FiChevronRight />
-            </button>
-          </div>
-        </div>
+              </div>
             </>
           ) : activeTab === 'inquiries' ? (
             // 전화상담고객 탭
@@ -2652,8 +2717,8 @@ export default function PartnerCustomersClient({
                   전화상담고객
                 </h3>
                 <p className="text-sm text-slate-600">
-                  {partner.type === 'BRANCH_MANAGER' 
-                    ? '대리점장 본인 및 소속 판매원의 전화상담 고객 목록입니다.' 
+                  {partner.type === 'BRANCH_MANAGER'
+                    ? '대리점장 본인 및 소속 판매원의 전화상담 고객 목록입니다.'
                     : '본인의 전화상담 고객 목록입니다.'}
                 </p>
               </div>
@@ -2728,2539 +2793,2531 @@ export default function PartnerCustomersClient({
               )}
             </div>
           ) : null}
-      </section>
+        </section>
 
-      <section className="rounded-3xl bg-white/95 p-6 shadow-lg">
-        <h2 className="text-lg font-bold text-slate-900">파트너 관리 요약</h2>
-        <p className="mt-2 text-sm text-slate-500">
-          고객 관리 도구에서 상담 메모와 판매 현황을 확인하고, 파트너몰 링크를 공유해 고객을 추적하세요.
-        </p>
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                <FiUsers className="text-xl" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">내 파트너 정보</p>
-                <p className="text-xs text-slate-500">파트너몰 링크와 담당자를 확인하세요.</p>
-              </div>
-            </div>
-            <dl className="mt-4 space-y-2 text-sm text-slate-600">
-              <div className="grid grid-cols-3 gap-2">
-                <dt className="font-semibold text-slate-500">파트너몰</dt>
-                <dd className="col-span-2 break-all text-blue-600">
-                  {/* 판매원인 경우 대리점장의 파트너몰 링크 표시, 대리점장인 경우 본인의 파트너몰 링크 표시 */}
-                  {partner.type === 'SALES_AGENT' && partner.manager?.mallUserId
-                    ? `/${partner.manager.mallUserId}/shop`
-                    : partner.shareLinks.mall}
-                </dd>
-              </div>
-              {partner.manager ? (
-                <div className="grid grid-cols-3 gap-2">
-                  <dt className="font-semibold text-slate-500">담당 대리점장</dt>
-                  <dd className="col-span-2">{partner.manager.label ?? '정보 없음'}</dd>
-                </div>
-              ) : null}
-            </dl>
-          </div>
-          {/* 판매원 목록은 대리점장만 볼 수 있음 (판매원에게는 불필요) */}
-          {partner.type === 'BRANCH_MANAGER' && partner.teamAgents.length > 0 && (
+        <section className="rounded-3xl bg-white/95 p-6 shadow-lg">
+          <h2 className="text-lg font-bold text-slate-900">파트너 관리 요약</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            고객 관리 도구에서 상담 메모와 판매 현황을 확인하고, 파트너몰 링크를 공유해 고객을 추적하세요.
+          </p>
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 text-purple-600">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                   <FiUsers className="text-xl" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">내 판매원 목록</p>
-                  <p className="text-xs text-slate-500">판매원들의 판매몰 링크를 확인하세요.</p>
+                  <p className="text-sm font-semibold text-slate-900">내 파트너 정보</p>
+                  <p className="text-xs text-slate-500">파트너몰 링크와 담당자를 확인하세요.</p>
                 </div>
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {partner.teamAgents.map((agent) => (
-                  <div key={agent.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-slate-900">
-                        {agent.displayName ?? '판매원'}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {agent.affiliateCode ?? '코드 없음'}
-                      </span>
-                    </div>
-                    {agent.mallUserId ? (
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/products/${agent.mallUserId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:text-blue-800 hover:underline break-all flex-1"
-                        >
-                          /products/{agent.mallUserId}
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const fullUrl = typeof window !== 'undefined' 
-                              ? `${window.location.origin}/products/${agent.mallUserId}`
-                              : `/products/${agent.mallUserId}`;
-                            copyToClipboard(fullUrl);
-                          }}
-                          className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                        >
-                          <FiCopy className="text-xs" />
-                          복사
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400">판매몰 링크 미발급</span>
-                    )}
+              <dl className="mt-4 space-y-2 text-sm text-slate-600">
+                <div className="grid grid-cols-3 gap-2">
+                  <dt className="font-semibold text-slate-500">파트너몰</dt>
+                  <dd className="col-span-2 break-all text-blue-600">
+                    {/* 판매원인 경우 대리점장의 파트너몰 링크 표시, 대리점장인 경우 본인의 파트너몰 링크 표시 */}
+                    {partner.type === 'SALES_AGENT' && partner.manager?.mallUserId
+                      ? `/${partner.manager.mallUserId}/shop`
+                      : partner.shareLinks.mall}
+                  </dd>
+                </div>
+                {partner.manager ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    <dt className="font-semibold text-slate-500">담당 대리점장</dt>
+                    <dd className="col-span-2">{partner.manager.label ?? '정보 없음'}</dd>
                   </div>
-                ))}
-              </div>
+                ) : null}
+              </dl>
             </div>
-          )}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-sm font-semibold text-slate-900">고객 관리 팁</p>
-            <ul className="mt-3 space-y-2 text-sm text-slate-600">
-              <li className="rounded-xl bg-slate-100 px-4 py-3">
-                상담 기록에 메모를 남기면 다음 조치 일정을 자동으로 관리할 수 있습니다.
-              </li>
-              <li className="rounded-xl bg-slate-100 px-4 py-3">
-                파트너몰 링크를 공유하면 어떤 파트너가 판매를 이끌었는지 추적됩니다.
-              </li>
-              <li className="rounded-xl bg-slate-100 px-4 py-3">
-                확정된 판매는 정산 대시보드와 연동되어 수당 계산에 반영됩니다.
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    {isAddModalOpen ? (
-      <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/40 backdrop-blur px-4">
-        <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-slate-900">새 고객 추가</h3>
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddModalOpen(false);
-                resetAddForm();
-              }}
-              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
-            >
-              <FiX />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-xs font-semibold text-slate-500">이름</label>
-              <input
-                value={addForm.customerName}
-                onChange={(event) =>
-                  setAddForm((prev) => ({ ...prev, customerName: event.target.value }))
-                }
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                placeholder="고객 이름"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">연락처</label>
-              <input
-                value={addForm.customerPhone}
-                onChange={(event) =>
-                  setAddForm((prev) => ({ ...prev, customerPhone: event.target.value }))
-                }
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                placeholder="010-0000-0000"
-              />
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-xs font-semibold text-slate-500">상태</label>
-                <select
-                  value={addForm.status}
-                  onChange={(event) =>
-                    setAddForm((prev) => ({ ...prev, status: event.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {statusSelectOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500">유입날짜</label>
-                <input
-                  type="date"
-                  value={addForm.createdAt || ''}
-                  onChange={(event) =>
-                    setAddForm((prev) => ({ ...prev, createdAt: event.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-500 flex items-center gap-2">
-                다음 조치 예정일
-                {notificationPermission === 'granted' && (
-                  <FiBell className="text-blue-500" title="알람이 설정됩니다" />
-                )}
-                {notificationPermission !== 'granted' && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if ('Notification' in window) {
-                        const permission = await Notification.requestPermission();
-                        setNotificationPermission(permission);
-                        if (permission === 'granted') {
-                          showSuccess('알림 권한이 허용되었습니다.');
-                        } else {
-                          showError('알림 권한이 필요합니다.');
-                        }
-                      }
-                    }}
-                    className="text-blue-500 hover:text-blue-700"
-                    title="알림 권한 요청"
-                  >
-                    <FiBell />
-                  </button>
-                )}
-              </label>
-              <div className="mt-1 flex gap-2">
-                <input
-                  type="date"
-                  value={addForm.nextActionAt ? addForm.nextActionAt.split('T')[0] : ''}
-                  onChange={(event) => {
-                    const dateValue = event.target.value;
-                    const timeValue = addForm.nextActionAt 
-                      ? new Date(addForm.nextActionAt).toTimeString().slice(0, 5)
-                      : '09:00';
-                    setAddForm((prev) => ({
-                      ...prev,
-                      nextActionAt: dateValue ? `${dateValue}T${timeValue}` : '',
-                    }));
-                  }}
-                  className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                />
-                <input
-                  type="time"
-                  value={addForm.nextActionAt 
-                    ? new Date(addForm.nextActionAt).toTimeString().slice(0, 5)
-                    : ''}
-                  onChange={(event) => {
-                    const timeValue = event.target.value;
-                    const dateValue = addForm.nextActionAt 
-                      ? addForm.nextActionAt.split('T')[0]
-                      : new Date().toISOString().split('T')[0];
-                    setAddForm((prev) => ({
-                      ...prev,
-                      nextActionAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.nextActionAt,
-                    }));
-                  }}
-                  className="w-32 rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <p className="mt-1 text-xs text-slate-400">
-                다음 조치 예정일을 설정하면 알람이 자동으로 설정됩니다.
-              </p>
-            </div>
-            {/* 담당 판매원 배정은 대리점장만 가능 (판매원은 본인만 배정 가능) */}
-            {partner.type === 'BRANCH_MANAGER' ? (
-              <div>
-                <label className="text-xs font-semibold text-slate-500">담당 판매원 배정 (선택)</label>
-                <select
-                  value={addForm.agentProfileId}
-                  onChange={(event) =>
-                    setAddForm((prev) => ({ ...prev, agentProfileId: event.target.value }))
-                  }
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">대리점장이 직접 관리</option>
+            {/* 판매원 목록은 대리점장만 볼 수 있음 (판매원에게는 불필요) */}
+            {partner.type === 'BRANCH_MANAGER' && partner.teamAgents.length > 0 && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 text-purple-600">
+                    <FiUsers className="text-xl" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">내 판매원 목록</p>
+                    <p className="text-xs text-slate-500">판매원들의 판매몰 링크를 확인하세요.</p>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
                   {partner.teamAgents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.displayName ?? '판매원'} ({agent.affiliateCode ?? '코드 없음'})
-                    </option>
+                    <div key={agent.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-semibold text-slate-900">
+                          {agent.displayName ?? '판매원'}
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          {agent.affiliateCode ?? '코드 없음'}
+                        </span>
+                      </div>
+                      {agent.mallUserId ? (
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/products/${agent.mallUserId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline break-all flex-1"
+                          >
+                            /products/{agent.mallUserId}
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const fullUrl = typeof window !== 'undefined'
+                                ? `${window.location.origin}/products/${agent.mallUserId}`
+                                : `/products/${agent.mallUserId}`;
+                              copyToClipboard(fullUrl);
+                            }}
+                            className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                          >
+                            <FiCopy className="text-xs" />
+                            복사
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-400">판매몰 링크 미발급</span>
+                      )}
+                    </div>
                   ))}
-                </select>
-              </div>
-            ) : null}
-            <div>
-              <label className="text-xs font-semibold text-slate-500">메모</label>
-              <textarea
-                value={addForm.notes}
-                onChange={(event) =>
-                  setAddForm((prev) => ({ ...prev, notes: event.target.value }))
-                }
-                rows={4}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                placeholder="상담 메모를 입력하세요."
-              />
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setIsAddModalOpen(false);
-                resetAddForm();
-              }}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              disabled={creating}
-              onClick={handleCreateCustomer}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300"
-            >
-              {creating ? '저장 중...' : '고객 추가'}
-            </button>
-          </div>
-        </div>
-      </div>
-    ) : null}
-
-    {/* 엑셀 업로드 모달 */}
-    {showExcelModal ? (
-      <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/40 backdrop-blur px-4">
-        <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-xl font-bold text-slate-900">엑셀 파일로 고객 일괄 등록</h3>
-            <button
-              type="button"
-              onClick={() => {
-                setShowExcelModal(false);
-                setExcelFile(null);
-                setExcelAgentProfileId('');
-              }}
-              className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
-            >
-              <FiX />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-              <p className="text-sm font-semibold text-blue-900 mb-2">📋 엑셀 파일 형식</p>
-              <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
-                <li>첫 번째 행은 헤더(컬럼명)입니다</li>
-                <li>필수 컬럼: <strong>이름</strong>, <strong>연락처</strong></li>
-                <li>컬럼명은 "이름", "연락처" 또는 "name", "phone" 등으로 작성 가능합니다</li>
-                <li>샘플 파일을 다운로드하여 형식을 확인하세요</li>
-              </ul>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={handleDownloadExcelSample}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                <FiFileText /> 샘플 다운로드
-              </button>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-500">엑셀 파일 선택</label>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
-                className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-              {excelFile && (
-                <p className="mt-2 text-xs text-slate-600">선택된 파일: {excelFile.name}</p>
-              )}
-            </div>
-
-            {partner.type === 'BRANCH_MANAGER' && (
-              <div>
-                <label className="text-xs font-semibold text-slate-500">담당 판매원 배정 (선택)</label>
-                <select
-                  value={excelAgentProfileId}
-                  onChange={(e) => setExcelAgentProfileId(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="">대리점장이 직접 관리</option>
-                  {partner.teamAgents.map((agent) => (
-                    <option key={agent.id} value={agent.id}>
-                      {agent.displayName ?? '판매원'} ({agent.affiliateCode ?? '코드 없음'})
-                    </option>
-                  ))}
-                </select>
+                </div>
               </div>
             )}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+              <p className="text-sm font-semibold text-slate-900">고객 관리 팁</p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                <li className="rounded-xl bg-slate-100 px-4 py-3">
+                  상담 기록에 메모를 남기면 다음 조치 일정을 자동으로 관리할 수 있습니다.
+                </li>
+                <li className="rounded-xl bg-slate-100 px-4 py-3">
+                  파트너몰 링크를 공유하면 어떤 파트너가 판매를 이끌었는지 추적됩니다.
+                </li>
+                <li className="rounded-xl bg-slate-100 px-4 py-3">
+                  확정된 판매는 정산 대시보드와 연동되어 수당 계산에 반영됩니다.
+                </li>
+              </ul>
+            </div>
           </div>
-
-          <div className="mt-6 flex justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowExcelModal(false);
-                setExcelFile(null);
-                setExcelAgentProfileId('');
-              }}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              disabled={!excelFile || uploadingExcel}
-              onClick={handleUploadExcel}
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300"
-            >
-              {uploadingExcel ? (
-                <>
-                  <div className="h-4 w-4 border-2 border-white border-b-transparent rounded-full animate-spin" />
-                  업로드 중...
-                </>
-              ) : (
-                <>
-                  <FiUpload /> 업로드
-                </>
-              )}
-            </button>
-          </div>
-        </div>
+        </section>
       </div>
-    ) : null}
 
-    {selectedLeadId ? (
-      <div className="fixed inset-0 z-[998] flex justify-end bg-slate-900/30 backdrop-blur">
-        <div className="flex h-full w-full max-w-3xl flex-col bg-white shadow-2xl">
-          {/* 고정 헤더 */}
-          <div className="flex-shrink-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 sticky top-0 z-10">
-            <div>
+      {isAddModalOpen ? (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/40 backdrop-blur px-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">새 고객 추가</h3>
               <button
                 type="button"
-                onClick={closeDetail}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  resetAddForm();
+                }}
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
               >
-                <FiArrowLeft /> 목록으로
+                <FiX />
               </button>
-              <h3 className="mt-2 text-xl font-bold text-slate-900">
-                {selectedLead?.customerName ?? '이름 미입력'}
-              </h3>
             </div>
-            <div className="flex items-center gap-3">
-              {selectedLead ? (
-                <StatusBadge status={selectedLead.status} options={leadStatusOptions} />
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-500">이름</label>
+                <input
+                  value={addForm.customerName}
+                  onChange={(event) =>
+                    setAddForm((prev) => ({ ...prev, customerName: event.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="고객 이름"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500">연락처</label>
+                <input
+                  value={addForm.customerPhone}
+                  onChange={(event) =>
+                    setAddForm((prev) => ({ ...prev, customerPhone: event.target.value }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="010-0000-0000"
+                />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">상태</label>
+                  <select
+                    value={addForm.status}
+                    onChange={(event) =>
+                      setAddForm((prev) => ({ ...prev, status: event.target.value }))
+                    }
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    {statusSelectOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">유입날짜</label>
+                  <input
+                    type="date"
+                    value={addForm.createdAt || ''}
+                    onChange={(event) =>
+                      setAddForm((prev) => ({ ...prev, createdAt: event.target.value }))
+                    }
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 flex items-center gap-2">
+                  다음 조치 예정일
+                  {notificationPermission === 'granted' && (
+                    <FiBell className="text-blue-500" title="알람이 설정됩니다" />
+                  )}
+                  {notificationPermission !== 'granted' && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if ('Notification' in window) {
+                          const permission = await Notification.requestPermission();
+                          setNotificationPermission(permission);
+                          if (permission === 'granted') {
+                            showSuccess('알림 권한이 허용되었습니다.');
+                          } else {
+                            showError('알림 권한이 필요합니다.');
+                          }
+                        }
+                      }}
+                      className="text-blue-500 hover:text-blue-700"
+                      title="알림 권한 요청"
+                    >
+                      <FiBell />
+                    </button>
+                  )}
+                </label>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    type="date"
+                    value={addForm.nextActionAt ? addForm.nextActionAt.split('T')[0] : ''}
+                    onChange={(event) => {
+                      const dateValue = event.target.value;
+                      const timeValue = addForm.nextActionAt
+                        ? new Date(addForm.nextActionAt).toTimeString().slice(0, 5)
+                        : '09:00';
+                      setAddForm((prev) => ({
+                        ...prev,
+                        nextActionAt: dateValue ? `${dateValue}T${timeValue}` : '',
+                      }));
+                    }}
+                    className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <input
+                    type="time"
+                    value={addForm.nextActionAt
+                      ? new Date(addForm.nextActionAt).toTimeString().slice(0, 5)
+                      : ''}
+                    onChange={(event) => {
+                      const timeValue = event.target.value;
+                      const dateValue = addForm.nextActionAt
+                        ? addForm.nextActionAt.split('T')[0]
+                        : new Date().toISOString().split('T')[0];
+                      setAddForm((prev) => ({
+                        ...prev,
+                        nextActionAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.nextActionAt,
+                      }));
+                    }}
+                    className="w-32 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-slate-400">
+                  다음 조치 예정일을 설정하면 알람이 자동으로 설정됩니다.
+                </p>
+              </div>
+              {/* 담당 판매원 배정은 대리점장만 가능 (판매원은 본인만 배정 가능) */}
+              {partner.type === 'BRANCH_MANAGER' ? (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">담당 판매원 배정 (선택)</label>
+                  <select
+                    value={addForm.agentProfileId}
+                    onChange={(event) =>
+                      setAddForm((prev) => ({ ...prev, agentProfileId: event.target.value }))
+                    }
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">대리점장이 직접 관리</option>
+                    {partner.teamAgents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.displayName ?? '판매원'} ({agent.affiliateCode ?? '코드 없음'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               ) : null}
-              {/* 판매원은 고객 삭제 기능 제거: 대리점장만 삭제 가능 */}
-              {selectedLead && 
-                partner.type === 'BRANCH_MANAGER' && 
-                selectedLead.ownership === 'MANAGER' && 
-                !isContractTerminated && (
-                <button
-                  type="button"
-                  onClick={handleDeleteLead}
-                  disabled={deletingLead}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                >
-                  <FiTrash2 />
-                  {deletingLead ? '삭제 중...' : '고객 삭제'}
-                </button>
-              )}
+              <div>
+                <label className="text-xs font-semibold text-slate-500">메모</label>
+                <textarea
+                  value={addForm.notes}
+                  onChange={(event) =>
+                    setAddForm((prev) => ({ ...prev, notes: event.target.value }))
+                  }
+                  rows={4}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="상담 메모를 입력하세요."
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  resetAddForm();
+                }}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={creating}
+                onClick={handleCreateCustomer}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300"
+              >
+                {creating ? '저장 중...' : '고객 추가'}
+              </button>
             </div>
           </div>
+        </div>
+      ) : null}
 
-          {/* 스크롤 가능한 본문 */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
-            {detailLoading || !selectedLead ? (
-              <div className="flex h-full items-center justify-center text-slate-500">
-                데이터를 불러오는 중입니다...
+      {/* 엑셀 업로드 모달 */}
+      {showExcelModal ? (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-900/40 backdrop-blur px-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">엑셀 파일로 고객 일괄 등록</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExcelModal(false);
+                  setExcelFile(null);
+                  setExcelAgentProfileId('');
+                }}
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+              >
+                <FiX />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-900 mb-2">📋 엑셀 파일 형식</p>
+                <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
+                  <li>첫 번째 행은 헤더(컬럼명)입니다</li>
+                  <li>필수 컬럼: <strong>이름</strong>, <strong>연락처</strong></li>
+                  <li>컬럼명은 "이름", "연락처" 또는 "name", "phone" 등으로 작성 가능합니다</li>
+                  <li>샘플 파일을 다운로드하여 형식을 확인하세요</li>
+                </ul>
               </div>
-            ) : (
-              <div className="space-y-6 pb-6">
-                {/* 전화상담 신청 상품 정보 */}
-                {selectedLead.source?.startsWith('mall-') || selectedLead.source === 'product-inquiry' ? (
-                  (() => {
-                    const productCode = selectedLead.metadata?.productCode || selectedLead.metadata?.product_code;
-                    const productName = selectedLead.metadata?.productName || selectedLead.metadata?.product_name;
-                    const partnerId = selectedLead.metadata?.mallUserId || selectedLead.metadata?.affiliateMallUserId;
-                    
-                    if (productCode) {
-                      return (
-                        <div className="rounded-3xl border-2 border-blue-200 bg-blue-50/70 p-5">
-                          <div className="flex items-center gap-2 mb-3">
-                            <FiPhone className="text-blue-600" />
-                            <h4 className="font-bold text-slate-900">전화상담 신청 상품</h4>
-                          </div>
-                          <div className="space-y-2">
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 mb-1">상품명</p>
-                              <p className="text-sm font-semibold text-slate-900">
-                                {productName || productCode}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold text-slate-500 mb-1">상품 코드</p>
-                              <p className="text-sm text-slate-700 font-mono">
-                                {productCode}
-                              </p>
-                            </div>
-                            <div className="pt-2">
-                              <Link
-                                href={partnerId 
-                                  ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
-                                  : `/products/${productCode}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-                              >
-                                상품 상세 보기 →
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleDownloadExcelSample}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <FiFileText /> 샘플 다운로드
+                </button>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-500">엑셀 파일 선택</label>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={(e) => setExcelFile(e.target.files?.[0] || null)}
+                  className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                />
+                {excelFile && (
+                  <p className="mt-2 text-xs text-slate-600">선택된 파일: {excelFile.name}</p>
+                )}
+              </div>
+
+              {partner.type === 'BRANCH_MANAGER' && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">담당 판매원 배정 (선택)</label>
+                  <select
+                    value={excelAgentProfileId}
+                    onChange={(e) => setExcelAgentProfileId(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">대리점장이 직접 관리</option>
+                    {partner.teamAgents.map((agent) => (
+                      <option key={agent.id} value={agent.id}>
+                        {agent.displayName ?? '판매원'} ({agent.affiliateCode ?? '코드 없음'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowExcelModal(false);
+                  setExcelFile(null);
+                  setExcelAgentProfileId('');
+                }}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={!excelFile || uploadingExcel}
+                onClick={handleUploadExcel}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300"
+              >
+                {uploadingExcel ? (
+                  <>
+                    <div className="h-4 w-4 border-2 border-white border-b-transparent rounded-full animate-spin" />
+                    업로드 중...
+                  </>
+                ) : (
+                  <>
+                    <FiUpload /> 업로드
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {selectedLeadId ? (
+        <div className="fixed inset-0 z-[998] flex justify-end bg-slate-900/30 backdrop-blur">
+          <div className="flex h-full w-full max-w-3xl flex-col bg-white shadow-2xl">
+            {/* 고정 헤더 */}
+            <div className="flex-shrink-0 flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 sticky top-0 z-10">
+              <div>
+                <button
+                  type="button"
+                  onClick={closeDetail}
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-700"
+                >
+                  <FiArrowLeft /> 목록으로
+                </button>
+                <h3 className="mt-2 text-xl font-bold text-slate-900">
+                  {selectedLead?.customerName ?? '이름 미입력'}
+                </h3>
+              </div>
+              <div className="flex items-center gap-3">
+                {selectedLead ? (
+                  <StatusBadge status={selectedLead.status} options={leadStatusOptions} />
                 ) : null}
-                
-                {/* 기본 정보 및 설정 섹션 */}
-                <div className="rounded-3xl border-2 border-slate-200 bg-white p-6 mb-6 shadow-sm">
-                  <h4 className="text-base font-bold text-slate-900 mb-5 pb-3 border-b border-slate-200">기본 정보</h4>
-                  <div className="grid gap-5 md:grid-cols-2">
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">연락처</label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-slate-900 bg-slate-50 px-3 py-2 rounded-lg flex-1">{selectedLead.customerPhone ?? '연락처 미입력'}</span>
-                          {selectedLead.customerPhone ? (
-                            <a
-                              href={`tel:${selectedLead.customerPhone.replace(/[^0-9]/g, '')}`}
-                              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"
-                            >
-                              <FiPhone /> 전화걸기
-                            </a>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">다음 조치</label>
-                        <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg">
-                          <FiCalendar className="text-slate-500" />
-                          <span className="text-sm font-medium text-slate-900">{formatDate(selectedLead.nextActionAt)}</span>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">메모</label>
-                        <textarea
-                          defaultValue={selectedLead.notes ?? ''}
-                          onBlur={(event) =>
-                            handleUpdateLead({ notes: event.target.value })
-                          }
-                          rows={4}
-                          className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                          placeholder="고객 메모를 입력하세요."
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">상태 변경</label>
-                        <select
-                          value={selectedLead.status}
-                          disabled={updatingLead}
-                          onChange={(event) =>
-                            handleUpdateLead({ status: event.target.value })
-                          }
-                          className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
-                        >
-                          {leadStatusOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {partner.type === 'BRANCH_MANAGER' ? (
+                {/* 판매원은 고객 삭제 기능 제거: 대리점장만 삭제 가능 */}
+                {selectedLead &&
+                  partner.type === 'BRANCH_MANAGER' &&
+                  selectedLead.ownership === 'MANAGER' &&
+                  !isContractTerminated && (
+                    <button
+                      type="button"
+                      onClick={handleDeleteLead}
+                      disabled={deletingLead}
+                      className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                    >
+                      <FiTrash2 />
+                      {deletingLead ? '삭제 중...' : '고객 삭제'}
+                    </button>
+                  )}
+              </div>
+            </div>
+
+            {/* 스크롤 가능한 본문 */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 #f1f5f9' }}>
+              {detailLoading || !selectedLead ? (
+                <div className="flex h-full items-center justify-center text-slate-500">
+                  데이터를 불러오는 중입니다...
+                </div>
+              ) : (
+                <div className="space-y-6 pb-6">
+                  {/* 전화상담 신청 상품 정보 */}
+                  {selectedLead.source?.startsWith('mall-') || selectedLead.source === 'product-inquiry' ? (
+                    (() => {
+                      const productCode = selectedLead.metadata?.productCode || selectedLead.metadata?.product_code;
+                      const productName = selectedLead.metadata?.productName || selectedLead.metadata?.product_name;
+                      const partnerId = selectedLead.metadata?.mallUserId || selectedLead.metadata?.affiliateMallUserId;
+
+                      if (productCode) {
+                        return (
+                          <div className="rounded-3xl border-2 border-blue-200 bg-blue-50/70 p-5">
+                            <div className="flex items-center gap-2 mb-3">
+                              <FiPhone className="text-blue-600" />
+                              <h4 className="font-bold text-slate-900">전화상담 신청 상품</h4>
+                            </div>
+                            <div className="space-y-2">
+                              <div>
+                                <p className="text-xs font-semibold text-slate-500 mb-1">상품명</p>
+                                <p className="text-sm font-semibold text-slate-900">
+                                  {productName || productCode}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-slate-500 mb-1">상품 코드</p>
+                                <p className="text-sm text-slate-700 font-mono">
+                                  {productCode}
+                                </p>
+                              </div>
+                              <div className="pt-2">
+                                <Link
+                                  href={partnerId
+                                    ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
+                                    : `/products/${productCode}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                                >
+                                  상품 상세 보기 →
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()
+                  ) : null}
+
+                  {/* 기본 정보 및 설정 섹션 */}
+                  <div className="rounded-3xl border-2 border-slate-200 bg-white p-6 mb-6 shadow-sm">
+                    <h4 className="text-base font-bold text-slate-900 mb-5 pb-3 border-b border-slate-200">기본 정보</h4>
+                    <div className="grid gap-5 md:grid-cols-2">
+                      <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-2">담당 판매원</label>
+                          <label className="block text-xs font-bold text-slate-700 mb-2">연락처</label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-slate-900 bg-slate-50 px-3 py-2 rounded-lg flex-1">{selectedLead.customerPhone ?? '연락처 미입력'}</span>
+                            {selectedLead.customerPhone ? (
+                              <a
+                                href={`tel:${selectedLead.customerPhone.replace(/[^0-9]/g, '')}`}
+                                className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"
+                              >
+                                <FiPhone /> 전화걸기
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-2">다음 조치</label>
+                          <div className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-lg">
+                            <FiCalendar className="text-slate-500" />
+                            <span className="text-sm font-medium text-slate-900">{formatDate(selectedLead.nextActionAt)}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-2">메모</label>
+                          <textarea
+                            defaultValue={selectedLead.notes ?? ''}
+                            onBlur={(event) =>
+                              handleUpdateLead({ notes: event.target.value })
+                            }
+                            rows={4}
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            placeholder="고객 메모를 입력하세요."
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-2">상태 변경</label>
                           <select
-                            value={selectedLead.agent?.id ?? ''}
+                            value={selectedLead.status}
                             disabled={updatingLead}
                             onChange={(event) =>
-                              handleUpdateLead({
-                                agentProfileId: event.target.value || null,
-                              })
+                              handleUpdateLead({ status: event.target.value })
                             }
                             className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
                           >
-                            <option value="">대리점장이 직접 관리</option>
-                            {partner.teamAgents.map((agent) => (
-                              <option key={agent.id} value={agent.id}>
-                                {agent.displayName ?? '판매원'} (
-                                {agent.affiliateCode ?? '코드 없음'})
+                            {leadStatusOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
                               </option>
                             ))}
                           </select>
                         </div>
-                      ) : (
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-2">담당 대리점장</label>
-                          <div className="bg-slate-50 px-3 py-2.5 rounded-lg">
-                            <p className="text-sm font-medium text-slate-900">
-                              {selectedLead.manager?.displayName ?? '정보 없음'}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 그룹 관리 섹션 */}
-                  <div className="mt-6 pt-6 border-t-2 border-slate-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="text-xs font-bold text-slate-700">고객 그룹</label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={selectedLead.groupId || ''}
-                        onChange={async (e) => {
-                          const newGroupId = e.target.value === '' ? null : parseInt(e.target.value);
-                          try {
-                            const res = await fetch(`/api/partner/customers/${selectedLeadId}/move-group`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              credentials: 'include',
-                              body: JSON.stringify({ groupId: newGroupId }),
-                            });
-                            const json = await res.json();
-                            if (!res.ok || !json?.ok) {
-                              throw new Error(json?.message || '그룹 이동에 실패했습니다.');
-                            }
-                            showSuccess('그룹이 변경되었습니다.');
-                            await loadLeadDetail(selectedLeadId);
-                            loadCustomerGroups();
-                          } catch (error) {
-                            showError(error instanceof Error ? error.message : '그룹 이동에 실패했습니다.');
-                          }
-                        }}
-                        className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                      >
-                        <option value="">그룹 없음</option>
-                        {customerGroups.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {group.name} ({group.leadCount}명)
-                          </option>
-                        ))}
-                      </select>
-                      {/* 판매원/대리점장 모두 그룹 생성 가능 */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingGroup(null);
-                          setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
-                          setShowGroupModal(true);
-                        }}
-                        className="rounded-xl border-2 border-blue-500 bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-sm"
-                      >
-                        <FiPlus /> 새 그룹
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* 여권 관리 섹션 */}
-                  <div className="mt-6 pt-6 border-t-2 border-slate-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <label className="text-xs font-bold text-slate-700">여권 상태</label>
-                      {selectedLead.passportCompletedAt ? (
-                        <div className="flex items-center gap-2">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200">
-                            <FiCheckCircle /> 여권 완료
-                          </span>
-                          {selectedLead.passportRequestedAt && (
-                            <button
-                              type="button"
-                              onClick={() => setShowPassportModal(true)}
-                              disabled={requestingPassport}
-                              className="inline-flex items-center gap-1 rounded-xl border-2 border-blue-500 bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                        {partner.type === 'BRANCH_MANAGER' ? (
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-2">담당 판매원</label>
+                            <select
+                              value={selectedLead.agent?.id ?? ''}
+                              disabled={updatingLead}
+                              onChange={(event) =>
+                                handleUpdateLead({
+                                  agentProfileId: event.target.value || null,
+                                })
+                              }
+                              className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
                             >
-                              <FiFileText /> 여권 재요청
-                            </button>
-                          )}
-                        </div>
-                      ) : selectedLead.passportRequestedAt ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1.5 text-xs font-bold text-yellow-700 border border-yellow-200">
-                          <FiClock /> 요청됨 (본사 확인 대기중)
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => setShowPassportModal(true)}
-                          disabled={requestingPassport}
-                          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
-                        >
-                          <FiFileText />
-                          {requestingPassport ? '전송 중...' : '여권 보내기'}
-                        </button>
-                      )}
-                    </div>
-                    
-                    {/* 문자 보내기 버튼 */}
-                    <div className="mt-4">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          if (!selectedLead && selectedLeadId) {
-                            await loadLeadDetail(selectedLeadId);
-                          }
-                          setShowSmsModal(true);
-                        }}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-emerald-700 transition-colors"
-                      >
-                        <FiMessageSquare />
-                        문자 보내기
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 상담 기록 섹션 */}
-                <div className="rounded-3xl border-2 border-slate-200 bg-white p-6 mb-6 shadow-sm">
-                  <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-200">
-                    <h4 className="text-base font-bold text-slate-900">상담 기록</h4>
-                    <button
-                      type="button"
-                      onClick={() => loadLeadDetail(selectedLeadId)}
-                      className="inline-flex items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
-                    >
-                      <FiRefreshCw /> 새로고침
-                    </button>
-                  </div>
-                  <div className="space-y-6">
-                    {/* 상담 기록 입력 폼 - 스크롤 가능하도록 개선 */}
-                    <div className="space-y-4 min-w-0 flex flex-col bg-slate-50 rounded-xl p-5 border-2 border-slate-200">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">상담 내용</label>
-                        <textarea
-                          value={interactionForm.note}
-                          onChange={(event) =>
-                            setInteractionForm((prev) => ({ ...prev, note: event.target.value }))
-                          }
-                          rows={4}
-                          placeholder="상담 내용을 입력하세요."
-                          className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        />
-                      </div>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-2">상담 일시</label>
-                          <div className="flex gap-2">
-                            <input
-                              type="date"
-                              value={interactionForm.occurredAt ? interactionForm.occurredAt.split('T')[0] : ''}
-                              onChange={(event) => {
-                                const dateValue = event.target.value;
-                                const timeValue = interactionForm.occurredAt 
-                                  ? new Date(interactionForm.occurredAt).toTimeString().slice(0, 5)
-                                  : new Date().toTimeString().slice(0, 5);
-                                setInteractionForm((prev) => ({
-                                  ...prev,
-                                  occurredAt: dateValue ? `${dateValue}T${timeValue}` : '',
-                                }));
-                              }}
-                              className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            />
-                            <input
-                              type="time"
-                              value={interactionForm.occurredAt 
-                                ? new Date(interactionForm.occurredAt).toTimeString().slice(0, 5)
-                                : ''}
-                              onChange={(event) => {
-                                const timeValue = event.target.value;
-                                const dateValue = interactionForm.occurredAt 
-                                  ? interactionForm.occurredAt.split('T')[0]
-                                  : new Date().toISOString().split('T')[0];
-                                setInteractionForm((prev) => ({
-                                  ...prev,
-                                  occurredAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.occurredAt,
-                                }));
-                              }}
-                              className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            />
+                              <option value="">대리점장이 직접 관리</option>
+                              {partner.teamAgents.map((agent) => (
+                                <option key={agent.id} value={agent.id}>
+                                  {agent.displayName ?? '판매원'} (
+                                  {agent.affiliateCode ?? '코드 없음'})
+                                </option>
+                              ))}
+                            </select>
                           </div>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-2">
-                            다음 조치
-                            {notificationPermission === 'granted' && (
-                              <FiBell className="text-blue-500" title="알람이 설정됩니다" />
-                            )}
-                            {notificationPermission !== 'granted' && (
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if ('Notification' in window) {
-                                    const permission = await Notification.requestPermission();
-                                    setNotificationPermission(permission);
-                                    if (permission === 'granted') {
-                                      showSuccess('알림 권한이 허용되었습니다.');
-                                    } else {
-                                      showError('알림 권한이 필요합니다.');
-                                    }
-                                  }
-                                }}
-                                className="text-blue-500 hover:text-blue-700"
-                                title="알림 권한 요청"
-                              >
-                                <FiBell />
-                              </button>
-                            )}
-                          </label>
-                          <div className="flex gap-2">
-                            <input
-                              type="date"
-                              value={interactionForm.nextActionAt ? interactionForm.nextActionAt.split('T')[0] : ''}
-                              onChange={(event) => {
-                                const dateValue = event.target.value;
-                                const timeValue = interactionForm.nextActionAt 
-                                  ? new Date(interactionForm.nextActionAt).toTimeString().slice(0, 5)
-                                  : '09:00';
-                                setInteractionForm((prev) => ({
-                                  ...prev,
-                                  nextActionAt: dateValue ? `${dateValue}T${timeValue}` : '',
-                                }));
-                              }}
-                              className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            />
-                            <input
-                              type="time"
-                              value={interactionForm.nextActionAt 
-                                ? new Date(interactionForm.nextActionAt).toTimeString().slice(0, 5)
-                                : ''}
-                              onChange={(event) => {
-                                const timeValue = event.target.value;
-                                const dateValue = interactionForm.nextActionAt 
-                                  ? interactionForm.nextActionAt.split('T')[0]
-                                  : new Date().toISOString().split('T')[0];
-                                setInteractionForm((prev) => ({
-                                  ...prev,
-                                  nextActionAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.nextActionAt,
-                                }));
-                              }}
-                              className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">상담 후 상태</label>
-                        <select
-                          value={interactionForm.status}
-                          onChange={(event) =>
-                            setInteractionForm((prev) => ({
-                              ...prev,
-                              status: event.target.value,
-                            }))
-                          }
-                          className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        >
-                          {statusSelectOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-2">기록/녹음 파일 업로드</label>
-                        <input
-                          type="file"
-                          multiple
-                          accept="audio/*,video/*,image/*"
-                          onChange={handleFileChange}
-                          className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-                        />
-                        {interactionForm.files.length > 0 && (
-                          <div className="mt-2 space-y-2">
-                            {interactionForm.files.map((file, index) => (
-                              <div key={index} className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-xs border border-slate-200">
-                                <span className="flex items-center gap-2">
-                                  <FiMic className="text-blue-500" />
-                                  <span className="font-medium">{file.name}</span>
-                                  <span className="text-slate-500">({(file.size / 1024).toFixed(1)}KB)</span>
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => removeFile(index)}
-                                  className="text-red-600 hover:text-red-800 font-bold"
-                                >
-                                  <FiX />
-                                </button>
-                              </div>
-                            ))}
+                        ) : (
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-2">담당 대리점장</label>
+                            <div className="bg-slate-50 px-3 py-2.5 rounded-lg">
+                              <p className="text-sm font-medium text-slate-900">
+                                {selectedLead.manager?.displayName ?? '정보 없음'}
+                              </p>
+                            </div>
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    {/* 그룹 관리 섹션 */}
+                    <div className="mt-6 pt-6 border-t-2 border-slate-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <label className="text-xs font-bold text-slate-700">고객 그룹</label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedLead.groupId || ''}
+                          onChange={async (e) => {
+                            const newGroupId = e.target.value === '' ? null : parseInt(e.target.value);
+                            try {
+                              const res = await fetch(`/api/partner/customers/${selectedLeadId}/move-group`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({ groupId: newGroupId }),
+                              });
+                              const json = await res.json();
+                              if (!res.ok || !json?.ok) {
+                                throw new Error(json?.message || '그룹 이동에 실패했습니다.');
+                              }
+                              showSuccess('그룹이 변경되었습니다.');
+                              await loadLeadDetail(selectedLeadId);
+                              loadCustomerGroups();
+                            } catch (error) {
+                              showError(error instanceof Error ? error.message : '그룹 이동에 실패했습니다.');
+                            }
+                          }}
+                          className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                        >
+                          <option value="">그룹 없음</option>
+                          {customerGroups.map((group) => (
+                            <option key={group.id} value={group.id}>
+                              {group.name} ({group.leadCount}명)
+                            </option>
+                          ))}
+                        </select>
+                        {/* 판매원/대리점장 모두 그룹 생성 가능 */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingGroup(null);
+                            setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
+                            setShowGroupModal(true);
+                          }}
+                          className="rounded-xl border-2 border-blue-500 bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-sm"
+                        >
+                          <FiPlus /> 새 그룹
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 여권 관리 섹션 */}
+                    <div className="mt-6 pt-6 border-t-2 border-slate-200">
+                      <div className="flex items-center justify-between mb-4">
+                        <label className="text-xs font-bold text-slate-700">여권 상태</label>
+                        {selectedLead.passportCompletedAt ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700 border border-emerald-200">
+                              <FiCheckCircle /> 여권 완료
+                            </span>
+                            {selectedLead.passportRequestedAt && (
+                              <button
+                                type="button"
+                                onClick={() => setShowPassportModal(true)}
+                                disabled={requestingPassport}
+                                className="inline-flex items-center gap-1 rounded-xl border-2 border-blue-500 bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                              >
+                                <FiFileText /> 여권 재요청
+                              </button>
+                            )}
+                          </div>
+                        ) : selectedLead.passportRequestedAt ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1.5 text-xs font-bold text-yellow-700 border border-yellow-200">
+                            <FiClock /> 요청됨 (본사 확인 대기중)
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowPassportModal(true)}
+                            disabled={requestingPassport}
+                            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                          >
+                            <FiFileText />
+                            {requestingPassport ? '전송 중...' : '여권 보내기'}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* 문자 보내기 버튼 */}
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (!selectedLead && selectedLeadId) {
+                              await loadLeadDetail(selectedLeadId);
+                            }
+                            setShowSmsModal(true);
+                          }}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-emerald-700 transition-colors"
+                        >
+                          <FiMessageSquare />
+                          문자 보내기
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 상담 기록 섹션 */}
+                  <div className="rounded-3xl border-2 border-slate-200 bg-white p-6 mb-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-200">
+                      <h4 className="text-base font-bold text-slate-900">상담 기록</h4>
                       <button
                         type="button"
-                        onClick={handleAddInteraction}
-                        disabled={interactionSaving}
-                        className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                        onClick={() => loadLeadDetail(selectedLeadId)}
+                        className="inline-flex items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors"
                       >
-                        {interactionSaving ? '저장 중...' : '상담 기록 추가'}
+                        <FiRefreshCw /> 새로고침
                       </button>
                     </div>
-                    {/* Empty state helper */}
-                    {selectedLead.interactions.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-                        <div className="font-semibold text-slate-800">등록된 상담 기록이 없습니다</div>
-                        <p className="mt-1 text-xs text-slate-500">
-                          위의 입력 폼에서 상담 기록을 저장하면 아래에서 타임라인 형식으로 확인할 수 있습니다.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* 채팅 형식 상담 기록 */}
-                    <div className="space-y-4">
-                      {selectedLead.interactions.length === 0 ? (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
-                          상담 기록이 추가되면 이 영역에서 진행 상황을 확인할 수 있습니다.
+                    <div className="space-y-6">
+                      {/* 상담 기록 입력 폼 - 스크롤 가능하도록 개선 */}
+                      <div className="space-y-4 min-w-0 flex flex-col bg-slate-50 rounded-xl p-5 border-2 border-slate-200">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-2">상담 내용</label>
+                          <textarea
+                            value={interactionForm.note}
+                            onChange={(event) =>
+                              setInteractionForm((prev) => ({ ...prev, note: event.target.value }))
+                            }
+                            rows={4}
+                            placeholder="상담 내용을 입력하세요."
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
                         </div>
-                      ) : (
-                        (() => {
-                          const groupedInteractions = groupInteractionsByDate(selectedLead.interactions);
-                          return groupedInteractions.map((group) => (
-                            <div key={group.date} className="space-y-3">
-                              <div className="flex items-center justify-center my-4">
-                                <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-sm">
-                                  <FiCalendar className="text-xs text-slate-400" />
-                                  <span className="text-xs font-semibold text-slate-600">
-                                    {formatChatDate(group.date)}
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-2">상담 일시</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="date"
+                                value={interactionForm.occurredAt ? interactionForm.occurredAt.split('T')[0] : ''}
+                                onChange={(event) => {
+                                  const dateValue = event.target.value;
+                                  const timeValue = interactionForm.occurredAt
+                                    ? new Date(interactionForm.occurredAt).toTimeString().slice(0, 5)
+                                    : new Date().toTimeString().slice(0, 5);
+                                  setInteractionForm((prev) => ({
+                                    ...prev,
+                                    occurredAt: dateValue ? `${dateValue}T${timeValue}` : '',
+                                  }));
+                                }}
+                                className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              />
+                              <input
+                                type="time"
+                                value={interactionForm.occurredAt
+                                  ? new Date(interactionForm.occurredAt).toTimeString().slice(0, 5)
+                                  : ''}
+                                onChange={(event) => {
+                                  const timeValue = event.target.value;
+                                  const dateValue = interactionForm.occurredAt
+                                    ? interactionForm.occurredAt.split('T')[0]
+                                    : new Date().toISOString().split('T')[0];
+                                  setInteractionForm((prev) => ({
+                                    ...prev,
+                                    occurredAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.occurredAt,
+                                  }));
+                                }}
+                                className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-2">
+                              다음 조치
+                              {notificationPermission === 'granted' && (
+                                <FiBell className="text-blue-500" title="알람이 설정됩니다" />
+                              )}
+                              {notificationPermission !== 'granted' && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if ('Notification' in window) {
+                                      const permission = await Notification.requestPermission();
+                                      setNotificationPermission(permission);
+                                      if (permission === 'granted') {
+                                        showSuccess('알림 권한이 허용되었습니다.');
+                                      } else {
+                                        showError('알림 권한이 필요합니다.');
+                                      }
+                                    }
+                                  }}
+                                  className="text-blue-500 hover:text-blue-700"
+                                  title="알림 권한 요청"
+                                >
+                                  <FiBell />
+                                </button>
+                              )}
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="date"
+                                value={interactionForm.nextActionAt ? interactionForm.nextActionAt.split('T')[0] : ''}
+                                onChange={(event) => {
+                                  const dateValue = event.target.value;
+                                  const timeValue = interactionForm.nextActionAt
+                                    ? new Date(interactionForm.nextActionAt).toTimeString().slice(0, 5)
+                                    : '09:00';
+                                  setInteractionForm((prev) => ({
+                                    ...prev,
+                                    nextActionAt: dateValue ? `${dateValue}T${timeValue}` : '',
+                                  }));
+                                }}
+                                className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              />
+                              <input
+                                type="time"
+                                value={interactionForm.nextActionAt
+                                  ? new Date(interactionForm.nextActionAt).toTimeString().slice(0, 5)
+                                  : ''}
+                                onChange={(event) => {
+                                  const timeValue = event.target.value;
+                                  const dateValue = interactionForm.nextActionAt
+                                    ? interactionForm.nextActionAt.split('T')[0]
+                                    : new Date().toISOString().split('T')[0];
+                                  setInteractionForm((prev) => ({
+                                    ...prev,
+                                    nextActionAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.nextActionAt,
+                                  }));
+                                }}
+                                className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-2">상담 후 상태</label>
+                          <select
+                            value={interactionForm.status}
+                            onChange={(event) =>
+                              setInteractionForm((prev) => ({
+                                ...prev,
+                                status: event.target.value,
+                              }))
+                            }
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          >
+                            {statusSelectOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-700 mb-2">기록/녹음 파일 업로드</label>
+                          <input
+                            type="file"
+                            multiple
+                            accept="audio/*,video/*,image/*"
+                            onChange={handleFileChange}
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          />
+                          {interactionForm.files.length > 0 && (
+                            <div className="mt-2 space-y-2">
+                              {interactionForm.files.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between rounded-lg bg-slate-100 px-3 py-2 text-xs border border-slate-200">
+                                  <span className="flex items-center gap-2">
+                                    <FiMic className="text-blue-500" />
+                                    <span className="font-medium">{file.name}</span>
+                                    <span className="text-slate-500">({(file.size / 1024).toFixed(1)}KB)</span>
                                   </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeFile(index)}
+                                    className="text-red-600 hover:text-red-800 font-bold"
+                                  >
+                                    <FiX />
+                                  </button>
                                 </div>
-                              </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddInteraction}
+                          disabled={interactionSaving}
+                          className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                        >
+                          {interactionSaving ? '저장 중...' : '상담 기록 추가'}
+                        </button>
+                      </div>
+                      {/* Empty state helper */}
+                      {selectedLead.interactions.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+                          <div className="font-semibold text-slate-800">등록된 상담 기록이 없습니다</div>
+                          <p className="mt-1 text-xs text-slate-500">
+                            위의 입력 폼에서 상담 기록을 저장하면 아래에서 타임라인 형식으로 확인할 수 있습니다.
+                          </p>
+                        </div>
+                      )}
 
-                              {group.interactions.map((interaction) => {
-                                const isMyRecord =
-                                  selectedLead &&
-                                  ((selectedLead.ownership === 'AGENT' && interaction.profileId === selectedLead.agent?.id) ||
-                                    (selectedLead.ownership === 'MANAGER' && interaction.profileId === selectedLead.manager?.id));
+                      {/* 채팅 형식 상담 기록 */}
+                      <div className="space-y-4">
+                        {selectedLead.interactions.length === 0 ? (
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
+                            상담 기록이 추가되면 이 영역에서 진행 상황을 확인할 수 있습니다.
+                          </div>
+                        ) : (
+                          (() => {
+                            const groupedInteractions = groupInteractionsByDate(selectedLead.interactions);
+                            return groupedInteractions.map((group) => (
+                              <div key={group.date} className="space-y-3">
+                                <div className="flex items-center justify-center my-4">
+                                  <div className="flex items-center gap-2 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-sm">
+                                    <FiCalendar className="text-xs text-slate-400" />
+                                    <span className="text-xs font-semibold text-slate-600">
+                                      {formatChatDate(group.date)}
+                                    </span>
+                                  </div>
+                                </div>
 
-                                return (
-                                  <div key={interaction.id} className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                                    <div className="flex items-center justify-between text-xs text-slate-500">
-                                      <div className="flex items-center gap-2 text-slate-700 font-semibold">
-                                        <FiUser className="text-slate-400" />
-                                        <span>{interaction.createdBy?.name || '알 수 없음'}</span>
-                                        <span
-                                          className={`text-[10px] px-2 py-0.5 rounded-full ${
-                                            selectedLead.ownership === 'AGENT' && interaction.profileId === selectedLead.agent?.id
+                                {group.interactions.map((interaction) => {
+                                  const isMyRecord =
+                                    selectedLead &&
+                                    ((selectedLead.ownership === 'AGENT' && interaction.profileId === selectedLead.agent?.id) ||
+                                      (selectedLead.ownership === 'MANAGER' && interaction.profileId === selectedLead.manager?.id));
+
+                                  return (
+                                    <div key={interaction.id} className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                                      <div className="flex items-center justify-between text-xs text-slate-500">
+                                        <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                                          <FiUser className="text-slate-400" />
+                                          <span>{interaction.createdBy?.name || '알 수 없음'}</span>
+                                          <span
+                                            className={`text-[10px] px-2 py-0.5 rounded-full ${selectedLead.ownership === 'AGENT' && interaction.profileId === selectedLead.agent?.id
                                               ? 'bg-blue-100 text-blue-700'
                                               : selectedLead.ownership === 'MANAGER' && interaction.profileId === selectedLead.manager?.id
-                                              ? 'bg-purple-100 text-purple-700'
-                                              : 'bg-gray-100 text-gray-600'
-                                          }`}
-                                        >
-                                          {selectedLead.ownership === 'AGENT' && interaction.profileId === selectedLead.agent?.id
-                                            ? '판매원'
-                                            : selectedLead.ownership === 'MANAGER' && interaction.profileId === selectedLead.manager?.id
-                                            ? '대리점장'
-                                            : '기타'}
-                                        </span>
+                                                ? 'bg-purple-100 text-purple-700'
+                                                : 'bg-gray-100 text-gray-600'
+                                              }`}
+                                          >
+                                            {selectedLead.ownership === 'AGENT' && interaction.profileId === selectedLead.agent?.id
+                                              ? '판매원'
+                                              : selectedLead.ownership === 'MANAGER' && interaction.profileId === selectedLead.manager?.id
+                                                ? '대리점장'
+                                                : '기타'}
+                                          </span>
+                                        </div>
+                                        <span className="text-[10px]">{formatTime(interaction.occurredAt)}</span>
                                       </div>
-                                      <span className="text-[10px]">{formatTime(interaction.occurredAt)}</span>
-                                    </div>
 
-                                    <div
-                                      className={`rounded-xl px-4 py-3 text-sm whitespace-pre-line leading-relaxed ${
-                                        isMyRecord
+                                      <div
+                                        className={`rounded-xl px-4 py-3 text-sm whitespace-pre-line leading-relaxed ${isMyRecord
                                           ? selectedLead.ownership === 'AGENT'
                                             ? 'bg-blue-50 border border-blue-200 text-blue-900'
                                             : 'bg-purple-50 border border-purple-200 text-purple-900'
                                           : 'bg-slate-50 border border-slate-200 text-slate-700'
-                                      }`}
-                                    >
-                                      <div className="text-xs font-semibold mb-2 opacity-70">{interaction.interactionType}</div>
-                                      <p>{interaction.note ?? '메모 없음'}</p>
+                                          }`}
+                                      >
+                                        <div className="text-xs font-semibold mb-2 opacity-70">{interaction.interactionType}</div>
+                                        <p>{interaction.note ?? '메모 없음'}</p>
+                                      </div>
                                     </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ));
-                        })()
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    ) : null}
-
-    {/* 문자 보내기 모달 */}
-    {showSmsModal && (
-      <div 
-        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setShowSmsModal(false);
-            setSmsMessage('');
-            setCustomPhoneNumber('');
-            setSmsRecipientMode('customer');
-          }
-        }}
-      >
-        <div 
-          className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* 헤더 */}
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-            <h3 className="text-xl font-bold text-gray-900">문자 보내기</h3>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowSmsModal(false);
-                setSmsMessage('');
-                setCustomPhoneNumber('');
-                setSmsRecipientMode('customer');
-              }}
-              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            >
-              <FiX className="text-xl" />
-            </button>
-          </div>
-
-          {/* 내용 */}
-          <div className="px-6 py-6 space-y-6">
-            {/* 수신자 선택 모드 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                수신자 선택
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSmsRecipientMode('customer');
-                    setCustomPhoneNumber('');
-                  }}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    smsRecipientMode === 'customer'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <FiUser className="text-lg" />
-                    <span className="font-semibold">고객 선택</span>
-                  </div>
-                  <p className="text-xs text-gray-600">고객 목록에서 선택</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSmsRecipientMode('custom');
-                    if (selectedLeadId) {
-                      // 고객 선택 모드에서 직접 번호 모드로 전환 시 고객 번호를 기본값으로 설정
-                      if (selectedLead?.customerPhone) {
-                        setCustomPhoneNumber(selectedLead.customerPhone.replace(/[^0-9]/g, ''));
-                      }
-                    }
-                  }}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    smsRecipientMode === 'custom'
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <FiPhone className="text-lg" />
-                    <span className="font-semibold">직접 번호 입력</span>
-                  </div>
-                  <p className="text-xs text-gray-600">번호를 직접 입력</p>
-                </button>
-              </div>
-            </div>
-
-            {/* 고객 정보 또는 직접 번호 입력 */}
-            {smsRecipientMode === 'customer' ? (
-              selectedLead ? (
-                <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">📋 보낼 고객 정보</p>
-                  <div className="space-y-1 text-sm text-blue-800">
-                    <p><span className="font-semibold">고객명:</span> {selectedLead.customerName || '이름 없음'}</p>
-                    <p><span className="font-semibold">전화번호:</span> {selectedLead.customerPhone || '전화번호 없음'}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl bg-yellow-50 p-4 border border-yellow-200">
-                  <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ 고객을 선택해주세요</p>
-                  <p className="text-xs text-yellow-800">고객 목록에서 고객을 선택한 후 문자를 보내주세요.</p>
-                </div>
-              )
-            ) : (
-              <div className="rounded-xl bg-purple-50 p-4 border border-purple-200">
-                <label className="block text-sm font-semibold text-purple-900 mb-2">
-                  📱 전화번호 입력 <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={customPhoneNumber}
-                  onChange={(e) => {
-                    const cleaned = e.target.value.replace(/[^0-9]/g, '');
-                    setCustomPhoneNumber(cleaned);
-                  }}
-                  placeholder="01012345678 (하이픈 없이 숫자만 입력)"
-                  className="w-full rounded-lg border border-purple-300 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
-                />
-                <p className="mt-1 text-xs text-purple-700">하이픈 없이 숫자만 입력해주세요 (예: 01012345678)</p>
-              </div>
-            )}
-
-            {/* 발송 방식 선택 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                발송 방식 선택
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSmsMethod('aligo')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    smsMethod === 'aligo'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <FiSettings className="text-lg" />
-                    <span className="font-semibold">알리고 API</span>
-                  </div>
-                  <p className="text-xs text-gray-600">API 키 입력 후 자동 발송</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSmsMethod('link')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    smsMethod === 'link'
-                      ? 'border-emerald-500 bg-emerald-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <FiLink className="text-lg" />
-                    <span className="font-semibold">링크 생성</span>
-                  </div>
-                  <p className="text-xs text-gray-600">링크 복사 후 직접 발송</p>
-                </button>
-              </div>
-            </div>
-
-            {/* 알리고 API 설정 */}
-            {smsMethod === 'aligo' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-lg font-bold text-gray-900">⚙️ 알리고 API 설정</h4>
-                  <button
-                    type="button"
-                    onClick={() => setShowAligoGuide(!showAligoGuide)}
-                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    <FiHelpCircle />
-                    {showAligoGuide ? '가이드 숨기기' : '연결 가이드 보기'}
-                  </button>
-                </div>
-
-                {/* 알리고 연결 가이드 */}
-                {showAligoGuide && (
-                  <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-5 space-y-4">
-                    <div className="flex items-start gap-3">
-                      <FiInfo className="text-blue-600 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1 space-y-3 text-sm text-blue-900">
-                        <p className="font-bold text-base">📱 알리고 문자 서비스 연결 가이드</p>
-                        <div className="space-y-3">
-                          <div>
-                            <p className="font-semibold mb-1">1️⃣ 알리고 회원가입</p>
-                            <p className="text-xs text-blue-800">• 알리고 홈페이지 (https://www.aligo.in) 접속</p>
-                            <p className="text-xs text-blue-800">• 회원가입 후 로그인</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold mb-1">2️⃣ 발신번호 등록</p>
-                            <p className="text-xs text-blue-800">• 알리고 관리자 페이지 → 발신번호 관리</p>
-                            <p className="text-xs text-blue-800">• 본인 명의 전화번호 등록 (인증 필요)</p>
-                            <p className="text-xs text-blue-800">• 등록 완료 후 발신번호 확인</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold mb-1">3️⃣ API 키 발급</p>
-                            <p className="text-xs text-blue-800">• 알리고 관리자 페이지 → API 관리</p>
-                            <p className="text-xs text-blue-800">• "API 키 발급" 클릭</p>
-                            <p className="text-xs text-blue-800">• 발급된 API 키 복사 (아래 입력란에 붙여넣기)</p>
-                          </div>
-                          <div>
-                            <p className="font-semibold mb-1">4️⃣ 정보 입력</p>
-                            <p className="text-xs text-blue-800">• 아래 입력란에 알리고에서 받은 정보 입력</p>
-                            <p className="text-xs text-blue-800">• "설정 저장하기" 클릭 (다음에도 사용 가능)</p>
-                          </div>
-                        </div>
-                        <div className="mt-4 p-3 bg-blue-100 rounded-lg">
-                          <p className="font-semibold text-xs mb-1">💡 알리고에서 받아야 할 정보:</p>
-                          <ul className="list-disc list-inside space-y-1 text-xs text-blue-800">
-                            <li>API 키 (알리고 관리자 페이지 → API 관리)</li>
-                            <li>사용자 ID (알리고 로그인 아이디)</li>
-                            <li>발신번호 (알리고에서 등록한 전화번호, 하이픈 없이 숫자만)</li>
-                          </ul>
-                        </div>
+                                  );
+                                })}
+                              </div>
+                            ));
+                          })()
+                        )}
                       </div>
                     </div>
                   </div>
-                )}
 
-                <div className="space-y-3">
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* 문자 보내기 모달 */}
+      {showSmsModal && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowSmsModal(false);
+              setSmsMessage('');
+              setCustomPhoneNumber('');
+              setSmsRecipientMode('customer');
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold text-gray-900">문자 보내기</h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSmsModal(false);
+                  setSmsMessage('');
+                  setCustomPhoneNumber('');
+                  setSmsRecipientMode('customer');
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* 내용 */}
+            <div className="px-6 py-6 space-y-6">
+              {/* 수신자 선택 모드 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  수신자 선택
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmsRecipientMode('customer');
+                      setCustomPhoneNumber('');
+                    }}
+                    className={`p-4 rounded-xl border-2 transition-all ${smsRecipientMode === 'customer'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <FiUser className="text-lg" />
+                      <span className="font-semibold">고객 선택</span>
+                    </div>
+                    <p className="text-xs text-gray-600">고객 목록에서 선택</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSmsRecipientMode('custom');
+                      if (selectedLeadId) {
+                        // 고객 선택 모드에서 직접 번호 모드로 전환 시 고객 번호를 기본값으로 설정
+                        if (selectedLead?.customerPhone) {
+                          setCustomPhoneNumber(selectedLead.customerPhone.replace(/[^0-9]/g, ''));
+                        }
+                      }
+                    }}
+                    className={`p-4 rounded-xl border-2 transition-all ${smsRecipientMode === 'custom'
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <FiPhone className="text-lg" />
+                      <span className="font-semibold">직접 번호 입력</span>
+                    </div>
+                    <p className="text-xs text-gray-600">번호를 직접 입력</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* 고객 정보 또는 직접 번호 입력 */}
+              {smsRecipientMode === 'customer' ? (
+                selectedLead ? (
+                  <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">📋 보낼 고객 정보</p>
+                    <div className="space-y-1 text-sm text-blue-800">
+                      <p><span className="font-semibold">고객명:</span> {selectedLead.customerName || '이름 없음'}</p>
+                      <p><span className="font-semibold">전화번호:</span> {selectedLead.customerPhone || '전화번호 없음'}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl bg-yellow-50 p-4 border border-yellow-200">
+                    <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ 고객을 선택해주세요</p>
+                    <p className="text-xs text-yellow-800">고객 목록에서 고객을 선택한 후 문자를 보내주세요.</p>
+                  </div>
+                )
+              ) : (
+                <div className="rounded-xl bg-purple-50 p-4 border border-purple-200">
+                  <label className="block text-sm font-semibold text-purple-900 mb-2">
+                    📱 전화번호 입력 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={customPhoneNumber}
+                    onChange={(e) => {
+                      const cleaned = e.target.value.replace(/[^0-9]/g, '');
+                      setCustomPhoneNumber(cleaned);
+                    }}
+                    placeholder="01012345678 (하이픈 없이 숫자만 입력)"
+                    className="w-full rounded-lg border border-purple-300 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
+                  />
+                  <p className="mt-1 text-xs text-purple-700">하이픈 없이 숫자만 입력해주세요 (예: 01012345678)</p>
+                </div>
+              )}
+
+              {/* 발송 방식 선택 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  발송 방식 선택
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSmsMethod('aligo')}
+                    className={`p-4 rounded-xl border-2 transition-all ${smsMethod === 'aligo'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <FiSettings className="text-lg" />
+                      <span className="font-semibold">알리고 API</span>
+                    </div>
+                    <p className="text-xs text-gray-600">API 키 입력 후 자동 발송</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSmsMethod('link')}
+                    className={`p-4 rounded-xl border-2 transition-all ${smsMethod === 'link'
+                      ? 'border-emerald-500 bg-emerald-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <FiLink className="text-lg" />
+                      <span className="font-semibold">링크 생성</span>
+                    </div>
+                    <p className="text-xs text-gray-600">링크 복사 후 직접 발송</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* 알리고 API 설정 */}
+              {smsMethod === 'aligo' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-bold text-gray-900">⚙️ 알리고 API 설정</h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowAligoGuide(!showAligoGuide)}
+                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      <FiHelpCircle />
+                      {showAligoGuide ? '가이드 숨기기' : '연결 가이드 보기'}
+                    </button>
+                  </div>
+
+                  {/* 알리고 연결 가이드 */}
+                  {showAligoGuide && (
+                    <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-5 space-y-4">
+                      <div className="flex items-start gap-3">
+                        <FiInfo className="text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 space-y-3 text-sm text-blue-900">
+                          <p className="font-bold text-base">📱 알리고 문자 서비스 연결 가이드</p>
+                          <div className="space-y-3">
+                            <div>
+                              <p className="font-semibold mb-1">1️⃣ 알리고 회원가입</p>
+                              <p className="text-xs text-blue-800">• 알리고 홈페이지 (https://www.aligo.in) 접속</p>
+                              <p className="text-xs text-blue-800">• 회원가입 후 로그인</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold mb-1">2️⃣ 발신번호 등록</p>
+                              <p className="text-xs text-blue-800">• 알리고 관리자 페이지 → 발신번호 관리</p>
+                              <p className="text-xs text-blue-800">• 본인 명의 전화번호 등록 (인증 필요)</p>
+                              <p className="text-xs text-blue-800">• 등록 완료 후 발신번호 확인</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold mb-1">3️⃣ API 키 발급</p>
+                              <p className="text-xs text-blue-800">• 알리고 관리자 페이지 → API 관리</p>
+                              <p className="text-xs text-blue-800">• "API 키 발급" 클릭</p>
+                              <p className="text-xs text-blue-800">• 발급된 API 키 복사 (아래 입력란에 붙여넣기)</p>
+                            </div>
+                            <div>
+                              <p className="font-semibold mb-1">4️⃣ 정보 입력</p>
+                              <p className="text-xs text-blue-800">• 아래 입력란에 알리고에서 받은 정보 입력</p>
+                              <p className="text-xs text-blue-800">• "설정 저장하기" 클릭 (다음에도 사용 가능)</p>
+                            </div>
+                          </div>
+                          <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+                            <p className="font-semibold text-xs mb-1">💡 알리고에서 받아야 할 정보:</p>
+                            <ul className="list-disc list-inside space-y-1 text-xs text-blue-800">
+                              <li>API 키 (알리고 관리자 페이지 → API 관리)</li>
+                              <li>사용자 ID (알리고 로그인 아이디)</li>
+                              <li>발신번호 (알리고에서 등록한 전화번호, 하이픈 없이 숫자만)</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        1️⃣ API 키 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={aligoConfig.apiKey}
+                        onChange={(e) => setAligoConfig({ ...aligoConfig, apiKey: e.target.value })}
+                        placeholder="알리고에서 받은 API 키를 입력하세요"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">알리고 관리자 페이지 → API 관리에서 확인</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        2️⃣ 사용자 ID <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={aligoConfig.userId}
+                        onChange={(e) => setAligoConfig({ ...aligoConfig, userId: e.target.value })}
+                        placeholder="알리고 로그인 아이디를 입력하세요"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">알리고에 로그인할 때 사용하는 아이디</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        3️⃣ 발신번호 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={aligoConfig.senderPhone}
+                        onChange={(e) => setAligoConfig({ ...aligoConfig, senderPhone: e.target.value.replace(/[^0-9]/g, '') })}
+                        placeholder="01012345678 (하이픈 없이 숫자만 입력)"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      />
+                      <p className="mt-1 text-xs text-gray-500">알리고에서 등록한 발신번호 (하이픈 없이 숫자만)</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAligoConfig()}
+                    className="w-full rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
+                  >
+                    💾 설정 저장하기 (다음에도 사용)
+                  </button>
+                </div>
+              )}
+
+              {/* 링크 생성 방식 안내 */}
+              {smsMethod === 'link' && (
+                <div className="rounded-xl bg-emerald-50 border-2 border-emerald-200 p-5 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <FiInfo className="text-emerald-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 space-y-2 text-sm text-emerald-900">
+                      <p className="font-bold">🔗 링크 생성 방식</p>
+                      <p className="text-emerald-800">
+                        여권 업로드 링크가 자동으로 생성됩니다. 아래 문자 내용에 링크가 포함되어 문자 앱으로 열립니다.
+                      </p>
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-emerald-200">
+                        <p className="font-semibold text-xs mb-1">📝 사용 방법:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-xs text-emerald-800">
+                          <li>아래 문자 내용을 확인하세요 (링크가 자동 포함됩니다)</li>
+                          <li>"문자 보내기" 버튼을 클릭하면 문자 앱이 열립니다</li>
+                          <li>문자 앱에서 고객에게 전송하세요</li>
+                          <li>고객이 링크를 클릭하면 본사로 여권 정보가 전송됩니다</li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 문자 내용 입력 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    문자 내용 {smsMethod === 'link' && <span className="text-xs text-gray-500">(링크가 자동으로 포함됩니다)</span>}
+                  </label>
+                  <div className="relative">
+                    <SymbolPicker
+                      onSymbolSelect={(symbol) => {
+                        const textarea = document.querySelector('textarea[data-sms-message]') as HTMLTextAreaElement;
+                        if (textarea) {
+                          const start = textarea.selectionStart;
+                          const end = textarea.selectionEnd;
+                          const text = smsMessage;
+                          const newText = text.substring(0, start) + symbol + text.substring(end);
+                          setSmsMessage(newText);
+                          setTimeout(() => {
+                            textarea.focus();
+                            textarea.setSelectionRange(start + symbol.length, start + symbol.length);
+                          }, 0);
+                        } else {
+                          setSmsMessage(smsMessage + symbol);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+                <textarea
+                  data-sms-message
+                  value={smsMessage}
+                  onChange={(e) => setSmsMessage(e.target.value)}
+                  placeholder={smsMethod === 'link'
+                    ? `안녕하세요 ${selectedLead?.customerName || '고객'}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n[링크가 자동으로 포함됩니다]`
+                    : '고객에게 보낼 문자 내용을 입력하세요.'}
+                  rows={6}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {smsMethod === 'link'
+                    ? '링크는 자동으로 문자 내용 끝에 추가됩니다.'
+                    : '문자 내용을 입력한 후 "문자 보내기" 버튼을 클릭하세요.'}
+                </p>
+              </div>
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowSmsModal(false);
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={sendingSms}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSendSms}
+                disabled={
+                  sendingSms ||
+                  (smsMethod === 'aligo' && (!aligoConfig.apiKey || !aligoConfig.userId || !aligoConfig.senderPhone)) ||
+                  (smsRecipientMode === 'customer' && (!selectedLead?.customerPhone || !selectedLeadId)) ||
+                  (smsRecipientMode === 'custom' && (!customPhoneNumber || customPhoneNumber.replace(/[^0-9]/g, '').length < 10)) ||
+                  !smsMessage.trim()
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {sendingSms ? (
+                  <>
+                    <FiRefreshCw className="animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <FiMessageSquare />
+                    {smsMethod === 'link' ? '링크 복사' : '문자 보내기'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 여권 보내기 모달 */}
+      {showPassportModal && selectedLeadId && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPassportModal(false);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold text-gray-900">여권 보내기</h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPassportModal(false);
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* 내용 */}
+            <div className="px-6 py-6 space-y-6">
+              {/* 고객 정보 */}
+              {selectedLead ? (
+                <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
+                  <p className="text-sm font-semibold text-blue-900 mb-1">고객 정보</p>
+                  <p className="text-sm text-blue-800">{selectedLead.customerName || '이름 없음'}</p>
+                  <p className="text-sm text-blue-800">{selectedLead.customerPhone || '전화번호 없음'}</p>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-yellow-50 p-4 border border-yellow-200">
+                  <p className="text-sm font-semibold text-yellow-900 mb-2">⏳ 고객 정보 로딩 중...</p>
+                </div>
+              )}
+
+              {/* 발송 방법 선택 */}
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-3 block">발송 방법</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPassportMethod('link')}
+                    className={`p-4 rounded-xl border-2 transition-all ${passportMethod === 'link'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <FiLink className="text-xl" />
+                      <span className="font-semibold">링크 복사</span>
+                    </div>
+                    <p className="text-xs text-gray-600">여권 업로드 링크를 복사하여 문자로 보내기</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPassportMethod('aligo')}
+                    className={`p-4 rounded-xl border-2 transition-all ${passportMethod === 'aligo'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <FiMessageSquare className="text-xl" />
+                      <span className="font-semibold">알리고 API</span>
+                    </div>
+                    <p className="text-xs text-gray-600">알리고 API로 직접 발송</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* 알리고 API 설정 */}
+              {passportMethod === 'aligo' && (
+                <div className="space-y-4 rounded-xl bg-gray-50 p-4 border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-bold text-gray-900">⚙️ 알리고 API 설정</h4>
+                    {hasSyncedAligoConfig && (
+                      <span className="text-xs text-green-600 font-semibold">✓ 저장됨</span>
+                    )}
+                  </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      1️⃣ API 키 <span className="text-red-500">*</span>
+                    <label className="text-xs font-semibold text-gray-700 mb-1 block">
+                      알리고 API Key <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={aligoConfig.apiKey}
-                      onChange={(e) => setAligoConfig({ ...aligoConfig, apiKey: e.target.value })}
-                      placeholder="알리고에서 받은 API 키를 입력하세요"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      onChange={(e) => updateAligoConfigField('apiKey', e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      placeholder="알리고 API Key 입력"
                     />
-                    <p className="mt-1 text-xs text-gray-500">알리고 관리자 페이지 → API 관리에서 확인</p>
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      2️⃣ 사용자 ID <span className="text-red-500">*</span>
+                    <label className="text-xs font-semibold text-gray-700 mb-1 block">
+                      알리고 User ID <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={aligoConfig.userId}
-                      onChange={(e) => setAligoConfig({ ...aligoConfig, userId: e.target.value })}
-                      placeholder="알리고 로그인 아이디를 입력하세요"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      onChange={(e) => updateAligoConfigField('userId', e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      placeholder="알리고 User ID 입력"
                     />
-                    <p className="mt-1 text-xs text-gray-500">알리고에 로그인할 때 사용하는 아이디</p>
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      3️⃣ 발신번호 <span className="text-red-500">*</span>
+                    <label className="text-xs font-semibold text-gray-700 mb-1 block">
+                      발신번호 <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={aligoConfig.senderPhone}
-                      onChange={(e) => setAligoConfig({ ...aligoConfig, senderPhone: e.target.value.replace(/[^0-9]/g, '') })}
-                      placeholder="01012345678 (하이픈 없이 숫자만 입력)"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      onChange={(e) => updateAligoConfigField('senderPhone', e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      placeholder="01012345678 (하이픈 없이 숫자만)"
                     />
-                    <p className="mt-1 text-xs text-gray-500">알리고에서 등록한 발신번호 (하이픈 없이 숫자만)</p>
                   </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleSaveAligoConfig()}
-                  className="w-full rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 transition-colors"
-                >
-                  💾 설정 저장하기 (다음에도 사용)
-                </button>
-              </div>
-            )}
-
-            {/* 링크 생성 방식 안내 */}
-            {smsMethod === 'link' && (
-              <div className="rounded-xl bg-emerald-50 border-2 border-emerald-200 p-5 space-y-3">
-                <div className="flex items-start gap-3">
-                  <FiInfo className="text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1 space-y-2 text-sm text-emerald-900">
-                    <p className="font-bold">🔗 링크 생성 방식</p>
-                    <p className="text-emerald-800">
-                      여권 업로드 링크가 자동으로 생성됩니다. 아래 문자 내용에 링크가 포함되어 문자 앱으로 열립니다.
-                    </p>
-                    <div className="mt-3 p-3 bg-white rounded-lg border border-emerald-200">
-                      <p className="font-semibold text-xs mb-1">📝 사용 방법:</p>
-                      <ol className="list-decimal list-inside space-y-1 text-xs text-emerald-800">
-                        <li>아래 문자 내용을 확인하세요 (링크가 자동 포함됩니다)</li>
-                        <li>"문자 보내기" 버튼을 클릭하면 문자 앱이 열립니다</li>
-                        <li>문자 앱에서 고객에게 전송하세요</li>
-                        <li>고객이 링크를 클릭하면 본사로 여권 정보가 전송됩니다</li>
-                      </ol>
+                  {aligoConfigDirty && (
+                    <button
+                      type="button"
+                      onClick={() => handleSaveAligoConfig()}
+                      disabled={savingAligoConfig}
+                      className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {savingAligoConfig ? '저장 중...' : '💾 설정 저장하기 (다음에도 사용)'}
+                    </button>
+                  )}
+                  {hasSyncedAligoConfig && !aligoConfigDirty && (
+                    <div className="text-xs text-gray-600 bg-green-50 border border-green-200 rounded-lg p-2">
+                      ✓ 저장된 설정이 자동으로 사용됩니다. 수정하려면 값을 변경하세요.
                     </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 문자 내용 입력 */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-gray-700">
-                  문자 내용 {smsMethod === 'link' && <span className="text-xs text-gray-500">(링크가 자동으로 포함됩니다)</span>}
-                </label>
-                <div className="relative">
-                  <SymbolPicker
-                    onSymbolSelect={(symbol) => {
-                      const textarea = document.querySelector('textarea[data-sms-message]') as HTMLTextAreaElement;
-                      if (textarea) {
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        const text = smsMessage;
-                        const newText = text.substring(0, start) + symbol + text.substring(end);
-                        setSmsMessage(newText);
-                        setTimeout(() => {
-                          textarea.focus();
-                          textarea.setSelectionRange(start + symbol.length, start + symbol.length);
-                        }, 0);
-                      } else {
-                        setSmsMessage(smsMessage + symbol);
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-              <textarea
-                data-sms-message
-                value={smsMessage}
-                onChange={(e) => setSmsMessage(e.target.value)}
-                placeholder={smsMethod === 'link' 
-                  ? `안녕하세요 ${selectedLead?.customerName || '고객'}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n[링크가 자동으로 포함됩니다]`
-                  : '고객에게 보낼 문자 내용을 입력하세요.'}
-                rows={6}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                {smsMethod === 'link' 
-                  ? '링크는 자동으로 문자 내용 끝에 추가됩니다.'
-                  : '문자 내용을 입력한 후 "문자 보내기" 버튼을 클릭하세요.'}
-              </p>
-            </div>
-          </div>
-
-          {/* 하단 버튼 */}
-          <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowSmsModal(false);
-              }}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-              disabled={sendingSms}
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleSendSms}
-              disabled={
-                sendingSms ||
-                (smsMethod === 'aligo' && (!aligoConfig.apiKey || !aligoConfig.userId || !aligoConfig.senderPhone)) ||
-                (smsRecipientMode === 'customer' && (!selectedLead?.customerPhone || !selectedLeadId)) ||
-                (smsRecipientMode === 'custom' && (!customPhoneNumber || customPhoneNumber.replace(/[^0-9]/g, '').length < 10)) ||
-                !smsMessage.trim()
-              }
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-            >
-              {sendingSms ? (
-                <>
-                  <FiRefreshCw className="animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <FiMessageSquare />
-                  {smsMethod === 'link' ? '링크 복사' : '문자 보내기'}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* 여권 보내기 모달 */}
-    {showPassportModal && selectedLeadId && (
-      <div 
-        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setShowPassportModal(false);
-          }
-        }}
-      >
-        <div 
-          className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* 헤더 */}
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-            <h3 className="text-xl font-bold text-gray-900">여권 보내기</h3>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPassportModal(false);
-              }}
-              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            >
-              <FiX className="text-xl" />
-            </button>
-          </div>
-
-          {/* 내용 */}
-          <div className="px-6 py-6 space-y-6">
-            {/* 고객 정보 */}
-            {selectedLead ? (
-              <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
-                <p className="text-sm font-semibold text-blue-900 mb-1">고객 정보</p>
-                <p className="text-sm text-blue-800">{selectedLead.customerName || '이름 없음'}</p>
-                <p className="text-sm text-blue-800">{selectedLead.customerPhone || '전화번호 없음'}</p>
-              </div>
-            ) : (
-              <div className="rounded-xl bg-yellow-50 p-4 border border-yellow-200">
-                <p className="text-sm font-semibold text-yellow-900 mb-2">⏳ 고객 정보 로딩 중...</p>
-              </div>
-            )}
-
-            {/* 발송 방법 선택 */}
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-3 block">발송 방법</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setPassportMethod('link')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    passportMethod === 'link'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <FiLink className="text-xl" />
-                    <span className="font-semibold">링크 복사</span>
-                  </div>
-                  <p className="text-xs text-gray-600">여권 업로드 링크를 복사하여 문자로 보내기</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPassportMethod('aligo')}
-                  className={`p-4 rounded-xl border-2 transition-all ${
-                    passportMethod === 'aligo'
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <FiMessageSquare className="text-xl" />
-                    <span className="font-semibold">알리고 API</span>
-                  </div>
-                  <p className="text-xs text-gray-600">알리고 API로 직접 발송</p>
-                </button>
-              </div>
-            </div>
-
-            {/* 알리고 API 설정 */}
-            {passportMethod === 'aligo' && (
-              <div className="space-y-4 rounded-xl bg-gray-50 p-4 border border-gray-200">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-bold text-gray-900">⚙️ 알리고 API 설정</h4>
-                  {hasSyncedAligoConfig && (
-                    <span className="text-xs text-green-600 font-semibold">✓ 저장됨</span>
                   )}
                 </div>
+              )}
+
+              {/* 템플릿 선택 */}
+              {passportTemplates.length > 0 && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">
-                    알리고 API Key <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={aligoConfig.apiKey}
-                    onChange={(e) => updateAligoConfigField('apiKey', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="알리고 API Key 입력"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">
-                    알리고 User ID <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={aligoConfig.userId}
-                    onChange={(e) => updateAligoConfigField('userId', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="알리고 User ID 입력"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">
-                    발신번호 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={aligoConfig.senderPhone}
-                    onChange={(e) => updateAligoConfigField('senderPhone', e.target.value.replace(/[^0-9]/g, ''))}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                    placeholder="01012345678 (하이픈 없이 숫자만)"
-                  />
-                </div>
-                {aligoConfigDirty && (
-                  <button
-                    type="button"
-                    onClick={() => handleSaveAligoConfig()}
-                    disabled={savingAligoConfig}
-                    className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                  <label className="text-sm font-semibold text-gray-700 mb-2 block">템플릿 선택</label>
+                  <select
+                    value={selectedPassportTemplateId || ''}
+                    onChange={(e) => setSelectedPassportTemplateId(Number(e.target.value))}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    disabled={loadingPassportTemplates}
                   >
-                    {savingAligoConfig ? '저장 중...' : '💾 설정 저장하기 (다음에도 사용)'}
-                  </button>
-                )}
-                {hasSyncedAligoConfig && !aligoConfigDirty && (
-                  <div className="text-xs text-gray-600 bg-green-50 border border-green-200 rounded-lg p-2">
-                    ✓ 저장된 설정이 자동으로 사용됩니다. 수정하려면 값을 변경하세요.
+                    {passportTemplates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.title} {template.isDefault ? '(기본)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* 메시지 입력 */}
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">메시지 내용</label>
+                {loadingPassportTemplates ? (
+                  <div className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm bg-gray-50 text-gray-500">
+                    템플릿 로딩 중...
                   </div>
+                ) : (
+                  <textarea
+                    value={passportMessage}
+                    onChange={(e) => setPassportMessage(e.target.value)}
+                    rows={6}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    placeholder="여권 요청 메시지를 입력하세요."
+                  />
                 )}
               </div>
-            )}
 
-            {/* 템플릿 선택 */}
-            {passportTemplates.length > 0 && (
+              {/* 여권 링크 표시 (링크 복사 방식일 때) */}
+              {passportMethod === 'link' && selectedLeadId && (
+                <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+                  <p className="text-sm font-semibold text-blue-900 mb-2">🛂 여권 등록 링크</p>
+                  <div className="mb-3 rounded-lg bg-white border border-blue-300 p-3">
+                    <p className="text-xs font-medium text-gray-500 mb-1">링크 URL</p>
+                    <p className="text-xs text-gray-900 break-all font-mono">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+                        try {
+                          if (typeof window !== 'undefined' && navigator.clipboard) {
+                            await navigator.clipboard.writeText(passportLink);
+                            showSuccess('여권 업로드 링크가 복사되었습니다.');
+                          }
+                        } catch (error) {
+                          console.error('링크 복사 실패:', error);
+                        }
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                    >
+                      <span>📋</span>
+                      <span>링크 복사</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+                        window.open(passportLink, '_blank', 'width=1200,height=800');
+                      }}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <span>👁️</span>
+                      <span>미리보기</span>
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-blue-700">
+                    💡 미리보기 버튼을 클릭하면 고객이 보는 화면을 확인할 수 있습니다.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPassportModal(false);
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={requestingPassport}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!selectedLead || !selectedLeadId) return;
+
+                  if (passportMethod === 'aligo') {
+                    // 알리고 API로 직접 발송
+                    if (!aligoConfig.apiKey || !aligoConfig.userId || !aligoConfig.senderPhone) {
+                      showError('알리고 API 설정을 모두 입력해주세요.');
+                      return;
+                    }
+
+                    if (!passportMessage.trim()) {
+                      showError('메시지 내용을 입력해주세요.');
+                      return;
+                    }
+
+                    setRequestingPassport(true);
+                    try {
+                      // 설정이 변경되었으면 자동으로 저장
+                      if (aligoConfigDirty) {
+                        const saved = await handleSaveAligoConfig({ silent: true });
+                        if (!saved) {
+                          setRequestingPassport(false);
+                          return;
+                        }
+                      }
+
+                      // 여권 업로드 링크 생성
+                      const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+
+                      // 템플릿 변수 채우기
+                      let messageWithLink = passportMessage
+                        .replace('[링크가 자동으로 추가됩니다]', passportLink)
+                        .replace('{링크}', passportLink)
+                        .replace('{고객명}', selectedLead?.customerName || '고객')
+                        .replace('{상품명}', '크루즈 상품') // TODO: 실제 상품명 가져오기
+                        .replace('{출발일}', new Date().toLocaleDateString('ko-KR')); // TODO: 실제 출발일 가져오기
+
+                      if (!messageWithLink || messageWithLink.trim() === '') {
+                        messageWithLink = `안녕하세요 ${selectedLead?.customerName || '고객'}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n${passportLink}`;
+                      }
+
+                      const res = await fetch('/api/partner/customers/send-sms', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          leadId: selectedLeadId,
+                          phone: selectedLead?.customerPhone || '',
+                          message: messageWithLink,
+                        }),
+                      });
+
+                      const json = await res.json();
+                      if (!res.ok || !json?.ok) {
+                        throw new Error(json?.message || '여권 요청 발송에 실패했습니다.');
+                      }
+
+                      showSuccess('여권 요청이 발송되었습니다.');
+                      setShowPassportModal(false);
+                      await loadLeadDetail(selectedLeadId);
+                      fetchCustomers(currentPage);
+                    } catch (error) {
+                      console.error('여권 요청 발송 오류:', error);
+                      showError(
+                        error instanceof Error ? error.message : '여권 요청 발송 중 오류가 발생했습니다.',
+                      );
+                    } finally {
+                      setRequestingPassport(false);
+                    }
+                  } else {
+                    // 링크 복사 방식
+                    if (!selectedLead?.customerPhone) {
+                      showError('고객 전화번호가 없습니다.');
+                      return;
+                    }
+
+                    try {
+                      const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+
+                      // 링크 복사
+                      if (typeof window !== 'undefined' && navigator.clipboard) {
+                        await navigator.clipboard.writeText(passportLink);
+                        showSuccess('여권 업로드 링크가 복사되었습니다.');
+                      } else {
+                        showError('링크 복사에 실패했습니다. 링크를 수동으로 복사해주세요.');
+                      }
+                      // 모달은 닫지 않고 링크 표시 유지 (미리보기 가능하도록)
+                    } catch (error) {
+                      console.error('링크 복사 실패:', error);
+                      showError('링크 복사에 실패했습니다. 링크를 수동으로 복사해주세요.');
+                    }
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                disabled={requestingPassport}
+              >
+                {requestingPassport ? (
+                  <>
+                    <FiRefreshCw className="animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <FiSend />
+                    {passportMethod === 'aligo' ? '알리고로 발송' : '링크 복사'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 그룹 생성/수정 모달 */}
+      {showGroupModal && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowGroupModal(false);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">
+                {editingGroup ? '그룹 수정' : '그룹 추가'}
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGroupModal(false);
+                  setEditingGroup(null);
+                  setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
               <div>
-                <label className="text-sm font-semibold text-gray-700 mb-2 block">템플릿 선택</label>
-                <select
-                  value={selectedPassportTemplateId || ''}
-                  onChange={(e) => setSelectedPassportTemplateId(Number(e.target.value))}
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                  그룹 이름 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={groupForm.name}
+                  onChange={(e) => setGroupForm(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  disabled={loadingPassportTemplates}
+                  placeholder="예: 일본 크루즈 관심 고객"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">설명</label>
+                <textarea
+                  value={groupForm.description}
+                  onChange={(e) => setGroupForm(prev => ({ ...prev, description: e.target.value }))}
+                  rows={2}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                  placeholder="그룹에 대한 설명을 입력하세요."
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">관련 상품 코드</label>
+                <div className="relative" ref={productDropdownRef}>
+                  <input
+                    type="text"
+                    value={productSearchTerm || (groupForm.productCode ? activeProducts.find(p => p.productCode === groupForm.productCode)?.packageName || groupForm.productCode : '없음')}
+                    onChange={(e) => {
+                      setProductSearchTerm(e.target.value);
+                      setProductDropdownOpen(true);
+                    }}
+                    onFocus={() => setProductDropdownOpen(true)}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    placeholder="상품을 검색하거나 선택하세요"
+                  />
+                  {productDropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      <div
+                        className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => {
+                          setGroupForm(prev => ({ ...prev, productCode: '' }));
+                          setProductSearchTerm('');
+                          setProductDropdownOpen(false);
+                        }}
+                      >
+                        없음
+                      </div>
+                      {loadingProducts ? (
+                        <div className="px-3 py-2 text-sm text-gray-500">로딩 중...</div>
+                      ) : (
+                        activeProducts
+                          .filter(p =>
+                            !productSearchTerm ||
+                            p.productCode.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+                            p.packageName?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+                            p.cruiseLine?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
+                            p.shipName?.toLowerCase().includes(productSearchTerm.toLowerCase())
+                          )
+                          .map(product => (
+                            <div
+                              key={product.id}
+                              className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer border-t border-gray-100"
+                              onClick={() => {
+                                setGroupForm(prev => ({ ...prev, productCode: product.productCode }));
+                                setProductSearchTerm('');
+                                setProductDropdownOpen(false);
+                              }}
+                            >
+                              <div className="font-semibold">{product.productCode}</div>
+                              <div className="text-xs text-gray-500">
+                                {product.cruiseLine} {product.shipName} - {product.packageName}
+                                {product.nights && product.days && ` (${product.nights}박 ${product.days}일)`}
+                              </div>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">그룹 색상</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={groupForm.color}
+                    onChange={(e) => setGroupForm(prev => ({ ...prev, color: e.target.value }))}
+                    className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={groupForm.color}
+                    onChange={(e) => setGroupForm(prev => ({ ...prev, color: e.target.value }))}
+                    className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm font-mono"
+                    placeholder="#3B82F6"
+                  />
+                </div>
+              </div>
+
+              {/* 엑셀 샘플 다운로드 및 등록 */}
+              <div className="pt-4 border-t border-gray-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={handleDownloadGroupExcelSample}
+                    className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    <FiFileText /> 엑셀 샘플 받기
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 block">엑셀 등록하기</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          setGroupExcelFile(file);
+                        }
+                      }}
+                      className="flex-1 text-sm"
+                    />
+                    {groupExcelFile && (
+                      <span className="text-xs text-gray-600">{groupExcelFile.name}</span>
+                    )}
+                  </div>
+                  {groupExcelFile && editingGroup && (
+                    <button
+                      type="button"
+                      onClick={handleUploadGroupExcel}
+                      disabled={uploadingGroupExcel}
+                      className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {uploadingGroupExcel ? '업로드 중...' : '엑셀 등록하기'}
+                    </button>
+                  )}
+                  {groupExcelFile && !editingGroup && (
+                    <p className="text-xs text-gray-500">그룹을 먼저 생성한 후 엑셀을 등록할 수 있습니다.</p>
+                  )}
+                  {groupExcelFile && editingGroup && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGroupExcelFile(null);
+                        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                        if (fileInput) fileInput.value = '';
+                      }}
+                      className="w-full mt-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    >
+                      파일 선택 취소
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowGroupModal(false);
+                  setEditingGroup(null);
+                  setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveGroup}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+              >
+                {editingGroup ? '수정' : '생성'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DB 보내기 모달 */}
+      {showDbSendModal && partner.type === 'BRANCH_MANAGER' && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowDbSendModal(false);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">DB 보내기</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDbSendModal(false);
+                  setSelectedAgentId('');
+                  setSelectedCustomerIds([]);
+                  setNewCustomers([]);
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* 1. 판매원 선택 */}
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                  판매원 선택 <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={selectedAgentId}
+                  onChange={(e) => setSelectedAgentId(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
                 >
-                  {passportTemplates.map((template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.title} {template.isDefault ? '(기본)' : ''}
+                  <option value="">판매원을 선택하세요</option>
+                  {partner.teamAgents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.displayName ?? '판매원'} ({agent.affiliateCode ?? '코드 없음'})
                     </option>
                   ))}
                 </select>
               </div>
-            )}
 
-            {/* 메시지 입력 */}
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">메시지 내용</label>
-              {loadingPassportTemplates ? (
-                <div className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm bg-gray-50 text-gray-500">
-                  템플릿 로딩 중...
-                </div>
-              ) : (
-                <textarea
-                  value={passportMessage}
-                  onChange={(e) => setPassportMessage(e.target.value)}
-                  rows={6}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  placeholder="여권 요청 메시지를 입력하세요."
-                />
-              )}
-            </div>
-
-            {/* 여권 링크 표시 (링크 복사 방식일 때) */}
-            {passportMethod === 'link' && selectedLeadId && (
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-                <p className="text-sm font-semibold text-blue-900 mb-2">🛂 여권 등록 링크</p>
-                <div className="mb-3 rounded-lg bg-white border border-blue-300 p-3">
-                  <p className="text-xs font-medium text-gray-500 mb-1">링크 URL</p>
-                  <p className="text-xs text-gray-900 break-all font-mono">
-                    {typeof window !== 'undefined' ? `${window.location.origin}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}` : ''}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
-                      try {
-                        if (typeof window !== 'undefined' && navigator.clipboard) {
-                          await navigator.clipboard.writeText(passportLink);
-                          showSuccess('여권 업로드 링크가 복사되었습니다.');
-                        }
-                      } catch (error) {
-                        console.error('링크 복사 실패:', error);
-                      }
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-                  >
-                    <span>📋</span>
-                    <span>링크 복사</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
-                      window.open(passportLink, '_blank', 'width=1200,height=800');
-                    }}
-                    className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
-                  >
-                    <span>👁️</span>
-                    <span>미리보기</span>
-                  </button>
-                </div>
-                <p className="mt-2 text-xs text-blue-700">
-                  💡 미리보기 버튼을 클릭하면 고객이 보는 화면을 확인할 수 있습니다.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* 하단 버튼 */}
-          <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowPassportModal(false);
-              }}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-              disabled={requestingPassport}
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                if (!selectedLead || !selectedLeadId) return;
-
-                if (passportMethod === 'aligo') {
-                  // 알리고 API로 직접 발송
-                  if (!aligoConfig.apiKey || !aligoConfig.userId || !aligoConfig.senderPhone) {
-                    showError('알리고 API 설정을 모두 입력해주세요.');
-                    return;
-                  }
-
-                  if (!passportMessage.trim()) {
-                    showError('메시지 내용을 입력해주세요.');
-                    return;
-                  }
-
-                  setRequestingPassport(true);
-                  try {
-                    // 설정이 변경되었으면 자동으로 저장
-                    if (aligoConfigDirty) {
-                      const saved = await handleSaveAligoConfig({ silent: true });
-                      if (!saved) {
-                        setRequestingPassport(false);
-                        return;
-                      }
-                    }
-
-                    // 여권 업로드 링크 생성
-                    const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
-                    
-                    // 템플릿 변수 채우기
-                    let messageWithLink = passportMessage
-                      .replace('[링크가 자동으로 추가됩니다]', passportLink)
-                      .replace('{링크}', passportLink)
-                      .replace('{고객명}', selectedLead?.customerName || '고객')
-                      .replace('{상품명}', '크루즈 상품') // TODO: 실제 상품명 가져오기
-                      .replace('{출발일}', new Date().toLocaleDateString('ko-KR')); // TODO: 실제 출발일 가져오기
-                    
-                    if (!messageWithLink || messageWithLink.trim() === '') {
-                      messageWithLink = `안녕하세요 ${selectedLead?.customerName || '고객'}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n${passportLink}`;
-                    }
-
-                    const res = await fetch('/api/partner/customers/send-sms', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({
-                        leadId: selectedLeadId,
-                        phone: selectedLead?.customerPhone || '',
-                        message: messageWithLink,
-                      }),
-                    });
-
-                    const json = await res.json();
-                    if (!res.ok || !json?.ok) {
-                      throw new Error(json?.message || '여권 요청 발송에 실패했습니다.');
-                    }
-
-                    showSuccess('여권 요청이 발송되었습니다.');
-                    setShowPassportModal(false);
-                    await loadLeadDetail(selectedLeadId);
-                    fetchCustomers(currentPage);
-                  } catch (error) {
-                    console.error('여권 요청 발송 오류:', error);
-                    showError(
-                      error instanceof Error ? error.message : '여권 요청 발송 중 오류가 발생했습니다.',
-                    );
-                  } finally {
-                    setRequestingPassport(false);
-                  }
-                } else {
-                  // 링크 복사 방식
-                  if (!selectedLead?.customerPhone) {
-                    showError('고객 전화번호가 없습니다.');
-                    return;
-                  }
-
-                  try {
-                    const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
-
-                    // 링크 복사
-                    if (typeof window !== 'undefined' && navigator.clipboard) {
-                      await navigator.clipboard.writeText(passportLink);
-                      showSuccess('여권 업로드 링크가 복사되었습니다.');
-                    } else {
-                      showError('링크 복사에 실패했습니다. 링크를 수동으로 복사해주세요.');
-                    }
-                    // 모달은 닫지 않고 링크 표시 유지 (미리보기 가능하도록)
-                  } catch (error) {
-                    console.error('링크 복사 실패:', error);
-                    showError('링크 복사에 실패했습니다. 링크를 수동으로 복사해주세요.');
-                  }
-                }
-              }}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
-              disabled={requestingPassport}
-            >
-              {requestingPassport ? (
-                <>
-                  <FiRefreshCw className="animate-spin" />
-                  발송 중...
-                </>
-              ) : (
-                <>
-                  <FiSend />
-                  {passportMethod === 'aligo' ? '알리고로 발송' : '링크 복사'}
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* 그룹 생성/수정 모달 */}
-    {showGroupModal && (
-      <div 
-        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setShowGroupModal(false);
-          }
-        }}
-      >
-        <div 
-          className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl p-6"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900">
-              {editingGroup ? '그룹 수정' : '그룹 추가'}
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                setShowGroupModal(false);
-                setEditingGroup(null);
-                setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
-              }}
-              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            >
-              <FiX className="text-xl" />
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                그룹 이름 <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={groupForm.name}
-                onChange={(e) => setGroupForm(prev => ({ ...prev, name: e.target.value }))}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                placeholder="예: 일본 크루즈 관심 고객"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">설명</label>
-              <textarea
-                value={groupForm.description}
-                onChange={(e) => setGroupForm(prev => ({ ...prev, description: e.target.value }))}
-                rows={2}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                placeholder="그룹에 대한 설명을 입력하세요."
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">관련 상품 코드</label>
-              <div className="relative" ref={productDropdownRef}>
-                <input
-                  type="text"
-                  value={productSearchTerm || (groupForm.productCode ? activeProducts.find(p => p.productCode === groupForm.productCode)?.packageName || groupForm.productCode : '없음')}
-                  onChange={(e) => {
-                    setProductSearchTerm(e.target.value);
-                    setProductDropdownOpen(true);
-                  }}
-                  onFocus={() => setProductDropdownOpen(true)}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-                  placeholder="상품을 검색하거나 선택하세요"
-                />
-                {productDropdownOpen && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                    <div
-                      className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => {
-                        setGroupForm(prev => ({ ...prev, productCode: '' }));
-                        setProductSearchTerm('');
-                        setProductDropdownOpen(false);
-                      }}
-                    >
-                      없음
-                    </div>
-                    {loadingProducts ? (
-                      <div className="px-3 py-2 text-sm text-gray-500">로딩 중...</div>
-                    ) : (
-                      activeProducts
-                        .filter(p => 
-                          !productSearchTerm || 
-                          p.productCode.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-                          p.packageName?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-                          p.cruiseLine?.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
-                          p.shipName?.toLowerCase().includes(productSearchTerm.toLowerCase())
-                        )
-                        .map(product => (
-                          <div
-                            key={product.id}
-                            className="px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer border-t border-gray-100"
-                            onClick={() => {
-                              setGroupForm(prev => ({ ...prev, productCode: product.productCode }));
-                              setProductSearchTerm('');
-                              setProductDropdownOpen(false);
-                            }}
-                          >
-                            <div className="font-semibold">{product.productCode}</div>
-                            <div className="text-xs text-gray-500">
-                              {product.cruiseLine} {product.shipName} - {product.packageName}
-                              {product.nights && product.days && ` (${product.nights}박 ${product.days}일)`}
-                            </div>
-                          </div>
-                        ))
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">그룹 색상</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={groupForm.color}
-                  onChange={(e) => setGroupForm(prev => ({ ...prev, color: e.target.value }))}
-                  className="w-16 h-10 rounded-lg border border-gray-300 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={groupForm.color}
-                  onChange={(e) => setGroupForm(prev => ({ ...prev, color: e.target.value }))}
-                  className="flex-1 rounded-xl border border-gray-300 px-3 py-2 text-sm font-mono"
-                  placeholder="#3B82F6"
-                />
-              </div>
-            </div>
-
-            {/* 엑셀 샘플 다운로드 및 등록 */}
-            <div className="pt-4 border-t border-gray-200">
-              <div className="flex items-center gap-2 mb-3">
-                <button
-                  type="button"
-                  onClick={handleDownloadGroupExcelSample}
-                  className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  <FiFileText /> 엑셀 샘플 받기
-                </button>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-gray-700 block">엑셀 등록하기</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        setGroupExcelFile(file);
-                      }
-                    }}
-                    className="flex-1 text-sm"
-                  />
-                  {groupExcelFile && (
-                    <span className="text-xs text-gray-600">{groupExcelFile.name}</span>
+              {/* 2. 고객 선택 */}
+              <div>
+                <label className="text-sm font-semibold text-gray-700 mb-2 block">고객 선택</label>
+                <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-xl p-3 space-y-2">
+                  {customers
+                    .filter(c => c.ownership === 'MANAGER' && !c.agent?.id)
+                    .map((customer) => (
+                      <label key={customer.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedCustomerIds.includes(customer.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCustomerIds([...selectedCustomerIds, customer.id]);
+                            } else {
+                              setSelectedCustomerIds(selectedCustomerIds.filter(id => id !== customer.id));
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm">{customer.customerName ?? '이름 없음'}</div>
+                          <div className="text-xs text-gray-500">{customer.customerPhone ?? '연락처 없음'}</div>
+                        </div>
+                      </label>
+                    ))}
+                  {customers.filter(c => c.ownership === 'MANAGER' && !c.agent?.id).length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">선택 가능한 고객이 없습니다.</p>
                   )}
                 </div>
-                {groupExcelFile && editingGroup && (
-                  <button
-                    type="button"
-                    onClick={handleUploadGroupExcel}
-                    disabled={uploadingGroupExcel}
-                    className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {uploadingGroupExcel ? '업로드 중...' : '엑셀 등록하기'}
-                  </button>
-                )}
-                {groupExcelFile && !editingGroup && (
-                  <p className="text-xs text-gray-500">그룹을 먼저 생성한 후 엑셀을 등록할 수 있습니다.</p>
-                )}
-                {groupExcelFile && editingGroup && (
+              </div>
+
+              {/* 3. 새 고객 추가 */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-semibold text-gray-700">새 고객 추가</label>
                   <button
                     type="button"
                     onClick={() => {
-                      setGroupExcelFile(null);
-                      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
-                      if (fileInput) fileInput.value = '';
+                      setNewCustomers([...newCustomers, { name: '', phone: '', email: '', notes: '' }]);
                     }}
-                    className="w-full mt-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="text-xs text-blue-600 hover:text-blue-700"
                   >
-                    파일 선택 취소
+                    + 추가
                   </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowGroupModal(false);
-                setEditingGroup(null);
-                setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
-              }}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleSaveGroup}
-              className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
-            >
-              {editingGroup ? '수정' : '생성'}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    {/* DB 보내기 모달 */}
-    {showDbSendModal && partner.type === 'BRANCH_MANAGER' && (
-      <div 
-        className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            setShowDbSendModal(false);
-          }
-        }}
-      >
-        <div 
-          className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl p-6 max-h-[90vh] overflow-y-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900">DB 보내기</h3>
-            <button
-              type="button"
-              onClick={() => {
-                setShowDbSendModal(false);
-                setSelectedAgentId('');
-                setSelectedCustomerIds([]);
-                setNewCustomers([]);
-              }}
-              className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            >
-              <FiX className="text-xl" />
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            {/* 1. 판매원 선택 */}
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                판매원 선택 <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={selectedAgentId}
-                onChange={(e) => setSelectedAgentId(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
-              >
-                <option value="">판매원을 선택하세요</option>
-                {partner.teamAgents.map((agent) => (
-                  <option key={agent.id} value={agent.id}>
-                    {agent.displayName ?? '판매원'} ({agent.affiliateCode ?? '코드 없음'})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 2. 고객 선택 */}
-            <div>
-              <label className="text-sm font-semibold text-gray-700 mb-2 block">고객 선택</label>
-              <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-xl p-3 space-y-2">
-                {customers
-                  .filter(c => c.ownership === 'MANAGER' && !c.agent?.id)
-                  .map((customer) => (
-                    <label key={customer.id} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedCustomerIds.includes(customer.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedCustomerIds([...selectedCustomerIds, customer.id]);
-                          } else {
-                            setSelectedCustomerIds(selectedCustomerIds.filter(id => id !== customer.id));
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <div className="flex-1">
-                        <div className="font-semibold text-sm">{customer.customerName ?? '이름 없음'}</div>
-                        <div className="text-xs text-gray-500">{customer.customerPhone ?? '연락처 없음'}</div>
+                </div>
+                <div className="space-y-3">
+                  {newCustomers.map((customer, index) => (
+                    <div key={index} className="border border-gray-200 rounded-xl p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-gray-600">고객 {index + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewCustomers(newCustomers.filter((_, i) => i !== index));
+                          }}
+                          className="text-xs text-red-600 hover:text-red-700"
+                        >
+                          삭제
+                        </button>
                       </div>
-                    </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="이름 *"
+                          value={customer.name}
+                          onChange={(e) => {
+                            const updated = [...newCustomers];
+                            updated[index].name = e.target.value;
+                            setNewCustomers(updated);
+                          }}
+                          className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="연락처 *"
+                          value={customer.phone}
+                          onChange={(e) => {
+                            const updated = [...newCustomers];
+                            updated[index].phone = e.target.value;
+                            setNewCustomers(updated);
+                          }}
+                          className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="email"
+                          placeholder="이메일"
+                          value={customer.email}
+                          onChange={(e) => {
+                            const updated = [...newCustomers];
+                            updated[index].email = e.target.value;
+                            setNewCustomers(updated);
+                          }}
+                          className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
+                        />
+                        <input
+                          type="text"
+                          placeholder="비고"
+                          value={customer.notes}
+                          onChange={(e) => {
+                            const updated = [...newCustomers];
+                            updated[index].notes = e.target.value;
+                            setNewCustomers(updated);
+                          }}
+                          className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
+                        />
+                      </div>
+                    </div>
                   ))}
-                {customers.filter(c => c.ownership === 'MANAGER' && !c.agent?.id).length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-4">선택 가능한 고객이 없습니다.</p>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* 3. 새 고객 추가 */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-semibold text-gray-700">새 고객 추가</label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNewCustomers([...newCustomers, { name: '', phone: '', email: '', notes: '' }]);
-                  }}
-                  className="text-xs text-blue-600 hover:text-blue-700"
-                >
-                  + 추가
-                </button>
-              </div>
-              <div className="space-y-3">
-                {newCustomers.map((customer, index) => (
-                  <div key={index} className="border border-gray-200 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-gray-600">고객 {index + 1}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewCustomers(newCustomers.filter((_, i) => i !== index));
-                        }}
-                        className="text-xs text-red-600 hover:text-red-700"
-                      >
-                        삭제
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="이름 *"
-                        value={customer.name}
-                        onChange={(e) => {
-                          const updated = [...newCustomers];
-                          updated[index].name = e.target.value;
-                          setNewCustomers(updated);
-                        }}
-                        className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
-                      />
-                      <input
-                        type="text"
-                        placeholder="연락처 *"
-                        value={customer.phone}
-                        onChange={(e) => {
-                          const updated = [...newCustomers];
-                          updated[index].phone = e.target.value;
-                          setNewCustomers(updated);
-                        }}
-                        className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="email"
-                        placeholder="이메일"
-                        value={customer.email}
-                        onChange={(e) => {
-                          const updated = [...newCustomers];
-                          updated[index].email = e.target.value;
-                          setNewCustomers(updated);
-                        }}
-                        className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
-                      />
-                      <input
-                        type="text"
-                        placeholder="비고"
-                        value={customer.notes}
-                        onChange={(e) => {
-                          const updated = [...newCustomers];
-                          updated[index].notes = e.target.value;
-                          setNewCustomers(updated);
-                        }}
-                        className="rounded-lg border border-gray-300 px-2 py-1 text-sm"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDbSendModal(false);
+                  setSelectedAgentId('');
+                  setSelectedCustomerIds([]);
+                  setNewCustomers([]);
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSendDb}
+                disabled={sendingDb}
+                className="flex-1 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sendingDb ? '보내는 중...' : '보내기'}
+              </button>
             </div>
-          </div>
-
-          <div className="mt-6 flex gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowDbSendModal(false);
-                setSelectedAgentId('');
-                setSelectedCustomerIds([]);
-                setNewCustomers([]);
-              }}
-              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={handleSendDb}
-              disabled={sendingDb}
-              className="flex-1 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {sendingDb ? '보내는 중...' : '보내기'}
-            </button>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
-    {/* 퍼널 설정 모달 */}
-    {showFunnelModal && funnelSettingsGroup && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {funnelSettingsGroup.name} - 퍼널 설정
-            </h2>
-            <button
-              onClick={() => {
-                setShowFunnelModal(false);
-                setFunnelSettingsGroup(null);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <FiX className="text-xl" />
-            </button>
-          </div>
-
-          <div className="space-y-6">
-            {/* 퍼널톡 연결 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                퍼널톡 (카카오톡)
-              </label>
-              <p className="text-xs text-gray-500 mb-2">
-                연결할 예약메시지 그룹을 선택하세요 (Ctrl/Cmd + 클릭으로 여러 개 선택 가능)
-              </p>
-              {funnelTalks.length === 0 ? (
-                <p className="text-sm text-gray-400 py-2">등록된 카카오톡 예약메시지가 없습니다.</p>
-              ) : (
-                <div>
-                  <p className="text-xs text-purple-600 mb-1">
-                    {funnelTalks.filter(group => group.messages.some(msg => funnelForm.funnelTalkIds.includes(msg.id))).length}개 그룹 선택됨
-                  </p>
-                  <select
-                    multiple
-                    size={Math.min(funnelTalks.length, 10)}
-                    value={funnelTalks
-                      .filter(group => group.messages.some(msg => funnelForm.funnelTalkIds.includes(msg.id)))
-                      .map(group => group.groupName)}
-                    onChange={(e) => {
-                      const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
-                      const allMessageIds: number[] = [];
-                      
-                      funnelTalks.forEach(group => {
-                        if (selectedGroupNames.includes(group.groupName)) {
-                          allMessageIds.push(...group.messages.map(m => m.id));
-                        }
-                      });
-                      
-                      setFunnelForm({
-                        ...funnelForm,
-                        funnelTalkIds: allMessageIds,
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {funnelTalks.map((group) => (
-                      <option key={group.groupName} value={group.groupName}>
-                        {group.groupName} ({group.messages.length}개 메시지)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* 퍼널문자 연결 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                퍼널문자 (SMS)
-              </label>
-              <p className="text-xs text-gray-500 mb-2">
-                연결할 예약메시지 그룹을 선택하세요 (Ctrl/Cmd + 클릭으로 여러 개 선택 가능)
-              </p>
-              {funnelSms.length === 0 ? (
-                <p className="text-sm text-gray-400 py-2">등록된 SMS 예약메시지가 없습니다.</p>
-              ) : (
-                <div>
-                  <p className="text-xs text-purple-600 mb-1">
-                    {funnelSms.filter(group => group.messages.some(msg => funnelForm.funnelSmsIds.includes(msg.id))).length}개 그룹 선택됨
-                  </p>
-                  <select
-                    multiple
-                    size={Math.min(funnelSms.length, 10)}
-                    value={funnelSms
-                      .filter(group => group.messages.some(msg => funnelForm.funnelSmsIds.includes(msg.id)))
-                      .map(group => group.groupName)}
-                    onChange={(e) => {
-                      const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
-                      const allMessageIds: number[] = [];
-                      
-                      funnelSms.forEach(group => {
-                        if (selectedGroupNames.includes(group.groupName)) {
-                          allMessageIds.push(...group.messages.map(m => m.id));
-                        }
-                      });
-                      
-                      setFunnelForm({
-                        ...funnelForm,
-                        funnelSmsIds: allMessageIds,
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {funnelSms.map((group) => (
-                      <option key={group.groupName} value={group.groupName}>
-                        {group.groupName} ({group.messages.length}개 메시지)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* 퍼널메일 연결 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                퍼널메일 (Email)
-              </label>
-              <p className="text-xs text-gray-500 mb-2">
-                연결할 예약메시지 그룹을 선택하세요 (Ctrl/Cmd + 클릭으로 여러 개 선택 가능)
-              </p>
-              {funnelEmails.length === 0 ? (
-                <p className="text-sm text-gray-400 py-2">등록된 이메일 예약메시지가 없습니다.</p>
-              ) : (
-                <div>
-                  <p className="text-xs text-purple-600 mb-1">
-                    {funnelEmails.filter(group => group.messages.some(msg => funnelForm.funnelEmailIds.includes(msg.id))).length}개 그룹 선택됨
-                  </p>
-                  <select
-                    multiple
-                    size={Math.min(funnelEmails.length, 10)}
-                    value={funnelEmails
-                      .filter(group => group.messages.some(msg => funnelForm.funnelEmailIds.includes(msg.id)))
-                      .map(group => group.groupName)}
-                    onChange={(e) => {
-                      const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
-                      const allMessageIds: number[] = [];
-                      
-                      funnelEmails.forEach(group => {
-                        if (selectedGroupNames.includes(group.groupName)) {
-                          allMessageIds.push(...group.messages.map(m => m.id));
-                        }
-                      });
-                      
-                      setFunnelForm({
-                        ...funnelForm,
-                        funnelEmailIds: allMessageIds,
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {funnelEmails.map((group) => (
-                      <option key={group.groupName} value={group.groupName}>
-                        {group.groupName} ({group.messages.length}개 메시지)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* 재유입 처리 설정 */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                재유입 처리 설정
-              </label>
-              <p className="text-xs text-gray-500 mb-3">
-                고객이 해당그룹에 다시 들어올경우(해당그룹에 이미 존재할경우)
-              </p>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="reEntryHandling"
-                    value="no_time_change_info_change"
-                    checked={funnelForm.reEntryHandling === 'no_time_change_info_change'}
-                    onChange={(e) => setFunnelForm({ ...funnelForm, reEntryHandling: e.target.value })}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-sm text-gray-700">유입시간변경 X, 고객정보변경 O</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="reEntryHandling"
-                    value="no_time_change_no_info_change"
-                    checked={funnelForm.reEntryHandling === 'no_time_change_no_info_change'}
-                    onChange={(e) => setFunnelForm({ ...funnelForm, reEntryHandling: e.target.value })}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-sm text-gray-700">유입시간변경 X, 고객정보변경 X</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="reEntryHandling"
-                    value="time_change_info_change"
-                    checked={funnelForm.reEntryHandling === 'time_change_info_change'}
-                    onChange={(e) => setFunnelForm({ ...funnelForm, reEntryHandling: e.target.value })}
-                    className="w-5 h-5"
-                  />
-                  <span className="text-sm text-gray-700">
-                    유입시간변경 O, 고객정보변경 O (*0일차 퍼널 부터 다시 시작)
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {/* 저장 버튼 */}
-            <div className="flex gap-3 pt-4 border-t">
+      {/* 퍼널 설정 모달 */}
+      {showFunnelModal && funnelSettingsGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {funnelSettingsGroup.name} - 퍼널 설정
+              </h2>
               <button
                 onClick={() => {
                   setShowFunnelModal(false);
                   setFunnelSettingsGroup(null);
                 }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
-                취소
+                <FiX className="text-xl" />
               </button>
-              <button
-                onClick={async () => {
-                  try {
-                    const response = await fetch(`/api/partner/customer-groups/${funnelSettingsGroup.id}/funnel-settings`, {
-                      method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
-                      credentials: 'include',
-                      body: JSON.stringify({
-                        funnelTalkIds: funnelForm.funnelTalkIds,
-                        funnelSmsIds: funnelForm.funnelSmsIds,
-                        funnelEmailIds: funnelForm.funnelEmailIds,
-                        reEntryHandling: funnelForm.reEntryHandling,
-                      }),
-                    });
+            </div>
 
-                    if (!response.ok) {
-                      const errorText = await response.text();
-                      console.error('API Error:', errorText);
-                      showError(`퍼널 설정 저장에 실패했습니다. (${response.status})`);
-                      return;
-                    }
+            <div className="space-y-6">
+              {/* 퍼널톡 연결 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  퍼널톡 (카카오톡)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  연결할 예약메시지 그룹을 선택하세요 (Ctrl/Cmd + 클릭으로 여러 개 선택 가능)
+                </p>
+                {funnelTalks.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-2">등록된 카카오톡 예약메시지가 없습니다.</p>
+                ) : (
+                  <div>
+                    <p className="text-xs text-purple-600 mb-1">
+                      {funnelTalks.filter(group => group.messages.some(msg => funnelForm.funnelTalkIds.includes(msg.id))).length}개 그룹 선택됨
+                    </p>
+                    <select
+                      multiple
+                      size={Math.min(funnelTalks.length, 10)}
+                      value={funnelTalks
+                        .filter(group => group.messages.some(msg => funnelForm.funnelTalkIds.includes(msg.id)))
+                        .map(group => group.groupName)}
+                      onChange={(e) => {
+                        const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
+                        const allMessageIds: number[] = [];
 
-                    const data = await response.json();
-                    if (data.ok) {
-                      showSuccess('퍼널 설정이 저장되었습니다.');
-                      setShowFunnelModal(false);
-                      setFunnelSettingsGroup(null);
-                      loadCustomerGroups();
-                    } else {
-                      showError(data.error || '퍼널 설정 저장에 실패했습니다.');
+                        funnelTalks.forEach(group => {
+                          if (selectedGroupNames.includes(group.groupName)) {
+                            allMessageIds.push(...group.messages.map(m => m.id));
+                          }
+                        });
+
+                        setFunnelForm({
+                          ...funnelForm,
+                          funnelTalkIds: allMessageIds,
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {funnelTalks.map((group) => (
+                        <option key={group.groupName} value={group.groupName}>
+                          {group.groupName} ({group.messages.length}개 메시지)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* 퍼널문자 연결 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  퍼널문자 (SMS)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  연결할 예약메시지 그룹을 선택하세요 (Ctrl/Cmd + 클릭으로 여러 개 선택 가능)
+                </p>
+                {funnelSms.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-2">등록된 SMS 예약메시지가 없습니다.</p>
+                ) : (
+                  <div>
+                    <p className="text-xs text-purple-600 mb-1">
+                      {funnelSms.filter(group => group.messages.some(msg => funnelForm.funnelSmsIds.includes(msg.id))).length}개 그룹 선택됨
+                    </p>
+                    <select
+                      multiple
+                      size={Math.min(funnelSms.length, 10)}
+                      value={funnelSms
+                        .filter(group => group.messages.some(msg => funnelForm.funnelSmsIds.includes(msg.id)))
+                        .map(group => group.groupName)}
+                      onChange={(e) => {
+                        const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
+                        const allMessageIds: number[] = [];
+
+                        funnelSms.forEach(group => {
+                          if (selectedGroupNames.includes(group.groupName)) {
+                            allMessageIds.push(...group.messages.map(m => m.id));
+                          }
+                        });
+
+                        setFunnelForm({
+                          ...funnelForm,
+                          funnelSmsIds: allMessageIds,
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {funnelSms.map((group) => (
+                        <option key={group.groupName} value={group.groupName}>
+                          {group.groupName} ({group.messages.length}개 메시지)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* 퍼널메일 연결 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  퍼널메일 (Email)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  연결할 예약메시지 그룹을 선택하세요 (Ctrl/Cmd + 클릭으로 여러 개 선택 가능)
+                </p>
+                {funnelEmails.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-2">등록된 이메일 예약메시지가 없습니다.</p>
+                ) : (
+                  <div>
+                    <p className="text-xs text-purple-600 mb-1">
+                      {funnelEmails.filter(group => group.messages.some(msg => funnelForm.funnelEmailIds.includes(msg.id))).length}개 그룹 선택됨
+                    </p>
+                    <select
+                      multiple
+                      size={Math.min(funnelEmails.length, 10)}
+                      value={funnelEmails
+                        .filter(group => group.messages.some(msg => funnelForm.funnelEmailIds.includes(msg.id)))
+                        .map(group => group.groupName)}
+                      onChange={(e) => {
+                        const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
+                        const allMessageIds: number[] = [];
+
+                        funnelEmails.forEach(group => {
+                          if (selectedGroupNames.includes(group.groupName)) {
+                            allMessageIds.push(...group.messages.map(m => m.id));
+                          }
+                        });
+
+                        setFunnelForm({
+                          ...funnelForm,
+                          funnelEmailIds: allMessageIds,
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {funnelEmails.map((group) => (
+                        <option key={group.groupName} value={group.groupName}>
+                          {group.groupName} ({group.messages.length}개 메시지)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* 재유입 처리 설정 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  재유입 처리 설정
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  고객이 해당그룹에 다시 들어올경우(해당그룹에 이미 존재할경우)
+                </p>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="reEntryHandling"
+                      value="no_time_change_info_change"
+                      checked={funnelForm.reEntryHandling === 'no_time_change_info_change'}
+                      onChange={(e) => setFunnelForm({ ...funnelForm, reEntryHandling: e.target.value })}
+                      className="w-5 h-5"
+                    />
+                    <span className="text-sm text-gray-700">유입시간변경 X, 고객정보변경 O</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="reEntryHandling"
+                      value="no_time_change_no_info_change"
+                      checked={funnelForm.reEntryHandling === 'no_time_change_no_info_change'}
+                      onChange={(e) => setFunnelForm({ ...funnelForm, reEntryHandling: e.target.value })}
+                      className="w-5 h-5"
+                    />
+                    <span className="text-sm text-gray-700">유입시간변경 X, 고객정보변경 X</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="reEntryHandling"
+                      value="time_change_info_change"
+                      checked={funnelForm.reEntryHandling === 'time_change_info_change'}
+                      onChange={(e) => setFunnelForm({ ...funnelForm, reEntryHandling: e.target.value })}
+                      className="w-5 h-5"
+                    />
+                    <span className="text-sm text-gray-700">
+                      유입시간변경 O, 고객정보변경 O (*0일차 퍼널 부터 다시 시작)
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* 저장 버튼 */}
+              <div className="flex gap-3 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setShowFunnelModal(false);
+                    setFunnelSettingsGroup(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch(`/api/partner/customer-groups/${funnelSettingsGroup.id}/funnel-settings`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                          funnelTalkIds: funnelForm.funnelTalkIds,
+                          funnelSmsIds: funnelForm.funnelSmsIds,
+                          funnelEmailIds: funnelForm.funnelEmailIds,
+                          reEntryHandling: funnelForm.reEntryHandling,
+                        }),
+                      });
+
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('API Error:', errorText);
+                        showError(`퍼널 설정 저장에 실패했습니다. (${response.status})`);
+                        return;
+                      }
+
+                      const data = await response.json();
+                      if (data.ok) {
+                        showSuccess('퍼널 설정이 저장되었습니다.');
+                        setShowFunnelModal(false);
+                        setFunnelSettingsGroup(null);
+                        loadCustomerGroups();
+                      } else {
+                        showError(data.error || '퍼널 설정 저장에 실패했습니다.');
+                      }
+                    } catch (error) {
+                      console.error('Failed to save funnel settings:', error);
+                      showError('퍼널 설정 저장 중 네트워크 오류가 발생했습니다.');
                     }
-                  } catch (error) {
-                    console.error('Failed to save funnel settings:', error);
-                    showError('퍼널 설정 저장 중 네트워크 오류가 발생했습니다.');
-                  }
-                }}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                저장
-              </button>
+                  }}
+                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  저장
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
-    {/* 고객 리스트 모달 */}
-    {showCustomerListModal && customerListGroup && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between p-6 border-b">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {customerListGroup.name} - 고객 리스트
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                총 {customerListTotal}명
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setShowCustomerListModal(false);
-                setCustomerListGroup(null);
-                setGroupCustomers([]);
-                setCustomerListSearch('');
-                setCustomerListPage(1);
-              }}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <FiX className="text-xl" />
-            </button>
-          </div>
-
-          <div className="p-6 border-b">
-            <div className="flex items-center gap-3">
-              <FiSearch className="text-gray-400" />
-              <input
-                type="text"
-                value={customerListSearch}
-                onChange={(e) => setCustomerListSearch(e.target.value)}
-                placeholder="고객 이름 또는 연락처 검색"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6">
-            {isLoadingCustomerList ? (
-              <div className="text-center py-12">
-                <FiRefreshCw className="inline-block animate-spin text-4xl text-blue-600 mb-4" />
-                <p className="text-gray-600">고객 목록을 불러오는 중...</p>
-              </div>
-            ) : groupCustomers.length === 0 ? (
-              <div className="text-center py-12">
-                <FiUsers className="mx-auto text-4xl text-gray-400 mb-4" />
-                <p className="text-gray-600">
-                  {customerListSearch ? '검색 결과가 없습니다.' : '이 그룹에 속한 고객이 없습니다.'}
+      {/* 고객 리스트 모달 */}
+      {showCustomerListModal && customerListGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {customerListGroup.name} - 고객 리스트
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  총 {customerListTotal}명
                 </p>
               </div>
-            ) : (
-              <div className="space-y-2">
-                {groupCustomers.map((customer) => (
-                  <div
-                    key={customer.id}
-                    className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">
-                        {customer.customerName || '이름 없음'}
-                      </p>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                        <span>{customer.phone || '전화번호 없음'}</span>
-                        {customer.email && <span>{customer.email}</span>}
-                      </div>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                        <span>유입일: {formatDate(customer.groupInflowDate)}</span>
-                        <span>유입 후 {customer.daysSinceInflow}일</span>
-                        {customer.messageSentCount > 0 && (
-                          <span>발송: {customer.messageSentCount}건</span>
-                        )}
+              <button
+                onClick={() => {
+                  setShowCustomerListModal(false);
+                  setCustomerListGroup(null);
+                  setGroupCustomers([]);
+                  setCustomerListSearch('');
+                  setCustomerListPage(1);
+                }}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            <div className="p-6 border-b">
+              <div className="flex items-center gap-3">
+                <FiSearch className="text-gray-400" />
+                <input
+                  type="text"
+                  value={customerListSearch}
+                  onChange={(e) => setCustomerListSearch(e.target.value)}
+                  placeholder="고객 이름 또는 연락처 검색"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {isLoadingCustomerList ? (
+                <div className="text-center py-12">
+                  <FiRefreshCw className="inline-block animate-spin text-4xl text-blue-600 mb-4" />
+                  <p className="text-gray-600">고객 목록을 불러오는 중...</p>
+                </div>
+              ) : groupCustomers.length === 0 ? (
+                <div className="text-center py-12">
+                  <FiUsers className="mx-auto text-4xl text-gray-400 mb-4" />
+                  <p className="text-gray-600">
+                    {customerListSearch ? '검색 결과가 없습니다.' : '이 그룹에 속한 고객이 없습니다.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {groupCustomers.map((customer) => (
+                    <div
+                      key={customer.id}
+                      className="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">
+                          {customer.customerName || '이름 없음'}
+                        </p>
+                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
+                          <span>{customer.phone || '전화번호 없음'}</span>
+                          {customer.email && <span>{customer.email}</span>}
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
+                          <span>유입일: {formatDate(customer.groupInflowDate)}</span>
+                          <span>유입 후 {customer.daysSinceInflow}일</span>
+                          {customer.messageSentCount > 0 && (
+                            <span>발송: {customer.messageSentCount}건</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 페이지네이션 */}
+            {customerListTotal > 50 && (
+              <div className="flex items-center justify-between p-6 border-t">
+                <button
+                  onClick={() => {
+                    if (customerListPage > 1) {
+                      const newPage = customerListPage - 1;
+                      setCustomerListPage(newPage);
+                      loadGroupCustomers(customerListGroup.id, newPage);
+                    }
+                  }}
+                  disabled={customerListPage === 1 || isLoadingCustomerList}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이전
+                </button>
+                <span className="text-sm text-gray-600">
+                  {customerListPage} / {Math.ceil(customerListTotal / 50)}
+                </span>
+                <button
+                  onClick={() => {
+                    if (customerListPage < Math.ceil(customerListTotal / 50)) {
+                      const newPage = customerListPage + 1;
+                      setCustomerListPage(newPage);
+                      loadGroupCustomers(customerListGroup.id, newPage);
+                    }
+                  }}
+                  disabled={customerListPage >= Math.ceil(customerListTotal / 50) || isLoadingCustomerList}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  다음
+                </button>
               </div>
             )}
           </div>
-
-          {/* 페이지네이션 */}
-          {customerListTotal > 50 && (
-            <div className="flex items-center justify-between p-6 border-t">
-              <button
-                onClick={() => {
-                  if (customerListPage > 1) {
-                    const newPage = customerListPage - 1;
-                    setCustomerListPage(newPage);
-                    loadGroupCustomers(customerListGroup.id, newPage);
-                  }
-                }}
-                disabled={customerListPage === 1 || isLoadingCustomerList}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                이전
-              </button>
-              <span className="text-sm text-gray-600">
-                {customerListPage} / {Math.ceil(customerListTotal / 50)}
-              </span>
-              <button
-                onClick={() => {
-                  if (customerListPage < Math.ceil(customerListTotal / 50)) {
-                    const newPage = customerListPage + 1;
-                    setCustomerListPage(newPage);
-                    loadGroupCustomers(customerListGroup.id, newPage);
-                  }
-                }}
-                disabled={customerListPage >= Math.ceil(customerListTotal / 50) || isLoadingCustomerList}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                다음
-              </button>
-            </div>
-          )}
         </div>
-      </div>
-    )}
+      )}
 
-    {/* 고객 기록 모달 */}
-    {selectedCustomerForNote && (
-      <CustomerNoteModal
-        customerId={selectedCustomerForNote.id}
-        customerName={selectedCustomerForNote.name}
-        isOpen={noteModalOpen}
-        onClose={() => {
-          setNoteModalOpen(false);
-          setSelectedCustomerForNote(null);
-        }}
-        onNoteAdded={() => {
-          // 고객 목록 새로고침
-          fetchCustomers(currentPage);
-        }}
-      />
-    )}
-  </div>
+      {/* 고객 기록 모달 */}
+      {selectedCustomerForNote && (
+        <CustomerNoteModal
+          customerId={selectedCustomerForNote.id}
+          customerName={selectedCustomerForNote.name}
+          isOpen={noteModalOpen}
+          onClose={() => {
+            setNoteModalOpen(false);
+            setSelectedCustomerForNote(null);
+          }}
+          onNoteAdded={() => {
+            // 고객 목록 새로고침
+            fetchCustomers(currentPage);
+          }}
+        />
+      )}
+    </div>
   );
 }

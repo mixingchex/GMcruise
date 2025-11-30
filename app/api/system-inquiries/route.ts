@@ -46,6 +46,40 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // B2B 잠재고객 통합 관리를 위해 AffiliateLead에도 저장 (source: 'TRIAL_DASHBOARD')
+    // 이미 존재하는 고객인지 확인 (전화번호 기준)
+    const existingAffiliateLead = await prisma.affiliateLead.findFirst({
+      where: { customerPhone: normalizedPhone }
+    });
+
+    if (existingAffiliateLead) {
+      // 기존 고객이면 상태나 노트 업데이트 (선택적)
+      await prisma.affiliateLead.update({
+        where: { id: existingAffiliateLead.id },
+        data: {
+          notes: existingAffiliateLead.notes
+            ? `${existingAffiliateLead.notes}\n[시스템문의] ${message?.trim() || '시스템 이용 문의'}`
+            : `[시스템문의] ${message?.trim() || '시스템 이용 문의'}`,
+          source: existingAffiliateLead.source === 'test-guide' ? 'TRIAL_DASHBOARD' : existingAffiliateLead.source, // 소스 업데이트 (선택사항, 필요시)
+          status: 'CONTACTED', // 문의가 왔으므로 상태 변경
+          updatedAt: new Date(),
+        }
+      });
+    } else {
+      // 신규 고객이면 생성
+      await prisma.affiliateLead.create({
+        data: {
+          customerName: name.trim(),
+          customerPhone: normalizedPhone,
+          source: 'TRIAL_DASHBOARD',
+          status: 'NEW',
+          notes: message?.trim() || '시스템 이용 문의',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       message: '시스템 상담 문의가 접수되었습니다. 곧 연락드리겠습니다.',
