@@ -507,7 +507,7 @@ export default function AffiliateProfilesPage() {
           affiliateCode: manager.affiliateCode,
         }));
         setBranchManagers(options);
-        
+
         // 지점명/팀명 옵션 생성 (중복 제거)
         const branchLabelMap = new Map<string, { label: string; managerId: number; managerName: string; affiliateCode: string }>();
         (json.profiles ?? []).forEach((manager: any) => {
@@ -707,7 +707,7 @@ export default function AffiliateProfilesPage() {
 
     if (generateAll) {
       const activeProfilesCount = profiles.filter(p => (p.type === 'SALES_AGENT' || p.type === 'BRANCH_MANAGER') && p.status === 'ACTIVE').length;
-      
+
       if (activeProfilesCount === 0) {
         showError('활성 상태인 판매원 또는 대리점장이 없습니다.');
         return;
@@ -735,7 +735,7 @@ export default function AffiliateProfilesPage() {
 
         const { summary, results, errors } = json;
         let message = `✅ 총 ${summary.total}명 중 ${summary.success}명에게 샘플 데이터 생성 완료!\n\n`;
-        
+
         if (results && results.length > 0) {
           const totalLeads = results.reduce((sum: number, r: any) => sum + r.data.leads, 0);
           const totalSales = results.reduce((sum: number, r: any) => sum + r.data.sales, 0);
@@ -749,7 +749,7 @@ export default function AffiliateProfilesPage() {
 
         showSuccess(message);
         setShowSampleDataModal(false);
-        
+
         // 목록 새로고침
         setTimeout(() => {
           const loadProfiles = async () => {
@@ -1059,6 +1059,7 @@ export default function AffiliateProfilesPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">ID</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">유형</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">닉네임 / 지점명</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">소속</th>
@@ -1073,14 +1074,14 @@ export default function AffiliateProfilesPage() {
             <tbody className="divide-y divide-gray-200">
               {isLoading && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-6 text-center text-sm text-gray-500">
+                  <td colSpan={10} className="px-4 py-6 text-center text-sm text-gray-500">
                     어필리에이트 프로필을 불러오는 중입니다...
                   </td>
                 </tr>
               )}
               {!isLoading && profiles.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500">
+                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-500">
                     조건에 해당하는 어필리에이트 프로필이 없습니다.
                   </td>
                 </tr>
@@ -1088,14 +1089,16 @@ export default function AffiliateProfilesPage() {
               {!isLoading &&
                 profiles.map((profile) => (
                   <tr key={profile.id} className="hover:bg-blue-50/40">
+                    <td className="px-4 py-4 text-sm font-mono text-gray-600">
+                      #{profile.id}
+                    </td>
                     <td className="px-4 py-4 text-sm font-semibold text-gray-800">
-                      <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                        profile.type === 'SALES_AGENT'
-                          ? 'bg-blue-50 text-blue-700'
-                          : profile.type === 'BRANCH_MANAGER'
+                      <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${profile.type === 'SALES_AGENT'
+                        ? 'bg-blue-50 text-blue-700'
+                        : profile.type === 'BRANCH_MANAGER'
                           ? 'bg-purple-50 text-purple-700'
                           : 'bg-gray-50 text-gray-700'
-                      }`}>
+                        }`}>
                         {TYPE_LABELS[profile.type]}
                       </div>
                       <div className="mt-1 text-xs text-gray-500">{profile.affiliateCode}</div>
@@ -1111,10 +1114,10 @@ export default function AffiliateProfilesPage() {
                           affiliation.theme === 'purple'
                             ? 'bg-purple-50 text-purple-700'
                             : affiliation.theme === 'red'
-                            ? 'bg-red-50 text-red-600'
-                            : affiliation.theme === 'blue'
-                            ? 'bg-blue-50 text-blue-700'
-                            : 'bg-slate-100 text-slate-600';
+                              ? 'bg-red-50 text-red-600'
+                              : affiliation.theme === 'blue'
+                                ? 'bg-blue-50 text-blue-700'
+                                : 'bg-slate-100 text-slate-600';
                         return (
                           <div className="flex flex-col gap-1">
                             <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${themeClasses}`}>
@@ -1144,13 +1147,12 @@ export default function AffiliateProfilesPage() {
                     </td>
                     <td className="px-4 py-4 text-sm">
                       <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                          profile.status === 'ACTIVE'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : profile.status === 'SUSPENDED'
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${profile.status === 'ACTIVE'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : profile.status === 'SUSPENDED'
                             ? 'bg-amber-50 text-amber-700'
                             : 'bg-gray-100 text-gray-600'
-                        }`}
+                          }`}
                       >
                         {STATUS_LABELS[profile.status]}
                       </span>
@@ -1421,7 +1423,7 @@ export default function AffiliateProfilesPage() {
                                   // 지점명 설정
                                   setFormState((prev) => ({ ...prev, branchLabel: option.label }));
                                   setShowBranchLabelSelector(false);
-                                  
+
                                   // 해당 대리점장의 상세 정보 자동 불러오기
                                   try {
                                     const res = await fetch(`/api/admin/affiliate/profiles/${option.managerId}`);
@@ -1981,14 +1983,14 @@ export default function AffiliateProfilesPage() {
                     // 이미지 파일인지 확인
                     const isImage = doc.filePath && /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.filePath);
                     // 다운로드 URL 생성 (상대 경로인 경우 절대 경로로 변환)
-                    const downloadUrl = doc.filePath?.startsWith('http') 
-                      ? doc.filePath 
-                      : doc.filePath?.startsWith('/') 
+                    const downloadUrl = doc.filePath?.startsWith('http')
+                      ? doc.filePath
+                      : doc.filePath?.startsWith('/')
                         ? `${window.location.origin}${doc.filePath}`
                         : doc.filePath;
                     // 이미지 미리보기 URL
                     const imageUrl = downloadUrl;
-                    
+
                     const handleDownload = () => {
                       if (!downloadUrl) return;
                       const link = document.createElement('a');
@@ -2033,7 +2035,7 @@ export default function AffiliateProfilesPage() {
                             {statusInfo.label}
                           </span>
                         </div>
-                        
+
                         {/* 이미지 미리보기 */}
                         {isImage && imageUrl && (
                           <div className="mb-3 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
@@ -2049,7 +2051,7 @@ export default function AffiliateProfilesPage() {
                             />
                           </div>
                         )}
-                        
+
                         <div className="flex items-center gap-3 flex-wrap">
                           <a
                             href={downloadUrl}
@@ -2117,7 +2119,7 @@ export default function AffiliateProfilesPage() {
                 <p className="text-sm text-gray-600 mb-4">
                   샘플 데이터를 생성할 판매원 또는 대리점장을 선택하세요. 각 프로필당 10개의 리드, 판매, 고객 데이터가 생성됩니다.
                 </p>
-                
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -2134,7 +2136,7 @@ export default function AffiliateProfilesPage() {
                         .map((profile) => (
                           <option key={profile.id} value={profile.id}>
                             {profile.type === 'BRANCH_MANAGER' ? '[대리점장] ' : '[판매원] '}
-                            {profile.displayName || profile.nickname || `ID: ${profile.id}`} 
+                            {profile.displayName || profile.nickname || `ID: ${profile.id}`}
                             {profile.user?.mallUserId && ` (${profile.user.mallUserId})`}
                             {profile.affiliateCode && ` - ${profile.affiliateCode}`}
                           </option>

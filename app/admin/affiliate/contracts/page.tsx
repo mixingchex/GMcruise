@@ -771,8 +771,29 @@ export default function AdminAffiliateContractsPage() {
       if (filters.search.trim()) params.set('search', filters.search.trim());
 
       const res = await fetch(`/api/admin/affiliate/contracts?${params.toString()}`);
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
+
+      // Check if response is OK and has content
+      if (!res.ok) {
+        let errorMessage = '계약 목록을 불러오지 못했습니다.';
+        try {
+          const errorJson = await res.json();
+          errorMessage = errorJson.message || errorMessage;
+        } catch (parseError) {
+          console.error('[AdminContracts] Failed to parse error response', parseError);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse JSON response
+      let json;
+      try {
+        json = await res.json();
+      } catch (parseError) {
+        console.error('[AdminContracts] Failed to parse JSON response', parseError);
+        throw new Error('서버 응답을 처리할 수 없습니다.');
+      }
+
+      if (!json.ok) {
         throw new Error(json.message || '계약 목록을 불러오지 못했습니다.');
       }
       setContracts(json.contracts ?? []);
@@ -1059,14 +1080,14 @@ export default function AdminAffiliateContractsPage() {
       } else {
         showSuccess('계약서가 완료되었으나 이메일 전송에 실패했습니다.');
       }
-      
+
       // 모달 닫기
       setShowContractDetailModal(false);
       setSelectedContract(null);
-      
+
       // 목록 새로고침
       loadContracts();
-      
+
       // 완료 페이지로 리다이렉트 (새 창에서 열기)
       if (json.redirectUrl) {
         window.open(json.redirectUrl, '_blank');
@@ -1104,10 +1125,32 @@ export default function AdminAffiliateContractsPage() {
     try {
       setLoadingContractDetail(true);
       const res = await fetch(`/api/admin/affiliate/contracts/${contractId}`);
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
+
+      // Check if response is OK
+      if (!res.ok) {
+        let errorMessage = '계약서 정보를 불러오지 못했습니다.';
+        try {
+          const errorJson = await res.json();
+          errorMessage = errorJson.message || errorMessage;
+        } catch (parseError) {
+          console.error('[AdminContracts] Failed to parse error response', parseError);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse JSON response
+      let json;
+      try {
+        json = await res.json();
+      } catch (parseError) {
+        console.error('[AdminContracts] Failed to parse JSON response', parseError);
+        throw new Error('서버 응답을 처리할 수 없습니다.');
+      }
+
+      if (!json.ok) {
         throw new Error(json.message || '계약서 정보를 불러오지 못했습니다.');
       }
+
       setSelectedContract(json.contract);
       setShowContractDetailModal(true);
       // 계약서 열람 확인 추가
@@ -1124,20 +1167,20 @@ export default function AdminAffiliateContractsPage() {
     if (!confirm('계약서 PDF를 계약자 이메일 주소로 전송하시겠습니까? (본사 이메일은 참조로 추가됩니다)')) return;
     try {
       setSendingPdfContractId(contractId);
-      
+
       // 타임아웃 설정 (120초 - PDF 생성 시간 고려)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000);
-      
+
       try {
         const res = await fetch(`/api/admin/affiliate/contracts/${contractId}/send-pdf`, {
           method: 'POST',
           credentials: 'include',
           signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!res.ok) {
           const errorText = await res.text();
           let errorJson;
@@ -1148,25 +1191,25 @@ export default function AdminAffiliateContractsPage() {
           }
           throw new Error(errorJson.message || errorJson.error || `서버 오류 (${res.status})`);
         }
-      
-      const text = await res.text();
-      if (!text || text.trim() === '') {
-        throw new Error('서버에서 응답이 없습니다. 잠시 후 다시 시도해주세요.');
-      }
-      
-      let json;
-      try {
-        json = JSON.parse(text);
-      } catch (parseError) {
-        console.error('[AdminContracts] JSON parse error:', parseError, 'Response text:', text);
+
+        const text = await res.text();
+        if (!text || text.trim() === '') {
+          throw new Error('서버에서 응답이 없습니다. 잠시 후 다시 시도해주세요.');
+        }
+
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseError) {
+          console.error('[AdminContracts] JSON parse error:', parseError, 'Response text:', text);
           throw new Error('서버 응답 형식 오류가 발생했습니다.');
         }
-        
+
         if (!json.ok) {
           const errorMsg = json.message || json.error || 'PDF 전송에 실패했습니다.';
           throw new Error(errorMsg);
         }
-        
+
         showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
         // PDF 보기를 통한 계약서 열람 확인 추가
         setViewedContractIds(prev => new Set(prev).add(contractId));
@@ -1193,10 +1236,32 @@ export default function AdminAffiliateContractsPage() {
       const res = await fetch(`/api/admin/affiliate/contracts/${contractId}`, {
         method: 'DELETE',
       });
-      const json = await res.json();
-      if (!res.ok || !json.ok) {
+
+      // Check if response is OK
+      if (!res.ok) {
+        let errorMessage = '삭제에 실패했습니다.';
+        try {
+          const errorJson = await res.json();
+          errorMessage = errorJson.message || errorMessage;
+        } catch (parseError) {
+          console.error('[AdminContracts] Failed to parse error response', parseError);
+        }
+        throw new Error(errorMessage);
+      }
+
+      // Parse JSON response
+      let json;
+      try {
+        json = await res.json();
+      } catch (parseError) {
+        console.error('[AdminContracts] Failed to parse JSON response', parseError);
+        throw new Error('서버 응답을 처리할 수 없습니다.');
+      }
+
+      if (!json.ok) {
         throw new Error(json.message || '삭제에 실패했습니다.');
       }
+
       showSuccess('계약서가 삭제되었습니다.');
       loadContracts();
     } catch (error: any) {
@@ -1245,7 +1310,7 @@ export default function AdminAffiliateContractsPage() {
 
     try {
       setGeneratingInvite(true);
-      
+
       // 계약서 작성 링크 생성
       let contractUrl = '';
       if (selectedProfile.user?.mallUserId) {
@@ -1342,13 +1407,13 @@ export default function AdminAffiliateContractsPage() {
                     SUBSCRIPTION_AGENT: { text: 'text-orange-600', bg: 'hover:bg-orange-50' },
                   };
                   const colors = colorMap[ct.code] || { text: 'text-indigo-600', bg: 'hover:bg-indigo-50' };
-                  
+
                   // 계약서 이름 간소화 (예: "판매원 계약서" → "판매원")
                   const shortTitle = ct.title
                     .replace(/계약서|계약/g, '')
                     .replace(/크루즈닷|어필리에이트/g, '')
                     .trim() || ct.title;
-                  
+
                   return (
                     <button
                       key={ct.code}
@@ -1498,7 +1563,7 @@ export default function AdminAffiliateContractsPage() {
                             const mentorType = contract.AffiliateProfile.type;
                             // 프로필 수정에서 입력한 displayName을 우선 사용
                             const mentorName = contract.AffiliateProfile.displayName || contract.AffiliateProfile.nickname || contract.AffiliateProfile.user?.name || '이름 없음';
-                            
+
                             if (mentorType === 'BRANCH_MANAGER') {
                               return (
                                 <div className="space-y-1">
@@ -1566,7 +1631,7 @@ export default function AdminAffiliateContractsPage() {
                               );
                             }
                           }
-                          
+
                           // AffiliateProfile이 없으면 본사로 표시
                           return (
                             <div className="flex items-center gap-2">
@@ -1591,16 +1656,16 @@ export default function AdminAffiliateContractsPage() {
                             const terminatedAt = metadata.terminatedAt ? new Date(metadata.terminatedAt) : null;
                             const dbRecovered = metadata.dbRecovered || false;
                             const dbRecoveredAt = metadata.dbRecoveredAt ? new Date(metadata.dbRecoveredAt) : null;
-                            
+
                             if (terminatedAt) {
                               const now = new Date();
                               const contractType = contract.AffiliateProfile?.type;
                               const daysSinceTermination = Math.floor((now.getTime() - terminatedAt.getTime()) / (1000 * 60 * 60 * 24));
-                              
+
                               // 판매원은 1일, 대리점장은 즉시
                               const recoveryDays = contractType === 'BRANCH_MANAGER' ? 0 : 1;
                               const daysUntilRecovery = Math.max(0, recoveryDays - daysSinceTermination);
-                              
+
                               return (
                                 <div className="text-xs space-y-0.5">
                                   <div className="text-gray-600">
@@ -1617,7 +1682,7 @@ export default function AdminAffiliateContractsPage() {
                                         const maxRetries = 3;
                                         const retryErrors = metadata.retryErrors || [];
                                         const lastRetryAt = metadata.lastRetryAt ? new Date(metadata.lastRetryAt) : null;
-                                        
+
                                         if (retryCount >= maxRetries) {
                                           return (
                                             <div className="text-red-600 font-semibold">
@@ -1625,15 +1690,15 @@ export default function AdminAffiliateContractsPage() {
                                             </div>
                                           );
                                         }
-                                        
+
                                         if (retryCount > 0) {
                                           const backoffMinutes = Math.pow(2, retryCount - 1);
                                           const nextRetryTime = lastRetryAt ? new Date(lastRetryAt.getTime() + backoffMinutes * 60 * 1000) : null;
                                           const now = new Date();
-                                          const minutesUntilRetry = nextRetryTime && nextRetryTime > now 
+                                          const minutesUntilRetry = nextRetryTime && nextRetryTime > now
                                             ? Math.ceil((nextRetryTime.getTime() - now.getTime()) / (1000 * 60))
                                             : 0;
-                                          
+
                                           return (
                                             <div className="text-orange-600">
                                               재시도 중 ({retryCount}/{maxRetries})
@@ -1641,12 +1706,12 @@ export default function AdminAffiliateContractsPage() {
                                             </div>
                                           );
                                         }
-                                        
+
                                         return (
                                           <div className={daysUntilRecovery > 0 ? 'text-yellow-600' : 'text-red-600'}>
-                                            {contractType === 'BRANCH_MANAGER' 
+                                            {contractType === 'BRANCH_MANAGER'
                                               ? 'DB 회수 대기 중 (즉시 처리 예정)'
-                                              : daysUntilRecovery > 0 
+                                              : daysUntilRecovery > 0
                                                 ? `DB 회수 예정: ${daysUntilRecovery}일 후`
                                                 : 'DB 회수 대기 중 (1일 경과)'}
                                           </div>
@@ -1676,14 +1741,14 @@ export default function AdminAffiliateContractsPage() {
                           const metadata = contract.metadata || {};
                           const renewalDate = metadata.renewalDate ? new Date(metadata.renewalDate) : null;
                           const renewalRequestStatus = metadata.renewalRequestStatus || null;
-                          
+
                           // 재계약 갱신일 계산
                           let calculatedRenewalDate = renewalDate;
                           if (!calculatedRenewalDate && contract.reviewedAt && (contract.status === 'approved' || contract.status === 'completed')) {
                             calculatedRenewalDate = new Date(contract.reviewedAt);
                             calculatedRenewalDate.setFullYear(calculatedRenewalDate.getFullYear() + 1);
                           }
-                          
+
                           // D-day 계산
                           const calculateDaysRemaining = (targetDate: Date | null) => {
                             if (!targetDate) return null;
@@ -1695,9 +1760,9 @@ export default function AdminAffiliateContractsPage() {
                             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                             return diffDays;
                           };
-                          
+
                           const daysRemaining = calculatedRenewalDate ? calculateDaysRemaining(calculatedRenewalDate) : null;
-                          
+
                           return (
                             <div className="space-y-1">
                               {calculatedRenewalDate ? (
@@ -1706,13 +1771,12 @@ export default function AdminAffiliateContractsPage() {
                                     {calculatedRenewalDate.toLocaleDateString('ko-KR')}
                                   </div>
                                   {daysRemaining !== null && (
-                                    <div className={`text-xs font-semibold ${
-                                      daysRemaining < 0 
-                                        ? 'text-red-600' 
-                                        : daysRemaining <= 30 
+                                    <div className={`text-xs font-semibold ${daysRemaining < 0
+                                      ? 'text-red-600'
+                                      : daysRemaining <= 30
                                         ? 'text-yellow-600'
                                         : 'text-blue-600'
-                                    }`}>
+                                      }`}>
                                       {daysRemaining < 0 ? `D+${Math.abs(daysRemaining)}` : `D-${daysRemaining}`}
                                     </div>
                                   )}
@@ -1795,7 +1859,7 @@ export default function AdminAffiliateContractsPage() {
                           {(() => {
                             const metadata = contract.metadata || {};
                             const renewalRequestStatus = metadata.renewalRequestStatus;
-                            
+
                             if (renewalRequestStatus === 'PENDING') {
                               return (
                                 <>
@@ -1860,9 +1924,9 @@ export default function AdminAffiliateContractsPage() {
                               onClick={async () => {
                                 const reason = prompt('계약 해지 사유를 입력해주세요:');
                                 if (!reason) return;
-                                
+
                                 if (!confirm(`정말로 이 계약을 해지하시겠습니까?\n\n사유: ${reason}\n\n해지 후:\n- 대리점장: DB가 즉시 본사로 회수됩니다\n- 판매원: 1일 후 DB가 대리점장으로 회수됩니다`)) return;
-                                
+
                                 try {
                                   const res = await fetch(`/api/admin/affiliate/contracts/${contract.id}/terminate`, {
                                     method: 'POST',
@@ -1893,13 +1957,13 @@ export default function AdminAffiliateContractsPage() {
                             const dbRecovered = metadata.dbRecovered || false;
                             const retryCount = metadata.retryCount || 0;
                             const maxRetries = 3;
-                            
+
                             if (!dbRecovered && retryCount >= maxRetries) {
                               return (
                                 <button
                                   onClick={async () => {
                                     if (!confirm('DB 회수 재시도를 하시겠습니까?')) return;
-                                    
+
                                     try {
                                       const res = await fetch(`/api/admin/affiliate/contracts/${contract.id}/retry-recovery`, {
                                         method: 'POST',
@@ -2570,7 +2634,7 @@ export default function AdminAffiliateContractsPage() {
                       const mentorType = selectedContract.AffiliateProfile.type;
                       // 프로필 수정에서 입력한 displayName을 우선 사용
                       const mentorName = selectedContract.AffiliateProfile.displayName || selectedContract.AffiliateProfile.nickname || selectedContract.AffiliateProfile.user?.name || '이름 없음';
-                      
+
                       if (mentorType === 'BRANCH_MANAGER') {
                         return (
                           <div className="space-y-2">
@@ -2661,7 +2725,7 @@ export default function AdminAffiliateContractsPage() {
                         );
                       }
                     }
-                    
+
                     // AffiliateProfile이 없으면 본사로 표시
                     return (
                       <div className="space-y-2">
@@ -2694,13 +2758,13 @@ export default function AdminAffiliateContractsPage() {
                   <div>
                     <span className="font-semibold text-gray-700">계약서 타입:</span>
                     <span className="ml-2 text-gray-900">
-                      {selectedContract.metadata?.contractType === 'BRANCH_MANAGER' 
-                        ? '대리점장' 
+                      {selectedContract.metadata?.contractType === 'BRANCH_MANAGER'
+                        ? '대리점장'
                         : selectedContract.metadata?.contractType === 'CRUISE_STAFF'
-                        ? '크루즈스탭'
-                        : selectedContract.metadata?.contractType === 'SUBSCRIPTION_AGENT'
-                        ? '정액제'
-                        : '판매원'}
+                          ? '크루즈스탭'
+                          : selectedContract.metadata?.contractType === 'SUBSCRIPTION_AGENT'
+                            ? '정액제'
+                            : '판매원'}
                     </span>
                   </div>
                   <div>
@@ -2765,11 +2829,11 @@ export default function AdminAffiliateContractsPage() {
                   ) : (
                     <>
                       <p className="text-sm text-gray-600">
-                        {selectedContract.status === 'completed' 
+                        {selectedContract.status === 'completed'
                           ? '계약서가 완료되었지만 PDF가 아직 생성되지 않았습니다. "PDF로 보내기" 버튼을 클릭하여 PDF를 생성하고 전송할 수 있습니다.'
                           : selectedContract.status === 'approved'
-                          ? '계약서가 승인되었습니다. 완료 처리 시 PDF가 생성됩니다.'
-                          : '계약서가 완료되면 PDF가 생성됩니다.'}
+                            ? '계약서가 승인되었습니다. 완료 처리 시 PDF가 생성됩니다.'
+                            : '계약서가 완료되면 PDF가 생성됩니다.'}
                       </p>
                       {selectedContract.status === 'completed' && (
                         <div className="flex gap-3">
@@ -2875,7 +2939,7 @@ export default function AdminAffiliateContractsPage() {
                             />
                           </div>
                         )}
-                        
+
                         {/* B2B 계약서 싸인 (대리점장 전용) */}
                         {selectedContract.metadata.signatures.b2b?.url && (
                           <div className="rounded-lg border-2 border-purple-200 bg-purple-50 p-4">
@@ -2987,7 +3051,7 @@ export default function AdminAffiliateContractsPage() {
                   </div>
                 ));
               })()}
-              
+
               <p className="text-xs text-slate-500 mt-4">
                 ※ 본 교육 계약서는 전자 서명으로 체결되며, 갑(크루즈닷)의 최종 승인을 통해 효력이 발생합니다.
               </p>

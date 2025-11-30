@@ -290,8 +290,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ ok: false, message: '프로필을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    if (profile.type !== 'SALES_AGENT') {
-      return NextResponse.json({ ok: false, message: '판매원 프로필만 삭제할 수 있습니다.' }, { status: 400 });
+    if (profile.type === 'HQ') {
+      return NextResponse.json({ ok: false, message: 'HQ 프로필은 삭제할 수 없습니다.' }, { status: 400 });
     }
 
     await prisma.$transaction(async (tx) => {
