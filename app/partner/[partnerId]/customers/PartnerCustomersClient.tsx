@@ -2197,27 +2197,7 @@ export default function PartnerCustomersClient({
                     ))}
                   </select>
 
-                  {/* B2B 필터 버튼 */}
-                  <div className="flex items-center gap-2 ml-2">
-                    <button
-                      onClick={() => setSourceFilter(sourceFilter === 'B2B_LANDING' ? 'ALL' : 'B2B_LANDING')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${sourceFilter === 'B2B_LANDING'
-                        ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-200'
-                        : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-100'
-                        }`}
-                    >
-                      B2B 유입
-                    </button>
-                    <button
-                      onClick={() => setSourceFilter(sourceFilter === 'TRIAL_DASHBOARD' ? 'ALL' : 'TRIAL_DASHBOARD')}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors ${sourceFilter === 'TRIAL_DASHBOARD'
-                        ? 'bg-green-600 text-white shadow-md ring-2 ring-green-200'
-                        : 'bg-green-50 text-green-700 hover:bg-green-100 border border-green-100'
-                        }`}
-                    >
-                      B2B 컨설팅 상담
-                    </button>
-                  </div>
+
                 </div>
                 <div className="flex gap-3">
                   <button
