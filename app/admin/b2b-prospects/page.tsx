@@ -29,6 +29,20 @@ interface B2BProspect {
     } | null;
 }
 
+interface SystemConsultation {
+    id: number;
+    name: string;
+    phone: string;
+    message: string | null;
+    status: string;
+    createdAt: string;
+    manager: {
+        id: number;
+        displayName: string | null;
+        affiliateCode: string | null;
+    } | null;
+}
+
 export default function B2BProspectsPage() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'B2B' | 'SYSTEM'>('B2B');
@@ -42,6 +56,9 @@ export default function B2BProspectsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
 
     // System Consultation State
+    const [consultations, setConsultations] = useState<SystemConsultation[]>([]);
+    const [loadingSystem, setLoadingSystem] = useState(true);
+    const [systemSearch, setSystemSearch] = useState('');
     const [selectedConsultations, setSelectedConsultations] = useState<Set<number>>(new Set());
 
     // DB Assignment State
