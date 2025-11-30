@@ -4,6 +4,8 @@ import { requirePartnerContext } from '@/app/api/partner/_utils';
 import { getManagedUserIds } from '../_utils';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const { profile } = await requirePartnerContext();

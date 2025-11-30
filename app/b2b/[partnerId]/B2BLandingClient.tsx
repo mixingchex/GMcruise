@@ -39,10 +39,10 @@ function setTrialSession(session: TrialSession): void {
 
 interface B2BLandingClientProps {
     partnerId?: string;
-    template: string;
+    initialTemplate: string;
 }
 
-export default function B2BLandingClient({ partnerId, template }: B2BLandingClientProps) {
+export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLandingClientProps) {
     const router = useRouter();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
@@ -141,7 +141,7 @@ export default function B2BLandingClient({ partnerId, template }: B2BLandingClie
     }
 
     // Template Parsing
-    const parts = template.split(/<!-- FORM_(TOP|MIDDLE) -->/);
+    const parts = initialTemplate.split(/<!-- FORM_(TOP|MIDDLE) -->/);
     // parts[0] = content before TOP
     // parts[1] = "TOP" (captured group)
     // parts[2] = content between TOP and MIDDLE

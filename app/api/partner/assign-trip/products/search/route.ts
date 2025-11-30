@@ -3,6 +3,8 @@ import { requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     await requirePartnerContext();
@@ -14,9 +16,9 @@ export async function GET(req: NextRequest) {
         saleStatus: { not: '판매중지' },
         OR: query
           ? [
-              { packageName: { contains: query, mode: 'insensitive' } },
-              { productCode: { contains: query, mode: 'insensitive' } },
-            ]
+            { packageName: { contains: query, mode: 'insensitive' } },
+            { productCode: { contains: query, mode: 'insensitive' } },
+          ]
           : undefined,
       },
       select: {
