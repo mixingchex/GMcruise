@@ -194,6 +194,7 @@ export async function POST(req: NextRequest) {
         affiliateCode,
         affiliateMallUserId: finalPartnerId, // URL 파라미터를 최우선으로 사용
         metadata: paymentData.metadata,
+        updatedAt: new Date(), // 필수 필드 추가
       },
     });
 

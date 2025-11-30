@@ -250,13 +250,48 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
       const data = await response.json();
 
       if (data.ok) {
-        alert('결제 요청이 생성되었습니다. (웰컴페이먼츠 연동 필요)');
-        console.log('Payment data:', data.paymentData);
-        const query = new URLSearchParams();
-        if (data.orderId) query.set('orderId', data.orderId);
-        if (productCode) query.set('productCode', productCode);
-        if (chatSessionId) query.set('sessionId', chatSessionId);
-        router.push(`/payment/success${query.toString() ? `?${query.toString()}` : ''}`);
+        // 웰컴페이먼츠 결제 - Form POST 방식으로 결제창 호출
+        if (data.paymentData) {
+          const pd = data.paymentData;
+          
+          // 숨겨진 폼 생성 및 POST 제출
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
+          form.acceptCharset = 'UTF-8';
+          
+          // 웰컴페이먼츠 표준결제 파라미터 (P_ 접두사 형식)
+          const params: Record<string, string> = {
+            P_MID: pd.mid || '',
+            P_OID: pd.orderId || '',
+            P_GOODS: pd.productName || '',
+            P_AMT: String(pd.amount || 0),
+            P_UNAME: pd.buyerName || '',
+            P_MOBILE: pd.buyerTel || '',
+            P_EMAIL: pd.buyerEmail || '',
+            P_NEXT_URL: pd.returnUrl || '',
+            P_NOTI_URL: pd.notifyUrl || '',
+            P_CHARSET: 'utf8',
+            P_RESERVED: 'below1000=Y',
+          };
+          
+          Object.entries(params).forEach(([key, value]) => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            form.appendChild(input);
+          });
+          
+          document.body.appendChild(form);
+          form.submit();
+        } else if (data.paymentUrl) {
+          // fallback: URL 리다이렉트
+          window.location.href = data.paymentUrl;
+        } else {
+          console.error('[Payment] paymentData/paymentUrl not provided:', data);
+          alert('결제 정보를 생성할 수 없습니다. 관리자에게 문의해주세요.');
+        }
       } else {
         alert('결제 요청 실패: ' + (data.error || 'Unknown error'));
       }
@@ -607,16 +642,6 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
 
                 {/* 결제 버튼 */}
                 <div className="pt-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    {/* 이전으로 가기 버튼 (아주 작게, < 표시만) */}
-                    <Link
-                      href="/"
-                      className="text-gray-400 hover:text-gray-600 text-[10px] transition-colors"
-                      title="크루즈몰로 돌아가기"
-                    >
-                      &lt;
-                    </Link>
-                  </div>
                   <button
                     type="submit"
                     disabled={isProcessing || !canProceed()}
