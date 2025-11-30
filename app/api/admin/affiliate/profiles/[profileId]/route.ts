@@ -3,13 +3,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { profileInclude } from '../shared';
 
-import { profileInclude, serializeProfile, toNullableString, syncSalesAgentMentor } from '../shared';
-
-function normalizePhone(phone: string | null | undefined) {
-  if (!phone) return null;
+function normalizePhone(phone: string) {
   const digits = phone.replace(/[^0-9]/g, '');
-  if (!digits) return null;
   if (digits.length === 11) {
     return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
   }
@@ -19,26 +16,29 @@ function normalizePhone(phone: string | null | undefined) {
   return digits;
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ profileId: string }> }) {
+// GET: 프로필 상세 조회
+export async function GET(
+  req: NextRequest,
+  props: { params: Promise<{ profileId: string }> }
+) {
   try {
+    const params = await props.params;
+    const profileIdStr = params.profileId;
+    const profileId = Number(profileIdStr);
+
+    if (!profileId || Number.isNaN(profileId)) {
+      return NextResponse.json(
+        { ok: false, message: '유효한 프로필 ID가 필요합니다.' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
-    }
-
-    const dbUser = await prisma.user.findUnique({
-      where: { id: sessionUser.id },
-      select: { role: true },
-    });
-
-    if (dbUser?.role !== 'admin') {
-      return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
-    }
-
-    const { profileId: profileIdStr } = await params;
-    const profileId = Number(profileIdStr);
-    if (!profileId || Number.isNaN(profileId)) {
-      return NextResponse.json({ ok: false, message: '유효한 프로필 ID가 필요합니다.' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, message: 'Unauthorized' },
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     const profile = await prisma.affiliateProfile.findUnique({
@@ -47,21 +47,48 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prof
     });
 
     if (!profile) {
-      return NextResponse.json({ ok: false, message: '프로필을 찾을 수 없습니다.' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, message: '프로필을 찾을 수 없습니다.' },
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    return NextResponse.json({ ok: true, profile: serializeProfile(profile, true) }); // 관리자이므로 비밀번호 포함
-  } catch (error) {
-    console.error(`GET /api/admin/affiliate/profiles/${params.profileId} error:`, error);
-    return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
+    return NextResponse.json(
+      { ok: true, profile },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('[GET Profile] error:', error);
+    return NextResponse.json(
+      { ok: false, message: error.message || 'Server error' },
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ profileId: string }> }) {
+// PUT: 프로필 수정
+export async function PUT(
+  req: NextRequest,
+  props: { params: Promise<{ profileId: string }> }
+) {
   try {
+    const params = await props.params;
+    const profileIdStr = params.profileId;
+    const profileId = Number(profileIdStr);
+
+    if (!profileId || Number.isNaN(profileId)) {
+      return NextResponse.json(
+        { ok: false, message: '유효한 프로필 ID가 필요합니다.' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, message: 'Unauthorized' },
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     const dbUser = await prisma.user.findUnique({
@@ -70,192 +97,119 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ prof
     });
 
     if (dbUser?.role !== 'admin') {
-      return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, message: 'Admin access required' },
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
-    const { profileId: profileIdStr } = await params;
-    const profileId = Number(profileIdStr);
-    if (!profileId || Number.isNaN(profileId)) {
-      return NextResponse.json({ ok: false, message: '유효한 프로필 ID가 필요합니다.' }, { status: 400 });
-    }
+    const body = await req.json();
+    const {
+      type,
+      status,
+      displayName,
+      branchLabel,
+      nickname,
+      contactPhone,
+      contactEmail,
+      bankName,
+      bankAccount,
+      bankAccountHolder,
+      withholdingRate,
+      contractStatus,
+      published,
+      landingSlug,
+      invitedByProfileId,
+    } = body;
 
-    const existing = await prisma.affiliateProfile.findUnique({
+    const existingProfile = await prisma.affiliateProfile.findUnique({
       where: { id: profileId },
+      select: { id: true, type: true, metadata: true },
+    });
+
+    if (!existingProfile) {
+      return NextResponse.json(
+        { ok: false, message: '프로필을 찾을 수 없습니다.' },
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (type !== undefined) updateData.type = type;
+    if (status !== undefined) updateData.status = status;
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (branchLabel !== undefined) updateData.branchLabel = branchLabel;
+    if (nickname !== undefined) updateData.nickname = nickname;
+    if (contactPhone !== undefined) updateData.contactPhone = contactPhone;
+    if (contactEmail !== undefined) updateData.contactEmail = contactEmail;
+    if (bankName !== undefined) updateData.bankName = bankName;
+    if (bankAccount !== undefined) updateData.bankAccount = bankAccount;
+    if (bankAccountHolder !== undefined) updateData.bankAccountHolder = bankAccountHolder;
+    if (withholdingRate !== undefined) updateData.withholdingRate = withholdingRate;
+    if (contractStatus !== undefined) updateData.contractStatus = contractStatus;
+    if (published !== undefined) {
+      updateData.published = published;
+      if (published && !existingProfile.metadata) {
+        updateData.publishedAt = new Date();
+      }
+    }
+    if (landingSlug !== undefined) updateData.landingSlug = landingSlug;
+
+    if (invitedByProfileId !== undefined) {
+      const existingMetadata = (existingProfile.metadata as any) || {};
+      updateData.metadata = {
+        ...existingMetadata,
+        invitedByProfileId: invitedByProfileId || null,
+      };
+    }
+
+    const updatedProfile = await prisma.affiliateProfile.update({
+      where: { id: profileId },
+      data: updateData,
       include: profileInclude,
     });
 
-    if (!existing) {
-      return NextResponse.json({ ok: false, message: '프로필을 찾을 수 없습니다.' }, { status: 404 });
-    }
-
-    const data = await req.json();
-
-    const updateData: Record<string, unknown> = {};
-    let shouldUpdateMallUser = false;
-    let mallUserIdValue: string | null = null;
-
-    if (data.type && ['HQ', 'BRANCH_MANAGER', 'SALES_AGENT'].includes(data.type)) {
-      updateData.type = data.type;
-    }
-
-    if (data.status && ['DRAFT', 'AWAITING_APPROVAL', 'ACTIVE', 'SUSPENDED', 'TERMINATED'].includes(data.status)) {
-      updateData.status = data.status;
-    }
-
-    if (data.displayName !== undefined) updateData.displayName = toNullableString(data.displayName) ?? null;
-    if (data.branchLabel !== undefined) updateData.branchLabel = toNullableString(data.branchLabel) ?? null;
-    if (data.nickname !== undefined) updateData.nickname = toNullableString(data.nickname) ?? null;
-    if (data.profileTitle !== undefined) updateData.profileTitle = toNullableString(data.profileTitle) ?? null;
-    if (data.bio !== undefined) updateData.bio = toNullableString(data.bio) ?? null;
-    if (data.profileImage !== undefined) updateData.profileImage = toNullableString(data.profileImage) ?? null;
-    if (data.coverImage !== undefined) updateData.coverImage = toNullableString(data.coverImage) ?? null;
-    if (data.contactPhone !== undefined) updateData.contactPhone = toNullableString(data.contactPhone) ?? null;
-    if (data.contactEmail !== undefined) updateData.contactEmail = toNullableString(data.contactEmail) ?? null;
-    if (data.kakaoLink !== undefined) updateData.kakaoLink = toNullableString(data.kakaoLink) ?? null;
-    if (data.instagramHandle !== undefined) updateData.instagramHandle = toNullableString(data.instagramHandle) ?? null;
-    if (data.youtubeChannel !== undefined) updateData.youtubeChannel = toNullableString(data.youtubeChannel) ?? null;
-    if (data.homepageUrl !== undefined) updateData.homepageUrl = toNullableString(data.homepageUrl) ?? null;
-    if (data.landingSlug !== undefined) updateData.landingSlug = toNullableString(data.landingSlug) ?? null;
-    if (data.landingAnnouncement !== undefined) updateData.landingAnnouncement = toNullableString(data.landingAnnouncement) ?? null;
-    if (data.welcomeMessage !== undefined) updateData.welcomeMessage = toNullableString(data.welcomeMessage) ?? null;
-    if (data.bankName !== undefined) updateData.bankName = toNullableString(data.bankName) ?? null;
-    if (data.bankAccount !== undefined) updateData.bankAccount = toNullableString(data.bankAccount) ?? null;
-    if (data.bankAccountHolder !== undefined) updateData.bankAccountHolder = toNullableString(data.bankAccountHolder) ?? null;
-
-    if (data.withholdingRate !== undefined) {
-      const rate = Number(data.withholdingRate);
-      if (!Number.isNaN(rate)) {
-        updateData.withholdingRate = rate;
-      }
-    }
-
-    if (data.contractStatus && ['DRAFT', 'REQUESTED', 'SENT', 'SIGNED', 'ARCHIVED'].includes(data.contractStatus)) {
-      updateData.contractStatus = data.contractStatus;
-    }
-
-    if (data.metadata !== undefined) {
-      updateData.metadata = data.metadata;
-    }
-
-    if (data.mallUserId !== undefined) {
-      shouldUpdateMallUser = true;
-      const converted = toNullableString(data.mallUserId);
-      mallUserIdValue = converted === undefined ? null : converted;
-    }
-
-    // 비밀번호 변경 (판매원이 그만두면 본사에서 비밀번호 변경 가능)
-    let shouldUpdatePassword = false;
-    let newPassword: string | null = null;
-    if (data.password !== undefined) {
-      const passwordValue = toNullableString(data.password);
-      if (passwordValue && passwordValue.trim()) {
-        shouldUpdatePassword = true;
-        newPassword = passwordValue.trim();
-      } else if (passwordValue === null || passwordValue === '') {
-        // 빈 문자열이면 비밀번호 변경 안 함
-        shouldUpdatePassword = false;
-      }
-    }
-
-    if (data.published !== undefined) {
-      updateData.published = Boolean(data.published);
-      updateData.publishedAt = data.published ? new Date() : null;
-    }
-
-    const newType = (updateData.type as 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT' | undefined) ?? existing.type;
-
-    let shouldSyncMentor = false;
-    let targetManagerProfileId: number | null = null;
-
-    if (newType !== 'SALES_AGENT') {
-      shouldSyncMentor = true;
-      targetManagerProfileId = null;
-    } else if (data.managerProfileId !== undefined) {
-      shouldSyncMentor = true;
-      const rawManager = data.managerProfileId;
-      if (rawManager === null || String(rawManager).trim() === '' || String(rawManager).toUpperCase() === 'HQ') {
-        targetManagerProfileId = null;
-      } else {
-        const parsedManagerId = Number(rawManager);
-        if (!parsedManagerId || Number.isNaN(parsedManagerId)) {
-          return NextResponse.json({ ok: false, message: '유효한 대리점장 ID가 필요합니다.' }, { status: 400 });
-        }
-
-        const managerProfile = await prisma.affiliateProfile.findUnique({
-          where: { id: parsedManagerId },
-          select: { id: true, type: true, status: true },
-        });
-
-        if (!managerProfile || managerProfile.type !== 'BRANCH_MANAGER') {
-          return NextResponse.json({ ok: false, message: '대리점장 프로필만 지정할 수 있습니다.' }, { status: 400 });
-        }
-
-        targetManagerProfileId = managerProfile.id;
-      }
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      if (!shouldSyncMentor && !shouldUpdatePassword && !shouldUpdateMallUser) {
-        return NextResponse.json({ ok: false, message: '업데이트할 필드가 없습니다.' }, { status: 400 });
-      }
-    } else {
-      await prisma.affiliateProfile.update({
-        where: { id: profileId },
-        data: updateData as any,
-      });
-    }
-
-    // 비밀번호 변경 (판매원이 그만두면 본사에서 비밀번호 변경 가능)
-    if (shouldUpdatePassword && existing.userId && newPassword) {
-      const oldPassword = existing.user?.password || '';
-      await prisma.user.update({
-        where: { id: existing.userId },
-        data: { password: newPassword },
-      });
-      // 비밀번호 변경 이벤트 기록
-      try {
-        await prisma.passwordEvent.create({
-          data: {
-            userId: existing.userId,
-            from: oldPassword,
-            to: newPassword,
-            reason: `본사에서 비밀번호 변경 (관리자 ID: ${sessionUser.id})`,
-          },
-        });
-      } catch (eventError) {
-        // passwordEvent 테이블이 없을 수 있으므로 에러 무시
-        console.warn('[Password Event] 기록 실패:', eventError);
-      }
-    }
-
-    if (shouldUpdateMallUser && existing.userId) {
-      await prisma.user.update({
-        where: { id: existing.userId },
-        data: { mallUserId: mallUserIdValue },
-      });
-    }
-
-    if (shouldSyncMentor) {
-      await syncSalesAgentMentor(profileId, targetManagerProfileId);
-    }
-
-    const refreshed = await prisma.affiliateProfile.findUnique({
-      where: { id: profileId },
-      include: profileInclude,
-    });
-
-    return NextResponse.json({ ok: true, profile: serializeProfile(refreshed!, true) }); // 관리자이므로 비밀번호 포함
-  } catch (error) {
-    console.error(`PUT /api/admin/affiliate/profiles/${params.profileId} error:`, error);
-    return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
+    return NextResponse.json(
+      { ok: true, profile: updatedProfile },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error('[PUT Profile] error:', error);
+    return NextResponse.json(
+      { ok: false, message: error.message || 'Server error' },
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ profileId: string }> }) {
+// DELETE: 프로필 삭제
+export async function DELETE(
+  _req: NextRequest,
+  props: { params: Promise<{ profileId: string }> }
+) {
+  let profileId: number | null = null;
+
   try {
+    const params = await props.params;
+    const profileIdStr = params.profileId;
+    profileId = Number(profileIdStr);
+
+    if (!profileId || Number.isNaN(profileId)) {
+      return NextResponse.json(
+        { ok: false, message: '유효한 프로필 ID가 필요합니다.' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, message: 'Unauthorized' },
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     const dbUser = await prisma.user.findUnique({
@@ -264,13 +218,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     });
 
     if (dbUser?.role !== 'admin') {
-      return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
-    }
-
-    const { profileId: profileIdStr } = await params;
-    const profileId = Number(profileIdStr);
-    if (!profileId || Number.isNaN(profileId)) {
-      return NextResponse.json({ ok: false, message: '유효한 프로필 ID가 필요합니다.' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, message: 'Admin access required' },
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     const profile = await prisma.affiliateProfile.findUnique({
@@ -280,23 +231,30 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         type: true,
         userId: true,
         contactPhone: true,
-        user: {
+        User: {
           select: { phone: true },
         },
       },
     });
 
     if (!profile) {
-      return NextResponse.json({ ok: false, message: '프로필을 찾을 수 없습니다.' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, message: '프로필을 찾을 수 없습니다.' },
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
+    // HQ 프로필만 삭제 불가
     if (profile.type === 'HQ') {
-      return NextResponse.json({ ok: false, message: 'HQ 프로필은 삭제할 수 없습니다.' }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, message: 'HQ 프로필은 삭제할 수 없습니다.' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     await prisma.$transaction(async (tx) => {
       const phoneCandidates = new Set<string>();
-      const rawPhones = [profile.contactPhone, profile.user?.phone];
+      const rawPhones = [profile.contactPhone, profile.User?.phone];
       rawPhones.forEach((value) => {
         if (!value) return;
         const normalized = normalizePhone(value);
@@ -311,20 +269,29 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         contractConditions.push({ userId: profile.userId });
       }
 
-      contractConditions.push({ metadata: { path: ['affiliateProfileId'], equals: profileId } });
+      const existingMetadata = (profile as any).metadata || {};
+      if (existingMetadata.invitedByProfileId) {
+        contractConditions.push({
+          metadata: {
+            path: ['invitedByProfileId'],
+            equals: profile.id,
+          },
+        });
+      }
 
       if (phoneCandidates.size > 0) {
-        contractConditions.push({ phone: { in: Array.from(phoneCandidates) } });
+        contractConditions.push({
+          phone: { in: Array.from(phoneCandidates) },
+        });
       }
 
       let contractIds: number[] = [];
-
       if (contractConditions.length > 0) {
-        const relatedContracts = await tx.affiliateContract.findMany({
+        const contracts = await tx.affiliateContract.findMany({
           where: { OR: contractConditions },
           select: { id: true },
         });
-        contractIds = relatedContracts.map((contract) => contract.id);
+        contractIds = contracts.map((c) => c.id);
       }
 
       if (contractIds.length > 0) {
@@ -337,16 +304,29 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         });
       }
 
-      await tx.affiliateProfile.delete({ where: { id: profileId } });
-      await tx.user.update({
-        where: { id: profile.userId },
-        data: { mallUserId: null, mallNickname: null },
-      });
+      await tx.affiliateProfile.delete({ where: { id: profileId! } });
+
+      if (profile.userId) {
+        await tx.user.update({
+          where: { id: profile.userId },
+          data: { mallUserId: null, mallNickname: null },
+        });
+      }
     });
 
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error(`DELETE /api/admin/affiliate/profiles/${params.profileId} error:`, error);
-    return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
+    return NextResponse.json(
+      { ok: true, message: '프로필이 성공적으로 삭제되었습니다.' },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  } catch (error: any) {
+    console.error(`[DELETE Profile ${profileId}] error:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Server error';
+    return NextResponse.json(
+      {
+        ok: false,
+        message: `프로필 삭제 중 오류가 발생했습니다: ${errorMessage}`
+      },
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }

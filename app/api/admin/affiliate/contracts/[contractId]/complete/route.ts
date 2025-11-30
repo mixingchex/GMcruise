@@ -13,13 +13,15 @@ import { join } from 'path';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ contractId: string }> }
+  props: { params: Promise<{ contractId: string }> }
 ) {
   try {
-    const resolvedParams = await Promise.resolve(params);
-    const contractId = Number(resolvedParams.contractId);
+    const params = await props.params;
+    const contractIdStr = params.contractId;
+    const contractId = Number(contractIdStr);
+
     if (!contractId || Number.isNaN(contractId)) {
-      return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, { 
+      return NextResponse.json({ ok: false, message: 'Invalid contract ID' }, {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -27,7 +29,7 @@ export async function POST(
 
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { 
+      return NextResponse.json({ ok: false, message: 'Unauthorized' }, {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -41,7 +43,7 @@ export async function POST(
     if (admin?.role !== 'admin') {
       return NextResponse.json(
         { ok: false, message: 'Admin access required' },
-        { 
+        {
           status: 403,
           headers: { 'Content-Type': 'application/json' }
         }
@@ -62,7 +64,7 @@ export async function POST(
     });
 
     if (!contract) {
-      return NextResponse.json({ ok: false, message: '계약서를 찾을 수 없습니다.' }, { 
+      return NextResponse.json({ ok: false, message: '계약서를 찾을 수 없습니다.' }, {
         status: 404,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -77,7 +79,7 @@ export async function POST(
     const metadata = contract.metadata as any;
     const signatures = metadata?.signatures || {};
     const hasSignature = signatures.main?.url || signatures.education?.url || signatures.b2b?.url;
-    
+
     if (!hasSignature) {
       return NextResponse.json({ ok: false, message: '서명이 완료되지 않은 계약서입니다.' }, { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
@@ -107,7 +109,7 @@ export async function POST(
 
     // PDF 생성 및 이메일 전송
     const recipientName = contract.name || contract.User_AffiliateContract_userIdToUser?.name || '계약자';
-    
+
     // 계약자에게 PDF 전송
     const pdfResult = await sendContractPDFByEmail(
       contractId,
@@ -149,13 +151,13 @@ export async function POST(
     let pdfUrl: string | null = null;
     if (contract.invitedByProfileId) {
       console.log('[Admin Contract Complete] 구글 드라이브 백업 시작...');
-      
+
       // 1. 계약서 PDF 업로드
       const pdfUploadResult = await uploadContractPDFToDrive(contractId);
       if (pdfUploadResult.ok) {
         pdfUrl = pdfUploadResult.url;
         console.log('[Admin Contract Complete] 계약서 PDF 구글 드라이브 업로드 성공:', pdfUploadResult.url);
-        
+
         // PDF URL을 metadata에 저장
         await prisma.affiliateContract.update({
           where: { id: contractId },
@@ -246,7 +248,7 @@ export async function POST(
     console.error(`[Admin Contract Complete] error:`, error);
     return NextResponse.json(
       { ok: false, message: error.message || '계약서 완료 처리 중 오류가 발생했습니다.' },
-      { 
+      {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       }

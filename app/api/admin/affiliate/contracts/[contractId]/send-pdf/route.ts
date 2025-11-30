@@ -17,18 +17,18 @@ function requireAdmin(role?: string | null) {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ contractId: string }> }
+  props: { params: Promise<{ contractId: string }> }
 ) {
   try {
     // Next.js 15: params는 Promise이므로 await 필요
-    const resolvedParams = await params;
-    const contractIdStr = resolvedParams.contractId;
-    
+    const params = await props.params;
+    const contractIdStr = params.contractId;
+
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
       return NextResponse.json(
         { ok: false, message: 'Unauthorized' },
-        { 
+        {
           status: 401,
           headers: { 'Content-Type': 'application/json' }
         }
@@ -50,7 +50,7 @@ export async function POST(
     if (isNaN(contractId)) {
       return NextResponse.json(
         { ok: false, message: 'Invalid contract ID' },
-        { 
+        {
           status: 400,
           headers: { 'Content-Type': 'application/json' }
         }
@@ -73,7 +73,7 @@ export async function POST(
     if (!contract) {
       return NextResponse.json(
         { ok: false, message: '계약서를 찾을 수 없습니다.' },
-        { 
+        {
           status: 404,
           headers: { 'Content-Type': 'application/json' }
         }
@@ -85,7 +85,7 @@ export async function POST(
     if (!recipientEmail) {
       return NextResponse.json(
         { ok: false, message: '계약서에 이메일 주소가 없습니다. 이메일을 입력해주세요.' },
-        { 
+        {
           status: 400,
           headers: { 'Content-Type': 'application/json' }
         }
@@ -94,10 +94,10 @@ export async function POST(
 
     const recipientName = contract.name || contract.User_AffiliateContract_userIdToUser?.name || '계약자';
     const contractName = recipientName;
-    
+
     // 본사 이메일 (CC로 추가)
     const headOfficeEmail = 'hyeseon28@gmail.com';
-    
+
     // PDF 생성 및 이메일 전송 (계약자 이메일로 전송, 본사는 CC)
     const pdfResult = await sendContractPDFByEmail(
       contractId,
@@ -127,7 +127,7 @@ export async function POST(
           message: `PDF 전송에 실패했습니다: ${errorMessage}`,
           error: errorMessage,
         },
-        { 
+        {
           status: 500,
           headers: { 'Content-Type': 'application/json' }
         }
@@ -149,16 +149,16 @@ export async function POST(
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('[Admin Contract Send PDF] Error details:', { errorMessage, errorStack });
-    
+
     // JSON 응답이 항상 유효하도록 보장
     try {
       return NextResponse.json(
-        { 
-          ok: false, 
+        {
+          ok: false,
           message: `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
           error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         },
-        { 
+        {
           status: 500,
           headers: {
             'Content-Type': 'application/json',
@@ -168,11 +168,11 @@ export async function POST(
     } catch (jsonError) {
       // JSON 응답 생성 실패 시 텍스트 응답
       return new NextResponse(
-        JSON.stringify({ 
-          ok: false, 
+        JSON.stringify({
+          ok: false,
           message: `PDF 전송 중 오류가 발생했습니다: ${errorMessage}`,
         }),
-        { 
+        {
           status: 500,
           headers: {
             'Content-Type': 'application/json',

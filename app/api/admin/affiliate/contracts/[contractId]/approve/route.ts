@@ -41,7 +41,7 @@ async function generatePartnerId(type: 'BRANCH_MANAGER' | 'SALES_AGENT' | 'SUBSC
   } else {
     prefix = 'user';
   }
-  
+
   // phone 필드에서 해당 prefix 형식 찾기 (이름 포함/미포함 모두)
   const existing = await prisma.user.findMany({
     where: {
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
       contractInvitedByProfileId: contract.invitedByProfileId,
       metadataInvitedByProfileId: sourceMeta?.invitedByProfileId,
     });
-    
+
     // contractType이 있으면 우선 사용, 없으면 invitedByProfileId로 판단
     let partnerType: 'BRANCH_MANAGER' | 'SALES_AGENT' | 'SUBSCRIPTION_AGENT' = 'SALES_AGENT';
     if (contractType === 'BRANCH_MANAGER') {
@@ -163,9 +163,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     let userId = contract.userId;
     let userRecord = contract.User_AffiliateContract_userIdToUser
       ? await prisma.user.findUnique({
-          where: { id: contract.userId! },
-          select: { id: true, phone: true, mallUserId: true, mallNickname: true, role: true, password: true },
-        })
+        where: { id: contract.userId! },
+        select: { id: true, phone: true, mallUserId: true, mallNickname: true, role: true, password: true },
+      })
       : null;
 
     // 기존 사용자가 있고 이미 boss1/user1/gest1 형식이면 그대로 사용 (이름 포함/미포함 모두)
@@ -183,7 +183,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
       // 기존 사용자 확인 (phone으로)
       const normalizedPhone = normalizePhone(contract.phone);
       const digitsPhone = contract.phone.replace(/[^0-9]/g, '');
-      
+
       const existingUser = await prisma.user.findFirst({
         where: {
           OR: [{ phone: normalizedPhone }, { phone: digitsPhone }],
@@ -204,7 +204,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 60); // 60일 후
         const expiresAtStr = expiresAt.toISOString().split('T')[0]; // YYYY-MM-DD 형식
-        
+
         const newUser = await prisma.user.create({
           data: {
             name: contract.name,
@@ -217,6 +217,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
             adminMemo: `Auto-created from affiliate contract approval by admin ${sessionUser.id}. Valid until ${expiresAtStr}`,
             mallUserId: partnerId, // mallUserId에도 동일하게 저장 (호환성)
             mallNickname: contract.name,
+            updatedAt: new Date(), // 필수 필드 추가
           },
           select: { id: true, phone: true, mallUserId: true, mallNickname: true, role: true, password: true },
         });
@@ -245,7 +246,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     // 유효기간 60일 설정
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 60); // 60일 후
-    
+
     const updateData: Record<string, unknown> = {};
     if (!userRecord.phone || !userRecord.phone.match(partnerIdPattern)) {
       updateData.phone = partnerId;
@@ -260,28 +261,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     // 비밀번호가 1101이 아니면 1101로 설정
     if (userRecord.password !== '1101') {
       updateData.password = '1101';
-      // 비밀번호 변경 이벤트 기록
-      await prisma.passwordEvent.create({
-        data: {
-          userId: userRecord.id,
-          from: userRecord.password,
-          to: '1101',
-          reason: `계약서 승인 시 자동 설정 (관리자 ID: ${sessionUser.id})`,
-        },
-      });
+      // 비밀번호 변경 이벤트 기록 (실패해도 계속 진행)
+      try {
+        await prisma.passwordEvent.create({
+          data: {
+            userId: userRecord.id,
+            from: userRecord.password,
+            to: '1101',
+            reason: `계약서 승인 시 자동 설정 (관리자 ID: ${sessionUser.id})`,
+          },
+        });
+      } catch (eventError) {
+        console.warn('[Approve Contract] passwordEvent 기록 실패 (무시하고 계속 진행):', eventError);
+      }
     }
-    
+
     // User 모델에는 metadata 필드가 없으므로 adminMemo에 유효기간 정보 저장
     const expiresAtStr = expiresAt.toISOString().split('T')[0]; // YYYY-MM-DD 형식
     const accountInfo = `계약서 승인 (${new Date().toISOString().split('T')[0]}) - 유효기간: ${expiresAtStr} (관리자 ID: ${sessionUser.id})`;
-    
+
     // updateData에 adminMemo 추가 (기존 메모가 있으면 추가)
     if (Object.keys(updateData).length > 0) {
       const existingMemo = (userRecord as any).adminMemo || '';
-      updateData.adminMemo = existingMemo 
+      updateData.adminMemo = existingMemo
         ? `${existingMemo}\n${accountInfo}`
         : accountInfo;
-      
+
       const updated = await prisma.user.update({
         where: { id: userRecord.id },
         data: updateData,
@@ -292,7 +297,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
 
     const finalPartnerId = userRecord.phone || partnerId;
 
-    const existingProfile = await prisma.affiliateProfile.findUnique({ 
+    const existingProfile = await prisma.affiliateProfile.findUnique({
       where: { userId },
       include: profileInclude,
     });
@@ -362,40 +367,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
 
       // 프로필 생성 시 모든 필수 필드 채우기
       const payload: Record<string, unknown> = {
-      userId: userId, // userId 직접 사용 (connect 대신)
-      affiliateCode,
-      type: partnerType,
-      status: 'ACTIVE', // 상태: 활성
-      displayName: contract.name, // 표시명
-      branchLabel: invitedByProfileId ? null : (partnerType === 'BRANCH_MANAGER' ? contract.name : undefined), // 지점명 (대리점장인 경우)
-      nickname: contract.name, // 닉네임
-      contactPhone: contract.phone, // 연락처
-      contactEmail: contract.email || null, // 이메일
-      bankName: contract.bankName || null, // 은행명
-      bankAccount: contract.bankAccount || null, // 계좌번호
-      bankAccountHolder: contract.bankAccountHolder || null, // 예금주
-      withholdingRate: 3.3, // 원천징수율
-      contractStatus: 'SIGNED', // 계약 상태: 서명됨
-      contractSignedAt: now, // 계약 서명일
-      published: true, // 노출: 활성화
-      publishedAt: now, // 노출 시작일
-      updatedAt: now, // 수정일 (필수 필드)
-      metadata: invitedByProfileId
-        ? {
+        userId: userId, // userId 직접 사용 (connect 대신)
+        affiliateCode,
+        type: partnerType,
+        status: 'ACTIVE', // 상태: 활성
+        displayName: contract.name, // 표시명
+        branchLabel: invitedByProfileId ? null : (partnerType === 'BRANCH_MANAGER' ? contract.name : undefined), // 지점명 (대리점장인 경우)
+        nickname: contract.name, // 닉네임
+        contactPhone: contract.phone, // 연락처
+        contactEmail: contract.email || null, // 이메일
+        bankName: contract.bankName || null, // 은행명
+        bankAccount: contract.bankAccount || null, // 계좌번호
+        bankAccountHolder: contract.bankAccountHolder || null, // 예금주
+        withholdingRate: 3.3, // 원천징수율
+        contractStatus: 'SIGNED', // 계약 상태: 서명됨
+        contractSignedAt: now, // 계약 서명일
+        published: true, // 노출: 활성화
+        publishedAt: now, // 노출 시작일
+        updatedAt: now, // 수정일 (필수 필드)
+        metadata: invitedByProfileId
+          ? {
             invitedByProfileId,
             createdAt: now.toISOString(),
             createdBy: sessionUser.id,
           }
-        : {
+          : {
             createdAt: now.toISOString(),
             createdBy: sessionUser.id,
           },
-    };
+      };
 
-    // landingSlug는 phone 필드의 user1, user2... 사용
-    if (!payload.landingSlug && finalPartnerId) {
-      payload.landingSlug = finalPartnerId;
-    }
+      // landingSlug는 phone 필드의 user1, user2... 사용
+      if (!payload.landingSlug && finalPartnerId) {
+        payload.landingSlug = finalPartnerId;
+      }
 
       profile = await prisma.affiliateProfile.create({
         data: payload as any,

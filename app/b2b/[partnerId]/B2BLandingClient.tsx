@@ -51,16 +51,11 @@ export default function B2BLandingClient({ partnerId, template }: B2BLandingClie
     const [checkingCache, setCheckingCache] = useState(true);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-    // 캐시된 세션 확인 (페이지 로드 시)
+    // 캐시된 세션 확인 제거 - B2B 랜딩페이지는 항상 표시되어야 함
     useEffect(() => {
-        const cachedSession = getTrialSession();
-        if (cachedSession) {
-            console.log('[Trial Login] 캐시된 세션 발견, 체험 대시보드로 이동...');
-            router.push('/trial/dashboard');
-        } else {
-            setCheckingCache(false);
-        }
-    }, [router]);
+        // B2B 랜딩페이지는 항상 표시 (세션 체크 로직 제거)
+        setCheckingCache(false);
+    }, []);
 
     // 전역 함수 등록 (HTML onclick 이벤트용)
     useEffect(() => {
