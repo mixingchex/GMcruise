@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
       });
     } else if (source === 'b2b') {
       whereConditions.push({
-        source: { in: ['test-guide', 'TRIAL_DASHBOARD', 'B2B_LANDING'] }
+        source: { in: ['test-guide', 'TRIAL_DASHBOARD', 'B2B_LANDING', 'B2B_INFLOW'] }
       });
     } else if (source) {
       whereConditions.push({ source });

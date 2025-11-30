@@ -1468,6 +1468,16 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     }
   };
 
+  // B2B 랜딩페이지 링크 섹션
+  const b2bLandingUrl = typeof window !== 'undefined' ? `${window.location.origin}/b2b/${user.mallUserId || user.phone}` : '';
+
+  const copyB2BLink = () => {
+    if (!b2bLandingUrl) return;
+    navigator.clipboard.writeText(b2bLandingUrl).then(() => {
+      showSuccess('B2B 랜딩페이지 링크가 복사되었습니다.');
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       {/* 정액제 구독 정보 고정 배너 */}
@@ -1657,6 +1667,63 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               선택된 월: {new Date(stats.selectedMonth + '-01').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })}의 최근 리드, 최근 판매, 내 판매 목록을 표시하고 있습니다. (상단 통계는 전체 누적 데이터입니다)
             </p>
           )}
+        </div>
+
+        {/* B2B 랜딩페이지 링크 섹션 */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6 border border-blue-100">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="text-2xl">🔗</span>
+                나만의 B2B 유입 랜딩페이지
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                이 링크를 통해 들어온 고객은 자동으로 'B2B 유입'으로 분류됩니다.
+              </p>
+            </div>
+            <div className="flex gap-2 w-full md:w-auto">
+              <button
+                onClick={copyB2BLink}
+                className="flex-1 md:flex-none px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-2 font-medium transition-colors"
+              >
+                <FiLink /> 링크 복사
+              </button>
+              <a
+                href={b2bLandingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2 font-medium transition-colors"
+              >
+                <FiEye /> 미리보기
+              </a>
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 break-all text-sm text-gray-600 font-mono">
+            {b2bLandingUrl}
+          </div>
+        </div>
+
+        {/* B2B 유입 및 시스템 문의 고객 리스트 (간략 보기) */}
+        <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <span className="text-2xl">👥</span>
+              최근 B2B / 시스템 문의 고객
+            </h2>
+            <Link href={`/partner/${user.mallUserId || user.phone}/customers`} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+              전체보기 <FiArrowRight />
+            </Link>
+          </div>
+
+          <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <p className="text-gray-500 mb-2">고객 관리는 '고객 관리' 메뉴에서 상세하게 확인하실 수 있습니다.</p>
+            <Link
+              href={`/partner/${user.mallUserId || user.phone}/customers`}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm"
+            >
+              <FiUsers /> 고객 관리 바로가기
+            </Link>
+          </div>
         </div>
 
         {/* 통계 카드 - 모바일 최적화 */}

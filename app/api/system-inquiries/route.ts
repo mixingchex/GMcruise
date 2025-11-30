@@ -60,7 +60,12 @@ export async function POST(req: NextRequest) {
           notes: existingAffiliateLead.notes
             ? `${existingAffiliateLead.notes}\n[시스템문의] ${message?.trim() || '시스템 이용 문의'}`
             : `[시스템문의] ${message?.trim() || '시스템 이용 문의'}`,
-          source: existingAffiliateLead.source === 'test-guide' ? 'TRIAL_DASHBOARD' : existingAffiliateLead.source, // 소스 업데이트 (선택사항, 필요시)
+          // 소스 업데이트: 기존 소스가 무엇이든 시스템 문의를 했으므로 'TRIAL_DASHBOARD'로 변경하여 '시스템 상담신청' 배지가 뜨도록 함
+          // 단, 이미 명확한 파트너 유입(B2B_LANDING)인 경우 파트너가 우선일 수 있으나, 
+          // 사용자의 요청("시스템 문의 버튼 클릭하면 TRIAL_DASHBOARD")에 따라 업데이트합니다.
+          // 다만, 파트너 식별을 위해 B2B_LANDING은 유지하는게 나을 수도 있음. 
+          // 안전하게 B2B_INFLOW, test-guide, null 인 경우에만 업데이트 하겠습니다.
+          source: ['B2B_INFLOW', 'test-guide', null].includes(existingAffiliateLead.source) ? 'TRIAL_DASHBOARD' : existingAffiliateLead.source,
           status: 'CONTACTED', // 문의가 왔으므로 상태 변경
           updatedAt: new Date(),
         }

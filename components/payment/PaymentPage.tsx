@@ -68,7 +68,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
   const [productDetail, setProductDetail] = useState<PublicProductDetail | null>(null);
   const [isProductDetailLoading, setIsProductDetailLoading] = useState(false);
   const [productDetailError, setProductDetailError] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     buyerName: '',
     buyerEmail: '',
@@ -96,7 +96,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.ok && data.user) {
@@ -122,9 +122,9 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
 
   // 카운터 증가/감소 함수
   const updateCounter = (index: number, field: keyof RoomSelection, delta: number) => {
-     const newSelections = [...roomSelections];
-     const currentValue = newSelections[index][field] as number;
-     const newValue = Math.max(0, currentValue + delta);
+    const newSelections = [...roomSelections];
+    const currentValue = newSelections[index][field] as number;
+    const newValue = Math.max(0, currentValue + delta);
     newSelections[index] = {
       ...newSelections[index],
       [field]: newValue,
@@ -220,7 +220,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!canProceed()) {
       alert('모든 필수 정보를 입력하고 객실을 선택해주세요.');
       return;
@@ -253,13 +253,13 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
         // 웰컴페이먼츠 결제 - Form POST 방식으로 결제창 호출
         if (data.paymentData) {
           const pd = data.paymentData;
-          
+
           // 숨겨진 폼 생성 및 POST 제출
           const form = document.createElement('form');
           form.method = 'POST';
-          form.action = process.env.NEXT_PUBLIC_WELCOME_STD_PAY_URL || process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
+          form.action = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://pay.welcomepayments.co.kr/payment';
           form.acceptCharset = 'UTF-8';
-          
+
           // 웰컴페이먼츠 표준결제 파라미터 (P_ 접두사 형식)
           const params: Record<string, string> = {
             P_MID: pd.mid || '',
@@ -274,7 +274,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
             P_CHARSET: 'utf8',
             P_RESERVED: 'below1000=Y',
           };
-          
+
           Object.entries(params).forEach(([key, value]) => {
             const input = document.createElement('input');
             input.type = 'hidden';
@@ -282,7 +282,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
             input.value = value;
             form.appendChild(input);
           });
-          
+
           document.body.appendChild(form);
           form.submit();
         } else if (data.paymentUrl) {
@@ -362,14 +362,14 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
             {/* 요금표 및 방 선택 */}
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">객실 선택</h2>
-              
+
               {pricingRows && pricingRows.length > 0 ? (
                 <div className="space-y-6">
                   {pricingRows.map((row, index) => {
                     const selection = roomSelections[index];
                     if (!selection) return null;
 
-                    const roomTotal = 
+                    const roomTotal =
                       (selection.adult * (row.adult || 0)) +
                       (selection.adult3rd * (row.adult3rd || 0)) +
                       (selection.child2to11 * (row.child2to11 || 0)) +
@@ -378,7 +378,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
                     return (
                       <div key={row.id || index} className="border-2 border-gray-200 rounded-lg p-6 hover:border-blue-400 transition-colors">
                         <h3 className="text-xl font-bold text-gray-900 mb-4">{row.roomType}</h3>
-                        
+
                         <div className="space-y-4">
                           {/* 1,2번째 성인 */}
                           <div className="flex items-center justify-between">
@@ -645,11 +645,10 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
                   <button
                     type="submit"
                     disabled={isProcessing || !canProceed()}
-                    className={`w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-2 ${
-                      isProcessing || !canProceed()
+                    className={`w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-2 ${isProcessing || !canProceed()
                         ? 'opacity-50 cursor-not-allowed'
                         : 'hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl'
-                    }`}
+                      }`}
                   >
                     {isProcessing ? (
                       <>

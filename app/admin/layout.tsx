@@ -177,6 +177,7 @@ function AdminLayoutContent({
     { href: '/admin/affiliate/mall', label: '판매원 개인몰 관리', icon: '🛍️', section: 'affiliate' },
     { href: '/admin/affiliate/customers', label: '어필리에이트 고객 관리', icon: '👥', section: 'affiliate' },
     { href: '/admin/b2b-prospects', label: 'B2B 잠재고객 관리', icon: '🏢', section: 'affiliate' },
+    { href: '/admin/b2b-landing/editor', label: 'B2B 랜딩페이지 편집', icon: '✏️', section: 'affiliate' },
     { href: '/admin/affiliate/sales-confirmation/pending', label: '판매 확정 승인', icon: '✅', section: 'affiliate' },
     { href: '/admin/affiliate/adjustments', label: '수당 조정 승인', icon: '💰', section: 'affiliate' },
     { href: '/admin/affiliate/documents', label: '문서 관리', icon: '📄', section: 'affiliate' },
@@ -288,8 +289,8 @@ function AdminLayoutContent({
                     <button
                       onClick={() => toggleSection(key)}
                       className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${sectionExpanded[key]
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                          : 'text-gray-700 hover:bg-gray-100'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-100'
                         }`}
                     >
                       <div className="flex items-center gap-3">
@@ -308,8 +309,8 @@ function AdminLayoutContent({
                               target={(item as any).external ? '_blank' : undefined}
                               rel={(item as any).external ? 'noopener noreferrer' : undefined}
                               className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${pathname === item.href
-                                  ? 'bg-blue-100 text-blue-700 shadow'
-                                  : 'text-gray-700 hover:bg-gray-100'
+                                ? 'bg-blue-100 text-blue-700 shadow'
+                                : 'text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
                               <span className="text-lg">{item.icon}</span>
@@ -327,8 +328,8 @@ function AdminLayoutContent({
                 <button
                   onClick={() => setCustomerGroupExpanded(!customerGroupExpanded)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${customerGroupExpanded
-                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-100'
                     }`}
                 >
                   <div className="flex items-center space-x-3">
@@ -351,8 +352,8 @@ function AdminLayoutContent({
                             href={item.href}
                             prefetch={true}
                             className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${isActive
-                                ? 'bg-purple-100 text-purple-700 shadow'
-                                : 'text-gray-700 hover:bg-gray-100'
+                              ? 'bg-purple-100 text-purple-700 shadow'
+                              : 'text-gray-700 hover:bg-gray-100'
                               }`}
                           >
                             <span className="text-lg">{item.icon}</span>

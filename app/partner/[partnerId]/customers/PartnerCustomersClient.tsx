@@ -2519,7 +2519,7 @@ export default function PartnerCustomersClient({
                             ) : (
                               regularCustomers.map((customer) => {
                                 // 구매 완료 자동 표시: 나의 구매몰에서 구매한 경우
-                                const hasPurchase = customer.sales.some((sale) => sale.status === 'CONFIRMED' || sale.status === 'PENDING');
+                                const hasPurchase = customer.sales?.some((sale) => sale.status === 'CONFIRMED' || sale.status === 'PENDING');
                                 const displayStatus = hasPurchase && customer.status !== 'PURCHASED' ? 'PURCHASED' : customer.status;
 
                                 return (
@@ -2564,7 +2564,7 @@ export default function PartnerCustomersClient({
                                         {/* 고객 분류 표시 */}
                                         {(() => {
                                           // 1. 자신의 개개인 몰에서 구매고객
-                                          const hasPurchase = customer.sales.some((sale) =>
+                                          const hasPurchase = customer.sales?.some((sale) =>
                                             sale.status === 'CONFIRMED' || sale.status === 'PENDING' || sale.status === 'PAID'
                                           );
                                           // 자신의 개개인 몰에서 구매한 고객만 구매고객으로 표시
@@ -3701,7 +3701,7 @@ export default function PartnerCustomersClient({
                         </button>
                       </div>
                       {/* Empty state helper */}
-                      {selectedLead.interactions.length === 0 && (
+                      {selectedLead.interactions?.length === 0 && (
                         <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
                           <div className="font-semibold text-slate-800">등록된 상담 기록이 없습니다</div>
                           <p className="mt-1 text-xs text-slate-500">
@@ -3712,13 +3712,13 @@ export default function PartnerCustomersClient({
 
                       {/* 채팅 형식 상담 기록 */}
                       <div className="space-y-4">
-                        {selectedLead.interactions.length === 0 ? (
+                        {selectedLead.interactions?.length === 0 ? (
                           <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center text-xs text-slate-500">
                             상담 기록이 추가되면 이 영역에서 진행 상황을 확인할 수 있습니다.
                           </div>
                         ) : (
                           (() => {
-                            const groupedInteractions = groupInteractionsByDate(selectedLead.interactions);
+                            const groupedInteractions = groupInteractionsByDate(selectedLead.interactions || []);
                             return groupedInteractions.map((group) => (
                               <div key={group.date} className="space-y-3">
                                 <div className="flex items-center justify-center my-4">
