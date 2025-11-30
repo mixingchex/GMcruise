@@ -2181,9 +2181,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
               </Link>
             )}
+            {/* B2B Prospects Link */}
+            <button
+              onClick={() => router.push(`${partnerBase}/b2b-prospects`)}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all hover:shadow-md group"
+            >
+              <span className="text-2xl">🏢</span>
+              <span className="text-xs font-medium text-center text-blue-800 leading-tight">B2B 잠재고객</span>
+              <FiArrowRight className="w-3 h-3 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+
             {/* System Consultations Link */}
             <button
-              onClick={() => router.push(`${partnerBase}/system-consultations`)}
+              onClick={() => router.push(`${partnerBase}/b2b-prospects?tab=system`)}
               className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 transition-all hover:shadow-md group"
             >
               <span className="text-2xl">📞</span>

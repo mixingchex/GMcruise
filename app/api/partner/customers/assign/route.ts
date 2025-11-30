@@ -17,14 +17,14 @@ export async function POST(req: NextRequest) {
     }
 
     const { profile } = await requirePartnerContext();
-    
+
     // 대리점장만 가능
     if (profile.type !== 'BRANCH_MANAGER') {
       return NextResponse.json({ ok: false, error: 'Only branch managers can assign customers' }, { status: 403 });
     }
 
     const body = await req.json();
-    const { leadIds, agentId, customerData } = body;
+    const { leadIds, agentId, customerData, type = 'lead' } = body;
 
     if (!agentId) {
       return NextResponse.json({ ok: false, error: 'Agent ID is required' }, { status: 400 });
@@ -62,37 +62,59 @@ export async function POST(req: NextRequest) {
 
     // 기존 고객 할당
     if (leadIds && Array.isArray(leadIds) && leadIds.length > 0) {
-      for (const leadId of leadIds) {
+      for (const id of leadIds) {
         try {
-          const lead = await prisma.affiliateLead.findFirst({
-            where: {
-              id: parseInt(leadId),
-              managerId: profile.id,
-            },
-          });
+          if (type === 'consultation') {
+            const consultation = await prisma.systemConsultation.findFirst({
+              where: {
+                id: parseInt(id),
+                managerId: profile.id,
+              },
+            });
 
-          if (!lead) {
-            results.errors.push(`Lead ${leadId} not found or not owned by you`);
-            continue;
+            if (!consultation) {
+              results.errors.push(`Consultation ${id} not found or not owned by you`);
+              continue;
+            }
+
+            await prisma.systemConsultation.update({
+              where: { id: consultation.id },
+              data: {
+                agentId: agent.id,
+              },
+            });
+            results.assigned.push(consultation.id);
+
+          } else {
+            const lead = await prisma.affiliateLead.findFirst({
+              where: {
+                id: parseInt(id),
+                managerId: profile.id,
+              },
+            });
+
+            if (!lead) {
+              results.errors.push(`Lead ${id} not found or not owned by you`);
+              continue;
+            }
+
+            await prisma.affiliateLead.update({
+              where: { id: lead.id },
+              data: {
+                agentId: agent.id,
+                // 기존 managerId는 유지 (회수를 위해)
+              },
+            });
+            results.assigned.push(lead.id);
           }
-
-          await prisma.affiliateLead.update({
-            where: { id: lead.id },
-            data: {
-              agentId: agent.id,
-              // 기존 managerId는 유지 (회수를 위해)
-            },
-          });
-
-          results.assigned.push(lead.id);
         } catch (error: any) {
-          results.errors.push(`Failed to assign lead ${leadId}: ${error.message}`);
+          results.errors.push(`Failed to assign ${type} ${id}: ${error.message}`);
         }
       }
     }
 
-    // 새 고객 생성 및 할당
-    if (customerData && Array.isArray(customerData) && customerData.length > 0) {
+    // 새 고객 생성 및 할당 (SystemConsultation은 생성 로직 없음, Lead만 해당)
+    if (type === 'lead' && customerData && Array.isArray(customerData) && customerData.length > 0) {
       for (const data of customerData) {
         try {
           const { name, phone, email, notes } = data;
@@ -174,14 +196,14 @@ export async function PUT(req: NextRequest) {
     }
 
     const { profile } = await requirePartnerContext();
-    
+
     // 대리점장만 가능
     if (profile.type !== 'BRANCH_MANAGER') {
       return NextResponse.json({ ok: false, error: 'Only branch managers can recall customers' }, { status: 403 });
     }
 
     const body = await req.json();
-    const { leadIds } = body;
+    const { leadIds, type = 'lead' } = body;
 
     if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
       return NextResponse.json({ ok: false, error: 'Lead IDs are required' }, { status: 400 });
@@ -192,31 +214,52 @@ export async function PUT(req: NextRequest) {
       errors: [] as string[],
     };
 
-    for (const leadId of leadIds) {
+    for (const id of leadIds) {
       try {
-        const lead = await prisma.affiliateLead.findFirst({
-          where: {
-            id: parseInt(leadId),
-            managerId: profile.id,
-          },
-        });
+        if (type === 'consultation') {
+          const consultation = await prisma.systemConsultation.findFirst({
+            where: {
+              id: parseInt(id),
+              managerId: profile.id,
+            },
+          });
 
-        if (!lead) {
-          results.errors.push(`Lead ${leadId} not found or not owned by you`);
-          continue;
+          if (!consultation) {
+            results.errors.push(`Consultation ${id} not found or not owned by you`);
+            continue;
+          }
+
+          await prisma.systemConsultation.update({
+            where: { id: consultation.id },
+            data: {
+              agentId: null,
+            },
+          });
+          results.recalled.push(consultation.id);
+        } else {
+          const lead = await prisma.affiliateLead.findFirst({
+            where: {
+              id: parseInt(id),
+              managerId: profile.id,
+            },
+          });
+
+          if (!lead) {
+            results.errors.push(`Lead ${id} not found or not owned by you`);
+            continue;
+          }
+
+          // agentId를 null로 설정하여 회수
+          await prisma.affiliateLead.update({
+            where: { id: lead.id },
+            data: {
+              agentId: null,
+            },
+          });
+          results.recalled.push(lead.id);
         }
-
-        // agentId를 null로 설정하여 회수
-        await prisma.affiliateLead.update({
-          where: { id: lead.id },
-          data: {
-            agentId: null,
-          },
-        });
-
-        results.recalled.push(lead.id);
       } catch (error: any) {
-        results.errors.push(`Failed to recall lead ${leadId}: ${error.message}`);
+        results.errors.push(`Failed to recall ${type} ${id}: ${error.message}`);
       }
     }
 

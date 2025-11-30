@@ -4,7 +4,7 @@ import B2BLandingClient from './B2BLandingClient';
 
 const prisma = new PrismaClient();
 
-import { DEFAULT_B2B_LANDING_TEMPLATE } from '@/lib/constants/b2b-landing-template';
+import { DEFAULT_B2B_LANDING_TEMPLATE } from '../../../lib/constants/b2b-landing-template';
 
 const DEFAULT_TEMPLATE = DEFAULT_B2B_LANDING_TEMPLATE;
 

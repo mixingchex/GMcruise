@@ -29,6 +29,7 @@ import {
   FiSend,
   FiArrowRight,
   FiLayers,
+  FiMonitor,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
@@ -439,7 +440,7 @@ export default function PartnerCustomersClient({
   const [isContractTerminated, setIsContractTerminated] = useState(false);
   const [confirmingSale, setConfirmingSale] = useState<number | null>(null);
   const [showExcelModal, setShowExcelModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'customers' | 'inquiries'>('customers');
+  const [activeTab, setActiveTab] = useState<'customers' | 'inquiries' | 'system-consultations'>('customers');
   const [customerGroups, setCustomerGroups] = useState<Array<{
     id: number;
     name: string;
@@ -462,6 +463,12 @@ export default function PartnerCustomersClient({
   const [inquiryCurrentPage, setInquiryCurrentPage] = useState(1);
   const [inquirySearchTerm, setInquirySearchTerm] = useState('');
   const [inquiryStatusFilter, setInquiryStatusFilter] = useState<string>('ALL');
+
+  // 시스템 상담 신청 별도 상태
+  const [systemConsultations, setSystemConsultations] = useState<any[]>([]);
+  const [systemConsultationLoading, setSystemConsultationLoading] = useState(false);
+  const [systemConsultationSearch, setSystemConsultationSearch] = useState('');
+
   // 고객 리스트 모달 관련 상태
   const [showCustomerListModal, setShowCustomerListModal] = useState(false);
   const [customerListGroup, setCustomerListGroup] = useState<{ id: number; name: string } | null>(null);
@@ -561,6 +568,52 @@ export default function PartnerCustomersClient({
     ],
     [leadStatusOptions],
   );
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'system-consultations') {
+      setActiveTab('system-consultations');
+    } else if (tab === 'inquiries') {
+      setActiveTab('inquiries');
+    }
+  }, [searchParams]);
+
+  const loadSystemConsultations = useCallback(async () => {
+    try {
+      setSystemConsultationLoading(true);
+      const res = await fetch('/api/partner/system-inquiries', {
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setSystemConsultations(json.consultations || []);
+      } else {
+        showError(json.message || '시스템 상담 내역을 불러오지 못했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to load system consultations:', error);
+      showError('시스템 상담 내역을 불러오지 못했습니다.');
+    } finally {
+      setSystemConsultationLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'system-consultations') {
+      loadSystemConsultations();
+    }
+  }, [activeTab, loadSystemConsultations]);
+
+  const filteredSystemConsultations = systemConsultations.filter(c => {
+    if (systemConsultationSearch) {
+      const query = systemConsultationSearch.toLowerCase();
+      return (
+        c.name?.toLowerCase().includes(query) ||
+        c.phone?.includes(query)
+      );
+    }
+    return true;
+  });
 
   const getLocalAligoConfig = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -1980,6 +2033,16 @@ export default function PartnerCustomersClient({
             >
               전화상담고객
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('system-consultations')}
+              className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'system-consultations'
+                ? 'border-b-2 border-blue-600 text-blue-600'
+                : 'text-slate-500 hover:text-slate-700'
+                }`}
+            >
+              시스템 상담
+            </button>
           </div>
 
           {activeTab === 'customers' ? (
@@ -2728,6 +2791,106 @@ export default function PartnerCustomersClient({
                 </div>
               </div>
             </>
+          ) : activeTab === 'system-consultations' ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FiMonitor className="text-blue-600" />
+                  시스템 상담 신청
+                </h3>
+                <p className="text-sm text-slate-600">
+                  시스템 도입에 대해 문의한 고객 목록입니다.
+                </p>
+              </div>
+
+              {/* 검색 */}
+              <div className="flex gap-3 items-center">
+                <div className="relative flex-1 max-w-md">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="이름 또는 연락처 검색"
+                    value={systemConsultationSearch}
+                    onChange={(e) => setSystemConsultationSearch(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm outline-none focus:border-blue-500"
+                  />
+                </div>
+                <button
+                  onClick={loadSystemConsultations}
+                  className="p-2 text-slate-500 hover:text-blue-600 transition-colors"
+                  title="새로고침"
+                >
+                  <FiRefreshCw className={systemConsultationLoading ? 'animate-spin' : ''} />
+                </button>
+              </div>
+
+              {/* 테이블 */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          신청일시
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          고객명
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          연락처
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          상태
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                          메모
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {systemConsultationLoading ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
+                            데이터를 불러오는 중입니다...
+                          </td>
+                        </tr>
+                      ) : filteredSystemConsultations.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-10 text-center text-sm text-slate-500">
+                            상담 신청 내역이 없습니다.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredSystemConsultations.map((consultation) => (
+                          <tr key={consultation.id} className="hover:bg-slate-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                              {formatDateTime(consultation.createdAt)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                              {consultation.name}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                              {consultation.phone}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${consultation.status === 'COMPLETED'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                {consultation.status === 'COMPLETED' ? '상담완료' : '접수'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-slate-600">
+                              {consultation.memo || '-'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           ) : activeTab === 'inquiries' ? (
             // 전화상담고객 탭
             <div className="space-y-6">
