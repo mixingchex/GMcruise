@@ -2495,6 +2495,7 @@ model SystemConsultation {
   agentId     Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  metadata    Json?
 
   @@index([managerId])
   @@index([agentId])
