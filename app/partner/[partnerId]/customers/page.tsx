@@ -27,8 +27,11 @@ export default async function PartnerCustomersPage({ params }: { params: Promise
       profile = context.profile;
 
       // If not viewing own customers page, redirect to own customers page
-      if (profile.User?.mallUserId !== partnerId) {
-        redirect(`/partner/${profile.User?.mallUserId ?? ''}/customers`);
+      if (profile.User?.mallUserId && profile.User.mallUserId !== partnerId) {
+        redirect(`/partner/${profile.User.mallUserId}/customers`);
+      } else if (!profile.User?.mallUserId) {
+        // Should not happen if requirePartnerContext works, but for safety
+        throw new PartnerApiError('파트너 정보가 올바르지 않습니다 (ID 누락).', 403);
       }
     } else {
       // Admin: fetch the target user's profile
@@ -136,11 +139,11 @@ export default async function PartnerCustomersPage({ params }: { params: Promise
           manager:
             profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile?.[0]?.AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile?.displayName
               ? {
-                  label: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.displayName,
-                  affiliateCode: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.affiliateCode,
-                  branchLabel: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.branchLabel,
-                  mallUserId: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.User?.mallUserId ?? null,
-                }
+                label: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.displayName,
+                affiliateCode: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.affiliateCode,
+                branchLabel: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.branchLabel,
+                mallUserId: profile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile[0].AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile.User?.mallUserId ?? null,
+              }
               : null,
           teamAgents: teamAgents as Array<{
             id: number;
@@ -153,9 +156,12 @@ export default async function PartnerCustomersPage({ params }: { params: Promise
       />
     );
   } catch (error) {
+    console.error('[PartnerCustomersPage] Error:', error);
     if (error instanceof PartnerApiError && error.status === 401) {
       redirect('/partner');
     }
-    redirect('/partner');
+    // For other errors, throw them to be handled by Next.js error boundary
+    // This prevents confusing redirects to login page on 403, 404, or 500 errors
+    throw error;
   }
 }

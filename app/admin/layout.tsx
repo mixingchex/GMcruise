@@ -177,6 +177,7 @@ function AdminLayoutContent({
     { href: '/admin/affiliate/mall', label: '판매원 개인몰 관리', icon: '🛍️', section: 'affiliate' },
     { href: '/admin/affiliate/customers', label: '어필리에이트 고객 관리', icon: '👥', section: 'affiliate' },
     { href: '/admin/b2b-prospects', label: 'B2B 잠재고객 관리', icon: '🏢', section: 'affiliate' },
+    { href: '/admin/system-consultations', label: '시스템 상담 신청', icon: '📞', section: 'affiliate' },
     { href: '/admin/b2b-landing/editor', label: 'B2B 랜딩페이지 편집', icon: '✏️', section: 'affiliate' },
     { href: '/admin/affiliate/sales-confirmation/pending', label: '판매 확정 승인', icon: '✅', section: 'affiliate' },
     { href: '/admin/affiliate/adjustments', label: '수당 조정 승인', icon: '💰', section: 'affiliate' },

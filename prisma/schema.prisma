@@ -2484,3 +2484,19 @@ model DashboardStats {
 
   @@index([date])
 }
+
+model SystemConsultation {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String
+  message     String?
+  status      String   @default("NEW")
+  managerId   Int?
+  agentId     Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([managerId])
+  @@index([agentId])
+  @@index([createdAt])
+}

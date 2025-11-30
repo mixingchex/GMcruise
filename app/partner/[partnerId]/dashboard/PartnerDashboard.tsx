@@ -719,9 +719,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   // 통계 데이터 로드
   useEffect(() => {
     console.log('[PartnerDashboard] useEffect triggered, isBranchManager:', isBranchManager);
-    loadStats();
+    // loadStats()와 loadMySales()는 selectedMonth 변경 시 호출되므로 여기서는 제거 (중복 호출 방지)
     loadMyContract(); // 나의 계약서 로드
-    loadMySales(); // 내 판매 목록 로드
     if (isBranchManager) {
       loadContracts();
       loadAgentDbStats();
@@ -2161,7 +2160,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
             )}
 
             {/* 서류관리 */}
-            {subscriptionInfo ? (
+            {!canUseFeatureClient('document-management', subscriptionInfo) ? (
               <button
                 onClick={() => {
                   const message = getFeatureRestrictionMessageClient('document-management', subscriptionInfo);
@@ -2182,7 +2181,15 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
               </Link>
             )}
-
+            {/* System Consultations Link */}
+            <button
+              onClick={() => router.push(`${partnerBase}/system-consultations`)}
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 hover:from-orange-100 hover:to-orange-200 transition-all hover:shadow-md group"
+            >
+              <span className="text-2xl">📞</span>
+              <span className="text-xs font-medium text-center text-orange-800 leading-tight">시스템 상담</span>
+              <FiArrowRight className="w-3 h-3 text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
             {/* 수동여권 등록 */}
             {subscriptionInfo ? (
               <button

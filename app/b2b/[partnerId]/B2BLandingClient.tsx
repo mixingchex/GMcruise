@@ -38,7 +38,7 @@ function setTrialSession(session: TrialSession): void {
 }
 
 interface B2BLandingClientProps {
-    partnerId: string;
+    partnerId?: string;
     template: string;
 }
 

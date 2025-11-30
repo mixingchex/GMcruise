@@ -1,4 +1,4 @@
-// app/api/system-inquiry/route.ts
+// app/api/system-inquiries/route.ts
 // 크루즈 비즈니스 시스템 상담 문의 API
 
 export const dynamic = 'force-dynamic';
@@ -30,65 +30,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 시스템 문의 저장 (Lead 테이블 활용, source: 'system_inquiry')
-    const inquiry = await prisma.lead.create({
-      data: {
-        name: name.trim(),
-        phone: normalizedPhone,
-        source: 'system_inquiry', // 시스템 이용 문의 구분
-        status: 'new',
-        notes: message?.trim() || '시스템 이용 문의',
-        metadata: {
-          inquiryType: 'business_system',
-          submittedAt: new Date().toISOString(),
-        },
-        updatedAt: new Date(),
-      },
-    });
+    // 파트너 정보 찾기 (기존 AffiliateLead에서 검색)
+    // 시스템 상담 신청은 별도 테이블(SystemConsultation)에 저장하지만,
+    // 파트너 패널에서 보여주기 위해 managerId/agentId를 찾아야 함.
+    let managerId: number | null = null;
+    let agentId: number | null = null;
 
-    // B2B 잠재고객 통합 관리를 위해 AffiliateLead에도 저장 (source: 'TRIAL_DASHBOARD')
-    // 이미 존재하는 고객인지 확인 (전화번호 기준)
     const existingAffiliateLead = await prisma.affiliateLead.findFirst({
-      where: { customerPhone: normalizedPhone }
+      where: { customerPhone: normalizedPhone },
+      orderBy: { createdAt: 'desc' } // 가장 최근 리드 기준
     });
 
     if (existingAffiliateLead) {
-      // 기존 고객이면 상태나 노트 업데이트 (선택적)
-      await prisma.affiliateLead.update({
-        where: { id: existingAffiliateLead.id },
-        data: {
-          notes: existingAffiliateLead.notes
-            ? `${existingAffiliateLead.notes}\n[시스템문의] ${message?.trim() || '시스템 이용 문의'}`
-            : `[시스템문의] ${message?.trim() || '시스템 이용 문의'}`,
-          // 소스 업데이트: 기존 소스가 무엇이든 시스템 문의를 했으므로 'TRIAL_DASHBOARD'로 변경하여 '시스템 상담신청' 배지가 뜨도록 함
-          // 단, 이미 명확한 파트너 유입(B2B_LANDING)인 경우 파트너가 우선일 수 있으나, 
-          // 사용자의 요청("시스템 문의 버튼 클릭하면 TRIAL_DASHBOARD")에 따라 업데이트합니다.
-          // 다만, 파트너 식별을 위해 B2B_LANDING은 유지하는게 나을 수도 있음. 
-          // 안전하게 B2B_INFLOW, test-guide, null 인 경우에만 업데이트 하겠습니다.
-          source: ['B2B_INFLOW', 'test-guide', null].includes(existingAffiliateLead.source) ? 'TRIAL_DASHBOARD' : existingAffiliateLead.source,
-          status: 'CONTACTED', // 문의가 왔으므로 상태 변경
-          updatedAt: new Date(),
-        }
-      });
-    } else {
-      // 신규 고객이면 생성
-      await prisma.affiliateLead.create({
-        data: {
-          customerName: name.trim(),
-          customerPhone: normalizedPhone,
-          source: 'TRIAL_DASHBOARD',
-          status: 'NEW',
-          notes: message?.trim() || '시스템 이용 문의',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-      });
+      managerId = existingAffiliateLead.managerId;
+      agentId = existingAffiliateLead.agentId;
     }
+
+    // SystemConsultation 모델에 저장 (Lead/AffiliateLead와 분리)
+    const consultation = await prisma.systemConsultation.create({
+      data: {
+        name: name.trim(),
+        phone: normalizedPhone,
+        message: message?.trim() || '시스템 이용 문의',
+        status: 'NEW',
+        managerId,
+        agentId,
+      },
+    });
 
     return NextResponse.json({
       ok: true,
       message: '시스템 상담 문의가 접수되었습니다. 곧 연락드리겠습니다.',
-      inquiryId: inquiry.id,
+      inquiryId: consultation.id,
     });
   } catch (error) {
     console.error('[System Inquiry] Error:', error);
@@ -102,28 +75,16 @@ export async function POST(req: NextRequest) {
 // GET: 시스템 문의 목록 조회 (관리자용)
 export async function GET(req: NextRequest) {
   try {
-    const inquiries = await prisma.lead.findMany({
-      where: {
-        source: 'system_inquiry',
-      },
+    const consultations = await prisma.systemConsultation.findMany({
       orderBy: {
         createdAt: 'desc',
-      },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        status: true,
-        notes: true,
-        metadata: true,
-        createdAt: true,
       },
     });
 
     return NextResponse.json({
       ok: true,
-      inquiries,
-      total: inquiries.length,
+      inquiries: consultations, // 호환성을 위해 inquiries 키 유지
+      total: consultations.length,
     });
   } catch (error) {
     console.error('[System Inquiry] GET Error:', error);
