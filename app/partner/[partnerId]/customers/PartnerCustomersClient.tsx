@@ -2575,21 +2575,35 @@ export default function PartnerCustomersClient({
                                             (customer.source?.startsWith('mall-') && customer.ownership === 'AGENT' && partner.type === 'SALES_AGENT')
                                           );
 
-                                          // 2. 상담신청고객 (구매고객이 아닌 경우에만)
-                                          const isInquiry = !isMallPurchase && (
+                                          // 2. 시스템 상담신청 (TRIAL_DASHBOARD)
+                                          const isSystemInquiry = !isMallPurchase && customer.source === 'TRIAL_DASHBOARD';
+
+                                          // 3. B2B 유입 (B2B_INFLOW, test-guide)
+                                          const isB2BInflow = !isMallPurchase && !isSystemInquiry && (
+                                            customer.source === 'B2B_INFLOW' ||
+                                            customer.source === 'test-guide'
+                                          );
+
+                                          // 4. 파트너 B2B 유입 (B2B_LANDING)
+                                          const isPartnerB2B = !isMallPurchase && !isSystemInquiry && !isB2BInflow && (
+                                            customer.source === 'B2B_LANDING'
+                                          );
+
+                                          // 5. 상담신청고객 (구매고객이 아닌 경우에만)
+                                          const isInquiry = !isMallPurchase && !isSystemInquiry && !isB2BInflow && !isPartnerB2B && (
                                             customer.source?.startsWith('mall-') ||
                                             customer.source === 'product-inquiry' ||
                                             customer.source === 'phone-consultation'
                                           );
 
-                                          // 3. 내가입력한 고객 (구매고객, 상담신청고객이 아닌 경우에만)
-                                          const isManualInput = !isMallPurchase && !isInquiry && customer.ownership === 'AGENT' && (
+                                          // 6. 내가입력한 고객 (구매고객, 상담신청고객이 아닌 경우에만)
+                                          const isManualInput = !isMallPurchase && !isSystemInquiry && !isB2BInflow && !isPartnerB2B && !isInquiry && customer.ownership === 'AGENT' && (
                                             customer.source === 'affiliate-manual' ||
                                             customer.source === 'partner-manual'
                                           );
 
-                                          // 4. 대리점장이 DB 보내줘서 받은 고객 (구매고객, 상담신청고객, 내가입력한 고객이 아닌 경우에만)
-                                          const isDbReceived = !isMallPurchase && !isInquiry && !isManualInput &&
+                                          // 7. 대리점장이 DB 보내줘서 받은 고객 (구매고객, 상담신청고객, 내가입력한 고객이 아닌 경우에만)
+                                          const isDbReceived = !isMallPurchase && !isSystemInquiry && !isB2BInflow && !isPartnerB2B && !isInquiry && !isManualInput &&
                                             customer.ownership === 'MANAGER' && customer.agent?.id;
 
                                           return (
@@ -2597,17 +2611,23 @@ export default function PartnerCustomersClient({
                                               <span className="font-semibold">
                                                 {isMallPurchase
                                                   ? '구매고객'
-                                                  : isInquiry
-                                                    ? '상담신청고객'
-                                                    : isManualInput
-                                                      ? '내가입력한 고객'
-                                                      : isDbReceived
-                                                        ? 'DB 받은 고객'
-                                                        : customer.ownership === 'AGENT'
-                                                          ? '내 고객'
-                                                          : customer.ownership === 'MANAGER'
-                                                            ? '대리점 고객'
-                                                            : '협업 고객'}
+                                                  : isSystemInquiry
+                                                    ? '시스템 상담신청'
+                                                    : isB2BInflow
+                                                      ? 'B2B 유입'
+                                                      : isPartnerB2B
+                                                        ? '파트너 B2B 유입'
+                                                        : isInquiry
+                                                          ? '상담신청고객'
+                                                          : isManualInput
+                                                            ? '내가입력한 고객'
+                                                            : isDbReceived
+                                                              ? 'DB 받은 고객'
+                                                              : customer.ownership === 'AGENT'
+                                                                ? '내 고객'
+                                                                : customer.ownership === 'MANAGER'
+                                                                  ? '대리점 고객'
+                                                                  : '협업 고객'}
                                               </span>
                                               {customer.agent && customer.ownership === 'MANAGER' && (
                                                 <div className="flex items-center gap-2">

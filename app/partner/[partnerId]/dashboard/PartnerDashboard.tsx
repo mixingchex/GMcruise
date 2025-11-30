@@ -1473,10 +1473,10 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
       {/* 정액제 구독 정보 고정 배너 */}
       {subscriptionInfo && countdown && (
         <div className={`fixed top-0 left-0 right-0 z-50 ${subscriptionInfo.isTrial
-            ? 'bg-gradient-to-r from-orange-500 via-orange-400 to-orange-600'
-            : subscriptionInfo.status === 'active'
-              ? 'bg-gradient-to-r from-blue-500 via-blue-400 to-blue-600'
-              : 'bg-gradient-to-r from-red-500 via-red-400 to-red-600'
+          ? 'bg-gradient-to-r from-orange-500 via-orange-400 to-orange-600'
+          : subscriptionInfo.status === 'active'
+            ? 'bg-gradient-to-r from-blue-500 via-blue-400 to-blue-600'
+            : 'bg-gradient-to-r from-red-500 via-red-400 to-red-600'
           } text-white shadow-lg`}>
           <div className="mx-auto max-w-7xl px-4 py-3 md:py-4">
             <div className="flex items-center justify-center gap-3 md:gap-4 flex-wrap">
@@ -1565,26 +1565,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         </div>
       )}
 
-      {/* PWA 앱 설치 배너 - 설치 가능하고 아직 앱으로 실행중이 아닐 때만 표시 */}
-      {(isInstallable || (!isStandalone && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : ''))) && !isStandalone && (
-        <div className={`fixed ${subscriptionInfo && countdown ? 'top-16 md:top-[60px]' : 'top-0'} left-0 right-0 z-40 bg-gradient-to-r from-purple-600 via-purple-500 to-indigo-600 text-white shadow-md`}>
-          <div className="mx-auto max-w-7xl px-4 py-2.5 md:py-3">
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <span className="text-xl">📲</span>
-              <span className="text-sm font-medium md:text-base">7일 체험 대시보드를 앱으로 설치하세요!</span>
-              <button
-                onClick={handleInstallApp}
-                className="px-4 py-1.5 bg-white text-purple-600 font-bold rounded-lg hover:bg-purple-50 transition-colors shadow-md text-sm flex items-center gap-1.5"
-              >
-                <span>📱</span>
-                {/iPhone|iPad|iPod/.test(typeof navigator !== 'undefined' ? navigator.userAgent : '')
-                  ? '홈 화면에 추가 방법'
-                  : '바로 설치하기'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       <div className={`mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 md:gap-8 md:px-6 ${subscriptionInfo ? (isInstallable || (!isStandalone && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : ''))) && !isStandalone ? 'pt-32 md:pt-36' : 'pt-20 md:pt-24' : 'pt-6 md:pt-10'
         }`}>
@@ -1885,8 +1866,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     }
                   }}
                   className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-md md:p-6 ${isSubscriptionAgent
-                      ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200'
-                      : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
+                    ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200'
+                    : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
                     } ${subscriptionInfo && canUseFeatureClient('my-mall', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''}`}
                 >
                   <span className="text-2xl md:text-3xl">🛍️</span>
@@ -1898,8 +1879,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-md md:p-6 ${isSubscriptionAgent
-                      ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200'
-                      : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
+                    ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200'
+                    : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
                     }`}
                 >
                   <span className="text-2xl md:text-3xl">🛍️</span>
@@ -2366,8 +2347,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   <button
                     onClick={() => setCustomerTab('all')}
                     className={`px-4 py-2 text-sm font-semibold transition-colors ${customerTab === 'all'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-blue-600 border-b-2 border-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
                       }`}
                   >
                     전체 고객
@@ -2375,8 +2356,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   <button
                     onClick={() => setCustomerTab('inquiries')}
                     className={`px-4 py-2 text-sm font-semibold transition-colors ${customerTab === 'inquiries'
-                        ? 'text-pink-600 border-b-2 border-pink-600'
-                        : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-pink-600 border-b-2 border-pink-600'
+                      : 'text-gray-500 hover:text-gray-700'
                       }`}
                   >
                     전화상담고객
@@ -2585,8 +2566,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                                   {agent.agentName}
                                 </p>
                                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${isActive
-                                    ? 'bg-green-100 text-green-700'
-                                    : 'bg-yellow-100 text-yellow-700'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-yellow-100 text-yellow-700'
                                   }`}>
                                   {isActive ? '활발' : '비활발'}
                                 </span>
@@ -3149,9 +3130,9 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                             </td>
                             <td className="px-4 py-4">
                               <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${contract.status === 'completed' ? 'bg-purple-50 text-purple-700' :
-                                  contract.status === 'submitted' ? 'bg-blue-50 text-blue-700' :
-                                    contract.status === 'rejected' ? 'bg-red-50 text-red-700' :
-                                      'bg-gray-50 text-gray-700'
+                                contract.status === 'submitted' ? 'bg-blue-50 text-blue-700' :
+                                  contract.status === 'rejected' ? 'bg-red-50 text-red-700' :
+                                    'bg-gray-50 text-gray-700'
                                 }`}>
                                 {contract.status === 'completed' ? <FiCheckCircle className="text-base" /> :
                                   contract.status === 'submitted' ? <FiClock className="text-base" /> :
@@ -3275,8 +3256,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                       <div>
                         <p className="text-sm font-semibold text-gray-500 mb-1">상태</p>
                         <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${selectedContract.status === 'completed' ? 'bg-green-100 text-green-700' :
-                            selectedContract.status === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-gray-100 text-gray-700'
+                          selectedContract.status === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-gray-100 text-gray-700'
                           }`}>
                           {selectedContract.status === 'completed' ? '완료됨' : '제출됨'}
                         </span>
@@ -3456,10 +3437,10 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                             </p>
                           </div>
                           <span className={`rounded-full px-2 py-1 text-xs font-semibold ${sale.status === 'CONFIRMED' || sale.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                              sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                                sale.status === 'PENDING_APPROVAL' ? 'bg-blue-100 text-blue-700' :
-                                  sale.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                    'bg-gray-100 text-gray-700'
+                            sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                              sale.status === 'PENDING_APPROVAL' ? 'bg-blue-100 text-blue-700' :
+                                sale.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
                             }`}>
                             {formatSaleStatus(sale.status)}
                           </span>
@@ -3496,10 +3477,10 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                             </p>
                           </div>
                           <span className={`rounded-full px-2 py-1 text-xs font-semibold ${sale.status === 'CONFIRMED' || sale.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                              sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
-                                sale.status === 'PENDING_APPROVAL' ? 'bg-blue-100 text-blue-700' :
-                                  sale.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
-                                    'bg-gray-100 text-gray-700'
+                            sale.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                              sale.status === 'PENDING_APPROVAL' ? 'bg-blue-100 text-blue-700' :
+                                sale.status === 'REJECTED' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
                             }`}>
                             {formatSaleStatus(sale.status)}
                           </span>

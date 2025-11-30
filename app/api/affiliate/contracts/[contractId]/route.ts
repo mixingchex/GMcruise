@@ -32,7 +32,7 @@ export async function GET(
         phone: true,
         status: true,
         submittedAt: true,
-        completedAt: true,
+        contractSignedAt: true,
         metadata: true,
       },
     });
@@ -53,7 +53,7 @@ export async function GET(
         phone: contract.phone,
         status: contract.status,
         submittedAt: contract.submittedAt?.toISOString() || null,
-        completedAt: contract.completedAt?.toISOString() || null,
+        completedAt: contract.contractSignedAt?.toISOString() || null,
         metadata: contract.metadata,
       },
     });

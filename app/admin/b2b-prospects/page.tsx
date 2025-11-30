@@ -10,6 +10,7 @@ import {
     FiMessageSquare,
     FiCalendar,
     FiFilter,
+    FiTrash2,
 } from 'react-icons/fi';
 import { showError } from '@/components/ui/Toast';
 
@@ -34,6 +35,8 @@ export default function B2BProspectsPage() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'ALL' | 'INFLOW' | 'INQUIRY' | 'PARTNER'>('ALL');
     const [search, setSearch] = useState('');
+    const [selectedProspects, setSelectedProspects] = useState<Set<number>>(new Set());
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const loadProspects = useCallback(async () => {
         try {
@@ -43,6 +46,7 @@ export default function B2BProspectsPage() {
 
             if (json.ok) {
                 setProspects(json.leads || []);
+                setSelectedProspects(new Set()); // 목록 로드 시 선택 초기화
             } else {
                 showError(json.message || '데이터를 불러오는데 실패했습니다.');
             }
@@ -61,6 +65,7 @@ export default function B2BProspectsPage() {
     const getSourceBadge = (source: string) => {
         switch (source) {
             case 'test-guide':
+            case 'B2B_INFLOW':
                 return (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         B2B 유입
@@ -100,7 +105,7 @@ export default function B2BProspectsPage() {
 
     const filteredProspects = prospects.filter(p => {
         // Filter by Tab
-        if (filter === 'INFLOW' && p.source !== 'test-guide') return false;
+        if (filter === 'INFLOW' && p.source !== 'test-guide' && p.source !== 'B2B_INFLOW') return false;
         if (filter === 'INQUIRY' && p.source !== 'TRIAL_DASHBOARD') return false;
         if (filter === 'PARTNER' && p.source !== 'B2B_LANDING') return false;
 
@@ -116,6 +121,50 @@ export default function B2BProspectsPage() {
 
         return true;
     });
+
+    const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setSelectedProspects(new Set(filteredProspects.map(p => p.id)));
+        } else {
+            setSelectedProspects(new Set());
+        }
+    };
+
+    const handleSelectProspect = (id: number, checked: boolean) => {
+        const newSelected = new Set(selectedProspects);
+        if (checked) {
+            newSelected.add(id);
+        } else {
+            newSelected.delete(id);
+        }
+        setSelectedProspects(newSelected);
+    };
+
+    const handleDeleteSelected = async () => {
+        if (selectedProspects.size === 0) {
+            alert('삭제할 항목을 선택해주세요.');
+            return;
+        }
+
+        if (!confirm(`선택한 ${selectedProspects.size}명의 고객 정보를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+        setIsDeleting(true);
+        try {
+            const deletePromises = Array.from(selectedProspects).map(id =>
+                fetch(`/api/admin/affiliate/leads/${id}`, { method: 'DELETE' })
+            );
+
+            await Promise.all(deletePromises);
+
+            alert('선택한 항목이 삭제되었습니다.');
+            loadProspects();
+        } catch (error) {
+            console.error('Error deleting prospects:', error);
+            alert('삭제 중 오류가 발생했습니다.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
 
     const handleExtendTrial = async (leadId: number, currentName: string) => {
         if (!confirm(`${currentName}님의 무료 체험 기간을 7일 연장하시겠습니까?`)) return;
@@ -140,6 +189,9 @@ export default function B2BProspectsPage() {
         }
     };
 
+    const allSelected = filteredProspects.length > 0 && selectedProspects.size === filteredProspects.length;
+    const someSelected = selectedProspects.size > 0 && selectedProspects.size < filteredProspects.length;
+
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -147,13 +199,25 @@ export default function B2BProspectsPage() {
                     <h1 className="text-2xl font-bold text-gray-900">B2B 잠재고객 관리</h1>
                     <p className="text-gray-500 mt-1">7일 무료체험 유입 및 시스템 상담 신청 고객을 관리합니다.</p>
                 </div>
-                <button
-                    onClick={loadProspects}
-                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors"
-                >
-                    <FiRefreshCw className={loading ? 'animate-spin' : ''} />
-                    새로고침
-                </button>
+                <div className="flex items-center gap-2">
+                    {selectedProspects.size > 0 && (
+                        <button
+                            onClick={handleDeleteSelected}
+                            disabled={isDeleting}
+                            className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                        >
+                            <FiTrash2 />
+                            {isDeleting ? '삭제 중...' : `선택 삭제 (${selectedProspects.size})`}
+                        </button>
+                    )}
+                    <button
+                        onClick={loadProspects}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors"
+                    >
+                        <FiRefreshCw className={loading ? 'animate-spin' : ''} />
+                        새로고침
+                    </button>
+                </div>
             </div>
 
             {/* Filters & Search */}
@@ -217,6 +281,17 @@ export default function B2BProspectsPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-gray-50 border-b border-gray-200">
+                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={allSelected}
+                                        ref={(input) => {
+                                            if (input) input.indeterminate = someSelected;
+                                        }}
+                                        onChange={handleSelectAll}
+                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                    />
+                                </th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">구분</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">고객 정보</th>
                                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
@@ -229,7 +304,7 @@ export default function B2BProspectsPage() {
                         <tbody className="divide-y divide-gray-200">
                             {loading ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                         <div className="flex justify-center mb-2">
                                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
                                         </div>
@@ -238,13 +313,21 @@ export default function B2BProspectsPage() {
                                 </tr>
                             ) : filteredProspects.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                         데이터가 없습니다.
                                     </td>
                                 </tr>
                             ) : (
                                 filteredProspects.map((prospect) => (
                                     <tr key={prospect.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedProspects.has(prospect.id)}
+                                                onChange={(e) => handleSelectProspect(prospect.id, e.target.checked)}
+                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {getSourceBadge(prospect.source)}
                                         </td>
@@ -302,6 +385,29 @@ export default function B2BProspectsPage() {
                                                     className="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
                                                 >
                                                     상세
+                                                </button>
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!confirm(`${prospect.customerName}님의 정보를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+                                                        try {
+                                                            const res = await fetch(`/api/admin/affiliate/leads/${prospect.id}`, {
+                                                                method: 'DELETE',
+                                                            });
+                                                            const data = await res.json();
+                                                            if (data.ok) {
+                                                                alert('삭제되었습니다.');
+                                                                loadProspects();
+                                                            } else {
+                                                                alert(data.message || '삭제에 실패했습니다.');
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('Error deleting prospect:', error);
+                                                            alert('오류가 발생했습니다.');
+                                                        }
+                                                    }}
+                                                    className="text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition-colors"
+                                                >
+                                                    삭제
                                                 </button>
                                             </div>
                                         </td>

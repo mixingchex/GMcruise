@@ -150,7 +150,7 @@ export default function CustomerDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isAddingInteraction, setIsAddingInteraction] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   // 환불/현금영수증/카드계산 모달 상태
   const [refundModal, setRefundModal] = useState<{ open: boolean; saleId: number | null }>({
     open: false,
@@ -194,7 +194,7 @@ export default function CustomerDetailPage() {
         customerName: json.lead.customerName || '',
         customerPhone: json.lead.customerPhone || '',
       });
-      
+
       // 여행 종료일 정보 가져오기
       if (json.lead.sales && json.lead.sales.length > 0) {
         const endDates: Record<string, string | null> = {};
@@ -680,7 +680,7 @@ export default function CustomerDetailPage() {
                       <FiImage className="text-blue-500" />
                       여권 정보
                     </h4>
-                    {lead.passportSubmissions.map((submission) => (
+                    {lead.passportSubmissions?.map((submission) => (
                       <div key={submission.id} className="space-y-2">
                         {submission.driveFolderUrl && (
                           <a
@@ -874,10 +874,10 @@ export default function CustomerDetailPage() {
 
         {/* 상호작용 목록 */}
         <div className="space-y-3">
-          {lead.interactions.length === 0 ? (
+          {lead.interactions?.length === 0 ? (
             <div className="text-center text-gray-500 py-8">상호작용 기록이 없습니다.</div>
           ) : (
-            lead.interactions.map((interaction) => (
+            lead.interactions?.map((interaction) => (
               <div
                 key={interaction.id}
                 className="border border-gray-200 rounded-xl p-4 hover:bg-gray-50"
@@ -929,11 +929,11 @@ export default function CustomerDetailPage() {
       </section>
 
       {/* 구매 이력 */}
-      {lead.sales.length > 0 && (
+      {lead.sales?.length > 0 && (
         <section className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">구매 이력</h2>
           <div className="space-y-4">
-            {lead.sales.map((sale) => (
+            {lead.sales?.map((sale) => (
               <div
                 key={sale.id}
                 className="border border-gray-200 rounded-xl p-5 hover:bg-gray-50 transition-colors"
@@ -945,25 +945,24 @@ export default function CustomerDetailPage() {
                         {sale.product?.productName || sale.productCode || '상품 정보 없음'}
                       </h3>
                       <span
-                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
-                          sale.status === 'PAID' || sale.status === 'CONFIRMED'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : sale.status === 'REFUNDED'
+                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${sale.status === 'PAID' || sale.status === 'CONFIRMED'
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : sale.status === 'REFUNDED'
                             ? 'bg-red-50 text-red-700'
                             : sale.status === 'PENDING'
-                            ? 'bg-yellow-50 text-yellow-700'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
+                              ? 'bg-yellow-50 text-yellow-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
                       >
                         {sale.status === 'PAID'
                           ? '지급완료'
                           : sale.status === 'CONFIRMED'
-                          ? '확정됨'
-                          : sale.status === 'REFUNDED'
-                          ? '환불됨'
-                          : sale.status === 'PENDING'
-                          ? '대기중'
-                          : sale.status}
+                            ? '확정됨'
+                            : sale.status === 'REFUNDED'
+                              ? '환불됨'
+                              : sale.status === 'PENDING'
+                                ? '대기중'
+                                : sale.status}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -1052,57 +1051,57 @@ export default function CustomerDetailPage() {
                   sale.submittedAt ||
                   sale.approvedAt ||
                   sale.rejectedAt) && (
-                  <div className="mt-3 pt-3 border-t border-blue-200 bg-blue-50 rounded-lg p-3">
-                    <div className="text-xs text-blue-600 font-semibold mb-2">APIS 정보</div>
-                    <div className="space-y-1 text-sm">
-                      {sale.audioFileType && (
-                        <div className="text-gray-700">
-                          <span className="font-semibold">파일 타입:</span>{' '}
-                          {sale.audioFileType === 'FIRST_CALL' ? '첫 콜' : sale.audioFileType === 'PASSPORT_GUIDE' ? '여권 안내' : sale.audioFileType}
-                        </div>
-                      )}
-                      {sale.audioFileName && (
-                        <div className="text-gray-700">
-                          <span className="font-semibold">파일명:</span> {sale.audioFileName}
-                        </div>
-                      )}
-                      {sale.audioFileGoogleDriveUrl && (
-                        <div>
-                          <a
-                            href={sale.audioFileGoogleDriveUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline"
-                          >
-                            <FiDownload className="text-xs" />
-                            Google Drive에서 열기
-                          </a>
-                        </div>
-                      )}
-                      {sale.submittedAt && (
-                        <div className="text-gray-700">
-                          <span className="font-semibold">제출일:</span>{' '}
-                          {new Date(sale.submittedAt).toLocaleString('ko-KR')}
-                        </div>
-                      )}
-                      {sale.approvedAt && (
-                        <div className="text-emerald-700">
-                          <span className="font-semibold">승인일:</span>{' '}
-                          {new Date(sale.approvedAt).toLocaleString('ko-KR')}
-                        </div>
-                      )}
-                      {sale.rejectedAt && (
-                        <div className="text-red-700">
-                          <span className="font-semibold">거부일:</span>{' '}
-                          {new Date(sale.rejectedAt).toLocaleString('ko-KR')}
-                          {sale.rejectionReason && (
-                            <span className="ml-2">(사유: {sale.rejectionReason})</span>
-                          )}
-                        </div>
-                      )}
+                    <div className="mt-3 pt-3 border-t border-blue-200 bg-blue-50 rounded-lg p-3">
+                      <div className="text-xs text-blue-600 font-semibold mb-2">APIS 정보</div>
+                      <div className="space-y-1 text-sm">
+                        {sale.audioFileType && (
+                          <div className="text-gray-700">
+                            <span className="font-semibold">파일 타입:</span>{' '}
+                            {sale.audioFileType === 'FIRST_CALL' ? '첫 콜' : sale.audioFileType === 'PASSPORT_GUIDE' ? '여권 안내' : sale.audioFileType}
+                          </div>
+                        )}
+                        {sale.audioFileName && (
+                          <div className="text-gray-700">
+                            <span className="font-semibold">파일명:</span> {sale.audioFileName}
+                          </div>
+                        )}
+                        {sale.audioFileGoogleDriveUrl && (
+                          <div>
+                            <a
+                              href={sale.audioFileGoogleDriveUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 underline"
+                            >
+                              <FiDownload className="text-xs" />
+                              Google Drive에서 열기
+                            </a>
+                          </div>
+                        )}
+                        {sale.submittedAt && (
+                          <div className="text-gray-700">
+                            <span className="font-semibold">제출일:</span>{' '}
+                            {new Date(sale.submittedAt).toLocaleString('ko-KR')}
+                          </div>
+                        )}
+                        {sale.approvedAt && (
+                          <div className="text-emerald-700">
+                            <span className="font-semibold">승인일:</span>{' '}
+                            {new Date(sale.approvedAt).toLocaleString('ko-KR')}
+                          </div>
+                        )}
+                        {sale.rejectedAt && (
+                          <div className="text-red-700">
+                            <span className="font-semibold">거부일:</span>{' '}
+                            {new Date(sale.rejectedAt).toLocaleString('ko-KR')}
+                            {sale.rejectionReason && (
+                              <span className="ml-2">(사유: {sale.rejectionReason})</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
                 {/* 현금영수증 처리 완료 표시 */}
                 {sale.receiptStatus === 'COMPLETED' && sale.receiptProcessedAt && (
@@ -1129,7 +1128,7 @@ export default function CustomerDetailPage() {
                     <FiFileText className="text-xs" />
                     서류 생성
                   </button>
-                  
+
                   {/* 환불처리 버튼 (환불되지 않은 경우만) */}
                   {sale.status !== 'REFUNDED' && (
                     <button
@@ -1139,7 +1138,7 @@ export default function CustomerDetailPage() {
                       환불처리
                     </button>
                   )}
-                  
+
                   {sale.status === 'REFUNDED' && (
                     <button
                       onClick={() => router.push(`/admin/affiliate/refunds?saleId=${sale.id}`)}

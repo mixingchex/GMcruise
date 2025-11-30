@@ -1,6 +1,6 @@
 'use client';
 
-import { FiCheckCircle, FiClock, FiShoppingBag, FiUser } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiShoppingBag, FiUser, FiMessageSquare } from 'react-icons/fi';
 
 interface CustomerStatusBadgesProps {
   testModeStartedAt: string | null | undefined;
@@ -24,15 +24,15 @@ export default function CustomerStatusBadges({
   className = '',
 }: CustomerStatusBadgesProps) {
   // 크루즈가이드 지니 3일 체험: customerStatus: 'test' 또는 'test-locked', customerSource: 'test-guide'
-  const isTrialUser = !!testModeStartedAt || 
+  const isTrialUser = !!testModeStartedAt ||
     (customerStatus === 'test' && customerSource === 'test-guide') ||
     (customerStatus === 'test-locked' && customerSource === 'test-guide');
   // 크루즈가이드 지니 (결제 고객): customerStatus: 'active' 또는 'package', customerSource: 'cruise-guide'
   // test-locked 상태가 아니어야 함 (3일 체험 완료 고객은 제외)
-  const isRegularGenie = !testModeStartedAt && 
-    customerStatus !== 'test' && 
+  const isRegularGenie = !testModeStartedAt &&
+    customerStatus !== 'test' &&
     customerStatus !== 'test-locked' &&
-    (customerStatus === 'active' || customerStatus === 'package') && 
+    (customerStatus === 'active' || customerStatus === 'package') &&
     customerSource === 'cruise-guide';
   const isMallUser = !!mallUserId;
 
@@ -57,6 +57,39 @@ export default function CustomerStatusBadges({
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700',
       borderColor: 'border-blue-200',
+    });
+  }
+
+  // B2B 유입
+  if (customerSource === 'B2B_INFLOW') {
+    badges.push({
+      label: 'B2B 유입',
+      icon: <FiUser className="w-3 h-3" />,
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-700',
+      borderColor: 'border-blue-200',
+    });
+  }
+
+  // 시스템 상담신청
+  if (customerSource === 'TRIAL_DASHBOARD') {
+    badges.push({
+      label: '시스템 상담신청',
+      icon: <FiMessageSquare className="w-3 h-3" />,
+      bgColor: 'bg-green-50',
+      textColor: 'text-green-700',
+      borderColor: 'border-green-200',
+    });
+  }
+
+  // 파트너 B2B 유입
+  if (customerSource === 'B2B_LANDING') {
+    badges.push({
+      label: '파트너 B2B 유입',
+      icon: <FiUser className="w-3 h-3" />,
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-700',
+      borderColor: 'border-purple-200',
     });
   }
 

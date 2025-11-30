@@ -84,7 +84,7 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
 
 export async function POST(req: Request) {
   try {
-    const { name, phone } = await req.json();
+    const { name, phone, partnerId, source } = await req.json();
 
     if (!name || !phone) {
       return NextResponse.json(
@@ -128,34 +128,98 @@ export async function POST(req: Request) {
 
       if (existingLead) {
         // 이미 존재하는 경우, 메타데이터에 체험 정보 업데이트
+        const updateData: any = {
+          metadata: {
+            ...(existingLead.metadata as any || {}),
+            trialStartedAt: now.toISOString(),
+            trialExpiresAt: trialEndDate.toISOString(),
+            lastTrialUpdate: now.toISOString(),
+          },
+          // 소스가 없는 경우에만 업데이트 (기존 소스 유지)
+          source: existingLead.source || source || 'TRIAL_DASHBOARD',
+        };
+
+        // 파트너 ID가 있고, 기존 리드에 담당자가 없는 경우 할당
+        if (partnerId) {
+          // partnerId가 숫자인지 코든지 확인
+          const partnerIdNum = Number(partnerId);
+          const whereClause = isNaN(partnerIdNum)
+            ? { affiliateCode: partnerId, status: 'ACTIVE' }
+            : { id: partnerIdNum, status: 'ACTIVE' };
+
+          const partner = await prisma.affiliateProfile.findFirst({
+            where: whereClause
+          });
+
+          if (partner) {
+            if (!existingLead.managerId && !existingLead.agentId) {
+              if (partner.type === 'BRANCH_MANAGER') {
+                updateData.managerId = partner.id;
+              } else if (partner.type === 'SALES_AGENT') {
+                updateData.agentId = partner.id;
+                // 판매원의 대리점장 찾기
+                const relation = await prisma.affiliateRelation.findFirst({
+                  where: { agentId: partner.id, status: 'ACTIVE' },
+                  select: { managerId: true }
+                });
+                if (relation) {
+                  updateData.managerId = relation.managerId;
+                }
+              }
+              // 소스도 B2B_LANDING으로 업데이트 (파트너 유입이므로)
+              updateData.source = 'B2B_LANDING';
+            }
+          }
+        }
+
         await prisma.affiliateLead.update({
           where: { id: existingLead.id },
-          data: {
-            metadata: {
-              ...(existingLead.metadata as any || {}),
-              trialStartedAt: now.toISOString(),
-              trialExpiresAt: trialEndDate.toISOString(),
-              lastTrialUpdate: now.toISOString(),
-            },
-            // 소스가 없는 경우에만 업데이트 (기존 소스 유지)
-            source: existingLead.source || 'TRIAL_DASHBOARD',
-            // 상태가 NEW라면 CONTACTED나 다른 상태로 변경할 수도 있지만, 일단 유지하거나 필요시 변경
-          }
+          data: updateData
         });
         console.log('[Subscription Trial] 기존 리드 업데이트 완료:', existingLead.id);
       } else {
         // 신규 리드 생성
-        const newLead = await prisma.affiliateLead.create({
-          data: {
-            customerName: name,
-            customerPhone: normalizedPhone,
-            status: 'NEW',
-            source: 'TRIAL_DASHBOARD', // 시스템 상담 신청 (체험)
-            metadata: {
-              trialStartedAt: now.toISOString(),
-              trialExpiresAt: trialEndDate.toISOString(),
-            }
+        const createData: any = {
+          customerName: name,
+          customerPhone: normalizedPhone,
+          status: 'NEW',
+          source: source || 'TRIAL_DASHBOARD', // 기본값
+          metadata: {
+            trialStartedAt: now.toISOString(),
+            trialExpiresAt: trialEndDate.toISOString(),
           }
+        };
+
+        // 파트너 할당 로직
+        if (partnerId) {
+          const partnerIdNum = Number(partnerId);
+          const whereClause = isNaN(partnerIdNum)
+            ? { affiliateCode: partnerId, status: 'ACTIVE' }
+            : { id: partnerIdNum, status: 'ACTIVE' };
+
+          const partner = await prisma.affiliateProfile.findFirst({
+            where: whereClause
+          });
+
+          if (partner) {
+            if (partner.type === 'BRANCH_MANAGER') {
+              createData.managerId = partner.id;
+            } else if (partner.type === 'SALES_AGENT') {
+              createData.agentId = partner.id;
+              const relation = await prisma.affiliateRelation.findFirst({
+                where: { agentId: partner.id, status: 'ACTIVE' },
+                select: { managerId: true }
+              });
+              if (relation) {
+                createData.managerId = relation.managerId;
+              }
+            }
+            createData.source = 'B2B_LANDING'; // 파트너 유입
+          }
+        }
+
+        const newLead = await prisma.affiliateLead.create({
+          data: createData
         });
         console.log('[Subscription Trial] 신규 리드 생성 완료:', newLead.id);
       }

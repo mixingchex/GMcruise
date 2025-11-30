@@ -92,7 +92,8 @@ export default function SubscriptionLoginPage() {
         credentials: 'include',
         body: JSON.stringify({
           name: trimmedName,
-          phone: trimmedPhone
+          phone: trimmedPhone,
+          source: 'B2B_INFLOW'
         }),
       });
 
