@@ -47,20 +47,6 @@ export async function GET(req: NextRequest) {
 
         const consultations = await prisma.systemConsultation.findMany({
             where,
-            include: {
-                AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile: {
-                    select: {
-                        displayName: true,
-                        affiliateCode: true,
-                    }
-                },
-                AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile: {
-                    select: {
-                        displayName: true,
-                        affiliateCode: true,
-                    }
-                }
-            },
             orderBy: {
                 createdAt: 'desc',
             },
@@ -68,9 +54,33 @@ export async function GET(req: NextRequest) {
             take: limit,
         });
 
+        // Fetch all manager and agent profiles
+        const managerIds = consultations.map(c => c.managerId).filter(Boolean) as number[];
+        const agentIds = consultations.map(c => c.agentId).filter(Boolean) as number[];
+        const allProfileIds = [...new Set([...managerIds, ...agentIds])];
+
+        const profiles = await prisma.affiliateProfile.findMany({
+            where: {
+                id: { in: allProfileIds }
+            },
+            select: {
+                id: true,
+                displayName: true,
+                affiliateCode: true,
+            }
+        });
+
+        const profileMap = new Map(profiles.map(p => [p.id, p]));
+
+        const consultationsWithProfiles = consultations.map(c => ({
+            ...c,
+            AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile: c.managerId ? profileMap.get(c.managerId) || null : null,
+            AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile: c.agentId ? profileMap.get(c.agentId) || null : null,
+        }));
+
         return NextResponse.json({
             ok: true,
-            consultations,
+            consultations: consultationsWithProfiles,
             total,
             page,
             totalPages: Math.ceil(total / limit),

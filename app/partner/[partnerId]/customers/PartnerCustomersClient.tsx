@@ -2033,16 +2033,6 @@ export default function PartnerCustomersClient({
             >
               전화상담고객
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('system-consultations')}
-              className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'system-consultations'
-                ? 'border-b-2 border-blue-600 text-blue-600'
-                : 'text-slate-500 hover:text-slate-700'
-                }`}
-            >
-              시스템 상담
-            </button>
           </div>
 
           {activeTab === 'customers' ? (
@@ -2399,13 +2389,6 @@ export default function PartnerCustomersClient({
                                             )}
                                             <button
                                               type="button"
-                                              onClick={() => handleExtendTrial(customer.id, customer.customerName || '고객')}
-                                              className="text-green-600 hover:text-green-700 font-semibold bg-green-50 px-2 py-1 rounded text-xs"
-                                            >
-                                              +7일 연장
-                                            </button>
-                                            <button
-                                              type="button"
                                               onClick={() => openDetail(customer.id)}
                                               className="text-blue-600 hover:text-blue-700 font-semibold"
                                             >
@@ -2472,13 +2455,6 @@ export default function PartnerCustomersClient({
                                       {formatDate(customer.createdAt)}
                                     </span>
                                     <div className="flex items-center gap-2">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleExtendTrial(customer.id, customer.customerName || '고객')}
-                                        className="text-xs font-semibold text-green-600 hover:text-green-700 bg-green-50 px-2 py-1 rounded"
-                                      >
-                                        +7일 연장
-                                      </button>
                                       {searchParams.get('action') === 'sms' && (
                                         <button
                                           type="button"
