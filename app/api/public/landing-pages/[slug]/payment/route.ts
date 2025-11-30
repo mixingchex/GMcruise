@@ -152,9 +152,9 @@ export async function POST(
 
     // 결제 페이지 URL 생성 (기존 결제 API와 동일한 방식)
     let paymentUrl = '';
-    
+
     if (paymentProvider === 'welcomepay' || paymentProvider === 'welcomepayments') {
-      const welcomePayUrl = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || process.env.WELCOME_PAY_URL || '';
+      const welcomePayUrl = process.env.NEXT_PUBLIC_WELCOME_STD_PAY_URL || process.env.NEXT_PUBLIC_WELCOME_PAY_URL || process.env.WELCOME_PAY_URL || '';
       if (!welcomePayUrl) {
         console.error('[Landing Page Payment] WelcomePay URL이 설정되지 않음');
         return NextResponse.json(
@@ -162,7 +162,7 @@ export async function POST(
           { status: 500 }
         );
       }
-      
+
       const params = new URLSearchParams();
       params.append('mid', paymentData.mid);
       params.append('orderId', paymentData.orderId);
@@ -173,11 +173,11 @@ export async function POST(
       params.append('signature', signature);
       params.append('fieldEncryptIv', selectedFieldEncryptIv);
       params.append('fieldEncryptKey', selectedFieldEncryptKey);
-      
+
       if (metadata) {
         params.append('metadata', JSON.stringify(metadata));
       }
-      
+
       paymentUrl = `${welcomePayUrl}?${params.toString()}`;
     } else if (paymentProvider === 'payapp') {
       // PayApp API를 통한 동적 결제 URL 생성
@@ -206,8 +206,8 @@ export async function POST(
 
       // 전화번호 처리 (요청에서 받거나 임시값 사용)
       // 페이앱 결제창에서 전화번호를 입력받을 수 있으므로, 없으면 임시값 사용
-      const recvphone = requestBody.phone 
-        ? requestBody.phone.replace(/[^0-9]/g, '') 
+      const recvphone = requestBody.phone
+        ? requestBody.phone.replace(/[^0-9]/g, '')
         : '01000000000'; // 임시 전화번호 (페이앱 결제창에서 실제 전화번호 입력)
 
       // PayApp API 호출
@@ -246,7 +246,7 @@ export async function POST(
       if (payappResult.state === '1') {
         // 결제 요청 성공
         paymentUrl = payappResult.payurl || '';
-        
+
         if (!paymentUrl) {
           console.error('[Landing Page Payment] PayApp에서 결제 URL을 받지 못함');
           return NextResponse.json(

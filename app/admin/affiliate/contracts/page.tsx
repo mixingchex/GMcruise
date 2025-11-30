@@ -709,7 +709,14 @@ export default function AdminAffiliateContractsPage() {
   });
   const [searchInput, setSearchInput] = useState('');
   const [showSendContractModal, setShowSendContractModal] = useState(false);
-  const [contractType, setContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'SUBSCRIPTION_AGENT'>('SALES_AGENT');
+  const [contractType, setContractType] = useState<string>('SALES_AGENT');
+  const [availableContractTypes, setAvailableContractTypes] = useState<Array<{
+    code: string;
+    title: string;
+    price?: string;
+    icon: string;
+    isCustom: boolean;
+  }>>([]);
   const [profiles, setProfiles] = useState<AffiliateProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<AffiliateProfile | null>(null);
   const [contractLink, setContractLink] = useState<string | null>(null);
@@ -780,6 +787,23 @@ export default function AdminAffiliateContractsPage() {
   useEffect(() => {
     loadContracts();
   }, [loadContracts]);
+
+  // 계약서 타입 목록 로드
+  const loadContractTypes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/public/contract-types');
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setAvailableContractTypes(json.contractTypes || []);
+      }
+    } catch (error) {
+      console.error('[AdminContracts] load contract types error', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadContractTypes();
+  }, [loadContractTypes]);
 
   const loadProfiles = async () => {
     try {
@@ -1306,47 +1330,65 @@ export default function AdminAffiliateContractsPage() {
                 파트너 계약 신청서를 검토하고 승인/거부할 수 있습니다.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setContractType('SALES_AGENT');
-                  handleOpenSendContractModal();
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 shadow-md"
-              >
-                <FiSend className="text-base" />
-                판매원 계약서 보내기
-              </button>
-              <button
-                onClick={() => {
-                  setContractType('BRANCH_MANAGER');
-                  handleOpenSendContractModal();
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-purple-600 hover:bg-purple-50 shadow-md"
-              >
-                <FiSend className="text-base" />
-                대리점장 계약서 보내기
-              </button>
-              <button
-                onClick={() => {
-                  setContractType('CRUISE_STAFF');
-                  handleOpenSendContractModal();
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-green-600 hover:bg-green-50 shadow-md"
-              >
-                <FiSend className="text-base" />
-                크루즈스탭 계약서 보내기
-              </button>
-              <button
-                onClick={() => {
-                  setContractType('SUBSCRIPTION_AGENT');
-                  handleOpenSendContractModal();
-                }}
-                className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-orange-600 hover:bg-orange-50 shadow-md"
-              >
-                <FiSend className="text-base" />
-                정액제 계약서 보내기
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* 동적 계약서 발송 버튼 */}
+              {availableContractTypes.length > 0 ? (
+                availableContractTypes.map((ct) => {
+                  // 기본 색상 설정
+                  const colorMap: Record<string, { text: string; bg: string }> = {
+                    SALES_AGENT: { text: 'text-blue-600', bg: 'hover:bg-blue-50' },
+                    BRANCH_MANAGER: { text: 'text-purple-600', bg: 'hover:bg-purple-50' },
+                    CRUISE_STAFF: { text: 'text-green-600', bg: 'hover:bg-green-50' },
+                    SUBSCRIPTION_AGENT: { text: 'text-orange-600', bg: 'hover:bg-orange-50' },
+                  };
+                  const colors = colorMap[ct.code] || { text: 'text-indigo-600', bg: 'hover:bg-indigo-50' };
+                  
+                  // 계약서 이름 간소화 (예: "판매원 계약서" → "판매원")
+                  const shortTitle = ct.title
+                    .replace(/계약서|계약/g, '')
+                    .replace(/크루즈닷|어필리에이트/g, '')
+                    .trim() || ct.title;
+                  
+                  return (
+                    <button
+                      key={ct.code}
+                      onClick={() => {
+                        setContractType(ct.code);
+                        handleOpenSendContractModal();
+                      }}
+                      className={`inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-xs font-semibold ${colors.text} ${colors.bg} shadow-md whitespace-nowrap`}
+                      title={ct.price ? `${ct.title} (${ct.price})` : ct.title}
+                    >
+                      <span>{ct.icon}</span>
+                      <span>{shortTitle}</span>
+                    </button>
+                  );
+                })
+              ) : (
+                // 기본 버튼 (로딩 전)
+                <>
+                  <button
+                    onClick={() => {
+                      setContractType('SALES_AGENT');
+                      handleOpenSendContractModal();
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 shadow-md"
+                  >
+                    <FiSend className="text-base" />
+                    판매원
+                  </button>
+                  <button
+                    onClick={() => {
+                      setContractType('BRANCH_MANAGER');
+                      handleOpenSendContractModal();
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-purple-600 hover:bg-purple-50 shadow-md"
+                  >
+                    <FiSend className="text-base" />
+                    대리점장
+                  </button>
+                </>
+              )}
               <button
                 onClick={loadContracts}
                 className="inline-flex items-center gap-2 rounded-xl bg-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/30"

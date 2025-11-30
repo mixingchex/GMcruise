@@ -4,7 +4,42 @@ import { NextResponse } from 'next/server';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
-import { nanoid } from 'nanoid';
+
+/**
+ * gest 아이디 생성 (숫자만 증가)
+ * - 정액제: gest1, gest2, gest3...
+ */
+async function generateGestId(): Promise<string> {
+  const existing = await prisma.user.findMany({
+    where: {
+      phone: {
+        startsWith: 'gest',
+      },
+    },
+    select: { phone: true },
+  });
+
+  const used = new Set<number>();
+  existing.forEach((record) => {
+    if (!record.phone) return;
+    const match = record.phone.match(/^gest(\d{1,5})(?:-.*)?$/i);
+    if (match) {
+      const num = Number(match[1]);
+      if (!Number.isNaN(num)) {
+        used.add(num);
+      }
+    }
+  });
+
+  // 1부터 시작해서 사용 가능한 번호 찾기
+  for (let i = 1; i <= 99999; i += 1) {
+    if (!used.has(i)) {
+      return `gest${i}`;
+    }
+  }
+
+  throw new Error('사용 가능한 정액제 아이디가 없습니다.');
+}
 
 /**
  * 대리점장이 정액제 판매원 계정 생성
@@ -49,15 +84,18 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: false, message: '이미 정액제 판매원 계정이 존재합니다.' }, { status: 400 });
       }
     } else {
-      // 새 사용자 생성
-      const mallUserId = `sub_${Date.now()}_${nanoid(6)}`;
+      // 새 사용자 생성 - gest 아이디 자동 생성
+      const gestId = await generateGestId();
       user = await prisma.user.create({
         data: {
           name: name.trim(),
-          phone: normalizedPhone,
+          phone: gestId, // phone 필드에 gest1, gest2... 저장
           email: email?.trim() || null,
-          mallUserId,
-          password: 'qwe1', // 기본 비밀번호
+          mallUserId: gestId, // mallUserId에도 동일하게 저장
+          mallNickname: name.trim(),
+          password: 'zxc1', // 정액제 기본 비밀번호
+          role: 'community',
+          customerSource: 'subscription-agent-creation',
         },
         include: {
           AffiliateProfile: true,

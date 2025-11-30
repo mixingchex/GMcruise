@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
 
     // 총 인원 수 확인
     const totalGuests = roomSelections.reduce((sum: number, selection: any) => {
-      return sum + (selection.adult || 0) + (selection.adult3rd || 0) + 
-             (selection.child2to11 || 0) + (selection.infantUnder2 || 0);
+      return sum + (selection.adult || 0) + (selection.adult3rd || 0) +
+        (selection.child2to11 || 0) + (selection.infantUnder2 || 0);
     }, 0);
 
     if (totalGuests === 0) {
@@ -152,22 +152,22 @@ export async function POST(req: NextRequest) {
       orderId,
       amount: parseInt(String(amount)),
       productName: product.packageName,
-      
+
       // 구매자 정보
       buyerName,
       buyerEmail: buyerEmail || '',
       buyerTel,
-      
+
       // 상품 정보
       productCode,
-      
+
       // 방 선택 정보
       roomSelections: roomSelections || [],
       totalGuests,
-      
+
       // 어필리에이트 정보 (metadata에 포함)
       metadata,
-      
+
       // 콜백 URL
       returnUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payment/callback`,
       notifyUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/payment/notify`,
@@ -199,9 +199,9 @@ export async function POST(req: NextRequest) {
     });
 
     // 웰컴페이먼츠 결제 페이지 URL 생성
-    const welcomePayUrl = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || process.env.WELCOME_PAY_URL || '';
+    const welcomePayUrl = process.env.NEXT_PUBLIC_WELCOME_STD_PAY_URL || process.env.NEXT_PUBLIC_WELCOME_PAY_URL || process.env.WELCOME_PAY_URL || '';
     let paymentUrl = '';
-    
+
     if (welcomePayUrl) {
       // 결제 데이터를 URL 파라미터로 변환
       const params = new URLSearchParams();
@@ -217,12 +217,12 @@ export async function POST(req: NextRequest) {
       params.append('signature', signature);
       params.append('fieldEncryptIv', selectedFieldEncryptIv);
       params.append('fieldEncryptKey', selectedFieldEncryptKey);
-      
+
       // 메타데이터는 JSON 문자열로 전달
       if (paymentData.metadata) {
         params.append('metadata', JSON.stringify(paymentData.metadata));
       }
-      
+
       paymentUrl = `${welcomePayUrl}?${params.toString()}`;
     }
 

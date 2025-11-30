@@ -1,14 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import prisma from '@/lib/prisma';
-import { getSheetsClient } from '@/lib/google-sheets';
 import { google } from 'googleapis';
-import { cookies } from 'next/headers';
-import { randomBytes } from 'crypto';
-import { generateCsrfToken } from '@/lib/csrf';
-
-const SESSION_COOKIE = 'cg.sid.v2';
 
 // 구글 스프레드시트에 잠재고객 정보 저장
 async function saveToProspectSpreadsheet(name: string, phone: string) {
@@ -41,7 +34,6 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
     const sheets = google.sheets({ version: 'v4', auth });
 
     // 헤더 확인 및 추가 (없으면)
-    // 컬럼 순서: A열=가입일시, B열=상태, C열=이름, D열=연락처
     const headerRange = 'Prospects!A1:D1';
     const headerResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
@@ -50,7 +42,6 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
 
     const headers = headerResponse.data.values?.[0] || [];
     if (headers.length === 0) {
-      // 헤더 추가
       await sheets.spreadsheets.values.update({
         spreadsheetId,
         range: headerRange,
@@ -62,7 +53,6 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
     }
 
     // 데이터 추가
-    // 컬럼 순서: A열=가입일시, B열=상태, C열=이름, D열=연락처
     const now = new Date();
     const formattedDate = now.toLocaleString('ko-KR', { 
       timeZone: 'Asia/Seoul',
@@ -79,7 +69,7 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
       range: 'Prospects!A:D',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[formattedDate, '무료 체험 중', name, phone]],
+        values: [[formattedDate, '7일 무료 체험', name, phone]],
       },
     });
 
@@ -87,7 +77,6 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
     return { ok: true };
   } catch (error: any) {
     console.error('[Subscription Trial] 구글 스프레드시트 저장 실패:', error);
-    // 스프레드시트 저장 실패해도 계속 진행
     return { ok: false, error: error?.message };
   }
 }
@@ -113,178 +102,31 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log('[Subscription Trial] 무료 체험 시작 요청:', { name, phone: normalizedPhone });
+    console.log('[Subscription Trial] 7일 무료 체험 시작:', { name, phone: normalizedPhone });
 
-    // 기존 사용자 확인 (동일 연락처)
-    let user = await prisma.user.findFirst({
-      where: {
-        phone: normalizedPhone,
-      },
-    });
-
-    const now = new Date();
-    const trialEndDate = new Date(now);
-    trialEndDate.setDate(trialEndDate.getDate() + 7); // 7일 무료 체험
-
-    if (user) {
-      // 기존 사용자: 기존 계약서 확인
-      const existingContract = await prisma.affiliateContract.findFirst({
-        where: {
-          userId: user.id,
-          metadata: {
-            path: ['contractType'],
-            equals: 'SUBSCRIPTION_AGENT',
-          },
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      });
-
-      if (existingContract) {
-        const metadata = existingContract.metadata as any || {};
-        const isTrial = metadata.isTrial === true;
-        const contractTrialEndDate = metadata.trialEndDate ? new Date(metadata.trialEndDate) : null;
-
-        // 무료 체험이 아직 유효한 경우
-        if (isTrial && contractTrialEndDate && now < contractTrialEndDate) {
-          console.log('[Subscription Trial] 기존 무료 체험 계정 사용:', { userId: user.id });
-
-          // 구글 스프레드시트에 저장 (중복 방지 로직은 나중에 추가 가능)
-          await saveToProspectSpreadsheet(name, normalizedPhone);
-
-          // 세션 생성
-          const sessionId = randomBytes(32).toString('hex');
-          const expiresAt = new Date();
-          expiresAt.setDate(expiresAt.getDate() + 7);
-
-          const session = await prisma.session.create({
-            data: {
-              id: sessionId,
-              userId: user.id,
-              csrfToken: generateCsrfToken(),
-              expiresAt,
-            },
-            select: { id: true, csrfToken: true },
-          });
-
-          cookies().set(SESSION_COOKIE, session.id, {
-            httpOnly: true,
-            sameSite: 'lax',
-            path: '/',
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 7 * 24 * 60 * 60,
-          });
-
-          return NextResponse.json({
-            ok: true,
-            mallUserId: user.mallUserId || 'trial',
-            message: '기존 무료 체험 계정으로 로그인합니다.',
-          });
-        }
-      }
-    } else {
-      // 신규 사용자: 임시 계정 생성 (아이디/비밀번호 없이)
-      const tempMallUserId = `trial_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      
-      user = await prisma.user.create({
-        data: {
-          name,
-          phone: normalizedPhone,
-          mallUserId: tempMallUserId,
-          password: '', // 비밀번호 없음
-          email: `${tempMallUserId}@trial.cruisedot.co.kr`,
-        },
-      });
-
-      console.log('[Subscription Trial] 신규 임시 계정 생성:', { userId: user.id, mallUserId: tempMallUserId });
-    }
-
-    // AffiliateProfile 생성 또는 확인
-    let affiliateProfile = await prisma.affiliateProfile.findFirst({
-      where: {
-        userId: user.id,
-        status: 'ACTIVE',
-      },
-    });
-
-    if (!affiliateProfile) {
-      affiliateProfile = await prisma.affiliateProfile.create({
-        data: {
-          userId: user.id,
-          affiliateCode: `TRIAL-${user.id}-${Date.now()}`,
-          type: 'SALES_AGENT',
-          status: 'ACTIVE',
-          displayName: name,
-          nickname: name,
-          landingSlug: user.mallUserId || undefined,
-          updatedAt: now,
-        },
-      });
-    }
-
-    // 정액제 계약서 생성 (7일 무료 체험)
-    const contractEndDate = new Date(now);
-    contractEndDate.setDate(contractEndDate.getDate() + 7);
-
-    await prisma.affiliateContract.create({
-      data: {
-        userId: user.id,
-        name,
-        residentId: '000000-0000000', // 임시
-        phone: normalizedPhone,
-        email: user.email || `${user.mallUserId}@trial.cruisedot.co.kr`,
-        address: '무료 체험 계정',
-        status: 'completed',
-        metadata: {
-          contractType: 'SUBSCRIPTION_AGENT',
-          isTrial: true,
-          trialEndDate: trialEndDate.toISOString(),
-          userInfo: {
-            name,
-            phone: normalizedPhone,
-          },
-        },
-        contractStartDate: now,
-        contractEndDate: contractEndDate,
-        submittedAt: now,
-        updatedAt: now,
-      },
-    });
-
-    // 구글 스프레드시트에 잠재고객 정보 저장
+    // 구글 스프레드시트에 잠재고객 정보 저장 (B2B 잠재고객 추적)
     await saveToProspectSpreadsheet(name, normalizedPhone);
 
-    // 세션 생성
-    const sessionId = randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7일 체험 기간에 맞춰 세션도 7일
+    // 7일 체험 정보 생성 (클라이언트에서 localStorage에 저장할 데이터)
+    const now = new Date();
+    const trialEndDate = new Date(now);
+    trialEndDate.setDate(trialEndDate.getDate() + 7);
 
-    const session = await prisma.session.create({
-      data: {
-        id: sessionId,
-        userId: user.id,
-        csrfToken: generateCsrfToken(),
-        expiresAt,
-      },
-      select: { id: true, csrfToken: true },
-    });
+    const trialSession = {
+      name,
+      phone: normalizedPhone,
+      startedAt: now.toISOString(),
+      expiresAt: trialEndDate.toISOString(),
+      trialId: `trial_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    };
 
-    // 쿠키 설정
-    cookies().set(SESSION_COOKIE, session.id, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 7 * 24 * 60 * 60, // 7일
-    });
-
-    console.log('[Subscription Trial] 무료 체험 시작 완료:', { userId: user.id, name, phone: normalizedPhone, sessionId });
+    console.log('[Subscription Trial] 체험 세션 생성:', trialSession);
 
     return NextResponse.json({
       ok: true,
-      mallUserId: user.mallUserId,
-      message: '7일 무료 체험이 시작되었습니다.',
+      trial: trialSession,
+      message: '7일 무료 체험이 시작되었습니다!',
+      redirectUrl: '/trial/dashboard',
     });
   } catch (error: any) {
     console.error('[Subscription Trial] Error:', error);
@@ -294,4 +136,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

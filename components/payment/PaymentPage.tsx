@@ -257,7 +257,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
           // 숨겨진 폼 생성 및 POST 제출
           const form = document.createElement('form');
           form.method = 'POST';
-          form.action = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
+          form.action = process.env.NEXT_PUBLIC_WELCOME_STD_PAY_URL || process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
           form.acceptCharset = 'UTF-8';
           
           // 웰컴페이먼츠 표준결제 파라미터 (P_ 접두사 형식)

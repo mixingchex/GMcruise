@@ -88,6 +88,7 @@ export async function GET(req: NextRequest) {
     const managerProfileId = searchParams.get('managerProfileId'); // 점장별 필터링
     const customerGroupRaw = searchParams.get('customerGroup');
     const customerGroup: AdminCustomerGroup | null = customerGroupRaw === 'all' ? 'all' : (customerGroupRaw as AdminCustomerGroup | null); // 고객 그룹 필터: all, prospects, trial, mall, purchase, refund, passport, manager-customers, agent-customers, inquiry
+    const customerSource = searchParams.get('customerSource'); // B2B_TRIAL_SUBSCRIPTION, affiliate-contract-approval 등 고객 소스 필터
 
     // 연동된 크루즈몰 고객 ID 목록 조회 (중복 제거용) - 성능 최적화: 필요할 때만 조회
     // 크루즈 가이드 고객 중 mallUserId가 설정된 고객들의 mallUserId 목록
@@ -129,6 +130,20 @@ export async function GET(req: NextRequest) {
       // role이 'admin'이 아닌 모든 사용자 표시
       { role: { not: 'admin' } },
     ];
+
+    // customerSource 필터 (B2B 잠재고객 등)
+    if (customerSource) {
+      if (customerSource === 'B2B') {
+        // B2B로 시작하는 모든 소스 필터
+        whereConditions.push({
+          customerSource: { startsWith: 'B2B' },
+        });
+      } else {
+        whereConditions.push({
+          customerSource: customerSource,
+        });
+      }
+    }
 
     // customerGroup에 따른 초기 필터링 (DB 쿼리 최적화)
     // customerGroup이 없거나 'all'이면 필터링하지 않음 (전체 고객 조회)

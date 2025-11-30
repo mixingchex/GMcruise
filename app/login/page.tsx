@@ -46,8 +46,8 @@ function LoginPageContent() {
       return;
     }
 
-    // 크루즈 가이드 지니 비밀번호 검증 (3800만 허용)
-    if (trimmedPassword !== '3800') {
+    // 크루즈 가이드 지니 비밀번호 검증 (3800=구매고객용, 1101=3일체험)
+    if (trimmedPassword !== '3800' && trimmedPassword !== '1101') {
       setError('비밀번호가 올바르지 않습니다. 비밀번호를 확인해주세요.');
       return;
     }

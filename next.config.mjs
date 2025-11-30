@@ -49,6 +49,12 @@ const nextConfig = {
   // 성능 최적화: X-Powered-By 헤더 제거 (보안 및 성능)
   poweredByHeader: false,
   
+  // 성능 최적화: 정적 페이지 생성 시간 제한 증가 (대규모 데이터용)
+  staticPageGenerationTimeout: 180,
+  
+  // 성능 최적화: 소스맵 비활성화 (프로덕션 빌드 크기 감소)
+  productionBrowserSourceMaps: false,
+  
   // TypeScript 타입 체크 무시 (임시)
   typescript: {
     ignoreBuildErrors: true,

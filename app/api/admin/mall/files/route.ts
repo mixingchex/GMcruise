@@ -1,6 +1,7 @@
 // app/api/admin/mall/files/route.ts
 // 업로드된 파일 목록 조회 API
 
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';

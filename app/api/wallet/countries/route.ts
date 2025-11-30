@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       select: {
+        id: true,
         destination: true,
         startDate: true,
         endDate: true,
@@ -132,6 +133,7 @@ export async function GET(req: NextRequest) {
         startDate: latestTrip.startDate,
         endDate: latestTrip.endDate,
       } : null,
+      tripId: latestTrip?.id,
     });
   } catch (error) {
     console.error('[API /wallet/countries] Error:', error);

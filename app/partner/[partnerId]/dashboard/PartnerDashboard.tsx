@@ -300,6 +300,11 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     minutes: number;
     seconds: number;
   } | null>(null);
+  
+  // PWA 설치 상태
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   // 프로필 타입 확인 (useEffect보다 먼저 선언)
   const isBranchManager = profile?.type === 'BRANCH_MANAGER';
@@ -325,7 +330,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           
           // 결제 완료 후 성공 메시지 표시
           if (showSuccessMessage && newSubscriptionInfo.status === 'active' && !newSubscriptionInfo.isTrial) {
-            showSuccess('정액제 구독이 완료되었습니다! 이제 더 많은 기능을 사용할 수 있습니다.');
+            showSuccess('시스템 이용이 활성화되었습니다! 이제 더 많은 기능을 사용할 수 있습니다.');
           }
           
           // 정액제 판매원인 경우 튜토리얼 자동 표시 (첫 로그인 시에만)
@@ -452,6 +457,41 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     }
   }, [user.mallUserId]);
   
+  // PWA 설치 프롬프트 이벤트 핸들러
+  useEffect(() => {
+    // 이미 앱으로 실행 중인지 확인
+    const checkStandalone = () => {
+      const isStandaloneMode = 
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone === true ||
+        document.referrer.includes('android-app://');
+      setIsStandalone(isStandaloneMode);
+    };
+    
+    checkStandalone();
+    
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      setIsInstallable(true);
+    };
+    
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setIsInstallable(false);
+      setIsStandalone(true);
+      showSuccess('앱이 설치되었습니다! 홈화면에서 바로 접속하세요.');
+    };
+    
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+  
   const loadLandingPages = useCallback(async () => {
     try {
       setLoadingLandingPages(true);
@@ -516,7 +556,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   }, []);
   // 정액제 판매원 확인
   const isSubscriptionAgent = subscriptionInfo !== null;
-  const roleLabel = isSubscriptionAgent ? '정액제' : (isBranchManager ? '대리점장' : isSalesAgent ? '판매원' : '파트너');
+  const roleLabel = isSubscriptionAgent ? '시스템 이용자' : (isBranchManager ? '대리점장' : isSalesAgent ? '판매원' : '파트너');
   const roleColor = isSubscriptionAgent 
     ? 'from-yellow-500 via-yellow-400 to-yellow-600' 
     : (isBranchManager ? 'from-purple-600 via-indigo-600 to-blue-600' : 'from-blue-600 via-cyan-600 to-teal-600');
@@ -927,6 +967,34 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
       reservation.trip?.product?.packageName?.toLowerCase().includes(search)
     );
   });
+
+  // PWA 앱 설치 핸들러
+  const handleInstallApp = async () => {
+    if (!installPrompt) {
+      // iOS 또는 설치 불가능한 경우 안내
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        showError('Safari에서 공유 버튼 → "홈 화면에 추가"를 눌러주세요.');
+      } else {
+        showError('이 브라우저에서는 앱 설치가 지원되지 않습니다. Chrome 또는 Edge를 사용해주세요.');
+      }
+      return;
+    }
+    
+    try {
+      await installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        showSuccess('앱 설치가 시작되었습니다!');
+      }
+      setInstallPrompt(null);
+      setIsInstallable(false);
+    } catch (error) {
+      console.error('[PWA Install] Error:', error);
+      showError('앱 설치 중 오류가 발생했습니다.');
+    }
+  };
 
   const handleCompleteContract = async (contractId: number) => {
     // 계약서 열람 확인 체크
@@ -1446,7 +1514,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     }}
                     className="px-4 py-2 bg-white text-orange-600 font-bold rounded-lg hover:bg-orange-50 transition-colors shadow-md text-sm md:text-base"
                   >
-                    정액제 구독하기 (10만원)
+                    시스템 문의
                   </button>
                 </>
               ) : subscriptionInfo.status === 'active' ? (
@@ -1488,7 +1556,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     }}
                     className="px-4 py-2 bg-white text-red-600 font-bold rounded-lg hover:bg-red-50 transition-colors shadow-md text-sm md:text-base"
                   >
-                    정액제 구독하기 (10만원)
+                    시스템 문의
                   </button>
                 </>
               )}
@@ -1497,8 +1565,29 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         </div>
       )}
       
+      {/* PWA 앱 설치 배너 - 설치 가능하고 아직 앱으로 실행중이 아닐 때만 표시 */}
+      {(isInstallable || (!isStandalone && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : ''))) && !isStandalone && (
+        <div className={`fixed ${subscriptionInfo && countdown ? 'top-16 md:top-[60px]' : 'top-0'} left-0 right-0 z-40 bg-gradient-to-r from-purple-600 via-purple-500 to-indigo-600 text-white shadow-md`}>
+          <div className="mx-auto max-w-7xl px-4 py-2.5 md:py-3">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <span className="text-xl">📲</span>
+              <span className="text-sm font-medium md:text-base">7일 체험 대시보드를 앱으로 설치하세요!</span>
+              <button
+                onClick={handleInstallApp}
+                className="px-4 py-1.5 bg-white text-purple-600 font-bold rounded-lg hover:bg-purple-50 transition-colors shadow-md text-sm flex items-center gap-1.5"
+              >
+                <span>📱</span>
+                {/iPhone|iPad|iPod/.test(typeof navigator !== 'undefined' ? navigator.userAgent : '') 
+                  ? '홈 화면에 추가 방법' 
+                  : '바로 설치하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <div className={`mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 md:gap-8 md:px-6 ${
-        subscriptionInfo ? 'pt-20 md:pt-24' : 'pt-6 md:pt-10'
+        subscriptionInfo ? (isInstallable || (!isStandalone && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : ''))) && !isStandalone ? 'pt-32 md:pt-36' : 'pt-20 md:pt-24' : 'pt-6 md:pt-10'
       }`}>
         {/* 헤더 - 역할 명확하게 표시 */}
         <header className={`relative overflow-hidden bg-gradient-to-r ${roleColor} text-white rounded-2xl md:rounded-3xl shadow-xl`}>
@@ -1521,7 +1610,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               </div>
               <p className="max-w-2xl text-sm text-white/90 md:text-base">
                 {isSubscriptionAgent
-                  ? '정액제 판매원 대시보드입니다. 사용 가능한 기능은 빨간색 테두리로 표시됩니다.'
+                  ? '시스템 이용자 대시보드입니다. 사용 가능한 기능은 빨간색 테두리로 표시됩니다.'
                   : (isBranchManager 
                     ? '팀 관리, 판매 실적, 고객 관리 등 모든 업무를 한 곳에서 관리하세요.'
                     : '나의 판매 실적, 고객 관리, 링크 관리를 한 곳에서 확인하세요.')}
@@ -1532,7 +1621,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white/90 backdrop-blur-sm">
                   ID: {partnerId}
-                  {isSubscriptionAgent && <span className="ml-1 text-xs">(정액제 판매원)</span>}
+                  {isSubscriptionAgent && <span className="ml-1 text-xs">(시스템 이용자)</span>}
                   {!isSubscriptionAgent && isBranchManager && <span className="ml-1 text-xs">(대리점장)</span>}
                   {!isSubscriptionAgent && isSalesAgent && <span className="ml-1 text-xs">(판매원)</span>}
                   {!isSubscriptionAgent && !isBranchManager && !isSalesAgent && <span className="ml-1 text-xs">(파트너)</span>}
@@ -4329,7 +4418,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">정액제 대시보드 튜토리얼</h2>
+              <h2 className="text-2xl font-bold text-gray-900">시스템 대시보드 튜토리얼</h2>
               <button
                 onClick={() => setShowTutorial(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -4379,15 +4468,15 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
                   <li>대리점장 전용 기능 (팀 관리, 판매원별 DB 관리, 랜딩페이지 관리 등)</li>
                   <li>마비즈 VIP 판매원 전용 기능</li>
-                  {subscriptionInfo.isTrial && <li>정액제 구독 후 사용 가능한 기능</li>}
+                  {subscriptionInfo.isTrial && <li>시스템 이용 후 사용 가능한 기능</li>}
                 </ul>
               </div>
             </div>
             {subscriptionInfo && subscriptionInfo.isTrial && (
               <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 mb-4">
-                <h3 className="font-bold text-orange-900 mb-2">🎁 정액제 구독하고 더 많은 기능 사용하기</h3>
+                <h3 className="font-bold text-orange-900 mb-2">🎁 시스템 이용하고 더 많은 기능 사용하기</h3>
                 <p className="text-sm text-orange-800 mb-3">
-                  무료 체험 중이시군요! 정액제를 구독하시면 50% 기능을 사용하실 수 있습니다. (10만원/월)
+                  무료 체험 중이시군요! 시스템 문의로 자세한 안내를 받아보세요.
                 </p>
                 <button
                   onClick={() => {
@@ -4458,7 +4547,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               {subscriptionInfo && subscriptionInfo.isTrial && (
                 <div className="bg-orange-50 border-2 border-orange-200 rounded-lg p-4">
                   <p className="text-sm text-orange-800 mb-3">
-                    🎁 무료 체험 중이시군요! 정액제를 구독하시면 더 많은 기능을 사용하실 수 있습니다.
+                    🎁 무료 체험 중이시군요! 시스템 문의로 자세한 안내를 받아보세요.
                   </p>
                   <button
                     onClick={() => {
@@ -4483,7 +4572,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     }}
                     className="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg transition-colors shadow-md"
                   >
-                    정액제 구독하기 (10만원)
+                    시스템 문의
                   </button>
                 </div>
               )}
@@ -4508,7 +4597,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">정액제 구독하기</h2>
+              <h2 className="text-xl font-bold text-gray-900">시스템 이용 안내</h2>
               <button
                 onClick={() => {
                   setShowPaymentConfirmModal(false);

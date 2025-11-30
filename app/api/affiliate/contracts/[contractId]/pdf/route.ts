@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generateContractPDFFromId } from '@/lib/affiliate/contract-pdf';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   req: NextRequest,
@@ -24,8 +25,8 @@ export async function GET(
     // PDF 생성
     const pdfBuffer = await generateContractPDFFromId(contractIdNum);
 
-    // PDF 반환
-    return new NextResponse(pdfBuffer, {
+    // PDF 반환 (Buffer를 Uint8Array로 변환)
+    return new NextResponse(Uint8Array.from(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="contract-${contractId}.pdf"`,
@@ -33,7 +34,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('[Contract PDF] GET error:', error);
+    logger.error('[Contract PDF] GET error:', error);
     return NextResponse.json(
       { ok: false, message: error.message || 'PDF 생성 중 오류가 발생했습니다.' },
       { status: 500 }

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     const user = await getSessionUser();
     if (!user) {
       logger.error('[Stream API] Unauthorized - no user');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -38,16 +38,16 @@ export async function POST(req: Request) {
 
     // 환경 변수에서 API 키 가져오기 (GEMINI_API_KEY 우선 사용)
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-    
+
     // GOOGLE_GENERATIVE_AI_API_KEY가 잘못된 형식이면 경고
-    if (process.env.GOOGLE_GENERATIVE_AI_API_KEY && 
-        (process.env.GOOGLE_GENERATIVE_AI_API_KEY.length < 30 || !process.env.GOOGLE_GENERATIVE_AI_API_KEY.startsWith('AIza'))) {
+    if (process.env.GOOGLE_GENERATIVE_AI_API_KEY &&
+      (process.env.GOOGLE_GENERATIVE_AI_API_KEY.length < 30 || !process.env.GOOGLE_GENERATIVE_AI_API_KEY.startsWith('AIza'))) {
       logger.warn('[Stream API] GOOGLE_GENERATIVE_AI_API_KEY has invalid format, using GEMINI_API_KEY instead:', {
         GOOGLE_GENERATIVE_AI_API_KEY_length: process.env.GOOGLE_GENERATIVE_AI_API_KEY.length,
         GEMINI_API_KEY_length: process.env.GEMINI_API_KEY?.length || 0
       });
     }
-    
+
     logger.debug('[Stream API] API key check:', {
       hasGEMINI_API_KEY: !!process.env.GEMINI_API_KEY,
       GEMINI_API_KEY_length: process.env.GEMINI_API_KEY?.length || 0,
@@ -57,15 +57,15 @@ export async function POST(req: Request) {
       apiKeyPrefix: apiKey?.substring(0, 10) || 'N/A',
       usingKey: process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : 'GOOGLE_GENERATIVE_AI_API_KEY'
     });
-    
+
     if (!apiKey) {
       logger.error('[Stream API] Missing Gemini API key');
-      return new Response(JSON.stringify({ error: 'Server configuration error: Missing API key. Please set GEMINI_API_KEY environment variable.' }), { 
+      return new Response(JSON.stringify({ error: 'Server configuration error: Missing API key. Please set GEMINI_API_KEY environment variable.' }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
     }
-    
+
     // API 키 형식 검증 (Gemini API 키는 보통 39자이고 "AIza"로 시작)
     if (apiKey.length < 30 || !apiKey.startsWith('AIza')) {
       logger.error('[Stream API] Invalid API key format:', {
@@ -74,10 +74,10 @@ export async function POST(req: Request) {
         expectedLength: '39 characters',
         expectedPrefix: 'AIza'
       });
-      return new Response(JSON.stringify({ 
+      return new Response(JSON.stringify({
         error: 'Invalid API key format. GEMINI_API_KEY should be approximately 39 characters and start with "AIza". Please check your Vercel environment variables.',
         details: `Current key length: ${apiKey.length}, prefix: ${apiKey.substring(0, 10)}...`
-      }), { 
+      }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -93,20 +93,20 @@ export async function POST(req: Request) {
       const text = m.content || m.text || '';
       return [{ text }];
     };
-    
+
     // RAG 검색: 사용자의 최신 질문에 대한 지식 베이스 검색
     let ragContext = '';
     try {
       const lastUserMessage = messages
         .filter((m: any) => m.role === 'user')
         .pop();
-      
+
       if (lastUserMessage) {
         const userQuery = lastUserMessage.content || lastUserMessage.text || '';
         if (userQuery.trim().length > 0) {
           logger.debug('[Stream API] RAG 검색 시작:', userQuery.substring(0, 50));
           const ragResults = await searchKnowledgeBase(userQuery, 3);
-          
+
           if (ragResults.length > 0) {
             ragContext = '\n\n[참고 자료]\n';
             ragResults.forEach((result, index) => {
@@ -120,20 +120,20 @@ export async function POST(req: Request) {
       // RAG 검색 실패해도 계속 진행
       logger.warn('[Stream API] RAG 검색 실패:', ragError.message);
     }
-    
+
     // 상품 정보 추가: 크루즈 상품 관련 질문인 경우 상품 정보 제공
     let productContext = '';
     try {
       const lastUserMessage = messages
         .filter((m: any) => m.role === 'user')
         .pop();
-      
+
       if (lastUserMessage) {
         const userQuery = (lastUserMessage.content || lastUserMessage.text || '').toLowerCase();
         // 크루즈 상품 관련 키워드 확인
         const productKeywords = ['크루즈', '상품', '추천', '여행', '일본', '대만', 'msc', '벨리시마', 'royal', 'caribbean'];
         const isProductQuery = productKeywords.some(keyword => userQuery.includes(keyword));
-        
+
         if (isProductQuery) {
           const prisma = (await import('@/lib/prisma')).default;
           const products = await prisma.cruiseProduct.findMany({
@@ -163,7 +163,7 @@ export async function POST(req: Request) {
               { createdAt: 'desc' },
             ],
           });
-          
+
           if (products.length > 0) {
             productContext = '\n\n[판매 중인 크루즈 상품 정보]\n';
             products.forEach((product, index) => {
@@ -186,7 +186,7 @@ export async function POST(req: Request) {
       // 상품 정보 조회 실패해도 계속 진행
       logger.warn('[Stream API] 상품 정보 조회 실패:', productError.message);
     }
-    
+
     // 시스템 프롬프트를 첫 번째 사용자 메시지에 포함
     // 3일 체험 사용자와 일반 사용자를 구분하여 프롬프트 설정
     const baseSystemPrompt = isTrialUser
@@ -219,10 +219,10 @@ export async function POST(req: Request) {
 - 여러 상품이 있으면 인기 상품을 우선 추천하세요.
 
 사용자의 질문에 필요한 핵심만 전달하세요.${ragContext}${productContext}`;
-    
+
     // 메시지 변환 (통번역기와 동일한 패턴)
     let contents: any[] = [];
-    
+
     if (messages.length > 0) {
       // 첫 번째 사용자 메시지에 시스템 프롬프트 포함
       const firstMsg = messages[0];
@@ -232,7 +232,7 @@ export async function POST(req: Request) {
           role: 'user',
           parts: [{ text: `${baseSystemPrompt}\n\n${firstContent}` }]
         });
-        
+
         // 나머지 메시지 추가
         for (let i = 1; i < messages.length; i++) {
           const msg = messages[i];
@@ -255,7 +255,7 @@ export async function POST(req: Request) {
         parts: [{ text: baseSystemPrompt }]
       }];
     }
-    
+
     logger.debug('[Stream API] Converted contents:', contents.length, 'messages');
 
     // Google Generative AI API 직접 호출 (스트리밍)
@@ -288,7 +288,7 @@ export async function POST(req: Request) {
 
     logger.debug('[Stream API] Gemini response status:', response.status);
     logger.debug('[Stream API] Response ok:', response.ok);
-    
+
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
       responseHeaders[key] = value;
@@ -301,16 +301,16 @@ export async function POST(req: Request) {
       logger.error('[Stream API] Gemini API error:', response.status, errorText);
       logger.error('[Stream API] Request URL was:', url.replace(/key=[^&]+/, 'key=***'));
       logger.error('[Stream API] Model name used:', modelName);
-      
+
       // 403 에러인 경우 API 키 문제 (유출된 키 등)
       if (response.status === 403) {
         let errorMessage = 'Gemini API 접근이 거부되었습니다 (403).';
         let suggestion = 'API 키를 확인해주세요.';
-        
+
         try {
           const errorJson = JSON.parse(errorText);
           const apiErrorMessage = errorJson?.error?.message || '';
-          
+
           if (apiErrorMessage.includes('leaked') || apiErrorMessage.includes('reported as leaked')) {
             errorMessage = 'API 키가 유출로 보고되어 차단되었습니다.';
             suggestion = '새로운 API 키를 발급받아 GEMINI_API_KEY 환경 변수를 업데이트해주세요.';
@@ -327,27 +327,27 @@ export async function POST(req: Request) {
             suggestion = '새로운 API 키를 발급받아 GEMINI_API_KEY 환경 변수를 업데이트해주세요.';
           }
         }
-        
-        return new Response(JSON.stringify({ 
+
+        return new Response(JSON.stringify({
           error: errorMessage,
           details: errorText,
           suggestion: suggestion,
           status: 403
-        }), { 
+        }), {
           status: 500, // 클라이언트에는 500으로 반환 (내부 서버 설정 오류로 처리)
           headers: { 'Content-Type': 'application/json' }
         });
       }
-      
+
       // 400 에러인 경우 API 키 문제일 가능성이 높음
       if (response.status === 400) {
         let errorMessage = 'Gemini API 키가 유효하지 않습니다 (400).';
         let suggestion = 'Vercel 환경변수에서 GEMINI_API_KEY를 확인하고 올바른 키로 업데이트해주세요.';
-        
+
         try {
           const errorJson = JSON.parse(errorText);
           const apiErrorMessage = errorJson?.error?.message || '';
-          
+
           if (apiErrorMessage.includes('API key not valid') || apiErrorMessage.includes('INVALID_ARGUMENT')) {
             errorMessage = 'API 키가 유효하지 않거나 잘못되었습니다.';
             suggestion = `1. Google AI Studio (https://aistudio.google.com/apikey)에서 새 API 키 발급\n2. Vercel → Settings → Environment Variables → GEMINI_API_KEY 업데이트\n3. Redeploy 실행\n\n현재 키 길이: ${apiKey.length}자 (정상: 약 39자)`;
@@ -361,8 +361,8 @@ export async function POST(req: Request) {
             suggestion = `Vercel 환경변수에서 GEMINI_API_KEY를 확인해주세요. 현재 키 길이: ${apiKey.length}자`;
           }
         }
-        
-        return new Response(JSON.stringify({ 
+
+        return new Response(JSON.stringify({
           error: errorMessage,
           details: errorText,
           suggestion: suggestion,
@@ -372,28 +372,28 @@ export async function POST(req: Request) {
             prefix: apiKey.substring(0, 10) + '...',
             isValidFormat: apiKey.length >= 30 && apiKey.startsWith('AIza')
           }
-        }), { 
+        }), {
           status: 500, // 클라이언트에는 500으로 반환 (내부 서버 설정 오류로 처리)
           headers: { 'Content-Type': 'application/json' }
         });
       }
-      
+
       // 404 에러인 경우 모델 이름 문제일 가능성이 높음
       if (response.status === 404) {
-        return new Response(JSON.stringify({ 
+        return new Response(JSON.stringify({
           error: `모델을 찾을 수 없습니다 (404). 모델 이름을 확인해주세요: ${modelName}`,
           details: errorText,
           suggestion: 'GEMINI_MODEL 환경 변수를 확인하거나 gemini-flash-latest로 변경해보세요.'
-        }), { 
+        }), {
           status: 500,
           headers: { 'Content-Type': 'application/json' }
         });
       }
-      
-      return new Response(JSON.stringify({ 
+
+      return new Response(JSON.stringify({
         error: `Gemini API error: ${response.status}`,
-        details: errorText 
-      }), { 
+        details: errorText
+      }), {
         status: response.status,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -411,7 +411,7 @@ export async function POST(req: Request) {
     const stream = new ReadableStream({
       async start(controller) {
         logger.debug('[Stream API] Stream controller started');
-        
+
         if (!response.body) {
           logger.error('[Stream API] Response body is null!');
           const errorMsg = JSON.stringify('응답을 받을 수 없습니다. API 키를 확인해주세요.');
@@ -433,26 +433,26 @@ export async function POST(req: Request) {
           let totalBytesReceived = 0;
           let lastChunkTime = Date.now();
           const TIMEOUT_MS = 60000; // 60초 타임아웃
-          
+
           while (true) {
             // 타임아웃 체크
             if (Date.now() - lastChunkTime > TIMEOUT_MS) {
               logger.warn('[Stream API] Timeout waiting for chunks');
               break;
             }
-            
+
             const { done, value } = await reader.read();
             if (done) {
               logger.debug('[Stream API] Stream done, total chunks:', chunkCount, 'hasSentData:', hasSentData);
               logger.debug('[Stream API] Final buffer length:', buffer.length, 'content preview:', buffer.substring(0, 500));
-              
+
               // 버퍼에 남은 데이터 처리 (최종 버퍼)
               if (buffer.trim()) {
                 try {
                   // 최종 버퍼도 JSON 파싱 시도
                   const json = JSON.parse(buffer.trim());
                   logger.debug('[Stream API] Final buffer parsed, keys:', Object.keys(json));
-                  
+
                   const jsonArray = Array.isArray(json) ? json : [json];
                   for (const item of jsonArray) {
                     const candidates = item?.candidates || [];
@@ -473,7 +473,7 @@ export async function POST(req: Request) {
                   logger.warn('[Stream API] Failed to parse final buffer:', e, 'buffer preview:', buffer.substring(0, 200));
                 }
               }
-              
+
               // 데이터가 전혀 없으면 에러 메시지 전송 (상세 정보 포함)
               if (!hasSentData) {
                 logger.error('[Stream API] No data received from Gemini API!');
@@ -483,7 +483,7 @@ export async function POST(req: Request) {
                 controller.enqueue(new TextEncoder().encode(`0:${errorMsg}\n`));
                 logger.debug('[Stream API] No data received, sent error message');
               }
-              
+
               break;
             }
 
@@ -494,47 +494,47 @@ export async function POST(req: Request) {
             const decoded = decoder.decode(value, { stream: true });
             buffer += decoded;
             logger.debug('[Stream API] Received chunk #' + chunkCount + ', bytes:', value.length, 'decoded length:', decoded.length, 'buffer length:', buffer.length, 'total bytes:', totalBytesReceived);
-            
+
             // 버퍼가 너무 커지면 경고 (메모리 보호)
             if (buffer.length > 1000000) { // 1MB 제한
               logger.warn('[Stream API] Buffer too large, truncating');
               buffer = buffer.substring(buffer.length - 500000); // 마지막 500KB만 유지
             }
-            
+
             // Gemini 스트리밍 응답은 JSON 배열로 옵니다: "[{...}]"
             // 버퍼에서 완전한 JSON 배열 찾기 (여러 개일 수 있음)
             let bufferProcessed = false;
-            
+
             while (true) {
               const trimmedBuffer = buffer.trim();
               if (!trimmedBuffer.startsWith('[')) {
                 break; // 배열이 아니면 중단
               }
-              
+
               // 완전한 JSON 배열 찾기
               let depth = 0;
               let inString = false;
               let escapeNext = false;
               let completeEndIndex = -1;
-              
+
               for (let i = 0; i < trimmedBuffer.length; i++) {
                 const char = trimmedBuffer[i];
-                
+
                 if (escapeNext) {
                   escapeNext = false;
                   continue;
                 }
-                
+
                 if (char === '\\') {
                   escapeNext = true;
                   continue;
                 }
-                
+
                 if (char === '"' && !escapeNext) {
                   inString = !inString;
                   continue;
                 }
-                
+
                 if (!inString) {
                   if (char === '[' || char === '{') {
                     depth++;
@@ -547,20 +547,20 @@ export async function POST(req: Request) {
                   }
                 }
               }
-              
+
               if (completeEndIndex >= 0) {
                 // 완전한 JSON 배열 발견
                 try {
                   const jsonStr = trimmedBuffer.substring(0, completeEndIndex + 1);
                   const json = JSON.parse(jsonStr);
                   logger.debug('[Stream API] Parsed complete JSON array, length:', Array.isArray(json) ? json.length : 'not array');
-                  
+
                   // 배열의 각 항목 처리
                   const jsonArray = Array.isArray(json) ? json : [json];
                   for (const item of jsonArray) {
                     const candidates = item?.candidates || [];
                     logger.debug('[Stream API] Found candidates:', candidates.length);
-                    
+
                     for (const candidate of candidates) {
                       const parts = candidate?.content?.parts || [];
                       for (const part of parts) {
@@ -576,7 +576,7 @@ export async function POST(req: Request) {
                       }
                     }
                   }
-                  
+
                   // 처리한 부분 제거
                   buffer = trimmedBuffer.substring(completeEndIndex + 1).trim();
                   bufferProcessed = true;
@@ -590,7 +590,7 @@ export async function POST(req: Request) {
                 break;
               }
             }
-            
+
             // 버퍼 미리보기 (처리되지 않은 경우만)
             if (!bufferProcessed && buffer.length > 0) {
               logger.debug('[Stream API] Buffer preview (not processed yet):', buffer.substring(0, 500));
@@ -616,7 +616,7 @@ export async function POST(req: Request) {
     });
 
     logger.debug('[Stream API] Returning stream response');
-    
+
     return new Response(stream, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
@@ -630,11 +630,11 @@ export async function POST(req: Request) {
     logger.error('[Stream API] Error stack:', error?.stack);
     // 더 자세한 에러 정보 반환
     const errorMessage = error?.message || 'Error processing request';
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: errorMessage,
       details: error?.stack,
       name: error?.name
-    }), { 
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

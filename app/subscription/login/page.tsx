@@ -5,6 +5,40 @@ import { useRouter } from 'next/navigation';
 import { FiUser, FiPhone, FiArrowRight, FiCheck, FiX } from 'react-icons/fi';
 import Image from 'next/image';
 
+// 캐시 로그인 유틸리티 (localStorage 기반 7일 체험)
+const TRIAL_CACHE_KEY = 'cruise_trial_session';
+const TRIAL_EXPIRY_DAYS = 7;
+
+interface TrialSession {
+  name: string;
+  phone: string;
+  mallUserId: string;
+  startedAt: string;
+  expiresAt: string;
+}
+
+function getTrialSession(): TrialSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const cached = localStorage.getItem(TRIAL_CACHE_KEY);
+    if (!cached) return null;
+    const session: TrialSession = JSON.parse(cached);
+    // 만료 체크
+    if (new Date(session.expiresAt) < new Date()) {
+      localStorage.removeItem(TRIAL_CACHE_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function setTrialSession(session: TrialSession): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(TRIAL_CACHE_KEY, JSON.stringify(session));
+}
+
 export default function SubscriptionLoginPage() {
   const router = useRouter();
   const [name, setName] = useState('');
@@ -12,6 +46,19 @@ export default function SubscriptionLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showExitIntent, setShowExitIntent] = useState(false);
+  const [checkingCache, setCheckingCache] = useState(true);
+
+  // 캐시된 세션 확인 (페이지 로드 시)
+  useEffect(() => {
+    const cachedSession = getTrialSession();
+    if (cachedSession) {
+      console.log('[Trial Login] 캐시된 세션 발견, 체험 대시보드로 이동...');
+      // 바로 체험 대시보드로 이동
+      router.push('/trial/dashboard');
+    } else {
+      setCheckingCache(false);
+    }
+  }, [router]);
 
   const handleSubmit = async (event: React.FormEvent, formLocation: string = 'main') => {
     event.preventDefault();
@@ -56,11 +103,21 @@ export default function SubscriptionLoginPage() {
         return;
       }
 
-      // 성공 시 대시보드로 이동
-      if (data.mallUserId) {
-        router.push(`/partner/${data.mallUserId}/dashboard`);
+      // 성공 시 캐시에 저장하고 체험 대시보드로 이동
+      if (data.trial) {
+        setTrialSession({
+          name: data.trial.name,
+          phone: data.trial.phone,
+          mallUserId: data.trial.trialId,
+          startedAt: data.trial.startedAt,
+          expiresAt: data.trial.expiresAt,
+        });
+        
+        // 체험용 대시보드로 이동
+        router.push('/trial/dashboard');
       } else {
-        router.push('/partner/trial/dashboard');
+        setError('체험 정보를 받지 못했습니다.');
+        setLoading(false);
       }
     } catch (err: any) {
       console.error('[Subscription Login] Error:', err);
@@ -81,6 +138,18 @@ export default function SubscriptionLoginPage() {
     document.body.addEventListener('mouseleave', handleMouseLeave);
     return () => document.body.removeEventListener('mouseleave', handleMouseLeave);
   }, []);
+
+  // 캐시 확인 중 로딩 화면
+  if (checkingCache) {
+    return (
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">체험 세션 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-black text-white">

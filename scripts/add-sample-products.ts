@@ -65,7 +65,7 @@ async function addSampleProducts() {
 • 선내 엔터테인먼트 무료 이용
 • 무제한 와이파이 (프리미엄 패키지 구매 시)
 • 면세점 쇼핑 할인 쿠폰`,
-        source: '롯데JTB',
+        source: 'lottejtb',
         category: '지중해',
         tags: ['MSC', '지중해', '유럽', '패밀리', '럭셔리'],
         isPopular: true,
@@ -117,7 +117,7 @@ async function addSampleProducts() {
 • 빙하 크루징 최적 항로
 • 알래스카 랜드 투어 옵션
 • 야생동물 관찰 프로그램`,
-        source: '롯데JTB',
+        source: 'lottejtb',
         category: '알래스카',
         tags: ['프린세스', '알래스카', '빙하', '자연', '럭셔리'],
         isPopular: true,
@@ -167,7 +167,7 @@ async function addSampleProducts() {
 • 세계 최대 크루즈선 체험
 • 카리브해 완벽한 날씨
 • 다양한 해양 액티비티`,
-        source: '롯데JTB',
+        source: 'lottejtb',
         category: '카리브해',
         tags: ['로얄캐리비안', '카리브해', '패밀리', '액티비티', '대형선'],
         isPopular: true,
@@ -213,7 +213,7 @@ async function addSampleProducts() {
 • 노비자 간편 여행
 • 벳푸 온천 입장권 포함
 • 전 일정 식사 제공`,
-        source: '크루즈닷',
+        source: 'cruisedot',
         category: '일본',
         tags: ['코스타', '일본', '온천', '단기', '가성비'],
         isPopular: true,
@@ -266,7 +266,7 @@ async function addSampleProducts() {
 • 5개국 다양한 문화 체험
 • 프리스타일 다이닝 (예약 불필요)
 • 열대 해변 천국`,
-        source: '크루즈닷',
+        source: 'cruisedot',
         category: '동남아',
         tags: ['NCL', '동남아', '싱가포르', '태국', '말레이시아'],
         isRecommended: true,
@@ -320,7 +320,7 @@ async function addSampleProducts() {
 • 집사 서비스
 • 미슐랭 스타 셰프 요리
 • VIP 소규모 크루징`,
-        source: '크루즈닷',
+        source: 'cruisedot',
         category: '지중해',
         tags: ['실버시', '지중해', '럭셔리', '올인클루시브', '소형선'],
         isPremium: true,
@@ -365,7 +365,7 @@ async function addSampleProducts() {
 • 초저가 단기 크루즈
 • 최신형 선박
 • 주말 여행 최적`,
-        source: '더블유',
+        source: 'wcruise',
         category: '일본',
         tags: ['로얄캐리비안', '오키나와', '단기', '가성비', '주말여행'],
         isPopular: true,
@@ -418,7 +418,7 @@ async function addSampleProducts() {
 • 백야 체험 (여름 시즌)
 • 5개국 다채로운 문화
 • 친환경 LNG 선박`,
-        source: '더블유',
+        source: 'wcruise',
         category: '북유럽',
         tags: ['P&O', '북유럽', '발트해', '5개국', '친환경'],
         isRecommended: true,
@@ -467,7 +467,7 @@ Week 13-14: 수에즈운하 → 지중해 → 유럽 귀항
 • 파나마운하/수에즈운하 통과
 • 평생 잊지 못할 세계일주
 • 올인클루시브 옵션 가능`,
-        source: '더블유',
+        source: 'wcruise',
         category: '세계일주',
         tags: ['큐나드', '세계일주', '대양횡단', '럭셔리', '버킷리스트'],
         isPremium: true,

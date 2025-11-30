@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSession } from '@/lib/session';
+import { getSessionUser } from '@/lib/auth';
 import { generateEmbedding, normalizeVector } from '@/lib/ai/embeddingUtils';
 import { logger } from '@/lib/logger';
 
@@ -20,8 +20,8 @@ interface KnowledgeItem {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser?.id) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('[API] 지식 베이스 조회 오류:', error);
+    logger.error('[API] 지식 베이스 조회 오류:', error);
     return NextResponse.json(
       { error: '지식 베이스 조회 중 오류가 발생했습니다' },
       { status: 500 }
@@ -59,8 +59,8 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser?.id) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     // 관리자 권한 확인
     const user = await prisma.user.findFirst({
-      where: { id: session.user.id, role: 'admin' },
+      where: { id: sessionUser.id, role: 'admin' },
     });
 
     if (!user) {
@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error('[API] 지식 베이스 생성 오류:', error);
+    logger.error('[API] 지식 베이스 생성 오류:', error);
     return NextResponse.json(
       { error: '지식 베이스 생성 중 오류가 발생했습니다' },
       { status: 500 }
@@ -136,8 +136,8 @@ export async function POST(req: NextRequest) {
  */
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser?.id) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -146,7 +146,7 @@ export async function PUT(req: NextRequest) {
 
     // 관리자 권한 확인
     const user = await prisma.user.findFirst({
-      where: { id: session.user.id, role: 'admin' },
+      where: { id: sessionUser.id, role: 'admin' },
     });
 
     if (!user) {
@@ -224,7 +224,7 @@ export async function PUT(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('[API] 지식 베이스 수정 오류:', error);
+    logger.error('[API] 지식 베이스 수정 오류:', error);
     return NextResponse.json(
       { error: '지식 베이스 수정 중 오류가 발생했습니다' },
       { status: 500 }
@@ -237,8 +237,8 @@ export async function PUT(req: NextRequest) {
  */
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session?.user?.id) {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser?.id) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -247,7 +247,7 @@ export async function DELETE(req: NextRequest) {
 
     // 관리자 권한 확인
     const user = await prisma.user.findFirst({
-      where: { id: session.user.id, role: 'admin' },
+      where: { id: sessionUser.id, role: 'admin' },
     });
 
     if (!user) {
@@ -275,7 +275,7 @@ export async function DELETE(req: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('[API] 지식 베이스 삭제 오류:', error);
+    logger.error('[API] 지식 베이스 삭제 오류:', error);
     return NextResponse.json(
       { error: '지식 베이스 삭제 중 오류가 발생했습니다' },
       { status: 500 }

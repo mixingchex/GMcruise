@@ -365,7 +365,7 @@ async function createSampleProducts() {
           itineraryPattern: productData.itineraryPattern,
           basePrice: productData.basePrice,
           description: productData.description,
-          source: 'manual',
+          source: 'cruisedot',  // 기본 크루즈닷 로고 표시
           saleStatus: '판매중',
           isPopular: productData.isPopular || false,
           isRecommended: productData.isRecommended || false,

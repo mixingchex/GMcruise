@@ -103,14 +103,30 @@ const getContractSections = (affiliateTerm: string): Array<{ title: string; clau
   },
 ];
 
+interface ContractTypeInfo {
+  code: string;
+  title: string;
+  price?: string;
+  icon: string;
+  isCustom: boolean;
+}
+
 interface ContractInviteModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentProfileId?: number; // 현재 사용자의 프로필 ID (대리점장인 경우)
-  contractType?: 'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'SUBSCRIPTION_AGENT'; // 계약서 타입
+  contractType?: string; // 계약서 타입 (동적 지원)
   onSuccess?: () => void;
   skipLinkGeneration?: boolean; // 링크 생성 단계 건너뛰고 바로 계약서 작성 폼 열기
 }
+
+// 기본 계약서 타입 정보 (API 로드 전 fallback)
+const DEFAULT_CONTRACT_TYPE_INFO: Record<string, { title: string; icon: string }> = {
+  SALES_AGENT: { title: '판매원', icon: '👤' },
+  BRANCH_MANAGER: { title: '대리점장', icon: '🏢' },
+  CRUISE_STAFF: { title: '크루즈스탭', icon: '🚢' },
+  SUBSCRIPTION_AGENT: { title: '정액제', icon: '💳' },
+};
 
 export default function ContractInviteModal({
   isOpen,
@@ -133,6 +149,44 @@ export default function ContractInviteModal({
   const [generatingInvite, setGeneratingInvite] = useState(false);
   const [showContractTextModal, setShowContractTextModal] = useState(false);
   const [contractReadConfirmed, setContractReadConfirmed] = useState(false);
+  const [contractTypeInfo, setContractTypeInfo] = useState<ContractTypeInfo | null>(null);
+
+  // 계약서 타입 정보 로드
+  useEffect(() => {
+    if (!isOpen || !contractType) return;
+    
+    const loadContractTypeInfo = async () => {
+      try {
+        const res = await fetch('/api/public/contract-types');
+        const json = await res.json();
+        if (res.ok && json.ok) {
+          const found = json.contractTypes?.find((ct: ContractTypeInfo) => ct.code === contractType);
+          if (found) {
+            setContractTypeInfo(found);
+          }
+        }
+      } catch (error) {
+        console.error('[ContractInviteModal] load contract type info error', error);
+      }
+    };
+    
+    loadContractTypeInfo();
+  }, [isOpen, contractType]);
+
+  // 계약서 타입 레이블 가져오기
+  const getContractTypeLabel = () => {
+    if (contractTypeInfo) {
+      return contractTypeInfo.title.replace(/계약서|계약/, '').trim() || contractTypeInfo.title;
+    }
+    return DEFAULT_CONTRACT_TYPE_INFO[contractType]?.title || contractType;
+  };
+
+  const getContractTypeIcon = () => {
+    if (contractTypeInfo) {
+      return contractTypeInfo.icon;
+    }
+    return DEFAULT_CONTRACT_TYPE_INFO[contractType]?.icon || '📄';
+  };
   const [contractForm, setContractForm] = useState({
     name: '',
     phone: '',
@@ -566,7 +620,7 @@ export default function ContractInviteModal({
         <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between rounded-t-2xl">
             <h2 className="text-2xl font-bold text-gray-900">
-              {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'SUBSCRIPTION_AGENT' ? '정액제' : '판매원'} 계약서 링크 생성
+              {getContractTypeIcon()} {getContractTypeLabel()} 계약서 링크 생성
             </h2>
             <button
               onClick={onClose}
@@ -577,98 +631,48 @@ export default function ContractInviteModal({
           </div>
 
           <div className="p-6 space-y-6">
-            {/* 계약서 타입별 미리보기 */}
+            {/* 계약서 타입별 미리보기 - 동적 처리 */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
               <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <FiFileText className="text-blue-600" />
                 계약서 미리보기
               </h3>
               <div className="space-y-2 text-sm">
-                {contractType === 'BRANCH_MANAGER' ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-1 text-xs font-semibold text-purple-700">
-                        대리점장
-                      </span>
-                      <span className="text-gray-700">필요한 계약서:</span>
-                    </div>
-                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-4">
-                      <li>B2B 계약서 (필수)</li>
-                      <li>교육 계약서 (필수)</li>
-                    </ul>
-                    <a
-                      href={`/affiliate/contract?type=BRANCH_MANAGER${currentProfileId ? `&invitedBy=${currentProfileId}` : ''}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 mt-2 text-blue-600 hover:text-blue-700 text-xs font-semibold"
-                    >
-                      <FiExternalLink /> 계약서 페이지 미리보기
-                    </a>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
+                      contractType === 'BRANCH_MANAGER' ? 'bg-purple-100 text-purple-700' :
+                      contractType === 'CRUISE_STAFF' ? 'bg-green-100 text-green-700' :
+                      contractType === 'SUBSCRIPTION_AGENT' ? 'bg-orange-100 text-orange-700' :
+                      contractTypeInfo?.isCustom ? 'bg-indigo-100 text-indigo-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {getContractTypeIcon()} {getContractTypeLabel()}
+                    </span>
+                    <span className="text-gray-700">필요한 계약서:</span>
                   </div>
-                ) : contractType === 'CRUISE_STAFF' ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
-                        크루즈스탭
-                      </span>
-                      <span className="text-gray-700">필요한 계약서:</span>
-                    </div>
-                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-4">
-                      <li>교육 계약서 - "540 판매원 계약서 마비즈 계약서 2025-07-04의 사본 (1).docx" (필수)</li>
-                    </ul>
-                    <p className="text-xs text-gray-500 mt-1">※ 판매원 아이디(userX)로 생성됩니다</p>
-                    <a
-                      href={`/affiliate/contract?type=CRUISE_STAFF${currentProfileId ? `&invitedBy=${currentProfileId}` : ''}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 mt-2 text-blue-600 hover:text-blue-700 text-xs font-semibold"
-                    >
-                      <FiExternalLink /> 계약서 페이지 미리보기
-                    </a>
-                  </div>
-                ) : contractType === 'SUBSCRIPTION_AGENT' ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-700">
-                        정액제
-                      </span>
-                      <span className="text-gray-700">필요한 계약서:</span>
-                    </div>
-                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-4">
-                      <li>교육 계약서 - "정액제 판매원 계약서" (필수)</li>
-                    </ul>
+                  <ul className="list-disc list-inside space-y-1 text-gray-600 ml-4">
+                    <li>{contractTypeInfo?.title || getContractTypeLabel()} 계약서 (필수)</li>
+                    {contractTypeInfo?.price && (
+                      <li className="text-blue-600 font-medium">가격: {contractTypeInfo.price}</li>
+                    )}
+                  </ul>
+                  {contractType === 'SUBSCRIPTION_AGENT' ? (
                     <p className="text-xs text-gray-500 mt-1">※ 판매원 아이디(gestX)로 생성됩니다</p>
-                    <a
-                      href={`/affiliate/contract?type=SUBSCRIPTION_AGENT${currentProfileId ? `&invitedBy=${currentProfileId}` : ''}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 mt-2 text-blue-600 hover:text-blue-700 text-xs font-semibold"
-                    >
-                      <FiExternalLink /> 계약서 페이지 미리보기
-                    </a>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
-                        판매원
-                      </span>
-                      <span className="text-gray-700">필요한 계약서:</span>
-                    </div>
-                    <ul className="list-disc list-inside space-y-1 text-gray-600 ml-4">
-                      <li>교육 계약서 - "330 판매원 계약서 마비즈 계약서 2025-07-04.docx" (필수)</li>
-                    </ul>
+                  ) : contractType === 'BRANCH_MANAGER' ? (
+                    <p className="text-xs text-gray-500 mt-1">※ 대리점장 아이디(bossX)로 생성됩니다</p>
+                  ) : (
                     <p className="text-xs text-gray-500 mt-1">※ 판매원 아이디(userX)로 생성됩니다</p>
-                    <a
-                      href={`/affiliate/contract?type=SALES_AGENT${currentProfileId ? `&invitedBy=${currentProfileId}` : ''}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 mt-2 text-blue-600 hover:text-blue-700 text-xs font-semibold"
-                    >
-                      <FiExternalLink /> 계약서 페이지 미리보기
-                    </a>
-                  </div>
-                )}
+                  )}
+                  <a
+                    href={`/affiliate/contract?type=${contractType}${currentProfileId ? `&invitedBy=${currentProfileId}` : ''}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 mt-2 text-blue-600 hover:text-blue-700 text-xs font-semibold"
+                  >
+                    <FiExternalLink /> 계약서 페이지 미리보기
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -676,7 +680,7 @@ export default function ContractInviteModal({
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'SUBSCRIPTION_AGENT' ? '정액제' : '판매원'} 이름 *
+                  {getContractTypeLabel()} 이름 *
                 </label>
                 <input
                   type="text"
@@ -688,7 +692,7 @@ export default function ContractInviteModal({
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  {contractType === 'BRANCH_MANAGER' ? '대리점장' : contractType === 'CRUISE_STAFF' ? '크루즈스탭' : contractType === 'SUBSCRIPTION_AGENT' ? '정액제' : '판매원'} 연락처 *
+                  {getContractTypeLabel()} 연락처 *
                 </label>
                 <input
                   type="text"

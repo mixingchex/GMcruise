@@ -29,6 +29,7 @@
 
 | 환경변수명 | 값 |
 |-----------|-----|
+| `NEXT_PUBLIC_WELCOME_STD_PAY_URL` | `https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp` |
 | `NEXT_PUBLIC_WELCOME_PAY_URL` | `https://pay.welcomepayments.co.kr/payment` |
 | `WELCOME_PAY_URL` | `https://pay.welcomepayments.co.kr/payment` |
 | 관리자 페이지 | `http://wbiz.paywelcome.co.kr` |

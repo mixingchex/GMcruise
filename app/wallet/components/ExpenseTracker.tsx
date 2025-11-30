@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiCalendar, FiAlertCircle, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { logger } from '@/lib/logger';
 
 type Currency = {
   code: string;
@@ -67,6 +68,7 @@ export default function ExpenseTracker() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [tripDates, setTripDates] = useState<{ startDate: string; endDate: string } | null>(null);
+  const [tripId, setTripId] = useState<number>(0);
 
   // 폼 상태
   const [selectedDay, setSelectedDay] = useState<number>(1);
@@ -154,13 +156,16 @@ export default function ExpenseTracker() {
       const countriesRes = await fetch('/api/wallet/countries');
       const countriesData = await countriesRes.json();
 
-      console.log('[ExpenseTracker] Countries data:', countriesData);
+      logger.debug('[ExpenseTracker] Countries data:', countriesData);
 
       if (countriesData.success) {
         if (countriesData.currencies?.length > 0) {
           setCurrencies(countriesData.currencies);
         }
         setTripDates(countriesData.tripDates);
+        if (countriesData.tripId) {
+          setTripId(countriesData.tripId);
+        }
       }
 
       // API에서 지출 기록 시도
@@ -168,10 +173,10 @@ export default function ExpenseTracker() {
         const expensesRes = await fetch('/api/wallet/expenses', {
           credentials: 'include', // 쿠키 포함
         });
-        
+
         if (expensesRes.ok) {
           const expensesData = await expensesRes.json();
-          console.log('[ExpenseTracker] Expenses data:', expensesData);
+          logger.debug('[ExpenseTracker] Expenses data:', expensesData);
 
           if (expensesData.success) {
             // API 응답 형식에 맞게 변환
@@ -187,13 +192,13 @@ export default function ExpenseTracker() {
               description: exp.description || '',
               createdAt: exp.createdAt || new Date().toISOString(),
             }));
-            
+
             // API 데이터와 localStorage 데이터 병합
             const localItems = loadFromLocalStorage();
-            const merged = [...formattedExpenses, ...localItems.filter(local => 
+            const merged = [...formattedExpenses, ...localItems.filter(local =>
               !formattedExpenses.some(api => api.id === local.id)
             )];
-            
+
             setExpenses(merged);
             saveToLocalStorage(merged);
             return;
@@ -207,7 +212,7 @@ export default function ExpenseTracker() {
       const localItems = loadFromLocalStorage();
       if (localItems.length > 0) {
         setExpenses(localItems);
-        console.log('[ExpenseTracker] Loaded from localStorage:', localItems.length, 'items');
+        logger.debug('[ExpenseTracker] Loaded from localStorage:', localItems.length, 'items');
       } else {
         setExpenses([]);
       }
@@ -277,7 +282,7 @@ export default function ExpenseTracker() {
       // 새 지출 항목 생성 (localStorage용)
       const newExpense: Expense = {
         id: `local-${Date.now()}`, // localStorage용 임시 ID
-        tripId: 0, // 나중에 tripId를 받을 수 있으면 업데이트
+        tripId: tripId, // API에서 받아온 tripId 사용
         day: selectedDay,
         date: expenseDate,
         category: selectedCategory,
@@ -300,6 +305,7 @@ export default function ExpenseTracker() {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
+            tripId: tripId,
             day: selectedDay,
             date: expenseDate,
             category: selectedCategory,
@@ -314,7 +320,7 @@ export default function ExpenseTracker() {
           const result = await res.json();
           if (result.success && result.expense) {
             // 서버 ID로 업데이트
-            const finalExpenses = updatedExpenses.map(exp => 
+            const finalExpenses = updatedExpenses.map(exp =>
               exp.id === newExpense.id ? { ...exp, id: result.expense.id } : exp
             );
             setExpenses(finalExpenses);
@@ -343,7 +349,7 @@ export default function ExpenseTracker() {
   // 모든 지출 삭제 (리셋)
   const handleResetAll = async () => {
     if (expenses.length === 0) return;
-    
+
     const confirmMessage = `정말로 모든 지출 기록(${expenses.length}개)을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
     if (!confirm(confirmMessage)) return;
 
@@ -351,7 +357,7 @@ export default function ExpenseTracker() {
     try {
       // 즉시 상태에서 삭제 (낙관적 업데이트)
       setExpenses([]);
-      
+
       // localStorage에 저장 시도
       const saved = saveToLocalStorage([]);
       if (!saved) {
@@ -370,7 +376,7 @@ export default function ExpenseTracker() {
 
         if (res.ok) {
           const result = await res.json();
-          console.log('[ExpenseTracker] All expenses deleted:', result.deletedCount);
+          logger.debug('[ExpenseTracker] All expenses deleted:', result.deletedCount);
           alert(`모든 지출 기록이 삭제되었습니다. (${result.deletedCount || expenses.length}개)`);
         } else {
           console.warn('[ExpenseTracker] API delete all failed, but local delete succeeded');
@@ -459,10 +465,10 @@ export default function ExpenseTracker() {
         if (exp.id === id) {
           // 환율 재계산 필요 시
           const currency = exp.currency;
-          const amountInKRW = currency === 'KRW' 
-            ? amountNum 
+          const amountInKRW = currency === 'KRW'
+            ? amountNum
             : Math.round(amountNum * (exp.amountInKRW / exp.amount));
-          
+
           return {
             ...exp,
             amount: amountNum,
@@ -523,11 +529,11 @@ export default function ExpenseTracker() {
       const day = date.getDate();
       const hours = date.getHours();
       const minutes = date.getMinutes();
-      
+
       const ampm = hours >= 12 ? '오후' : '오전';
       const displayHours = hours % 12 || 12;
       const displayMinutes = minutes.toString().padStart(2, '0');
-      
+
       return `${year}년 ${month}월 ${day}일 ${ampm} ${displayHours}시 ${displayMinutes}분`;
     } catch (e) {
       return dateString;
@@ -602,11 +608,10 @@ export default function ExpenseTracker() {
               <button
                 key={cat.key}
                 onClick={() => setSelectedCategory(cat.key)}
-                className={`py-4 px-3 rounded-lg text-base font-semibold transition-all ${
-                  selectedCategory === cat.key
-                    ? 'bg-green-500 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`py-4 px-3 rounded-lg text-base font-semibold transition-all ${selectedCategory === cat.key
+                  ? 'bg-green-500 text-white shadow-lg scale-105'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
               >
                 <div className="text-2xl mb-1">{cat.icon}</div>
                 <div>{cat.label}</div>

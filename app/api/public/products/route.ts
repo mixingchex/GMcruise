@@ -246,11 +246,11 @@ export async function GET(req: NextRequest) {
     const mainProducts = allProducts
       .filter(p => p.isMainProduct && !p.isUrgent) // 긴급이 아닌 주력 상품만
       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-      .slice(0, 3); // 최대 3개만
+      .slice(0, 9); // 샘플 상품 9개 표시 (롯데JTB, 더블유, 크루즈닷 각 3개씩)
 
     const normalProducts = allProducts.filter(p => !p.isUrgent && !p.isMainProduct);
 
-    // 최종 정렬: 긴급(최대 3개, 최신순) -> 주력(최대 3개, 최신순) -> 일반 상품
+    // 최종 정렬: 긴급(최대 3개, 최신순) -> 주력(최대 9개, 최신순) -> 일반 상품
     allProducts = [...urgentProducts, ...mainProducts, ...normalProducts];
     
     // 원본 상품 데이터 저장 (키워드 검색용)

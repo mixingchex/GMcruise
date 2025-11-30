@@ -172,6 +172,7 @@ function AdminLayoutContent({
     { href: '/admin/affiliate/products', label: '어필리에이트 수당', icon: '🤝', section: 'affiliate' },
     { href: '/admin/affiliate/profiles', label: '어필리에이트 인력', icon: '🧑‍🤝‍🧑', section: 'affiliate' },
     { href: '/admin/affiliate/contracts', label: '어필리에이트 계약', icon: '📄', section: 'affiliate' },
+    { href: '/admin/affiliate/contract-templates', label: '계약서 템플릿 관리', icon: '📜', section: 'affiliate' },
     { href: '/admin/affiliate/payment-pages', label: '어필리에이트 결제 페이지', icon: '💳', section: 'affiliate' },
     { href: '/admin/affiliate/mall', label: '판매원 개인몰 관리', icon: '🛍️', section: 'affiliate' },
     { href: '/admin/affiliate/customers', label: '어필리에이트 고객 관리', icon: '👥', section: 'affiliate' },

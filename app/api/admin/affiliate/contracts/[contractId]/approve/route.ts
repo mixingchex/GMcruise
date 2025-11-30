@@ -29,10 +29,18 @@ function normalizePhone(phone: string) {
  * 파트너 아이디 생성 (숫자만 증가)
  * - 대리점장: boss1, boss2, boss3...
  * - 판매원: user1, user2, user3...
+ * - 정액제: gest1, gest2, gest3...
  * phone 필드에 저장됨
  */
-async function generatePartnerId(type: 'BRANCH_MANAGER' | 'SALES_AGENT', name: string): Promise<string> {
-  const prefix = type === 'BRANCH_MANAGER' ? 'boss' : 'user';
+async function generatePartnerId(type: 'BRANCH_MANAGER' | 'SALES_AGENT' | 'SUBSCRIPTION_AGENT', name: string): Promise<string> {
+  let prefix: string;
+  if (type === 'BRANCH_MANAGER') {
+    prefix = 'boss';
+  } else if (type === 'SUBSCRIPTION_AGENT') {
+    prefix = 'gest';
+  } else {
+    prefix = 'user';
+  }
   
   // phone 필드에서 해당 prefix 형식 찾기 (이름 포함/미포함 모두)
   const existing = await prisma.user.findMany({
@@ -135,11 +143,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     });
     
     // contractType이 있으면 우선 사용, 없으면 invitedByProfileId로 판단
-    let partnerType: 'BRANCH_MANAGER' | 'SALES_AGENT' = 'SALES_AGENT';
+    let partnerType: 'BRANCH_MANAGER' | 'SALES_AGENT' | 'SUBSCRIPTION_AGENT' = 'SALES_AGENT';
     if (contractType === 'BRANCH_MANAGER') {
       partnerType = 'BRANCH_MANAGER';
-    } else if (contractType === 'CRUISE_STAFF' || contractType === 'SUBSCRIPTION_AGENT') {
-      // 크루즈스탭과 정액제는 판매원 아이디로 생성되지만 타입은 SALES_AGENT
+    } else if (contractType === 'SUBSCRIPTION_AGENT') {
+      // 정액제는 gest 아이디로 생성
+      partnerType = 'SUBSCRIPTION_AGENT';
+    } else if (contractType === 'CRUISE_STAFF') {
+      // 크루즈스탭은 판매원 아이디로 생성
       partnerType = 'SALES_AGENT';
     } else if (!invitedByProfileId) {
       // contractType이 없고 invitedByProfileId도 없으면 대리점장
@@ -157,8 +168,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
         })
       : null;
 
-    // 기존 사용자가 있고 이미 boss1/user1 형식이면 그대로 사용 (이름 포함/미포함 모두)
-    const partnerIdPattern = partnerType === 'BRANCH_MANAGER' ? /^boss\d+(-.*)?$/i : /^user\d+(-.*)?$/i;
+    // 기존 사용자가 있고 이미 boss1/user1/gest1 형식이면 그대로 사용 (이름 포함/미포함 모두)
+    let partnerIdPattern: RegExp;
+    if (partnerType === 'BRANCH_MANAGER') {
+      partnerIdPattern = /^boss\d+(-.*)?$/i;
+    } else if (partnerType === 'SUBSCRIPTION_AGENT') {
+      partnerIdPattern = /^gest\d+(-.*)?$/i;
+    } else {
+      partnerIdPattern = /^user\d+(-.*)?$/i;
+    }
     if (userId && userRecord && userRecord.phone?.match(partnerIdPattern)) {
       // 이미 파트너 아이디가 있으면 그대로 사용
     } else if (!userId) {
