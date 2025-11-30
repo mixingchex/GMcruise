@@ -217,6 +217,14 @@ export default function B2BLandingEditorPage() {
                     </div>
 
                     <div className="flex gap-2">
+                        <a
+                            href={`/b2b/${previewPartnerId}?preview=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
+                        >
+                            <FiEye /> <span className="hidden sm:inline">테스트 미리보기</span>
+                        </a>
                         {selectedPartnerId !== 'global' && (
                             <button
                                 onClick={handleReset}
@@ -251,58 +259,47 @@ export default function B2BLandingEditorPage() {
                 </div>
             )}
 
-            href={`/b2b/${previewPartnerId}?preview=true`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
-                        >
-            <FiEye /> 테스트 미리보기
-        </a>
-                    </div >
-                </div >
-
-        <div className="mb-4 text-sm text-gray-600 bg-yellow-50 p-4 rounded border border-yellow-200">
-            <h3 className="font-bold text-yellow-800 text-lg mb-2">⚠️ HTML 편집 가이드 (필독)</h3>
-            <div className="space-y-3">
-                <div>
-                    <p className="font-bold text-gray-800">1. 입력폼 자동 생성 (이름, 연락처)</p>
-                    <p className="mt-1">
-                        아래의 <strong>주석 코드</strong>를 원하는 위치에 붙여넣으시면, 해당 위치에 <span className="text-blue-600 font-bold">이름 입력칸, 연락처 입력칸, 신청하기 버튼</span>이 자동으로 생성됩니다.
-                    </p>
-                    <div className="mt-2 p-2 bg-gray-800 text-yellow-300 font-mono rounded text-xs">
-                        &lt;!-- FORM_TOP --&gt; <span className="text-gray-400">// 상단용 입력폼 (주로 메인 비주얼 아래)</span><br />
-                        &lt;!-- FORM_MIDDLE --&gt; <span className="text-gray-400">// 중간용 입력폼 (설명 섹션 사이)</span>
+            <div className="mb-4 text-sm text-gray-600 bg-yellow-50 p-4 rounded border border-yellow-200">
+                <h3 className="font-bold text-yellow-800 text-lg mb-2">⚠️ HTML 편집 가이드 (필독)</h3>
+                <div className="space-y-3">
+                    <div>
+                        <p className="font-bold text-gray-800">1. 입력폼 자동 생성 (이름, 연락처)</p>
+                        <p className="mt-1">
+                            아래의 <strong>주석 코드</strong>를 원하는 위치에 붙여넣으시면, 해당 위치에 <span className="text-blue-600 font-bold">이름 입력칸, 연락처 입력칸, 신청하기 버튼</span>이 자동으로 생성됩니다.
+                        </p>
+                        <div className="mt-2 p-2 bg-gray-800 text-yellow-300 font-mono rounded text-xs">
+                            &lt;!-- FORM_TOP --&gt; <span className="text-gray-400">// 상단용 입력폼 (주로 메인 비주얼 아래)</span><br />
+                            &lt;!-- FORM_MIDDLE --&gt; <span className="text-gray-400">// 중간용 입력폼 (설명 섹션 사이)</span>
+                        </div>
+                        <p className="mt-1 text-red-600 text-xs font-bold">
+                            ※ 주의: 직접 &lt;input&gt; 태그를 작성하지 마세요! 위 주석 코드만 넣으면 시스템이 알아서 입력폼을 만들어줍니다.
+                        </p>
                     </div>
-                    <p className="mt-1 text-red-600 text-xs font-bold">
-                        ※ 주의: 직접 &lt;input&gt; 태그를 작성하지 마세요! 위 주석 코드만 넣으면 시스템이 알아서 입력폼을 만들어줍니다.
-                    </p>
-                </div>
 
-                <div className="border-t border-yellow-200 pt-2">
-                    <p className="font-bold text-gray-800">2. 적용 범위</p>
-                    <p>이곳에서 수정한 내용은 <strong>본사 및 모든 파트너(대리점장, 판매원)</strong>의 B2B 랜딩페이지에 공통으로 적용됩니다.</p>
-                </div>
+                    <div className="border-t border-yellow-200 pt-2">
+                        <p className="font-bold text-gray-800">2. 적용 범위</p>
+                        <p>이곳에서 수정한 내용은 <strong>본사 및 모든 파트너(대리점장, 판매원)</strong>의 B2B 랜딩페이지에 공통으로 적용됩니다.</p>
+                    </div>
 
-                <div className="border-t border-yellow-200 pt-2">
-                    <p className="font-bold text-gray-800">3. 스타일링</p>
-                    <p>Tailwind CSS 클래스를 자유롭게 사용하여 디자인할 수 있습니다.</p>
+                    <div className="border-t border-yellow-200 pt-2">
+                        <p className="font-bold text-gray-800">3. 스타일링</p>
+                        <p>Tailwind CSS 클래스를 자유롭게 사용하여 디자인할 수 있습니다.</p>
+                    </div>
                 </div>
             </div>
-        </div>
 
-    {
-        loading ? (
-            <div className="h-96 flex items-center justify-center text-gray-500">로딩 중...</div>
-        ) : (
-            <textarea
-                value={html}
-                onChange={(e) => setHtml(e.target.value)}
-                className="w-full h-[800px] font-mono text-sm p-4 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-900 text-gray-100"
-                spellCheck={false}
-            />
-        )
-    }
-            </div >
+            {
+                loading ? (
+                    <div className="h-96 flex items-center justify-center text-gray-500">로딩 중...</div>
+                ) : (
+                    <textarea
+                        value={html}
+                        onChange={(e) => setHtml(e.target.value)}
+                        className="w-full h-[800px] font-mono text-sm p-4 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-900 text-gray-100"
+                        spellCheck={false}
+                    />
+                )
+            }
         </div >
     );
 }

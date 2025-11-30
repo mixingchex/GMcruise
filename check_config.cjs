@@ -14,11 +14,15 @@ async function main() {
         if (mentorSection) {
             console.log('Mentor Section found.');
             // Check for Jay and Noah images
-            const jayImg = config.configValue.match(/alt="제이 점장"[^>]*src="([^"]*)"/);
-            const noahImg = config.configValue.match(/alt="노아 점장"[^>]*src="([^"]*)"/);
+            const jayImg = config.configValue.match(/src="([^"]*)"[^>]*alt="제이 점장"/);
+            const noahImg = config.configValue.match(/src="([^"]*)"[^>]*alt="노아 점장"/);
 
-            console.log('Jay Image:', jayImg ? jayImg[1] : 'Not found');
-            console.log('Noah Image:', noahImg ? noahImg[1] : 'Not found');
+            // Try both orders just in case
+            const jayImg2 = config.configValue.match(/alt="제이 점장"[^>]*src="([^"]*)"/);
+            const noahImg2 = config.configValue.match(/alt="노아 점장"[^>]*src="([^"]*)"/);
+
+            console.log('Jay Image:', (jayImg ? jayImg[1] : (jayImg2 ? jayImg2[1] : 'Not found')));
+            console.log('Noah Image:', (noahImg ? noahImg[1] : (noahImg2 ? noahImg2[1] : 'Not found')));
         } else {
             console.log('Mentor Section NOT found in config.');
             // Print a chunk of config to see what's in there

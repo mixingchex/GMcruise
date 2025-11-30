@@ -41,22 +41,9 @@ export async function POST(req: NextRequest) {
 
         const managerProfile = partnerUser.AffiliateProfile[0];
 
-        // 이미 존재하는 리드인지 확인
-        const existingLead = await prisma.affiliateLead.findFirst({
-            where: { customerPhone: normalizedPhone }
-        });
+        // 이미 존재하는 리드인지 확인하지 않고 무조건 신규 생성 (중복 허용)
+        // B2B 유입은 별도로 카운트하기 위함
 
-        if (existingLead) {
-            // 이미 존재하면 업데이트 (소스가 다른 경우 등 처리 정책에 따라 다름)
-            // 여기서는 이미 등록된 고객이라고 알림 (또는 업데이트)
-            // B2B 유입은 신규 유입을 가정하므로, 이미 있으면 안내
-            return NextResponse.json({
-                ok: true,
-                message: '이미 등록된 고객입니다. 대시보드로 이동합니다.',
-                leadId: existingLead.id,
-                isNew: false
-            });
-        }
 
         // 신규 리드 생성
         const newLead = await prisma.affiliateLead.create({

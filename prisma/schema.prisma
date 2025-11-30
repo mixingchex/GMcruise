@@ -139,6 +139,10 @@ model AffiliateContract {
   contractSignedAt                        DateTime?
   createdAt                               DateTime            @default(now())
   updatedAt                               DateTime
+  contractEndDate                         DateTime?
+  contractStartDate                       DateTime?
+  signatureLink                           String?
+  signatureLinkExpiresAt                  DateTime?
   AffiliateAuditLog                       AffiliateAuditLog[]
   AffiliateProfile                        AffiliateProfile?   @relation(fields: [invitedByProfileId], references: [id])
   User_AffiliateContract_reviewerIdToUser User?               @relation("AffiliateContract_reviewerIdToUser", fields: [reviewerId], references: [id])
@@ -221,6 +225,14 @@ model AffiliateLead {
   @@index([groupId])
   @@index([managerId, status])
   @@index([status])
+  @@index([agentId, createdAt])
+  @@index([createdAt])
+  @@index([customerPhone, status, createdAt])
+  @@index([lastContactedAt])
+  @@index([managerId, agentId, status])
+  @@index([managerId, createdAt])
+  @@index([nextActionAt])
+  @@index([updatedAt])
 }
 
 model AffiliateLink {
@@ -469,6 +481,12 @@ model AffiliateSale {
   @@index([agentId, status, saleDate])
   @@index([managerId, saleDate])
   @@index([agentId, saleDate])
+  @@index([agentId, createdAt])
+  @@index([createdAt])
+  @@index([leadId, status])
+  @@index([managerId, createdAt])
+  @@index([saleDate, status, createdAt])
+  @@index([status, createdAt])
 }
 
 model AffiliateSmsConfig {
@@ -679,6 +697,7 @@ model CommissionLedger {
   @@unique([saleId, profileId, entryType])
   @@index([profileId, isSettled])
   @@index([saleId])
+  @@index([isSettled, createdAt])
 }
 
 model CommunityComment {
@@ -2211,12 +2230,13 @@ model User {
   @@index([role, updatedAt])
   @@index([role, customerStatus, updatedAt])
   @@index([role, createdAt])
-  // 성능 최적화: 고객관리 페이지 쿼리 최적화를 위한 추가 인덱스
   @@index([customerSource])
   @@index([role, customerSource])
   @@index([mallUserId])
   @@index([testModeStartedAt])
   @@index([customerStatus, createdAt])
+  @@index([phone])
+  @@index([customerStatus, customerSource, createdAt], map: "idx_user_customer_status_source_created")
 }
 
 model UserActivity {
@@ -2431,6 +2451,36 @@ model AffiliateLedger {
   @@index([type])
 }
 
+model DashboardStats {
+  id                        Int      @id @default(autoincrement())
+  date                      DateTime @unique @default(now())
+  totalUsers                Int      @default(0)
+  activeUsers               Int      @default(0)
+  hibernatedUsers           Int      @default(0)
+  genieUsers                Int      @default(0)
+  mallUsers                 Int      @default(0)
+  totalTrips                Int      @default(0)
+  upcomingTrips             Int      @default(0)
+  inProgressTrips           Int      @default(0)
+  completedTrips            Int      @default(0)
+  avgSatisfaction           Float    @default(0)
+  reviewCount               Int      @default(0)
+  totalNotifications        Int      @default(0)
+  totalProducts             Int      @default(0)
+  pwaGenieInstalled         Int      @default(0)
+  pwaMallInstalled          Int      @default(0)
+  pwaBothInstalled          Int      @default(0)
+  totalBranchManagers       Int      @default(0)
+  totalSalesAgents          Int      @default(0)
+  totalAffiliateLeads       Int      @default(0)
+  totalAffiliateSales       Int      @default(0)
+  totalAffiliateSalesAmount Int      @default(0)
+  totalCommissionPending    Int      @default(0)
+  totalCommissionSettled    Int      @default(0)
+  trends                    Json?
+  productViews              Json?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime
 
-
-
+  @@index([date])
+}
