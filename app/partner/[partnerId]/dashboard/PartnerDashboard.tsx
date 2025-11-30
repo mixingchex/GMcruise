@@ -1709,7 +1709,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               <span className="text-2xl">👥</span>
               최근 B2B / 시스템 문의 고객
             </h2>
-            <Link href={`/partner/${user.mallUserId || user.phone}/customers`} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
+            <Link href={`/partner/${user.mallUserId || user.phone}/b2b-prospects`} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
               전체보기 <FiArrowRight />
             </Link>
           </div>
@@ -1717,10 +1717,10 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
             <p className="text-gray-500 mb-2">고객 관리는 '고객 관리' 메뉴에서 상세하게 확인하실 수 있습니다.</p>
             <Link
-              href={`/partner/${user.mallUserId || user.phone}/customers`}
+              href={`/partner/${user.mallUserId || user.phone}/b2b-prospects`}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm"
             >
-              <FiUsers /> 고객 관리 바로가기
+              <FiUsers /> B2B 잠재고객 관리 바로가기
             </Link>
           </div>
         </div>

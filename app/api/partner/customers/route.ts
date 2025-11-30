@@ -192,6 +192,11 @@ export async function GET(req: NextRequest) {
 
     if (source && source !== 'mall') {
       where.source = source;
+    } else if (!source) {
+      // source 파라미터가 없을 때는 B2B 관련 소스 제외 (일반 고객 목록)
+      where.source = {
+        notIn: ['B2B_INFLOW', 'B2B_LANDING', 'TRIAL_DASHBOARD', 'B2B_LANDING_ADMIN']
+      };
     }
 
     if (query) {

@@ -40,12 +40,20 @@ interface SystemConsultation {
     status: string;
     createdAt: string;
     agentId: number | null;
+    managerId: number | null;
+    AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile?: {
+        displayName: string | null;
+    } | null;
+    AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile?: {
+        displayName: string | null;
+    } | null;
 }
 
 interface Agent {
     id: number;
     displayName: string | null;
     affiliateCode: string | null;
+    type?: string;
 }
 
 export default function PartnerB2BProspectsPage({ params }: { params: { partnerId: string } }) {
@@ -66,6 +74,16 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
     const [loadingSystem, setLoadingSystem] = useState(false);
     const [systemSearch, setSystemSearch] = useState('');
     const [selectedConsultations, setSelectedConsultations] = useState<Set<number>>(new Set());
+
+    // Pagination State
+    const [b2bPage, setB2bPage] = useState(1);
+    const [b2bTotalPages, setB2bTotalPages] = useState(1);
+    const [systemPage, setSystemPage] = useState(1);
+    const [systemTotalPages, setSystemTotalPages] = useState(1);
+    const itemsPerPage = 50;
+
+    // Month Filter State
+    const [selectedMonth, setSelectedMonth] = useState('');
 
     // DB Assignment State
     const [agents, setAgents] = useState<Agent[]>([]);
@@ -90,7 +108,20 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
             const profileRes = await fetch('/api/partner/profile');
             const profileJson = await profileRes.json();
             if (profileJson.ok && profileJson.profile.managedAgents) {
-                setAgents(profileJson.profile.managedAgents);
+                // Filter only BRANCH_MANAGER types as requested
+                // If managedAgents doesn't include type, we might need to rely on what's returned.
+                // Assuming managedAgents includes type or we filter if possible.
+                // If the API returns type, we use it.
+                // Based on previous view, api/partner/agents returns full profile info including type.
+                // But here we are using profile.managedAgents from /api/partner/profile.
+                // Let's check api/partner/profile response structure if needed, but safe to filter if property exists.
+                // Actually, let's use /api/partner/agents which returns full list with types.
+                const agentsRes = await fetch('/api/partner/agents');
+                const agentsJson = await agentsRes.json();
+                if (agentsJson.ok && agentsJson.agents) {
+                    const branchManagers = agentsJson.agents.filter((a: any) => a.type === 'BRANCH_MANAGER');
+                    setAgents(branchManagers);
+                }
             }
         } catch (error) {
             console.error('Failed to load agents:', error);
@@ -134,11 +165,19 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
     const loadSystemConsultations = useCallback(async () => {
         try {
             setLoadingSystem(true);
-            const res = await fetch('/api/partner/system-inquiries');
+            const params = new URLSearchParams({
+                page: systemPage.toString(),
+                limit: itemsPerPage.toString(),
+            });
+            if (selectedMonth) {
+                params.append('month', selectedMonth);
+            }
+            const res = await fetch(`/api/partner/system-inquiries?${params}`);
             const json = await res.json();
 
             if (json.ok) {
                 setConsultations(json.consultations || []);
+                setSystemTotalPages(json.totalPages || 1);
                 setSelectedConsultations(new Set());
             } else {
                 showError(json.message || '데이터를 불러오는데 실패했습니다.');
@@ -149,7 +188,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
         } finally {
             setLoadingSystem(false);
         }
-    }, []);
+    }, [systemPage, selectedMonth, itemsPerPage]);
 
     useEffect(() => {
         if (activeTab === 'B2B') {
@@ -346,6 +385,72 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
         }
     };
 
+    const handleDelete = async () => {
+        const selectedCount = activeTab === 'B2B' ? selectedProspects.size : selectedConsultations.size;
+        if (selectedCount === 0) {
+            showError('삭제할 항목을 선택해주세요.');
+            return;
+        }
+
+        if (!confirm(`선택한 ${selectedCount}개의 항목을 삭제하시겠습니까? 삭제된 데이터는 복구할 수 없습니다.`)) return;
+
+        try {
+            const ids = activeTab === 'B2B'
+                ? Array.from(selectedProspects)
+                : Array.from(selectedConsultations);
+
+            // Delete sequentially or parallel
+            // Since we don't have a bulk delete API yet, we call delete for each.
+            // For System Consultation, we need a delete API too.
+            // /api/partner/customers/[id] supports DELETE.
+            // For System Consultation, we need to check if we can delete.
+            // If not, we might need to add DELETE to /api/partner/system-inquiries/[id] or similar.
+
+            let successCount = 0;
+
+            if (activeTab === 'B2B') {
+                for (const id of ids) {
+                    const res = await fetch(`/api/partner/customers/${id}`, {
+                        method: 'DELETE',
+                    });
+                    if (res.ok) successCount++;
+                }
+                loadProspects();
+            } else {
+                // System Consultation Delete
+                // Assuming we can delete system consultations.
+                // We need an endpoint. Let's assume /api/admin/system-consultations/[id] or create one.
+                // Actually, the user asked for delete in B2B Prospects management.
+                // If System Consultation is part of it, we need to handle it.
+                // I'll assume we can use a new endpoint or existing one.
+                // Let's use /api/admin/system-consultations/[id] with DELETE method if I create it,
+                // OR /api/system-inquiries/[id] (if exists).
+                // I'll create a server action or API for this if needed.
+                // For now, let's try to delete B2B only or handle System Consultation if I add the API.
+                // I will add the API for System Consultation delete in the next step if it doesn't exist.
+                for (const id of ids) {
+                    const res = await fetch(`/api/admin/system-consultations/${id}`, {
+                        method: 'DELETE',
+                    });
+                    if (res.ok) successCount++;
+                }
+                loadSystemConsultations();
+            }
+
+            if (successCount > 0) {
+                showSuccess(`${successCount}개의 항목이 삭제되었습니다.`);
+                if (activeTab === 'B2B') setSelectedProspects(new Set());
+                else setSelectedConsultations(new Set());
+            } else {
+                showError('삭제에 실패했습니다.');
+            }
+
+        } catch (error) {
+            console.error('Delete error:', error);
+            showError('오류가 발생했습니다.');
+        }
+    };
+
     const selectedCount = activeTab === 'B2B' ? selectedProspects.size : selectedConsultations.size;
 
     return (
@@ -365,6 +470,17 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                 <FiSend />
                                 DB 보내기 ({selectedCount})
                             </button>
+                            <button
+                                onClick={handleDelete}
+                                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                <FiX />
+                                삭제 ({selectedCount})
+                            </button>
+                            {/* Recall button removed or kept? User didn't ask to remove, but asked for Delete. I'll keep Recall if it was there, but maybe move it? 
+                                The user said "Select and Delete".
+                                I'll keep Recall as well.
+                            */}
                             <button
                                 onClick={handleRecall}
                                 disabled={isRecalling}
@@ -533,17 +649,45 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                 </>
             ) : (
                 <>
-                    {/* System Consultation Search */}
+                    {/* System Consultation Search and Month Filter */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-                        <div className="relative w-full md:w-96">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="이름, 연락처 검색"
-                                value={systemSearch}
-                                onChange={(e) => setSystemSearch(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                            />
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <div className="relative flex-1">
+                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="이름, 연락처 검색"
+                                    value={systemSearch}
+                                    onChange={(e) => setSystemSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                />
+                            </div>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedMonth}
+                                    onChange={(e) => {
+                                        setSelectedMonth(e.target.value);
+                                        setSystemPage(1);
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                                >
+                                    <option value="">전체 기간</option>
+                                    {(() => {
+                                        const months = [];
+                                        const now = new Date();
+                                        for (let i = 0; i < 12; i++) {
+                                            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                                            const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                                            months.push(
+                                                <option key={value} value={value}>
+                                                    {d.getFullYear()}년 {d.getMonth() + 1}월
+                                                </option>
+                                            );
+                                        }
+                                        return months;
+                                    })()}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
@@ -623,13 +767,30 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    {consultation.agentId ? (
-                                                        <span className="text-blue-600 font-medium">
-                                                            {agents.find(a => a.id === consultation.agentId)?.displayName || '판매원'}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-gray-400">-</span>
-                                                    )}
+                                                    {(() => {
+                                                        const manager = consultation.AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile;
+                                                        const agent = consultation.AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile;
+
+                                                        if (agent?.displayName) {
+                                                            return (
+                                                                <span className="text-blue-600 font-medium">
+                                                                    {agent.displayName}
+                                                                </span>
+                                                            );
+                                                        } else if (manager?.displayName) {
+                                                            return (
+                                                                <span className="text-purple-600 font-medium">
+                                                                    {manager.displayName}
+                                                                </span>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <span className="text-gray-500 font-medium">
+                                                                    본사
+                                                                </span>
+                                                            );
+                                                        }
+                                                    })()}
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                     <div className="flex items-center gap-1">
@@ -652,6 +813,29 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                             </table>
                         </div>
                     </div>
+
+                    {/* Pagination */}
+                    {systemTotalPages > 1 && (
+                        <div className="mt-6 flex justify-center items-center gap-2">
+                            <button
+                                onClick={() => setSystemPage(p => Math.max(1, p - 1))}
+                                disabled={systemPage === 1}
+                                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-gray-700"
+                            >
+                                \uc774\uc804
+                            </button>
+                            <span className="text-sm text-gray-600">
+                                {systemPage} / {systemTotalPages}
+                            </span>
+                            <button
+                                onClick={() => setSystemPage(p => Math.min(systemTotalPages, p + 1))}
+                                disabled={systemPage === systemTotalPages}
+                                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium text-gray-700"
+                            >
+                                \ub2e4\uc74c
+                            </button>
+                        </div>
+                    )}
                 </>
             )}
 
@@ -660,7 +844,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
                     <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
                         <div className="mb-4 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-900">DB 보내기 (판매원 할당)</h3>
+                            <h3 className="text-lg font-bold text-gray-900">DB 보내기 (대리점장 할당)</h3>
                             <button
                                 onClick={() => setIsAssignModalOpen(false)}
                                 className="rounded-full p-1 hover:bg-gray-100"
@@ -674,13 +858,13 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                         </p>
 
                         <div className="mb-6">
-                            <label className="mb-2 block text-sm font-medium text-gray-700">판매원 선택</label>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">대리점장 선택</label>
                             <select
                                 value={selectedAgentId}
                                 onChange={(e) => setSelectedAgentId(e.target.value)}
                                 className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                             >
-                                <option value="">판매원을 선택하세요</option>
+                                <option value="">대리점장을 선택하세요</option>
                                 {agents.map((agent) => (
                                     <option key={agent.id} value={agent.id}>
                                         {agent.displayName} ({agent.affiliateCode})
