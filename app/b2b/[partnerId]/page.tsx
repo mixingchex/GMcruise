@@ -66,5 +66,5 @@ export default async function PartnerB2BLandingPage({ params }: { params: { part
         console.error('[B2B Landing] Failed to fetch template:', error);
     }
 
-    return <B2BLandingClient partnerId={params.partnerId} template={template} />;
+    return <B2BLandingClient partnerId={params.partnerId} initialTemplate={template} />;
 }

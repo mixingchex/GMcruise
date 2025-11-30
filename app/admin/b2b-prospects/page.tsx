@@ -42,9 +42,30 @@ export default function B2BProspectsPage() {
     const [isDeleting, setIsDeleting] = useState(false);
 
     // System Consultation State
-    const [consultations, setConsultations] = useState<any[]>([]);
-    const [loadingSystem, setLoadingSystem] = useState(false);
-    const [systemSearch, setSystemSearch] = useState('');
+    const [selectedConsultations, setSelectedConsultations] = useState<Set<number>>(new Set());
+
+    // DB Assignment State
+    const [managers, setManagers] = useState<any[]>([]);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+    const [selectedManagerId, setSelectedManagerId] = useState<string>('');
+    const [isAssigning, setIsAssigning] = useState(false);
+    const [isRecalling, setIsRecalling] = useState(false);
+
+    useEffect(() => {
+        loadManagers();
+    }, []);
+
+    const loadManagers = async () => {
+        try {
+            const res = await fetch('/api/admin/affiliate/profiles?type=BRANCH_MANAGER');
+            const json = await res.json();
+            if (json.ok) {
+                setManagers(json.profiles || []);
+            }
+        } catch (error) {
+            console.error('Failed to load managers:', error);
+        }
+    };
 
     const loadProspects = useCallback(async () => {
         try {
@@ -74,6 +95,7 @@ export default function B2BProspectsPage() {
 
             if (json.ok) {
                 setConsultations(json.inquiries || []);
+                setSelectedConsultations(new Set());
             } else {
                 showError(json.message || '데이터를 불러오는데 실패했습니다.');
             }
@@ -156,21 +178,33 @@ export default function B2BProspectsPage() {
     });
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.checked) {
-            setSelectedProspects(new Set(filteredProspects.map(p => p.id)));
+        if (activeTab === 'B2B') {
+            if (e.target.checked) {
+                setSelectedProspects(new Set(filteredProspects.map(p => p.id)));
+            } else {
+                setSelectedProspects(new Set());
+            }
         } else {
-            setSelectedProspects(new Set());
+            if (e.target.checked) {
+                setSelectedConsultations(new Set(filteredConsultations.map(c => c.id)));
+            } else {
+                setSelectedConsultations(new Set());
+            }
         }
     };
 
-    const handleSelectProspect = (id: number, checked: boolean) => {
-        const newSelected = new Set(selectedProspects);
-        if (checked) {
-            newSelected.add(id);
+    const handleSelectRow = (id: number, checked: boolean) => {
+        if (activeTab === 'B2B') {
+            const newSelected = new Set(selectedProspects);
+            if (checked) newSelected.add(id);
+            else newSelected.delete(id);
+            setSelectedProspects(newSelected);
         } else {
-            newSelected.delete(id);
+            const newSelected = new Set(selectedConsultations);
+            if (checked) newSelected.add(id);
+            else newSelected.delete(id);
+            setSelectedConsultations(newSelected);
         }
-        setSelectedProspects(newSelected);
     };
 
     const handleDeleteSelected = async () => {
@@ -222,8 +256,97 @@ export default function B2BProspectsPage() {
         }
     };
 
-    const allSelected = filteredProspects.length > 0 && selectedProspects.size === filteredProspects.length;
-    const someSelected = selectedProspects.size > 0 && selectedProspects.size < filteredProspects.length;
+    const handleAssign = async () => {
+        if (!selectedManagerId) {
+            showError('대리점장을 선택해주세요.');
+            return;
+        }
+
+        setIsAssigning(true);
+        try {
+            const leadIds = activeTab === 'B2B'
+                ? Array.from(selectedProspects)
+                : Array.from(selectedConsultations);
+
+            const type = activeTab === 'B2B' ? 'lead' : 'consultation';
+
+            const res = await fetch('/api/admin/affiliate/leads/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    leadIds,
+                    managerId: selectedManagerId,
+                    type
+                }),
+            });
+
+            const json = await res.json();
+            if (json.ok) {
+                alert('DB가 성공적으로 전송되었습니다.');
+                setIsAssignModalOpen(false);
+                setSelectedManagerId('');
+                if (activeTab === 'B2B') loadProspects();
+                else loadSystemConsultations();
+            } else {
+                showError(json.error || 'DB 전송에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Assign error:', error);
+            showError('오류가 발생했습니다.');
+        } finally {
+            setIsAssigning(false);
+        }
+    };
+
+    const handleRecall = async () => {
+        const selectedCount = activeTab === 'B2B' ? selectedProspects.size : selectedConsultations.size;
+        if (selectedCount === 0) {
+            showError('회수할 항목을 선택해주세요.');
+            return;
+        }
+
+        if (!confirm(`선택한 ${selectedCount}개의 DB를 회수하시겠습니까?`)) return;
+
+        setIsRecalling(true);
+        try {
+            const leadIds = activeTab === 'B2B'
+                ? Array.from(selectedProspects)
+                : Array.from(selectedConsultations);
+
+            const type = activeTab === 'B2B' ? 'lead' : 'consultation';
+
+            const res = await fetch('/api/admin/affiliate/leads/assign', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    leadIds,
+                    type
+                }),
+            });
+
+            const json = await res.json();
+            if (json.ok) {
+                alert('DB가 성공적으로 회수되었습니다.');
+                if (activeTab === 'B2B') loadProspects();
+                else loadSystemConsultations();
+            } else {
+                showError(json.error || 'DB 회수에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Recall error:', error);
+            showError('오류가 발생했습니다.');
+        } finally {
+            setIsRecalling(false);
+        }
+    };
+
+    const selectedCount = activeTab === 'B2B' ? selectedProspects.size : selectedConsultations.size;
+    const allSelected = activeTab === 'B2B'
+        ? (filteredProspects.length > 0 && selectedProspects.size === filteredProspects.length)
+        : (filteredConsultations.length > 0 && selectedConsultations.size === filteredConsultations.length);
+    const someSelected = activeTab === 'B2B'
+        ? (selectedProspects.size > 0 && selectedProspects.size < filteredProspects.length)
+        : (selectedConsultations.size > 0 && selectedConsultations.size < filteredConsultations.length);
 
     return (
         <div className="p-8 max-w-7xl mx-auto">
@@ -233,6 +356,25 @@ export default function B2BProspectsPage() {
                     <p className="text-gray-500 mt-1">7일 무료체험 유입 및 시스템 상담 신청 고객을 관리합니다.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {selectedCount > 0 && (
+                        <>
+                            <button
+                                onClick={() => setIsAssignModalOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                            >
+                                <FiUser />
+                                DB 보내기 ({selectedCount})
+                            </button>
+                            <button
+                                onClick={handleRecall}
+                                disabled={isRecalling}
+                                className="flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                            >
+                                <FiRefreshCw className={isRecalling ? 'animate-spin' : ''} />
+                                회수 ({selectedCount})
+                            </button>
+                        </>
+                    )}
                     {activeTab === 'B2B' && selectedProspects.size > 0 && (
                         <button
                             onClick={handleDeleteSelected}
@@ -258,8 +400,8 @@ export default function B2BProspectsPage() {
                 <button
                     onClick={() => setActiveTab('B2B')}
                     className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'B2B'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                 >
                     B2B 유입 (잠재고객)
@@ -267,8 +409,8 @@ export default function B2BProspectsPage() {
                 <button
                     onClick={() => setActiveTab('SYSTEM')}
                     className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === 'SYSTEM'
-                            ? 'border-blue-600 text-blue-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                 >
                     시스템 상담 신청
@@ -372,7 +514,7 @@ export default function B2BProspectsPage() {
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedProspects.has(prospect.id)}
-                                                        onChange={(e) => handleSelectProspect(prospect.id, e.target.checked)}
+                                                        onChange={(e) => handleSelectRow(prospect.id, e.target.checked)}
                                                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                                     />
                                                 </td>
@@ -489,6 +631,17 @@ export default function B2BProspectsPage() {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-200">
+                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
+                                            <input
+                                                type="checkbox"
+                                                checked={allSelected}
+                                                ref={(input) => {
+                                                    if (input) input.indeterminate = someSelected;
+                                                }}
+                                                onChange={handleSelectAll}
+                                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                            />
+                                        </th>
                                         <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
                                         <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">고객 정보</th>
                                         <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">담당자</th>
@@ -499,7 +652,7 @@ export default function B2BProspectsPage() {
                                 <tbody className="divide-y divide-gray-200">
                                     {loadingSystem ? (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                                 <div className="flex justify-center mb-2">
                                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
                                                 </div>
@@ -508,13 +661,21 @@ export default function B2BProspectsPage() {
                                         </tr>
                                     ) : filteredConsultations.length === 0 ? (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                                 데이터가 없습니다.
                                             </td>
                                         </tr>
                                     ) : (
                                         filteredConsultations.map((consultation) => (
                                             <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedConsultations.has(consultation.id)}
+                                                        onChange={(e) => handleSelectRow(consultation.id, e.target.checked)}
+                                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                                                    />
+                                                </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${consultation.status === 'NEW' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                                                         }`}>
@@ -568,6 +729,59 @@ export default function B2BProspectsPage() {
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* Assign Modal */}
+            {isAssignModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-lg font-bold text-gray-900">DB 보내기 (대리점장 할당)</h3>
+                            <button
+                                onClick={() => setIsAssignModalOpen(false)}
+                                className="rounded-full p-1 hover:bg-gray-100"
+                            >
+                                <span className="text-xl text-gray-500">×</span>
+                            </button>
+                        </div>
+
+                        <p className="mb-4 text-sm text-gray-600">
+                            선택한 {selectedCount}명의 고객을 담당할 대리점장을 선택해주세요.
+                        </p>
+
+                        <div className="mb-6">
+                            <label className="mb-2 block text-sm font-medium text-gray-700">대리점장 선택</label>
+                            <select
+                                value={selectedManagerId}
+                                onChange={(e) => setSelectedManagerId(e.target.value)}
+                                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                            >
+                                <option value="">대리점장을 선택하세요</option>
+                                {managers.map((manager) => (
+                                    <option key={manager.id} value={manager.id}>
+                                        {manager.displayName} ({manager.affiliateCode})
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={() => setIsAssignModalOpen(false)}
+                                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                            >
+                                취소
+                            </button>
+                            <button
+                                onClick={handleAssign}
+                                disabled={isAssigning || !selectedManagerId}
+                                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {isAssigning ? '처리 중...' : '확인'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

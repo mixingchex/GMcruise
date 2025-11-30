@@ -137,37 +137,54 @@ export async function POST(req: Request) {
           },
           // 소스가 없는 경우에만 업데이트 (기존 소스 유지)
           source: existingLead.source || source || 'TRIAL_DASHBOARD',
+          updatedAt: new Date(),
         };
 
         // 파트너 ID가 있고, 기존 리드에 담당자가 없는 경우 할당
         if (partnerId) {
-          // partnerId가 숫자인지 코든지 확인
-          const partnerIdNum = Number(partnerId);
-          const whereClause = isNaN(partnerIdNum)
-            ? { affiliateCode: partnerId, status: 'ACTIVE' }
-            : { id: partnerIdNum, status: 'ACTIVE' };
+          // 1. Admin Phone Numbers Check
+          if (partnerId === '01024958013' || partnerId === '01038609161') {
+            console.log('[Subscription Trial] Admin Partner ID detected (Update):', partnerId);
+            updateData.managerId = null;
+            updateData.agentId = null;
+            updateData.source = 'B2B_LANDING_ADMIN';
+          } else {
+            // 2. Regular Partner Assignment
+            const partnerIdNum = Number(partnerId);
+            const whereClause: any = { status: 'ACTIVE' };
 
-          const partner = await prisma.affiliateProfile.findFirst({
-            where: whereClause
-          });
+            if (!isNaN(partnerIdNum)) {
+              whereClause.id = partnerIdNum;
+            } else {
+              whereClause.OR = [
+                { affiliateCode: partnerId },
+                { landingSlug: partnerId },
+                { User: { phone: partnerId } }
+              ];
+            }
 
-          if (partner) {
-            if (!existingLead.managerId && !existingLead.agentId) {
-              if (partner.type === 'BRANCH_MANAGER') {
-                updateData.managerId = partner.id;
-              } else if (partner.type === 'SALES_AGENT') {
-                updateData.agentId = partner.id;
-                // 판매원의 대리점장 찾기
-                const relation = await prisma.affiliateRelation.findFirst({
-                  where: { agentId: partner.id, status: 'ACTIVE' },
-                  select: { managerId: true }
-                });
-                if (relation) {
-                  updateData.managerId = relation.managerId;
+            const partner = await prisma.affiliateProfile.findFirst({
+              where: whereClause
+            });
+
+            if (partner) {
+              if (!existingLead.managerId && !existingLead.agentId) {
+                if (partner.type === 'BRANCH_MANAGER') {
+                  updateData.managerId = partner.id;
+                } else if (partner.type === 'SALES_AGENT') {
+                  updateData.agentId = partner.id;
+                  // 판매원의 대리점장 찾기
+                  const relation = await prisma.affiliateRelation.findFirst({
+                    where: { agentId: partner.id, status: 'ACTIVE' },
+                    select: { managerId: true }
+                  });
+                  if (relation) {
+                    updateData.managerId = relation.managerId;
+                  }
                 }
+                // 소스도 B2B_LANDING으로 업데이트 (파트너 유입이므로)
+                updateData.source = 'B2B_LANDING';
               }
-              // 소스도 B2B_LANDING으로 업데이트 (파트너 유입이므로)
-              updateData.source = 'B2B_LANDING';
             }
           }
         }
@@ -187,34 +204,52 @@ export async function POST(req: Request) {
           metadata: {
             trialStartedAt: now.toISOString(),
             trialExpiresAt: trialEndDate.toISOString(),
-          }
+          },
+          updatedAt: new Date(),
         };
 
         // 파트너 할당 로직
         if (partnerId) {
-          const partnerIdNum = Number(partnerId);
-          const whereClause = isNaN(partnerIdNum)
-            ? { affiliateCode: partnerId, status: 'ACTIVE' }
-            : { id: partnerIdNum, status: 'ACTIVE' };
+          // 1. Admin Phone Numbers Check
+          if (partnerId === '01024958013' || partnerId === '01038609161') {
+            console.log('[Subscription Trial] Admin Partner ID detected (New):', partnerId);
+            createData.managerId = null;
+            createData.agentId = null;
+            createData.source = 'B2B_LANDING_ADMIN';
+          } else {
+            // 2. Regular Partner Assignment
+            const partnerIdNum = Number(partnerId);
+            const whereClause: any = { status: 'ACTIVE' };
 
-          const partner = await prisma.affiliateProfile.findFirst({
-            where: whereClause
-          });
-
-          if (partner) {
-            if (partner.type === 'BRANCH_MANAGER') {
-              createData.managerId = partner.id;
-            } else if (partner.type === 'SALES_AGENT') {
-              createData.agentId = partner.id;
-              const relation = await prisma.affiliateRelation.findFirst({
-                where: { agentId: partner.id, status: 'ACTIVE' },
-                select: { managerId: true }
-              });
-              if (relation) {
-                createData.managerId = relation.managerId;
-              }
+            if (!isNaN(partnerIdNum)) {
+              whereClause.id = partnerIdNum;
+            } else {
+              whereClause.OR = [
+                { affiliateCode: partnerId },
+                { landingSlug: partnerId },
+                { User: { phone: partnerId } }
+              ];
             }
-            createData.source = 'B2B_LANDING'; // 파트너 유입
+
+            const partner = await prisma.affiliateProfile.findFirst({
+              where: whereClause
+            });
+
+            if (partner) {
+              if (partner.type === 'BRANCH_MANAGER') {
+                createData.managerId = partner.id;
+              } else if (partner.type === 'SALES_AGENT') {
+                createData.agentId = partner.id;
+                const relation = await prisma.affiliateRelation.findFirst({
+                  where: { agentId: partner.id, status: 'ACTIVE' },
+                  select: { managerId: true }
+                });
+                if (relation) {
+                  createData.managerId = relation.managerId;
+                }
+              }
+              createData.source = 'B2B_LANDING'; // 파트너 유입
+            }
           }
         }
 
