@@ -445,10 +445,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 기존 리드 확인 (B2B 소스는 중복 허용, 일반 소스만 중복 방지)
+    // 기존 리드 확인 (B2B 소스는 중복 허용하되 이전 담당자 정보를 notes에 기록, 일반 소스만 중복 방지)
     const isB2BSource = source && ['B2B_INFLOW', 'B2B_LANDING', 'TRIAL_DASHBOARD', 'B2B_LANDING_ADMIN'].includes(source);
+    let duplicateInfo = '';
 
-    if (!isB2BSource) {
+    if (isB2BSource) {
+      // B2B 소스: 중복이면 이전 담당자 정보를 notes에 추가
+      const existingLeads = await prisma.affiliateLead.findMany({
+        where: {
+          customerPhone: normalizedPhone,
+          status: { not: 'CANCELLED' },
+        },
+        include: {
+          AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
+            select: {
+              displayName: true,
+            },
+          },
+          AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+            select: {
+              displayName: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      if (existingLeads.length > 0) {
+        const latest = existingLeads[0];
+        const managerName = latest.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile?.displayName;
+        const agentName = latest.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName;
+        const ownerInfo = agentName || managerName || '본사';
+        const registrationDate = new Date(latest.createdAt).toLocaleDateString('ko-KR');
+
+        duplicateInfo = `[중복 DB] 이전 담당자: ${ownerInfo} (등록일: ${registrationDate})`;
+      }
+    } else {
+      // 일반 소스: 중복 방지
       const existingLead = await prisma.affiliateLead.findFirst({
         where: {
           customerPhone: normalizedPhone,
@@ -510,7 +545,7 @@ export async function POST(req: NextRequest) {
               agentId: parseInt(String(agentId)),
               status: status || 'NEW',
               source: source || 'admin-manual',
-              notes: notes || null,
+              notes: duplicateInfo ? (notes ? `${duplicateInfo}\n${notes}` : duplicateInfo) : (notes || null),
             },
             include: {
               AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
@@ -570,7 +605,7 @@ export async function POST(req: NextRequest) {
         agentId: agentId ? parseInt(String(agentId)) : null,
         status: status || 'NEW',
         source: source || 'admin-manual',
-        notes: notes || null,
+        notes: duplicateInfo ? (notes ? `${duplicateInfo}\n${notes}` : duplicateInfo) : (notes || null),
       },
       include: {
         AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
