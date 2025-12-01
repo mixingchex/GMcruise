@@ -459,13 +459,13 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
                         <p class="text-sm text-gray-400">전문 멘토</p>
                     </div>
                     <div class="text-center">
-                        <img src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7439.jpg" alt="맥스 점장" class="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600" loading="lazy">
-                        <h3 class="font-bold text-white text-xl mt-4">맥스 점장</h3>
+                        <img src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7439.jpg" alt="맥스 코치" class="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600" loading="lazy">
+                        <h3 class="font-bold text-white text-xl mt-4">맥스 코치</h3>
                         <p class="text-sm text-gray-400">전문 멘토</p>
                     </div>
                     <div class="text-center">
-                        <img src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7938.jpg" alt="저스틴 지사장" class="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600" loading="lazy">
-                        <h3 class="font-bold text-white text-xl mt-4">저스틴 지사장</h3>
+                        <img src="https://leadgeny.kr/data/file/smarteditor2/2025-08-03/2aaf4aa2aa0950f4d179e35f99934319_1754199959_7938.jpg" alt="저스틴 코치" class="w-40 h-40 object-cover rounded-full mx-auto border-4 border-gray-600" loading="lazy">
+                        <h3 class="font-bold text-white text-xl mt-4">저스틴 코치</h3>
                         <p class="text-sm text-gray-400">전문 멘토</p>
                     </div>
                 </div>
