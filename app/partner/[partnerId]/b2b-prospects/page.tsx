@@ -108,19 +108,22 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
             const profilesJson = await profilesRes.json();
 
             if (profilesJson.ok && profilesJson.profiles) {
-                // Filter boss managers only (User.mallUserId starts with 'boss')
+                // Filter boss managers only (user.mallUserId starts with 'boss')
                 const bossManagers = profilesJson.profiles
-                    .filter((p: any) =>
-                        p.User?.mallUserId &&
-                        p.User.mallUserId.toLowerCase().startsWith('boss')
-                    )
-                    .map((p: any) => ({
-                        id: p.id,
-                        displayName: p.displayName || p.User?.mallNickname || p.User?.name,
-                        affiliateCode: p.affiliateCode,
-                        type: p.type,
-                        mallUserId: p.User?.mallUserId
-                    }));
+                    .filter((p: any) => {
+                        const user = p.user || p.User;
+                        return user?.mallUserId && user.mallUserId.toLowerCase().startsWith('boss');
+                    })
+                    .map((p: any) => {
+                        const user = p.user || p.User;
+                        return {
+                            id: p.id,
+                            displayName: p.displayName || user?.mallNickname || user?.name,
+                            affiliateCode: p.affiliateCode,
+                            type: p.type,
+                            mallUserId: user?.mallUserId
+                        };
+                    });
 
                 // Add HQ option at the beginning
                 const agentsWithHQ: Agent[] = [
@@ -301,7 +304,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
 
             const type = activeTab === 'B2B' ? 'lead' : 'consultation';
 
-            const res = await fetch('/api/partner/customers/assign', {
+            const res = await fetch('/api/partner/customers/assign-leads', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -346,7 +349,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
 
             const type = activeTab === 'B2B' ? 'lead' : 'consultation';
 
-            const res = await fetch('/api/partner/customers/assign', {
+            const res = await fetch('/api/partner/customers/assign-leads', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

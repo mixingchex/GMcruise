@@ -95,10 +95,12 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   const [loadingStats, setLoadingStats] = useState(true);
   const [mallFullUrl, setMallFullUrl] = useState<string>('');
   // 월별 필터링 상태 (YYYY-MM 형식)
-  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+
+  useEffect(() => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  });
+    setSelectedMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+  }, []);
   const [showCustomerRegisterModal, setShowCustomerRegisterModal] = useState(false);
   const [registerForm, setRegisterForm] = useState({
     customerName: '',

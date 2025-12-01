@@ -407,7 +407,8 @@ export async function POST(req: Request) {
         }
       }
 
-      // 기존 세션 정리 (동시 로그인 방지 및 세션 테이블 정리)
+      // 기존 세션 정리 (동시 로그인 방지 및 세션 테이블 정리) -> 다중 세션 허용을 위해 주석 처리
+      /*
       try {
         const deletedSessions = await prisma.session.deleteMany({
           where: { userId: affiliateUser.id },
@@ -416,6 +417,7 @@ export async function POST(req: Request) {
       } catch (cleanupError) {
         console.warn('[Partner Login] 기존 세션 정리 실패 (무시하고 계속):', cleanupError);
       }
+      */
 
       const sessionId = randomBytes(32).toString('hex');
       const csrfToken = generateCsrfToken();

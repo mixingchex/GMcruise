@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { FiChevronLeft, FiChevronRight, FiX } from 'react-icons/fi';
 import Image from 'next/image';
 import ProductCard from './ProductCard';
@@ -90,7 +91,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settings, setSettings] = useState<MallSettings>({});
-  
+
   // featuredProductCodes는 prop 또는 partnerContext에서 가져옴
   const featuredProductCodes = featuredProductCodesProp || partnerContext?.featuredProductCodes || [];
   const [filters, setFilters] = useState({
@@ -100,7 +101,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     cruiseLine: 'all', // 크루즈 라인 필터
     shipName: 'all', // 선박명 필터
   });
-  
+
   // 크루즈 라인/선박명 검색 상태
   const [cruiseLineSearchTerm, setCruiseLineSearchTerm] = useState('');
   const [cruiseLineDropdownOpen, setCruiseLineDropdownOpen] = useState(false);
@@ -119,16 +120,16 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const [availableRegions, setAvailableRegions] = useState<Set<string>>(new Set(['all'])); // 판매 중인 상품이 있는 지역
 
   const isPartnerMall = Boolean(partnerContext && partnerContext.mallUserId);
-  const partnerProfileTitle = partnerContext?.profileTitle 
+  const partnerProfileTitle = partnerContext?.profileTitle
     ? String(partnerContext.profileTitle).trim()
-    : partnerContext?.mallUserId 
-    ? `${partnerContext.mallUserId} 파트너몰` 
-    : '크루즈닷 파트너몰';
-  const partnerAnnouncement = partnerContext?.landingAnnouncement 
-    ? String(partnerContext.landingAnnouncement).trim() 
+    : partnerContext?.mallUserId
+      ? `${partnerContext.mallUserId} 파트너몰`
+      : '크루즈닷 파트너몰';
+  const partnerAnnouncement = partnerContext?.landingAnnouncement
+    ? String(partnerContext.landingAnnouncement).trim()
     : '';
-  const partnerWelcome = partnerContext?.welcomeMessage 
-    ? String(partnerContext.welcomeMessage).trim() 
+  const partnerWelcome = partnerContext?.welcomeMessage
+    ? String(partnerContext.welcomeMessage).trim()
     : '';
   const partnerId = partnerContext?.mallUserId || undefined;
   // 크루즈선사 목록 생성 (한국어 이름을 value로 사용)
@@ -147,7 +148,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   // 선택된 크루즈선사에 해당하는 크루즈선 목록 (한국어 이름을 value로 사용)
   const shipNameOptions = useMemo(() => {
     if (!filters.cruiseLine || filters.cruiseLine === 'all') return [];
-    
+
     const selectedLine = (cruiseShipsData as any[]).find((line) => {
       const cruiseLineShort = line.cruise_line.split('(')[0].trim();
       return cruiseLineShort === filters.cruiseLine;
@@ -158,13 +159,13 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     const options: Array<{ value: string; label: string }> = [];
     selectedLine.ships.forEach((ship: string) => {
       const shipNameShort = ship.split('(')[0].trim(); // 한국어 이름
-      
+
       let displayLabel = shipNameShort;
       const cruiseLineKeywords = selectedLine.cruise_line.split('(')[0].trim().split(' ').filter((word: string) => word.length > 1);
-      const hasCruiseLineInShipName = cruiseLineKeywords.some((keyword: string) => 
+      const hasCruiseLineInShipName = cruiseLineKeywords.some((keyword: string) =>
         shipNameShort.includes(keyword)
       );
-      
+
       if (!hasCruiseLineInShipName) {
         const simpleCruiseLine = cruiseLineKeywords[0] || selectedLine.cruise_line.split('(')[0].trim();
         displayLabel = `${simpleCruiseLine} ${shipNameShort}`;
@@ -184,7 +185,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       return cruiseLineOptions.slice(0, 50);
     }
     const term = normalize(cruiseLineSearchTerm);
-    return cruiseLineOptions.filter(option => 
+    return cruiseLineOptions.filter(option =>
       normalize(option.label).includes(term) || normalize(option.value).includes(term)
     ).slice(0, 50);
   }, [cruiseLineSearchTerm, cruiseLineOptions]);
@@ -195,7 +196,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       return shipNameOptions.slice(0, 50);
     }
     const term = normalize(shipNameSearchTerm);
-    return shipNameOptions.filter(option => 
+    return shipNameOptions.filter(option =>
       normalize(option.label).includes(term) || normalize(option.value).includes(term)
     ).slice(0, 50);
   }, [shipNameSearchTerm, shipNameOptions]);
@@ -259,7 +260,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       loadFeaturedProducts();
     }
   }, []);
-  
+
   // featuredProductCodes가 변경되면 다시 로드
   useEffect(() => {
     if (featuredProductCodes.length > 0) {
@@ -298,11 +299,11 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     try {
       const apiUrl = '/api/public/mall-settings';
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${apiUrl}`);
       }
-      
+
       const data = await response.json();
       if (data.ok && data.settings) {
         setSettings(data.settings);
@@ -320,16 +321,16 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       // 모든 상품을 가져와서 지역별로 상품이 있는지 확인
       const apiUrl = '/api/public/products?limit=1000';
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${apiUrl}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.ok && Array.isArray(data.products)) {
         const regions = new Set<string>(['all']); // '전체'는 항상 포함
-        
+
         // 각 지역별로 상품이 있는지 확인
         const regionMap: Record<string, string[]> = {
           'japan': ['JP', 'Japan', '일본'],
@@ -339,12 +340,12 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           'eastern-mediterranean': ['GR', 'Greece', '그리스', 'TR', 'Turkey', '터키'],
           'alaska': ['US', 'USA', '미국', 'Alaska', '알래스카'],
         };
-        
+
         data.products.forEach((product: Product) => {
           if (!product.itineraryPattern || !Array.isArray(product.itineraryPattern)) {
             return;
           }
-          
+
           // 각 지역별로 상품이 있는지 확인
           Object.entries(regionMap).forEach(([regionKey, keywords]) => {
             const hasRegion = product.itineraryPattern.some((item: any) => {
@@ -354,13 +355,13 @@ export default function ProductList({ partnerContext = null, featuredProductCode
               }
               return false;
             });
-            
+
             if (hasRegion) {
               regions.add(regionKey);
             }
           });
         });
-        
+
         setAvailableRegions(regions);
       }
     } catch (error) {
@@ -386,14 +387,14 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   // 개인 링크 상품 로드
   const loadFeaturedProducts = async () => {
     const codesToLoad = featuredProductCodesProp || partnerContext?.featuredProductCodes || [];
-    
+
     console.log('[ProductList] loadFeaturedProducts 호출:', {
       codesToLoad,
       codesToLoadLength: codesToLoad.length,
       featuredProductCodesProp,
       partnerContextFeaturedCodes: partnerContext?.featuredProductCodes,
     });
-    
+
     if (codesToLoad.length === 0) {
       console.log('[ProductList] featuredProductCodes가 비어있어서 상품을 로드하지 않습니다.');
       setFeaturedProducts([]);
@@ -402,21 +403,21 @@ export default function ProductList({ partnerContext = null, featuredProductCode
 
     try {
       setIsLoadingFeatured(true);
-      
+
       console.log('[ProductList] 상품 로드 시작:', codesToLoad);
-      
+
       // 각 상품 코드에 대해 상품 정보 조회
       const productPromises = codesToLoad.map(async (productCode) => {
         try {
           const apiUrl = `/api/public/products/${productCode}`;
           const response = await fetch(apiUrl);
-          
+
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${apiUrl}`);
           }
-          
+
           const data = await response.json();
-          
+
           if (data.ok && data.product) {
             const p = data.product;
             const {
@@ -428,8 +429,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
             const mallContent = existingMallContent ?? MallProductContent ?? null;
             const layout = mallContent?.layout
               ? (typeof mallContent.layout === 'string'
-                  ? JSON.parse(mallContent.layout)
-                  : mallContent.layout)
+                ? JSON.parse(mallContent.layout)
+                : mallContent.layout)
               : null;
             const rating = layout?.rating || p.rating || 4.0 + Math.random() * 1.0;
             const reviewCount = layout?.reviewCount || p.reviewCount || Math.floor(Math.random() * 500) + 50;
@@ -475,51 +476,35 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     }
   };
 
-  const loadProducts = async () => {
-    // API URL을 함수 시작 부분에서 구성 (에러 로깅을 위해)
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: '12',
-      sort: filters.sort,
-    });
-
-    if (filters.region !== 'all') {
-      params.append('region', filters.region);
-    }
-    
-    if (filters.cruiseLine !== 'all') {
-      params.append('cruiseLine', filters.cruiseLine);
-    }
-    
-    if (filters.shipName !== 'all') {
-      params.append('shipName', filters.shipName);
-    }
-
-    const apiUrl = `/api/public/products?${params.toString()}`;
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
-      
-      const response = await fetch(apiUrl, {
-        signal: abortController.signal,
+  // React Query를 사용한 데이터 페칭
+  const { data: queryData, isLoading: isQueryLoading, error: queryError, refetch } = useQuery({
+    queryKey: ['products', page, filters.sort, filters.region, filters.cruiseLine, filters.shipName],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '12',
+        sort: filters.sort,
       });
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${apiUrl}`);
-      }
-      
+
+      if (filters.region !== 'all') params.append('region', filters.region);
+      if (filters.cruiseLine !== 'all') params.append('cruiseLine', filters.cruiseLine);
+      if (filters.shipName !== 'all') params.append('shipName', filters.shipName);
+
+      const apiUrl = `/api/public/products?${params.toString()}`;
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
+      if (!data.ok) throw new Error(data.error || 'Failed to fetch products');
+      return data;
+    },
+    staleTime: 60 * 1000, // 1분간 데이터 신선함 유지
+    gcTime: 5 * 60 * 1000, // 5분간 캐시 유지
+  });
 
-      if (!data.ok) {
-        throw new Error(data.error || `상품 목록을 불러올 수 없습니다: ${apiUrl}`);
-      }
-
-      const productsWithFlags = data.products.map((p: any) => {
+  // 데이터 동기화
+  useEffect(() => {
+    if (queryData) {
+      const productsWithFlags = queryData.products.map((p: any) => {
         const {
           MallProductContent,
           mallProductContent: existingMallContent,
@@ -527,65 +512,58 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         } = p;
 
         const mallContent = existingMallContent ?? MallProductContent ?? null;
-        const popular = Boolean(p.isPopular);
-        const recommended = Boolean(p.isRecommended);
-        const premium = Boolean(p.isPremium);
-        const geniePack = Boolean(p.isGeniePack);
-        const domestic = Boolean(p.isDomestic);
-        const japan = Boolean(p.isJapan);
-        const budget = Boolean(p.isBudget);
-
         const layout = mallContent?.layout
           ? (typeof mallContent.layout === 'string'
-              ? JSON.parse(mallContent.layout)
-              : mallContent.layout)
+            ? JSON.parse(mallContent.layout)
+            : mallContent.layout)
           : null;
-        const rating = layout?.rating || p.rating || 4.0 + Math.random() * 1.0;
-        const reviewCount = layout?.reviewCount || p.reviewCount || Math.floor(Math.random() * 500) + 50;
 
         return {
           ...rest,
           mallProductContent: mallContent,
-          rating,
-          reviewCount,
-          isPopular: popular,
-          isRecommended: recommended,
-          isPremium: premium,
-          isGeniePack: geniePack,
-          isDomestic: domestic,
-          isJapan: japan,
-          isBudget: budget,
+          rating: layout?.rating || p.rating || 4.0 + Math.random() * 1.0,
+          reviewCount: layout?.reviewCount || p.reviewCount || Math.floor(Math.random() * 500) + 50,
+          isPopular: Boolean(p.isPopular),
+          isRecommended: Boolean(p.isRecommended),
+          isPremium: Boolean(p.isPremium),
+          isGeniePack: Boolean(p.isGeniePack),
+          isDomestic: Boolean(p.isDomestic),
+          isJapan: Boolean(p.isJapan),
+          isBudget: Boolean(p.isBudget),
         } as Product;
       });
 
       let filteredProducts = productsWithFlags;
       if (filters.type === 'popular') {
-        filteredProducts = productsWithFlags.filter((p) => p.isPopular);
+        filteredProducts = productsWithFlags.filter((p: any) => p.isPopular);
       } else if (filters.type === 'recommended') {
-        filteredProducts = productsWithFlags.filter((p) => p.isRecommended);
+        filteredProducts = productsWithFlags.filter((p: any) => p.isRecommended);
       }
 
       setProducts(filteredProducts);
-      setTotalPages(data.pagination?.totalPages || 1);
-      
-      // 상품이 로드되면 지역 정보 업데이트
+      setTotalPages(queryData.pagination?.totalPages || 1);
       updateAvailableRegions(filteredProducts);
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        const apiUrl = `/api/public/products?${params.toString()}`;
-        const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${apiUrl}` : apiUrl;
-        console.error('[ProductList] 상품 목록 로드 실패:', fullUrl, err);
-        setError(err instanceof Error ? err.message : '상품 목록을 불러올 수 없습니다.');
-      }
-    } finally {
       setIsLoading(false);
     }
+  }, [queryData, filters.type]);
+
+  useEffect(() => {
+    if (isQueryLoading) setIsLoading(true);
+  }, [isQueryLoading]);
+
+  useEffect(() => {
+    if (queryError) setError(queryError instanceof Error ? queryError.message : 'Error loading products');
+  }, [queryError]);
+
+  // 기존 loadProducts 함수는 더 이상 사용하지 않음 (빈 함수로 대체)
+  const loadProducts = async () => {
+    // React Query가 자동으로 처리하므로 수동 호출 불필요
   };
 
   // 상품 목록에서 판매 중인 지역 확인
   const updateAvailableRegions = (products: Product[]) => {
     const regions = new Set<string>(['all']); // '전체'는 항상 포함
-    
+
     const regionMap: Record<string, string[]> = {
       'japan': ['JP', 'Japan', '일본'],
       'southeast-asia': ['TH', 'Thailand', '태국', 'VN', 'Vietnam', '베트남', 'MY', 'Malaysia', '말레이시아'],
@@ -594,12 +572,12 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       'eastern-mediterranean': ['GR', 'Greece', '그리스', 'TR', 'Turkey', '터키'],
       'alaska': ['US', 'USA', '미국', 'Alaska', '알래스카'],
     };
-    
+
     products.forEach((product) => {
       if (!product.itineraryPattern || !Array.isArray(product.itineraryPattern)) {
         return;
       }
-      
+
       // 각 지역별로 상품이 있는지 확인
       Object.entries(regionMap).forEach(([regionKey, keywords]) => {
         const hasRegion = product.itineraryPattern.some((item: any) => {
@@ -609,13 +587,13 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           }
           return false;
         });
-        
+
         if (hasRegion) {
           regions.add(regionKey);
         }
       });
     });
-    
+
     setAvailableRegions(regions);
   };
 
@@ -636,14 +614,14 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     }
 
     const apiUrl = `/api/public/products?${params.toString()}`;
-    
+
     try {
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${apiUrl}`);
       }
-      
+
       const data = await response.json();
 
       if (data.ok && data.products) {
@@ -659,7 +637,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   // 판매 중인 상품이 있는 지역만 필터로 표시 (Hooks는 early return 이전에 호출되어야 함)
   const menuFilters = useMemo(() => {
     const configuredFilters = settings['menu-bar-settings']?.filters?.filter(f => f.enabled) || DEFAULT_REGION_FILTERS;
-    
+
     // 판매 중인 상품이 있는 지역만 필터링
     return configuredFilters.filter(filter => availableRegions.has(filter.value));
   }, [settings, availableRegions]);
@@ -680,7 +658,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       <div className="bg-red-50 border-2 border-red-300 rounded-xl p-8 md:p-10 text-center shadow-lg">
         <p className="text-xl md:text-2xl text-red-800 font-bold mb-6">{error}</p>
         <button
-          onClick={loadProducts}
+          onClick={() => refetch()}
           className="px-8 py-4 bg-red-600 text-white text-lg md:text-xl font-bold rounded-xl hover:bg-red-700 transition-colors shadow-lg min-h-[56px]"
         >
           다시 시도
@@ -698,7 +676,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const japanProducts = products.filter(p => p.isJapan);
   const budgetProducts = products.filter(p => p.isBudget);
   const allProducts = products;
-  
+
   // 지역 필터가 적용되었을 때는 모든 상품을 표시
   const showFilteredProducts = filters.region !== 'all';
 
@@ -726,9 +704,9 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const renderPartnerHero = () => {
     // gest 계정 확인
     const isGestAccount = partnerId?.toLowerCase().startsWith('gest');
-    
+
     // gest 계정이면 노란색 테마, 아니면 기존 파란색-보라색 테마
-    const headerGradient = isGestAccount 
+    const headerGradient = isGestAccount
       ? 'bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-500'
       : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600';
     const overlayGradient = isGestAccount
@@ -736,7 +714,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       : 'bg-gradient-to-r from-blue-700 via-purple-700 to-indigo-700 opacity-80';
     const textColor = isGestAccount ? 'text-gray-900' : 'text-white';
     const textMutedColor = isGestAccount ? 'text-gray-700' : 'text-white/70';
-    
+
     return (
       <section className={`relative overflow-hidden rounded-3xl ${headerGradient} ${textColor} shadow-2xl`}>
         <div className="absolute inset-0">
@@ -800,7 +778,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       isLoadingFeatured,
       isPartnerMall,
     });
-    
+
     // 파트너몰이고 featuredProductCodes가 있으면 항상 섹션 표시 (로딩 중이거나 상품이 없어도)
     if (isPartnerMall && codesToCheck.length > 0) {
       if (isLoadingFeatured) {
@@ -820,7 +798,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           </section>
         );
       }
-      
+
       if (featuredProducts.length === 0) {
         return (
           <section className="mb-12">
@@ -844,7 +822,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         );
       }
     }
-    
+
     if (featuredProducts.length === 0) {
       return null;
     }
@@ -980,22 +958,21 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                     const previousRegion = filters.region;
                     setFilters({ ...filters, region: filter.value });
                     setPage(1);
-                    
+
                     if (previousRegion !== filter.value && filter.value !== 'all') {
                       setShouldScrollToProducts(true);
                     }
                   }}
-                  className={`px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base md:text-lg font-bold transition-all min-h-[48px] sm:min-h-[52px] flex items-center justify-center ${
-                    filters.region === filter.value
-                      ? 'bg-blue-600 text-white shadow-lg scale-105'
-                      : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300 border-2 border-gray-300'
-                  }`}
+                  className={`px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base md:text-lg font-bold transition-all min-h-[48px] sm:min-h-[52px] flex items-center justify-center ${filters.region === filter.value
+                    ? 'bg-blue-600 text-white shadow-lg scale-105'
+                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300 border-2 border-gray-300'
+                    }`}
                 >
                   {filter.label}
                 </button>
               ))}
             </div>
-            
+
             {/* 크루즈 라인 및 선박명 필터 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200">
               {/* 크루즈 라인 필터 */}
@@ -1039,9 +1016,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                           e.preventDefault();
                           handleCruiseLineSelect('all');
                         }}
-                        className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 ${
-                          filters.cruiseLine === 'all' ? 'bg-blue-100 font-bold' : 'font-medium'
-                        }`}
+                        className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 ${filters.cruiseLine === 'all' ? 'bg-blue-100 font-bold' : 'font-medium'
+                          }`}
                       >
                         <div className="text-base text-gray-900">전체</div>
                       </div>
@@ -1052,9 +1028,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                             e.preventDefault();
                             handleCruiseLineSelect(option.value);
                           }}
-                          className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${
-                            filters.cruiseLine === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
-                          }`}
+                          className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${filters.cruiseLine === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
+                            }`}
                         >
                           <div className="text-base text-gray-900">{option.label}</div>
                         </div>
@@ -1063,7 +1038,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                   )}
                 </div>
               </div>
-              
+
               {/* 선박명 필터 */}
               <div className="relative" ref={shipNameDropdownRef}>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1088,9 +1063,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                       setTimeout(() => setShipNameDropdownOpen(false), 200);
                     }}
                     placeholder={filters.cruiseLine !== 'all' ? "선박명 검색 (예: 벨리시마)" : "먼저 크루즈선사를 선택하세요"}
-                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base pr-12 ${
-                      filters.cruiseLine === 'all' ? 'bg-gray-100 border-gray-200 cursor-not-allowed' : 'border-gray-300'
-                    }`}
+                    className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base pr-12 ${filters.cruiseLine === 'all' ? 'bg-gray-100 border-gray-200 cursor-not-allowed' : 'border-gray-300'
+                      }`}
                   />
                   {shipNameSearchTerm && filters.cruiseLine !== 'all' && (
                     <button
@@ -1112,9 +1086,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                           e.preventDefault();
                           handleShipNameSelect('all');
                         }}
-                        className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 ${
-                          filters.shipName === 'all' ? 'bg-blue-100 font-bold' : 'font-medium'
-                        }`}
+                        className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 ${filters.shipName === 'all' ? 'bg-blue-100 font-bold' : 'font-medium'
+                          }`}
                       >
                         <div className="text-base text-gray-900">전체</div>
                       </div>
@@ -1125,9 +1098,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                             e.preventDefault();
                             handleShipNameSelect(option.value);
                           }}
-                          className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${
-                            filters.shipName === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
-                          }`}
+                          className={`px-4 py-3 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${filters.shipName === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
+                            }`}
                         >
                           <div className="text-base text-gray-900">{option.label}</div>
                         </div>
@@ -1146,11 +1118,10 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         <div id="popular-cruises" className="mb-12">
           <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">인기 크루즈</h3>
           <div
-            className={`grid gap-4 md:gap-5 lg:gap-6 ${
-              productDisplay.popularRows === 2 || productDisplay.popularRows === 3
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-                : 'relative'
-            }`}
+            className={`grid gap-4 md:gap-5 lg:gap-6 ${productDisplay.popularRows === 2 || productDisplay.popularRows === 3
+              ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+              : 'relative'
+              }`}
           >
             {productDisplay.popularRows === 1 ? (
               <>
@@ -1192,7 +1163,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {filters.type === 'all' && filters.region === 'all' && recommendedProducts.length > 0 && (
         <div className="relative rounded-xl p-8 md:p-10 text-white overflow-hidden shadow-2xl mb-8">
           {/* 배경 이미지 */}
-          <div 
+          <div
             className="absolute inset-0 bg-cover bg-center"
             style={{
               backgroundImage: 'url(/images/recommended-banner-bg.png)',
@@ -1200,7 +1171,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           >
             <div className="absolute inset-0 bg-black/50"></div>
           </div>
-          
+
           {/* 컨텐츠 */}
           <div className="relative z-10">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -1242,11 +1213,10 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         <div>
           <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">추천 크루즈</h3>
           <div
-            className={`grid gap-4 md:gap-5 lg:gap-6 ${
-              productDisplay.recommendedRows === 2 || productDisplay.recommendedRows === 3
-                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-                : 'relative'
-            }`}
+            className={`grid gap-4 md:gap-5 lg:gap-6 ${productDisplay.recommendedRows === 2 || productDisplay.recommendedRows === 3
+              ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+              : 'relative'
+              }`}
           >
             {productDisplay.recommendedRows === 1 ? (
               <>
@@ -1406,7 +1376,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {allProducts.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-xl shadow-lg border-2 border-gray-200">
           <p className="text-xl md:text-2xl text-gray-700 font-semibold">
-            {showFilteredProducts 
+            {showFilteredProducts
               ? `${menuFilters.find(f => f.value === filters.region)?.label || '선택한 지역'}에 해당하는 상품이 없습니다.`
               : '상품이 없습니다.'}
           </p>
@@ -1451,11 +1421,11 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                   const productsPerRow = 5;
                   const maxRows = 3;
                   const productGroups: Product[][] = [];
-                  
+
                   for (let i = 0; i < Math.min(allProducts.length, maxRows * productsPerRow); i += productsPerRow) {
                     productGroups.push(allProducts.slice(i, i + productsPerRow));
                   }
-                  
+
                   return productGroups.map((group, rowIndex) => (
                     <div key={rowIndex} className="relative">
                       {/* 좌우 스크롤 버튼 */}

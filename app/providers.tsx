@@ -6,6 +6,7 @@ import { ToastContainer, useToast } from '@/components/ui/Toast';
 import AccessCheckWrapper from '@/components/AccessCheckWrapper';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import SecurityProtection from '@/components/SecurityProtection';
+import QueryProvider from "@/components/providers/QueryProvider";
 
 /**
  * 클라이언트 프로바이더
@@ -16,14 +17,15 @@ export default function Providers({ children }: { children: ReactNode }) {
   const { toasts, removeToast } = useToast();
 
   return (
-    <ErrorBoundary>
-      <SecurityProtection />
-      <AccessCheckWrapper>
-        {children}
-      </AccessCheckWrapper>
-      <AnalyticsTracker />
-      <ToastContainer toasts={toasts} onClose={removeToast} />
-    </ErrorBoundary>
+    <QueryProvider>
+      <ErrorBoundary>
+        <SecurityProtection />
+        <AccessCheckWrapper>
+          {children}
+        </AccessCheckWrapper>
+        <AnalyticsTracker />
+        <ToastContainer toasts={toasts} onClose={removeToast} />
+      </ErrorBoundary>
+    </QueryProvider>
   );
 }
-
