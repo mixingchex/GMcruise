@@ -168,8 +168,8 @@ export default function B2BProspectsPage() {
     };
 
     const filteredProspects = prospects.filter(p => {
-        if (filter === 'INFLOW' && p.source !== 'test-guide' && p.source !== 'B2B_INFLOW') return false;
-        if (filter === 'PARTNER' && p.source !== 'B2B_LANDING') return false;
+        if (filter === 'INFLOW' && p.source !== 'test-guide' && p.source !== 'B2B_INFLOW' && p.source !== 'TRIAL_DASHBOARD') return false;
+        if (filter === 'PARTNER' && p.source !== 'B2B_LANDING' && p.source !== 'B2B_LANDING_ADMIN') return false;
 
         if (search) {
             const query = search.toLowerCase();
