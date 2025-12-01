@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncContracts, syncDocuments, syncAllActiveTripsApis, syncLeads, syncSales, syncSettlements } from '@/lib/drive-sync';
+import { processApisSyncQueue } from '@/lib/apis-sync-queue';
 import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
@@ -35,10 +36,13 @@ export async function GET(req: NextRequest) {
         logger.log('[Cron] Starting Drive Sync...');
 
         // 4. Run Sync
+        // APIS Queue Processing (Priority)
+        await processApisSyncQueue(10); // Process up to 10 tasks per cron run
+
         await Promise.all([
             syncContracts({ cleanup: true, retentionDays }),
             syncDocuments({ cleanup: true, retentionDays }),
-            syncAllActiveTripsApis(),
+            syncAllActiveTripsApis(), // This might be redundant if queue covers it, but keeping for safety for now
             syncLeads(),
             syncSales(),
             syncSettlements()

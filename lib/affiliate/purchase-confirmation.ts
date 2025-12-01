@@ -257,7 +257,7 @@ export async function sendPurchaseConfirmation(saleId: number) {
         },
         AffiliateProduct: {
           select: {
-            productName: true,
+            title: true,
           },
         },
       },
@@ -290,7 +290,7 @@ export async function sendPurchaseConfirmation(saleId: number) {
     const templates = generatePurchaseConfirmationTemplate({
       customerName,
       productCode: sale.productCode,
-      productName: sale.AffiliateProduct?.productName,
+      productName: sale.AffiliateProduct?.title,
       saleAmount: sale.saleAmount,
       saleDate: sale.saleDate?.toISOString() || new Date().toISOString(),
       headcount: sale.headcount || undefined,
@@ -364,12 +364,12 @@ export async function sendPurchaseConfirmation(saleId: number) {
 
     // 이메일 발송 (고객 이메일이 있는 경우)
     if (customerEmail) {
-      const fromEmail = responsibleProfile.user?.email || process.env.SMTP_USER;
+      const fromEmail = responsibleProfile.User?.email || process.env.SMTP_USER;
       const fromName = responsibleName;
 
       const emailResult = await sendEmail(
         customerEmail,
-        `[구매확인서] ${sale.product?.productName || sale.productCode} 구매 완료`,
+        `[구매확인서] ${sale.AffiliateProduct?.title || sale.productCode} 구매 완료`,
         templates.email,
         fromEmail,
         fromName
@@ -387,7 +387,7 @@ export async function sendPurchaseConfirmation(saleId: number) {
       data: {
         leadId: sale.leadId,
         profileId: responsibleProfile.id,
-        createdById: responsibleProfile.user?.id || null,
+        createdById: responsibleProfile.User?.id || null,
         interactionType: 'PURCHASE_CONFIRMATION_SENT',
         note: `구매확인서 발송 완료 (SMS: ${results.sent.sms}, 카카오톡: ${results.sent.kakao}, 이메일: ${results.sent.email})`,
         metadata: {

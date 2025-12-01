@@ -4,7 +4,7 @@ import { requireAdminUser } from '../_utils';
 import { logger } from '@/lib/logger';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
-import { syncApisSpreadsheet } from '@/lib/google-sheets';
+import { enqueueApisSync } from '@/lib/apis-sync-queue';
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -323,10 +323,14 @@ Return ONLY the JSON object now:`;
         });
       }
 
-      // APIS 스프레드시트 동기화
-      await syncApisSpreadsheet(trip.id);
+      // APIS 동기화 큐에 작업 추가 (지연 처리)
+      // 1. 마스터 시트 업데이트
+      await enqueueApisSync('MASTER_SHEET', body.userId);
 
-      logger.log('[OCR to APIS] APIS 데이터 저장 완료:', {
+      // 2. 여행별 시트 업데이트
+      await enqueueApisSync('TRIP_SHEET', trip.id);
+
+      logger.log('[OCR to APIS] APIS 데이터 저장 및 동기화 큐 추가 완료:', {
         submissionId: body.submissionId,
         userId: body.userId,
         tripId: trip.id,

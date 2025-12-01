@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import { getGoogleDriveAuth } from './drive';
 
 const SPREADSHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet';
-const SPREADSHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet';
+
 
 /**
  * Appends a new B2B lead to the Google Sheet in the specified folder.

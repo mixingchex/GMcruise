@@ -85,7 +85,12 @@ export default function CustomerDetailPage() {
     birthDate: '',
     expiryDate: '',
   });
-  
+
+  // PNR 등록 관련 state
+  const [showPnrModal, setShowPnrModal] = useState(false);
+  const [pnrForm, setPnrForm] = useState<Array<{ travelerId: number; name: string; roomNumber: string }>>([]);
+  const [selectedTripIdForPnr, setSelectedTripIdForPnr] = useState<number | null>(null);
+
   // 소속 편집 관련 state
   const [isEditingAffiliation, setIsEditingAffiliation] = useState(false);
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
@@ -140,7 +145,7 @@ export default function CustomerDetailPage() {
             }
           });
         }
-        
+
         console.log('[Load User Data] User data loaded:', {
           trips: data.user.trips?.length || 0,
           reservations: (data.user as any).reservations?.length || 0,
@@ -224,12 +229,12 @@ export default function CustomerDetailPage() {
     }
 
     setIsProcessing(true);
-    
+
     try {
       console.log('[Delete User] ===== FRONTEND START =====');
       console.log('[Delete User] UserId:', userId);
       console.log('[Delete User] URL:', `/api/admin/users/${userId}/delete`);
-      
+
       const response = await fetch(`/api/admin/users/${userId}/delete`, {
         method: 'DELETE',
         credentials: 'include',
@@ -245,10 +250,10 @@ export default function CustomerDetailPage() {
         headersObj[key] = value;
       });
       console.log('[Delete User] Response headers:', headersObj);
-      
+
       const responseText = await response.text();
       console.log('[Delete User] Response text (raw):', responseText);
-      
+
       let data;
       try {
         data = JSON.parse(responseText);
@@ -259,7 +264,7 @@ export default function CustomerDetailPage() {
         setIsProcessing(false);
         return;
       }
-      
+
       if (data.ok) {
         console.log('[Delete User] SUCCESS');
         alert(`✅ 성공!\n\n${data.message || '사용자가 삭제되었습니다.'}`);
@@ -278,7 +283,7 @@ export default function CustomerDetailPage() {
           `=== 서버 응답 전체 ===`,
           JSON.stringify(data, null, 2),
         ].filter(Boolean).join('\n');
-        
+
         alert(errorInfo);
       }
     } catch (error) {
@@ -293,7 +298,7 @@ export default function CustomerDetailPage() {
         `스택:`,
         error instanceof Error ? error.stack : String(error),
       ].join('\n');
-      
+
       alert(errorInfo);
     } finally {
       console.log('[Delete User] ===== FRONTEND END =====');
@@ -473,7 +478,7 @@ export default function CustomerDetailPage() {
       setAffiliationHistory([]);
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/admin/affiliate/leads/${user.affiliateOwnership.leadId}`);
       const data = await response.json();
@@ -485,9 +490,9 @@ export default function CustomerDetailPage() {
             // metadata에 managerChange 또는 agentChange가 있거나
             // changes에 managerId 또는 agentId가 있는 경우
             const metadata = interaction.metadata || {};
-            return metadata.managerChange || 
-                   metadata.agentChange || 
-                   (metadata.changes && (metadata.changes.managerId !== undefined || metadata.changes.agentId !== undefined));
+            return metadata.managerChange ||
+              metadata.agentChange ||
+              (metadata.changes && (metadata.changes.managerId !== undefined || metadata.changes.agentId !== undefined));
           })
           .map((interaction: any) => ({
             id: interaction.id,
@@ -535,7 +540,7 @@ export default function CustomerDetailPage() {
           affiliateCode: p.affiliateCode,
           managerId: null, // 일단 null로 설정, 필요시 별도 조회
         }));
-        
+
         // 각 판매원의 대리점장 관계를 조회 (배치 처리)
         const agentsWithManager = await Promise.all(
           agentsList.map(async (agent: any) => {
@@ -543,7 +548,7 @@ export default function CustomerDetailPage() {
               // 판매원의 대리점장 관계 조회
               const relationResponse = await fetch(`/api/admin/affiliate/profiles/${agent.id}`);
               const relationData = await relationResponse.json();
-              
+
               if (relationData.ok && relationData.profile) {
                 const relations = relationData.profile.relations || [];
                 const activeRelation = relations.find((r: any) => r.status === 'ACTIVE');
@@ -557,7 +562,7 @@ export default function CustomerDetailPage() {
             return agent;
           })
         );
-        
+
         setAgents(agentsWithManager);
       }
     } catch (error) {
@@ -568,9 +573,9 @@ export default function CustomerDetailPage() {
   // 소속 편집 시작
   const handleStartEditAffiliation = () => {
     if (!user) return;
-    
+
     const ownership = user.affiliateOwnership;
-    
+
     // 현재 소속 정보를 선택값에 설정
     if (ownership) {
       if (ownership.ownerType === 'BRANCH_MANAGER' && ownership.ownerProfileId) {
@@ -590,7 +595,7 @@ export default function CustomerDetailPage() {
       setSelectedManagerId('');
       setSelectedAgentId('');
     }
-    
+
     setIsEditingAffiliation(true);
     loadAffiliateProfiles();
   };
@@ -925,10 +930,10 @@ export default function CustomerDetailPage() {
         });
         setSelectedReservationId(null);
         setEditingTravelerId(null);
-        
+
         // 성공 메시지
         alert(data.message || (editingTravelerId ? '여권 정보가 수정되었습니다.' : '여권 정보가 등록되었습니다.'));
-        
+
         // 사용자 정보 강제 새로고침
         await loadUserData();
       } else {
@@ -937,6 +942,76 @@ export default function CustomerDetailPage() {
     } catch (error) {
       console.error('Failed to register/update passport:', error);
       alert((editingTravelerId ? '여권 수정' : '여권 등록') + ' 중 오류가 발생했습니다.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // PNR 등록 모달 열기
+  const handleOpenPnrModal = () => {
+    // 가장 최근 여행 찾기
+    const latestTrip = user?.trips?.[0];
+    if (!latestTrip) {
+      alert('등록된 여행이 없습니다.');
+      return;
+    }
+
+    // 여행자 목록 구성
+    const travelers: Array<{ travelerId: number; name: string; roomNumber: string }> = [];
+    if (latestTrip.Reservation) {
+      latestTrip.Reservation.forEach((res: any) => {
+        if (res.Traveler) {
+          res.Traveler.forEach((t: any) => {
+            travelers.push({
+              travelerId: t.id,
+              name: t.korName || `${t.engGivenName || ''} ${t.engSurname || ''}`.trim() || '이름 없음',
+              roomNumber: t.roomNumber || '',
+            });
+          });
+        }
+      });
+    }
+
+    if (travelers.length === 0) {
+      alert('여행자 정보가 없습니다.');
+      return;
+    }
+
+    setSelectedTripIdForPnr(latestTrip.id);
+    setPnrForm(travelers);
+    setShowPnrModal(true);
+  };
+
+  // PNR 등록 제출
+  const handleRegisterPnr = async () => {
+    if (!selectedTripIdForPnr) return;
+
+    setIsProcessing(true);
+    try {
+      const response = await fetch('/api/pnr/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          tripId: selectedTripIdForPnr,
+          travelers: pnrForm.map(t => ({
+            travelerId: t.travelerId,
+            roomNumber: t.roomNumber
+          })),
+        }),
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        setShowPnrModal(false);
+        alert('PNR 정보가 등록되었습니다.');
+        loadUserData();
+      } else {
+        alert('PNR 등록 실패: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to register PNR:', error);
+      alert('PNR 등록 중 오류가 발생했습니다.');
     } finally {
       setIsProcessing(false);
     }
@@ -1219,7 +1294,7 @@ export default function CustomerDetailPage() {
                     )}
                   </div>
                   {renderAffiliateOwnershipSection(user.affiliateOwnership)}
-                  
+
                   {/* 소속 변경 이력 */}
                   {showAffiliationHistory && affiliationHistory.length > 0 && (
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -1310,7 +1385,7 @@ export default function CustomerDetailPage() {
                     if (!firstReservation && (user as any).reservations && (user as any).reservations.length > 0) {
                       firstReservation = (user as any).reservations[0];
                     }
-                    
+
                     setSelectedReservationId(firstReservation?.id || null);
                     setEditingTravelerId(null);
                     setPassportForm({
@@ -1327,6 +1402,13 @@ export default function CustomerDetailPage() {
                 >
                   <FiPlus size={14} />
                   여권 등록
+                </button>
+                <button
+                  onClick={handleOpenPnrModal}
+                  className="px-3 py-1.5 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 flex items-center gap-1 ml-2"
+                >
+                  <FiEdit size={14} />
+                  PNR 등록
                 </button>
               </div>
               {/* 모든 Reservation의 여권 정보 표시 */}
@@ -1694,9 +1776,9 @@ export default function CustomerDetailPage() {
                               const travelers = reservation.Traveler || [];
                               const travelersWithPassport = travelers.filter((t: any) => t.passportNo)?.length || 0;
                               const missingCount = totalPeople - travelersWithPassport;
-                              
+
                               if (totalPeople === 0) return null; // 예상 인원이 없으면 표시 안 함
-                              
+
                               return (
                                 <div className="mt-2 space-y-2">
                                   {/* 여권 상태 */}
@@ -1713,7 +1795,7 @@ export default function CustomerDetailPage() {
                                       </p>
                                     </div>
                                   ) : null}
-                                  
+
                                   {/* 동행인 정보 */}
                                   {travelers.length > 0 && (
                                     <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs">
@@ -2127,6 +2209,63 @@ export default function CustomerDetailPage() {
                       setSelectedReservationId(null);
                       setEditingTravelerId(null);
                     }}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300"
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* PNR 등록 모달 */}
+      {showPnrModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">PNR / 룸번호 등록</h2>
+                <button
+                  onClick={() => setShowPnrModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600 mb-4">
+                  각 여행자의 룸 번호를 입력해주세요. 입력된 정보는 APIS 시트에 반영됩니다.
+                </p>
+
+                {pnrForm.map((item, index) => (
+                  <div key={item.travelerId} className="flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-lg">
+                    <span className="font-medium text-gray-900 flex-1">{item.name}</span>
+                    <input
+                      type="text"
+                      value={item.roomNumber}
+                      onChange={(e) => {
+                        const newForm = [...pnrForm];
+                        newForm[index].roomNumber = e.target.value;
+                        setPnrForm(newForm);
+                      }}
+                      placeholder="룸번호 (예: 1234)"
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                ))}
+
+                <div className="flex gap-2 pt-4">
+                  <button
+                    onClick={handleRegisterPnr}
+                    disabled={isProcessing}
+                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50"
+                  >
+                    {isProcessing ? '저장 중...' : '저장하기'}
+                  </button>
+                  <button
+                    onClick={() => setShowPnrModal(false)}
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300"
                   >
                     취소

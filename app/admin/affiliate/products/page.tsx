@@ -471,10 +471,65 @@ export default function AffiliateProductsPage() {
     setFormState((prev) => {
       const tiers = [...prev.tiers];
       const updatedTier = { ...tiers[index], [field]: value };
-      
+
+      // 🎯 순이익 (Net Revenue) 계산
+      const saleValue = parseNumber(updatedTier.saleAmount);
+      const costValue = parseNumber(updatedTier.costAmount);
+      const netRevenue = saleValue !== null && costValue !== null ? saleValue - costValue : null;
+
+      // 🎯 % → 금액 변환 (percent fields 변경 시)
+      if (field === 'hqSharePercent' || field === 'branchSharePercent' || field === 'salesSharePercent') {
+        const percentValue = parseFloat(value);
+        if (!isNaN(percentValue) && netRevenue !== null && netRevenue > 0) {
+          const amount = Math.round((netRevenue * percentValue) / 100);
+
+          if (field === 'hqSharePercent') {
+            updatedTier.hqShareAmount = String(amount);
+          } else if (field === 'branchSharePercent') {
+            updatedTier.branchShareAmount = String(amount);
+          } else if (field === 'salesSharePercent') {
+            updatedTier.salesShareAmount = String(amount);
+          }
+        } else {
+          // % 값이 비어있거나 잘못된 경우 해당 금액 필드도 비우기
+          if (field === 'hqSharePercent') {
+            updatedTier.hqShareAmount = '';
+          } else if (field === 'branchSharePercent') {
+            updatedTier.branchShareAmount = '';
+          } else if (field === 'salesSharePercent') {
+            updatedTier.salesShareAmount = '';
+          }
+        }
+      }
+
+      // 🎯 금액 → % 변환 (amount fields 변경 시)
+      if (field === 'hqShareAmount' || field === 'branchShareAmount' || field === 'salesShareAmount') {
+        const amountValue = parseNumber(value);
+        if (amountValue !== null && netRevenue !== null && netRevenue > 0) {
+          const percent = ((amountValue / netRevenue) * 100).toFixed(2);
+
+          if (field === 'hqShareAmount') {
+            updatedTier.hqSharePercent = percent;
+          } else if (field === 'branchShareAmount') {
+            updatedTier.branchSharePercent = percent;
+          } else if (field === 'salesShareAmount') {
+            updatedTier.salesSharePercent = percent;
+          }
+        } else {
+          // 금액이 비어있거나 잘못된 경우 해당 % 필드도 비우기
+          if (field === 'hqShareAmount') {
+            updatedTier.hqSharePercent = '';
+          } else if (field === 'branchShareAmount') {
+            updatedTier.branchSharePercent = '';
+          } else if (field === 'salesShareAmount') {
+            updatedTier.salesSharePercent = '';
+          }
+        }
+      }
+
       // 대리점장 수당 또는 판매원 수당 변경 시 오버라이딩 자동 계산
       // 오버라이딩 = 대리점장 수당 - 판매원 수당 (차액)
-      if (field === 'branchShareAmount' || field === 'salesShareAmount') {
+      if (field === 'branchShareAmount' || field === 'salesShareAmount' || field === 'branchSharePercent' || field === 'salesSharePercent') {
         const branchValue = parseNumber(updatedTier.branchShareAmount);
         const salesValue = parseNumber(updatedTier.salesShareAmount);
         if (branchValue !== null && salesValue !== null) {
@@ -1497,26 +1552,36 @@ export default function AffiliateProductsPage() {
                           
                           return (
                             <td key={`hq-${room.roomType}-${idx}`} className="px-4 py-3 text-center">
-                              <div className="flex items-center gap-1">
-                                <input
-                                  value={tier?.hqShareAmount || ''}
-                                  onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'hqShareAmount', e.target.value)}
-                                  placeholder="자동 계산"
-                                  className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                />
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    value={tier?.hqShareAmount || ''}
+                                    onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'hqShareAmount', e.target.value)}
+                                    placeholder="금액"
+                                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                  />
+                                  <div className="w-20">
+                                    <input
+                                      value={tier?.hqSharePercent || ''}
+                                      onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'hqSharePercent', e.target.value)}
+                                      placeholder="%"
+                                      className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+                                    />
+                                  </div>
+                                  {!isAutoMode && (
+                                    <button
+                                      onClick={() => updateTierField(column?.entry?.index ?? 0, 'hqShareAmount', '')}
+                                      className="text-xs text-blue-600 hover:text-blue-800 font-semibold whitespace-nowrap px-2 py-1 rounded hover:bg-blue-50"
+                                      title="자동 계산 모드로 전환"
+                                    >
+                                      자동
+                                    </button>
+                                  )}
+                                </div>
                                 {isAutoMode && autoCalculatedValue !== null && (
                                   <span className="text-xs font-semibold text-blue-600 whitespace-nowrap">
-                                    자동 {formatCurrency(autoCalculatedValue)}
+                                    자동 계산: {formatCurrency(autoCalculatedValue)}
                                   </span>
-                                )}
-                                {!isAutoMode && (
-                                  <button
-                                    onClick={() => updateTierField(column?.entry?.index ?? 0, 'hqShareAmount', '')}
-                                    className="text-xs text-blue-600 hover:text-blue-800 font-semibold whitespace-nowrap px-2 py-1 rounded hover:bg-blue-50"
-                                    title="자동 계산 모드로 전환"
-                                  >
-                                    자동
-                                  </button>
                                 )}
                               </div>
                             </td>
@@ -1529,12 +1594,24 @@ export default function AffiliateProductsPage() {
                         <td className="px-4 py-3 text-xs font-semibold text-gray-700">대리점장 수당</td>
                         {room.columns && room.columns.length > 0 ? room.columns.map((column, idx) => (
                           <td key={`branch-${room.roomType}-${idx}`} className="px-4 py-3 text-center">
-                            <input
-                              value={column?.entry?.tier?.branchShareAmount || ''}
-                              onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'branchShareAmount', e.target.value)}
-                              placeholder="0"
-                              className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            />
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <input
+                                  value={column?.entry?.tier?.branchShareAmount || ''}
+                                  onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'branchShareAmount', e.target.value)}
+                                  placeholder="금액"
+                                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                />
+                              </div>
+                              <div className="w-20">
+                                <input
+                                  value={column?.entry?.tier?.branchSharePercent || ''}
+                                  onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'branchSharePercent', e.target.value)}
+                                  placeholder="%"
+                                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+                                />
+                              </div>
+                            </div>
                           </td>
                         )) : (
                           <td colSpan={1} className="px-4 py-3 text-center text-sm text-gray-400">항목 없음</td>
@@ -1544,12 +1621,24 @@ export default function AffiliateProductsPage() {
                         <td className="px-4 py-3 text-xs font-semibold text-gray-700">판매원 수당</td>
                         {room.columns && room.columns.length > 0 ? room.columns.map((column, idx) => (
                           <td key={`sales-${room.roomType}-${idx}`} className="px-4 py-3 text-center">
-                            <input
-                              value={column?.entry?.tier?.salesShareAmount || ''}
-                              onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'salesShareAmount', e.target.value)}
-                              placeholder="0"
-                              className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            />
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <input
+                                  value={column?.entry?.tier?.salesShareAmount || ''}
+                                  onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'salesShareAmount', e.target.value)}
+                                  placeholder="금액"
+                                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                />
+                              </div>
+                              <div className="w-20">
+                                <input
+                                  value={column?.entry?.tier?.salesSharePercent || ''}
+                                  onChange={(e) => updateTierField(column?.entry?.index ?? 0, 'salesSharePercent', e.target.value)}
+                                  placeholder="%"
+                                  className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+                                />
+                              </div>
+                            </div>
                           </td>
                         )) : (
                           <td colSpan={1} className="px-4 py-3 text-center text-sm text-gray-400">항목 없음</td>

@@ -2488,6 +2488,19 @@ model DashboardStats {
   @@index([date])
 }
 
+model ApisSyncQueue {
+  id          Int      @id @default(autoincrement())
+  targetType  String   // "MASTER_SHEET", "TRIP_SHEET"
+  targetId    Int      // userId (for Master) or tripId (for Trip)
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  attempts    Int      @default(0)
+  lastError   String?
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
 model SystemConsultation {
   id          Int      @id @default(autoincrement())
   name        String

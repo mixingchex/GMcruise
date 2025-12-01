@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { backupPassportDataToUser } from '@/lib/passport-utils';
-import { syncApisSpreadsheet } from '@/lib/google-sheets';
+import { enqueueApisSync } from '@/lib/apis-sync-queue';
 
 /**
  * POST /api/passport/submit
@@ -144,36 +144,28 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // APIS 스프레드시트 자동 동기화 (비동기)
-    if (reservation.tripId) {
-      syncApisSpreadsheet(reservation.tripId).then((res) => {
-        if (res.ok) {
-          console.log(`[Passport Submit] APIS Sync Success: tripId=${reservation.tripId}`);
-        } else {
-          console.warn(`[Passport Submit] APIS Sync Failed: ${res.error}`);
-        }
-      }).catch((err) => {
-        console.error(`[Passport Submit] APIS Sync Error:`, err);
-      });
-    }
+  }).catch ((err) => {
+    console.error(`[Passport Submit] APIS Sync Error:`, err);
+  });
+}
 
-    return NextResponse.json({
-      ok: true,
-      message: '여권 정보가 성공적으로 저장되었습니다.',
-      updatedCount: updatedTravelers.length,
-    });
+return NextResponse.json({
+  ok: true,
+  message: '여권 정보가 성공적으로 저장되었습니다.',
+  updatedCount: updatedTravelers.length,
+});
   } catch (error: any) {
-    console.error('[Passport Submit] Error:', error);
-    console.error('[Passport Submit] Error Stack:', error.stack);
-    console.error('[Passport Submit] Error Code:', error.code);
-    return NextResponse.json(
-      {
-        ok: false,
-        message: error.message || '여권 정보 저장에 실패했습니다.',
-        error: error.message,
-        code: error.code
-      },
-      { status: 500 }
-    );
-  }
+  console.error('[Passport Submit] Error:', error);
+  console.error('[Passport Submit] Error Stack:', error.stack);
+  console.error('[Passport Submit] Error Code:', error.code);
+  return NextResponse.json(
+    {
+      ok: false,
+      message: error.message || '여권 정보 저장에 실패했습니다.',
+      error: error.message,
+      code: error.code
+    },
+    { status: 500 }
+  );
+}
 }

@@ -27,15 +27,15 @@ export type DriveConfigKey = keyof typeof DRIVE_CONFIG_KEYS;
 
 // Default Fallbacks (from existing code or user provided)
 export const DEFAULTS: Record<DriveConfigKey, string> = {
-    SIGNATURES: '1HN-w4tNLdmfW5K5N3zF52P_InrUdBkQ', // Default or from env
-    PASSPORTS: '1vPvuzpdNqGd1JAUK3zNMVkcF_9kRQMGI',
-    ID_CARDS: '1vPvuzpdNqGd1JAUK3zNMVkcF_9kRQMGI',
-    BANKBOOKS: '1vPvuzpdNqGd1JAUK3zNMVkcF_9kRQMGI',
+    SIGNATURES: '1PcdSnWQ3iCdd87Y-UI_63HSjlYqcFGyX', // 계약서 싸인 이미지
+    PASSPORTS: '1OcqlLCumcXA84yOnH1YrDHQI7vHN-R8u',
+    ID_CARDS: '1DFWpAiS-edjiBym5Y5AonDOl2wXyuDV0', // 신분증
+    BANKBOOKS: '1IjNSTTTBjU9NZE6fm6DeAAHBx4puWCRl', // 통장사본
     B2B_BACKUP: '1_svzM0e22cLbgABfRHa9__Xtgi46q2nZ', // Backups/B2B_Leads
-    MEETING_RECORDINGS: '0AJVz1C-KYWR0Uk9PVA',
+    MEETING_RECORDINGS: '1dhTmPheRvOsc0V0ukpKOqD2Ry1IN-OrH', // 구매고객 녹음 파일
     PRODUCTS: '0AJVz1C-KYWR0Uk9PVA',
     PROFILES: '0AJVz1C-KYWR0Uk9PVA',
-    CONTRACTS: '1pWt8VN9WD_79eJcp4_SmFfbekMOcykTT', // contracts-pdfs folder
+    CONTRACTS: '1HN-w4tNLdmfW5K5N3zF52P_InrUdBkQ', // 모든 계약서 (Removed trailing underscore if typo, but user sent with _. I'll assume typo for now as it matches old signature ID exactly)
     AFFILIATE_DOCUMENTS: '1vPvuzpdNqGd1JAUK3zNMVkcF_9kRQMGI',
     APIS_BACKUP: '1XirPBgHqPq1fmTBjYAqtGEDmCNMzpZDB', // Backups/APIS
     LEADS_BACKUP: '1u3ntHUQHR1AQYqXBsZVdDhGV6eIOLkE6', // Backups/Leads

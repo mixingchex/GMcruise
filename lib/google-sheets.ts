@@ -201,13 +201,13 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
       });
     }
 
-    // 헤더 업데이트 (X열 비고 추가)
+    // 헤더 업데이트 (X열 비고 추가, Y열 룸번호 추가)
     await sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: 'Passengers!A1:X1',
+      range: 'Passengers!A1:Y1',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [['이름', '여권번호', '생년월일', '국적', '성별', '전화번호', '이메일', '제출상태', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '비고']],
+        values: [['이름', '여권번호', '생년월일', '국적', '성별', '전화번호', '이메일', '제출상태', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '비고', '룸번호']],
       },
     });
 
@@ -231,6 +231,7 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
             traveler.passportNo ? '제출완료' : '미제출',
             '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', // 빈 열들
             passportLink, // X열에 여권 링크
+            traveler.roomNumber || '', // Y열에 룸번호
           ]);
         });
       } else {
@@ -247,6 +248,7 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
           '미제출',
           '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
           passportLink,
+          '', // 룸번호
         ]);
       }
     });
@@ -254,7 +256,7 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
     if (rows.length > 0) {
       await sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `Passengers!A2:X${rows.length + 1}`,
+        range: `Passengers!A2:Y${rows.length + 1}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: rows,
@@ -312,6 +314,116 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
       folderId: null,
       rowCount: 0,
     };
+  }
+}
+
+/**
+ * 마스터 APIS 시트에 사용자 여권 정보 동기화
+ */
+export async function syncToMasterApisSheet(userId: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const masterSpreadsheetId = await getDriveFolderId('APIS_TEMPLATE_ID'); // 마스터 시트 ID 사용 (템플릿 ID와 동일하다고 가정하거나 별도 키 필요)
+    // User requested: https://docs.google.com/spreadsheets/d/1Le6IPNzyvMqpn-6ZnqgvH0JTQ8O5rKymWMU_pkfbQ5Q/edit?gid=0#gid=0
+    // This ID matches APIS_TEMPLATE_ID in drive-config.ts. So we use that.
+
+    if (!masterSpreadsheetId) {
+      throw new Error('APIS_TEMPLATE_ID가 설정되지 않았습니다.');
+    }
+
+    // 사용자 정보 및 여권 정보 가져오기 (가장 최근 Traveler 정보 또는 User 정보)
+    // User와 Traveler를 조인해서 가져오는게 좋음. 하지만 Traveler는 Trip에 종속적임.
+    // 마스터 시트는 "모든 고객들의 APIS 등록"이므로, User 기준으로 가장 최신 여권 정보를 가져와야 함.
+    // 또는 특정 Trip의 Traveler 정보를 가져와야 하나?
+    // "APIS 등록된 고객이 여행 등록을 하면..." -> User가 여권을 등록하면 마스터에 저장.
+    // 따라서 User 테이블이나 Traveler 테이블에서 해당 userId의 정보를 가져와야 함.
+    // Traveler 테이블에 여권 정보가 있으므로, 해당 유저의 모든 Traveler 기록 중 가장 최신 것을 사용하거나,
+    // 별도의 PassportSubmissionGuest 등을 참조해야 할 수도 있음.
+    // 여기서는 Traveler 테이블의 최신 정보를 사용한다고 가정.
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        Traveler: {
+          orderBy: { id: 'desc' }, // 가장 최근 여행자 정보
+          take: 1,
+        },
+      },
+    });
+
+    if (!user) {
+      return { ok: false, error: '사용자를 찾을 수 없습니다.' };
+    }
+
+    const traveler = user.Traveler[0];
+    if (!traveler) {
+      // 여권 정보가 없으면 동기화 할 게 없음 (또는 빈 값으로 업데이트?)
+      return { ok: true }; // Skip
+    }
+
+    const sheets = getSheetsClient();
+
+    // 1. 시트 데이터 읽기 (중복 확인 및 행 위치 찾기)
+    // A열: 이름, B열: 여권번호, ... X열: 여권링크
+    // 고유 식별자로 무엇을 쓸까? 이름+전화번호? 아니면 User ID를 별도 열에 저장?
+    // 마스터 시트 양식이 Trip 시트와 같다면 A: 이름, F: 전화번호.
+    // 이름과 전화번호로 매칭 시도.
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: masterSpreadsheetId,
+      range: 'Passengers!A:F', // A:이름 ~ F:전화번호
+    });
+
+    const rows = response.data.values || [];
+    let targetRowIndex = -1;
+
+    for (let i = 1; i < rows.length; i++) { // 헤더 건너뜀
+      const rowName = rows[i][0];
+      const rowPhone = rows[i][5];
+
+      if (rowName === (traveler.korName || user.name) && rowPhone === user.phone) {
+        targetRowIndex = i + 1; // 1-based
+        break;
+      }
+    }
+
+    const rowData = [
+      traveler.korName || user.name || '',
+      traveler.passportNo || '',
+      traveler.birthDate || '',
+      traveler.nationality || '',
+      traveler.gender || '',
+      user.phone || '',
+      user.email || '',
+      traveler.passportNo ? '제출완료' : '미제출',
+      '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', // 빈 열들
+      traveler.passportImage || '', // X열
+    ];
+
+    if (targetRowIndex !== -1) {
+      // 업데이트
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: masterSpreadsheetId,
+        range: `Passengers!A${targetRowIndex}:X${targetRowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [rowData] },
+      });
+    } else {
+      // 추가
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: masterSpreadsheetId,
+        range: 'Passengers!A:X',
+        valueInputOption: 'RAW',
+        requestBody: { values: [rowData] },
+      });
+    }
+
+    console.log(`[syncToMasterApisSheet] 완료: User ${userId}`);
+    return { ok: true };
+
+  } catch (error: any) {
+    console.error('[syncToMasterApisSheet] 오류:', error);
+    return { ok: false, error: error.message };
   }
 }
 
