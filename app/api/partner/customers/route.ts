@@ -619,6 +619,45 @@ export async function POST(req: NextRequest) {
     const notes = toNullableString(payload.notes);
     const source = toNullableString(payload.source) ?? 'partner-manual';
 
+    // 중복 리드 확인 (B2B 소스는 중복 허용하되 이전 담당자 정보를 notes에 기록)
+    const isB2BSource = source && ['B2B_INFLOW', 'B2B_LANDING', 'TRIAL_DASHBOARD', 'B2B_LANDING_ADMIN'].includes(source);
+    let duplicateInfo = '';
+
+    if (customerPhone && isB2BSource) {
+      // B2B 소스: 중복이면 이전 담당자 정보를 notes에 추가
+      const existingLeads = await prisma.affiliateLead.findMany({
+        where: {
+          customerPhone,
+          status: { not: 'CANCELLED' },
+        },
+        include: {
+          AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
+            select: {
+              displayName: true,
+            },
+          },
+          AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+            select: {
+              displayName: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      if (existingLeads.length > 0) {
+        const latest = existingLeads[0];
+        const managerName = latest.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile?.displayName;
+        const agentName = latest.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName;
+        const ownerInfo = agentName || managerName || '본사';
+        const registrationDate = new Date(latest.createdAt).toLocaleDateString('ko-KR');
+
+        duplicateInfo = `[중복 DB] 이전 담당자: ${ownerInfo} (등록일: ${registrationDate})`;
+      }
+    }
+
     let nextActionAt: Date | null = null;
     if (payload.nextActionAt) {
       const parsed = new Date(payload.nextActionAt);
@@ -633,7 +672,7 @@ export async function POST(req: NextRequest) {
       customerPhone,
       status,
       source,
-      notes,
+      notes: duplicateInfo ? (notes ? `${duplicateInfo}\n${notes}` : duplicateInfo) : notes,
       nextActionAt,
       metadata: payload.metadata ?? null,
       updatedAt: now, // 필수 필드
