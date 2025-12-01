@@ -102,6 +102,21 @@ export async function POST(req: NextRequest) {
         // OR we can redirect them to the signup page with pre-filled info.
         // Given "B2B Potential Customer", Lead creation is the priority.
 
+        // Google Drive Backup (Async - do not await to prevent blocking response)
+        // We use the manager's display name or mall nickname
+        const partnerName = managerProfile.displayName || partnerUser.mallNickname || partnerUser.name || 'Unknown';
+
+        import('@/lib/google/b2b-backup').then(({ appendB2BLeadToSheet }) => {
+            appendB2BLeadToSheet({
+                name: newLead.customerName || '',
+                phone: newLead.customerPhone || '',
+                partnerName: partnerName,
+                source: newLead.source || 'B2B_LANDING',
+                createdAt: newLead.createdAt.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+                notes: newLead.notes || ''
+            }).catch(err => console.error('Backup failed in background:', err));
+        });
+
         return NextResponse.json({
             ok: true,
             message: '무료체험 신청이 접수되었습니다. 곧 연락드리겠습니다.',

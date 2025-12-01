@@ -199,6 +199,7 @@ model AffiliateLead {
   id                                                         Int                    @id @default(autoincrement())
   linkId                                                     Int?
   managerId                                                  Int?
+  sharedToManagerId                                          Int?
   agentId                                                    Int?
   customerName                                               String?
   customerPhone                                              String?
@@ -218,6 +219,7 @@ model AffiliateLead {
   PartnerCustomerGroup                                       PartnerCustomerGroup?  @relation(fields: [groupId], references: [id])
   AffiliateLink                                              AffiliateLink?         @relation(fields: [linkId], references: [id])
   AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile AffiliateProfile?      @relation("AffiliateLead_managerIdToAffiliateProfile", fields: [managerId], references: [id])
+  AffiliateProfile_AffiliateLead_sharedToManagerIdToAffiliateProfile AffiliateProfile? @relation("AffiliateLead_sharedToManagerIdToAffiliateProfile", fields: [sharedToManagerId], references: [id])
   AffiliateSale                                              AffiliateSale[]
 
   @@index([agentId, status])
@@ -384,6 +386,7 @@ model AffiliateProfile {
   AffiliateInteraction                                            AffiliateInteraction[]
   AffiliateLead_AffiliateLead_agentIdToAffiliateProfile           AffiliateLead[]        @relation("AffiliateLead_agentIdToAffiliateProfile")
   AffiliateLead_AffiliateLead_managerIdToAffiliateProfile         AffiliateLead[]        @relation("AffiliateLead_managerIdToAffiliateProfile")
+  AffiliateLead_AffiliateLead_sharedToManagerIdToAffiliateProfile AffiliateLead[]        @relation("AffiliateLead_sharedToManagerIdToAffiliateProfile")
   AffiliateLedger                                                 AffiliateLedger[]
   AffiliateLink_AffiliateLink_agentIdToAffiliateProfile           AffiliateLink[]        @relation("AffiliateLink_agentIdToAffiliateProfile")
   AffiliateLink_AffiliateLink_managerIdToAffiliateProfile         AffiliateLink[]        @relation("AffiliateLink_managerIdToAffiliateProfile")

@@ -101,6 +101,11 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
         loadAgents();
     }, [params]);
 
+    const [branchManagers, setBranchManagers] = useState<Agent[]>([]);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [selectedManagerId, setSelectedManagerId] = useState('');
+    const [isSharing, setIsSharing] = useState(false);
+
     const loadAgents = async () => {
         try {
             // Fetch Sales Agents managed by this partner
@@ -117,12 +122,30 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                 }));
 
                 setAgents(salesAgents);
-                console.log('[B2B] Loaded agents:', salesAgents.length);
             }
         } catch (error) {
             console.error('Failed to load agents:', error);
         }
     };
+
+    const [sharedLeads, setSharedLeads] = useState<any[]>([]);
+
+    const loadBranchManagers = async () => {
+        try {
+            const res = await fetch('/api/partner/branch-managers');
+            const json = await res.json();
+            if (json.ok && json.managers) {
+                setBranchManagers(json.managers);
+            }
+        } catch (error) {
+            console.error('Failed to load branch managers:', error);
+        }
+    };
+
+    useEffect(() => {
+        loadAgents();
+        loadBranchManagers();
+    }, []);
 
     const loadProspects = useCallback(async () => {
         try {
@@ -833,6 +856,37 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                         </div>
                     )}
                 </>
+            )}
+
+            {activeTab === 'SHARED' && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <SharedDBTable
+                        leads={sharedLeads}
+                        onRecall={async (leadId) => {
+                            if (!confirm('정말 회수하시겠습니까?')) return;
+                            try {
+                                const res = await fetch('/api/partner/customers/share', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        leadIds: [leadId],
+                                        action: 'RECALL'
+                                    })
+                                });
+                                const json = await res.json();
+                                if (json.ok) {
+                                    alert('회수되었습니다.');
+                                    loadProspects();
+                                } else {
+                                    alert(json.message);
+                                }
+                            } catch (e) {
+                                console.error(e);
+                                alert('오류가 발생했습니다.');
+                            }
+                        }}
+                    />
+                </div>
             )}
 
             {/* Assign Modal */}
