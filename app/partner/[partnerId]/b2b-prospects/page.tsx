@@ -54,6 +54,7 @@ interface Agent {
     displayName: string | null;
     affiliateCode: string | null;
     type?: string;
+    mallUserId?: string | null;
 }
 
 export default function PartnerB2BProspectsPage({ params }: { params: { partnerId: string } }) {
@@ -102,26 +103,27 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
 
     const loadAgents = async () => {
         try {
-            const res = await fetch('/api/partner/agents'); // Assuming this endpoint exists or similar
-            // If not, we might need to fetch profile with relations.
-            // Let's try fetching profile first to get managed agents.
-            const profileRes = await fetch('/api/partner/profile');
-            const profileJson = await profileRes.json();
-            if (profileJson.ok && profileJson.profile.managedAgents) {
-                // Filter only BRANCH_MANAGER types as requested
-                // If managedAgents doesn't include type, we might need to rely on what's returned.
-                // Assuming managedAgents includes type or we filter if possible.
-                // If the API returns type, we use it.
-                // Based on previous view, api/partner/agents returns full profile info including type.
-                // But here we are using profile.managedAgents from /api/partner/profile.
-                // Let's check api/partner/profile response structure if needed, but safe to filter if property exists.
-                // Actually, let's use /api/partner/agents which returns full list with types.
-                const agentsRes = await fetch('/api/partner/agents');
-                const agentsJson = await agentsRes.json();
-                if (agentsJson.ok && agentsJson.agents) {
-                    const branchManagers = agentsJson.agents.filter((a: any) => a.type === 'BRANCH_MANAGER');
-                    setAgents(branchManagers);
-                }
+            // Fetch all branch managers whose mallUserId starts with 'boss'
+            const agentsRes = await fetch('/api/partner/agents');
+            const agentsJson = await agentsRes.json();
+            if (agentsJson.ok && agentsJson.agents) {
+                // Filter boss managers only (mallUserId starts with 'boss')
+                const bossManagers = agentsJson.agents.filter((a: any) =>
+                    a.type === 'BRANCH_MANAGER' && a.mallUserId && a.mallUserId.toLowerCase().startsWith('boss')
+                );
+
+                // Add HQ option at the beginning
+                const agentsWithHQ: Agent[] = [
+                    {
+                        id: -1, // Special ID for HQ
+                        displayName: '본사',
+                        affiliateCode: null,
+                        type: 'HQ'
+                    },
+                    ...bossManagers
+                ];
+
+                setAgents(agentsWithHQ);
             }
         } catch (error) {
             console.error('Failed to load agents:', error);

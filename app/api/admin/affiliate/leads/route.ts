@@ -445,19 +445,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 기존 리드 확인 (중복 방지)
-    const existingLead = await prisma.affiliateLead.findFirst({
-      where: {
-        customerPhone: normalizedPhone,
-        status: { not: 'CANCELLED' },
-      },
-    });
+    // 기존 리드 확인 (B2B 소스는 중복 허용, 일반 소스만 중복 방지)
+    const isB2BSource = source && ['B2B_INFLOW', 'B2B_LANDING', 'TRIAL_DASHBOARD', 'B2B_LANDING_ADMIN'].includes(source);
 
-    if (existingLead) {
-      return NextResponse.json(
-        { ok: false, message: '이미 존재하는 고객입니다. 기존 리드를 수정해주세요.', leadId: existingLead.id },
-        { status: 400 }
-      );
+    if (!isB2BSource) {
+      const existingLead = await prisma.affiliateLead.findFirst({
+        where: {
+          customerPhone: normalizedPhone,
+          status: { not: 'CANCELLED' },
+        },
+      });
+
+      if (existingLead) {
+        return NextResponse.json(
+          { ok: false, message: '이미 존재하는 고객입니다. 기존 리드를 수정해주세요.', leadId: existingLead.id },
+          { status: 400 }
+        );
+      }
     }
 
     // 대리점장/판매원 검증
