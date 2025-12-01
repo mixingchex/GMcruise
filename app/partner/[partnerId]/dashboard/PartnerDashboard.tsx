@@ -1647,10 +1647,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               >
                 {getAvailableMonths().map((month) => {
                   const [year, monthNum] = month.split('-');
-                  const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('ko-KR', {
-                    year: 'numeric',
-                    month: 'long',
-                  });
+                  const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+                  const monthName = `${year}년 ${monthNames[parseInt(monthNum) - 1]}`;
                   const isCurrentMonth = month === stats?.currentMonth;
                   return (
                     <option key={month} value={month}>
@@ -1663,7 +1661,11 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           </div>
           {stats?.selectedMonth && (
             <p className="mt-2 text-xs text-gray-500">
-              선택된 월: {new Date(stats.selectedMonth + '-01').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })}의 최근 리드, 최근 판매, 내 판매 목록을 표시하고 있습니다. (상단 통계는 전체 누적 데이터입니다)
+              선택된 월: {(() => {
+                const [year, month] = stats.selectedMonth.split('-');
+                const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+                return `${year}년 ${monthNames[parseInt(month) - 1]}`;
+              })()}의 최근 리드, 최근 판매, 내 판매 목록을 표시하고 있습니다. (상단 통계는 전체 누적 데이터입니다)
             </p>
           )}
         </div>
