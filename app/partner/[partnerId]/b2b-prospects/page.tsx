@@ -107,10 +107,20 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
             const agentsRes = await fetch('/api/partner/agents');
             const agentsJson = await agentsRes.json();
             if (agentsJson.ok && agentsJson.agents) {
-                // Filter boss managers only (mallUserId starts with 'boss')
-                const bossManagers = agentsJson.agents.filter((a: any) =>
-                    a.type === 'BRANCH_MANAGER' && a.mallUserId && a.mallUserId.toLowerCase().startsWith('boss')
-                );
+                // Filter boss managers only (user.mallUserId starts with 'boss')
+                const bossManagers = agentsJson.agents
+                    .filter((a: any) =>
+                        a.type === 'BRANCH_MANAGER' &&
+                        a.user?.mallUserId &&
+                        a.user.mallUserId.toLowerCase().startsWith('boss')
+                    )
+                    .map((a: any) => ({
+                        id: a.profileId,
+                        displayName: a.displayName,
+                        affiliateCode: a.affiliateCode,
+                        type: a.type,
+                        mallUserId: a.user.mallUserId
+                    }));
 
                 // Add HQ option at the beginning
                 const agentsWithHQ: Agent[] = [
@@ -118,7 +128,8 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                         id: -1, // Special ID for HQ
                         displayName: '본사',
                         affiliateCode: null,
-                        type: 'HQ'
+                        type: 'HQ',
+                        mallUserId: null
                     },
                     ...bossManagers
                 ];
