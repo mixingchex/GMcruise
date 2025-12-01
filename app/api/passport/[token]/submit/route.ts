@@ -86,8 +86,11 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
 
     await prisma.$transaction(async (tx) => {
+      // 1. 기존 게스트 정보 삭제
       await tx.passportSubmissionGuest.deleteMany({ where: { submissionId: submission.id } });
-      await tx.passportSubmissionGuest.createMany({
+
+      // 2. 새 게스트 정보 저장
+      const createdGuests = await tx.passportSubmissionGuest.createMany({
         data: guestRecords.map((guest) => ({
           submissionId: submission.id,
           groupNumber: guest.groupNumber,
@@ -100,6 +103,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         })),
       });
 
+      // 3. Submission 상태 업데이트
       await tx.passportSubmission.update({
         where: { id: submission.id },
         data: {
@@ -116,6 +120,75 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         },
       });
 
+      // 4. User Creation & Traveler Sync (V4 Upgrade)
+      // 여행 정보가 있는 경우에만 수행
+      if (submission.UserTrip) {
+        const tripId = submission.UserTrip.id;
+        const reservation = await tx.reservation.findFirst({
+          where: { tripId: tripId, mainUserId: submission.userId }
+        });
+
+        if (reservation) {
+          for (const guest of guestRecords) {
+            let userId: number | null = null;
+
+            // 4-1. 자동 사용자 생성 (전화번호가 있는 경우)
+            if (guest.phone) {
+              let user = await tx.user.findFirst({ where: { phone: guest.phone } });
+              if (!user) {
+                // 새 사용자 생성 (비밀번호 3800)
+                user = await tx.user.create({
+                  data: {
+                    name: guest.name,
+                    phone: guest.phone,
+                    password: '3800', // Fixed password as per requirement
+                    role: 'user',
+                    onboarded: false,
+                  }
+                });
+              }
+              userId = user.id;
+            }
+
+            // 4-2. Traveler 레코드 동기화
+            // 이름이나 여권번호로 기존 Traveler 찾기 시도
+            let traveler = await tx.traveler.findFirst({
+              where: {
+                reservationId: reservation.id,
+                OR: [
+                  { passportNo: guest.passportNumber },
+                  { korName: guest.name },
+                  { engSurname: guest.name } // 영문 이름일 수도 있음
+                ]
+              }
+            });
+
+            const travelerData = {
+              reservationId: reservation.id,
+              roomNumber: guest.groupNumber, // Group Number
+              korName: guest.name, // 일단 이름 필드에 저장 (한글/영문 구분 로직은 복잡하므로)
+              passportNo: guest.passportNumber,
+              nationality: guest.nationality,
+              birthDate: guest.dateOfBirth ? guest.dateOfBirth.toISOString().split('T')[0] : null,
+              expiryDate: guest.passportExpiryDate ? guest.passportExpiryDate.toISOString().split('T')[0] : null,
+              userId: userId, // 연결된 유저 ID
+            };
+
+            if (traveler) {
+              await tx.traveler.update({
+                where: { id: traveler.id },
+                data: travelerData
+              });
+            } else {
+              await tx.traveler.create({
+                data: travelerData
+              });
+            }
+          }
+        }
+      }
+
+      // 5. 로그 업데이트
       const latestLog = await tx.passportRequestLog.findFirst({
         where: { userId: submission.userId },
         orderBy: { sentAt: 'desc' },
@@ -130,6 +203,13 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         });
       }
     });
+
+    // 6. APIS Sync Enqueue (Transaction 밖에서 실행)
+    if (submission.UserTrip) {
+      // Import dynamically to avoid circular dependency issues if any, though here it's fine
+      const { enqueueApisSync } = await import('@/lib/apis-sync-queue');
+      await enqueueApisSync('TRIP_SHEET', submission.UserTrip.id);
+    }
 
     return NextResponse.json({ ok: true, message: '여권 정보가 제출되었습니다.' });
   } catch (error) {

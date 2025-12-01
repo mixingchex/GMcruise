@@ -201,13 +201,13 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
       });
     }
 
-    // 헤더 업데이트 (X열 비고 추가, Y열 룸번호 추가)
+    // 헤더 업데이트 (C열 CABIN(Group), D열 Category, P열 PNR등록일, S열 연결담당자, X열 여권링크, Y열 룸번호(삭제예정))
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: 'Passengers!A1:Y1',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [['이름', '여권번호', '생년월일', '국적', '성별', '전화번호', '이메일', '제출상태', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '비고', '룸번호']],
+        values: [['이름', '여권번호', 'CABIN(Group)', 'Category', '성별', '전화번호', '이메일', '제출상태', '', '', '', '', '', '', '', 'PNR등록일', '', '', '연결담당자', '', '', '', '', '비고', '']],
       },
     });
 
@@ -220,35 +220,50 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
       if (reservation.Traveler && reservation.Traveler.length > 0) {
         reservation.Traveler.forEach((traveler) => {
           const passportLink = traveler.passportImage || (reservation as any).passportDriveUrl || (reservation as any).passportUrl || '';
+          // PNR 등록일 (Traveler 업데이트 시간 또는 예약 생성 시간)
+          const pnrRegDate = traveler.updatedAt ? new Date(traveler.updatedAt).toLocaleDateString('ko-KR') : '';
+          // 연결 담당자 (예약자 또는 제휴사 정보)
+          const agentName = reservation.agentName || (reservation.User?.affiliateOwnership as any)?.leadId || '본사';
+
           rows.push([
             traveler.korName || reservation.User?.name || '',
             traveler.passportNo || '미제출',
-            traveler.birthDate || '',
-            traveler.nationality || '',
+            traveler.roomNumber ? String(traveler.roomNumber) : '', // C열: CABIN(Group) - 그룹 번호
+            reservation.cabinType || '', // D열: Category - 객실 등급
             traveler.gender || '',
             reservation.User?.phone || '', // 연락처는 예약자(대표자) 정보 사용
             reservation.User?.email || '',
             traveler.passportNo ? '제출완료' : '미제출',
-            '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', // 빈 열들
+            '', '', '', '', '', '', '',
+            pnrRegDate, // P열: PNR등록일
+            '', '',
+            agentName, // S열: 연결담당자
+            '', '', '', '',
             passportLink, // X열에 여권 링크
-            traveler.roomNumber || '', // Y열에 룸번호
+            '', // Y열 (기존 룸번호 제거)
           ]);
         });
       } else {
         // Traveler가 없으면 예약자 정보로 기본 행 생성 (여권 미제출 상태)
         const passportLink = (reservation as any).passportDriveUrl || (reservation as any).passportUrl || '';
+        const agentName = reservation.agentName || (reservation.User?.affiliateOwnership as any)?.leadId || '본사';
+
         rows.push([
           reservation.User?.name || '',
           '미제출',
-          '', // 생년월일
-          '', // 국적
+          '', // CABIN(Group)
+          reservation.cabinType || '', // Category
           '', // 성별
           reservation.User?.phone || '',
           reservation.User?.email || '',
           '미제출',
-          '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+          '', '', '', '', '', '', '',
+          '', // PNR등록일
+          '', '',
+          agentName, // 연결담당자
+          '', '', '', '',
           passportLink,
-          '', // 룸번호
+          '',
         ]);
       }
     });

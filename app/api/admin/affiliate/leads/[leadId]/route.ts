@@ -211,9 +211,19 @@ export async function GET(
     delete (formattedLead as any).AffiliateInteraction;
     delete (formattedLead as any).AffiliateSale;
 
+    // User ID 찾기 (전화번호 기준)
+    let userId: number | null = null;
+    if (lead.customerPhone) {
+      const matchedUser = await prisma.user.findFirst({
+        where: { phone: lead.customerPhone },
+        select: { id: true },
+      });
+      userId = matchedUser?.id || null;
+    }
+
     return NextResponse.json({
       ok: true,
-      lead: formattedLead,
+      lead: { ...formattedLead, userId },
     });
   } catch (error: any) {
     console.error('GET /api/admin/affiliate/leads/[leadId] error:', error);
@@ -475,7 +485,7 @@ export async function PUT(
       if (updateData.managerId !== undefined) {
         const oldManager = existingLead.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile;
         const newManagerId = updateData.managerId;
-        
+
         let newManager = null;
         if (newManagerId) {
           newManager = await prisma.affiliateProfile.findUnique({
@@ -484,10 +494,10 @@ export async function PUT(
           });
         }
 
-        const oldManagerName = oldManager 
+        const oldManagerName = oldManager
           ? (oldManager.nickname || oldManager.displayName || '이름 없음') + (oldManager.affiliateCode ? ` (${oldManager.affiliateCode})` : '')
           : '본사 직속';
-        const newManagerName = newManager 
+        const newManagerName = newManager
           ? (newManager.nickname || newManager.displayName || '이름 없음') + (newManager.affiliateCode ? ` (${newManager.affiliateCode})` : '')
           : '본사 직속';
 
@@ -510,7 +520,7 @@ export async function PUT(
       if (updateData.agentId !== undefined) {
         const oldAgent = existingLead.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile;
         const newAgentId = updateData.agentId;
-        
+
         let newAgent = null;
         if (newAgentId) {
           newAgent = await prisma.affiliateProfile.findUnique({
@@ -519,10 +529,10 @@ export async function PUT(
           });
         }
 
-        const oldAgentName = oldAgent 
+        const oldAgentName = oldAgent
           ? (oldAgent.nickname || oldAgent.displayName || '이름 없음') + (oldAgent.affiliateCode ? ` (${oldAgent.affiliateCode})` : '')
           : '없음';
-        const newAgentName = newAgent 
+        const newAgentName = newAgent
           ? (newAgent.nickname || newAgent.displayName || '이름 없음') + (newAgent.affiliateCode ? ` (${newAgent.affiliateCode})` : '')
           : '없음';
 

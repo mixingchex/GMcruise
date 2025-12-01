@@ -114,8 +114,10 @@ export default function DriveSettingsClient({ initialConfigs }: Props) {
                     );
                 })}
             </div>
-            <div className="mt-8 pt-8 border-t border-gray-200">
-                <h2 className="text-xl font-bold text-gray-900 mb-4">Manual Actions</h2>
+            <div className="mt-8 pt-8 border-t border-gray-200 space-y-6">
+                <h2 className="text-xl font-bold text-gray-900">Manual Actions</h2>
+
+                {/* Trigger Manual Backup */}
                 <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Trigger Manual Backup</h3>
                     <p className="text-sm text-gray-500 mb-4">
@@ -145,6 +147,69 @@ export default function DriveSettingsClient({ initialConfigs }: Props) {
                     >
                         {loading === 'manual_backup' ? 'Starting Backup...' : 'Run Backup Now'}
                     </button>
+                </div>
+
+                {/* Quick Links to Google Drive Folders */}
+                <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Links to Google Drive Folders</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {configs.CASHFLOW && (
+                            <a
+                                href={`https://drive.google.com/drive/folders/${configs.CASHFLOW.value}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 border border-blue-200 rounded-md hover:bg-blue-50 transition"
+                            >
+                                <span className="text-2xl">💰</span>
+                                <div className="flex-1">
+                                    <div className="font-medium text-gray-900">Cashflow (판매원별 수당)</div>
+                                    <div className="text-xs text-gray-500 font-mono truncate">{configs.CASHFLOW.value}</div>
+                                </div>
+                            </a>
+                        )}
+                        {configs.TOTALCASH && (
+                            <a
+                                href={`https://drive.google.com/drive/folders/${configs.TOTALCASH.value}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 border border-purple-200 rounded-md hover:bg-purple-50 transition"
+                            >
+                                <span className="text-2xl">🏢</span>
+                                <div className="flex-1">
+                                    <div className="font-medium text-gray-900">Totalcash (거래처용 월별)</div>
+                                    <div className="text-xs text-gray-500 font-mono truncate">{configs.TOTALCASH.value}</div>
+                                </div>
+                            </a>
+                        )}
+                        {configs.SHARED_DRIVE && (
+                            <a
+                                href={`https://drive.google.com/drive/folders/${configs.SHARED_DRIVE.value}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition"
+                            >
+                                <span className="text-2xl">📂</span>
+                                <div className="flex-1">
+                                    <div className="font-medium text-gray-900">Shared Drive Root</div>
+                                    <div className="text-xs text-gray-500 font-mono truncate">{configs.SHARED_DRIVE.value}</div>
+                                </div>
+                            </a>
+                        )}
+                        {configs.B2B_BACKUP && (
+                            <a
+                                href={`https://drive.google.com/drive/folders/${configs.B2B_BACKUP.value}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 border border-green-200 rounded-md hover:bg-green-50 transition"
+                            >
+                                <span className="text-2xl">💾</span>
+                                <div className="flex-1">
+                                    <div className="font-medium text-gray-900">B2B Backup</div>
+                                    <div className="text-xs text-gray-500 font-mono truncate">{configs.B2B_BACKUP.value}</div>
+                                </div>
+                            </a>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

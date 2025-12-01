@@ -196,31 +196,31 @@ model AffiliateInteraction {
 }
 
 model AffiliateLead {
-  id                                                         Int                    @id @default(autoincrement())
-  linkId                                                     Int?
-  managerId                                                  Int?
-  sharedToManagerId                                          Int?
-  agentId                                                    Int?
-  customerName                                               String?
-  customerPhone                                              String?
-  status                                                     String                 @default("NEW")
-  source                                                     String?
-  passportRequestedAt                                        DateTime?
-  passportCompletedAt                                        DateTime?
-  lastContactedAt                                            DateTime?
-  nextActionAt                                               DateTime?
-  notes                                                      String?
-  metadata                                                   Json?
-  createdAt                                                  DateTime               @default(now())
-  updatedAt                                                  DateTime
-  groupId                                                    Int?
-  AffiliateInteraction                                       AffiliateInteraction[]
-  AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile   AffiliateProfile?      @relation("AffiliateLead_agentIdToAffiliateProfile", fields: [agentId], references: [id])
-  PartnerCustomerGroup                                       PartnerCustomerGroup?  @relation(fields: [groupId], references: [id])
-  AffiliateLink                                              AffiliateLink?         @relation(fields: [linkId], references: [id])
-  AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile AffiliateProfile?      @relation("AffiliateLead_managerIdToAffiliateProfile", fields: [managerId], references: [id])
-  AffiliateProfile_AffiliateLead_sharedToManagerIdToAffiliateProfile AffiliateProfile? @relation("AffiliateLead_sharedToManagerIdToAffiliateProfile", fields: [sharedToManagerId], references: [id])
-  AffiliateSale                                              AffiliateSale[]
+  id                                                                 Int                    @id @default(autoincrement())
+  linkId                                                             Int?
+  managerId                                                          Int?
+  agentId                                                            Int?
+  customerName                                                       String?
+  customerPhone                                                      String?
+  status                                                             String                 @default("NEW")
+  source                                                             String?
+  passportRequestedAt                                                DateTime?
+  passportCompletedAt                                                DateTime?
+  lastContactedAt                                                    DateTime?
+  nextActionAt                                                       DateTime?
+  notes                                                              String?
+  metadata                                                           Json?
+  createdAt                                                          DateTime               @default(now())
+  updatedAt                                                          DateTime
+  groupId                                                            Int?
+  sharedToManagerId                                                  Int?
+  AffiliateInteraction                                               AffiliateInteraction[]
+  AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile           AffiliateProfile?      @relation("AffiliateLead_agentIdToAffiliateProfile", fields: [agentId], references: [id])
+  PartnerCustomerGroup                                               PartnerCustomerGroup?  @relation(fields: [groupId], references: [id])
+  AffiliateLink                                                      AffiliateLink?         @relation(fields: [linkId], references: [id])
+  AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile         AffiliateProfile?      @relation("AffiliateLead_managerIdToAffiliateProfile", fields: [managerId], references: [id])
+  AffiliateProfile_AffiliateLead_sharedToManagerIdToAffiliateProfile AffiliateProfile?      @relation("AffiliateLead_sharedToManagerIdToAffiliateProfile", fields: [sharedToManagerId], references: [id])
+  AffiliateSale                                                      AffiliateSale[]
 
   @@index([agentId, status])
   @@index([customerPhone])
@@ -2495,23 +2495,24 @@ model ApisSyncQueue {
   status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
   attempts    Int      @default(0)
   lastError   String?
+  scheduledAt DateTime @default(now()) // 언제 실행할지 (기본값: 즉시)
   createdAt   DateTime @default(now())
   processedAt DateTime?
 
-  @@index([status, createdAt])
+  @@index([status, scheduledAt])
 }
 
 model SystemConsultation {
-  id          Int      @id @default(autoincrement())
-  name        String
-  phone       String
-  message     String?
-  status      String   @default("NEW")
-  managerId   Int?
-  agentId     Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  metadata    Json?
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  message   String?
+  status    String   @default("NEW")
+  managerId Int?
+  agentId   Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  metadata  Json?
 
   @@index([managerId])
   @@index([agentId])

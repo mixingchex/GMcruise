@@ -144,28 +144,30 @@ export async function POST(req: NextRequest) {
       },
     });
 
-  }).catch ((err) => {
-    console.error(`[Passport Submit] APIS Sync Error:`, err);
-  });
-}
+    // APIS Sync Queue에 추가 (비동기, 에러 무시)
+    if (reservation.tripId) {
+      enqueueApisSync('TRIP_SHEET', reservation.tripId).catch((err) => {
+        console.error(`[Passport Submit] APIS Sync Error:`, err);
+      });
+    }
 
-return NextResponse.json({
-  ok: true,
-  message: '여권 정보가 성공적으로 저장되었습니다.',
-  updatedCount: updatedTravelers.length,
-});
+    return NextResponse.json({
+      ok: true,
+      message: '여권 정보가 성공적으로 저장되었습니다.',
+      updatedCount: updatedTravelers.length,
+    });
   } catch (error: any) {
-  console.error('[Passport Submit] Error:', error);
-  console.error('[Passport Submit] Error Stack:', error.stack);
-  console.error('[Passport Submit] Error Code:', error.code);
-  return NextResponse.json(
-    {
-      ok: false,
-      message: error.message || '여권 정보 저장에 실패했습니다.',
-      error: error.message,
-      code: error.code
-    },
-    { status: 500 }
-  );
-}
+    console.error('[Passport Submit] Error:', error);
+    console.error('[Passport Submit] Error Stack:', error.stack);
+    console.error('[Passport Submit] Error Code:', error.code);
+    return NextResponse.json(
+      {
+        ok: false,
+        message: error.message || '여권 정보 저장에 실패했습니다.',
+        error: error.message,
+        code: error.code
+      },
+      { status: 500 }
+    );
+  }
 }

@@ -5,7 +5,7 @@ export const runtime = 'nodejs';
 
 import type { ChangeEvent } from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   FiAlertCircle,
   FiCheckCircle,
@@ -17,6 +17,9 @@ import {
   FiTrash,
   FiUpload,
   FiUserCheck,
+  FiCamera,
+  FiUsers,
+  FiUser,
 } from 'react-icons/fi';
 
 interface PassportFile {
@@ -66,6 +69,9 @@ interface GuestPayload {
   nationality: string;
   dateOfBirth: string;
   passportExpiryDate: string;
+  gender?: string;
+  engSurname?: string;
+  engGivenName?: string;
 }
 
 interface GroupState {
@@ -78,6 +84,31 @@ type Step = 0 | 1 | 2 | 3 | 4;
 const MAX_GROUPS = 30;
 const MAX_GUESTS_PER_GROUP = 10;
 
+// 그룹별 색상 팔레트 (파스텔 톤)
+const GROUP_COLORS = [
+  'bg-red-50 border-red-200 text-red-900',
+  'bg-orange-50 border-orange-200 text-orange-900',
+  'bg-amber-50 border-amber-200 text-amber-900',
+  'bg-yellow-50 border-yellow-200 text-yellow-900',
+  'bg-lime-50 border-lime-200 text-lime-900',
+  'bg-green-50 border-green-200 text-green-900',
+  'bg-emerald-50 border-emerald-200 text-emerald-900',
+  'bg-teal-50 border-teal-200 text-teal-900',
+  'bg-cyan-50 border-cyan-200 text-cyan-900',
+  'bg-sky-50 border-sky-200 text-sky-900',
+  'bg-blue-50 border-blue-200 text-blue-900',
+  'bg-indigo-50 border-indigo-200 text-indigo-900',
+  'bg-violet-50 border-violet-200 text-violet-900',
+  'bg-purple-50 border-purple-200 text-purple-900',
+  'bg-fuchsia-50 border-fuchsia-200 text-fuchsia-900',
+  'bg-pink-50 border-pink-200 text-pink-900',
+  'bg-rose-50 border-rose-200 text-rose-900',
+];
+
+function getGroupColor(groupNumber: number) {
+  return GROUP_COLORS[(groupNumber - 1) % GROUP_COLORS.length];
+}
+
 function createEmptyGuest(): GuestPayload {
   return {
     id: `guest-${Math.random().toString(36).slice(2)}`,
@@ -87,6 +118,9 @@ function createEmptyGuest(): GuestPayload {
     nationality: '',
     dateOfBirth: '',
     passportExpiryDate: '',
+    gender: '',
+    engSurname: '',
+    engGivenName: '',
   };
 }
 
@@ -97,16 +131,10 @@ function createInitialGroups(savedGroups?: Array<{ groupNumber: number; guests: 
       guests:
         group.guests && group.guests.length > 0
           ? group.guests.slice(0, MAX_GUESTS_PER_GROUP).map((guest) => ({
-              ...createEmptyGuest(),
-              ...guest,
-              id: `guest-${Math.random().toString(36).slice(2)}`,
-              name: guest.name ?? '',
-              phone: guest.phone ?? '',
-              passportNumber: guest.passportNumber ?? '',
-              nationality: guest.nationality ?? '',
-              dateOfBirth: guest.dateOfBirth ?? '',
-              passportExpiryDate: guest.passportExpiryDate ?? '',
-            }))
+            ...createEmptyGuest(),
+            ...guest,
+            id: `guest-${Math.random().toString(36).slice(2)}`,
+          }))
           : [createEmptyGuest()],
     }));
   }
@@ -121,7 +149,9 @@ function createInitialGroups(savedGroups?: Array<{ groupNumber: number; guests: 
 
 export default function PassportSubmissionPage({ params }: { params: { token: string } }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const token = params.token;
+  const mode = searchParams.get('mode') === 'passport' ? 'passport' : 'pnr'; // default to pnr if not specified or 'pnr'
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +163,7 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
   const [groups, setGroups] = useState<GroupState[]>(createInitialGroups());
   const [remarks, setRemarks] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [ocrProcessing, setOcrProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -152,7 +183,13 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
         setTripInfo(data.trip);
         setUploadedFiles(data.submission.extraData?.passportFiles ?? []);
         setRemarks(data.submission.extraData?.remarks ?? '');
-        setGroups(createInitialGroups(data.submission.extraData?.groups));
+
+        // If mode is passport, ensure only 1 group with 1 guest
+        if (mode === 'passport') {
+          setGroups([{ groupNumber: 1, guests: [createEmptyGuest()] }]);
+        } else {
+          setGroups(createInitialGroups(data.submission.extraData?.groups));
+        }
 
         if (data.submission.isSubmitted) {
           setStep(4);
@@ -167,7 +204,7 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
 
     fetchSubmission();
     return () => controller.abort();
-  }, [token]);
+  }, [token, mode]);
 
   const expiresInText = useMemo(() => {
     if (!submission) return '';
@@ -186,7 +223,8 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
     setStep((prev) => (prev <= 0 ? prev : ((prev - 1) as Step)));
   };
 
-  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+  // OCR Upload Handler
+  const handleOcrUpload = async (event: ChangeEvent<HTMLInputElement>, groupNumber: number, guestId: string) => {
     if (!event.target.files || event.target.files.length === 0) return;
     const file = event.target.files[0];
 
@@ -194,21 +232,67 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
     formData.append('file', file);
 
     try {
-      setUploading(true);
-      const res = await fetch(`/api/passport/${token}/upload`, {
+      setOcrProcessing(true);
+      // 1. Upload for OCR
+      const ocrRes = await fetch(`/api/passport/${token}/ocr`, {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || '업로드에 실패했습니다.');
+      const ocrData = await ocrRes.json();
+
+      if (!ocrRes.ok || !ocrData.ok) {
+        throw new Error(ocrData.error || 'OCR 처리에 실패했습니다.');
       }
-      setUploadedFiles(data.files ?? []);
+
+      const extracted = ocrData.data;
+
+      // 2. Update Guest Data
+      setGroups((prev) =>
+        prev.map((group) =>
+          group.groupNumber === groupNumber
+            ? {
+              ...group,
+              guests: group.guests.map((guest) =>
+                guest.id === guestId
+                  ? {
+                    ...guest,
+                    name: extracted.korName || guest.name,
+                    engSurname: extracted.engSurname || guest.engSurname,
+                    engGivenName: extracted.engGivenName || guest.engGivenName,
+                    passportNumber: extracted.passportNo || guest.passportNumber,
+                    nationality: extracted.nationality || guest.nationality,
+                    dateOfBirth: extracted.dateOfBirth || guest.dateOfBirth,
+                    passportExpiryDate: extracted.passportExpiryDate || guest.passportExpiryDate,
+                    gender: extracted.sex || guest.gender,
+                  }
+                  : guest
+              ),
+            }
+            : group
+        )
+      );
+
+      // 3. Upload file to storage (for record)
+      // Re-create formData because it might have been consumed? (Safe to reuse usually, but let's be sure)
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+
+      const uploadRes = await fetch(`/api/passport/${token}/upload`, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+      const uploadData = await uploadRes.json();
+      if (uploadRes.ok && uploadData.ok) {
+        setUploadedFiles(uploadData.files ?? []);
+      }
+
+      alert('여권 정보를 성공적으로 인식했습니다! 내용을 확인해주세요.');
+
     } catch (err) {
       console.error(err);
-      alert(err instanceof Error ? err.message : '업로드 중 오류가 발생했습니다.');
+      alert(err instanceof Error ? err.message : 'OCR 처리 중 오류가 발생했습니다.');
     } finally {
-      setUploading(false);
+      setOcrProcessing(false);
       event.target.value = '';
     }
   };
@@ -235,12 +319,12 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
       prev.map((group) =>
         group.groupNumber === groupNumber
           ? {
-              ...group,
-              guests:
-                group.guests.length >= MAX_GUESTS_PER_GROUP
-                  ? group.guests
-                  : [...group.guests, createEmptyGuest()],
-            }
+            ...group,
+            guests:
+              group.guests.length >= MAX_GUESTS_PER_GROUP
+                ? group.guests
+                : [...group.guests, createEmptyGuest()],
+          }
           : group,
       ),
     );
@@ -251,12 +335,12 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
       prev.map((group) =>
         group.groupNumber === groupNumber
           ? {
-              ...group,
-              guests:
-                group.guests.length <= 1
-                  ? group.guests
-                  : group.guests.filter((guest) => guest.id !== guestId),
-            }
+            ...group,
+            guests:
+              group.guests.length <= 1
+                ? group.guests
+                : group.guests.filter((guest) => guest.id !== guestId),
+          }
           : group,
       ),
     );
@@ -267,23 +351,23 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
       prev.map((group) =>
         group.groupNumber === groupNumber
           ? {
-              ...group,
-              guests: group.guests.map((guest) =>
-                guest.id === guestId
-                  ? {
-                      ...guest,
-                      [field]: value,
-                    }
-                  : guest,
-              ),
-            }
+            ...group,
+            guests: group.guests.map((guest) =>
+              guest.id === guestId
+                ? {
+                  ...guest,
+                  [field]: value,
+                }
+                : guest,
+            ),
+          }
           : group,
       ),
     );
   };
 
   const totalGuests = useMemo(
-    () => groups.reduce((sum, group) => sum + group.guests.filter((guest) => guest.name.trim().length > 0).length, 0),
+    () => groups.reduce((sum, group) => sum + group.guests.filter((guest) => (guest.name || guest.engSurname || '').trim().length > 0).length, 0),
     [groups],
   );
 
@@ -295,8 +379,8 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
       guests: group.guests.map(({ id, ...rest }) => ({ ...rest })),
     }));
 
-    if (sanitizedGroups.every((group) => group.guests.every((guest) => guest.name.trim().length === 0))) {
-      alert('탑승자 이름을 최소 한 명 이상 입력해주세요.');
+    if (sanitizedGroups.every((group) => group.guests.every((guest) => (guest.name || guest.engSurname || '').trim().length === 0))) {
+      alert('탑승자 정보를 최소 한 명 이상 입력해주세요.');
       return;
     }
 
@@ -314,7 +398,7 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
       if (!res.ok || !data.ok) {
         throw new Error(data.error || '제출에 실패했습니다.');
       }
-      setSuccessMessage('여권 정보 제출이 완료되었습니다. 빠르게 확인 후 안내드릴게요!');
+      setSuccessMessage('정보 제출이 완료되었습니다. 빠르게 확인 후 안내드릴게요!');
       setStep(4);
     } catch (err) {
       console.error(err);
@@ -329,7 +413,7 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin h-12 w-12 rounded-full border-4 border-blue-500 border-t-transparent mx-auto"></div>
-          <p className="text-lg text-blue-700">여권 정보를 불러오는 중입니다...</p>
+          <p className="text-lg text-blue-700">정보를 불러오는 중입니다...</p>
         </div>
       </div>
     );
@@ -341,13 +425,7 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
         <div className="max-w-md bg-white border border-red-200 rounded-2xl shadow-lg p-8 text-center space-y-4">
           <FiAlertCircle className="text-red-500 text-5xl mx-auto" />
           <h1 className="text-2xl font-bold text-red-600">링크를 사용할 수 없습니다</h1>
-          <p className="text-gray-600 leading-relaxed">{error ?? '링크가 만료되었거나 잘못된 접근입니다. 담당자에게 문의해주세요.'}</p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-5 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors"
-          >
-            홈으로 돌아가기
-          </button>
+          <p className="text-gray-600 leading-relaxed">{error ?? '링크가 만료되었거나 잘못된 접근입니다.'}</p>
         </div>
       </div>
     );
@@ -358,13 +436,12 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-white flex items-center justify-center p-6">
         <div className="max-w-xl w-full bg-white border border-green-200 rounded-2xl shadow-xl p-8 space-y-5 text-center">
           <FiCheckCircle className="text-green-500 text-5xl mx-auto" />
-          <h1 className="text-3xl font-extrabold text-green-700">여권 정보 제출이 완료되었습니다!</h1>
+          <h1 className="text-3xl font-extrabold text-green-700">제출이 완료되었습니다!</h1>
           <p className="text-gray-600 leading-relaxed">
-            {successMessage || '제출해 주신 여권과 객실 배정 정보를 담당자가 확인 중입니다. 추가 안내가 곧 전달될 예정입니다.'}
+            {successMessage || '제출해 주신 정보를 담당자가 확인 중입니다.'}
           </p>
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-900">
             <p>제출일시: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : new Date().toLocaleString()}</p>
-            {userInfo?.name && <p className="mt-1">제출자: {userInfo.name}</p>}
           </div>
         </div>
       </div>
@@ -374,15 +451,18 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-10 px-4">
       <div className="max-w-5xl mx-auto">
+        {/* Header */}
         <div className="mb-8 bg-white border border-blue-100 shadow-lg rounded-2xl p-6 md:p-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-blue-800 flex items-center gap-3">
-                <span className="text-4xl">🛂</span>
-                여권 제출 & 객실 배정
+                <span className="text-4xl">{mode === 'passport' ? '🛂' : '👨‍👩‍👧‍👦'}</span>
+                {mode === 'passport' ? '여권 간편 등록' : '객실 배정 & 여권 등록'}
               </h1>
               <p className="mt-3 text-base md:text-lg text-gray-600 leading-relaxed">
-                아래 안내에 따라 여권 사진을 업로드하고 객실 배정을 입력해주세요. 10분 이내에 완료되며, 제출 후 담당자가 확인하여 연락드릴 예정입니다.
+                {mode === 'passport'
+                  ? '여권 사진을 업로드하면 정보가 자동으로 입력됩니다.'
+                  : '함께 객실을 사용하는 인원끼리 그룹으로 묶고 여권을 등록해주세요.'}
               </p>
             </div>
             <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3 text-blue-900">
@@ -407,31 +487,25 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
                   {tripInfo.endDate ? new Date(tripInfo.endDate).toLocaleDateString() : '?'}
                 </p>
               </div>
-              {tripInfo.reservationCode && (
-                <div>
-                  <p className="text-sm text-blue-700 font-semibold">예약 번호</p>
-                  <p className="text-lg font-bold text-blue-900">{tripInfo.reservationCode}</p>
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        <div className="mb-6 grid grid-cols-4 gap-3">
-          {['시작하기', '여권 업로드', '객실 배정 입력', '검토 & 제출'].map((label, index) => {
+        {/* Steps Indicator */}
+        <div className="mb-6 grid grid-cols-3 gap-3">
+          {['시작하기', '정보 입력', '검토 & 제출'].map((label, index) => {
             const stepIndex = index as Step;
             const isActive = step === stepIndex;
             const isCompleted = step > stepIndex;
             return (
               <div
                 key={label}
-                className={`rounded-xl border-2 px-3 py-4 text-center text-sm md:text-base font-semibold transition-all ${
-                  isActive
+                className={`rounded-xl border-2 px-3 py-4 text-center text-sm md:text-base font-semibold transition-all ${isActive
                     ? 'bg-blue-600 text-white border-blue-600 shadow-lg'
                     : isCompleted
-                    ? 'bg-green-100 text-green-700 border-green-200'
-                    : 'bg-white text-gray-600 border-gray-200'
-                }`}
+                      ? 'bg-green-100 text-green-700 border-green-200'
+                      : 'bg-white text-gray-600 border-gray-200'
+                  }`}
               >
                 {label}
               </div>
@@ -440,6 +514,7 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl shadow-lg p-6 md:p-8 space-y-6">
+          {/* Step 0: Intro */}
           {step === 0 && (
             <section className="space-y-6">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 flex gap-4">
@@ -447,265 +522,225 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
                 <div className="text-sm md:text-base text-blue-900 leading-relaxed">
                   <p className="font-semibold">제출 전 준비해주세요</p>
                   <ul className="list-disc list-inside mt-2 space-y-1">
-                    <li>여권 사진은 정보면 전체가 잘 나오도록 촬영해주세요.</li>
-                    <li>각 객실에 함께 머물고 싶은 사람을 그룹으로 묶어 입력하세요.</li>
-                    <li>필요시 담당자가 연락드릴 수 있도록 정확한 연락처를 기입해주세요.</li>
+                    <li>여권 정보면 전체가 잘 나오도록 촬영해주세요.</li>
+                    {mode === 'pnr' && <li>각 객실에 함께 머물고 싶은 사람을 그룹으로 묶어 입력하세요.</li>}
+                    <li>연락처를 입력하면 크루즈가이드 계정이 자동 생성됩니다.</li>
                   </ul>
                 </div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-3 justify-between">
-                <button
-                  onClick={handleNextStep}
-                  className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  다음 단계로 <FiChevronRight />
-                </button>
-              </div>
+              <button
+                onClick={handleNextStep}
+                className="w-full px-5 py-4 bg-blue-600 text-white text-lg font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+              >
+                시작하기 <FiChevronRight />
+              </button>
             </section>
           )}
 
+          {/* Step 1: Input Form */}
           {step === 1 && (
-            <section className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-                  <FiUpload /> 여권 사진 업로드
-                </h2>
-                <p className="text-gray-600">
-                  여권 정보면 사진을 업로드해주세요. 여러 장이 필요한 경우 하나씩 업로드하면 목록에 추가됩니다.
-                </p>
-              </div>
-
-              <label className="border-2 border-dashed border-blue-300 rounded-2xl p-8 bg-blue-50 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-blue-500 transition-colors">
-                <FiFilePlus className="text-4xl text-blue-500" />
-                <div className="text-center">
-                  <p className="text-lg font-semibold text-blue-800">여권 사진 선택하기</p>
-                  <p className="text-sm text-blue-600">이미지 파일 (JPG, PNG) 업로드 가능</p>
-                </div>
-                <input type="file" accept="image/*" className="hidden" onChange={handleUpload} disabled={uploading} />
-              </label>
-
-              {uploading && (
-                <div className="text-blue-600 flex items-center gap-2">
-                  <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
-                  업로드 중입니다...
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800">업로드된 여권</h3>
-                {uploadedFiles.length === 0 ? (
-                  <p className="text-sm text-gray-500">아직 업로드된 여권이 없습니다.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {uploadedFiles.map((file) => (
-                      <li key={file.url} className="flex items-center justify-between bg-gray-100 rounded-lg px-4 py-2">
-                        <span className="text-sm text-gray-700">{file.fileName}</span>
-                        <a
-                          href={file.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-sm"
-                        >
-                          보기
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 justify-between">
-                <button
-                  onClick={handlePrevStep}
-                  className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
-                >
-                  <FiChevronLeft /> 이전 단계
-                </button>
-                <button
-                  onClick={handleNextStep}
-                  className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-                >
-                  다음 단계로 <FiChevronRight />
-                </button>
-              </div>
-            </section>
-          )}
-
-          {step === 2 && (
-            <section className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-                  <FiUserCheck /> 객실 배정 입력
-                </h2>
-                <p className="text-gray-600">함께 객실을 사용할 인원끼리 그룹으로 묶어주세요. 그룹은 최대 30개까지 추가할 수 있습니다.</p>
-              </div>
-
-              <div className="space-y-5">
-                {groups.map((group) => (
-                  <div key={group.groupNumber} className="border border-gray-200 rounded-2xl p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-800">그룹 {group.groupNumber}</h3>
-                      <div className="flex items-center gap-2">
+            <section className="space-y-8">
+              {groups.map((group) => (
+                <div key={group.groupNumber} className={`rounded-2xl p-5 border-2 ${getGroupColor(group.groupNumber)}`}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold flex items-center gap-2">
+                      {mode === 'pnr' ? <FiUsers /> : <FiUser />}
+                      {mode === 'pnr' ? `객실 그룹 ${group.groupNumber}` : '여권 정보'}
+                    </h3>
+                    {mode === 'pnr' && (
+                      <div className="flex gap-2">
                         <button
                           onClick={() => handleAddGuest(group.groupNumber)}
-                          className="px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm flex items-center gap-1"
+                          className="px-3 py-1.5 bg-white bg-opacity-50 border border-current rounded-lg text-sm font-semibold hover:bg-opacity-100"
                         >
-                          <FiPlus /> 인원 추가
+                          + 인원 추가
                         </button>
                         {groups.length > 1 && (
                           <button
                             onClick={() => handleRemoveGroup(group.groupNumber)}
-                            className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors text-sm flex items-center gap-1"
+                            className="px-3 py-1.5 bg-red-100 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-200"
                           >
-                            <FiTrash /> 그룹 삭제
+                            그룹 삭제
                           </button>
                         )}
                       </div>
-                    </div>
+                    )}
+                  </div>
 
-                    <div className="space-y-4">
-                      {group.guests.map((guest) => (
-                        <div key={guest.id} className="grid md:grid-cols-6 gap-3">
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold text-gray-600 mb-1">이름 *</label>
+                  <div className="space-y-6">
+                    {group.guests.map((guest, index) => (
+                      <div key={guest.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 relative">
+                        {/* Guest Header & Remove Button */}
+                        <div className="flex justify-between items-start mb-4">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-xs font-bold text-gray-600 mr-2">
+                            {index + 1}
+                          </span>
+                          {group.guests.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveGuest(group.groupNumber, guest.id)}
+                              className="text-red-400 hover:text-red-600"
+                            >
+                              <FiTrash />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* OCR Upload Button */}
+                        <div className="mb-6">
+                          <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-blue-300 rounded-xl bg-blue-50 hover:bg-blue-100 cursor-pointer transition-colors group">
+                            <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                              {ocrProcessing ? (
+                                <div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full mb-2"></div>
+                              ) : (
+                                <FiCamera className="w-8 h-8 text-blue-500 mb-2 group-hover:scale-110 transition-transform" />
+                              )}
+                              <p className="text-sm text-blue-700 font-semibold">
+                                {ocrProcessing ? '인식 중...' : '여권 사진 찍기 / 업로드'}
+                              </p>
+                              <p className="text-xs text-blue-500 mt-1">정보가 자동으로 입력됩니다</p>
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleOcrUpload(e, group.groupNumber, guest.id)}
+                              disabled={ocrProcessing}
+                            />
+                          </label>
+                        </div>
+
+                        {/* Form Fields */}
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">한글 성명</label>
                             <input
                               type="text"
                               value={guest.name}
-                              onChange={(event) => handleGuestChange(group.groupNumber, guest.id, 'name', event.target.value)}
-                              placeholder="탑승자 이름"
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'name', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="홍길동"
                             />
                           </div>
-                          <div className="md:col-span-2">
-                            <label className="block text-sm font-semibold text-gray-600 mb-1">연락처</label>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">휴대폰 번호 (계정 생성용)</label>
                             <input
                               type="tel"
                               value={guest.phone}
-                              onChange={(event) => handleGuestChange(group.groupNumber, guest.id, 'phone', event.target.value)}
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'phone', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                               placeholder="010-1234-5678"
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-600 mb-1">여권번호</label>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">영문 성 (Surname)</label>
+                            <input
+                              type="text"
+                              value={guest.engSurname || ''}
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'engSurname', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="HONG"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">영문 이름 (Given Name)</label>
+                            <input
+                              type="text"
+                              value={guest.engGivenName || ''}
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'engGivenName', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="GILDONG"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">여권 번호</label>
                             <input
                               type="text"
                               value={guest.passportNumber}
-                              onChange={(event) => handleGuestChange(group.groupNumber, guest.id, 'passportNumber', event.target.value)}
-                              placeholder="여권 번호"
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'passportNumber', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                              placeholder="M12345678"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-600 mb-1">국적</label>
-                            <input
-                              type="text"
-                              value={guest.nationality}
-                              onChange={(event) => handleGuestChange(group.groupNumber, guest.id, 'nationality', event.target.value)}
-                              placeholder="예: 대한민국"
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-semibold text-gray-600 mb-1">생년월일</label>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">생년월일</label>
                             <input
                               type="date"
                               value={guest.dateOfBirth}
-                              onChange={(event) => handleGuestChange(group.groupNumber, guest.id, 'dateOfBirth', event.target.value)}
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'dateOfBirth', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                           <div>
-                            <label className="block text-sm font-semibold text-gray-600 mb-1">여권 만료일</label>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">여권 만료일</label>
                             <input
                               type="date"
                               value={guest.passportExpiryDate}
-                              onChange={(event) => handleGuestChange(group.groupNumber, guest.id, 'passportExpiryDate', event.target.value)}
-                              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'passportExpiryDate', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
-                          {group.guests.length > 1 && (
-                            <div className="md:col-span-6 flex justify-end">
-                              <button
-                                onClick={() => handleRemoveGuest(group.groupNumber, guest.id)}
-                                className="px-3 py-1.5 text-sm bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors flex items-center gap-1"
-                              >
-                                <FiTrash /> 인원 삭제
-                              </button>
-                            </div>
-                          )}
+                          <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1">성별</label>
+                            <select
+                              value={guest.gender || ''}
+                              onChange={(e) => handleGuestChange(group.groupNumber, guest.id, 'gender', e.target.value)}
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">선택</option>
+                              <option value="M">남성 (M)</option>
+                              <option value="F">여성 (F)</option>
+                            </select>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
 
-              <button
-                onClick={handleAddGroup}
-                  className="w-full px-4 py-3 bg-green-50 text-green-700 border border-green-200 rounded-xl hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
-              >
-                <FiPlus /> 그룹 추가하기
-              </button>
+              {mode === 'pnr' && (
+                <button
+                  onClick={handleAddGroup}
+                  className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-semibold hover:border-blue-500 hover:text-blue-500 transition-colors"
+                >
+                  + 새로운 객실 그룹 추가
+                </button>
+              )}
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-between">
+              <div className="flex gap-3 pt-4">
                 <button
                   onClick={handlePrevStep}
-                  className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"
                 >
-                  <FiChevronLeft /> 이전 단계
+                  이전
                 </button>
                 <button
                   onClick={handleNextStep}
-                  className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700"
                 >
-                  다음 단계로 <FiChevronRight />
+                  다음
                 </button>
               </div>
             </section>
           )}
 
-          {step === 3 && (
+          {/* Step 2: Review */}
+          {step === 2 && (
             <section className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">입력 내용 확인</h2>
-                <p className="text-gray-600">제출 전에 여권 업로드와 객실 배정이 올바른지 다시 확인해주세요.</p>
-              </div>
+              <h2 className="text-2xl font-bold text-gray-800">입력 내용 확인</h2>
 
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <FiFilePlus /> 업로드된 여권 ({uploadedFiles.length}건)
-                </h3>
-                {uploadedFiles.length === 0 ? (
-                  <p className="text-sm text-red-500">여권 사진이 업로드되지 않았습니다. 이전 단계에서 업로드해주세요.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {uploadedFiles.map((file) => (
-                      <li key={file.url} className="flex items-center justify-between bg-gray-100 rounded-lg px-4 py-2">
-                        <span className="text-sm text-gray-700">{file.fileName}</span>
-                        <a href={file.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
-                          보기
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800">객실별 배정 요약 (총 {totalGuests}명)</h3>
                 {groups.map((group) => (
-                  <div key={group.groupNumber} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
-                    <h4 className="font-semibold text-gray-800 mb-2">그룹 {group.groupNumber}</h4>
-                    <ul className="space-y-2 text-sm text-gray-700">
-                      {group.guests
-                        .filter((guest) => guest.name.trim().length > 0)
-                        .map((guest) => (
-                          <li key={guest.id}>
-                            <span className="font-semibold">{guest.name}</span>
-                            {guest.phone && <span className="ml-2 text-gray-500">({guest.phone})</span>}
-                          </li>
-                        ))}
+                  <div key={group.groupNumber} className={`rounded-xl p-4 border ${getGroupColor(group.groupNumber)} bg-opacity-50`}>
+                    <h4 className="font-bold mb-2">{mode === 'pnr' ? `객실 그룹 ${group.groupNumber}` : '여권 정보'}</h4>
+                    <ul className="space-y-2">
+                      {group.guests.map((guest) => (
+                        <li key={guest.id} className="text-sm bg-white bg-opacity-60 p-2 rounded">
+                          <span className="font-bold">{guest.name || guest.engSurname}</span>
+                          {guest.passportNumber && <span className="mx-2 text-gray-500">| {guest.passportNumber}</span>}
+                          {guest.phone && <span className="text-blue-600">| {guest.phone}</span>}
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 ))}
@@ -716,34 +751,25 @@ export default function PassportSubmissionPage({ params }: { params: { token: st
                 <textarea
                   value={remarks}
                   onChange={(event) => setRemarks(event.target.value)}
-                  rows={4}
-                  placeholder="객실 선호, 알레르기, 특별 요청 등이 있다면 적어주세요."
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="요청사항이 있다면 적어주세요."
+                  className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 justify-between">
+              <div className="flex gap-3">
                 <button
                   onClick={handlePrevStep}
-                  className="px-5 py-3 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200"
                 >
-                  <FiChevronLeft /> 이전 단계
+                  수정하기
                 </button>
                 <button
                   onClick={handleSubmit}
-                  disabled={submitting || totalGuests === 0}
-                  className={`px-5 py-3 rounded-xl text-white font-bold transition-colors flex items-center justify-center gap-2 ${
-                    submitting || totalGuests === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
+                  disabled={submitting}
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {submitting ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      제출 중...
-                    </>
-                  ) : (
-                    '여권 정보 제출하기'
-                  )}
+                  {submitting ? '제출 중...' : '제출하기'}
                 </button>
               </div>
             </section>

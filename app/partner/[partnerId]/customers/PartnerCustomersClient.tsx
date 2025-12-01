@@ -142,6 +142,7 @@ type PartnerCustomer = {
     ownerType: 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT';
     ownerName: string | null;
     ownerNickname: string | null;
+    userId?: number | null;
   } | null;
 };
 
@@ -4496,14 +4497,28 @@ export default function PartnerCustomersClient({
                     <button
                       type="button"
                       onClick={async () => {
-                        const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
                         try {
-                          if (typeof window !== 'undefined' && navigator.clipboard) {
-                            await navigator.clipboard.writeText(passportLink);
+                          if (!selectedLead?.userId) {
+                            showError('해당 고객의 계정(User) 정보를 찾을 수 없어 V4 여권 링크를 생성할 수 없습니다. (전화번호 불일치 등)');
+                            return;
+                          }
+
+                          const res = await fetch('/api/partner/passport-request/link', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: selectedLead.userId, leadId: selectedLeadId }),
+                          });
+                          const data = await res.json();
+
+                          if (data.ok && data.passportLink) {
+                            await navigator.clipboard.writeText(data.passportLink);
                             showSuccess('여권 업로드 링크가 복사되었습니다.');
+                          } else {
+                            throw new Error(data.error || '링크 생성 실패');
                           }
                         } catch (error) {
                           console.error('링크 복사 실패:', error);
+                          showError(error instanceof Error ? error.message : '링크 복사 실패');
                         }
                       }}
                       className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
@@ -4513,9 +4528,26 @@ export default function PartnerCustomersClient({
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
-                        window.open(passportLink, '_blank', 'width=1200,height=800');
+                      onClick={async () => {
+                        try {
+                          if (!selectedLead?.userId) {
+                            showError('해당 고객의 계정(User) 정보를 찾을 수 없어 미리보기를 할 수 없습니다.');
+                            return;
+                          }
+                          const res = await fetch('/api/partner/passport-request/link', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: selectedLead.userId, leadId: selectedLeadId }),
+                          });
+                          const data = await res.json();
+                          if (data.ok && data.passportLink) {
+                            window.open(data.passportLink, '_blank', 'width=1200,height=800');
+                          } else {
+                            showError(data.error || '링크 생성 실패');
+                          }
+                        } catch (e) {
+                          showError('미리보기 실패');
+                        }
                       }}
                       className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
                     >
@@ -4572,7 +4604,24 @@ export default function PartnerCustomersClient({
                       }
 
                       // 여권 업로드 링크 생성
-                      const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+                      // 여권 업로드 링크 생성 (V4)
+                      let passportLink = '';
+                      if (selectedLead?.userId) {
+                        const linkRes = await fetch('/api/partner/passport-request/link', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ userId: selectedLead.userId, leadId: selectedLeadId }),
+                        });
+                        const linkData = await linkRes.json();
+                        if (linkData.ok) {
+                          passportLink = linkData.passportLink;
+                        }
+                      }
+
+                      if (!passportLink) {
+                        // Fallback to old link if V4 fails or no userId (though V4 is preferred)
+                        passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+                      }
 
                       // 템플릿 변수 채우기
                       let messageWithLink = passportMessage
@@ -4622,14 +4671,25 @@ export default function PartnerCustomersClient({
                     }
 
                     try {
-                      const passportLink = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/public/passport-upload?leadId=${selectedLeadId}&partnerId=${partnerId}`;
+                      if (!selectedLead?.userId) {
+                        showError('해당 고객의 계정(User) 정보를 찾을 수 없어 V4 여권 링크를 생성할 수 없습니다.');
+                        // Fallback to old link? Maybe, but user wants V4.
+                        // Let's try to generate V4, if fails, show error.
+                        return;
+                      }
 
-                      // 링크 복사
-                      if (typeof window !== 'undefined' && navigator.clipboard) {
-                        await navigator.clipboard.writeText(passportLink);
+                      const res = await fetch('/api/partner/passport-request/link', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: selectedLead.userId, leadId: selectedLeadId }),
+                      });
+                      const data = await res.json();
+
+                      if (data.ok && data.passportLink) {
+                        await navigator.clipboard.writeText(data.passportLink);
                         showSuccess('여권 업로드 링크가 복사되었습니다.');
                       } else {
-                        showError('링크 복사에 실패했습니다. 링크를 수동으로 복사해주세요.');
+                        showError(data.error || '링크 생성 실패');
                       }
                       // 모달은 닫지 않고 링크 표시 유지 (미리보기 가능하도록)
                     } catch (error) {

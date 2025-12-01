@@ -21,6 +21,8 @@ export const DRIVE_CONFIG_KEYS = {
     APIS_MAIN: 'google_drive_apis_main_folder_id',
     APIS_TEMPLATE_ID: 'google_drive_apis_template_id',
     ROOT: 'google_drive_root_folder_id',
+    CASHFLOW: 'google_drive_cashflow_folder_id', // 🆕 판매원별 수당 엑셀
+    TOTALCASH: 'google_drive_totalcash_folder_id', // 🆕 거래처용 월별 엑셀
 } as const;
 
 export type DriveConfigKey = keyof typeof DRIVE_CONFIG_KEYS;
@@ -46,6 +48,8 @@ export const DEFAULTS: Record<DriveConfigKey, string> = {
     APIS_MAIN: '185t2eIIPDsEm-QW9KmhTbxkrywFJhGdk', // 여행별 APIS 메인 폴더
     APIS_TEMPLATE_ID: '1Le6IPNzyvMqpn-6ZnqgvH0JTQ8O5rKymWMU_pkfbQ5Q', // APIS 양식 시트
     ROOT: '0AJVz1C-KYWR0Uk9PVA',
+    CASHFLOW: '1kv9XlTFLh8QqTlDvakwaxB_LtTQxv6Hx', // 판매원별 수당 엑셀
+    TOTALCASH: '1GC4hwjkVNqUmBGhaE5PmldoMr0WUEkGo', // 거래처용 월별 엑셀
 };
 
 // Env Var Mapping
@@ -69,6 +73,8 @@ export const ENV_MAPPING: Record<DriveConfigKey, string | undefined> = {
     APIS_MAIN: process.env.GOOGLE_DRIVE_APIS_MAIN_FOLDER_ID,
     APIS_TEMPLATE_ID: process.env.GOOGLE_DRIVE_APIS_TEMPLATE_ID,
     ROOT: process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID,
+    CASHFLOW: process.env.GOOGLE_DRIVE_CASHFLOW_FOLDER_ID,
+    TOTALCASH: process.env.GOOGLE_DRIVE_TOTALCASH_FOLDER_ID,
 };
 
 export async function getDriveFolderId(key: DriveConfigKey): Promise<string> {
@@ -81,22 +87,24 @@ export async function getDriveFolderId(key: DriveConfigKey): Promise<string> {
         });
 
         if (config?.configValue) {
+            console.log(`[DriveConfig] ${key} from DB: ${config.configValue}`);
             return config.configValue;
         }
 
-        // 2. Check Environment Variable
-        const envVar = ENV_MAPPING[key];
-        const envValue = process.env[envVar];
+        // 2. Check Environment Variable (ENV_MAPPING already contains the value)
+        const envValue = ENV_MAPPING[key];
         if (envValue) {
+            console.log(`[DriveConfig] ${key} from ENV: ${envValue}`);
             return envValue;
         }
 
         // 3. Return Default
+        console.log(`[DriveConfig] ${key} from DEFAULT: ${DEFAULTS[key]}`);
         return DEFAULTS[key];
     } catch (error) {
         console.error(`[DriveConfig] Error fetching config for ${key}:`, error);
         // Fallback to env or default even on DB error
-        return process.env[ENV_MAPPING[key]] || DEFAULTS[key];
+        return ENV_MAPPING[key] || DEFAULTS[key];
     }
 }
 

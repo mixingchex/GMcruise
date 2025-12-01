@@ -8,8 +8,9 @@ export type ApisSyncTargetType = 'MASTER_SHEET' | 'TRIP_SHEET';
  * Enqueue a sync task for APIS data.
  * @param targetType 'MASTER_SHEET' or 'TRIP_SHEET'
  * @param targetId userId for MASTER_SHEET, tripId for TRIP_SHEET
+ * @param delayMinutes Number of minutes to delay execution (default: 10)
  */
-export async function enqueueApisSync(targetType: ApisSyncTargetType, targetId: number) {
+export async function enqueueApisSync(targetType: ApisSyncTargetType, targetId: number, delayMinutes: number = 10) {
     try {
         // Check if a pending task already exists to avoid duplicates
         const existing = await prisma.apisSyncQueue.findFirst({
@@ -25,15 +26,18 @@ export async function enqueueApisSync(targetType: ApisSyncTargetType, targetId: 
             return;
         }
 
+        const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000);
+
         await prisma.apisSyncQueue.create({
             data: {
                 targetType,
                 targetId,
                 status: 'PENDING',
+                scheduledAt,
             },
         });
 
-        logger.log(`[ApisSyncQueue] Enqueued task for ${targetType}:${targetId}`);
+        logger.log(`[ApisSyncQueue] Enqueued task for ${targetType}:${targetId} (Scheduled at: ${scheduledAt.toISOString()})`);
     } catch (error) {
         logger.error('[ApisSyncQueue] Failed to enqueue task:', error);
     }
@@ -46,10 +50,13 @@ export async function enqueueApisSync(targetType: ApisSyncTargetType, targetId: 
 export async function processApisSyncQueue(batchSize = 10) {
     logger.log('[ApisSyncQueue] Starting queue processing...');
 
-    // Fetch pending tasks
+    // Fetch pending tasks that are scheduled for now or in the past
     const tasks = await prisma.apisSyncQueue.findMany({
-        where: { status: 'PENDING' },
-        orderBy: { createdAt: 'asc' },
+        where: {
+            status: 'PENDING',
+            scheduledAt: { lte: new Date() }
+        },
+        orderBy: { scheduledAt: 'asc' },
         take: batchSize,
     });
 

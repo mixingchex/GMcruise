@@ -73,6 +73,16 @@ export async function GET(req: NextRequest, context: RouteContext) {
           lastSaleAt: latestSale?.saleDate?.toISOString() ?? null,
           lastSaleStatus: latestSale?.status ?? null,
         },
+        userId: await (async () => {
+          if (lead.customerPhone) {
+            const user = await prisma.user.findFirst({
+              where: { phone: lead.customerPhone },
+              select: { id: true },
+            });
+            return user?.id || null;
+          }
+          return null;
+        })(),
       }),
     });
   } catch (error) {
@@ -222,7 +232,7 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
       if (contract) {
         const metadata = contract.metadata as any;
         const terminatedAt = metadata?.terminatedAt ? new Date(metadata.terminatedAt) : null;
-        
+
         if (terminatedAt) {
           throw new PartnerApiError(
             '계약이 해지되어 고객 DB 삭제가 불가능합니다. 모든 고객 정보는 본사로 회수됩니다.',

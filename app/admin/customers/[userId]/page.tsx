@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiLock, FiUnlock, FiKey, FiLogOut, FiArrowLeft, FiRefreshCw, FiTrash2, FiBarChart2, FiFileText, FiX, FiPlus, FiEdit } from 'react-icons/fi';
+import { FiLock, FiUnlock, FiKey, FiLogOut, FiArrowLeft, FiRefreshCw, FiTrash2, FiBarChart2, FiFileText, FiX, FiPlus, FiEdit, FiLink, FiCopy } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
@@ -86,7 +86,7 @@ export default function CustomerDetailPage() {
     expiryDate: '',
   });
 
-  // PNR 등록 관련 state
+  // PNR(객실 배정) 관련 state
   const [showPnrModal, setShowPnrModal] = useState(false);
   const [pnrForm, setPnrForm] = useState<Array<{ travelerId: number; name: string; roomNumber: string }>>([]);
   const [selectedTripIdForPnr, setSelectedTripIdForPnr] = useState<number | null>(null);
@@ -947,7 +947,37 @@ export default function CustomerDetailPage() {
     }
   };
 
-  // PNR 등록 모달 열기
+  // 여권/PNR 링크 생성 및 복사
+  const handleCopyLink = async (mode: 'passport' | 'pnr') => {
+    try {
+      // 가장 최근 여행 찾기
+      const latestTrip = user?.trips?.[0];
+      if (!latestTrip) {
+        alert('등록된 여행이 없습니다.');
+        return;
+      }
+
+      const response = await fetch('/api/admin/passport-request/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, tripId: latestTrip.id }),
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        const link = mode === 'passport' ? data.passportLink : data.pnrLink;
+        await navigator.clipboard.writeText(link);
+        showSuccess(`${mode === 'passport' ? '여권' : 'PNR'} 등록 링크가 복사되었습니다.`);
+      } else {
+        showError('링크 생성 실패: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      showError('링크 복사 중 오류가 발생했습니다.');
+    }
+  };
+
+  // PNR(객실 배정) 모달 열기
   const handleOpenPnrModal = () => {
     // 가장 최근 여행 찾기
     const latestTrip = user?.trips?.[0];
@@ -965,7 +995,7 @@ export default function CustomerDetailPage() {
             travelers.push({
               travelerId: t.id,
               name: t.korName || `${t.engGivenName || ''} ${t.engSurname || ''}`.trim() || '이름 없음',
-              roomNumber: t.roomNumber || '',
+              roomNumber: t.roomNumber ? String(t.roomNumber) : '',
             });
           });
         }
@@ -982,7 +1012,7 @@ export default function CustomerDetailPage() {
     setShowPnrModal(true);
   };
 
-  // PNR 등록 제출
+  // PNR(객실 배정) 등록 제출
   const handleRegisterPnr = async () => {
     if (!selectedTripIdForPnr) return;
 
@@ -996,7 +1026,7 @@ export default function CustomerDetailPage() {
           tripId: selectedTripIdForPnr,
           travelers: pnrForm.map(t => ({
             travelerId: t.travelerId,
-            roomNumber: t.roomNumber
+            roomNumber: t.roomNumber // Group Number로 사용됨
           })),
         }),
       });
@@ -1004,14 +1034,14 @@ export default function CustomerDetailPage() {
       const data = await response.json();
       if (data.ok) {
         setShowPnrModal(false);
-        alert('PNR 정보가 등록되었습니다.');
+        alert('객실 배정(그룹) 정보가 저장되었습니다.');
         loadUserData();
       } else {
-        alert('PNR 등록 실패: ' + (data.message || 'Unknown error'));
+        alert('저장 실패: ' + (data.message || 'Unknown error'));
       }
     } catch (error) {
       console.error('Failed to register PNR:', error);
-      alert('PNR 등록 중 오류가 발생했습니다.');
+      alert('저장 중 오류가 발생했습니다.');
     } finally {
       setIsProcessing(false);
     }
@@ -1408,8 +1438,26 @@ export default function CustomerDetailPage() {
                   className="px-3 py-1.5 bg-purple-600 text-white text-sm font-semibold rounded hover:bg-purple-700 flex items-center gap-1 ml-2"
                 >
                   <FiEdit size={14} />
-                  PNR 등록
+                  객실 배정
                 </button>
+                <div className="flex gap-2 ml-4">
+                  <button
+                    onClick={() => handleCopyLink('passport')}
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded hover:bg-gray-200 flex items-center gap-1"
+                    title="여권 등록 링크 복사"
+                  >
+                    <FiCopy size={14} />
+                    여권 링크
+                  </button>
+                  <button
+                    onClick={() => handleCopyLink('pnr')}
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded hover:bg-gray-200 flex items-center gap-1"
+                    title="PNR(객실 배정) 링크 복사"
+                  >
+                    <FiLink size={14} />
+                    PNR 링크
+                  </button>
+                </div>
               </div>
               {/* 모든 Reservation의 여권 정보 표시 */}
               {(() => {
@@ -2219,13 +2267,13 @@ export default function CustomerDetailPage() {
           </div>
         </div>
       )}
-      {/* PNR 등록 모달 */}
+      {/* PNR(객실 배정) 모달 */}
       {showPnrModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold text-gray-900">PNR / 룸번호 등록</h2>
+                <h2 className="text-2xl font-bold text-gray-900">객실 배정 (그룹 설정)</h2>
                 <button
                   onClick={() => setShowPnrModal(false)}
                   className="text-gray-400 hover:text-gray-600"
@@ -2235,24 +2283,30 @@ export default function CustomerDetailPage() {
               </div>
 
               <div className="space-y-4">
-                <p className="text-sm text-gray-600 mb-4">
-                  각 여행자의 룸 번호를 입력해주세요. 입력된 정보는 APIS 시트에 반영됩니다.
-                </p>
+                <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 mb-4">
+                  <p className="font-bold mb-1">💡 그룹 번호 안내</p>
+                  <p>같은 객실을 사용하는 인원끼리 <strong>같은 번호</strong>를 입력해주세요.</p>
+                  <p>(예: 부부 2명은 모두 '1', 자녀 2명은 모두 '2')</p>
+                </div>
 
                 {pnrForm.map((item, index) => (
                   <div key={item.travelerId} className="flex items-center justify-between gap-4 p-3 bg-gray-50 rounded-lg">
                     <span className="font-medium text-gray-900 flex-1">{item.name}</span>
-                    <input
-                      type="text"
-                      value={item.roomNumber}
-                      onChange={(e) => {
-                        const newForm = [...pnrForm];
-                        newForm[index].roomNumber = e.target.value;
-                        setPnrForm(newForm);
-                      }}
-                      placeholder="룸번호 (예: 1234)"
-                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">그룹 번호:</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.roomNumber}
+                        onChange={(e) => {
+                          const newForm = [...pnrForm];
+                          newForm[index].roomNumber = e.target.value;
+                          setPnrForm(newForm);
+                        }}
+                        placeholder="1"
+                        className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
+                      />
+                    </div>
                   </div>
                 ))}
 
@@ -2279,9 +2333,6 @@ export default function CustomerDetailPage() {
     </div>
   );
 }
-
-
-
 
 
 

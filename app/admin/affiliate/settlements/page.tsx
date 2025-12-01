@@ -521,6 +521,41 @@ export default function AffiliateSettlementDashboardPage() {
     window.open(url, '_blank');
   };
 
+  const handleBackupToGoogleDrive = async (type: 'cashflow' | 'totalcash' | 'all') => {
+    if (!selectedPeriod) {
+      showError('정산 기간을 선택해주세요.');
+      return;
+    }
+
+    const typeLabel = type === 'cashflow' ? '판매원별 수당' : type === 'totalcash' ? '거래처용 월별' : '모든';
+
+    if (!confirm(`${typeLabel} 엑셀 파일을 Google Drive에 백업하시겠습니까?`)) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/affiliate/excel-backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          period: selectedPeriod,
+          type,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.ok) {
+        alert(`✅ Google Drive 백업 완료!\n\n${result.message || '업로드 성공'}`);
+      } else {
+        throw new Error(result.error || '백업 실패');
+      }
+    } catch (error: any) {
+      showError(error.message || 'Google Drive 백업 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -575,6 +610,52 @@ export default function AffiliateSettlementDashboardPage() {
             <FiDownload className="h-4 w-4" />
             CSV 다운로드
           </button>
+        </div>
+      </div>
+
+      {/* Google Drive 백업 섹션 */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-blue-900">📂 Google Drive 백업</h3>
+            <p className="text-xs text-blue-700">
+              선택한 정산 기간의 엑셀 파일을 Google Drive에 자동 업로드합니다.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleBackupToGoogleDrive('cashflow')}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              💰 판매원별 수당
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBackupToGoogleDrive('totalcash')}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              🏢 거래처용 월별
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBackupToGoogleDrive('all')}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              📤 모두 백업
+            </button>
+            <a
+              href="https://drive.google.com/drive/folders/1kv9XlTFLh8QqTlDvakwaxB_LtTQxv6Hx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-medium text-blue-600 shadow-sm transition hover:bg-blue-50"
+            >
+              🔗 Drive 열기
+            </a>
+          </div>
         </div>
       </div>
 
