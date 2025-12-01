@@ -66,27 +66,27 @@ export async function generateContractPDF(data: ContractPDFData): Promise<Buffer
 
   try {
     const page = await browser.newPage();
-    
+
     // 타임아웃 설정 (60초)
     page.setDefaultNavigationTimeout(60000);
     page.setDefaultTimeout(60000);
-    
+
     // 한글 폰트 지원을 위한 추가 설정
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'ko-KR,ko;q=0.9',
     });
-    
+
     // 계약서 HTML 생성
     const html = await generateContractHTML(data);
-    
+
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
-    
+
     // 한글 폰트 로드 대기
     await page.evaluateHandle(() => document.fonts.ready);
-    
+
     // 서명 이미지 로드 대기 (waitForTimeout 대신 setTimeout 사용)
     await new Promise(resolve => setTimeout(resolve, 3000));
-    
+
     // PDF 생성 (한글 폰트가 제대로 렌더링되도록 추가 옵션)
     const pdf = await page.pdf({
       format: 'A4',
@@ -114,7 +114,7 @@ export async function generateContractPDF(data: ContractPDFData): Promise<Buffer
  */
 async function generateContractHTML(data: ContractPDFData): Promise<string> {
   const signatureImages: string[] = [];
-  
+
   // 서명 이미지를 base64로 변환하여 추가
   if (data.signatures.main?.url) {
     const base64Image = await getImageAsBase64(data.signatures.main.url);
@@ -126,7 +126,7 @@ async function generateContractHTML(data: ContractPDFData): Promise<string> {
       </div>`);
     }
   }
-  
+
   if (data.signatures.education?.url) {
     const base64Image = await getImageAsBase64(data.signatures.education.url);
     if (base64Image) {
@@ -137,7 +137,7 @@ async function generateContractHTML(data: ContractPDFData): Promise<string> {
       </div>`);
     }
   }
-  
+
   if (data.signatures.b2b?.url) {
     const base64Image = await getImageAsBase64(data.signatures.b2b.url);
     if (base64Image) {
@@ -156,11 +156,11 @@ async function generateContractHTML(data: ContractPDFData): Promise<string> {
     PRIMARKETER: '프리마케터',
   }[data.contractType] || data.contractType;
 
-  const submittedDate = data.submittedAt 
+  const submittedDate = data.submittedAt
     ? new Date(data.submittedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
     : '';
-  
-  const signedDate = data.contractSignedAt 
+
+  const signedDate = data.contractSignedAt
     ? new Date(data.contractSignedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
     : '';
 
@@ -371,16 +371,16 @@ async function generateContractHTML(data: ContractPDFData): Promise<string> {
         </div>
       `).join('')}
       ${(() => {
-        const contractType = data.contractType || 'SALES_AGENT';
-        const refundConsent = REFUND_CONSENTS[contractType];
-        if (!refundConsent) return '';
-        return `
+      const contractType = data.contractType || 'SALES_AGENT';
+      const refundConsent = REFUND_CONSENTS[contractType];
+      if (!refundConsent) return '';
+      return `
         <div class="consent-item">
           <p class="consent-title"><strong>${REQUIRED_CONSENTS.length + 1}. ${refundConsent.title}</strong></p>
           <p class="consent-description">${refundConsent.description}</p>
         </div>
         `;
-      })()}
+    })()}
     </div>
     
     <div class="agreement-statement">
@@ -389,39 +389,39 @@ async function generateContractHTML(data: ContractPDFData): Promise<string> {
   </div>
 
   ${(() => {
-    // 교육 계약서 섹션 추가 (모든 계약서에 포함)
-    const contractType = data.contractType || 'SALES_AGENT';
-    let educationSections = null;
-    
-    console.log('[Contract PDF] Contract type for education sections:', contractType);
-    
-    if (contractType === 'SALES_AGENT') {
-      educationSections = EDUCATION_CONTRACT_SECTIONS.SALES_AGENT;
-    } else if (contractType === 'CRUISE_STAFF') {
-      educationSections = EDUCATION_CONTRACT_SECTIONS.CRUISE_STAFF;
-    } else if (contractType === 'PRIMARKETER') {
-      educationSections = EDUCATION_CONTRACT_SECTIONS.PRIMARKETER;
-    } else if (contractType === 'BRANCH_MANAGER') {
-      educationSections = EDUCATION_CONTRACT_SECTIONS.BRANCH_MANAGER;
-    }
-    
-    if (!educationSections || educationSections.length === 0) {
-      console.warn('[Contract PDF] No education sections found for contract type:', contractType);
-      return '';
-    }
-    
-    console.log('[Contract PDF] Including education sections, count:', educationSections.length);
-    
-    return `
+      // 교육 계약서 섹션 추가 (모든 계약서에 포함)
+      const contractType = data.contractType || 'SALES_AGENT';
+      let educationSections = null;
+
+      console.log('[Contract PDF] Contract type for education sections:', contractType);
+
+      if (contractType === 'SALES_AGENT') {
+        educationSections = EDUCATION_CONTRACT_SECTIONS.SALES_AGENT;
+      } else if (contractType === 'CRUISE_STAFF') {
+        educationSections = EDUCATION_CONTRACT_SECTIONS.CRUISE_STAFF;
+      } else if (contractType === 'PRIMARKETER') {
+        educationSections = EDUCATION_CONTRACT_SECTIONS.PRIMARKETER;
+      } else if (contractType === 'BRANCH_MANAGER') {
+        educationSections = EDUCATION_CONTRACT_SECTIONS.BRANCH_MANAGER;
+      }
+
+      if (!educationSections || educationSections.length === 0) {
+        console.warn('[Contract PDF] No education sections found for contract type:', contractType);
+        return '';
+      }
+
+      console.log('[Contract PDF] Including education sections, count:', educationSections.length);
+
+      return `
   <div class="contract-content" style="margin-top: 50px; page-break-before: always;">
     <h2 style="font-size: 20px; font-weight: bold; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px;">교육 계약 내용</h2>
     ${educationSections.map((section, sectionIndex) => `
       <div class="contract-section" style="margin-bottom: 25px; page-break-inside: avoid;">
         <h3 class="section-title" style="font-size: 18px; font-weight: bold; margin-bottom: 12px; margin-top: 20px; color: #333; border-bottom: 2px solid #ddd; padding-bottom: 5px;">${section.title}</h3>
         ${section.clauses.map((clause, clauseIndex) => {
-          if (clause === '') return '<br style="margin-bottom: 5px;" />';
-          return `<p class="clause" style="margin-bottom: 10px; text-align: justify; padding-left: 10px; line-height: 1.8;">${clause}</p>`;
-        }).join('')}
+        if (clause === '') return '<br style="margin-bottom: 5px;" />';
+        return `<p class="clause" style="margin-bottom: 10px; text-align: justify; padding-left: 10px; line-height: 1.8;">${clause}</p>`;
+      }).join('')}
       </div>
     `).join('')}
     
@@ -430,7 +430,7 @@ async function generateContractHTML(data: ContractPDFData): Promise<string> {
     </div>
   </div>
     `;
-  })()}
+    })()}
 
   ${signatureImages.join('')}
 
@@ -455,61 +455,61 @@ async function getImageAsBase64(url: string): Promise<string | null> {
 
     // 파일 시스템 경로로 변환
     let filePath: string;
-    
+
     if (url.startsWith('http://') || url.startsWith('https://')) {
       // 외부 URL인 경우 fetch로 가져와서 base64로 변환 (재시도 포함)
       const maxRetries = 3;
       let lastError: any = null;
-      
+
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
           // 타임아웃 10초로 설정
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 10000);
-          
+
           const response = await fetch(url, {
             signal: controller.signal,
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; ContractPDFGenerator/1.0)',
             },
           });
-          
+
           clearTimeout(timeoutId);
-          
+
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
           }
-          
+
           const buffer = Buffer.from(await response.arrayBuffer());
-          
+
           // 빈 파일 체크
           if (buffer.length === 0) {
             throw new Error('이미지 파일이 비어있습니다.');
           }
-          
+
           // 이미지 파일 무결성 검증 (매직 넘버 확인)
-          const isPNG = buffer.length >= 4 && 
+          const isPNG = buffer.length >= 4 &&
             buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
-          const isJPEG = buffer.length >= 3 && 
+          const isJPEG = buffer.length >= 3 &&
             buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
-          const isWEBP = buffer.length >= 12 && 
+          const isWEBP = buffer.length >= 12 &&
             buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && // RIFF
             buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50; // WEBP
-          
+
           if (!isPNG && !isJPEG && !isWEBP) {
             throw new Error('유효하지 않은 이미지 파일 형식입니다.');
           }
-          
-          const mimeType = response.headers.get('content-type') || 
+
+          const mimeType = response.headers.get('content-type') ||
             (isPNG ? 'image/png' : isJPEG ? 'image/jpeg' : 'image/webp');
-          
+
           const base64 = buffer.toString('base64');
           console.log(`[Contract PDF] Successfully loaded signature image (attempt ${attempt}): ${url.substring(0, 50)}... (${buffer.length} bytes)`);
           return `data:${mimeType};base64,${base64}`;
         } catch (error: any) {
           lastError = error;
           console.warn(`[Contract PDF] Failed to fetch image (attempt ${attempt}/${maxRetries}):`, error?.message || error);
-          
+
           // 마지막 시도가 아니면 재시도
           if (attempt < maxRetries) {
             const backoffDelay = Math.min(1000 * Math.pow(2, attempt - 1), 3000); // 1초, 2초 (최대 3초)
@@ -517,7 +517,7 @@ async function getImageAsBase64(url: string): Promise<string | null> {
           }
         }
       }
-      
+
       // 모든 재시도 실패
       console.error('[Contract PDF] All attempts failed to fetch signature image:', url, lastError);
       return null;
@@ -538,7 +538,7 @@ async function getImageAsBase64(url: string): Promise<string | null> {
 
     // 파일 읽기
     const fileBuffer = await readFile(filePath);
-    
+
     // MIME 타입 결정
     const ext = filePath.toLowerCase().split('.').pop();
     let mimeType = 'image/png';
@@ -573,7 +573,7 @@ export async function saveContractPDF(contractId: number, pdfBuffer: Buffer): Pr
   // 1단계: 서버에 먼저 저장 (안정성 확보)
   const fileName = `contract-${contractId}-${Date.now()}.pdf`;
   const uploadDir = join(process.cwd(), 'public', 'uploads', 'contracts');
-  
+
   if (!existsSync(uploadDir)) {
     await mkdir(uploadDir, { recursive: true });
   }
@@ -586,15 +586,10 @@ export async function saveContractPDF(contractId: number, pdfBuffer: Buffer): Pr
   // 2단계: 구글 드라이브 백업 (실패해도 계속 진행)
   try {
     const { uploadFileToDrive } = await import('@/lib/google-drive');
-    
-    // DB에서 폴더 ID 가져오기
-    const { default: prisma } = await import('@/lib/prisma');
-    const config = await prisma.systemConfig.findUnique({
-      where: { configKey: 'google_drive_contracts_folder_id' },
-      select: { configValue: true },
-    });
 
-    const folderId = config?.configValue || process.env.GOOGLE_DRIVE_CONTRACTS_FOLDER_ID;
+    // DB에서 폴더 ID 가져오기
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const folderId = await getDriveFolderId('CONTRACTS');
 
     if (folderId && folderId !== 'root') {
       const uploadResult = await uploadFileToDrive({

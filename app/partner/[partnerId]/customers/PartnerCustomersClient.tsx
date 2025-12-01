@@ -1172,7 +1172,7 @@ export default function PartnerCustomersClient({
       fetchCustomers(1);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, searchTerm, selectedAgentFilter, activeTab]);
+  }, [statusFilter, sourceFilter, searchTerm, selectedAgentFilter, activeTab]);
 
   // 전화상담고객 탭의 검색/필터 변경 시 재조회
   useEffect(() => {
@@ -2173,6 +2173,20 @@ export default function PartnerCustomersClient({
                       </select>
                     </>
                   )}
+                  <label className="text-slate-500">유입경로</label>
+                  <select
+                    value={sourceFilter}
+                    onChange={(event) => setSourceFilter(event.target.value)}
+                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="ALL">전체</option>
+                    <option value="mall">판매몰 구매</option>
+                    <option value="trial">3일체험</option>
+                    <option value="cruise-guide">크루즈가이드 이용</option>
+                    <option value="manual">수동 입력</option>
+                    <option value="product-inquiry">상품 문의</option>
+                    <option value="b2b">B2B 유입</option>
+                  </select>
                   <label className="text-slate-500">상태</label>
                   <select
                     value={statusFilter}

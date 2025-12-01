@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import { getGoogleDriveAuth } from './drive';
 
 const SPREADSHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet';
-const FOLDER_ID = '0AJVz1C-KYWR0Uk9PVA'; // User provided folder ID
+const SPREADSHEET_MIME_TYPE = 'application/vnd.google-apps.spreadsheet';
 
 /**
  * Appends a new B2B lead to the Google Sheet in the specified folder.
@@ -45,27 +45,12 @@ export async function appendB2BLeadToSheet(leadData: {
         const sheets = google.sheets({ version: 'v4', auth });
 
         // 1. Find or Create Subfolder "B2B_DB_Backup"
-        const folderName = 'B2B_DB_Backup';
-        const folderList = await drive.files.list({
-            q: `'${FOLDER_ID}' in parents and name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-            fields: 'files(id, name)',
-        });
+        // Note: With new configuration, B2B_BACKUP points to a specific folder.
+        // We should use it directly.
+        const { getDriveFolderId } = await import('@/lib/config/drive-config');
+        const targetFolderId = await getDriveFolderId('B2B_BACKUP');
 
-        let targetFolderId = folderList.data.files?.[0]?.id;
-
-        if (!targetFolderId) {
-            const newFolder = await drive.files.create({
-                requestBody: {
-                    name: folderName,
-                    mimeType: 'application/vnd.google-apps.folder',
-                    parents: [FOLDER_ID],
-                },
-                fields: 'id',
-            });
-            targetFolderId = newFolder.data.id;
-        }
-
-        if (!targetFolderId) throw new Error('Failed to find or create backup folder');
+        if (!targetFolderId) throw new Error('Failed to find or create backup folder (B2B_BACKUP config missing)');
 
         // 2. Find or Create Spreadsheet inside the subfolder
         const fileList = await drive.files.list({

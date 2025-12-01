@@ -69,12 +69,8 @@ export async function GET(req: NextRequest) {
     const listFolders = url.searchParams.get('listFolders') === 'true'; // 폴더 목록만 조회
 
     // 구글 드라이브 상품 폴더 ID 가져오기
-    const config = await prisma.systemConfig.findUnique({
-      where: { configKey: 'google_drive_products_folder_id' },
-      select: { configValue: true },
-    });
-
-    const productsFolderId = config?.configValue || process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID || '18YuEBt313yyKI3F7PSzjFFRF3Af-bVPH';
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const productsFolderId = await getDriveFolderId('PRODUCTS');
 
     if (!productsFolderId) {
       return NextResponse.json({
@@ -89,7 +85,7 @@ export async function GET(req: NextRequest) {
     // 폴더 목록 조회
     if (listFolders) {
       const query = `'${productsFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-      
+
       const searchOptions: any = {
         q: query,
         fields: 'files(id, name)',
@@ -116,10 +112,10 @@ export async function GET(req: NextRequest) {
 
     // 특정 폴더의 이미지 목록 조회
     const targetFolderId = folderId || productsFolderId;
-    
+
     // 이미지 파일만 조회 (mimeType이 image로 시작하는 파일)
     const query = `'${targetFolderId}' in parents and mimeType contains 'image/' and trashed=false`;
-    
+
     const searchOptions: any = {
       q: query,
       fields: 'files(id, name, webViewLink, webContentLink, thumbnailLink, mimeType)',
@@ -134,19 +130,19 @@ export async function GET(req: NextRequest) {
 
     console.log('[Google Drive Products API] Querying folder:', targetFolderId);
     console.log('[Google Drive Products API] Query:', query);
-    
+
     const response = await drive.files.list(searchOptions);
-    
+
     console.log('[Google Drive Products API] Response:', {
       fileCount: response.data.files?.length || 0,
       files: response.data.files?.map(f => ({ id: f.id, name: f.name, mimeType: f.mimeType })) || []
     });
-    
+
     // 이미지 파일들을 공개로 설정하고 직접 이미지 URL 생성
     const images = await Promise.all(
       (response.data.files || []).map(async (file) => {
         if (!file.id) return null;
-        
+
         try {
           // 파일이 공개되어 있는지 확인하고, 공개되어 있지 않으면 공개로 설정
           try {
@@ -168,12 +164,12 @@ export async function GET(req: NextRequest) {
         } catch (error) {
           console.warn(`[Google Drive] Failed to set permissions for ${file.id}:`, error);
         }
-        
+
         // 파일을 공개로 설정한 후, 직접 이미지 URL 생성
         // 공개 설정 후 webContentLink를 다시 가져와야 할 수 있음
         let directImageUrl = '';
         let thumbnailUrl = '';
-        
+
         // 공개 설정 후 파일 정보 다시 가져오기 (webContentLink 업데이트 확인)
         try {
           const updatedFile = await drive.files.get({
@@ -181,7 +177,7 @@ export async function GET(req: NextRequest) {
             fields: 'webContentLink, thumbnailLink, webViewLink',
             supportsAllDrives: sharedDriveId && sharedDriveId !== 'root',
           });
-          
+
           // webContentLink가 있으면 사용 (가장 안정적)
           if (updatedFile.data.webContentLink) {
             directImageUrl = updatedFile.data.webContentLink;
@@ -192,7 +188,7 @@ export async function GET(req: NextRequest) {
             // 파일 ID로 직접 이미지 URL 생성
             directImageUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
           }
-          
+
           // 썸네일 URL
           if (updatedFile.data.thumbnailLink) {
             thumbnailUrl = updatedFile.data.thumbnailLink.replace(/=s\d+/, '=s400');
@@ -209,14 +205,14 @@ export async function GET(req: NextRequest) {
           } else {
             directImageUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
           }
-          thumbnailUrl = file.thumbnailLink 
+          thumbnailUrl = file.thumbnailLink
             ? file.thumbnailLink.replace(/=s\d+/, '=s400')
             : directImageUrl;
         }
-        
+
         // 프록시 URL 생성 (공유 설정과 무관하게 작동)
         const proxyUrl = `/api/admin/mall/google-drive-image?id=${file.id}`;
-        
+
         console.log(`[Google Drive Products API] Image URL generated:`, {
           id: file.id,
           name: file.name,
@@ -224,7 +220,7 @@ export async function GET(req: NextRequest) {
           directUrl: directImageUrl,
           webContentLink: file.webContentLink,
         });
-        
+
         // 프록시 URL을 우선 사용 (공유 설정 문제 해결)
         // 프록시는 서비스 계정으로 이미지를 가져오므로 공개 설정이 필요 없음
         return {
@@ -239,7 +235,7 @@ export async function GET(req: NextRequest) {
         };
       })
     );
-    
+
     // null 값 제거
     const validImages = images.filter((img): img is NonNullable<typeof img> => img !== null);
 

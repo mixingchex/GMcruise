@@ -9,8 +9,8 @@ import { listFilesInFolder, deleteFileFromDrive } from '@/lib/google-drive';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// 관리자 권한 확인
-async function requireAdmin() {
+// 관리자 또는 판매원 권한 확인 (읽기 전용)
+async function requireAdminOrPartner() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
     return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
@@ -18,21 +18,27 @@ async function requireAdmin() {
 
   const user = await prisma.user.findUnique({
     where: { id: sessionUser.id },
-    select: { role: true },
+    select: {
+      role: true,
+      AffiliateProfile: {
+        select: { id: true }
+      }
+    },
   });
 
-  if (user?.role !== 'admin') {
-    return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
+  // 관리자이거나 판매원(AffiliateProfile이 있음)이면 접근 허용
+  if (user?.role !== 'admin' && !user?.AffiliateProfile) {
+    return NextResponse.json({ ok: false, message: 'Admin or Partner access required' }, { status: 403 });
   }
 
-  return null;
+  return { user, isAdmin: user?.role === 'admin' };
 }
 
 export async function GET(req: NextRequest) {
   try {
-    // 관리자 권한 확인
-    const authError = await requireAdmin();
-    if (authError) return authError;
+    // 관리자 또는 판매원 권한 확인
+    const authResult = await requireAdminOrPartner();
+    if ('status' in authResult) return authResult; // 에러 응답인 경우
 
     const { searchParams } = new URL(req.url);
     const folder = searchParams.get('folder') || 'images';
@@ -123,9 +129,13 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    // 관리자 권한 확인
-    const authError = await requireAdmin();
-    if (authError) return authError;
+    // 관리자 권한 확인 (삭제는 관리자만 가능)
+    const authResult = await requireAdminOrPartner();
+    if ('status' in authResult) return authResult; // 에러 응답인 경우
+
+    if (!authResult.isAdmin) {
+      return NextResponse.json({ ok: false, message: 'Admin access required for deletion' }, { status: 403 });
+    }
 
     const { searchParams } = new URL(req.url);
     const imageUrl = searchParams.get('url');

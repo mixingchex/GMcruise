@@ -1,28 +1,8 @@
 {
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "build": {
-    "env": {
-      "PRISMA_GENERATE_SKIP_AUTOINSTALL": "false"
-    }
-  },
   "crons": [
     {
-      "path": "/api/cron/database-backup",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/expire-trips",
-      "schedule": "0 5 * * *"
-    },
-    {
-      "path": "/api/cron/payslip-sender",
-      "schedule": "0 3 1 * *"
-    },
-    {
-      "path": "/api/cron/community-bot",
-      "schedule": "0 17 * * *"
+      "path": "/api/cron/drive-sync",
+      "schedule": "0 0 * * *"
     }
   ]
 }
-

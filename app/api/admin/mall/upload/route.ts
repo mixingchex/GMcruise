@@ -128,22 +128,22 @@ export async function POST(req: NextRequest) {
       // [크루즈정보사진] 폴더 구조: public/크루즈정보사진/[카테고리]/[하위폴더들]/[파일명].확장자
       // 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
       const categoryDir = category.trim().replace(/[^a-zA-Z0-9가-힣\s]/g, '_');
-      
+
       // 파일명에 슬래시가 있으면 하위 폴더로 인식
       const filenameParts = filename.trim().split('/');
       const actualFilename = filenameParts[filenameParts.length - 1]; // 마지막 부분이 실제 파일명
       const subFolders = filenameParts.slice(0, -1); // 나머지는 하위 폴더 경로
-      
+
       // 각 폴더명을 안전하게 처리
-      const cleanSubFolders = subFolders.map(folder => 
+      const cleanSubFolders = subFolders.map(folder =>
         folder.trim().replace(/[^a-zA-Z0-9가-힣\s]/g, '_')
       );
-      
+
       // 파일명 생성
       const fileExtension = file.name.split('.').pop() || 'jpg';
       const cleanFilename = actualFilename.trim().replace(/[^a-zA-Z0-9가-힣\s]/g, '_');
       const finalFilename = `${cleanFilename}.${fileExtension}`;
-      
+
       // 파일 버퍼 생성
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
             // 상품 코드별 폴더 생성 또는 찾기
             const { findOrCreateFolder, uploadFileToDrive } = await import('@/lib/google-drive');
             const productFolderResult = await findOrCreateFolder(productCode, productsFolderId);
-            
+
             if (productFolderResult.ok && productFolderResult.folderId) {
               // 파일명 생성 (카테고리와 파일명 사용)
               const driveFileName = cleanSubFolders.length > 0
@@ -243,21 +243,21 @@ export async function POST(req: NextRequest) {
       // 전체 경로 구성: public/크루즈정보사진/[카테고리]/[하위폴더1]/[하위폴더2]/...
       const pathParts = [process.cwd(), 'public', '크루즈정보사진', categoryDir, ...cleanSubFolders];
       uploadDir = join(...pathParts);
-      
+
       // 디렉토리 생성 (하위 폴더까지 모두 생성)
       if (!existsSync(uploadDir)) {
         await mkdir(uploadDir, { recursive: true });
       }
-      
+
       const filepath = join(uploadDir, finalFilename);
       await writeFile(filepath, buffer);
-      
+
       // URL 생성 (하위 폴더 경로 포함)
       const urlPath = cleanSubFolders.length > 0
         ? `/크루즈정보사진/${categoryDir}/${cleanSubFolders.join('/')}/${finalFilename}`
         : `/크루즈정보사진/${categoryDir}/${finalFilename}`;
       const url = urlPath;
-      
+
       return NextResponse.json({
         ok: true,
         url,
@@ -278,14 +278,17 @@ export async function POST(req: NextRequest) {
       const finalFilename = `${timestamp}_${originalName}`;
 
       // 타입별 Google Drive 폴더 ID 매핑
+      const { getDriveFolderId } = await import('@/lib/config/drive-config');
+      const imagesFolderId = await getDriveFolderId('UPLOADS_IMAGES');
+
       const folderIdMap: Record<string, string | undefined> = {
-        images: process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID,
+        images: imagesFolderId,
         videos: process.env.GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID,
         fonts: process.env.GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID,
         documents: process.env.GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID,
       };
 
-      const targetFolderId = folderIdMap[subDir] || process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+      const targetFolderId = folderIdMap[subDir] || imagesFolderId;
 
       if (!targetFolderId) {
         return NextResponse.json(
@@ -335,8 +338,8 @@ export async function POST(req: NextRequest) {
     console.error('[Mall Upload API] Error details:', error instanceof Error ? error.message : String(error));
     console.error('[Mall Upload API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         error: error instanceof Error ? error.message : '파일 업로드 중 오류가 발생했습니다.',
         details: error instanceof Error ? error.stack : String(error)
       },

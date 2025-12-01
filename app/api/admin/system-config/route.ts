@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
                 configKey: key,
                 configValue: value,
                 description: description,
-                category: 'landing_page',
+                category: body.category || 'general',
                 updatedAt: new Date(),
             }
         });

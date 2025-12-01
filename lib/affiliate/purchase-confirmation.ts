@@ -223,15 +223,16 @@ export async function sendPurchaseConfirmation(saleId: number) {
     const sale = await prisma.affiliateSale.findUnique({
       where: { id: saleId },
       include: {
-        lead: {
+        AffiliateLead: {
           select: {
             customerName: true,
             customerPhone: true,
           },
         },
-        manager: {
-          include: {
-            user: {
+        AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
+          select: {
+            displayName: true,
+            User: {
               select: {
                 id: true,
                 name: true,
@@ -241,9 +242,10 @@ export async function sendPurchaseConfirmation(saleId: number) {
             },
           },
         },
-        agent: {
-          include: {
-            user: {
+        AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
+          select: {
+            displayName: true,
+            User: {
               select: {
                 id: true,
                 name: true,
@@ -253,7 +255,7 @@ export async function sendPurchaseConfirmation(saleId: number) {
             },
           },
         },
-        product: {
+        AffiliateProduct: {
           select: {
             productName: true,
           },
@@ -267,18 +269,20 @@ export async function sendPurchaseConfirmation(saleId: number) {
     }
 
     // 담당자 정보 결정 (판매원 우선, 없으면 대리점장)
-    const responsibleProfile = sale.agent || sale.manager;
+    const agent = sale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile;
+    const manager = sale.AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile;
+    const responsibleProfile = agent || manager;
     if (!responsibleProfile) {
       console.error('[Purchase Confirmation] No responsible affiliate found');
       return { success: false, error: 'No responsible affiliate' };
     }
 
-    const responsibleName = responsibleProfile.displayName || responsibleProfile.user?.name || '담당자';
-    const responsibleRole = sale.agent ? '판매원' : '대리점장';
+    const responsibleName = responsibleProfile.displayName || responsibleProfile.User?.name || '담당자';
+    const responsibleRole = agent ? '판매원' : '대리점장';
 
     // 고객 정보
-    const customerName = sale.lead?.customerName || '고객님';
-    const customerPhone = sale.lead?.customerPhone;
+    const customerName = sale.AffiliateLead?.customerName || '고객님';
+    const customerPhone = sale.AffiliateLead?.customerPhone;
     // 이메일은 Lead에 없으므로 metadata나 다른 소스에서 가져올 수 있음
     const customerEmail = (sale.metadata as any)?.customerEmail || null;
 
@@ -286,7 +290,7 @@ export async function sendPurchaseConfirmation(saleId: number) {
     const templates = generatePurchaseConfirmationTemplate({
       customerName,
       productCode: sale.productCode,
-      productName: sale.product?.productName,
+      productName: sale.AffiliateProduct?.productName,
       saleAmount: sale.saleAmount,
       saleDate: sale.saleDate?.toISOString() || new Date().toISOString(),
       headcount: sale.headcount || undefined,

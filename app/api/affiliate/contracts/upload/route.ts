@@ -66,16 +66,16 @@ export async function POST(req: NextRequest) {
     }
 
     // 이미지 파일 무결성 검증 (매직 넘버 확인)
-    const isPNG = buffer.length >= 4 && 
+    const isPNG = buffer.length >= 4 &&
       buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47;
-    const isJPEG = buffer.length >= 3 && 
+    const isJPEG = buffer.length >= 3 &&
       buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF;
-    const isWEBP = buffer.length >= 12 && 
+    const isWEBP = buffer.length >= 12 &&
       buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 && // RIFF
       buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50; // WEBP
-    
+
     const isValidImage = isPNG || isJPEG || isWEBP;
-    
+
     if (!isValidImage) {
       logger.error('[Contract Signature] Invalid image file detected:', {
         mimeType,
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     // 1단계: 서버에 먼저 저장 (/tmp 디렉토리)
     const tmpDir = '/tmp';
     const tmpFilePath = join(tmpDir, uniqueFileName);
-    
+
     try {
       await writeFile(tmpFilePath, buffer);
       logger.log(`[Contract Signature] Saved to server: ${tmpFilePath}`);
@@ -106,19 +106,16 @@ export async function POST(req: NextRequest) {
 
     // 2단계: Base64로 인코딩하여 즉시 반환 (싸인 이미지 바로 표시)
     const base64Image = `data:${mimeType};base64,${buffer.toString('base64')}`;
-    
-    // 3단계: Google Drive 폴더 ID 확인 및 백그라운드 업로드
-    const config = await prisma.systemConfig.findUnique({
-      where: { configKey: 'google_drive_signatures_folder_id' },
-      select: { configValue: true },
-    });
 
-    const folderId = config?.configValue || process.env.GOOGLE_DRIVE_CONTRACT_SIGNATURES_FOLDER_ID || '1PcdSnWQ3iCdd87Y-UI_63HSjlYqcFGyX';
+    // 3단계: Google Drive 폴더 ID 확인 및 백그라운드 업로드
+    // 3단계: Google Drive 폴더 ID 확인 및 백그라운드 업로드
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const folderId = await getDriveFolderId('SIGNATURES');
 
     // Google Drive 업로드는 백그라운드에서 진행 (응답 지연 없음)
     if (folderId && folderId !== 'root') {
       const { uploadFileToDrive } = await import('@/lib/google-drive');
-      
+
       // 백그라운드에서 Google Drive 업로드 (응답을 기다리지 않음)
       uploadFileToDrive({
         folderId,

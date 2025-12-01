@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { generateLedgerEntries } from '@/lib/affiliate/commission';
+import { generateLedgerEntries, calculateCommissionBreakdown } from '@/lib/affiliate/commission';
 import { sendPurchaseConfirmation } from '@/lib/affiliate/purchase-confirmation';
 
 /**
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
           select: {
             id: true,
             type: true,
-            agentRelations: {
+            AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile: {
               where: { status: 'ACTIVE' },
               select: { managerId: true },
               take: 1,
@@ -71,25 +71,13 @@ export async function POST(req: NextRequest) {
         });
       }
       
-      // 방법 2: affiliateMallUserId로 찾기 (User ID 또는 phone으로 찾기)
+      // 방법 2: affiliateMallUserId로 찾기 (mallUserId로 찾기)
       if (!affiliateProfile && affiliateMallUserId) {
-        // 먼저 User를 찾기 (ID 또는 phone으로)
-        const userIdNum = parseInt(affiliateMallUserId);
-        let user = null;
-        
-        if (!isNaN(userIdNum)) {
-          // 숫자면 ID로 찾기
-          user = await prisma.user.findUnique({
-            where: { id: userIdNum },
-            select: { id: true, phone: true },
-          });
-        } else {
-          // 문자열이면 phone으로 찾기
-          user = await prisma.user.findFirst({
-            where: { phone: affiliateMallUserId },
-            select: { id: true, phone: true },
-          });
-        }
+        // User를 mallUserId로 찾기
+        const user = await prisma.user.findFirst({
+          where: { mallUserId: affiliateMallUserId },
+          select: { id: true, mallUserId: true },
+        });
 
         if (user) {
           // User와 연결된 AffiliateProfile 찾기
@@ -101,7 +89,7 @@ export async function POST(req: NextRequest) {
             select: {
               id: true,
               type: true,
-              agentRelations: {
+              AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile: {
                 where: { status: 'ACTIVE' },
                 select: { managerId: true },
                 take: 1,
@@ -116,8 +104,10 @@ export async function POST(req: NextRequest) {
           managerId = affiliateProfile.id;
         } else if (affiliateProfile.type === 'SALES_AGENT') {
           agentId = affiliateProfile.id;
-          if (affiliateProfile.agentRelations.length > 0) {
-            managerId = affiliateProfile.agentRelations[0].managerId;
+          // 판매원이 속한 대리점장 찾기
+          const relations = affiliateProfile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile;
+          if (relations && relations.length > 0) {
+            managerId = relations[0].managerId;
           }
         }
       }
@@ -161,23 +151,68 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 수당 계산
+    // 🎯 CommissionTier 조회 (상품별 수당 설정)
+    let commissionTier = null;
+    const roomSelections = metadata?.roomSelections || [];
+
+    // 객실 타입 결정: 직접 전달된 cabinType 또는 roomSelections의 첫 번째 객실
+    let determinedCabinType = cabinType;
+    if (!determinedCabinType && roomSelections.length > 0) {
+      determinedCabinType = roomSelections[0].roomType;
+    }
+
+    if (affiliateProductId && determinedCabinType) {
+      commissionTier = await prisma.affiliateCommissionTier.findFirst({
+        where: {
+          affiliateProductId,
+          cabinType: determinedCabinType,
+          // fareCategory가 있으면 매칭, 없으면 무시
+          ...(fareCategory ? { fareCategory } : {}),
+        },
+        select: {
+          cabinType: true,
+          fareCategory: true,
+          saleAmount: true,
+          costAmount: true,
+          branchShareAmount: true,
+          salesShareAmount: true,
+          overrideAmount: true,
+          currency: true,
+        },
+      });
+
+      if (commissionTier) {
+        console.log('[Payment Webhook] CommissionTier 찾음:', {
+          productCode,
+          cabinType: determinedCabinType,
+          branchShare: commissionTier.branchShareAmount,
+          salesShare: commissionTier.salesShareAmount,
+        });
+      } else {
+        console.warn('[Payment Webhook] CommissionTier를 찾을 수 없음:', {
+          productCode,
+          affiliateProductId,
+          cabinType: determinedCabinType,
+          fareCategory,
+        });
+      }
+    }
+
+    // 수당 계산 (🎯 CommissionTier 적용!)
     const netRevenue = amount - (costAmount || 0);
-    const breakdown = generateLedgerEntries({
-      saleId: 0, // 임시값, 나중에 업데이트
+    const breakdown = calculateCommissionBreakdown({
       saleAmount: amount,
-      costAmount: costAmount || 0,
-      managerProfileId: managerId ?? undefined,
-      agentProfileId: agentId ?? undefined,
-      currency: 'KRW',
-      metadata: {
-        ...metadata,
-        imp_uid,
-        merchant_uid,
-        affiliateCode,
-        affiliateMallUserId,
-      },
+      costAmount: commissionTier?.costAmount || costAmount || 0,
+      branchCommission: commissionTier?.branchShareAmount || 0, // 🎯 Tier에서 가져옴!
+      salesCommission: commissionTier?.salesShareAmount || 0,   // 🎯 Tier에서 가져옴!
+      overrideCommission: commissionTier?.overrideAmount || 0,  // 🎯 Tier에서 가져옴!
+      currency: commissionTier?.currency || 'KRW',
     });
+
+    // 🎯 실제 수당 결정 (어필리에이트 여부에 따라)
+    const actualBranchCommission = managerId && !agentId ? breakdown.branchCommission : 0;
+    const actualSalesCommission = agentId ? breakdown.salesCommission : 0;
+    const actualOverrideCommission = managerId && agentId ? breakdown.overrideCommission : 0;
 
     // AffiliateSale 생성
     const sale = await prisma.affiliateSale.create({
@@ -188,38 +223,60 @@ export async function POST(req: NextRequest) {
         managerId: managerId,
         agentId: agentId,
         productCode,
-        cabinType: cabinType || null,
+        cabinType: determinedCabinType || cabinType || null, // 🎯 결정된 cabinType 저장
         fareCategory: fareCategory || null,
         headcount: headcount || null,
         saleAmount: amount,
-        costAmount: costAmount || null,
+        costAmount: commissionTier?.costAmount || costAmount || null, // 🎯 Tier의 costAmount 우선
         netRevenue,
-        branchCommission: breakdown.breakdown.branchCommission,
-        salesCommission: breakdown.breakdown.salesCommission,
-        overrideCommission: breakdown.breakdown.overrideCommission,
-        withholdingAmount: breakdown.breakdown.totalWithholding,
+        branchCommission: actualBranchCommission,
+        salesCommission: actualSalesCommission,
+        overrideCommission: actualOverrideCommission,
+        withholdingAmount: breakdown.totalWithholding,
         status: 'CONFIRMED',
         saleDate: new Date(),
         confirmedAt: new Date(),
+        updatedAt: new Date(),
         metadata: {
           ...metadata,
           imp_uid,
           merchant_uid,
           affiliateCode,
           affiliateMallUserId,
+          commissionTierId: commissionTier ? `${affiliateProductId}-${determinedCabinType}` : null, // 🎯 추적용
+          roomSelections, // 🎯 원본 데이터 보존
         },
       },
     });
 
-    // CommissionLedger 엔트리 생성
-    const ledgerEntries = breakdown.ledgerEntries.map((entry) => ({
-      ...entry,
+    // CommissionLedger 엔트리 생성 (🎯 실제 saleId로 생성)
+    // 🎯 대리점장 직접 판매: branchCommission만, 대리점 팀 판매: salesCommission + override만
+    const ledgerResult = generateLedgerEntries({
       saleId: sale.id,
-    }));
+      saleAmount: amount,
+      costAmount: commissionTier?.costAmount || costAmount || 0,
+      branchCommission: agentId ? 0 : (commissionTier?.branchShareAmount || 0),
+      salesCommission: agentId ? (commissionTier?.salesShareAmount || 0) : 0,
+      overrideCommission: managerId && agentId ? (commissionTier?.overrideAmount || 0) : 0,
+      managerProfileId: managerId ?? undefined,
+      agentProfileId: agentId ?? undefined,
+      currency: commissionTier?.currency || 'KRW',
+      metadata: {
+        ...metadata,
+        imp_uid,
+        merchant_uid,
+        affiliateCode,
+        affiliateMallUserId,
+        commissionTierId: commissionTier ? `${affiliateProductId}-${determinedCabinType}` : null,
+      },
+    });
 
-    if (ledgerEntries.length > 0) {
+    if (ledgerResult.ledgerEntries.length > 0) {
       await prisma.commissionLedger.createMany({
-        data: ledgerEntries,
+        data: ledgerResult.ledgerEntries.map((entry) => ({
+          ...entry,
+          updatedAt: new Date(),
+        })),
       });
     }
 
@@ -291,6 +348,7 @@ export async function POST(req: NextRequest) {
                 orderId: merchant_uid,
                 imp_uid,
               },
+              updatedAt: new Date(),
             },
           });
           updatedLeadId = newLead.id;
@@ -348,7 +406,7 @@ export async function POST(req: NextRequest) {
       managerId,
       agentId,
       amount,
-      breakdown: breakdown.breakdown,
+      breakdown: breakdown,
     });
 
     // 구매확인서 자동 발송 (담당자가 있는 경우)

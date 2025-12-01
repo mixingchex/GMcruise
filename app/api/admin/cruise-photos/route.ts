@@ -9,8 +9,8 @@ import { google } from 'googleapis';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// 관리자 권한 확인
-async function requireAdmin() {
+// 관리자 또는 판매원 권한 확인 (읽기 전용)
+async function requireAdminOrPartner() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
     return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
@@ -18,14 +18,20 @@ async function requireAdmin() {
 
   const user = await prisma.user.findUnique({
     where: { id: sessionUser.id },
-    select: { role: true },
+    select: {
+      role: true,
+      AffiliateProfile: {
+        select: { id: true }
+      }
+    },
   });
 
-  if (user?.role !== 'admin') {
-    return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
+  // 관리자이거나 판매원(AffiliateProfile이 있음)이면 접근 허용
+  if (user?.role !== 'admin' && !user?.AffiliateProfile) {
+    return NextResponse.json({ ok: false, message: 'Admin or Partner access required' }, { status: 403 });
   }
 
-  return null;
+  return { user, isAdmin: user?.role === 'admin' };
 }
 
 function getDriveClient() {
@@ -40,10 +46,10 @@ function getDriveClient() {
     console.error('[Cruise Photos] Missing credentials:', {
       hasEmail: !!clientEmail,
       hasKey: !!privateKey,
-      emailEnv: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ? 'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL' : 
-                process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'GOOGLE_SERVICE_ACCOUNT_EMAIL' : 'none',
+      emailEnv: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ? 'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL' :
+        process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'GOOGLE_SERVICE_ACCOUNT_EMAIL' : 'none',
       keyEnv: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ? 'GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY' :
-              process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ? 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY' : 'none',
+        process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ? 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY' : 'none',
     });
     throw new Error('Google Drive 서비스 계정 정보가 설정되어 있지 않습니다.');
   }
@@ -51,19 +57,19 @@ function getDriveClient() {
   try {
     // Private key 처리: 환경 변수에서 오는 다양한 형식 처리
     let processedKey = privateKey;
-    
+
     // 따옴표 제거 (환경 변수가 따옴표로 감싸져 있는 경우)
     if ((processedKey.startsWith('"') && processedKey.endsWith('"')) ||
-        (processedKey.startsWith("'") && processedKey.endsWith("'"))) {
+      (processedKey.startsWith("'") && processedKey.endsWith("'"))) {
       processedKey = processedKey.slice(1, -1);
     }
-    
+
     // 줄바꿈 문자 처리 (여러 형식 지원)
     // 환경 변수에서 \n이 문자열로 들어오는 경우 처리
     if (processedKey.includes('\\n')) {
       processedKey = processedKey.replace(/\\n/g, '\n');
     }
-    
+
     // Windows/Mac 줄바꿈 정규화
     processedKey = processedKey.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
@@ -96,7 +102,7 @@ async function findFolderByPath(drive: any, parentFolderId: string, folderName: 
     // 폴더명에 특수문자가 있을 수 있으므로 이스케이프 처리
     const escapedFolderName = folderName.replace(/'/g, "\\'");
     const query = `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and name='${escapedFolderName}' and trashed=false`;
-    
+
     const searchOptions: any = {
       q: query,
       fields: 'files(id, name)',
@@ -126,9 +132,9 @@ async function findFolderByPath(drive: any, parentFolderId: string, folderName: 
  */
 export async function GET(req: NextRequest) {
   try {
-    // 관리자 권한 확인
-    const authError = await requireAdmin();
-    if (authError) return authError;
+    // 관리자 또는 판매원 권한 확인
+    const authResult = await requireAdminOrPartner();
+    if ('status' in authResult) return authResult; // 에러 응답인 경우
 
     const { searchParams } = new URL(req.url);
     const folderPath = searchParams.get('folder') || ''; // 예: "홍콩" 또는 "홍콩/홍콩후기"
@@ -154,6 +160,11 @@ export async function GET(req: NextRequest) {
       drive = getDriveClient();
     } catch (error: any) {
       console.error('[Cruise Photos] Google Drive client error:', error);
+      console.error('[Cruise Photos] Environment variables:', {
+        hasEmail: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL,
+        hasKey: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY,
+        email: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL,
+      });
       return NextResponse.json(
         { ok: false, message: `Google Drive 연결 실패: ${error.message}` },
         { status: 500 }
@@ -165,7 +176,7 @@ export async function GET(req: NextRequest) {
     if (folderPath) {
       const pathParts = folderPath.split('/').filter(p => p.trim());
       let currentFolderId = rootFolderId;
-      
+
       for (const part of pathParts) {
         if (!part.trim()) continue;
         const foundId = await findFolderByPath(drive, currentFolderId, part.trim(), sharedDriveId);
@@ -249,7 +260,7 @@ export async function GET(req: NextRequest) {
         { status: 500 }
       );
     }
-    
+
     // 이미지 파일들을 공개로 설정
     const images = await Promise.all(
       (imageResponse.data.files || []).map(async (file) => {
@@ -289,7 +300,7 @@ export async function GET(req: NextRequest) {
         // 프록시 URL 생성 (WebP 변환 지원)
         const proxyUrl = `/api/admin/cruise-photos/image?id=${file.id}`;
         const webpUrl = `/api/admin/cruise-photos/image?id=${file.id}&format=webp`;
-        
+
         const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
 
         return {
@@ -326,8 +337,8 @@ export async function GET(req: NextRequest) {
     console.error('[Cruise Photos] 에러:', error);
     console.error('[Cruise Photos] 에러 스택:', error.stack);
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         message: error.message || '크루즈정보사진 목록을 불러오는 중 오류가 발생했습니다.',
         error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },

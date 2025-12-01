@@ -11,7 +11,7 @@ const SESSION_COOKIE = 'cg.sid.v2';
 async function checkAdminAuth() {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid) {
       return null;
     }
@@ -72,10 +72,11 @@ export async function POST(req: NextRequest) {
     const timestamp = Date.now();
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileName = `messages_${timestamp}_${originalName}`;
-    
+
     // Google Drive 이미지 폴더 ID 가져오기
-    const imagesFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
-    
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const imagesFolderId = await getDriveFolderId('UPLOADS_IMAGES');
+
     if (!imagesFolderId) {
       return NextResponse.json(
         { ok: false, error: 'Google Drive 이미지 폴더 ID가 설정되지 않았습니다.' },

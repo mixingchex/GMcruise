@@ -1706,29 +1706,6 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           </div>
         </div>
 
-        {/* B2B 유입 및 시스템 문의 고객 리스트 (간략 보기) */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="text-2xl">👥</span>
-              최근 B2B / 시스템 문의 고객
-            </h2>
-            <Link href={`/partner/${user.mallUserId || user.phone}/b2b-prospects`} className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1">
-              전체보기 <FiArrowRight />
-            </Link>
-          </div>
-
-          <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-            <p className="text-gray-500 mb-2">고객 관리는 '고객 관리' 메뉴에서 상세하게 확인하실 수 있습니다.</p>
-            <Link
-              href={`/partner/${user.mallUserId || user.phone}/b2b-prospects`}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm"
-            >
-              <FiUsers /> B2B 잠재고객 관리 바로가기
-            </Link>
-          </div>
-        </div>
-
         {/* 통계 카드 - 모바일 최적화 */}
         {loadingStats ? (
           <div className="flex items-center justify-center py-12">
@@ -1921,6 +1898,16 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               >
                 <FiGlobe className="text-2xl md:text-3xl" />
                 <span className="text-xs font-bold md:text-sm">B2B 유입<br />랜딩</span>
+              </button>
+            )}
+            {/* 이미지 관리 (대리점장 전용) */}
+            {isBranchManager && (
+              <button
+                onClick={() => router.push(`${partnerBase}/images`)}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 p-4 text-center transition-all hover:shadow-md md:p-6 text-white"
+              >
+                <FiImage className="text-2xl md:text-3xl" />
+                <span className="text-xs font-bold md:text-sm">이미지<br />관리</span>
               </button>
             )}
             {(user.mallUserId || user.phone) && (
@@ -2185,16 +2172,6 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
               </Link>
             )}
-            {/* B2B Prospects Link */}
-            <button
-              onClick={() => router.push(`${partnerBase}/b2b-prospects`)}
-              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all hover:shadow-md group"
-            >
-              <span className="text-2xl">🏢</span>
-              <span className="text-xs font-medium text-center text-blue-800 leading-tight">B2B 잠재고객</span>
-              <FiArrowRight className="w-3 h-3 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </button>
-
 
             {/* 수동여권 등록 */}
             {subscriptionInfo ? (

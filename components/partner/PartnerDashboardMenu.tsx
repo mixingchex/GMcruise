@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { 
-  FiLink, 
-  FiUsers, 
+import {
+  FiLink,
+  FiUsers,
   FiUser,
   FiClock,
   FiMessageSquare,
@@ -12,6 +12,7 @@ import {
   FiSend,
   FiFileText,
   FiLock,
+  FiImage,
 } from 'react-icons/fi';
 
 interface PartnerDashboardMenuProps {
@@ -112,12 +113,19 @@ export default function PartnerDashboardMenu({
           <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
           <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
         </Link>
-        <Link 
-          href={`${partnerBase}/documents`} 
+        <Link
+          href={`${partnerBase}/documents`}
           className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
         >
           <span className="text-2xl md:text-3xl">📄</span>
           <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
+        </Link>
+        <Link
+          href="/admin/images"
+          className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-violet-50 to-violet-100 p-4 text-center transition-all hover:from-violet-100 hover:to-violet-200 hover:shadow-md md:p-6"
+        >
+          <FiImage className="text-2xl text-violet-600 md:text-3xl" />
+          <span className="text-xs font-semibold text-violet-700 md:text-sm">이미지<br />다운로드</span>
         </Link>
         {isBranchManager && (
           <>

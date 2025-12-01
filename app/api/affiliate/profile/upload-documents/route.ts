@@ -19,18 +19,6 @@ import { join } from 'path';
 
 
 
-// ★ 엘런님이 지정한 구글 드라이브 폴더 ID ★
-
-const FOLDER_IDS: Record<string, string> = {
-
-  'ID_CARD': '1DFWpAiS-edjiBym5Y5AonDOl2wXyuDV0',  
-
-  'BANKBOOK': '1IjNSTTTBjU9NZE6fm6DeAAHBx4puWCRl' 
-
-};
-
-
-
 // GET: 문서 목록 조회
 export async function GET(req: NextRequest) {
   try {
@@ -40,8 +28,8 @@ export async function GET(req: NextRequest) {
     }
 
     const userIdInt = parseInt(String(session.userId), 10);
-    const profile = await prisma.affiliateProfile.findFirst({ 
-      where: { userId: userIdInt } 
+    const profile = await prisma.affiliateProfile.findFirst({
+      where: { userId: userIdInt }
     });
 
     if (!profile) {
@@ -53,8 +41,8 @@ export async function GET(req: NextRequest) {
       orderBy: { uploadedAt: 'desc' },
     });
 
-    return NextResponse.json({ 
-      ok: true, 
+    return NextResponse.json({
+      ok: true,
       documents: documents.map(doc => ({
         id: doc.id,
         documentType: doc.documentType,
@@ -69,9 +57,9 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('[GET Documents API Error]', error);
-    return NextResponse.json({ 
-      ok: false, 
-      error: error?.message || '문서 목록을 불러오는 중 오류가 발생했습니다.' 
+    return NextResponse.json({
+      ok: false,
+      error: error?.message || '문서 목록을 불러오는 중 오류가 발생했습니다.'
     }, { status: 500 });
   }
 }
@@ -104,26 +92,14 @@ export async function POST(req: NextRequest) {
 
 
     // 타입 정규화
-
-    const documentType = (rawType === 'BANKBOOK') ? 'BANKBOOK' : 'ID_CARD';
-
-    const targetFolderId = FOLDER_IDS[documentType];
-
-
+    const documentType = (rawType === 'BANKBOOK') ? 'bankbook' : 'idCard';
 
     // 1단계: 서버에 먼저 저장 (안정성 확보)
-
     const buffer = Buffer.from(await file.arrayBuffer());
-
     const timestamp = Date.now();
-
     const random = Math.random().toString(36).substring(2, 8);
-
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-
     const localFileName = `${documentType.toLowerCase()}_${session.userId}_${timestamp}_${random}_${originalName}`;
-
-    
 
     // 업로드 디렉토리 확인/생성
 
@@ -201,7 +177,7 @@ export async function POST(req: NextRequest) {
 
     const profile = await prisma.affiliateProfile.findFirst({ where: { userId: userIdInt } });
 
-    
+
 
     if (!profile) {
 
@@ -209,9 +185,9 @@ export async function POST(req: NextRequest) {
 
       console.warn('[Upload Documents] 프로필이 없어서 DB에 저장하지 못했습니다. 파일은 서버에 저장되었습니다:', serverUrl);
 
-      return NextResponse.json({ 
+      return NextResponse.json({
 
-        ok: false, 
+        ok: false,
 
         error: '어필리에이트 프로필이 없습니다. 프로필을 먼저 생성해주세요.',
 
@@ -223,7 +199,7 @@ export async function POST(req: NextRequest) {
 
     }
 
-    
+
 
     if (fileUrl) {
 
@@ -257,15 +233,15 @@ export async function POST(req: NextRequest) {
 
           where: { id: existing.id },
 
-          data: { 
+          data: {
 
-            filePath: fileUrl, 
+            filePath: fileUrl,
 
-            fileName: file.name, 
+            fileName: file.name,
 
             fileSize: file.size,
 
-            status: 'UPLOADED', 
+            status: 'UPLOADED',
 
             // updatedAt 필드가 없으므로 제거
 
@@ -305,11 +281,11 @@ export async function POST(req: NextRequest) {
 
 
 
-    return NextResponse.json({ 
+    return NextResponse.json({
 
-      ok: true, 
+      ok: true,
 
-      success: true, 
+      success: true,
 
       url: fileUrl,
 
@@ -339,21 +315,21 @@ export async function POST(req: NextRequest) {
 
     if (error?.message?.includes('JWT') || error?.message?.includes('invalid_grant') || error?.message?.includes('Invalid JWT Signature')) {
 
-      return NextResponse.json({ 
+      return NextResponse.json({
 
         ok: false,
 
-        error: `Google Drive 인증 실패: ${error?.message || 'Invalid JWT Signature'}. 환경변수 GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY 또는 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY의 줄바꿈 문자(\\n) 처리를 확인해주세요.` 
+        error: `Google Drive 인증 실패: ${error?.message || 'Invalid JWT Signature'}. 환경변수 GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY 또는 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY의 줄바꿈 문자(\\n) 처리를 확인해주세요.`
 
       }, { status: 500 });
 
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
 
       ok: false,
 
-      error: error?.message || '문서 업로드 중 오류가 발생했습니다.' 
+      error: error?.message || '문서 업로드 중 오류가 발생했습니다.'
 
     }, { status: 500 });
 

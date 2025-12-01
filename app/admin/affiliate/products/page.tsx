@@ -109,6 +109,10 @@ type TierForm = {
   salesShareAmount: string;
   overrideAmount: string;
   currency: string;
+  // 🆕 % 필드 추가 (% ↔ 금액 양방향 변환)
+  hqSharePercent?: string;
+  branchSharePercent?: string;
+  salesSharePercent?: string;
 };
 
 type ProductFormState = {

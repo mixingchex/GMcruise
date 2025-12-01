@@ -58,7 +58,7 @@ const readMediaLibrary = async (): Promise<{ directories: MediaDirectory[]; file
       if (!stats.isDirectory()) {
         return;
       }
-      
+
       const entries = await fs.readdir(currentPath, { withFileTypes: true });
       for (const entry of entries) {
         const entryPath = path.join(currentPath, entry.name);
@@ -140,7 +140,9 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(arrayBuffer);
 
     // Google Drive 폴더 ID 가져오기
-    const baseFolderId = process.env.GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID;
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const baseFolderId = await getDriveFolderId('UPLOADS_IMAGES');
+
     if (!baseFolderId) {
       return NextResponse.json(
         { ok: false, error: 'Google Drive 크루즈 이미지 폴더 ID가 설정되지 않았습니다.' },
@@ -175,15 +177,15 @@ export async function POST(req: Request) {
 
     // 기존 경로 형식 유지 (하위 호환성)
     const relativePath = `/${path.join("크루즈정보사진", safeSubfolder, finalName).replace(/\\/g, "/")}`;
-    
-    return NextResponse.json({ 
-      ok: true, 
-      file: { 
-        path: relativePath, 
+
+    return NextResponse.json({
+      ok: true,
+      file: {
+        path: relativePath,
         name: finalName,
         url: uploadResult.url, // Google Drive URL 추가
         fileId: uploadResult.fileId,
-      } 
+      }
     });
   } catch (error: any) {
     console.error("[CRUISEDOT MEDIA] POST error:", error);

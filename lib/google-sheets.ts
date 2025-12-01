@@ -80,6 +80,7 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
         Reservation: {
           include: {
             User: true,
+            Traveler: true,
           },
         },
       },
@@ -96,8 +97,33 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
       };
     }
 
+    // ... (folder creation logic remains same) ...
+    // I need to keep the folder creation logic which is between line 99 and 190.
+    // So I should target the query part and the mapping part separately or be careful.
+    // The previous replace_file_content updated lines 99-154.
+    // So I should target lines 77-86 (query) and 201-216 (mapping).
+
+    // Let's do query update first.
+
+
+    if (!trip) {
+      return {
+        ok: false,
+        error: '여행 정보를 찾을 수 없습니다.',
+        spreadsheetId: null,
+        spreadsheetUrl: null,
+        folderId: null,
+        rowCount: 0,
+      };
+    }
+
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const parentFolderId = await getDriveFolderId('APIS_MAIN');
+
     const folderName = `${trip.shipName || 'Cruise'} - ${new Date(trip.departureDate).toISOString().split('T')[0]}`;
-    const folderResult = await findOrCreateFolder(folderName);
+
+    // APIS 메인 폴더 안에 여행별 폴더 생성/찾기
+    const folderResult = await findOrCreateFolder(folderName, parentFolderId);
 
     if (!folderResult.ok || !folderResult.folderId) {
       return {
@@ -117,8 +143,8 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
 
     if (!spreadsheetId) {
       // 템플릿 스프레드시트 ID 가져오기
-      const templateSpreadsheetId = process.env.COMMUNITY_BACKUP_SPREADSHEET_ID;
-      
+      const templateSpreadsheetId = await getDriveFolderId('APIS_TEMPLATE_ID');
+
       if (templateSpreadsheetId) {
         // 템플릿 복제 방식 사용
         const drive = getDriveClient();
@@ -126,7 +152,9 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
           fileId: templateSpreadsheetId,
           requestBody: {
             name: spreadsheetTitle,
+            parents: [folderId], // 바로 대상 폴더에 생성
           },
+          supportsAllDrives: true,
         });
 
         if (!copiedFile.data.id) {
@@ -135,13 +163,7 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
 
         spreadsheetId = copiedFile.data.id;
 
-        // 복제된 스프레드시트를 여행별 폴더로 이동
-        await drive.files.update({
-          fileId: spreadsheetId,
-          addParents: folderId,
-          removeParents: 'root',
-          fields: 'id, parents',
-        } as any);
+        // parents에 이미 추가했으므로 이동 불필요
       } else {
         // 템플릿이 없으면 새로 생성
         const createResponse = await sheets.spreadsheets.create({
@@ -190,20 +212,43 @@ export async function syncApisSpreadsheet(tripId: number): Promise<{
     });
 
     // 여권 링크 정보 가져오기 (Reservation에서 passportDriveUrl 또는 passportUrl 확인)
-    const rows = trip.Reservation.map((reservation) => {
-      const passportLink = (reservation as any).passportDriveUrl || (reservation as any).passportUrl || '';
-      return [
-        reservation.User?.name || '',
-        reservation.passportNumber || '미제출',
-        reservation.passportBirthDate || '',
-        reservation.passportNationality || '',
-        reservation.passportGender || '',
-        reservation.User?.phone || '',
-        reservation.User?.email || '',
-        reservation.passportNumber ? '제출완료' : '미제출',
-        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', // H열부터 W열까지 빈 값
-        passportLink, // X열에 여권 링크
-      ];
+    // 여권 정보 가져오기 (Traveler 기준)
+    const rows: SheetsAppendRow[] = [];
+
+    trip.Reservation.forEach((reservation) => {
+      // Traveler가 있으면 Traveler 정보 사용
+      if (reservation.Traveler && reservation.Traveler.length > 0) {
+        reservation.Traveler.forEach((traveler) => {
+          const passportLink = traveler.passportImage || (reservation as any).passportDriveUrl || (reservation as any).passportUrl || '';
+          rows.push([
+            traveler.korName || reservation.User?.name || '',
+            traveler.passportNo || '미제출',
+            traveler.birthDate || '',
+            traveler.nationality || '',
+            traveler.gender || '',
+            reservation.User?.phone || '', // 연락처는 예약자(대표자) 정보 사용
+            reservation.User?.email || '',
+            traveler.passportNo ? '제출완료' : '미제출',
+            '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', // 빈 열들
+            passportLink, // X열에 여권 링크
+          ]);
+        });
+      } else {
+        // Traveler가 없으면 예약자 정보로 기본 행 생성 (여권 미제출 상태)
+        const passportLink = (reservation as any).passportDriveUrl || (reservation as any).passportUrl || '';
+        rows.push([
+          reservation.User?.name || '',
+          '미제출',
+          '', // 생년월일
+          '', // 국적
+          '', // 성별
+          reservation.User?.phone || '',
+          reservation.User?.email || '',
+          '미제출',
+          '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+          passportLink,
+        ]);
+      }
     });
 
     if (rows.length > 0) {
@@ -373,7 +418,7 @@ export async function updatePassportLinkInApis(
 
     const names = response.data.values || [];
     const userName = reservation.User?.name || '';
-    
+
     // 사용자 이름으로 행 찾기 (1-based index, 헤더 제외)
     let rowIndex = -1;
     for (let i = 1; i < names.length; i++) {

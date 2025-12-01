@@ -4,6 +4,7 @@ import { requireAdminUser } from '../_utils';
 import { logger } from '@/lib/logger';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
+import { syncApisSpreadsheet } from '@/lib/google-sheets';
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
@@ -55,10 +56,8 @@ export async function POST(req: NextRequest) {
           },
         },
         UserTrip: {
-          select: {
-            id: true,
-            productCode: true,
-            cruiseName: true,
+          include: {
+            CruiseProduct: true,
           },
         },
       },
@@ -207,10 +206,40 @@ Return ONLY the JSON object now:`;
     }
 
     // UserTrip 확인 (APIS에 저장하기 위해 필요)
-    if (!submission.UserTrip) {
+    if (!submission.UserTrip || !submission.UserTrip.CruiseProduct) {
       return NextResponse.json(
-        { ok: false, message: '여행 정보가 없어 APIS에 저장할 수 없습니다.' },
+        { ok: false, message: '여행 상품 정보가 없어 APIS에 저장할 수 없습니다.' },
         { status: 400 }
+      );
+    }
+
+    const productCode = submission.UserTrip.CruiseProduct.productCode;
+
+    // Trip 찾기
+    const trip = await prisma.trip.findUnique({
+      where: { productCode },
+    });
+
+    if (!trip) {
+      return NextResponse.json(
+        { ok: false, message: '해당 상품의 여행(Trip) 정보를 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    // Reservation 찾기
+    const reservation = await prisma.reservation.findFirst({
+      where: {
+        tripId: trip.id,
+        mainUserId: body.userId,
+      },
+    });
+
+    if (!reservation) {
+      // 예약이 없으면 생성해야 하나? 일단 에러 처리
+      return NextResponse.json(
+        { ok: false, message: '예약 정보를 찾을 수 없습니다.' },
+        { status: 404 }
       );
     }
 
@@ -219,19 +248,19 @@ Return ONLY the JSON object now:`;
       // 기존 Traveler 확인
       const existingTraveler = await prisma.traveler.findFirst({
         where: {
-          tripId: submission.UserTrip.id,
+          reservationId: reservation.id,
           userId: body.userId,
         },
       });
 
       const travelerData = {
-        tripId: submission.UserTrip.id,
+        reservationId: reservation.id,
         userId: body.userId,
-        roomNumber: 1, // 기본값, 나중에 수정 가능
+        roomNumber: 1, // 기본값
         korName: normalizedData.korName || submission.User.name || '',
         engSurname: normalizedData.engSurname || '',
         engGivenName: normalizedData.engGivenName || '',
-        residentNum: '', // 주민등록번호는 OCR로 추출하지 않음
+        residentNum: '',
         passportNo: normalizedData.passportNo || '',
         birthDate: normalizedData.dateOfBirth || '',
         issueDate: normalizedData.dateOfIssue || '',
@@ -294,10 +323,13 @@ Return ONLY the JSON object now:`;
         });
       }
 
+      // APIS 스프레드시트 동기화
+      await syncApisSpreadsheet(trip.id);
+
       logger.log('[OCR to APIS] APIS 데이터 저장 완료:', {
         submissionId: body.submissionId,
         userId: body.userId,
-        tripId: submission.UserTrip.id,
+        tripId: trip.id,
       });
 
       return NextResponse.json({

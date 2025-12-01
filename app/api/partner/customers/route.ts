@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
     const query = searchParams.get('q')?.trim() || '';
     const sort = searchParams.get('sort');
     const source = searchParams.get('source'); // 전화상담고객 필터 (mall)
+    const agentIdParam = searchParams.get('agentId'); // 판매원 필터
 
     // 대리점장인 경우: 랜딩페이지로 유입된 고객도 포함
     // SharedLandingPage를 통해 공유된 랜딩페이지의 등록 고객 조회
@@ -96,25 +97,70 @@ export async function GET(req: NextRequest) {
       // 대리점장: 본인 + 소속 판매원의 문의고객
       if (profile.type === 'BRANCH_MANAGER') {
         const agentIds = profile.managedAgents?.map(a => a.id) || [];
-        whereConditions = [
-          {
-            AND: [
+
+        // agentId 필터가 있는 경우
+        if (agentIdParam) {
+          if (agentIdParam === 'unassigned') {
+            // 미할당 고객
+            whereConditions = [
               {
-                OR: [
+                AND: [
                   { managerId: profile.id },
-                  { agentId: { in: [profile.id, ...agentIds] } },
+                  { agentId: null },
+                  {
+                    OR: [
+                      { source: { startsWith: 'mall-' } },
+                      { source: 'product-inquiry' },
+                      { source: 'phone-consultation' },
+                    ],
+                  },
                 ],
               },
-              {
-                OR: [
-                  { source: { startsWith: 'mall-' } },
-                  { source: 'product-inquiry' },
-                  { source: 'phone-consultation' }, // 전화상담 신청 추가
-                ],
-              },
-            ],
-          },
-        ];
+            ];
+          } else {
+            // 특정 판매원
+            const targetAgentId = parseInt(agentIdParam, 10);
+            if ([profile.id, ...agentIds].includes(targetAgentId)) {
+              whereConditions = [
+                {
+                  AND: [
+                    { agentId: targetAgentId },
+                    {
+                      OR: [
+                        { source: { startsWith: 'mall-' } },
+                        { source: 'product-inquiry' },
+                        { source: 'phone-consultation' },
+                      ],
+                    },
+                  ],
+                },
+              ];
+            } else {
+              whereConditions = [{ id: -1 }];
+            }
+          }
+        } else {
+          // agentId 필터 없음
+          whereConditions = [
+            {
+              AND: [
+                {
+                  OR: [
+                    { managerId: profile.id },
+                    { agentId: { in: [profile.id, ...agentIds] } },
+                  ],
+                },
+                {
+                  OR: [
+                    { source: { startsWith: 'mall-' } },
+                    { source: 'product-inquiry' },
+                    { source: 'phone-consultation' }, // 전화상담 신청 추가
+                  ],
+                },
+              ],
+            },
+          ];
+        }
       } else {
         // 판매원: 자신의 몰 문의고객만
         whereConditions = [
@@ -137,14 +183,43 @@ export async function GET(req: NextRequest) {
       if (profile.type === 'BRANCH_MANAGER') {
         // 대리점장: 본인 고객 + 소속 판매원 고객
         const agentIds = profile.managedAgents?.map(a => a.id) || [];
-        whereConditions = [
-          {
-            OR: [
-              { managerId: profile.id },
-              { agentId: { in: [profile.id, ...agentIds] } },
-            ],
-          },
-        ];
+
+        // agentId 필터가 있는 경우
+        if (agentIdParam) {
+          if (agentIdParam === 'unassigned') {
+            // 미할당 고객 (managerId는 있지만 agentId가 없음)
+            whereConditions = [
+              {
+                AND: [
+                  { managerId: profile.id },
+                  { agentId: null },
+                ],
+              },
+            ];
+          } else {
+            // 특정 판매원의 고객
+            const targetAgentId = parseInt(agentIdParam, 10);
+            // 권한 확인: 해당 판매원이 이 대리점장 소속인지 확인
+            if ([profile.id, ...agentIds].includes(targetAgentId)) {
+              whereConditions = [
+                { agentId: targetAgentId },
+              ];
+            } else {
+              // 권한 없음 - 빈 결과 반환
+              whereConditions = [{ id: -1 }];
+            }
+          }
+        } else {
+          // agentId 필터 없음: 전체 고객
+          whereConditions = [
+            {
+              OR: [
+                { managerId: profile.id },
+                { agentId: { in: [profile.id, ...agentIds] } },
+              ],
+            },
+          ];
+        }
       } else if (profile.type === 'SALES_AGENT') {
         // 판매원: 자신의 고객만
         whereConditions = [
@@ -190,31 +265,87 @@ export async function GET(req: NextRequest) {
       where.status = statusFilter;
     }
 
-    if (source && source !== 'mall') {
-      where.source = source;
-    } else if (!source) {
-      // source 파라미터가 없을 때는 B2B 관련 소스 제외 (일반 고객 목록)
-      where.source = {
-        notIn: ['B2B_INFLOW', 'B2B_LANDING', 'TRIAL_DASHBOARD', 'B2B_LANDING_ADMIN']
+    // 유입 경로 필터링 (source='mall'은 이미 위에서 처리됨)
+    if (source && source !== 'ALL' && source !== 'mall') {
+      // where.OR이 이미 설정되어 있으므로, AND 조건으로 추가해야 함
+      const sourceConditions: Prisma.AffiliateLeadWhereInput = {};
+
+      if (source === 'trial') {
+        // 3일체험
+        sourceConditions.source = { in: ['TRIAL_DASHBOARD', 'test-guide'] };
+      } else if (source === 'cruise-guide') {
+        // 크루즈가이드 이용
+        sourceConditions.source = { in: ['cruise-guide', 'cruise-guide-purchase'] };
+      } else if (source === 'manual') {
+        // 수동 입력
+        sourceConditions.source = { in: ['affiliate-manual', 'partner-manual'] };
+      } else if (source === 'product-inquiry') {
+        // 상품 문의
+        sourceConditions.source = { in: ['product-inquiry', 'phone-consultation'] };
+      } else if (source === 'b2b') {
+        // B2B 유입
+        sourceConditions.source = { in: ['B2B_INFLOW', 'B2B_LANDING', 'B2B_LANDING_ADMIN'] };
+      } else {
+        // 기타 직접 source 값 지정
+        sourceConditions.source = source;
+      }
+
+      // 기존 조건과 AND로 결합
+      if (where.AND) {
+        if (Array.isArray(where.AND)) {
+          where.AND.push(sourceConditions);
+        } else {
+          where.AND = [where.AND, sourceConditions];
+        }
+      } else {
+        where.AND = [sourceConditions];
+      }
+    } else if (source !== 'mall' && (!source || source === 'ALL')) {
+      // source 파라미터가 없거나 ALL일 때는 B2B 관련 소스 제외 (일반 고객 목록)
+      // source='mall'일 때는 위에서 이미 처리했으므로 제외
+      const excludeB2BCondition = {
+        source: {
+          notIn: ['B2B_INFLOW', 'B2B_LANDING', 'TRIAL_DASHBOARD', 'B2B_LANDING_ADMIN']
+        }
       };
+
+      // AND 조건으로 추가
+      if (where.AND) {
+        if (Array.isArray(where.AND)) {
+          where.AND.push(excludeB2BCondition);
+        } else {
+          where.AND = [where.AND, excludeB2BCondition];
+        }
+      } else {
+        where.AND = [excludeB2BCondition];
+      }
     }
 
     if (query) {
       const variants = phoneSearchVariants(query);
-      where.AND = [
-        {
-          OR: [
-            { customerName: { contains: query, mode: 'insensitive' } },
-            ...(variants.length
-              ? variants.map((variant) => ({
-                customerPhone: {
-                  contains: variant,
-                },
-              }))
-              : []),
-          ],
-        },
-      ];
+      const searchCondition = {
+        OR: [
+          { customerName: { contains: query, mode: 'insensitive' } },
+          ...(variants.length
+            ? variants.map((variant) => ({
+              customerPhone: {
+                contains: variant,
+              },
+            }))
+            : []),
+        ],
+      };
+
+      // 기존 AND 조건이 있으면 추가, 없으면 새로 생성
+      if (where.AND) {
+        if (Array.isArray(where.AND)) {
+          where.AND.push(searchCondition);
+        } else {
+          where.AND = [where.AND, searchCondition];
+        }
+      } else {
+        where.AND = [searchCondition];
+      }
     }
 
     const total = await prisma.affiliateLead.count({ where });

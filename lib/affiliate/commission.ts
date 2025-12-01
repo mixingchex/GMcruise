@@ -205,30 +205,26 @@ export function generateLedgerEntries(options: LedgerGenerationOptions): LedgerG
     });
   }
 
-  if (breakdown.branchWithholding > 0 && options.managerProfileId) {
+  // 🎯 Combine manager withholdings to avoid unique constraint violation
+  const totalManagerWithholding = breakdown.branchWithholding + breakdown.overrideWithholding;
+  if (totalManagerWithholding > 0 && options.managerProfileId) {
+    const withholdingNote = [];
+    if (breakdown.branchWithholding > 0) {
+      withholdingNote.push(`브랜치: ${breakdown.branchWithholding.toLocaleString()}원`);
+    }
+    if (breakdown.overrideWithholding > 0) {
+      withholdingNote.push(`오버라이드: ${breakdown.overrideWithholding.toLocaleString()}원`);
+    }
+
     entries.push({
       saleId: options.saleId,
       profileId: options.managerProfileId,
       entryType: 'WITHHOLDING',
-      amount: -breakdown.branchWithholding,
+      amount: -totalManagerWithholding,
       currency,
       withholdingAmount: 0,
-      metadata: createMetadataNote('branch-withholding'),
-      notes: '자동 원천징수 (대리점장 브랜치)',
-      isSettled: false,
-    });
-  }
-
-  if (breakdown.overrideWithholding > 0 && options.managerProfileId) {
-    entries.push({
-      saleId: options.saleId,
-      profileId: options.overrideProfileId ?? options.managerProfileId ?? null,
-      entryType: 'WITHHOLDING',
-      amount: -breakdown.overrideWithholding,
-      currency,
-      withholdingAmount: 0,
-      metadata: createMetadataNote('override-withholding'),
-      notes: '자동 원천징수 (대리점장 오버라이드)',
+      metadata: createMetadataNote(`manager-withholding: ${withholdingNote.join(', ')}`),
+      notes: `자동 원천징수 (대리점장: ${withholdingNote.join(', ')})`,
       isSettled: false,
     });
   }

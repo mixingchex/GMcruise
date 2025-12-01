@@ -78,9 +78,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 통일된 여권 백업 폴더에 업로드
-    const passportFolderId = process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID || 
-                             process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || 
-                             '0AJVz1C-KYWR0Uk9PVA';
+    // 통일된 여권 백업 폴더에 업로드
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const passportFolderId = await getDriveFolderId('PASSPORTS');
 
     // Reservation별 하위 폴더 생성
     const reservationFolderName = `reservation_${reservationIdNum}`;
@@ -202,10 +202,10 @@ export async function GET(req: NextRequest) {
     if (existsSync(uploadDir)) {
       const { readdir } = await import('fs/promises');
       const files = await readdir(uploadDir);
-      
+
       // reservationId로 시작하는 파일 찾기
       const matchingFile = files.find(file => file.startsWith(`passport_${reservationIdNum}_`));
-      
+
       if (matchingFile) {
         imageUrl = `/uploads/passports/${matchingFile}`;
       }

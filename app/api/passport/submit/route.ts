@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { backupPassportDataToUser } from '@/lib/passport-utils';
+import { syncApisSpreadsheet } from '@/lib/google-sheets';
 
 /**
  * POST /api/passport/submit
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     // Traveler 정보 업데이트 (upsert 방식)
     const updatedTravelers = [];
-    
+
     for (let index = 0; index < travelers.length; index++) {
       const travelerData = travelers[index];
       if (travelerData.isSubmitLater) {
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
           // phone은 Traveler 모델에 없으므로 ocrRawData에 저장하거나 별도 처리
           // 대표자(첫 번째) 연락처는 User 테이블에 저장
         };
-        
+
         // 대표자(첫 번째)의 연락처를 User 테이블에 업데이트
         if (index === 0 && travelerData.phone && reservation.mainUserId) {
           try {
@@ -133,6 +134,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+
+
     // Reservation의 passportStatus 업데이트 (진행 중으로 변경)
     await prisma.reservation.update({
       where: { id: reservationId },
@@ -140,6 +143,19 @@ export async function POST(req: NextRequest) {
         passportStatus: reservation.passportStatus === '도움요청' ? '도움요청' : '진행중',
       },
     });
+
+    // APIS 스프레드시트 자동 동기화 (비동기)
+    if (reservation.tripId) {
+      syncApisSpreadsheet(reservation.tripId).then((res) => {
+        if (res.ok) {
+          console.log(`[Passport Submit] APIS Sync Success: tripId=${reservation.tripId}`);
+        } else {
+          console.warn(`[Passport Submit] APIS Sync Failed: ${res.error}`);
+        }
+      }).catch((err) => {
+        console.error(`[Passport Submit] APIS Sync Error:`, err);
+      });
+    }
 
     return NextResponse.json({
       ok: true,
@@ -151,11 +167,11 @@ export async function POST(req: NextRequest) {
     console.error('[Passport Submit] Error Stack:', error.stack);
     console.error('[Passport Submit] Error Code:', error.code);
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         message: error.message || '여권 정보 저장에 실패했습니다.',
         error: error.message,
-        code: error.code 
+        code: error.code
       },
       { status: 500 }
     );

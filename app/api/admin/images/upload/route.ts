@@ -57,12 +57,14 @@ export async function POST(req: NextRequest) {
 
     // 폴더 경로 설정
     const folderPath = folder ? folder.trim() : 'images';
-    
+
     // 원본 파일 버퍼
     const originalBuffer = Buffer.from(await file.arrayBuffer());
 
     // Google Drive 폴더 ID 가져오기 (기본 images 폴더 사용)
-    const baseFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const baseFolderId = await getDriveFolderId('UPLOADS_IMAGES');
+
     if (!baseFolderId) {
       return NextResponse.json(
         { ok: false, message: 'Google Drive 이미지 폴더 ID가 설정되지 않았습니다.' },
