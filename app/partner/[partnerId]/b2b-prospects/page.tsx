@@ -103,23 +103,23 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
 
     const loadAgents = async () => {
         try {
-            // Fetch all branch managers whose mallUserId starts with 'boss'
-            const agentsRes = await fetch('/api/partner/agents');
-            const agentsJson = await agentsRes.json();
-            if (agentsJson.ok && agentsJson.agents) {
-                // Filter boss managers only (user.mallUserId starts with 'boss')
-                const bossManagers = agentsJson.agents
-                    .filter((a: any) =>
-                        a.type === 'BRANCH_MANAGER' &&
-                        a.user?.mallUserId &&
-                        a.user.mallUserId.toLowerCase().startsWith('boss')
+            // Fetch ALL branch managers (not just own agents)
+            const profilesRes = await fetch('/api/admin/affiliate/profiles?type=BRANCH_MANAGER&status=ACTIVE');
+            const profilesJson = await profilesRes.json();
+
+            if (profilesJson.ok && profilesJson.profiles) {
+                // Filter boss managers only (User.mallUserId starts with 'boss')
+                const bossManagers = profilesJson.profiles
+                    .filter((p: any) =>
+                        p.User?.mallUserId &&
+                        p.User.mallUserId.toLowerCase().startsWith('boss')
                     )
-                    .map((a: any) => ({
-                        id: a.profileId,
-                        displayName: a.displayName,
-                        affiliateCode: a.affiliateCode,
-                        type: a.type,
-                        mallUserId: a.user.mallUserId
+                    .map((p: any) => ({
+                        id: p.id,
+                        displayName: p.displayName || p.User?.mallNickname || p.User?.name,
+                        affiliateCode: p.affiliateCode,
+                        type: p.type,
+                        mallUserId: p.User?.mallUserId
                     }));
 
                 // Add HQ option at the beginning
@@ -135,6 +135,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                 ];
 
                 setAgents(agentsWithHQ);
+                console.log('[B2B] Loaded agents:', agentsWithHQ.length, 'boss managers + HQ');
             }
         } catch (error) {
             console.error('Failed to load agents:', error);
