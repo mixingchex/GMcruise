@@ -44,10 +44,32 @@ export async function appendB2BLeadToSheet(leadData: {
         const drive = google.drive({ version: 'v3', auth });
         const sheets = google.sheets({ version: 'v4', auth });
 
-        // 1. Find or Create Spreadsheet
-        // We'll look for a file named "B2B_Leads_Backup" in the folder.
+        // 1. Find or Create Subfolder "B2B_DB_Backup"
+        const folderName = 'B2B_DB_Backup';
+        const folderList = await drive.files.list({
+            q: `'${FOLDER_ID}' in parents and name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+            fields: 'files(id, name)',
+        });
+
+        let targetFolderId = folderList.data.files?.[0]?.id;
+
+        if (!targetFolderId) {
+            const newFolder = await drive.files.create({
+                requestBody: {
+                    name: folderName,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: [FOLDER_ID],
+                },
+                fields: 'id',
+            });
+            targetFolderId = newFolder.data.id;
+        }
+
+        if (!targetFolderId) throw new Error('Failed to find or create backup folder');
+
+        // 2. Find or Create Spreadsheet inside the subfolder
         const fileList = await drive.files.list({
-            q: `'${FOLDER_ID}' in parents and name = 'B2B_Leads_Backup' and mimeType = '${SPREADSHEET_MIME_TYPE}' and trashed = false`,
+            q: `'${targetFolderId}' in parents and name = 'B2B_Leads_Backup' and mimeType = '${SPREADSHEET_MIME_TYPE}' and trashed = false`,
             fields: 'files(id, name)',
         });
 
@@ -59,7 +81,7 @@ export async function appendB2BLeadToSheet(leadData: {
                 requestBody: {
                     name: 'B2B_Leads_Backup',
                     mimeType: SPREADSHEET_MIME_TYPE,
-                    parents: [FOLDER_ID],
+                    parents: [targetFolderId], // Create inside the new folder
                 },
                 fields: 'id',
             });
