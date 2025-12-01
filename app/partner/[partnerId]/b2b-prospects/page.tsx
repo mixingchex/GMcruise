@@ -103,42 +103,21 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
 
     const loadAgents = async () => {
         try {
-            // Fetch ALL branch managers (not just own agents)
-            const profilesRes = await fetch('/api/admin/affiliate/profiles?type=BRANCH_MANAGER&status=ACTIVE');
-            const profilesJson = await profilesRes.json();
+            // Fetch Sales Agents managed by this partner
+            const res = await fetch('/api/partner/agents');
+            const json = await res.json();
 
-            if (profilesJson.ok && profilesJson.profiles) {
-                // Filter boss managers only (user.mallUserId starts with 'boss')
-                const bossManagers = profilesJson.profiles
-                    .filter((p: any) => {
-                        const user = p.user || p.User;
-                        return user?.mallUserId && user.mallUserId.toLowerCase().startsWith('boss');
-                    })
-                    .map((p: any) => {
-                        const user = p.user || p.User;
-                        return {
-                            id: p.id,
-                            displayName: p.displayName || user?.mallNickname || user?.name,
-                            affiliateCode: p.affiliateCode,
-                            type: p.type,
-                            mallUserId: user?.mallUserId
-                        };
-                    });
+            if (json.ok && json.agents) {
+                const salesAgents = json.agents.map((agent: any) => ({
+                    id: agent.profileId,
+                    displayName: agent.displayName,
+                    affiliateCode: agent.affiliateCode,
+                    type: agent.type,
+                    mallUserId: agent.user?.mallUserId
+                }));
 
-                // Add HQ option at the beginning
-                const agentsWithHQ: Agent[] = [
-                    {
-                        id: -1, // Special ID for HQ
-                        displayName: '본사',
-                        affiliateCode: null,
-                        type: 'HQ',
-                        mallUserId: null
-                    },
-                    ...bossManagers
-                ];
-
-                setAgents(agentsWithHQ);
-                console.log('[B2B] Loaded agents:', agentsWithHQ.length, 'boss managers + HQ');
+                setAgents(salesAgents);
+                console.log('[B2B] Loaded agents:', salesAgents.length);
             }
         } catch (error) {
             console.error('Failed to load agents:', error);
@@ -858,33 +837,32 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
 
             {/* Assign Modal */}
             {isAssignModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-                        <div className="mb-4 flex items-center justify-between">
-                            <h3 className="text-lg font-bold text-gray-900">DB 보내기 (대리점장 할당)</h3>
-                            <button
-                                onClick={() => setIsAssignModalOpen(false)}
-                                className="rounded-full p-1 hover:bg-gray-100"
-                            >
-                                <FiX className="text-xl text-gray-500" />
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900">DB 보내기 (판매원 할당)</h3>
+                            <button onClick={() => setIsAssignModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                                <FiX className="w-6 h-6" />
                             </button>
                         </div>
 
-                        <p className="mb-4 text-sm text-gray-600">
-                            선택한 {selectedCount}명의 고객을 담당할 판매원을 선택해주세요.
+                        <p className="text-gray-600 mb-6">
+                            선택한 {activeTab === 'B2B' ? selectedProspects.size : selectedConsultations.size}명의 고객을 담당할 판매원을 선택해주세요.
                         </p>
 
                         <div className="mb-6">
-                            <label className="mb-2 block text-sm font-medium text-gray-700">대리점장 선택</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                판매원 선택
+                            </label>
                             <select
                                 value={selectedAgentId}
                                 onChange={(e) => setSelectedAgentId(e.target.value)}
-                                className="w-full rounded-lg border border-gray-300 px-3 py-2 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                             >
-                                <option value="">대리점장을 선택하세요</option>
-                                {agents.map((agent) => (
+                                <option value="">선택해주세요</option>
+                                {agents.map(agent => (
                                     <option key={agent.id} value={agent.id}>
-                                        {agent.displayName} ({agent.affiliateCode})
+                                        {agent.displayName} ({agent.mallUserId || agent.affiliateCode})
                                     </option>
                                 ))}
                             </select>
@@ -893,21 +871,27 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                         <div className="flex justify-end gap-2">
                             <button
                                 onClick={() => setIsAssignModalOpen(false)}
-                                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
                             >
                                 취소
                             </button>
                             <button
                                 onClick={handleAssign}
                                 disabled={isAssigning || !selectedAgentId}
-                                className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
                             >
-                                {isAssigning ? '처리 중...' : '확인'}
+                                {isAssigning ? (
+                                    <>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        전송 중...
+                                    </>
+                                ) : (
+                                    '확인'
+                                )}
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                </div>)}
         </div>
     );
 }
