@@ -41,9 +41,39 @@ export async function POST(req: NextRequest) {
 
         const managerProfile = partnerUser.AffiliateProfile[0];
 
-        // 이미 존재하는 리드인지 확인하지 않고 무조건 신규 생성 (중복 허용)
-        // B2B 유입은 별도로 카운트하기 위함
+        // 중복 리드 확인 (B2B 소스는 중복 허용하되 이전 담당자 정보를 notes에 기록)
+        let duplicateInfo = '';
+        const existingLeads = await prisma.affiliateLead.findMany({
+            where: {
+                customerPhone: normalizedPhone,
+                status: { not: 'CANCELLED' },
+            },
+            include: {
+                AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile: {
+                    select: {
+                        displayName: true,
+                    },
+                },
+                AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+                    select: {
+                        displayName: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+        });
 
+        if (existingLeads.length > 0) {
+            const latest = existingLeads[0];
+            const managerName = latest.AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile?.displayName;
+            const agentName = latest.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName;
+            const ownerInfo = agentName || managerName || '본사';
+            const registrationDate = new Date(latest.createdAt).toLocaleDateString('ko-KR');
+
+            duplicateInfo = `[중복 DB] 이전 담당자: ${ownerInfo} (등록일: ${registrationDate})\n`;
+        }
 
         // 신규 리드 생성
         const newLead = await prisma.affiliateLead.create({
@@ -53,7 +83,7 @@ export async function POST(req: NextRequest) {
                 managerId: managerProfile.id,
                 source: 'B2B_LANDING',
                 status: 'NEW',
-                notes: '파트너 B2B 랜딩페이지 유입',
+                notes: duplicateInfo ? `${duplicateInfo}파트너 B2B 랜딩페이지 유입` : '파트너 B2B 랜딩페이지 유입',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             }
