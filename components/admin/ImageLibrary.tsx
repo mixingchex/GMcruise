@@ -528,10 +528,6 @@ export default function ImageLibrary({
             const data = await response.json();
 
             if (data.ok) {
-                console.log('[ImageLibrary] Setting cruise folders:', data.folders?.length);
-                if (data.folders?.length > 0) {
-                    console.log('[ImageLibrary] First 5 folders:', data.folders.slice(0, 5).map((f: any) => f.name));
-                }
                 setCruiseImages(data.images || []);
                 setCruiseFolders(data.folders || []);
             } else {

@@ -239,10 +239,6 @@ export async function GET(req: NextRequest) {
         id: file.id || '',
       }));
 
-    console.log('[Cruise Photos] Folder response:', { count: folders.length });
-    if (folders.length > 0) {
-      console.log('[Cruise Photos] First 5 folders:', folders.slice(0, 5).map(f => f.name));
-    }
 
     // 이미지 파일 목록 조회
     const imageQuery = `'${targetFolderId}' in parents and mimeType contains 'image/' and trashed=false`;
@@ -260,15 +256,8 @@ export async function GET(req: NextRequest) {
 
     let imageResponse;
     try {
-      console.log('[Cruise Photos] Fetching images from:', targetFolderId);
-      console.log('[Cruise Photos] Image query:', imageQuery);
       imageResponse = await drive.files.list(imageOptions);
-      console.log('[Cruise Photos] Image response:', { count: imageResponse.data.files?.length || 0 });
 
-      // 이미지 상세 정보 로그 (디버깅용)
-      if (imageResponse.data.files && imageResponse.data.files.length > 0) {
-        console.log('[Cruise Photos] Images found:', imageResponse.data.files.map(f => ({ name: f.name, mimeType: f.mimeType })));
-      }
     } catch (error: any) {
       console.error('[Cruise Photos] Image list error:', error);
       console.error('[Cruise Photos] Error details:', {
@@ -287,10 +276,10 @@ export async function GET(req: NextRequest) {
       (imageResponse.data.files || []).map(async (file) => {
         if (!file.id || !file.name) return null;
 
-        // WebP 파일은 목록에서 제외
-        if (file.mimeType === 'image/webp') {
-          return null;
-        }
+        // WebP 파일도 허용 (주석 처리 또는 제거)
+        // if (file.mimeType === 'image/webp') {
+        //   return null;
+        // }
 
         // 이미지 파일만 처리
         if (!file.mimeType?.startsWith('image/')) {
