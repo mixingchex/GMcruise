@@ -30,7 +30,7 @@ function PaymentPageContent({ productCode, productName, amount }: PaymentPagePro
         const response = await fetch('/api/auth/me', {
           credentials: 'include',
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.ok && data.user) {
@@ -57,7 +57,7 @@ function PaymentPageContent({ productCode, productName, amount }: PaymentPagePro
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.buyerName || !formData.buyerTel) {
       alert('이름과 연락처는 필수 입력 항목입니다.');
       return;
@@ -83,18 +83,36 @@ function PaymentPageContent({ productCode, productName, amount }: PaymentPagePro
       const data = await response.json();
 
       if (data.ok) {
-        // 웰컴페이먼츠 결제 페이지로 리다이렉트
-        if (data.paymentUrl) {
-          // 결제 URL이 제공된 경우 리다이렉트
-          window.location.href = data.paymentUrl;
-        } else if (data.paymentData) {
-          // 결제 데이터가 있는 경우 웰컴페이먼츠 결제 페이지로 리다이렉트
-          // 서버에서 이미 paymentUrl을 생성하여 반환하므로, paymentData가 있는 경우는 폴백 처리
-          // 서버 API에서 paymentUrl을 반환하도록 수정되었으므로 이 분기는 거의 사용되지 않음
-          alert('결제 URL을 생성할 수 없습니다. 관리자에게 문의해주세요.');
-          console.error('[Payment] paymentUrl not provided:', data);
+        // 웰컴페이먼츠 결제 페이지로 POST form submit
+        if (data.paymentData) {
+          // POST 방식으로 form을 생성하여 제출
+          const form = document.createElement('form');
+          form.method = 'POST';
+          form.action = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
+
+          // 모든 결제 데이터를 hidden input으로 추가
+          Object.entries(data.paymentData).forEach(([key, value]) => {
+            if (value !== null && value !== undefined && key !== 'metadata') {
+              const input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = key;
+              input.value = typeof value === 'object' ? JSON.stringify(value) : String(value);
+              form.appendChild(input);
+            }
+          });
+
+          // metadata는 별도로 처리
+          if (data.paymentData.metadata) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'metadata';
+            input.value = JSON.stringify(data.paymentData.metadata);
+            form.appendChild(input);
+          }
+
+          document.body.appendChild(form);
+          form.submit();
         } else {
-          // 결제 데이터가 없는 경우 에러 처리
           alert('결제 정보를 받을 수 없습니다. 다시 시도해주세요.');
           console.error('[Payment] No payment data received:', data);
         }
@@ -216,9 +234,8 @@ function PaymentPageContent({ productCode, productName, amount }: PaymentPagePro
               <button
                 type="submit"
                 disabled={isProcessing}
-                className={`w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 ${
-                  isProcessing ? 'opacity-50 cursor-not-allowed' : 'shadow-lg hover:shadow-xl'
-                }`}
+                className={`w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold text-lg hover:from-blue-700 hover:to-indigo-700 transition-all flex items-center justify-center gap-2 ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'shadow-lg hover:shadow-xl'
+                  }`}
               >
                 {isProcessing ? (
                   <>
