@@ -31,6 +31,7 @@ import {
   FiCalendar,
   FiPhone,
   FiGlobe,
+  FiImage,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 import SalesConfirmationModal from '@/components/affiliate/SalesConfirmationModal';
