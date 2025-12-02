@@ -144,7 +144,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
               <p className="text-2xl md:text-3xl lg:text-4xl font-bold line-clamp-2 break-words leading-tight px-2">
                 {product.shipName}
               </p>
-              <p className="text-sm md:text-base lg:text-lg mt-2 opacity-80 font-medium line-clamp-1 break-words px-2">
+              <p className="text-sm md:text-base lg:text-lg mt-2 opacity-90 font-bold text-[#051C2C] line-clamp-1 break-words px-2">
                 {product.cruiseLine}
               </p>
             </div>
@@ -214,11 +214,11 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         <div className="flex items-center text-sm md:text-base text-gray-600 mb-3 font-medium flex-wrap gap-1.5">
           <span className="whitespace-nowrap">{product.nights}박 {product.days}일</span>
           <span className="text-gray-300">·</span>
-          <span className="line-clamp-1 break-words flex-1 min-w-0">{getDestinations()}</span>
+          <span className="line-clamp-1 break-words flex-1 min-w-0 text-[#00008B] font-extrabold">{getDestinations()}</span>
           {(product as any).category && (
             <>
               <span className="text-gray-300">·</span>
-              <span className="text-[#D4AF37] font-semibold whitespace-nowrap">{(product as any).category}</span>
+              <span className="text-[#1e40af] font-bold">{(product as any).category}</span>
             </>
           )}
         </div>
@@ -226,8 +226,9 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         {/* 별점 및 리뷰 */}
         <div className="flex items-center gap-2 mb-3">
           <div className="flex items-center gap-1">
-            <FiStar className="text-[#D4AF37] fill-[#D4AF37]" size={16} />
-            <span className="text-sm md:text-base font-bold text-[#051C2C]">{rating.toFixed(1)}</span>
+            <span className="text-[#D4AF37] fill-[#D4AF37]">★</span>
+            <span className="text-black font-bold">{rating.toFixed(1)}</span>
+            <span className="text-gray-400 text-sm">({reviewCount.toLocaleString('ko-KR')})</span>
           </div>
           {reviewCount > 0 ? (
             <button
@@ -279,7 +280,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
               {product.basePrice && (
                 <div className="flex items-center gap-1 text-sm md:text-base">
                   <span className="text-gray-400 font-medium">/</span>
-                  <span className="text-[#D4AF37] font-semibold">
+                  <span className="text-[#FF0000] font-black text-xl md:text-2xl drop-shadow-sm">
                     월 {Math.ceil(product.basePrice / 12).toLocaleString('ko-KR')}원
                   </span>
                 </div>

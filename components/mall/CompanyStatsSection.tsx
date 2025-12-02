@@ -26,7 +26,7 @@ function useCountUp(end: number, duration: number = 2000, prefix: string = '', s
       if (currentCount !== countRef.current) {
         countRef.current = currentCount;
         setCount(currentCount);
-        
+
         // 숫자 포맷팅 (쉼표 추가)
         const formatted = currentCount.toLocaleString('ko-KR');
         setDisplayValue(prefix + formatted + suffix);
@@ -84,8 +84,8 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
       { icon: '🏢', value: '11년~', description: '크루즈 서비스만 연구한시간' },
     ],
     bottomRowCards: [
-      { icon: '📊', value: '210명', description: '다음 크루즈 준비', bgColor: 'blue', autoIncrement: true, incrementInterval: 3, incrementAmount: 3 },
-      { icon: '💬', value: '13410', description: '지금 크루즈 문의', bgColor: 'yellow', autoIncrement: true, incrementInterval: 5, incrementAmount: 9 },
+      { icon: '📊', value: '222명', description: '다음 크루즈 준비', bgColor: 'blue', autoIncrement: true, incrementInterval: 3, incrementAmount: 3 },
+      { icon: '💬', value: '13,491', description: '지금 크루즈 문의', bgColor: 'yellow', autoIncrement: true, incrementInterval: 5, incrementAmount: 9 },
       { icon: '🎉', value: '3217명', description: '크루즈닷 회원', bgColor: 'green' },
     ],
   };
@@ -122,32 +122,32 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
 
       if (card.autoIncrement) {
         const numericValue = parseInt(card.value.replace(/[^0-9]/g, '')) || 0;
-        
+
         // 초기값 설정
         setDynamicValues(prev => ({ ...prev, [idx]: numericValue }));
-        
+
         // 초기 카운트업 애니메이션
         let startTime: number | null = null;
         const duration = 2000;
-        
+
         const animate = (currentTime: number) => {
           if (!startTime) startTime = currentTime;
           const elapsed = currentTime - startTime;
           const progress = Math.min(elapsed / duration, 1);
           const easeOutCubic = 1 - Math.pow(1 - progress, 3);
-          
+
           const currentValue = Math.floor(easeOutCubic * numericValue);
           setDynamicValues(prev => ({
             ...prev,
             [idx]: currentValue,
           }));
-          
+
           if (progress < 1) {
             animationFramesRef.current[idx] = requestAnimationFrame(animate);
           } else {
             // 애니메이션 완료 후 최종값 설정
             setDynamicValues(prev => ({ ...prev, [idx]: numericValue }));
-            
+
             // 자동 증가 시작 - 계속 증가하도록
             intervalsRef.current[idx] = setInterval(() => {
               setDynamicValues(prev => {
@@ -161,7 +161,7 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
             }, (card.incrementInterval || 3) * 1000);
           }
         };
-        
+
         animationFramesRef.current[idx] = requestAnimationFrame(animate);
       } else {
         // 자동 증가가 비활성화된 경우 초기값만 설정
@@ -169,7 +169,7 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
         setDynamicValues(prev => ({ ...prev, [idx]: numericValue }));
       }
     });
-    
+
     // Cleanup 함수
     return () => {
       Object.values(intervalsRef.current).forEach(interval => {
@@ -196,7 +196,7 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
           />
           {/* 배경 위 어두운 오버레이 (텍스트 가독성) */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-          
+
           {/* 비디오 위 텍스트 오버레이 */}
           <div className="absolute inset-0 flex flex-col items-center justify-end pb-8 sm:pb-12 md:pb-16 text-white z-10">
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black mb-2 sm:mb-4 drop-shadow-2xl text-center px-4">
@@ -266,13 +266,13 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
         {/* 상단 통계 카드 그리드 - 모던한 디자인 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 mb-10 sm:mb-12 md:mb-16">
           {finalConfig.topRowCards.map((card, idx) => (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               className="group relative bg-white rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 shadow-lg hover:shadow-2xl border border-gray-200 hover:border-blue-400 transition-all duration-300 transform hover:-translate-y-1"
             >
               {/* 호버 시 배경 효과 */}
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/0 to-blue-100/0 group-hover:from-blue-50/50 group-hover:to-blue-100/30 rounded-xl sm:rounded-2xl transition-all duration-300"></div>
-              
+
               <div className="relative text-center">
                 <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl mb-3 sm:mb-4 md:mb-6 transform group-hover:scale-110 transition-transform duration-300">
                   {card.icon}
@@ -311,9 +311,9 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
                 text: 'text-green-700',
               },
             };
-            
+
             const colorScheme = bgColors[card.bgColor];
-            
+
             // 동적 값 표시 (자동 증가가 활성화된 경우)
             let displayValue = card.value;
             if (card.autoIncrement && dynamicValues[idx] !== undefined) {
@@ -326,15 +326,15 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
                 displayValue = numericValue.toLocaleString('ko-KR') + (card.value.match(/[^0-9]+$/) || [''])[0];
               }
             }
-            
+
             return (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={`group relative ${colorScheme.bg} rounded-xl sm:rounded-2xl p-6 sm:p-8 md:p-10 text-center shadow-lg hover:shadow-xl border-2 ${colorScheme.border} transition-all duration-300 transform hover:-translate-y-1 overflow-hidden`}
               >
                 {/* 그라데이션 배경 효과 */}
                 <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${colorScheme.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
-                
+
                 <div className="relative">
                   <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl mb-3 sm:mb-4 md:mb-6 transform group-hover:scale-110 transition-transform duration-300">
                     {card.icon}

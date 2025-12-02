@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { FiEye, FiHeart, FiMessageCircle, FiClock, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiEye, FiHeart, FiMessageCircle, FiClock, FiChevronLeft, FiChevronRight, FiYoutube } from 'react-icons/fi';
 import { STATIC_NEWS_POSTS } from '@/app/community/cruisedot-news/news-data';
 
 interface CommunityPost {
@@ -435,6 +435,8 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
         </Link>
       </div>
 
+
+
       {/* 최근 게시글 섹션 - 모든 사용자가 볼 수 있음 */}
       {recentPosts.length > 0 && (
         <div className="mb-12 md:mb-16">
@@ -623,6 +625,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                   </Link>
                 );
               })}
+
             </div>
             <button
               onClick={() => scrollRight(popularScrollRef)}
@@ -634,6 +637,8 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
           </div>
         </div>
       )}
+
+
 
       {/* 크루즈뉘우스 미리보기 - 항상 표시 */}
       <div className="mt-12 md:mt-16">
@@ -705,15 +710,15 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                     key={String(post.id)}
                     href={post.href}
                     className={`flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 ${isToday && isLatest
-                        ? 'border-[#D4AF37] hover:border-[#D4AF37] bg-gradient-to-br from-yellow-50 to-white'
-                        : 'border-gray-100 hover:border-[#D4AF37]'
+                      ? 'border-[#D4AF37] hover:border-[#D4AF37] bg-gradient-to-br from-yellow-50 to-white ring-2 ring-[#D4AF37] ring-opacity-50'
+                      : 'border-gray-100 hover:border-[#D4AF37]'
                       }`}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <span className={`px-3 py-1 text-xs md:text-sm font-bold rounded-md whitespace-nowrap ${isToday && isLatest
-                            ? 'bg-red-500 text-white'
-                            : 'bg-indigo-100 text-indigo-800'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-indigo-100 text-indigo-800'
                           }`}>
                           {isToday && isLatest ? '🔥 오늘의 뉴스' : '크루즈뉘우스'}
                         </span>

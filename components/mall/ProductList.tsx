@@ -899,12 +899,10 @@ export default function ProductList({ partnerContext = null, featuredProductCode
             <div className="relative rounded-xl p-8 md:p-10 text-white overflow-hidden shadow-2xl mb-8">
               {/* 배경 이미지 */}
               <div
-                className="absolute inset-0 bg-cover bg-center"
-                style={{
-                  backgroundImage: 'url(/images/promotion-banner-bg.png)',
-                }}
+                className="absolute inset-0 bg-gradient-to-r from-[#1e3c72] to-[#2a5298]"
               >
-                <div className="absolute inset-0 bg-black/50"></div>
+                <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%, transparent)', backgroundSize: '20px 20px' }}></div>
+                <div className="absolute inset-0 bg-black/10"></div>
               </div>
 
               {/* 컨텐츠 */}
@@ -1164,19 +1162,17 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         <div className="relative rounded-xl p-8 md:p-10 text-white overflow-hidden shadow-2xl mb-8">
           {/* 배경 이미지 */}
           <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{
-              backgroundImage: 'url(/images/recommended-banner-bg.png)',
-            }}
+            className="absolute inset-0 bg-gradient-to-r from-[#2a5298] to-[#1e3c72]"
           >
-            <div className="absolute inset-0 bg-black/50"></div>
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%, transparent)', backgroundSize: '20px 20px' }}></div>
+            <div className="absolute inset-0 bg-white/5"></div>
           </div>
 
           {/* 컨텐츠 */}
           <div className="relative z-10">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div>
-                <h2 className="text-4xl md:text-5xl font-black mb-6 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
+                <h2 className="text-4xl md:text-5xl font-black mb-6 text-white drop-shadow-md">
                   {recommendedBanner.title}
                 </h2>
                 <div className="flex flex-wrap gap-4 text-base md:text-lg">

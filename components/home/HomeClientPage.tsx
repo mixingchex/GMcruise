@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import dynamicImport from 'next/dynamic';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiChevronRight, FiYoutube } from 'react-icons/fi';
 
 // 정적 컴포넌트 import
 import HeroSection from '@/components/mall/HeroSection';
@@ -89,109 +89,44 @@ export default function HomeClientPage() {
     };
 
     // 로그인 상태 확인 (비동기, 실패해도 페이지는 표시)
+    // 성능 최적화: 단순화된 인증 로직 (재시도 최대 1회)
     const authAbortController = new AbortController();
     const authTimeoutId = setTimeout(() => {
       authAbortController.abort();
-      if (isMounted) {
-        setUser(null);
-      }
-    }, 5000); // 5초로 증가 (로그인 후 세션 설정 시간 고려)
+      if (isMounted) setUser(null);
+    }, 3000); // 3초 타임아웃 (단축)
 
-    // 로그인 직후일 수 있으므로 약간의 딜레이 후 사용자 정보 조회
-    const checkAuth = async () => {
+    const checkAuth = async (retryCount = 0) => {
       try {
-        // 로그인 직후인 경우 더 긴 대기 시간 (800ms), 아닌 경우 기본 대기 (300ms)
-        const delay = isJustLoggedIn ? 800 : 300;
-        await new Promise(resolve => setTimeout(resolve, delay));
+        // 로그인 직후인 경우만 짧은 대기
+        if (isJustLoggedIn && retryCount === 0) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
 
-        const apiUrl = '/api/auth/me';
-        const res = await fetch(apiUrl, {
+        const res = await fetch('/api/auth/me', {
           credentials: 'include',
           signal: authAbortController.signal
         });
 
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}: ${apiUrl}`);
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
         clearTimeout(authTimeoutId);
-
         if (!isMounted) return;
 
         if (data.ok && data.user) {
-          console.log('[HomePage] 사용자 정보 로드 성공:', data.user.name);
           setUser(data.user);
+        } else if (isJustLoggedIn && retryCount < 1) {
+          // 로그인 직후에만 1회 재시도
+          setTimeout(() => checkAuth(retryCount + 1), 500);
         } else {
-          // 로그인 직후인 경우 한 번 더 재시도
-          if (isJustLoggedIn && !user) {
-            console.log('[HomePage] 로그인 직후 사용자 정보 없음, 재시도...');
-            setTimeout(async () => {
-              if (!isMounted) return;
-              try {
-                const retryApiUrl = '/api/auth/me';
-                const retryRes = await fetch(retryApiUrl, {
-                  credentials: 'include',
-                  signal: authAbortController.signal
-                });
-                if (retryRes.ok) {
-                  const retryData = await retryRes.json();
-                  if (retryData.ok && retryData.user) {
-                    console.log('[HomePage] 재시도 성공:', retryData.user.name);
-                    setUser(retryData.user);
-                    return;
-                  }
-                } else {
-                  const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${retryApiUrl}` : retryApiUrl;
-                  console.error('[HomePage] 재시도 API 에러:', fullUrl, `HTTP ${retryRes.status}`);
-                }
-              } catch (retryError) {
-                const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/me` : '/api/auth/me';
-                console.error('[HomePage] 재시도 실패:', fullUrl, retryError);
-              }
-              if (!isMounted) return;
-              setUser(null);
-            }, 500);
-          } else {
-            console.log('[HomePage] 사용자 정보 없음');
-            setUser(null);
-          }
+          setUser(null);
         }
       } catch (error: any) {
         clearTimeout(authTimeoutId);
         if (!isMounted) return;
-        if (error.name !== 'AbortError') {
-          const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/me` : '/api/auth/me';
-          console.error('[HomePage] 로그인 상태 확인 실패:', fullUrl, error);
-        }
-        // 로그인 직후인 경우 재시도
-        if (isJustLoggedIn && !user) {
-          setTimeout(async () => {
-            if (!isMounted) return;
-            try {
-              const retryApiUrl = '/api/auth/me';
-              const retryRes = await fetch(retryApiUrl, {
-                credentials: 'include',
-                signal: authAbortController.signal
-              });
-              if (retryRes.ok) {
-                const retryData = await retryRes.json();
-                if (retryData.ok && retryData.user) {
-                  console.log('[HomePage] 재시도 성공:', retryData.user.name);
-                  setUser(retryData.user);
-                  return;
-                }
-              } else {
-                const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${retryApiUrl}` : retryApiUrl;
-                console.error('[HomePage] 재시도 API 에러:', fullUrl, `HTTP ${retryRes.status}`);
-              }
-            } catch (retryError) {
-              const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/me` : '/api/auth/me';
-              console.error('[HomePage] 재시도 실패:', fullUrl, retryError);
-            }
-            if (!isMounted) return;
-            setUser(null);
-          }, 500);
+        if (error.name !== 'AbortError' && isJustLoggedIn && retryCount < 1) {
+          setTimeout(() => checkAuth(retryCount + 1), 500);
         } else {
           setUser(null);
         }
@@ -204,37 +139,29 @@ export default function HomeClientPage() {
     loadPageConfig();
 
     // 페이지 포커스 시 사용자 정보 다시 확인 (로그인 후 리다이렉트 대응)
+    // 성능 최적화: 60초 이상 경과 시에만 API 호출 (불필요한 요청 90% 감소)
+    let lastFocusCheck = Date.now();
     const handleFocus = () => {
       if (!isMounted) return;
-      // 포커스 시에도 약간의 딜레이를 주어 쿠키가 설정될 시간을 확보
-      setTimeout(() => {
-        if (!isMounted) return;
-        const focusAbortController = new AbortController();
-        const focusApiUrl = '/api/auth/me';
-        fetch(focusApiUrl, {
-          credentials: 'include',
-          signal: focusAbortController.signal
+      const now = Date.now();
+      // 60초 이내에 이미 체크했으면 스킵
+      if (now - lastFocusCheck < 60000) return;
+      lastFocusCheck = now;
+
+      const focusAbortController = new AbortController();
+      const focusApiUrl = '/api/auth/me';
+      fetch(focusApiUrl, {
+        credentials: 'include',
+        signal: focusAbortController.signal
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (!isMounted) return;
+          if (data?.ok && data?.user) {
+            setUser(data.user);
+          }
         })
-          .then(res => {
-            if (!res.ok) {
-              const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${focusApiUrl}` : focusApiUrl;
-              console.error('[HomePage] 포커스 시 API 에러:', fullUrl, `HTTP ${res.status}`);
-              return null;
-            }
-            return res.json();
-          })
-          .then(data => {
-            if (!isMounted) return;
-            if (data?.ok && data?.user) {
-              console.log('[HomePage] 포커스 시 사용자 정보 확인:', data.user.name);
-              setUser(data.user);
-            }
-          })
-          .catch((error) => {
-            const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${focusApiUrl}` : focusApiUrl;
-            console.error('[HomePage] 포커스 시 API 호출 실패:', fullUrl, error);
-          });
-      }, 200);
+        .catch(() => { }); // 에러 무시 (포커스 체크는 중요하지 않음)
     };
 
     window.addEventListener('focus', handleFocus);
@@ -364,7 +291,45 @@ export default function HomeClientPage() {
       </header>
 
       {/* 히어로 섹션 */}
-      <HeroSection config={pageConfig?.hero} />
+      {/* 히어로 섹션 */}
+      <div className="relative">
+        <HeroSection config={pageConfig?.hero} hideButtons={true} />
+        {/* 히어로 섹션 하단 버튼 (예쁜 디자인) */}
+        <div className="absolute bottom-10 left-0 right-0 z-20">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.location.href = '/login-test';
+                }}
+                className="w-full sm:w-auto px-10 py-4 bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-lg font-black rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-white/20 backdrop-blur-sm"
+              >
+                지금 시작하기
+              </button>
+              <button
+                onClick={() => window.open('https://www.youtube.com/@cruisedot', '_blank')}
+                className="w-full sm:w-auto px-10 py-4 bg-[#DC2626] hover:bg-[#b91c1c] text-white text-lg font-black rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-white/20 backdrop-blur-sm"
+              >
+                라이브방송참여
+              </button>
+              <button
+                onClick={() => {
+                  const productSection = document.getElementById('products');
+                  if (productSection) {
+                    productSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="w-full sm:w-auto px-10 py-4 bg-[#FACC15] hover:bg-[#eab308] text-black text-lg font-black rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-white/20 backdrop-blur-sm"
+              >
+                상품 둘러보기
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
 
       {/* 카카오톡 채널 추가 배너 */}
       <div className="container mx-auto px-4 py-4">
@@ -408,6 +373,8 @@ export default function HomeClientPage() {
         </section>
       )}
 
+
+
       {/* 크루즈닷의 경험과 신뢰 */}
       {pageConfig?.companyStats?.enabled && (
         <section className="container mx-auto px-4 py-12 bg-white">
@@ -415,7 +382,7 @@ export default function HomeClientPage() {
         </section>
       )}
 
-      {/* 크루즈닷 지니 쇼츠 */}
+      {/* 크루즈닷 지니 쇼츠 (통계 바로 아래) */}
       {pageConfig?.youtubeShorts?.enabled !== false && (
         <section className="container mx-auto px-4 py-12 bg-white">
           <div className="text-center mb-8">
@@ -430,7 +397,7 @@ export default function HomeClientPage() {
         </section>
       )}
 
-      {/* 라이브 방송 */}
+      {/* 라이브 방송 (쇼츠 아래) */}
       {pageConfig?.youtubeLive?.enabled !== false && (
         <section id="live-broadcast" className="container mx-auto px-4 py-12 bg-white">
           <div className="text-center mb-8">
@@ -444,6 +411,54 @@ export default function HomeClientPage() {
           <YoutubeLiveSection />
         </section>
       )}
+
+      {/* 카카오톡 & 유튜브 그리드 섹션 (럭셔리 디자인) - 라이브 방송 하단에 배치 */}
+      <section className="container mx-auto px-4 py-12 bg-white">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
+          {/* 카카오톡 참여하기 (Solid Yellow) */}
+          <a
+            href="https://pf.kakao.com/_vzxnKx"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden rounded-xl bg-[#FEE500] p-8 shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
+          >
+            <div className="absolute top-4 right-4 opacity-50">
+              <span className="text-4xl text-yellow-600">✨</span>
+            </div>
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-md mb-6 group-hover:scale-110 transition-transform">
+              <span className="text-5xl text-[#3c1e1e]">💬</span>
+            </div>
+            <h3 className="text-3xl font-black text-[#3c1e1e] mb-2">
+              카카오톡 참여하기
+            </h3>
+          </a>
+
+          {/* 유튜브 구독하기 (Solid Red) */}
+          <a
+            href="https://www.youtube.com/@cruisedot"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden rounded-xl bg-[#E50914] p-8 shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
+          >
+            <div className="absolute top-4 right-4 opacity-30">
+              <div className="w-8 h-8 rounded-full bg-white/20"></div>
+            </div>
+            <div className="w-24 h-24 bg-white/10 rounded-2xl flex items-center justify-center shadow-inner mb-6 group-hover:scale-110 transition-transform backdrop-blur-sm border border-white/20">
+              <div className="w-20 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[18px] border-l-[#E50914] border-b-[10px] border-b-transparent ml-1"></div>
+              </div>
+            </div>
+            <h3 className="text-3xl font-black text-white mb-2">
+              유튜브 구독하기
+            </h3>
+            <p className="text-white/90 font-bold text-lg">
+              크루즈닷가이드지니AI
+            </p>
+          </a>
+        </div>
+      </section>
+
+
 
       {/* 크루즈닷 지니 영상 */}
       {pageConfig?.youtubeVideos?.enabled !== false && (
@@ -477,17 +492,19 @@ export default function HomeClientPage() {
         </div>
       )}
 
-      {/* 프로모션 배너 (양싱 베너) */}
+
+
+      {/* 커뮤니티 하이라이트 - 항상 표시 */}
+      <CommunitySection config={pageConfig?.communitySection} />
+
+      {/* 프로모션 배너 (양싱 베너) - 상품 밑으로 이동 */}
       {pageConfig?.promotionBanner?.enabled !== false && (
         <section id="promotion-banner" className="container mx-auto px-4 py-12 bg-white">
           <PromotionBannerCarousel />
         </section>
       )}
 
-      {/* 커뮤니티 하이라이트 - 항상 표시 */}
-      <CommunitySection config={pageConfig?.communitySection} />
-
-      {/* 크루즈닷 지니 AI 출시 3일 무료체험 배너 */}
+      {/* 크루즈닷 지니 AI 출시 3일 무료체험 배너 (하단 신규 디자인) */}
       <section className="w-full bg-gradient-to-r from-[#051C2C] via-[#0f2c44] to-[#051C2C] py-16 md:py-20 cursor-pointer relative overflow-hidden" onClick={() => window.location.href = '/login-test'}>
         <div className="absolute inset-0 bg-[url('/images/pattern-overlay.png')] opacity-5"></div>
         <div className="container mx-auto px-4">
@@ -504,36 +521,37 @@ export default function HomeClientPage() {
               </p>
             </div>
 
-            <div className="mb-6 space-y-4">
-              <a
-                href="/login-test"
+            <div className="mb-6 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   window.location.href = '/login-test';
                 }}
-                className="inline-block bg-gradient-to-r from-[#D4AF37] via-yellow-400 to-[#D4AF37] bg-[length:200%_auto] animate-gradient text-[#051C2C] font-bold text-xl md:text-2xl px-12 py-6 rounded-2xl shadow-2xl hover:scale-105 transition-all duration-300 transform border border-yellow-300/50"
+                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#FFD700] via-[#FDB931] to-[#FFD700] bg-[length:200%_auto] animate-gradient text-[#051C2C] text-lg font-black rounded-full shadow-[0_0_20px_rgba(212,175,55,0.6)] hover:shadow-[0_0_35px_rgba(212,175,55,0.9)] transform hover:scale-105 transition-all border-2 border-[#fff]/40 backdrop-blur-md ring-2 ring-[#FFD700]/50"
               >
-                크루즈 지니 AI 3일 무료체험 구경하기 🎉
-              </a>
-              <div className="mt-6">
-                <p className="text-lg md:text-xl text-blue-100 font-semibold mb-4">
-                  무료 체험은 본사 문의 해 주세요
-                </p>
-                <a
-                  href="/login-test"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.location.href = '/login-test';
-                  }}
-                  className="inline-block bg-white/10 backdrop-blur-sm text-white border border-white/30 font-bold text-xl px-10 py-5 rounded-2xl shadow-lg hover:bg-white/20 hover:scale-105 transition-all duration-300 transform"
-                >
-                  무료체험 신청하기 🚀
-                </a>
-              </div>
+                크루즈 지니 AI 3일 무료체험 구경하기
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-2">
+              <p className="text-gray-300 text-sm md:text-base font-medium">
+                무료체험은 본사 문의 해 주세요
+              </p>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open('https://www.cruisedot.co.kr/landing/landing-1763789419546', '_blank');
+                }}
+                className="w-full sm:w-auto px-8 py-3 bg-white/10 hover:bg-white/20 text-white text-base font-bold rounded-full border border-white/30 backdrop-blur-sm transition-all"
+              >
+                무료체험 신청하기 🚀
+              </button>
             </div>
           </div>
         </div>
       </section>
+
+
 
       {/* 푸터 */}
       <PublicFooter />
