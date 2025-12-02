@@ -785,7 +785,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         return (
           <section className="mb-12">
             <div className="mb-6">
-              <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+              <h2 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-2">
                 나의 추천 상품
               </h2>
               <p className="text-gray-600 text-sm md:text-base">
@@ -803,7 +803,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         return (
           <section className="mb-12">
             <div className="mb-6">
-              <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+              <h2 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-2">
                 나의 추천 상품
               </h2>
               <p className="text-gray-600 text-sm md:text-base">
@@ -830,7 +830,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     return (
       <section className="mb-12">
         <div className="mb-6">
-          <h2 className="text-3xl md:text-4xl font-black text-gray-900 mb-2">
+          <h2 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-2">
             나의 추천 상품
           </h2>
           <p className="text-gray-600 text-sm md:text-base">
@@ -845,7 +845,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           <div className="relative">
             <button
               onClick={() => scrollLeft(featuredScrollRef)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-blue-500 transition-all transform hover:scale-110"
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-[#D4AF37] transition-all transform hover:scale-110"
               aria-label="이전 상품"
             >
               <FiChevronLeft className="w-6 h-6 text-gray-700" />
@@ -862,7 +862,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
             </div>
             <button
               onClick={() => scrollRight(featuredScrollRef)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-blue-500 transition-all transform hover:scale-110"
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-[#D4AF37] transition-all transform hover:scale-110"
               aria-label="다음 상품"
             >
               <FiChevronRight className="w-6 h-6 text-gray-700" />
@@ -964,8 +964,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                     }
                   }}
                   className={`px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base md:text-lg font-bold transition-all min-h-[48px] sm:min-h-[52px] flex items-center justify-center ${filters.region === filter.value
-                    ? 'bg-blue-600 text-white shadow-lg scale-105'
-                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300 border-2 border-gray-300'
+                    ? 'bg-[#051C2C] text-white shadow-lg scale-105 border-2 border-[#051C2C]'
+                    : 'bg-white text-gray-700 hover:bg-gray-50 active:bg-gray-100 border-2 border-gray-200 hover:border-[#D4AF37]'
                     }`}
                 >
                   {filter.label}
@@ -994,7 +994,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                       setTimeout(() => setCruiseLineDropdownOpen(false), 200);
                     }}
                     placeholder="크루즈선사 검색 (예: MSC, 로얄캐리비안)"
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base pr-12"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#D4AF37] focus:border-[#D4AF37] text-base pr-12"
                   />
                   {cruiseLineSearchTerm && (
                     <button
@@ -1116,7 +1116,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 인기 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && popularProducts.length > 0 && (
         <div id="popular-cruises" className="mb-12">
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">인기 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">인기 크루즈</h3>
           <div
             className={`grid gap-4 md:gap-5 lg:gap-6 ${productDisplay.popularRows === 2 || productDisplay.popularRows === 3
               ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
@@ -1127,7 +1127,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
               <>
                 <button
                   onClick={() => scrollLeft(popularScrollRef)}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-blue-500 transition-all transform hover:scale-110"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-[#D4AF37] transition-all transform hover:scale-110"
                   aria-label="이전 상품"
                 >
                   <FiChevronLeft className="w-6 h-6 text-gray-700" />
@@ -1144,7 +1144,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                 </div>
                 <button
                   onClick={() => scrollRight(popularScrollRef)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-blue-500 transition-all transform hover:scale-110"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-[#D4AF37] transition-all transform hover:scale-110"
                   aria-label="다음 상품"
                 >
                   <FiChevronRight className="w-6 h-6 text-gray-700" />
@@ -1211,7 +1211,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 추천 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && recommendedProducts.length > 0 && (
         <div>
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">추천 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">추천 크루즈</h3>
           <div
             className={`grid gap-4 md:gap-5 lg:gap-6 ${productDisplay.recommendedRows === 2 || productDisplay.recommendedRows === 3
               ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
@@ -1222,7 +1222,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
               <>
                 <button
                   onClick={() => scrollLeft(recommendedScrollRef)}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-red-500 transition-all transform hover:scale-110"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-[#D4AF37] transition-all transform hover:scale-110"
                   aria-label="이전 상품"
                 >
                   <FiChevronLeft className="w-6 h-6 text-gray-700" />
@@ -1239,7 +1239,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                 </div>
                 <button
                   onClick={() => scrollRight(recommendedScrollRef)}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-red-500 transition-all transform hover:scale-110"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-[#D4AF37] transition-all transform hover:scale-110"
                   aria-label="다음 상품"
                 >
                   <FiChevronRight className="w-6 h-6 text-gray-700" />
@@ -1301,7 +1301,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
 
           {recommendedBelow.type === 'products' && belowProducts.length > 0 && (
             <div className="mt-8 mb-8">
-              <h3 className="text-2xl md:text-3xl font-black text-gray-900 mb-6">추가 추천 상품</h3>
+              <h3 className="text-2xl md:text-3xl font-black text-[#051C2C] mb-6">추가 추천 상품</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
                 {belowProducts.map((product) => (
                   <ProductCard key={product.id} product={product} partnerId={partnerId} />
@@ -1315,7 +1315,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 프리미엄 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && premiumProducts.length > 0 && (
         <div id="premium-cruises" className="mb-12">
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">프리미엄 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">프리미엄 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {premiumProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -1327,7 +1327,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 지니패키지 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && geniePackProducts.length > 0 && (
         <div id="geniepack-cruises" className="mb-12">
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">지니패키지 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">지니패키지 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {geniePackProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -1339,7 +1339,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 국내 출발 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && domesticProducts.length > 0 && (
         <div id="domestic-cruises" className="mb-12">
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">국내출발 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">국내출발 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {domesticProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -1351,7 +1351,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 일본 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && japanProducts.length > 0 && (
         <div id="japan-cruises" className="mb-12">
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">일본 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">일본 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {japanProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -1363,7 +1363,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 알뜰 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && budgetProducts.length > 0 && (
         <div id="budget-cruises" className="mb-12">
-          <h3 className="text-3xl md:text-4xl font-black text-gray-900 mb-6">알뜰 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">알뜰 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {budgetProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
@@ -1388,14 +1388,14 @@ export default function ProductList({ partnerContext = null, featuredProductCode
             <div className="mb-8">
               {showFilteredProducts && (
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-3xl md:text-4xl font-black text-gray-900">
+                  <h3 className="text-3xl md:text-4xl font-black text-[#051C2C]">
                     {menuFilters.find(f => f.value === filters.region)?.label || '필터링된'} 크루즈
                   </h3>
                   <a
                     href="/product"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg min-h-[48px] flex items-center justify-center text-base md:text-lg"
+                    className="px-6 py-3 bg-gradient-to-r from-[#D4AF37] via-yellow-400 to-[#D4AF37] bg-[length:200%_auto] animate-gradient text-[#051C2C] font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all min-h-[48px] flex items-center justify-center text-base md:text-lg"
                   >
                     전체 보기 →
                   </a>
@@ -1403,12 +1403,12 @@ export default function ProductList({ partnerContext = null, featuredProductCode
               )}
               {!showFilteredProducts && filters.type === 'all' && filters.region === 'all' && (
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-3xl md:text-4xl font-black text-gray-900">크루즈 상품 안내</h3>
+                  <h3 className="text-3xl md:text-4xl font-black text-[#051C2C]">크루즈 상품 안내</h3>
                   <a
                     href="/product"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg min-h-[48px] flex items-center justify-center text-base md:text-lg"
+                    className="px-6 py-3 bg-gradient-to-r from-[#D4AF37] via-yellow-400 to-[#D4AF37] bg-[length:200%_auto] animate-gradient text-[#051C2C] font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all min-h-[48px] flex items-center justify-center text-base md:text-lg"
                   >
                     전체 보기 →
                   </a>

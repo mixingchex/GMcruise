@@ -26,6 +26,10 @@ const config: Config = {
         'brand-light-dark': '#2F2F2F',
         'brand-neutral': '#F5F5F1',
         'magic-gold': '#FFD700',
+        // Nano Banana Theme Colors (Premium Redesign)
+        'banana-gold': '#D4AF37', // Metallic Luxury Gold
+        'banana-cream': '#F9F7F2', // Very Subtle Warm White (Luxury Paper)
+        'ocean-deep': '#051C2C',   // Darker Premium Navy
         // 고대비 텍스트 색상 추가 (WCAG AA 기준)
         'text': {
           'primary': '#111827',    // gray-900 (검정에 가까움)
@@ -34,7 +38,7 @@ const config: Config = {
         },
         'surface': {
           'primary': '#FFFFFF',    // 흰색 배경
-          'secondary': '#F9FAFB',  // gray-50 (밝은 회색)
+          'secondary': '#F9F7F2',  // banana-cream (Subtle)
           'tertiary': '#F3F4F6',   // gray-100
         },
       },

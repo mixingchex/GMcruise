@@ -43,11 +43,11 @@ export default function HomeClientPage() {
   useEffect(() => {
     let isMounted = true;
     const abortController = new AbortController();
-    
+
     // URL 파라미터에서 로그인 직후인지 확인
     const urlParams = new URLSearchParams(window.location.search);
     const isJustLoggedIn = urlParams.get('loggedIn') === 'true';
-    
+
     // 로그인 직후인 경우 URL에서 파라미터 제거 (히스토리 정리)
     if (isJustLoggedIn) {
       const newUrl = window.location.pathname;
@@ -64,11 +64,11 @@ export default function HomeClientPage() {
         const response = await fetch(apiUrl, {
           signal: configAbortController.signal,
         });
-        
+
         clearTimeout(configTimeoutId);
-        
+
         if (!isMounted) return;
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${apiUrl}`);
         }
@@ -103,22 +103,22 @@ export default function HomeClientPage() {
         // 로그인 직후인 경우 더 긴 대기 시간 (800ms), 아닌 경우 기본 대기 (300ms)
         const delay = isJustLoggedIn ? 800 : 300;
         await new Promise(resolve => setTimeout(resolve, delay));
-        
+
         const apiUrl = '/api/auth/me';
-        const res = await fetch(apiUrl, { 
+        const res = await fetch(apiUrl, {
           credentials: 'include',
           signal: authAbortController.signal
         });
-        
+
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${apiUrl}`);
         }
-        
+
         const data = await res.json();
         clearTimeout(authTimeoutId);
-        
+
         if (!isMounted) return;
-        
+
         if (data.ok && data.user) {
           console.log('[HomePage] 사용자 정보 로드 성공:', data.user.name);
           setUser(data.user);
@@ -130,7 +130,7 @@ export default function HomeClientPage() {
               if (!isMounted) return;
               try {
                 const retryApiUrl = '/api/auth/me';
-                const retryRes = await fetch(retryApiUrl, { 
+                const retryRes = await fetch(retryApiUrl, {
                   credentials: 'include',
                   signal: authAbortController.signal
                 });
@@ -170,7 +170,7 @@ export default function HomeClientPage() {
             if (!isMounted) return;
             try {
               const retryApiUrl = '/api/auth/me';
-              const retryRes = await fetch(retryApiUrl, { 
+              const retryRes = await fetch(retryApiUrl, {
                 credentials: 'include',
                 signal: authAbortController.signal
               });
@@ -197,7 +197,7 @@ export default function HomeClientPage() {
         }
       }
     };
-    
+
     checkAuth();
 
     // 페이지 설정 로드 (병렬로 실행)
@@ -211,7 +211,7 @@ export default function HomeClientPage() {
         if (!isMounted) return;
         const focusAbortController = new AbortController();
         const focusApiUrl = '/api/auth/me';
-        fetch(focusApiUrl, { 
+        fetch(focusApiUrl, {
           credentials: 'include',
           signal: focusAbortController.signal
         })
@@ -257,11 +257,11 @@ export default function HomeClientPage() {
         method: 'POST',
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${logoutApiUrl}`);
       }
-      
+
       setUser(null);
       // 크루즈가이드 지니에서는 로그아웃 후 크루즈몰로만 이동 (온보딩으로 절대 이동하지 않음)
       window.location.href = '/';
@@ -277,9 +277,14 @@ export default function HomeClientPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-gray-50">
+    <div className="min-h-screen bg-white relative overflow-hidden">
+      {/* 배경 장식 도형 (Responsive Shapes) */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-banana-gold/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+      <div className="absolute top-[20%] left-0 w-[300px] h-[300px] bg-ocean-deep/5 rounded-full blur-3xl -translate-x-1/2 pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-banana-gold/5 rounded-full blur-3xl translate-y-1/3 translate-x-1/3 pointer-events-none" />
+
       {/* 상단 헤더 - 세련된 디자인 */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-lg">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-banana-gold/20 shadow-sm">
         <div className="container mx-auto px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
             {/* 왼쪽: 로고 및 환영 메시지 */}
@@ -319,13 +324,13 @@ export default function HomeClientPage() {
                 <>
                   <Link
                     href="/mall/login"
-                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center text-gray-700 hover:text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 border border-gray-300 hover:border-gray-400 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center text-ocean-deep hover:text-ocean-deep/80 bg-white border border-banana-gold/40 hover:border-banana-gold shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
                   >
                     로그인
                   </Link>
                   <Link
                     href="/mall/signup"
-                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center bg-gradient-to-r from-banana-gold via-yellow-400 to-banana-gold bg-[length:200%_auto] animate-gradient text-ocean-deep shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 border border-yellow-400/20"
                   >
                     회원가입
                   </Link>
@@ -334,13 +339,13 @@ export default function HomeClientPage() {
                 <>
                   <Link
                     href="/community/my-info"
-                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center text-gray-700 hover:text-gray-900 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-gray-100 hover:to-gray-200 border border-gray-300 hover:border-gray-400 shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center text-ocean-deep hover:text-ocean-deep/80 bg-white border border-banana-gold/40 hover:border-banana-gold shadow-sm hover:shadow-md transform hover:scale-105 active:scale-95"
                   >
                     내정보
                   </Link>
                   <Link
                     href="/community"
-                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl text-sm sm:text-base font-bold transition-all duration-200 min-h-[44px] flex items-center justify-center bg-gradient-to-r from-banana-gold via-yellow-400 to-banana-gold bg-[length:200%_auto] animate-gradient text-ocean-deep shadow-md hover:shadow-lg transform hover:scale-105 active:scale-95 border border-yellow-400/20"
                   >
                     우리끼리크루즈닷
                   </Link>
@@ -405,7 +410,7 @@ export default function HomeClientPage() {
 
       {/* 크루즈닷의 경험과 신뢰 */}
       {pageConfig?.companyStats?.enabled && (
-        <section className="container mx-auto px-4 py-12 bg-gray-50">
+        <section className="container mx-auto px-4 py-12 bg-white">
           <CompanyStatsSection config={pageConfig.companyStats} />
         </section>
       )}
@@ -463,7 +468,7 @@ export default function HomeClientPage() {
       )}
 
       {Array.isArray(pageConfig?.themeSections) && pageConfig.themeSections.some((section: any) => section?.enabled) && (
-        <div className="bg-gray-50">
+        <div className="bg-surface-secondary/50">
           {pageConfig.themeSections
             .filter((section: any) => section?.enabled)
             .map((section: any) => (
@@ -474,7 +479,7 @@ export default function HomeClientPage() {
 
       {/* 프로모션 배너 (양싱 베너) */}
       {pageConfig?.promotionBanner?.enabled !== false && (
-        <section id="promotion-banner" className="container mx-auto px-4 py-12 bg-gray-50">
+        <section id="promotion-banner" className="container mx-auto px-4 py-12 bg-white">
           <PromotionBannerCarousel />
         </section>
       )}
@@ -483,21 +488,22 @@ export default function HomeClientPage() {
       <CommunitySection config={pageConfig?.communitySection} />
 
       {/* 크루즈닷 지니 AI 출시 3일 무료체험 배너 */}
-      <section className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 py-16 md:py-20 cursor-pointer" onClick={() => window.location.href = '/login-test'}>
+      <section className="w-full bg-gradient-to-r from-[#051C2C] via-[#0f2c44] to-[#051C2C] py-16 md:py-20 cursor-pointer relative overflow-hidden" onClick={() => window.location.href = '/login-test'}>
+        <div className="absolute inset-0 bg-[url('/images/pattern-overlay.png')] opacity-5"></div>
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="mb-6">
               <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
                 크루즈닷 지니 AI 출시
               </h2>
-              <h3 className="text-3xl md:text-4xl font-bold text-yellow-300 mb-6">
+              <h3 className="text-3xl md:text-4xl font-bold text-[#D4AF37] mb-6 drop-shadow-sm">
                 3일 무료체험
               </h3>
               <p className="text-xl md:text-2xl text-blue-100 mb-8 font-medium">
                 AI 채팅, 체크리스트, 여행 지도, 가계부까지
               </p>
             </div>
-            
+
             <div className="mb-6 space-y-4">
               <a
                 href="/login-test"
@@ -505,7 +511,7 @@ export default function HomeClientPage() {
                   e.stopPropagation();
                   window.location.href = '/login-test';
                 }}
-                className="inline-block bg-gradient-to-r from-yellow-400 via-yellow-300 to-yellow-400 text-blue-900 font-bold text-xl md:text-2xl px-12 py-6 rounded-2xl shadow-2xl hover:from-yellow-300 hover:via-yellow-200 hover:to-yellow-300 hover:scale-105 transition-all duration-300 transform border-2 border-yellow-500"
+                className="inline-block bg-gradient-to-r from-[#D4AF37] via-yellow-400 to-[#D4AF37] bg-[length:200%_auto] animate-gradient text-[#051C2C] font-bold text-xl md:text-2xl px-12 py-6 rounded-2xl shadow-2xl hover:scale-105 transition-all duration-300 transform border border-yellow-300/50"
               >
                 크루즈 지니 AI 3일 무료체험 구경하기 🎉
               </a>
@@ -519,7 +525,7 @@ export default function HomeClientPage() {
                     e.stopPropagation();
                     window.location.href = '/login-test';
                   }}
-                  className="inline-block bg-white text-blue-700 font-bold text-xl px-10 py-5 rounded-2xl shadow-2xl hover:bg-yellow-300 hover:scale-105 transition-all duration-300 transform"
+                  className="inline-block bg-white/10 backdrop-blur-sm text-white border border-white/30 font-bold text-xl px-10 py-5 rounded-2xl shadow-lg hover:bg-white/20 hover:scale-105 transition-all duration-300 transform"
                 >
                   무료체험 신청하기 🚀
                 </a>
@@ -618,4 +624,3 @@ function PopupMessage({ config }: { config: any }) {
     </div>
   );
 }
-

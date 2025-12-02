@@ -72,12 +72,12 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
 
   useEffect(() => {
     console.log('[CommunitySection] 컴포넌트 마운트, 게시글 로드 시작');
-    
+
     // 로그인 상태 확인
     const authAbortController = new AbortController();
     const authTimeoutId = setTimeout(() => authAbortController.abort(), 3000);
-    
-    fetch('/api/auth/me', { 
+
+    fetch('/api/auth/me', {
       credentials: 'include',
       signal: authAbortController.signal,
     })
@@ -94,7 +94,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
         console.log('[CommunitySection] 로그인 상태 확인 실패, 비로그인으로 처리');
         setIsLoggedIn(false);
       });
-    
+
     // 게시글 로드 시작 (로딩 상태는 loadPosts 내부에서 관리)
     loadPosts().finally(() => {
       // 게시글 로드 완료 후 로딩 상태 해제
@@ -108,31 +108,31 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       // 모든 API 호출을 병렬로 처리
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 10000); // 10초 타임아웃으로 증가
-      
+
       // 최근 게시글 6개
       const recentResponse = fetch('/api/community/posts?limit=6', {
         signal: abortController.signal,
       });
-      
+
       // 인기 게시글 (조회수 + 좋아요 기준) 6개
       const popularResponse = fetch('/api/community/posts?limit=20', {
         signal: abortController.signal,
       });
-      
+
       // 크루즈뉘우스 미리보기 게시글
       const newsResponse = fetch('/api/community/posts?limit=20&category=cruisedot-news', {
         signal: abortController.signal,
       });
-      
+
       // 모든 응답을 병렬로 처리
       const [recentRes, popularRes, newsRes] = await Promise.allSettled([
         recentResponse,
         popularResponse,
         newsResponse,
       ]);
-      
+
       clearTimeout(timeoutId);
-      
+
       // 최근 게시글 처리
       if (recentRes.status === 'fulfilled') {
         try {
@@ -211,14 +211,14 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
               console.log('[CommunitySection] 크루즈뉘우스 로드 성공:', newsData.posts.length, '개');
               const today = new Date();
               today.setHours(0, 0, 0, 0);
-              
+
               const mappedNews = newsData.posts
                 .filter((post: any) => post?.title)
                 .map((post: any) => {
                   const postDate = new Date(post.createdAt);
                   postDate.setHours(0, 0, 0, 0);
                   const isToday = postDate.getTime() === today.getTime();
-                  
+
                   return {
                     id: post.id,
                     title: post.title,
@@ -234,7 +234,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                     isToday: isToday, // 오늘 생성된 글인지 표시
                   };
                 }) as (CommunityNewsPost & { isToday?: boolean })[];
-              
+
               // 최신순 정렬 (오늘 생성된 글을 맨 앞으로, 그 다음 최신순)
               const sortedNews = mappedNews.sort((a, b) => {
                 // 오늘 생성된 글을 맨 앞으로
@@ -242,7 +242,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                 const bIsToday = b.isToday || false;
                 if (aIsToday && !bIsToday) return -1;
                 if (!aIsToday && bIsToday) return 1;
-                
+
                 // 둘 다 오늘이거나 둘 다 아니면 최신순 (최신이 앞으로)
                 const aTime = new Date(a.createdAt).getTime();
                 const bTime = new Date(b.createdAt).getTime();
@@ -347,7 +347,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '날짜 없음';
-    
+
     try {
       const date = new Date(dateString);
       const now = new Date();
@@ -355,22 +355,22 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       today.setHours(0, 0, 0, 0);
       const postDate = new Date(date);
       postDate.setHours(0, 0, 0, 0);
-      
+
       // 오늘 생성된 경우
       if (postDate.getTime() === today.getTime()) {
         return '오늘';
       }
-      
+
       // 어제 생성된 경우
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       if (postDate.getTime() === yesterday.getTime()) {
         return '어제';
       }
-      
+
       const diff = now.getTime() - date.getTime();
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      
+
       if (days < 7) return `${days}일 전`;
       if (days < 30) {
         const weeks = Math.floor(days / 7);
@@ -418,17 +418,17 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
   }
 
   return (
-    <section className="container mx-auto px-4 py-12 md:py-16 bg-gray-50">
+    <section className="container mx-auto px-4 py-12 md:py-16 bg-white">
       <div className="text-center mb-10 md:mb-12">
-        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-3 md:mb-4">
+        <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-[#051C2C] mb-3 md:mb-4">
           {title}
         </h2>
-        <p className="text-lg md:text-xl lg:text-2xl text-gray-700 mb-5 md:mb-6 leading-relaxed">
+        <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-5 md:mb-6 leading-relaxed">
           {description}
         </p>
         <Link
           href={linkUrl}
-          className="inline-flex items-center gap-2 px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-red-600 to-red-700 text-white text-base md:text-lg font-bold rounded-lg hover:from-red-700 hover:to-red-800 transition-all shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 min-h-[48px] md:min-h-[52px]"
+          className="inline-flex items-center gap-2 px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-[#D4AF37] via-yellow-400 to-[#D4AF37] bg-[length:200%_auto] animate-gradient text-[#051C2C] text-base md:text-lg font-bold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 min-h-[48px] md:min-h-[52px] transition-all"
         >
           <span>{linkText}</span>
           <span>→</span>
@@ -439,12 +439,12 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       {recentPosts.length > 0 && (
         <div className="mb-12 md:mb-16">
           <div className="flex items-center justify-between mb-6 md:mb-8">
-            <h3 className="text-2xl md:text-3xl font-black text-gray-900">
+            <h3 className="text-2xl md:text-3xl font-black text-[#051C2C]">
               📝 최근 게시글
             </h3>
             <Link
               href={linkUrl}
-              className="text-blue-700 hover:text-blue-800 font-bold text-base md:text-lg underline decoration-2 underline-offset-4 transition-colors"
+              className="text-[#051C2C] hover:text-[#D4AF37] font-bold text-base md:text-lg underline decoration-2 underline-offset-4 transition-colors"
             >
               크루즈 커뮤니티 더보기 →
             </Link>
@@ -517,7 +517,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                   <Link
                     key={post.id}
                     href={`/community/posts/${post.id}`}
-                    className="flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 border-gray-200 hover:border-blue-500 block"
+                    className="flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 border-gray-100 hover:border-[#D4AF37] block"
                   >
                     {postContent}
                   </Link>
@@ -539,12 +539,12 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
       {popularPosts.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-6 md:mb-8">
-            <h3 className="text-2xl md:text-3xl font-black text-gray-900">
+            <h3 className="text-2xl md:text-3xl font-black text-[#051C2C]">
               🔥 인기 게시글
             </h3>
             <Link
               href={linkUrl}
-              className="text-blue-700 hover:text-blue-800 font-bold text-base md:text-lg underline decoration-2 underline-offset-4 transition-colors"
+              className="text-[#051C2C] hover:text-[#D4AF37] font-bold text-base md:text-lg underline decoration-2 underline-offset-4 transition-colors"
             >
               크루즈 커뮤니티 더보기 →
             </Link>
@@ -617,7 +617,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                   <Link
                     key={post.id}
                     href={`/community/posts/${post.id}`}
-                    className="flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 border-gray-200 hover:border-red-500 block"
+                    className="flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 border-gray-100 hover:border-[#D4AF37] block"
                   >
                     {postContent}
                   </Link>
@@ -637,59 +637,59 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
 
       {/* 크루즈뉘우스 미리보기 - 항상 표시 */}
       <div className="mt-12 md:mt-16">
-          <div className="flex items-center justify-between mb-6 md:mb-8">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <h3 className="text-2xl md:text-3xl font-black text-gray-900">
-                  📰 크루즈뉘우스
-                </h3>
-                {newsPosts[0] && (() => {
-                  const firstPost = newsPosts[0] as any;
-                  const postDate = new Date(firstPost.createdAt);
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  postDate.setHours(0, 0, 0, 0);
-                  const isToday = postDate.getTime() === today.getTime();
-                  
-                  if (isToday) {
-                    return (
-                      <span className="px-3 py-1 bg-red-500 text-white text-xs md:text-sm font-bold rounded-full animate-pulse">
-                        오늘의 뉴스
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-              <p className="text-base md:text-lg text-gray-600 font-semibold">
-                본사에서 직접 전하는 최신 크루즈 소식과 혜택을 확인해보세요
-              </p>
+        <div className="flex items-center justify-between mb-6 md:mb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <h3 className="text-2xl md:text-3xl font-black text-[#051C2C]">
+                📰 크루즈뉘우스
+              </h3>
+              {newsPosts[0] && (() => {
+                const firstPost = newsPosts[0] as any;
+                const postDate = new Date(firstPost.createdAt);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                postDate.setHours(0, 0, 0, 0);
+                const isToday = postDate.getTime() === today.getTime();
+
+                if (isToday) {
+                  return (
+                    <span className="px-3 py-1 bg-red-500 text-white text-xs md:text-sm font-bold rounded-full animate-pulse">
+                      오늘의 뉴스
+                    </span>
+                  );
+                }
+                return null;
+              })()}
             </div>
-            <Link
-              href="/community/cruisedot-news"
-              className="text-blue-700 hover:text-blue-800 font-bold text-base md:text-lg underline decoration-2 underline-offset-4 transition-colors whitespace-nowrap"
-            >
-              크루즈 뉴스 전체 보기 →
-            </Link>
+            <p className="text-base md:text-lg text-gray-600 font-semibold">
+              본사에서 직접 전하는 최신 크루즈 소식과 혜택을 확인해보세요
+            </p>
           </div>
-          <div className="relative">
-            <button
-              onClick={() => scrollLeft(newsScrollRef)}
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-indigo-500 transition-all transform hover:scale-110"
-              aria-label="이전 뉴스"
-            >
-              <FiChevronLeft className="w-6 h-6 text-gray-700" />
-            </button>
-            <div
-              ref={newsScrollRef}
-              className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
-            >
-              {newsPosts.length === 0 ? (
-                <div className="flex-shrink-0 w-full text-center py-8 text-gray-500">
-                  크루즈뉘우스를 불러오는 중...
-                </div>
-              ) : (
-                newsPosts.map((post, index) => {
+          <Link
+            href="/community/cruisedot-news"
+            className="text-[#051C2C] hover:text-[#D4AF37] font-bold text-base md:text-lg underline decoration-2 underline-offset-4 transition-colors whitespace-nowrap"
+          >
+            크루즈 뉴스 전체 보기 →
+          </Link>
+        </div>
+        <div className="relative">
+          <button
+            onClick={() => scrollLeft(newsScrollRef)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-indigo-500 transition-all transform hover:scale-110"
+            aria-label="이전 뉴스"
+          >
+            <FiChevronLeft className="w-6 h-6 text-gray-700" />
+          </button>
+          <div
+            ref={newsScrollRef}
+            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth pb-4"
+          >
+            {newsPosts.length === 0 ? (
+              <div className="flex-shrink-0 w-full text-center py-8 text-gray-500">
+                크루즈뉘우스를 불러오는 중...
+              </div>
+            ) : (
+              newsPosts.map((post, index) => {
                 const postDate = new Date(post.createdAt);
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
@@ -699,87 +699,85 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                 // 데이터베이스에서 가져온 실제 뉴스(제가 생성한 글)는 첫 번째 카드에 "최신" 태그 표시
                 const isStaticNews = String(post.id).startsWith('static-');
                 const isLatest = index === 0 && !isStaticNews;
-                
+
                 return (
-                <Link
-                  key={String(post.id)}
-                  href={post.href}
-                  className={`flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 ${
-                    isToday && isLatest 
-                      ? 'border-red-400 hover:border-red-500 bg-gradient-to-br from-red-50 to-white' 
-                      : 'border-gray-200 hover:border-indigo-500'
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 text-xs md:text-sm font-bold rounded-md whitespace-nowrap ${
-                        isToday && isLatest
-                          ? 'bg-red-500 text-white'
-                          : 'bg-indigo-100 text-indigo-800'
-                      }`}>
-                        {isToday && isLatest ? '🔥 오늘의 뉴스' : '크루즈뉘우스'}
-                      </span>
-                      {isLatest && !isStaticNews && (
-                        <span className="px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-md animate-pulse">
-                          최신
+                  <Link
+                    key={String(post.id)}
+                    href={post.href}
+                    className={`flex-shrink-0 w-[320px] md:w-[380px] bg-white rounded-lg p-5 md:p-6 shadow-md hover:shadow-xl transition-all border-2 ${isToday && isLatest
+                        ? 'border-[#D4AF37] hover:border-[#D4AF37] bg-gradient-to-br from-yellow-50 to-white'
+                        : 'border-gray-100 hover:border-[#D4AF37]'
+                      }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 text-xs md:text-sm font-bold rounded-md whitespace-nowrap ${isToday && isLatest
+                            ? 'bg-red-500 text-white'
+                            : 'bg-indigo-100 text-indigo-800'
+                          }`}>
+                          {isToday && isLatest ? '🔥 오늘의 뉴스' : '크루즈뉘우스'}
                         </span>
-                      )}
+                        {isLatest && !isStaticNews && (
+                          <span className="px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-md animate-pulse">
+                            최신
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-gray-500 text-xs md:text-sm font-semibold flex items-center gap-1 whitespace-nowrap">
+                        <FiClock className="w-3 h-3 md:w-4 md:h-4" />
+                        {formatDate(post.createdAt)}
+                      </span>
                     </div>
-                    <span className="text-gray-500 text-xs md:text-sm font-semibold flex items-center gap-1 whitespace-nowrap">
-                      <FiClock className="w-3 h-3 md:w-4 md:h-4" />
-                      {formatDate(post.createdAt)}
-                    </span>
-                  </div>
-                  <h4 className="text-base md:text-lg font-bold text-gray-900 mb-2 leading-snug">
-                    {post.title}
-                  </h4>
-                  <p className="text-sm md:text-base text-gray-700 mb-3 leading-relaxed">
-                    {truncateContent(post.content, 150)}
-                  </p>
-                  {post.images && post.images.length > 0 && (
-                    <div className="mb-3">
-                      <div className="relative w-full h-32 md:h-40 rounded-md overflow-hidden">
-                        <img
-                          src={post.images[0]}
-                          alt={post.title}
-                          className="w-full h-full object-cover object-center"
-                        />
+                    <h4 className="text-base md:text-lg font-bold text-gray-900 mb-2 leading-snug">
+                      {post.title}
+                    </h4>
+                    <p className="text-sm md:text-base text-gray-700 mb-3 leading-relaxed">
+                      {truncateContent(post.content, 150)}
+                    </p>
+                    {post.images && post.images.length > 0 && (
+                      <div className="mb-3">
+                        <div className="relative w-full h-32 md:h-40 rounded-md overflow-hidden">
+                          <img
+                            src={post.images[0]}
+                            alt={post.title}
+                            className="w-full h-full object-cover object-center"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                      <span className="text-sm md:text-base font-bold text-gray-700 truncate max-w-[120px]">
+                        {post.authorName || '크루즈닷 본사'}
+                      </span>
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <span className="flex items-center gap-1 text-gray-600 text-xs md:text-sm font-semibold whitespace-nowrap">
+                          <FiEye className="w-3 h-3 md:w-4 md:h-4" />
+                          {post.views.toLocaleString()}
+                        </span>
+                        <span className="flex items-center gap-1 text-red-600 text-xs md:text-sm font-semibold whitespace-nowrap">
+                          <FiHeart className="w-3 h-3 md:w-4 md:h-4" />
+                          {post.likes.toLocaleString()}
+                        </span>
+                        <span className="flex items-center gap-1 text-blue-600 text-xs md:text-sm font-semibold whitespace-nowrap">
+                          <FiMessageCircle className="w-3 h-3 md:w-4 md:h-4" />
+                          {post.comments.toLocaleString()}
+                        </span>
                       </div>
                     </div>
-                  )}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                    <span className="text-sm md:text-base font-bold text-gray-700 truncate max-w-[120px]">
-                      {post.authorName || '크루즈닷 본사'}
-                    </span>
-                    <div className="flex items-center gap-3 md:gap-4">
-                      <span className="flex items-center gap-1 text-gray-600 text-xs md:text-sm font-semibold whitespace-nowrap">
-                        <FiEye className="w-3 h-3 md:w-4 md:h-4" />
-                        {post.views.toLocaleString()}
-                      </span>
-                      <span className="flex items-center gap-1 text-red-600 text-xs md:text-sm font-semibold whitespace-nowrap">
-                        <FiHeart className="w-3 h-3 md:w-4 md:h-4" />
-                        {post.likes.toLocaleString()}
-                      </span>
-                      <span className="flex items-center gap-1 text-blue-600 text-xs md:text-sm font-semibold whitespace-nowrap">
-                        <FiMessageCircle className="w-3 h-3 md:w-4 md:h-4" />
-                        {post.comments.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
+                  </Link>
                 );
               })
-              )}
-            </div>
-            <button
-              onClick={() => scrollRight(newsScrollRef)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-indigo-500 transition-all transform hover:scale-110"
-              aria-label="다음 뉴스"
-            >
-              <FiChevronRight className="w-6 h-6 text-gray-700" />
-            </button>
+            )}
           </div>
+          <button
+            onClick={() => scrollRight(newsScrollRef)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg border-2 border-gray-200 hover:border-indigo-500 transition-all transform hover:scale-110"
+            aria-label="다음 뉴스"
+          >
+            <FiChevronRight className="w-6 h-6 text-gray-700" />
+          </button>
         </div>
+      </div>
 
       {/* 게시글이 없을 때 - 모든 사용자에게 표시 */}
       {!loading && recentPosts.length === 0 && popularPosts.length === 0 && (

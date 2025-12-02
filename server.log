@@ -1,0 +1,1011 @@
+
+> cruise-guide@0.1.0 dev
+> scripts/dev-freeport.sh
+
+────────────────────────────────────────────
+  ✅ Free port found: 3001
+  ▶️  Starting Next.js on http://localhost:3001
+────────────────────────────────────────────
+  ▲ Next.js 14.2.33
+  - Local:        http://localhost:3001
+  - Network:      http://0.0.0.0:3001
+  - Environments: .env.local, .env
+  - Experiments (use with caution):
+    · missingSuspenseWithCSRBailout
+
+ ✓ Starting...
+ ✓ Ready in 931ms
+ ✓ Compiled /middleware in 199ms (122 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 4.4s (952 modules)
+⚠️  Warning: Missing optional environment variables: SESSION_SECRET
+💡 Some features may not work properly.
+✅ Environment variables validated.
+[Init] 애플리케이션 초기화 시작...
+[Proactive] Proactive Engine 시작됨 (매 10분)
+[Init] 애플리케이션 초기화 완료 ✓
+ ✓ Compiled in 377ms (395 modules)
+[CruiseSearchBlock] Generating related search terms, products count: 0
+[CruiseSearchBlock] No products available, returning empty related search terms
+ GET / 200 in 6276ms
+ ✓ Compiled /api/public/products in 216ms (584 modules)
+ ✓ Compiled (592 modules)
+ GET /api/kakao/add-channel 200 in 1161ms
+ ✓ Compiled /api/auth/me in 58ms (594 modules)
+ GET /api/public/reviews?limit=50 200 in 1421ms
+[Public Products API] Active AffiliateProducts: {
+  count: 12,
+  productCodes: [
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'SAMPLE-MED-001',
+    'LOTTE_MEDITERRANEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'SAMPLE-015',
+    'SAMPLE-014'
+  ],
+  now: '2025-12-01T19:46:41.836Z',
+  details: [
+    {
+      productCode: 'CRUISEDOT_JAPAN_ONSEN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-MED-001',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_MEDITERRANEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_ALASKA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_CARIBBEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-015',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:11.941Z',
+      effectiveTo: undefined
+    },
+    {
+      productCode: 'SAMPLE-014',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:12.265Z',
+      effectiveTo: undefined
+    }
+  ]
+}
+[Public Products API] Looking for CruiseProducts with codes: [
+  'CRUISEDOT_JAPAN_ONSEN_2025',
+  'DOUBLEU_NORTHERN_EUROPE_2025',
+  'SAMPLE-MED-001',
+  'LOTTE_MEDITERRANEAN_2025',
+  'LOTTE_ALASKA_2025',
+  'LOTTE_CARIBBEAN_2025',
+  'CRUISEDOT_SOUTHEAST_5_2025',
+  'DOUBLEU_WORLD_CRUISE_2025',
+  'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+  'DOUBLEU_OKINAWA_2025',
+  'SAMPLE-015',
+  'SAMPLE-014'
+]
+[Public Products API] Active AffiliateProducts: {
+  count: 12,
+  productCodes: [
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'SAMPLE-MED-001',
+    'LOTTE_MEDITERRANEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'SAMPLE-015',
+    'SAMPLE-014'
+  ],
+  now: '2025-12-01T19:46:41.836Z',
+  details: [
+    {
+      productCode: 'CRUISEDOT_JAPAN_ONSEN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-MED-001',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_MEDITERRANEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_ALASKA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_CARIBBEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-015',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:11.941Z',
+      effectiveTo: undefined
+    },
+    {
+      productCode: 'SAMPLE-014',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:12.265Z',
+      effectiveTo: undefined
+    }
+  ]
+}
+[Public Products API] Looking for CruiseProducts with codes: [
+  'CRUISEDOT_JAPAN_ONSEN_2025',
+  'DOUBLEU_NORTHERN_EUROPE_2025',
+  'SAMPLE-MED-001',
+  'LOTTE_MEDITERRANEAN_2025',
+  'LOTTE_ALASKA_2025',
+  'LOTTE_CARIBBEAN_2025',
+  'CRUISEDOT_SOUTHEAST_5_2025',
+  'DOUBLEU_WORLD_CRUISE_2025',
+  'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+  'DOUBLEU_OKINAWA_2025',
+  'SAMPLE-015',
+  'SAMPLE-014'
+]
+ GET /api/public/mall-settings 200 in 1437ms
+ ✓ Compiled /api/community/posts in 77ms (597 modules)
+ GET /api/admin/settings/seo-global 401 in 1767ms
+[Public Products API] Found CruiseProducts: {
+  count: 10,
+  productCodes: [
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_MEDITERRANEAN_2025',
+    'SAMPLE-MED-001'
+  ],
+  saleStatuses: [
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중'
+  ]
+}
+ GET /api/public/products?page=1&limit=12&sort=newest 200 in 2113ms
+[Public Products API] Found CruiseProducts: {
+  count: 10,
+  productCodes: [
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_MEDITERRANEAN_2025',
+    'SAMPLE-MED-001'
+  ],
+  saleStatuses: [
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중'
+  ]
+}
+[Public Products API] Products with recommendedKeywords (detailed): {
+  total: 10,
+  withKeywords: 0,
+  sampleProducts: [
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    }
+  ],
+  allKeywords: []
+}
+ GET /api/public/products?limit=1000 200 in 2144ms
+ GET /api/auth/me 200 in 1085ms
+ ✓ Compiled /api/public/footer in 92ms (599 modules)
+ ✓ Compiled /api/public/page-config in 0ms (602 modules)
+ ✓ Compiled in 1ms (604 modules)
+ ✓ Compiled in 0ms (604 modules)
+ ✓ Compiled in 0ms (604 modules)
+ GET /api/public/footer 200 in 425ms
+[COMMUNITY POSTS] Returning posts: {
+  total: 0,
+  isTrialUser: false,
+  category: 'cruisedot-news',
+  search: null,
+  firstPost: 'none'
+}
+ GET /api/community/posts?limit=20&category=cruisedot-news 200 in 872ms
+ GET /api/public/page-config 200 in 411ms
+ ✓ Compiled /favicon.ico in 0ms (604 modules)
+[COMMUNITY POSTS] Returning posts: {
+  total: 6,
+  isTrialUser: false,
+  category: null,
+  search: null,
+  firstPost: '세상에, 크루즈 식당 퀄리티 실화인가요? ㅠㅠ 기항지/팁 질문 있어요!'
+}
+ GET /api/community/posts?limit=6 200 in 1264ms
+[COMMUNITY POSTS] Returning posts: {
+  total: 20,
+  isTrialUser: false,
+  category: null,
+  search: null,
+  firstPost: '세상에, 크루즈 식당 퀄리티 실화인가요? ㅠㅠ 기항지/팁 질문 있어요!'
+}
+ GET /api/community/posts?limit=20 200 in 1377ms
+ ✓ Compiled in 1ms (633 modules)
+ ✓ Compiled in 0ms (633 modules)
+ ✓ Compiled in 0ms (633 modules)
+ ✓ Compiled in 0ms (633 modules)
+ GET /favicon.ico 200 in 577ms
+ POST /api/analytics/track 200 in 1236ms
+ GET /api/public/reviews?limit=50 200 in 595ms
+ GET /api/public/footer 200 in 37ms
+ GET /api/public/mall-settings 200 in 582ms
+[Public Products API] Active AffiliateProducts: {
+  count: 12,
+  productCodes: [
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'SAMPLE-MED-001',
+    'LOTTE_MEDITERRANEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'SAMPLE-015',
+    'SAMPLE-014'
+  ],
+  now: '2025-12-01T19:46:44.917Z',
+  details: [
+    {
+      productCode: 'CRUISEDOT_JAPAN_ONSEN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-MED-001',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_MEDITERRANEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_ALASKA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_CARIBBEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-015',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:11.941Z',
+      effectiveTo: undefined
+    },
+    {
+      productCode: 'SAMPLE-014',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:12.265Z',
+      effectiveTo: undefined
+    }
+  ]
+}
+[Public Products API] Looking for CruiseProducts with codes: [
+  'CRUISEDOT_JAPAN_ONSEN_2025',
+  'DOUBLEU_NORTHERN_EUROPE_2025',
+  'SAMPLE-MED-001',
+  'LOTTE_MEDITERRANEAN_2025',
+  'LOTTE_ALASKA_2025',
+  'LOTTE_CARIBBEAN_2025',
+  'CRUISEDOT_SOUTHEAST_5_2025',
+  'DOUBLEU_WORLD_CRUISE_2025',
+  'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+  'DOUBLEU_OKINAWA_2025',
+  'SAMPLE-015',
+  'SAMPLE-014'
+]
+ GET /api/admin/settings/seo-global 401 in 585ms
+ POST /api/analytics/track 200 in 1332ms
+[Public Products API] Found CruiseProducts: {
+  count: 10,
+  productCodes: [
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_MEDITERRANEAN_2025',
+    'SAMPLE-MED-001'
+  ],
+  saleStatuses: [
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중'
+  ]
+}
+[Public Products API] Products with recommendedKeywords (detailed): {
+  total: 10,
+  withKeywords: 0,
+  sampleProducts: [
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    }
+  ],
+  allKeywords: []
+}
+ GET /api/public/products?limit=1000 200 in 596ms
+ GET /api/kakao/add-channel 200 in 1241ms
+ GET /api/auth/me 200 in 590ms
+[Public Products API] Active AffiliateProducts: {
+  count: 12,
+  productCodes: [
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'SAMPLE-MED-001',
+    'LOTTE_MEDITERRANEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'SAMPLE-015',
+    'SAMPLE-014'
+  ],
+  now: '2025-12-01T19:46:45.559Z',
+  details: [
+    {
+      productCode: 'CRUISEDOT_JAPAN_ONSEN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-MED-001',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_MEDITERRANEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_ALASKA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_CARIBBEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-015',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:11.941Z',
+      effectiveTo: undefined
+    },
+    {
+      productCode: 'SAMPLE-014',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:12.265Z',
+      effectiveTo: undefined
+    }
+  ]
+}
+[Public Products API] Looking for CruiseProducts with codes: [
+  'CRUISEDOT_JAPAN_ONSEN_2025',
+  'DOUBLEU_NORTHERN_EUROPE_2025',
+  'SAMPLE-MED-001',
+  'LOTTE_MEDITERRANEAN_2025',
+  'LOTTE_ALASKA_2025',
+  'LOTTE_CARIBBEAN_2025',
+  'CRUISEDOT_SOUTHEAST_5_2025',
+  'DOUBLEU_WORLD_CRUISE_2025',
+  'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+  'DOUBLEU_OKINAWA_2025',
+  'SAMPLE-015',
+  'SAMPLE-014'
+]
+ GET /api/admin/settings/seo-global 401 in 589ms
+[COMMUNITY POSTS] Returning posts: {
+  total: 0,
+  isTrialUser: false,
+  category: 'cruisedot-news',
+  search: null,
+  firstPost: 'none'
+}
+ GET /api/community/posts?limit=20&category=cruisedot-news 200 in 1138ms
+[COMMUNITY POSTS] Returning posts: {
+  total: 6,
+  isTrialUser: false,
+  category: null,
+  search: null,
+  firstPost: '세상에, 크루즈 식당 퀄리티 실화인가요? ㅠㅠ 기항지/팁 질문 있어요!'
+}
+ GET /api/community/posts?limit=6 200 in 870ms
+[COMMUNITY POSTS] Returning posts: {
+  total: 20,
+  isTrialUser: false,
+  category: null,
+  search: null,
+  firstPost: '세상에, 크루즈 식당 퀄리티 실화인가요? ㅠㅠ 기항지/팁 질문 있어요!'
+}
+ GET /api/community/posts?limit=20 200 in 871ms
+ ✓ Compiled /api/public/youtube/videos in 178ms (647 modules)
+ GET /api/admin/settings/seo-global 401 in 309ms
+ ✓ Compiled (649 modules)
+ GET /api/public/youtube/videos?maxResults=10 200 in 258ms
+ GET /api/public/youtube/shorts?maxResults=10 200 in 321ms
+ GET /api/public/youtube/videos?maxResults=10 200 in 81ms
+ GET /api/public/youtube/shorts?maxResults=10 200 in 86ms
+[Public Products API] Found CruiseProducts: {
+  count: 10,
+  productCodes: [
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_MEDITERRANEAN_2025',
+    'SAMPLE-MED-001'
+  ],
+  saleStatuses: [
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중'
+  ]
+}
+[Public Products API] Products with recommendedKeywords (detailed): {
+  total: 10,
+  withKeywords: 0,
+  sampleProducts: [
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    }
+  ],
+  allKeywords: []
+}
+ GET /api/public/products?limit=1000 200 in 1140ms
+[Public Products API] Active AffiliateProducts: {
+  count: 12,
+  productCodes: [
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'SAMPLE-MED-001',
+    'LOTTE_MEDITERRANEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'SAMPLE-015',
+    'SAMPLE-014'
+  ],
+  now: '2025-12-01T19:46:46.710Z',
+  details: [
+    {
+      productCode: 'CRUISEDOT_JAPAN_ONSEN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-MED-001',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_MEDITERRANEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_ALASKA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'LOTTE_CARIBBEAN_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-11-23T06:31:41.155Z',
+      effectiveTo: '2026-11-30T06:31:41.155Z'
+    },
+    {
+      productCode: 'SAMPLE-015',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:11.941Z',
+      effectiveTo: undefined
+    },
+    {
+      productCode: 'SAMPLE-014',
+      status: 'active',
+      isPublished: true,
+      effectiveFrom: '2025-12-01T12:00:12.265Z',
+      effectiveTo: undefined
+    }
+  ]
+}
+[Public Products API] Looking for CruiseProducts with codes: [
+  'CRUISEDOT_JAPAN_ONSEN_2025',
+  'DOUBLEU_NORTHERN_EUROPE_2025',
+  'SAMPLE-MED-001',
+  'LOTTE_MEDITERRANEAN_2025',
+  'LOTTE_ALASKA_2025',
+  'LOTTE_CARIBBEAN_2025',
+  'CRUISEDOT_SOUTHEAST_5_2025',
+  'DOUBLEU_WORLD_CRUISE_2025',
+  'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+  'DOUBLEU_OKINAWA_2025',
+  'SAMPLE-015',
+  'SAMPLE-014'
+]
+[Public Products API] Found CruiseProducts: {
+  count: 10,
+  productCodes: [
+    'DOUBLEU_WORLD_CRUISE_2025',
+    'DOUBLEU_NORTHERN_EUROPE_2025',
+    'DOUBLEU_OKINAWA_2025',
+    'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+    'CRUISEDOT_SOUTHEAST_5_2025',
+    'CRUISEDOT_JAPAN_ONSEN_2025',
+    'LOTTE_CARIBBEAN_2025',
+    'LOTTE_ALASKA_2025',
+    'LOTTE_MEDITERRANEAN_2025',
+    'SAMPLE-MED-001'
+  ],
+  saleStatuses: [
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중',
+    '판매중', '판매중'
+  ]
+}
+[Public Products API] Products with recommendedKeywords (detailed): {
+  total: 10,
+  withKeywords: 0,
+  sampleProducts: [
+    {
+      productCode: 'DOUBLEU_WORLD_CRUISE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_NORTHERN_EUROPE_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'DOUBLEU_OKINAWA_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_MEDITERRANEAN_LUX_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    },
+    {
+      productCode: 'CRUISEDOT_SOUTHEAST_5_2025',
+      hasMallContent: true,
+      hasLayout: true,
+      layoutRecommendedKeywords: null,
+      productRecommendedKeywords: null,
+      finalRecommendedKeywords: null
+    }
+  ],
+  allKeywords: []
+}
+ GET /api/public/products?limit=1000 200 in 457ms
+ ✓ Compiled in 2.4s (943 modules)
+[?25h

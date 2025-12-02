@@ -74,17 +74,17 @@ export default function ReviewSlider() {
       }
 
       scrollPosition += scrollSpeed;
-      
+
       // 첫 번째 카드 요소를 찾아서 실제 너비 계산
       const firstCard = container.querySelector('a');
       if (firstCard) {
         const cardWidth = firstCard.offsetWidth;
         const gap = 24; // gap-6 = 24px
         const cardTotalWidth = cardWidth + gap;
-        
+
         // 전체 스크롤 가능한 너비 (원본만, 복제본 전까지)
         const totalScrollWidth = reviews.length * cardTotalWidth;
-        
+
         // 끝에 도달하면 처음으로 리셋 (부드럽게)
         if (scrollPosition >= totalScrollWidth) {
           scrollPosition = 0;
@@ -128,7 +128,7 @@ export default function ReviewSlider() {
     return Array.from({ length: 5 }).map((_, index) => (
       <FiStar
         key={index}
-        className={index < rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}
+        className={index < rating ? 'text-[#D4AF37] fill-[#D4AF37]' : 'text-gray-300'}
         size={24}
       />
     ));
@@ -141,7 +141,7 @@ export default function ReviewSlider() {
       href={`/community/reviews/${review.id}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex-shrink-0 w-80 md:w-96 bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-200 hover:shadow-2xl transition-all cursor-pointer block"
+      className="flex-shrink-0 w-80 md:w-96 bg-white rounded-xl shadow-lg overflow-hidden border-2 border-gray-100 hover:border-[#D4AF37] hover:shadow-2xl transition-all cursor-pointer block group"
     >
       {/* 후기 이미지 - 정사각형 */}
       {review.images && review.images.length > 0 ? (
@@ -170,7 +170,7 @@ export default function ReviewSlider() {
       <div className="p-4 md:p-5">
         {/* 작성자 및 별점 */}
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm md:text-base font-bold text-gray-900 truncate">{review.authorName}</span>
+          <span className="text-sm md:text-base font-bold text-[#051C2C] truncate">{review.authorName}</span>
           <div className="flex items-center gap-1 flex-shrink-0">
             {renderStars(review.rating)}
             <span className="text-sm md:text-base text-gray-700 ml-1 font-semibold">({review.rating})</span>
@@ -179,7 +179,7 @@ export default function ReviewSlider() {
 
         {/* 제목 - 말줄임표 처리 */}
         {review.title && (
-          <h3 className="text-base md:text-lg font-black text-gray-900 mb-2 leading-tight line-clamp-2">
+          <h3 className="text-base md:text-lg font-black text-[#051C2C] mb-2 leading-tight line-clamp-2 group-hover:text-[#D4AF37] transition-colors">
             {review.title}
           </h3>
         )}
@@ -226,7 +226,7 @@ export default function ReviewSlider() {
       >
         {/* 원본 후기들 */}
         {reviews.map((review, index) => renderReviewCard(review, index))}
-        
+
         {/* 복제본 (무한 반복을 위해) */}
         {reviews.map((review, index) => renderReviewCard(review, `clone-${index}`))}
       </div>

@@ -55,7 +55,7 @@ const buildRegionOptions = (): Array<{ value: string; label: string }> => {
     continent.countries.forEach((country) => {
       // 국가 이름에서 한글 부분만 추출 (예: "일본 (Japan)" → "일본")
       const koreanName = country.name.split('(')[0].trim();
-      
+
       // 국가 옵션 추가
       options.push({
         value: koreanName,
@@ -111,7 +111,7 @@ const convertRegionToApiFormat = (region: string): string => {
   if (apiFormats.includes(region.toLowerCase())) {
     return region.toLowerCase();
   }
-  
+
   const regionMap: Record<string, string> = {
     '일본': 'japan',
     '알래스카': 'alaska',
@@ -121,51 +121,51 @@ const convertRegionToApiFormat = (region: string): string => {
     '동부지중해': 'eastern-mediterranean',
     '싱가포르': 'singapore',
   };
-  
+
   // "미국 - 시애틀" 같은 형식에서 국가와 도시 추출
   const parts = region.split(' - ');
   const countryPart = parts[0]?.trim() || '';
   const cityPart = parts[1]?.trim() || '';
-  
+
   // 도시명만 입력된 경우 (예: "시애틀")
   if (!countryPart && cityPart) {
     const cityRegion = cityToRegionMap[cityPart] || cityToRegionMap[cityPart.toLowerCase()];
     if (cityRegion) return cityRegion;
   }
-  
+
   // "미국 - 시애틀" 형식인 경우
   const normalizedRegion = countryPart;
-  
+
   // 정확히 일치하는 경우
   if (regionMap[normalizedRegion]) {
     return regionMap[normalizedRegion];
   }
-  
+
   // 부분 일치 확인
   for (const [korean, apiFormat] of Object.entries(regionMap)) {
     if (normalizedRegion.includes(korean) || korean.includes(normalizedRegion)) {
       return apiFormat;
     }
   }
-  
+
   // "미국"이 포함된 경우 (예: "미국 - 시애틀")
   if (normalizedRegion.includes('미국') || region.includes('미국')) {
     return 'usa';
   }
-  
+
   // 도시명으로 검색 시도
   if (cityPart) {
     const cityRegion = cityToRegionMap[cityPart] || cityToRegionMap[cityPart.toLowerCase()];
     if (cityRegion) return cityRegion;
   }
-  
+
   // 전체 문자열에서 도시명 검색
   for (const [city, apiFormat] of Object.entries(cityToRegionMap)) {
     if (region.includes(city)) {
       return apiFormat;
     }
   }
-  
+
   // 매칭되지 않으면 원본 반환 (API에서 처리하도록)
   return region;
 };
@@ -178,7 +178,7 @@ export default function CruiseSearchBlock() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [allAvailableProducts, setAllAvailableProducts] = useState<Product[]>([]); // 모든 상품 데이터 (연관 검색어 생성용)
-  
+
   // 검색 가능한 드롭다운 상태
   const [cruiseSearchTerm, setCruiseSearchTerm] = useState('');
   const [cruiseDropdownOpen, setCruiseDropdownOpen] = useState(false);
@@ -197,7 +197,7 @@ export default function CruiseSearchBlock() {
       const cruiseLineShort = line.cruise_line.split('(')[0].trim();
       const cruiseLineEnglish = line.cruise_line.match(/\(([^)]+)\)/)?.[1] || '';
       const cruiseLineValue = cruiseLineEnglish || cruiseLineShort;
-      
+
       // 크루즈선사 옵션 추가
       options.push({
         value: `line:${cruiseLineValue}`,
@@ -211,26 +211,26 @@ export default function CruiseSearchBlock() {
         const shipNameShort = ship.split('(')[0].trim();
         const shipNameEnglish = ship.match(/\(([^)]+)\)/)?.[1] || '';
         const shipNameValue = shipNameEnglish || shipNameShort;
-        
+
         // 크루즈선사 이름이 크루즈이름에 포함되어 있는지 확인하여 중복 제거
         // 예: "MSC 크루즈 - MSC 벨리시마" → "MSC 벨리시마"
         let displayLabel = shipNameShort;
-        
+
         // 크루즈선사 이름의 주요 키워드 추출 (예: "MSC 크루즈" → "MSC", "로얄 캐리비안" → "로얄" 또는 "캐리비안")
         const cruiseLineKeywords = cruiseLineShort.split(' ').filter(word => word.length > 1);
-        
+
         // 크루즈이름에 크루즈선사 키워드가 포함되어 있는지 확인
-        const hasCruiseLineInShipName = cruiseLineKeywords.some(keyword => 
+        const hasCruiseLineInShipName = cruiseLineKeywords.some(keyword =>
           shipNameShort.includes(keyword)
         );
-        
+
         // 크루즈선사 이름이 크루즈이름에 포함되어 있지 않은 경우에만 크루즈선사 이름 추가
         if (!hasCruiseLineInShipName) {
           // 크루즈선사 이름의 간단한 버전 사용 (예: "MSC 크루즈" → "MSC")
           const simpleCruiseLine = cruiseLineKeywords[0] || cruiseLineShort;
           displayLabel = `${simpleCruiseLine} ${shipNameShort}`;
         }
-        
+
         options.push({
           value: `ship:${cruiseLineValue}:${shipNameValue}`,
           label: displayLabel,
@@ -249,7 +249,7 @@ export default function CruiseSearchBlock() {
       return cruiseOptions; // 검색어 없으면 모든 크루즈 표시
     }
     const term = cruiseSearchTerm.toLowerCase();
-    return cruiseOptions.filter(option => 
+    return cruiseOptions.filter(option =>
       option.label.toLowerCase().includes(term)
     );
   }, [cruiseSearchTerm, cruiseOptions]);
@@ -260,7 +260,7 @@ export default function CruiseSearchBlock() {
       return REGION_OPTIONS; // 검색어 없으면 모든 국가 표시
     }
     const term = regionSearchTerm.toLowerCase();
-    return REGION_OPTIONS.filter(option => 
+    return REGION_OPTIONS.filter(option =>
       option.label.toLowerCase().includes(term)
     );
   }, [regionSearchTerm]);
@@ -280,14 +280,14 @@ export default function CruiseSearchBlock() {
   // 모든 상품 로드 (연관 검색어 생성용)
   useEffect(() => {
     let isMounted = true;
-    
+
     const loadAllProducts = async () => {
       try {
         console.log('[CruiseSearchBlock] Loading all products for related search terms...');
         const response = await fetch('/api/public/products?limit=1000');
-        
+
         if (!isMounted) return;
-        
+
         const data = await response.json();
         console.log('[CruiseSearchBlock] API Response:', {
           ok: data.ok,
@@ -314,9 +314,9 @@ export default function CruiseSearchBlock() {
             })() : null
           } : null
         });
-        
+
         if (!isMounted) return;
-        
+
         if (data.ok && data.products && Array.isArray(data.products) && data.products.length > 0) {
           console.log('[CruiseSearchBlock] Loaded products:', data.products.length);
           setAllAvailableProducts(data.products);
@@ -337,34 +337,34 @@ export default function CruiseSearchBlock() {
         setAllAvailableProducts([]);
       }
     };
-    
+
     loadAllProducts();
-    
+
     return () => {
       isMounted = false;
     };
   }, []);
 
-    // 실제 상품 데이터 기반으로 연관 검색어 생성 (실제 검색 결과가 있는 것만)
-    const relatedSearchTerms = useMemo(() => {
-      console.log('[CruiseSearchBlock] Generating related search terms, products count:', allAvailableProducts.length);
-      if (allAvailableProducts.length === 0) {
-        console.warn('[CruiseSearchBlock] No products available, returning empty related search terms');
-        return []; // 상품이 없으면 연관 검색어 없음
-      }
+  // 실제 상품 데이터 기반으로 연관 검색어 생성 (실제 검색 결과가 있는 것만)
+  const relatedSearchTerms = useMemo(() => {
+    console.log('[CruiseSearchBlock] Generating related search terms, products count:', allAvailableProducts.length);
+    if (allAvailableProducts.length === 0) {
+      console.warn('[CruiseSearchBlock] No products available, returning empty related search terms');
+      return []; // 상품이 없으면 연관 검색어 없음
+    }
 
-      const terms: Array<{ label: string; cruiseLine: string; region: string; keyword?: string; productCount: number }> = [];
-      const seenLabels = new Set<string>(); // 중복 제거용
-      
-      // 관리자가 설정한 추천 키워드(마케팅 태그)만 연관검색어로 표시
-      // 지역별, 크루즈 라인별, 개별 국가별 연관 검색어는 제거
+    const terms: Array<{ label: string; cruiseLine: string; region: string; keyword?: string; productCount: number }> = [];
+    const seenLabels = new Set<string>(); // 중복 제거용
+
+    // 관리자가 설정한 추천 키워드(마케팅 태그)만 연관검색어로 표시
+    // 지역별, 크루즈 라인별, 개별 국가별 연관 검색어는 제거
 
     // 추천 키워드 기반 연관 검색어 추가 (상품이 있는 키워드만) - 우선순위 높게, 더 많이 표시
     const keywordCounts: Record<string, number> = {};
     let keywordProductsCount = 0;
     allAvailableProducts.forEach(product => {
       let keywords: string[] = [];
-      
+
       // 1. API에서 직접 반환된 recommendedKeywords 필드 우선 확인 (가장 확실함)
       if (product.recommendedKeywords) {
         if (Array.isArray(product.recommendedKeywords)) {
@@ -377,14 +377,14 @@ export default function CruiseSearchBlock() {
           }
         }
       }
-      
+
       // 2. fallback: MallProductContent.layout.recommendedKeywords 확인
       if (keywords.length === 0 && product.mallProductContent?.layout) {
         try {
-          const layout = typeof product.mallProductContent.layout === 'string' 
-            ? JSON.parse(product.mallProductContent.layout) 
+          const layout = typeof product.mallProductContent.layout === 'string'
+            ? JSON.parse(product.mallProductContent.layout)
             : product.mallProductContent.layout;
-          
+
           if (layout && typeof layout === 'object' && layout.recommendedKeywords) {
             if (Array.isArray(layout.recommendedKeywords)) {
               keywords = layout.recommendedKeywords;
@@ -401,7 +401,7 @@ export default function CruiseSearchBlock() {
           console.warn('[CruiseSearchBlock] Failed to parse layout.recommendedKeywords:', e);
         }
       }
-      
+
       // 키워드 카운트
       keywords.forEach(keyword => {
         if (keyword && typeof keyword === 'string' && keyword.trim()) {
@@ -439,8 +439,8 @@ export default function CruiseSearchBlock() {
           layoutRecommendedKeywords: (() => {
             if (p.mallProductContent?.layout) {
               try {
-                const layout = typeof p.mallProductContent.layout === 'string' 
-                  ? JSON.parse(p.mallProductContent.layout) 
+                const layout = typeof p.mallProductContent.layout === 'string'
+                  ? JSON.parse(p.mallProductContent.layout)
                   : p.mallProductContent.layout;
                 return layout?.recommendedKeywords || null;
               } catch {
@@ -479,7 +479,7 @@ export default function CruiseSearchBlock() {
       .sort((a, b) => b.productCount - a.productCount) // 상품 수가 많은 순으로 정렬
       .slice(0, 20) // 최대 20개
       .map(({ productCount, ...term }) => term); // productCount 제거
-    
+
     console.log('[CruiseSearchBlock] Generated related search terms:', result.length, result);
     return result;
   }, [allAvailableProducts, cruiseOptions]);
@@ -502,7 +502,7 @@ export default function CruiseSearchBlock() {
 
     try {
       const params = new URLSearchParams();
-      
+
       // 크루즈선/크루즈이름 필터 처리
       if (selectedCruiseLine !== 'all') {
         if (selectedCruiseLine.startsWith('line:')) {
@@ -524,12 +524,12 @@ export default function CruiseSearchBlock() {
         // 드롭다운에서 선택하지 않고 직접 입력한 경우, 키워드로 검색
         params.append('keyword', cruiseSearchTerm.trim());
       }
-      
+
       if (selectedRegion !== 'all') {
         // 국가 이름을 API가 이해할 수 있는 형식으로 변환
         const apiRegion = convertRegionToApiFormat(selectedRegion);
         params.append('region', apiRegion);
-        
+
         // 도시명이 포함된 경우 키워드로도 전달 (예: "미국 - 시애틀" → keyword="시애틀")
         if (selectedRegion.includes(' - ')) {
           const cityPart = selectedRegion.split(' - ')[1]?.trim();
@@ -585,14 +585,14 @@ export default function CruiseSearchBlock() {
     setSelectedCruiseLine(cruiseLine);
     setSelectedRegion(region);
     setIsExpanded(true); // 연관 검색어 클릭 시 확장
-    
+
     // 검색 실행
     setIsLoading(true);
     setHasSearched(true);
 
     try {
       const params = new URLSearchParams();
-      
+
       // 크루즈선/크루즈이름 필터 처리
       if (cruiseLine !== 'all') {
         if (cruiseLine.startsWith('line:')) {
@@ -611,12 +611,12 @@ export default function CruiseSearchBlock() {
           params.append('cruiseLine', cruiseLine);
         }
       }
-      
+
       if (region !== 'all') {
         // 국가 이름을 API가 이해할 수 있는 형식으로 변환
         const apiRegion = convertRegionToApiFormat(region);
         params.append('region', apiRegion);
-        
+
         // 도시명이 포함된 경우 키워드로도 전달 (예: "미국 - 시애틀" → keyword="시애틀")
         if (region.includes(' - ')) {
           const cityPart = region.split(' - ')[1]?.trim();
@@ -631,7 +631,7 @@ export default function CruiseSearchBlock() {
           }
         }
       }
-      
+
       // 키워드 파라미터 추가 (개별 국가별 연관 검색어의 경우 국가명을 키워드로 사용)
       if (keyword) {
         params.append('keyword', keyword);
@@ -642,7 +642,7 @@ export default function CruiseSearchBlock() {
 
       if (data.ok) {
         let filteredProducts = data.products;
-        
+
         // 추천 키워드(마케팅 태그)로 검색: recommendedKeywords에 정확히 포함된 상품만 필터링
         // API는 여러 필드에서 검색하므로, 클라이언트에서 recommendedKeywords만 확인하여 정확한 필터링
         if (keyword) {
@@ -650,10 +650,10 @@ export default function CruiseSearchBlock() {
             // MallProductContent.layout.recommendedKeywords 확인
             if (p.mallProductContent?.layout) {
               try {
-                const layout = typeof p.mallProductContent.layout === 'string' 
-                  ? JSON.parse(p.mallProductContent.layout) 
+                const layout = typeof p.mallProductContent.layout === 'string'
+                  ? JSON.parse(p.mallProductContent.layout)
                   : p.mallProductContent.layout;
-                
+
                 if (layout && typeof layout === 'object' && layout.recommendedKeywords) {
                   let keywords: string[] = [];
                   if (Array.isArray(layout.recommendedKeywords)) {
@@ -665,21 +665,21 @@ export default function CruiseSearchBlock() {
                       keywords = [layout.recommendedKeywords];
                     }
                   }
-                  
+
                   // 정확히 일치하는 키워드가 있는지 확인 (대소문자 무시)
                   const keywordLower = keyword.toLowerCase().trim();
                   const hasExactMatch = keywords.some((kw: string) => {
                     if (!kw) return false;
                     return kw.toString().toLowerCase().trim() === keywordLower;
                   });
-                  
+
                   if (hasExactMatch) return true;
                 }
               } catch (e) {
                 // 파싱 실패 시 무시
               }
             }
-            
+
             // fallback: product.recommendedKeywords 필드 확인
             if (p.recommendedKeywords) {
               let keywords: string[] = [];
@@ -692,21 +692,21 @@ export default function CruiseSearchBlock() {
                   keywords = [p.recommendedKeywords];
                 }
               }
-              
+
               // 정확히 일치하는 키워드가 있는지 확인 (대소문자 무시)
               const keywordLower = keyword.toLowerCase().trim();
               const hasExactMatch = keywords.some((kw: string) => {
                 if (!kw) return false;
                 return kw.toString().toLowerCase().trim() === keywordLower;
               });
-              
+
               if (hasExactMatch) return true;
             }
-            
+
             return false;
           });
         }
-        
+
         // 인기/추천 표시 추가 (productCode로 구분)
         const productsWithFlags = filteredProducts.map((p: Product) => ({
           ...p,
@@ -764,14 +764,14 @@ export default function CruiseSearchBlock() {
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-8">
       {/* 헤더 */}
       <div
-        className="flex items-center justify-between p-6 md:p-8 cursor-pointer bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-colors"
+        className="flex items-center justify-between p-6 md:p-8 cursor-pointer bg-[#051C2C] text-white hover:bg-[#0a2a42] transition-colors border-b-4 border-[#D4AF37]"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3 md:gap-4">
-          <FiSearch className="w-7 h-7 md:w-8 md:h-8" />
+          <FiSearch className="w-7 h-7 md:w-8 md:h-8 text-[#D4AF37]" />
           <span>크루즈 상품 검색</span>
         </h2>
-        {isExpanded ? <FiChevronUp className="w-6 h-6 md:w-7 md:h-7" /> : <FiChevronDown className="w-6 h-6 md:w-7 md:h-7" />}
+        {isExpanded ? <FiChevronUp className="w-6 h-6 md:w-7 md:h-7 text-[#D4AF37]" /> : <FiChevronDown className="w-6 h-6 md:w-7 md:h-7 text-[#D4AF37]" />}
       </div>
 
       {/* 검색 필터 및 결과 */}
@@ -839,9 +839,8 @@ export default function CruiseSearchBlock() {
                           e.preventDefault(); // onBlur가 먼저 실행되지 않도록
                           handleCruiseSelect(option.value, option.label);
                         }}
-                        className={`px-5 py-4 md:px-6 md:py-5 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${
-                          selectedCruiseLine === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
-                        }`}
+                        className={`px-5 py-4 md:px-6 md:py-5 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${selectedCruiseLine === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
+                          }`}
                         style={{ minHeight: '56px' }}
                       >
                         <div className="text-lg md:text-xl text-gray-900">{option.label}</div>
@@ -912,9 +911,8 @@ export default function CruiseSearchBlock() {
                           e.preventDefault(); // onBlur가 먼저 실행되지 않도록
                           handleRegionSelect(option.value, option.label);
                         }}
-                        className={`px-5 py-4 md:px-6 md:py-5 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${
-                          selectedRegion === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
-                        }`}
+                        className={`px-5 py-4 md:px-6 md:py-5 cursor-pointer hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${selectedRegion === option.value ? 'bg-blue-100 font-bold' : 'font-medium'
+                          }`}
                         style={{ minHeight: '56px' }}
                       >
                         <div className="text-lg md:text-xl text-gray-900">{option.label}</div>
