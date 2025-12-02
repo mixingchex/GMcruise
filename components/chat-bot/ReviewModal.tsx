@@ -115,6 +115,7 @@ export default function ReviewModal({
 
     if (reviewImages.length === 1) {
       return (
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img
           src={reviewImages[0]}
           alt={`${review?.authorName || '고객'}님의 후기 사진`}
@@ -127,6 +128,7 @@ export default function ReviewModal({
       return (
         <div className="grid grid-cols-2 gap-4">
           {reviewImages.map((image, index) => (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               key={`${image}-${index}`}
               src={image}
@@ -140,12 +142,14 @@ export default function ReviewModal({
 
     return (
       <div className="grid grid-cols-2 gap-4">
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img
           src={reviewImages[0]}
           alt={`${review?.authorName || '고객'}님의 후기 사진 1`}
           className="w-full h-full max-h-80 object-cover rounded-xl shadow-lg border border-gray-200 col-span-2"
         />
         {reviewImages.slice(1, 5).map((image, index) => (
+          /* eslint-disable-next-line @next/next/no-img-element */
           <img
             key={`${image}-${index + 1}`}
             src={image}
@@ -254,11 +258,10 @@ export default function ReviewModal({
                         key={item.id}
                         type="button"
                         onClick={() => setCurrentIndex(index)}
-                        className={`text-left p-4 rounded-lg border transition-colors ${
-                          index === safeIndex
+                        className={`text-left p-4 rounded-lg border transition-colors ${index === safeIndex
                             ? 'border-blue-500 bg-blue-50 text-blue-800'
                             : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-blue-300 hover:bg-blue-50'
-                        }`}
+                          }`}
                       >
                         <p className="text-sm font-semibold truncate mb-1">
                           {item.title || `${item.authorName}님 후기`}

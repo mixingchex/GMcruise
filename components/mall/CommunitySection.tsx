@@ -484,6 +484,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                     {post.images && post.images.length > 0 && (
                       <div className="mb-3">
                         <div className="relative w-full h-32 md:h-40 rounded-md overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={post.images[0]}
                             alt={post.title}
@@ -584,6 +585,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                     {post.images && post.images.length > 0 && (
                       <div className="mb-3">
                         <div className="relative w-full h-32 md:h-40 rounded-md overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={post.images[0]}
                             alt={post.title}
@@ -742,6 +744,7 @@ export default function CommunitySection({ config }: CommunitySectionProps) {
                     {post.images && post.images.length > 0 && (
                       <div className="mb-3">
                         <div className="relative w-full h-32 md:h-40 rounded-md overflow-hidden">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={post.images[0]}
                             alt={post.title}

@@ -29,19 +29,19 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 export async function POST(req: Request) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '인증이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '인증이 필요합니다.'
       }, { status: 403 });
     }
 
     const isAdmin = await checkAdminAuth(sid);
     if (!isAdmin) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '관리자 권한이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '관리자 권한이 필요합니다.'
       }, { status: 403 });
     }
 
@@ -81,7 +81,8 @@ export async function POST(req: Request) {
           email: marketingCustomer.email,
           phone: marketingCustomer.phone,
           password: hashedPassword,
-          role: 'user',
+          role: 'USER',
+          updatedAt: new Date(),
         },
       });
     }

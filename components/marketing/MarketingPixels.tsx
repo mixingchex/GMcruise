@@ -66,7 +66,7 @@ export default function MarketingPixels({ config }: MarketingPixelsProps) {
   useEffect(() => {
     if (hasKakaoPixel && typeof window !== 'undefined') {
       if (!window.kakaoPixel) {
-        (window as any).kakaoPixel = function() {
+        (window as any).kakaoPixel = function () {
           (window as any).kakaoPixel.q = (window as any).kakaoPixel.q || [];
           (window as any).kakaoPixel.q.push(arguments);
         };
@@ -169,6 +169,7 @@ export default function MarketingPixels({ config }: MarketingPixelsProps) {
             }}
           />
           <noscript>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               height="1"
               width="1"

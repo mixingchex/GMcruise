@@ -8,12 +8,13 @@ interface InquiryFormProps {
   productCode: string;
   productName: string;
   partnerId?: string; // 어필리에이트 파트너 ID
+  partnerPhone?: string; // 파트너 연락처 (계약서 작성 시 입력한 연락처)
 }
 
-// Google Apps Script URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwhp0i2AwTS0KcbBZd1nhVVYBlxdU8sLjoYxAqO0bEBgzRCrMlkxES4gYj7wP4NlW2C/exec';
+// Google Apps Script URL - 전화상담 고객 백업용 스프레드시트
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMnRse8lBCmU20IziTTFvLoLjnNUCy1vtE_y-X-niR67Xs63Bf5qBE4Zb5txQZ_R9-/exec';
 
-export default function InquiryForm({ productCode, productName, partnerId }: InquiryFormProps) {
+export default function InquiryForm({ productCode, productName, partnerId, partnerPhone }: InquiryFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -67,6 +68,7 @@ export default function InquiryForm({ productCode, productName, partnerId }: Inq
             isPhoneConsultation: true, // 전화상담 신청 플래그
             actualName: nameValue, // 실제 이름은 별도 필드로 전달
             actualPhone: phoneNumber, // 실제 연락처는 별도 필드로 전달
+            partnerId: partnerId || null, // 파트너 ID 직접 전달 (쿠키 대신)
           }),
         });
 
@@ -82,59 +84,60 @@ export default function InquiryForm({ productCode, productName, partnerId }: Inq
         // 데이터베이스 저장 실패해도 Google 스프래드시트 전송은 계속 진행
       }
 
-      // Google 스프래드시트로 데이터 전송
-      // 스프래드시트 구조: A열(유입날짜), B열(이름), C열(연락처), D열(유입경로), E열(상품명)
+      // Google 스프래드시트 백업 전송
+      // 스프레드시트 구조: A열(유입날짜), B열(이름), C열(연락처), D열(유입경로), E열(상품명), F열(채널), G열(담당자)
       const timestamp = new Date().toLocaleString('ko-KR');
-      
-      console.log('[문의 접수] 데이터:', { timestamp, name: nameValue, phone: phoneNumber, source: '(홈페이지)', productName });
 
-      // FormData를 사용한 POST 방식 (사용자 제공 HTML 소스와 동일한 방식)
-      const formDataForGoogle = new FormData();
-      formDataForGoogle.append('timestamp', timestamp);
-      formDataForGoogle.append('name', nameValue);
-      formDataForGoogle.append('phone', phoneNumber);
-      // D열에 저장될 데이터
-      formDataForGoogle.append('source', '(홈페이지)');
-      // E열에 저장될 데이터
-      formDataForGoogle.append('productName', productName);
-      
-      // 디버깅: FormData 내용 확인
-      console.log('[문의 접수] 전송 데이터:', {
+      // 채널 및 담당자 정보 결정
+      let channel = '본사';
+      let manager = '';
+      if (partnerId) {
+        // partnerId가 있으면 대리점장 또는 판매원 채널
+        channel = '파트너';
+        manager = partnerId;
+      }
+
+      console.log('[문의 접수] 스프레드시트 전송 데이터:', {
         timestamp,
         name: nameValue,
         phone: phoneNumber,
         source: '(홈페이지)',
-        productName
+        productName,
+        channel,
+        manager
       });
-      
-      // FormData 내용을 확인하기 위해 모든 키-값 쌍 출력
-      if (typeof FormData !== 'undefined' && formDataForGoogle instanceof FormData) {
-        for (const pair of (formDataForGoogle as any).entries()) {
-          console.log('[문의 접수] FormData:', pair[0], '=', pair[1]);
-        }
-      }
-      
-      console.log('[문의 접수] Google 스프래드시트 FormData 생성 완료');
 
-      // Google 스프래드시트 전송 (POST 방식 - FormData)
-      // 사용자 제공 HTML 소스와 동일한 방식
-      try {
-        if (navigator.sendBeacon) {
-          navigator.sendBeacon(GOOGLE_SCRIPT_URL, formDataForGoogle);
-          console.log('[문의 접수] Google 스프래드시트 전송 완료 (sendBeacon)');
-        } else {
-          fetch(GOOGLE_SCRIPT_URL, { 
-            method: 'POST', 
-            body: formDataForGoogle, 
-            keepalive: true 
-          }).then(() => {
-            console.log('[문의 접수] Google 스프래드시트 전송 완료 (fetch)');
-          }).catch((err) => {
-            console.error('[문의 접수] Google 스프래드시트 전송 오류:', err);
-          });
+      // Google 스프래드시트 전송 (백업용)
+      if (GOOGLE_SCRIPT_URL) {
+        try {
+          const formDataForGoogle = new FormData();
+          formDataForGoogle.append('timestamp', timestamp);
+          formDataForGoogle.append('name', nameValue);
+          formDataForGoogle.append('phone', phoneNumber);
+          formDataForGoogle.append('source', '(홈페이지)');
+          formDataForGoogle.append('productName', productName);
+          formDataForGoogle.append('channel', channel);
+          formDataForGoogle.append('manager', manager);
+
+          if (navigator.sendBeacon) {
+            navigator.sendBeacon(GOOGLE_SCRIPT_URL, formDataForGoogle);
+            console.log('[문의 접수] Google 스프래드시트 전송 완료 (sendBeacon)');
+          } else {
+            fetch(GOOGLE_SCRIPT_URL, {
+              method: 'POST',
+              body: formDataForGoogle,
+              mode: 'no-cors',
+              keepalive: true
+            }).then(() => {
+              console.log('[문의 접수] Google 스프래드시트 전송 완료 (fetch)');
+            }).catch((err) => {
+              console.error('[문의 접수] Google 스프래드시트 전송 오류:', err);
+            });
+          }
+        } catch (error) {
+          console.error('[문의 접수] Google 스프래드시트 전송 실패:', error);
+          // 스프레드시트 전송 실패해도 문의 접수는 성공 처리
         }
-      } catch (error) {
-        console.error('[문의 접수] Google 스프래드시트 전송 실패:', error);
       }
 
       // 마케팅 픽셀 이벤트 추적
@@ -187,10 +190,10 @@ export default function InquiryForm({ productCode, productName, partnerId }: Inq
             </div>
             <h3 className="text-xl font-bold text-green-800 mb-2">문의 접수가 완료되었습니다!</h3>
             <p className="text-sm text-green-700 mb-4">
-              입력해주신 정보로 상담원이 곧 연락드리겠습니다.
+              입력해주신 정보로 담당자가 곧 연락드리겠습니다.
             </p>
             <p className="text-xs text-green-600">
-              고객센터: 010-3289-3800
+              담당자 연락처: {partnerPhone || '010-3289-3800'}
             </p>
           </div>
         </div>
@@ -264,9 +267,9 @@ export default function InquiryForm({ productCode, productName, partnerId }: Inq
           <div>
             <div className="font-semibold text-gray-800 mb-1">해피콜 안내</div>
             <p className="text-sm text-gray-700">
-              문의 접수 후 상담원이 연락드려 상세한 안내를 도와드립니다.
+              문의 접수 후 담당자가 연락드려 상세한 안내를 도와드립니다.
               <br />
-              <span className="font-semibold">고객센터: 010-3289-3800</span>
+              <span className="font-semibold">담당자 연락처: {partnerPhone || '010-3289-3800'}</span>
               <br />
               <span className="text-red-600 font-semibold">*담당 매니저님 핸드폰으로 연락이 갈 수 있습니다 문자 확인 잘 해주세요*</span>
             </p>

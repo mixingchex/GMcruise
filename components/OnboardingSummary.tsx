@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import type { Profile, Trip } from '@/types/app';
+import type { User, Trip } from '@/types/app';
 
 function safeJson<T>(r: Response): Promise<T | null> {
   const ct = r.headers.get('content-type') || '';
@@ -11,26 +11,26 @@ function safeJson<T>(r: Response): Promise<T | null> {
 function ddays(fromISO: string) {
   const today = new Date();
   const from = new Date(fromISO + 'T00:00:00');
-  const diff = Math.floor((from.getTime() - today.setHours(0,0,0,0)) / 86400000);
+  const diff = Math.floor((from.getTime() - today.setHours(0, 0, 0, 0)) / 86400000);
   return diff; // 음수면 지난 날
 }
 
 function tripDay(fromISO: string) {
   const today = new Date();
   const from = new Date(fromISO + 'T00:00:00');
-  const diff = Math.floor((today.setHours(0,0,0,0) - from.getTime()) / 86400000) + 1;
+  const diff = Math.floor((today.setHours(0, 0, 0, 0) - from.getTime()) / 86400000) + 1;
   return Math.max(diff, 1);
 }
 
 export default function OnboardingSummary() {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<User | null>(null);
   const [trip, setTrip] = useState<Trip | null>(null);
 
   useEffect(() => {
     (async () => {
       // 프로필
       const pr = await fetch('/api/user/profile', { credentials: 'include' });
-      const pj = await safeJson<{ success: boolean; user: Profile }>(pr);
+      const pj = await safeJson<{ success: boolean; user: User }>(pr);
       if (pj?.success && pj.user) setProfile(pj.user);
 
       // 최신 여행

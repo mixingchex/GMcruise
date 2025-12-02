@@ -1,6 +1,5 @@
 'use client';
 import OnboardingSummary from '@/components/OnboardingSummary';
-import UsageGuide from '@/components/UsageGuide';
 import QuickTools from '@/components/QuickTools';
 import { ChatMessage } from '@/types/app';
 
@@ -13,7 +12,6 @@ export default function TopRail({ onQuickToolPick }: Props) {
       <div className="px-3 pt-2">
         <QuickTools onPick={onQuickToolPick} />
       </div>
-      <UsageGuide />
       {/* 모드 안내 (항상) */}
     </div>
   );

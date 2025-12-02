@@ -120,6 +120,7 @@ export default function InlinePageEditor({
         return (
           <div className="p-2 border-2 border-dashed border-transparent group-hover:border-blue-300 rounded cursor-pointer inline-block">
             {c.image ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img src={c.image} alt="Content" className="max-w-xs rounded-lg" />
             ) : (
               <div className="w-32 h-32 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
@@ -343,6 +344,7 @@ export default function InlinePageEditor({
               placeholder="또는 이미지 URL 직접 입력"
             />
             {editData.content.image && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={editData.content.image}
                 alt="Preview"

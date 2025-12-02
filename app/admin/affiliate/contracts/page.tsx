@@ -2052,7 +2052,7 @@ export default function AdminAffiliateContractsPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        setEducationContractType(contractType);
+                        setEducationContractType(contractType as any);
                         setShowEducationContractModal(true);
                       }}
                       className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-100"

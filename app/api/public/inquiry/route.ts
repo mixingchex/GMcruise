@@ -38,27 +38,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 24시간 내 중복 상담신청 체크 (스팸 방지)
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentInquiry = await prisma.productInquiry.findFirst({
-      where: {
-        phone: normalizedPhone,
-        productCode,
-        createdAt: { gte: oneDayAgo }
-      },
-      select: { id: true, createdAt: true }
-    });
-
-    if (recentInquiry) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: '이미 24시간 이내에 동일한 상품에 대한 상담신청이 있습니다.',
-          recentInquiryId: recentInquiry.id
-        },
-        { status: 409 }
-      );
-    }
+    // 중복 체크 없이 모든 문의 누적 기록 (백업 목적)
+    // 동일 고객이 여러 번 문의해도 모두 기록됨
 
     // 상품 존재 확인
     const product = await prisma.cruiseProduct.findUnique({
@@ -85,22 +66,27 @@ export async function POST(req: NextRequest) {
       // 세션 확인 실패해도 계속 진행 (비회원 문의 가능)
     }
 
-    // 어필리에이트 코드 추적 (쿠키에서 읽기)
+    // 어필리에이트 코드 추적 (요청 본문 또는 쿠키에서 읽기)
     const cookies = req.cookies;
     const affiliateCode = cookies.get('affiliate_code')?.value || null;
-    const affiliateMallUserId = cookies.get('affiliate_mall_user_id')?.value || null;
+    // partnerId는 요청 본문에서 직접 받거나, 쿠키에서 읽기
+    const affiliateMallUserId = body.partnerId || cookies.get('affiliate_mall_user_id')?.value || null;
+
+    console.log('[Public Inquiry API] 파트너 추적:', { affiliateCode, affiliateMallUserId, bodyPartnerId: body.partnerId });
 
     // 어필리에이트 프로필 찾기
     let managerId: number | null = null;
     let agentId: number | null = null;
-    
+
     if (affiliateCode || affiliateMallUserId) {
       const profileWhere: any = {};
       if (affiliateCode) {
         profileWhere.affiliateCode = affiliateCode;
       } else if (affiliateMallUserId) {
-        profileWhere.user = { mallUserId: affiliateMallUserId };
+        profileWhere.User = { mallUserId: affiliateMallUserId }; // User 대문자
       }
+
+      console.log('[Public Inquiry API] 프로필 검색 조건:', profileWhere);
 
       const affiliateProfile = await prisma.affiliateProfile.findFirst({
         where: {
@@ -110,7 +96,8 @@ export async function POST(req: NextRequest) {
         select: {
           id: true,
           type: true,
-          agentRelations: {
+          displayName: true,
+          AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile: {
             where: { status: 'ACTIVE' },
             select: { managerId: true },
             take: 1,
@@ -118,15 +105,20 @@ export async function POST(req: NextRequest) {
         },
       });
 
+      console.log('[Public Inquiry API] 찾은 프로필:', affiliateProfile);
+
       if (affiliateProfile) {
         if (affiliateProfile.type === 'BRANCH_MANAGER') {
           managerId = affiliateProfile.id;
+          console.log('[Public Inquiry API] 대리점장 설정:', managerId);
         } else if (affiliateProfile.type === 'SALES_AGENT') {
           agentId = affiliateProfile.id;
           // 판매원인 경우 대리점장 ID도 설정
-          if (affiliateProfile.agentRelations.length > 0) {
-            managerId = affiliateProfile.agentRelations[0].managerId;
+          const agentRelations = affiliateProfile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile;
+          if (agentRelations && agentRelations.length > 0) {
+            managerId = agentRelations[0].managerId;
           }
+          console.log('[Public Inquiry API] 판매원 설정:', { agentId, managerId });
         }
       }
     }
@@ -140,7 +132,8 @@ export async function POST(req: NextRequest) {
         phone: normalizedPhone, // 정규화된 전화번호 저장
         passportNumber: passportNumber || null,
         message: message || null,
-        status: 'pending'
+        status: 'pending',
+        updatedAt: new Date(), // 필수 필드 추가
       }
     });
 
@@ -165,6 +158,7 @@ export async function POST(req: NextRequest) {
               role: 'user',
               customerSource: isPhoneConsult ? 'phone-consultation' : 'product-inquiry', // 전화상담 신청은 phone-consultation으로 구분
               customerStatus: 'active',
+              updatedAt: new Date(), // 필수 필드
               // 절대법칙: customerType을 prospect로 설정 (전화상담고객은 잠재고객)
               // customerType은 DB 스키마에 직접 필드가 없을 수 있으므로, customerSource로 구분
             },
@@ -193,35 +187,44 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // AffiliateLead 생성 (어필리에이트 코드가 있는 경우)
-    if (managerId || agentId) {
-      try {
-        await prisma.affiliateLead.create({
-          data: {
-            managerId: managerId || null,
-            agentId: agentId || null,
-            customerName: customerName,
-            customerPhone: normalizedPhone, // 정규화된 전화번호 저장
-            status: 'NEW',
-            source: isPhoneConsult ? 'phone-consultation' : (affiliateMallUserId ? `mall-${affiliateMallUserId}` : 'product-inquiry'),
-            metadata: {
-              productCode,
-              inquiryId: inquiry.id,
-              affiliateCode,
-              affiliateMallUserId,
-              mallUserId: affiliateMallUserId, // 개인몰 ID 저장
-              userId: userForLead?.id || null, // User ID 저장 (고객 기록용)
-              isPhoneConsultation: isPhoneConsult, // 전화상담 신청 플래그
-              actualName: customerName, // 실제 이름 저장
-              actualPhone: customerPhone, // 실제 연락처 저장
-            },
-          },
-        });
-        console.log('[Public Inquiry API] AffiliateLead 생성 완료:', { managerId, agentId, customerName: customerName, userId: userForLead?.id, isPhoneConsult });
-      } catch (leadError) {
-        console.error('[Public Inquiry API] AffiliateLead 생성 실패:', leadError);
-        // AffiliateLead 생성 실패해도 문의는 정상 처리
-      }
+    // AffiliateLead 생성 (모든 전화상담 문의 누적 기록 - 본사/대리점장/판매원 모두)
+    // 중복 상관없이 항상 새로 생성하여 백업
+    try {
+      const leadData = {
+        managerId: managerId || null,
+        agentId: agentId || null,
+        customerName: customerName,
+        customerPhone: normalizedPhone, // 정규화된 전화번호 저장
+        status: 'NEW',
+        source: isPhoneConsult ? 'phone-consultation' : (affiliateMallUserId ? `mall-${affiliateMallUserId}` : 'product-inquiry'),
+        metadata: {
+          productCode,
+          productName: product?.packageName || productCode,
+          inquiryId: inquiry.id,
+          affiliateCode,
+          affiliateMallUserId,
+          mallUserId: affiliateMallUserId, // 개인몰 ID 저장
+          userId: userForLead?.id || null, // User ID 저장 (고객 기록용)
+          isPhoneConsultation: isPhoneConsult, // 전화상담 신청 플래그
+          actualName: customerName, // 실제 이름 저장
+          actualPhone: customerPhone, // 실제 연락처 저장
+          channel: managerId || agentId ? '파트너' : '본사', // 채널 정보
+        },
+        updatedAt: new Date(), // 필수 필드
+      };
+
+      await prisma.affiliateLead.create({ data: leadData });
+      console.log('[Public Inquiry API] AffiliateLead 생성 완료 (누적 기록):', {
+        managerId,
+        agentId,
+        customerName,
+        userId: userForLead?.id,
+        isPhoneConsult,
+        channel: managerId || agentId ? '파트너' : '본사'
+      });
+    } catch (leadError) {
+      console.error('[Public Inquiry API] AffiliateLead 생성 실패:', leadError);
+      // AffiliateLead 생성 실패해도 문의는 정상 처리
     }
 
     // TODO: 관리자에게 알림 전송 (이메일, SMS, 푸시 알림 등)

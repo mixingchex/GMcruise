@@ -159,6 +159,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
     }, 300);
 
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [purchaseSearchTerm]);
 
   // 크루즈 가이드 사용자 검색 디바운싱
@@ -169,6 +170,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
     }, 300);
 
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [genieSearchTerm]);
 
   // 상품 검색 디바운싱
@@ -184,6 +186,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
     }, 300);
 
     return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productSearchTerm]);
 
   // 클릭 외부 감지
@@ -329,18 +332,18 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
           const firstTraveler = tripInfo.travelers[0];
           const travelerName = firstTraveler.name || '';
           const travelerPhone = firstTraveler.phone || '';
-          
+
           if (travelerName || travelerPhone) {
             setGenieSearchTerm(travelerName || travelerPhone);
-            
+
             // 동행자가 이미 사용자로 등록되어 있으면 자동 선택
             if (firstTraveler.userId) {
               try {
                 const searchResults = await searchGenieUsers(travelerName || travelerPhone);
                 const matchingUser = searchResults.find(
-                  u => u.id === firstTraveler.userId || 
-                       (travelerName && u.name === travelerName) ||
-                       (travelerPhone && u.phone === travelerPhone)
+                  u => u.id === firstTraveler.userId ||
+                    (travelerName && u.name === travelerName) ||
+                    (travelerPhone && u.phone === travelerPhone)
                 );
                 if (matchingUser) {
                   handleSelectGenieUser(matchingUser);
@@ -418,7 +421,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
     // 날짜 자동 채우기
     let startDate = '';
     let endDate = '';
-    
+
     if (product.startDate) {
       // 상품에 시작일이 있으면 사용
       startDate = new Date(product.startDate).toISOString().split('T')[0];
@@ -464,7 +467,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
 
   const handleStartDateChange = (date: string) => {
     setOnboardingForm({ ...onboardingForm, startDate: date });
-    
+
     // 종료일 자동 계산 (상품에 days가 있고, 상품에 startDate가 없을 때만 자동 계산)
     // 상품에 startDate가 있으면 이미 endDate가 계산되어 있으므로 다시 계산하지 않음
     if (selectedProduct && date && selectedProduct.days && !selectedProduct.startDate) {
@@ -515,22 +518,22 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
     const endDateObj = new Date(onboardingForm.endDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
       setFieldErrors(prev => ({ ...prev, startDate: '올바른 날짜 형식을 입력해주세요.' }));
       showError('올바른 날짜 형식을 입력해주세요.');
       return;
     }
-    
+
     if (startDateObj.getTime() < today.getTime()) {
       setFieldErrors(prev => ({ ...prev, startDate: '여행 시작일은 오늘 이후여야 합니다.' }));
       showError('여행 시작일은 오늘 이후여야 합니다.');
       return;
     }
-    
+
     if (startDateObj.getTime() > endDateObj.getTime()) {
-      setFieldErrors(prev => ({ 
-        ...prev, 
+      setFieldErrors(prev => ({
+        ...prev,
         startDate: '여행 시작일은 종료일보다 빠를 수 없습니다.',
         endDate: '여행 종료일은 시작일보다 늦어야 합니다.'
       }));
@@ -561,7 +564,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
         // "이름 전화번호" 또는 "전화번호 이름" 형식 모두 처리
         const phonePattern = /(\d{2,3}[-.\s]?\d{3,4}[-.\s]?\d{4})/;
         const phoneMatch = searchTerm.match(phonePattern);
-        
+
         if (phoneMatch) {
           // normalizePhone 함수 사용하여 정규화
           travelerPhone = normalizePhone(phoneMatch[1]) || '';
@@ -599,15 +602,15 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
           setIsSubmitting(false);
           return;
         }
-        
+
         // 정규화된 전화번호 사용
         travelerPhone = normalizedTravelerPhone;
 
         // 구매고객과 동행자 구분: 동행자 정보를 직접 입력할 때도 구매고객 본인인지 확인
         if (selectedPurchaseUserId && selectedPurchaseCustomer) {
           const normalizedPurchaserPhone = normalizePhone(selectedPurchaseCustomer.phone);
-          if (travelerName === selectedPurchaseCustomer.name && 
-              travelerPhone === normalizedPurchaserPhone) {
+          if (travelerName === selectedPurchaseCustomer.name &&
+            travelerPhone === normalizedPurchaserPhone) {
             showError('구매 고객 본인을 동행자로 배정할 수 없습니다. 다른 동행자를 선택하거나 입력해주세요.');
             setIsSubmitting(false);
             return;
@@ -618,7 +621,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
         const searchResults = await searchGenieUsers(searchTerm);
         const matchingUser = searchResults.find(
           u => (travelerName && u.name === travelerName) ||
-               (travelerPhone && u.phone && normalizePhone(u.phone) === travelerPhone)
+            (travelerPhone && u.phone && normalizePhone(u.phone) === travelerPhone)
         );
 
         if (matchingUser) {
@@ -714,7 +717,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
           <p className="text-gray-600">크루즈 가이드 사용자에게 여행을 배정하고 크루즈몰과 연동합니다</p>
         </div>
 
-          <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6" aria-label="여행 배정 폼">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-md p-6 space-y-6" aria-label="여행 배정 폼">
           {/* 구매 고객 검색 (새로 추가) */}
           <div className="purchase-customer-search-container relative" ref={purchaseSearchRef}>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
@@ -747,9 +750,8 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                   placeholder="구매 고객 이름 또는 전화번호로 검색"
                   disabled={isSubmitting}
                   aria-label="구매 고객 검색 (선택사항)"
-                  className={`w-full pl-10 pr-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg transition-colors ${
-                    isSubmitting ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'border-gray-300 bg-white'
-                  }`}
+                  className={`w-full pl-10 pr-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg transition-colors ${isSubmitting ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'border-gray-300 bg-white'
+                    }`}
                 />
                 {purchaseSearchTerm && (
                   <button
@@ -766,7 +768,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                   </button>
                 )}
               </div>
-              
+
               {/* 검색 결과 드롭다운 */}
               {purchaseSearchDropdownOpen && (
                 <div className="absolute z-[9999] w-full mt-2 bg-white border-2 border-blue-500 rounded-lg shadow-2xl max-h-72 overflow-y-auto" style={{ position: 'absolute', top: '100%', left: 0, right: 0 }}>
@@ -788,9 +790,8 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                           key={customer.id}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleSelectPurchaseCustomer(customer)}
-                          className={`p-4 border-b border-gray-100 hover:bg-orange-50 cursor-pointer transition-colors ${
-                            selectedPurchaseUserId === customer.id ? 'bg-orange-50' : ''
-                          }`}
+                          className={`p-4 border-b border-gray-100 hover:bg-orange-50 cursor-pointer transition-colors ${selectedPurchaseUserId === customer.id ? 'bg-orange-50' : ''
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -836,7 +837,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
               여행 배정 대상 (동행자) <span className="text-red-600">*</span>
             </label>
             <p className="text-xs text-gray-500 mb-2">
-              구매고객의 동행자(크루즈몰 고객 또는 잠재고객)를 검색하거나 수동으로 입력하세요. 
+              구매고객의 동행자(크루즈몰 고객 또는 잠재고객)를 검색하거나 수동으로 입력하세요.
               구매고객을 선택하면 동행자 정보가 자동으로 로드됩니다.
             </p>
             <div className="relative">
@@ -872,11 +873,10 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                   aria-required="true"
                   aria-invalid={!!fieldErrors.genieUser}
                   aria-describedby={fieldErrors.genieUser ? 'genie-user-error' : undefined}
-                  className={`w-full pl-10 pr-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg transition-colors ${
-                    fieldErrors.genieUser
+                  className={`w-full pl-10 pr-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg transition-colors ${fieldErrors.genieUser
                       ? 'border-red-300 bg-red-50'
                       : 'border-gray-300 bg-white'
-                  } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
                 {genieSearchTerm && (
                   <button
@@ -893,7 +893,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                   </button>
                 )}
               </div>
-              
+
               {/* 검색 결과 드롭다운 */}
               {genieSearchDropdownOpen && (
                 <div className="absolute z-[9999] w-full mt-2 bg-white border-2 border-blue-500 rounded-lg shadow-2xl max-h-72 overflow-y-auto" style={{ position: 'absolute', top: '100%', left: 0, right: 0 }}>
@@ -913,7 +913,7 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                       {genieSearchTerm && (
                         <div className="p-3 bg-blue-50 border-b border-blue-200">
                           <div className="text-sm font-semibold text-blue-800">잠재고객 검색 결과 ({genieSearchResults.length}명)</div>
-                          <div className="text-xs text-blue-600 mt-1">검색어: "{genieSearchTerm}"</div>
+                          <div className="text-xs text-blue-600 mt-1">검색어: &quot;{genieSearchTerm}&quot;</div>
                         </div>
                       )}
                       {genieSearchResults.map((user) => (
@@ -921,9 +921,8 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                           key={user.id}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleSelectGenieUser(user)}
-                          className={`p-4 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
-                            selectedGenieUserId === user.id ? 'bg-blue-50' : ''
-                          }`}
+                          className={`p-4 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${selectedGenieUserId === user.id ? 'bg-blue-50' : ''
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -1013,14 +1012,13 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                   aria-required="true"
                   aria-invalid={!!fieldErrors.product}
                   aria-describedby={fieldErrors.product ? 'product-error' : undefined}
-                  className={`w-full pl-10 pr-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg transition-colors ${
-                    fieldErrors.product
+                  className={`w-full pl-10 pr-4 py-2 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg transition-colors ${fieldErrors.product
                       ? 'border-red-300 bg-red-50'
                       : 'border-gray-300 bg-white'
-                  } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                 />
               </div>
-              
+
               {/* 검색 결과 드롭다운 */}
               {productSearchDropdownOpen && (
                 <div className="absolute z-[9999] w-full mt-2 bg-white border-2 border-blue-500 rounded-lg shadow-2xl max-h-72 overflow-y-auto" style={{ position: 'absolute', top: '100%', left: 0, right: 0 }}>
@@ -1042,9 +1040,8 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                           key={product.id}
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => handleSelectProduct(product)}
-                          className={`p-4 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${
-                            selectedProduct?.id === product.id ? 'bg-blue-50' : ''
-                          }`}
+                          className={`p-4 border-b border-gray-100 hover:bg-blue-50 cursor-pointer transition-colors ${selectedProduct?.id === product.id ? 'bg-blue-50' : ''
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -1175,11 +1172,10 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                 aria-required="true"
                 aria-invalid={!!fieldErrors.startDate}
                 aria-describedby={fieldErrors.startDate ? 'start-date-error' : undefined}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  fieldErrors.startDate
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${fieldErrors.startDate
                     ? 'border-red-300 bg-red-50'
                     : 'border-gray-300 bg-white'
-                } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
+                  } ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}`}
                 required
               />
               {fieldErrors.startDate && (
@@ -1221,8 +1217,8 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                     const start = new Date(onboardingForm.startDate);
                     const end = new Date(newEndDate);
                     if (end.getTime() < start.getTime()) {
-                      setFieldErrors(prev => ({ 
-                        ...prev, 
+                      setFieldErrors(prev => ({
+                        ...prev,
                         endDate: '여행 종료일은 시작일보다 늦어야 합니다.'
                       }));
                     }
@@ -1234,11 +1230,10 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
                 aria-required="true"
                 aria-invalid={!!fieldErrors.endDate}
                 aria-describedby={fieldErrors.endDate ? 'end-date-error' : undefined}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  fieldErrors.endDate
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${fieldErrors.endDate
                     ? 'border-red-300 bg-red-50'
                     : 'border-gray-300 bg-white'
-                } ${isSubmitting || (!!selectedProduct && !!selectedProduct.startDate && !!onboardingForm.startDate) ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''}`}
+                  } ${isSubmitting || (!!selectedProduct && !!selectedProduct.startDate && !!onboardingForm.startDate) ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''}`}
                 required
                 readOnly={!!selectedProduct && !!selectedProduct.startDate && !!onboardingForm.startDate}
               />
@@ -1265,20 +1260,19 @@ export default function AssignTripForm({ api }: AssignTripFormProps) {
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               동행 유형 <span className="text-gray-400 text-xs">(선택사항)</span>
             </label>
-              <select
+            <select
               value={onboardingForm.companionType || ''}
               onChange={(e) => {
                 const value = e.target.value;
-                setOnboardingForm({ 
-                  ...onboardingForm, 
-                  companionType: value ? (value as '친구' | '커플' | '가족' | '혼자') : null 
+                setOnboardingForm({
+                  ...onboardingForm,
+                  companionType: value ? (value as '친구' | '커플' | '가족' | '혼자') : null
                 });
               }}
               disabled={isSubmitting}
               aria-label="동행 유형 (선택사항)"
-              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                isSubmitting ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'border-gray-300 bg-white'
-              }`}
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${isSubmitting ? 'opacity-60 cursor-not-allowed bg-gray-50' : 'border-gray-300 bg-white'
+                }`}
             >
               <option value="">선택하지 않음</option>
               <option value="가족">가족</option>

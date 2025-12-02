@@ -329,6 +329,66 @@ export async function PUT(
       });
     }
 
+    // itineraryDays에서 기항지 정보를 itineraryPattern에 동기화 (크루즈 가이드 지니 연동용)
+    if (itineraryDays !== undefined && Array.isArray(itineraryDays) && itineraryDays.length > 0) {
+      console.log('[Product Update] itineraryDays에서 itineraryPattern 동기화 시작:', itineraryDays.length, '일');
+
+      // 현재 itineraryPattern 가져오기
+      const currentProduct = await prisma.cruiseProduct.findUnique({
+        where: { productCode: productCodeParam },
+        select: { itineraryPattern: true },
+      });
+
+      let currentPattern: any[] = [];
+      try {
+        const raw = currentProduct?.itineraryPattern;
+        if (raw) {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          currentPattern = Array.isArray(parsed) ? parsed : (parsed.days || []);
+        }
+      } catch (e) {
+        currentPattern = [];
+      }
+
+      // itineraryDays 정보를 itineraryPattern에 반영
+      const updatedPattern = itineraryDays.map((dayInfo: any, index: number) => {
+        const existingDay = currentPattern.find((d: any) => d.day === dayInfo.day) || {};
+
+        // 기항지 타입 결정
+        let type = existingDay.type || 'port';
+        if (dayInfo.arrivalLocation === '해상' || !dayInfo.arrivalLocation) {
+          type = 'sea';
+        } else if (dayInfo.day === 1) {
+          type = 'departure';
+        } else if (dayInfo.day === itineraryDays.length) {
+          type = 'arrival';
+        }
+
+        return {
+          ...existingDay,
+          day: dayInfo.day,
+          type,
+          location: dayInfo.arrivalLocation || existingDay.location || null,
+          country: dayInfo.arrivalCountry || existingDay.country || null,
+          arrival: dayInfo.portArrivalTime || existingDay.arrival || null,
+          departure: dayInfo.portDepartureTime || existingDay.departure || null,
+        };
+      });
+
+      updateData.itineraryPattern = updatedPattern;
+
+      console.log('[Product Update] itineraryPattern 동기화 완료:', {
+        days: updatedPattern.length,
+        sample: updatedPattern.slice(0, 3).map((d: any) => ({
+          day: d.day,
+          type: d.type,
+          location: d.location,
+          country: d.country,
+          arrival: d.arrival,
+        })),
+      });
+    }
+
     // 최종 데이터 정리: 허용된 필드만 포함
     const allowedFields = [
       'cruiseLine', 'shipName', 'packageName', 'nights', 'days', 

@@ -206,6 +206,7 @@ export default function AffiliateCustomersPage() {
               cruiseName: lead.cruiseName || null,
               affiliateOwnership: lead.affiliateOwnership || null,
               userId: lead.userId || null,
+              leadId: (lead as any).leadId || lead.id, // AffiliateLead ID
             }))}
             onRefresh={loadLeads}
           />

@@ -425,26 +425,26 @@ const saveTripsToLocal = (trips: Trip[]) => {
 export default function MapPage() {
   const router = useRouter();
   const pathname = usePathname();
-  
+
   // 경로 보호: 테스트 모드 사용자는 /map-test로 리다이렉트
   useEffect(() => {
     const checkPath = async () => {
       const testModeInfo = await checkTestModeClient();
       const correctPath = getCorrectPath(pathname || '/map', testModeInfo);
-      
+
       if (correctPath !== pathname) {
         router.replace(correctPath);
       }
     };
-    
+
     checkPath();
   }, [pathname, router]);
-  
+
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null); // 지도에서 선택된 국가
   const [currentColor, setCurrentColor] = useState<string>("#EF4444"); // 기본 빨간색
-  const [countryColorMap, setCountryColorMap] = useState<{ [key: string]: string }>(() => {
+  const [manualColors, setManualColors] = useState<{ [key: string]: string }>(() => {
     if (typeof window !== 'undefined') {
       const savedColors = localStorage.getItem('countryColors');
       // 저장된 색상 맵의 키를 영어 국가명으로 변환
@@ -462,6 +462,28 @@ export default function MapPage() {
     }
     return {};
   });
+
+  // Derived: tripColors (not persisted, calculated from userTrips)
+  const tripColors = useMemo(() => {
+    const colors: { [key: string]: string } = {};
+    userTrips.forEach((trip) => {
+      if (trip.destination) {
+        const destinations = trip.destination.split(',').map((d: string) => d.trim()).filter((d: string) => d);
+        destinations.forEach((dest: string) => {
+          const englishName = countryKoreanToEnglishMap[dest];
+          if (englishName) {
+            colors[englishName] = '#EF4444'; // Default trip color
+          }
+        });
+      }
+    });
+    return colors;
+  }, [userTrips]);
+
+  // Derived: displayedColors (merge manual and trip)
+  const countryColorMap = useMemo(() => {
+    return { ...tripColors, ...manualColors };
+  }, [tripColors, manualColors]);
 
   // 새로운 상태 변수: 검색어, 목록에서 선택된 국가
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -496,38 +518,38 @@ export default function MapPage() {
           // 영어 이름에서 직접 코드 추출 시도
           const countryCodeFromEnglish = englishCountryName === 'South Korea' ? 'KR' :
             englishCountryName === 'Japan' ? 'JP' :
-            englishCountryName === 'Taiwan' ? 'TW' :
-            englishCountryName === 'China' ? 'CN' :
-            englishCountryName === 'Hong Kong' ? 'HK' :
-            englishCountryName === 'Philippines' ? 'PH' :
-            englishCountryName === 'United States' ? 'US' :
-            englishCountryName === 'Thailand' ? 'TH' :
-            englishCountryName === 'Vietnam' ? 'VN' :
-            englishCountryName === 'Singapore' ? 'SG' :
-            englishCountryName === 'Indonesia' ? 'ID' :
-            englishCountryName === 'Malaysia' ? 'MY' :
-            englishCountryName === 'United Kingdom' ? 'GB' :
-            englishCountryName === 'France' ? 'FR' :
-            englishCountryName === 'Germany' ? 'DE' :
-            englishCountryName === 'Italy' ? 'IT' :
-            englishCountryName === 'Spain' ? 'ES' :
-            englishCountryName === 'Australia' ? 'AU' :
-            englishCountryName === 'New Zealand' ? 'NZ' :
-            englishCountryName === 'Canada' ? 'CA' :
-            englishCountryName === 'Mexico' ? 'MX' :
-            englishCountryName === 'Brazil' ? 'BR' :
-            englishCountryName === 'Argentina' ? 'AR' :
-            englishCountryName === 'Greece' ? 'GR' :
-            englishCountryName === 'Russia' ? 'RU' :
-            englishCountryName === 'Turkey' ? 'TR' :
-            englishCountryName === 'Egypt' ? 'EG' :
-            englishCountryName === 'South Africa' ? 'ZA' :
-            englishCountryName === 'Antarctica' ? 'AQ' : null;
+              englishCountryName === 'Taiwan' ? 'TW' :
+                englishCountryName === 'China' ? 'CN' :
+                  englishCountryName === 'Hong Kong' ? 'HK' :
+                    englishCountryName === 'Philippines' ? 'PH' :
+                      englishCountryName === 'United States' ? 'US' :
+                        englishCountryName === 'Thailand' ? 'TH' :
+                          englishCountryName === 'Vietnam' ? 'VN' :
+                            englishCountryName === 'Singapore' ? 'SG' :
+                              englishCountryName === 'Indonesia' ? 'ID' :
+                                englishCountryName === 'Malaysia' ? 'MY' :
+                                  englishCountryName === 'United Kingdom' ? 'GB' :
+                                    englishCountryName === 'France' ? 'FR' :
+                                      englishCountryName === 'Germany' ? 'DE' :
+                                        englishCountryName === 'Italy' ? 'IT' :
+                                          englishCountryName === 'Spain' ? 'ES' :
+                                            englishCountryName === 'Australia' ? 'AU' :
+                                              englishCountryName === 'New Zealand' ? 'NZ' :
+                                                englishCountryName === 'Canada' ? 'CA' :
+                                                  englishCountryName === 'Mexico' ? 'MX' :
+                                                    englishCountryName === 'Brazil' ? 'BR' :
+                                                      englishCountryName === 'Argentina' ? 'AR' :
+                                                        englishCountryName === 'Greece' ? 'GR' :
+                                                          englishCountryName === 'Russia' ? 'RU' :
+                                                            englishCountryName === 'Turkey' ? 'TR' :
+                                                              englishCountryName === 'Egypt' ? 'EG' :
+                                                                englishCountryName === 'South Africa' ? 'ZA' :
+                                                                  englishCountryName === 'Antarctica' ? 'AQ' : null;
           countryCode = countryCodeFromEnglish || 'XX'; // 기본값 XX
         }
 
         // 즉시 로컬 상태 업데이트
-        setCountryColorMap((prev) => {
+        setManualColors((prev) => {
           const newMap = { ...prev };
           newMap[englishCountryName] = currentColor; // 영어 국가명을 키로 사용
           localStorage.setItem('countryColors', JSON.stringify(newMap));
@@ -558,7 +580,7 @@ export default function MapPage() {
     if (selectedCountryFromList) {
       const englishCountryName = countryKoreanToEnglishMap[selectedCountryFromList]; // 한국어 국가명으로 영어 국가명 조회
       if (englishCountryName) {
-        setCountryColorMap((prev) => {
+        setManualColors((prev) => {
           const newMap = { ...prev };
           delete newMap[englishCountryName]; // 영어 국가명을 키로 사용
           localStorage.setItem('countryColors', JSON.stringify(newMap));
@@ -594,7 +616,7 @@ export default function MapPage() {
         // 1) 여행 기록: localStorage에서 먼저 로드 (사용자가 추가한 여행 보존)
         let localTrips: Trip[] = loadTripsFromLocal();
         console.log('Map Page: Trips loaded from localStorage:', localTrips);
-        
+
         // 2) 지도 페이지 여행 기록 API에서 로드 (서버와 동기화)
         let apiTrips: Trip[] = [];
         try {
@@ -605,11 +627,11 @@ export default function MapPage() {
         } catch (apiError) {
           console.warn('Map Page: API map travel records fetch failed, using localStorage only.', apiError);
         }
-        
+
         // 3) 두 데이터 소스 병합 (localStorage 우선, 중복 제거)
         const mergedTrips: Trip[] = [];
         const tripIdSet = new Set<string | number>();
-        
+
         // 먼저 localStorage 데이터 추가 (우선순위 높음)
         localTrips.forEach(trip => {
           if (!tripIdSet.has(trip.id)) {
@@ -617,7 +639,7 @@ export default function MapPage() {
             tripIdSet.add(trip.id);
           }
         });
-        
+
         // 그 다음 API 데이터 추가 (중복되지 않는 것만)
         apiTrips.forEach(trip => {
           if (!tripIdSet.has(trip.id)) {
@@ -625,106 +647,90 @@ export default function MapPage() {
             tripIdSet.add(trip.id);
           }
         });
-        
+
         // 등록 순서대로 정렬 (오래된 순서부터)
         mergedTrips.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.startDate).getTime();
           const dateB = new Date(b.createdAt || b.startDate).getTime();
           return dateA - dateB; // 오름차순 (등록 순서대로)
         });
-        
+
         console.log('Map Page: Merged trips:', mergedTrips);
         setUserTrips(mergedTrips);
-        
+
         // 병합된 데이터를 localStorage에 저장 (동기화)
         saveTripsToLocal(mergedTrips);
-        
-        // 4) 여행 데이터에서 방문 국가 자동 추출하여 색상 맵에 추가
-        const autoColorMap: { [key: string]: string } = {};
+
+        // 4) 여행 데이터에서 방문 국가 자동 추출 (Cleanup을 위해 계산)
+        const currentTripColors: { [key: string]: string } = {};
         mergedTrips.forEach((trip) => {
           if (trip.destination) {
             const destinations = trip.destination.split(',').map((d: string) => d.trim()).filter((d: string) => d);
             destinations.forEach((dest: string) => {
               const englishName = countryKoreanToEnglishMap[dest];
               if (englishName) {
-                // 기본 색상: 빨강 (#EF4444)
-                autoColorMap[englishName] = '#EF4444';
+                currentTripColors[englishName] = '#EF4444';
               }
             });
           }
         });
-        
-        // 5) 방문 국가 색상 데이터: localStorage에서 먼저 로드 (사용자가 색칠한 국가 보존)
+
+        // 5) 방문 국가 색상 데이터: localStorage에서 먼저 로드
         let localColorMap: { [key: string]: string } = {};
         if (typeof window !== 'undefined') {
           const savedColors = localStorage.getItem('countryColors');
           if (savedColors) {
             try {
               const parsedColors = JSON.parse(savedColors);
-              // 키 변환: 한국어 → 영어, 국가 코드 → 영어
               for (const key in parsedColors) {
-                // 1. 한국어 키인 경우 영어로 변환
                 const englishName = countryKoreanToEnglishMap[key];
                 if (englishName) {
                   localColorMap[englishName] = parsedColors[key];
-                } 
-                // 2. 국가 코드인 경우 영어로 변환
-                else if (isoToEnglishCountryNameMap[key]) {
+                } else if (isoToEnglishCountryNameMap[key]) {
                   localColorMap[isoToEnglishCountryNameMap[key]] = parsedColors[key];
-                } 
-                // 3. 이미 영어 키인 경우 그대로 사용
-                else {
+                } else {
                   localColorMap[key] = parsedColors[key];
                 }
               }
-              console.log('Map Page: Country colors loaded from localStorage:', localColorMap);
             } catch (e) {
               console.warn('Map Page: Failed to parse localStorage countryColors:', e);
             }
           }
         }
-        
-        // 5) API에서도 방문 국가 데이터 로드 시도 (서버와 동기화)
+
+        // 5) API에서도 방문 국가 데이터 로드 시도
         try {
           const visitedResponse = await fetch('/api/visited-countries', { credentials: 'include' });
           const visitedData = await visitedResponse.json().catch(() => ({}));
-          
+
           if (visitedData.ok && visitedData.colorMap) {
-            console.log('Map Page: Visited countries loaded from API:', visitedData.visitedCountries);
-            // API colorMap의 키(국가 코드)를 영어 국가명으로 변환
             const apiColorMapConverted: { [key: string]: string } = {};
-            console.log('Map Page: API colorMap before conversion:', visitedData.colorMap);
             Object.entries(visitedData.colorMap).forEach(([countryCode, color]) => {
               const englishName = isoToEnglishCountryNameMap[countryCode];
               if (englishName) {
                 apiColorMapConverted[englishName] = color as string;
-                console.log(`Map Page: Converting ${countryCode} -> ${englishName}`);
               } else {
-                // 매핑이 없으면 국가 코드 그대로 사용 (fallback)
                 apiColorMapConverted[countryCode] = color as string;
-                console.log(`Map Page: No mapping for ${countryCode}, keeping as is`);
               }
             });
-            console.log('Map Page: API colorMap after conversion:', apiColorMapConverted);
-            // API 데이터, localStorage 데이터, 자동 추출된 색상 병합 (우선순위: localStorage > API > 자동)
-            const mergedColorMap = { ...autoColorMap, ...apiColorMapConverted, ...localColorMap };
-            console.log('Map Page: Final merged colorMap:', mergedColorMap);
-            setCountryColorMap(mergedColorMap);
-            localStorage.setItem('countryColors', JSON.stringify(mergedColorMap));
-          } else {
-            // API 데이터가 없으면 localStorage 데이터와 자동 추출된 색상 병합
-            const mergedColorMap = { ...autoColorMap, ...localColorMap };
-            setCountryColorMap(mergedColorMap);
-            localStorage.setItem('countryColors', JSON.stringify(mergedColorMap));
+            // API 데이터와 localStorage 데이터 병합
+            localColorMap = { ...apiColorMapConverted, ...localColorMap };
           }
         } catch (visitedError) {
           console.warn('Map Page: Failed to load visited countries from API, using localStorage only:', visitedError);
-          // API 실패 시 localStorage 데이터와 자동 추출된 색상 병합
-          const mergedColorMap = { ...autoColorMap, ...localColorMap };
-          setCountryColorMap(mergedColorMap);
-          localStorage.setItem('countryColors', JSON.stringify(mergedColorMap));
         }
-        
+
+        // CLEANUP: Remove any color from localColorMap that exists in currentTripColors AND is default red
+        // This fixes the "ghost" issue where trip colors were saved as manual colors.
+        Object.keys(currentTripColors).forEach(country => {
+          if (localColorMap[country] === '#EF4444') {
+            delete localColorMap[country];
+          }
+        });
+
+        setManualColors(localColorMap);
+        localStorage.setItem('countryColors', JSON.stringify(localColorMap));
+
         setIsTripsLoaded(true);
 
         // 2) 지도 데이터: 그대로 fetch (정적 파일)
@@ -737,15 +743,15 @@ export default function MapPage() {
         console.log('Map Page: Map data fetched.', world);
         console.log('Map Page: world.objects.countries', world.objects.countries); // 추가된 로그
         const features = (topojson.feature(world, world.objects.countries as any) as any).features;
-        
+
         // 모든 국가 이름 로그 출력 (싱가포르 확인용)
         const allCountryNames = features.map((f: any) => f.properties?.name).filter(Boolean);
         console.log('Map Page: All country names in map data:', allCountryNames.sort());
-        const singaporeInMap = allCountryNames.find((name: string) => 
+        const singaporeInMap = allCountryNames.find((name: string) =>
           name.toLowerCase().includes('singapore')
         );
         console.log('Map Page: Singapore in map data?', singaporeInMap || 'NOT FOUND');
-        
+
         setGeographyData(features);
         setIsMapDataLoaded(true);
         console.log('Map Page: Geography data set.', features);
@@ -764,11 +770,11 @@ export default function MapPage() {
         console.log('[MapPage] 서버에서 여행 기록 다시 불러오기');
         const apiResponse = await fetch('/api/map-travel-records', { credentials: 'include' });
         const apiData = await apiResponse.json().catch(() => ({}));
-        
+
         if (apiData.ok && Array.isArray(apiData.trips)) {
           const apiTrips: Trip[] = apiData.trips;
           console.log('[MapPage] 서버에서 불러온 여행 기록:', apiTrips);
-          
+
           // 서버 데이터가 우선 (서버가 진실의 원천)
           setUserTrips(apiTrips);
           saveTripsToLocal(apiTrips);
@@ -829,23 +835,23 @@ export default function MapPage() {
 
     // ISO 3166-1 alpha-2 국가 코드로 변환 (간단한 매핑)
     const countryCode = englishCountryName === 'South Korea' ? 'KR' :
-                        englishCountryName === 'Japan' ? 'JP' :
-                        englishCountryName === 'Taiwan' ? 'TW' :
-                        englishCountryName === 'China' ? 'CN' :
-                        englishCountryName === 'Hong Kong' ? 'HK' :
-                        englishCountryName === 'Philippines' ? 'PH' :
-                        englishCountryName === 'United States' ? 'US' :
-                        englishCountryName === 'Thailand' ? 'TH' :
-                        englishCountryName === 'Vietnam' ? 'VN' :
-                        englishCountryName === 'Singapore' ? 'SG' :
+      englishCountryName === 'Japan' ? 'JP' :
+        englishCountryName === 'Taiwan' ? 'TW' :
+          englishCountryName === 'China' ? 'CN' :
+            englishCountryName === 'Hong Kong' ? 'HK' :
+              englishCountryName === 'Philippines' ? 'PH' :
+                englishCountryName === 'United States' ? 'US' :
+                  englishCountryName === 'Thailand' ? 'TH' :
+                    englishCountryName === 'Vietnam' ? 'VN' :
+                      englishCountryName === 'Singapore' ? 'SG' :
                         englishCountryName === 'Indonesia' ? 'ID' :
-                        englishCountryName === 'Malaysia' ? 'MY' :
-                        englishCountryName === 'Brazil' ? 'BR' :
-                        englishCountryName === 'Antarctica' ? 'AQ' :
-                        isoToEnglishCountryNameMap ? Object.keys(isoToEnglishCountryNameMap).find(code => isoToEnglishCountryNameMap[code] === englishCountryName) || englishCountryName : englishCountryName;
-    
+                          englishCountryName === 'Malaysia' ? 'MY' :
+                            englishCountryName === 'Brazil' ? 'BR' :
+                              englishCountryName === 'Antarctica' ? 'AQ' :
+                                isoToEnglishCountryNameMap ? Object.keys(isoToEnglishCountryNameMap).find(code => isoToEnglishCountryNameMap[code] === englishCountryName) || englishCountryName : englishCountryName;
+
     setSelectedCountryCode(countryCode);
-    
+
     // 방문한 국가인 경우 모달 열기 (방문 기록 있음)
     const isVisited = Object.keys(countryColorMap).includes(englishCountryName);
     if (isVisited) {
@@ -871,22 +877,10 @@ export default function MapPage() {
 
   const handleTripFormSubmit = useCallback(async (tripData: any) => {
     try {
-      // 국가 색상 업데이트 (서버 저장 전에 먼저 적용)
-      if (tripData.selectedCountriesWithColors && Array.isArray(tripData.selectedCountriesWithColors)) {
-        setCountryColorMap((prev) => {
-          const newMap = { ...prev };
-          tripData.selectedCountriesWithColors.forEach((item: { englishName: string; color: string }) => {
-            newMap[item.englishName] = item.color;
-          });
-          localStorage.setItem('countryColors', JSON.stringify(newMap));
-          return newMap;
-        });
-      }
-
       // 서버에 저장/수정
       const method = tripData.id ? 'PUT' : 'POST';
       const url = '/api/map-travel-records';
-      
+
       // 날짜 필수 검증 (먼저 확인)
       if (!tripData.startDate || !tripData.endDate) {
         console.error('[MapPage] 날짜 누락:', { startDate: tripData.startDate, endDate: tripData.endDate });
@@ -912,20 +906,20 @@ export default function MapPage() {
         console.error('[MapPage] 종료일 형식 오류:', requestBody.endDate);
         throw new Error(`종료일 형식이 올바르지 않습니다: ${requestBody.endDate}. YYYY-MM-DD 형식이어야 합니다.`);
       }
-      
+
       console.log('[MapPage] 서버 전송 데이터:', requestBody);
-      
+
       // undefined 값 제거 (하지만 startDate와 endDate는 필수이므로 제거하지 않음)
       Object.keys(requestBody).forEach(key => {
         if (key !== 'startDate' && key !== 'endDate' && (requestBody[key] === undefined || requestBody[key] === '')) {
           delete requestBody[key];
         }
       });
-      
+
       if (tripData.id) {
         requestBody.id = tripData.id;
       }
-      
+
       // 서버 저장 전에 먼저 로컬에 저장 (오프라인 지원 및 크루즈가이드 지니/3일체험 공유)
       const tripToSave: Trip = {
         id: tripData.id || `local-${Date.now()}`,
@@ -937,7 +931,7 @@ export default function MapPage() {
         impressions: tripData.impressions || '',
         createdAt: tripData.createdAt || new Date().toISOString(),
       };
-      
+
       // 로컬에 즉시 저장 (서버 응답 전에)
       const currentTrips = loadTripsFromLocal();
       if (tripData.id) {
@@ -955,7 +949,7 @@ export default function MapPage() {
       saveTripsToLocal(currentTrips);
       setUserTrips([...currentTrips]);
       console.log('[MapPage] 로컬 저장 완료 (서버 응답 전) - 크루즈가이드 지니/3일체험 공유용');
-      
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -985,14 +979,14 @@ export default function MapPage() {
           // 새로 추가한 경우: local- 접두사가 있거나, ID가 없거나, 서버 응답과 내용이 같은 경우
           if (!tripData.id) {
             // 같은 내용인지 확인 (날짜, 목적지, 크루즈명으로 비교)
-            return t.startDate === tripToSave.startDate && 
-                   t.endDate === tripToSave.endDate && 
-                   t.destination === tripToSave.destination &&
-                   t.cruiseName === tripToSave.cruiseName;
+            return t.startDate === tripToSave.startDate &&
+              t.endDate === tripToSave.endDate &&
+              t.destination === tripToSave.destination &&
+              t.cruiseName === tripToSave.cruiseName;
           }
           return String(t.id) === String(tripData.id);
         });
-        
+
         if (localTripIndex >= 0) {
           // 로컬 데이터를 서버에서 받은 실제 ID로 업데이트
           currentTrips[localTripIndex] = {
@@ -1009,13 +1003,13 @@ export default function MapPage() {
       // 서버에서 최신 데이터 다시 불러오기 (중복 방지)
       const loadResponse = await fetch('/api/map-travel-records', { credentials: 'include' });
       const loadData = await loadResponse.json();
-      
+
       if (loadData.ok && Array.isArray(loadData.trips)) {
         // 서버 데이터와 로컬 데이터 병합 (서버 데이터 우선, 중복 제거)
         const mergedTrips: Trip[] = [];
         const tripIdSet = new Set<string | number>();
         const tripContentSet = new Set<string>(); // 내용 기반 중복 체크용
-        
+
         // 서버 데이터 우선 추가
         loadData.trips.forEach((trip: Trip) => {
           if (!tripIdSet.has(trip.id)) {
@@ -1026,12 +1020,12 @@ export default function MapPage() {
             tripContentSet.add(contentKey);
           }
         });
-        
+
         // 로컬 데이터 중 서버에 없는 것만 추가 (내용 기반 중복 체크)
         currentTrips.forEach((trip: Trip) => {
           const tripIdStr = String(trip.id);
           const contentKey = `${trip.startDate}-${trip.endDate}-${trip.destination}-${trip.cruiseName}`;
-          
+
           // 서버에 없는 ID이고, 내용도 다른 경우만 추가
           if (!tripIdSet.has(trip.id) && !tripContentSet.has(contentKey)) {
             mergedTrips.push(trip);
@@ -1039,23 +1033,10 @@ export default function MapPage() {
             tripContentSet.add(contentKey);
           }
         });
-        
+
         setUserTrips(mergedTrips);
         saveTripsToLocal(mergedTrips);
         console.log('[MapPage] 서버와 로컬 데이터 병합 완료, 중복 제거됨');
-        
-        // 색상은 선택된 색상이 있으면 그대로 유지 (서버에서 다시 불러올 때 덮어쓰지 않음)
-        // 선택된 색상이 없을 때만 기본 색상 적용
-        if (tripData.selectedCountriesWithColors && Array.isArray(tripData.selectedCountriesWithColors)) {
-          setCountryColorMap((currentMap) => {
-            const updatedMap = { ...currentMap };
-            tripData.selectedCountriesWithColors.forEach((item: { englishName: string; color: string }) => {
-              updatedMap[item.englishName] = item.color;
-            });
-            localStorage.setItem('countryColors', JSON.stringify(updatedMap));
-            return updatedMap;
-          });
-        }
       }
     } catch (error: any) {
       // 네트워크 에러 등으로 서버 요청 자체가 실패한 경우에도 로컬에는 이미 저장됨
@@ -1066,7 +1047,7 @@ export default function MapPage() {
         code: error?.code,
         hint: error?.hint,
       });
-      
+
       // 로컬 저장은 이미 완료되었으므로 사용자에게 성공 메시지 표시
       alert(`여행 기록이 저장되었습니다.\n\n(로컬 저장 완료, 서버 동기화는 나중에 자동으로 시도됩니다)`);
     }
@@ -1107,7 +1088,7 @@ export default function MapPage() {
       // 서버에서 최신 데이터 다시 불러오기
       const loadResponse = await fetch('/api/map-travel-records', { credentials: 'include' });
       const loadData = await loadResponse.json();
-      
+
       if (loadData.ok && Array.isArray(loadData.trips)) {
         setUserTrips(loadData.trips);
         saveTripsToLocal(loadData.trips);
@@ -1165,7 +1146,7 @@ export default function MapPage() {
                       console.log('Map Page: Rendering geographies.', geographies.length, 'geographies found.');
                       console.log('Map Page: countryColorMap keys:', Object.keys(countryColorMap));
                       console.log('Map Page: countryColorMap full:', countryColorMap);
-                      
+
                       // 싱가포르 관련 국가 찾기 (디버깅)
                       const singaporeCountries = geographies.filter((g: any) => {
                         const name = g.properties?.name?.toLowerCase() || '';
@@ -1177,7 +1158,7 @@ export default function MapPage() {
                           allProperties: Object.keys(g.properties)
                         })));
                       }
-                      
+
                       return geographies.map((geo: any) => {
                         const englishCountryName = geo.properties.name; // name 속성 사용
                         // name이 없으면 렌더링하지 않거나 기본 처리
@@ -1189,16 +1170,16 @@ export default function MapPage() {
                         // 국가명 매칭 시도 (다양한 방법으로 시도)
                         let isVisited = false;
                         let countryColor = "#F8F9FA";
-                        
+
                         // 1. 정확한 매칭
                         if (countryColorMap[englishCountryName]) {
                           isVisited = true;
                           countryColor = countryColorMap[englishCountryName];
                         }
-                        
+
                         // 2. 대소문자 무시 매칭
                         if (!isVisited) {
-                          const matchedKey = Object.keys(countryColorMap).find(key => 
+                          const matchedKey = Object.keys(countryColorMap).find(key =>
                             key.toLowerCase() === englishCountryName.toLowerCase()
                           );
                           if (matchedKey) {
@@ -1207,7 +1188,7 @@ export default function MapPage() {
                             console.log(`Map Page: Case-insensitive match: ${englishCountryName} -> ${matchedKey}`);
                           }
                         }
-                        
+
                         // 3. 별칭 매핑을 통한 매칭
                         if (!isVisited) {
                           const alias = countryNameAliases[englishCountryName];
@@ -1217,12 +1198,12 @@ export default function MapPage() {
                             console.log(`Map Page: Alias match: ${englishCountryName} -> ${alias}`);
                           }
                         }
-                        
+
                         // 4. 국가 코드를 통해 매칭 (countryColorMap에 국가 코드가 키로 있는 경우)
                         if (!isVisited) {
                           // 영어 국가명에서 국가 코드 찾기
-                          const countryCode = isoToEnglishCountryNameMap ? 
-                            Object.keys(isoToEnglishCountryNameMap).find(code => 
+                          const countryCode = isoToEnglishCountryNameMap ?
+                            Object.keys(isoToEnglishCountryNameMap).find(code =>
                               isoToEnglishCountryNameMap[code] === englishCountryName
                             ) : null;
                           if (countryCode && countryColorMap[countryCode]) {
@@ -1231,7 +1212,7 @@ export default function MapPage() {
                             console.log(`Map Page: Country code match: ${englishCountryName} (${countryCode})`);
                           }
                         }
-                        
+
                         // 5. 부분 일치 매칭 (Singapore, Brazil 등)
                         if (!isVisited) {
                           const partialMatch = Object.keys(countryColorMap).find(key => {
@@ -1245,7 +1226,7 @@ export default function MapPage() {
                             console.log(`Map Page: Partial match: ${englishCountryName} -> ${partialMatch}`);
                           }
                         }
-                        
+
                         const centroid = geoCentroid(geo);
 
                         return (
@@ -1282,29 +1263,7 @@ export default function MapPage() {
                 )}
 
                 {/* 사용자의 여행 목적지 마커 */}
-                {/* geographyData && userTrips.map((trip) => {
-                  const matchingCountry = Object.values(CONTINENTS_DATA).flat().find(
-                    (country) => country.koreanName === trip.destination || country.englishName === trip.destination
-                  );
 
-                  if (matchingCountry) {
-                    // 영어 국가명으로 찾도록 수정
-                    const englishName = matchingCountry.englishName;
-                    if (englishName) {
-                      const geo = geographyData.find((g: any) => g.properties.name === englishName);
-                      if (geo) {
-                        const centroid = geoCentroid(geo);
-                        console.log('Map Page: Adding marker for:', trip.destination, 'at', centroid);
-                        return (
-                          <Marker key={trip.id} coordinates={centroid}>
-                            <FiMapPin className="text-brand-red text-lg drop-shadow-md" />
-                          </Marker>
-                        );
-                      }
-                    }
-                  }
-                  return null;
-                }) */}
               </ZoomableGroup>
             </ComposableMap>
           )}
@@ -1417,7 +1376,7 @@ export default function MapPage() {
         initialData={editingTrip ?? undefined} // null일 경우 undefined 전달
         preselectedCountry={preselectedCountry} // 선택된 국가 전달
       />
-      
+
       <VisitedCountryModal
         isOpen={isVisitedCountryModalOpen}
         onClose={() => setIsVisitedCountryModalOpen(false)}

@@ -11,8 +11,8 @@ import sharp from 'sharp';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-// 관리자 권한 확인
-async function requireAdmin() {
+// 관리자 또는 판매원 권한 확인
+async function requireAdminOrPartner() {
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
     return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
@@ -20,11 +20,16 @@ async function requireAdmin() {
 
   const user = await prisma.user.findUnique({
     where: { id: sessionUser.id },
-    select: { role: true },
+    select: {
+      role: true,
+      AffiliateProfile: {
+        select: { id: true }
+      }
+    },
   });
 
-  if (user?.role !== 'admin') {
-    return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
+  if (user?.role !== 'admin' && !user?.AffiliateProfile) {
+    return NextResponse.json({ ok: false, message: 'Admin or Partner access required' }, { status: 403 });
   }
 
   return null;
@@ -32,8 +37,8 @@ async function requireAdmin() {
 
 export async function POST(req: NextRequest) {
   try {
-    // 관리자 권한 확인
-    const authError = await requireAdmin();
+    // 관리자 또는 판매원 권한 확인
+    const authError = await requireAdminOrPartner();
     if (authError) return authError;
 
     const formData = await req.formData();

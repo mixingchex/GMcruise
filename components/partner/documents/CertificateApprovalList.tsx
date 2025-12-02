@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, Clock, XCircle, User, FileText, Calendar, DollarSign, Download, Mail } from 'lucide-react';
 import { showSuccess, showError } from '@/components/ui/Toast';
 import html2canvas from 'html2canvas';
@@ -52,11 +52,7 @@ export default function CertificateApprovalList({ userRole, onApprovalClick }: C
   const [downloading, setDownloading] = useState<number | null>(null);
   const [sendingEmail, setSendingEmail] = useState<number | null>(null);
 
-  useEffect(() => {
-    loadApprovals();
-  }, [userRole]);
-
-  const loadApprovals = async () => {
+  const loadApprovals = useCallback(async () => {
     setLoading(true);
     try {
       // 판매원인 경우: 승인요청 목록을 보지 않음 (null 반환하여 컴포넌트 숨김)
@@ -104,7 +100,11 @@ export default function CertificateApprovalList({ userRole, onApprovalClick }: C
     } finally {
       setLoading(false);
     }
-  };
+  }, [userRole]);
+
+  useEffect(() => {
+    loadApprovals();
+  }, [loadApprovals]);
 
   const handleApprove = async (approvalId: number) => {
     if (!confirm('이 요청을 승인하시겠습니까?')) return;
@@ -146,11 +146,11 @@ export default function CertificateApprovalList({ userRole, onApprovalClick }: C
       canvas.width = 210 * 3.78; // A4 width in pixels (210mm)
       canvas.height = 297 * 3.78; // A4 height in pixels (297mm)
       const ctx = canvas.getContext('2d');
-      
+
       if (ctx) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         // 인증서 내용 그리기 (간단한 버전)
         ctx.fillStyle = '#000000';
         ctx.font = '24px Arial';
@@ -172,7 +172,7 @@ export default function CertificateApprovalList({ userRole, onApprovalClick }: C
           const fileName = approval.certificateType === 'purchase'
             ? `구매확인증서_${approval.customerName}_${new Date().toISOString().split('T')[0]}.png`
             : `환불인증서_${approval.customerName}_${new Date().toISOString().split('T')[0]}.png`;
-          
+
           link.href = url;
           link.download = fileName;
           document.body.appendChild(link);
@@ -209,7 +209,7 @@ export default function CertificateApprovalList({ userRole, onApprovalClick }: C
       canvas.width = 210 * 3.78;
       canvas.height = 297 * 3.78;
       const ctx = canvas.getContext('2d');
-      
+
       if (ctx) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -321,7 +321,7 @@ export default function CertificateApprovalList({ userRole, onApprovalClick }: C
   return (
     <div className="bg-white rounded-lg shadow-md p-6 mb-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">신청한 고객 승인요청</h2>
-      
+
       <div className="space-y-4">
         {approvals.map((approval) => (
           <div

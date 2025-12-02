@@ -69,7 +69,7 @@ async function logNotification(
 async function checkTravelPreparation() {
   try {
     const now = new Date();
-    
+
     // D-7 체크 (7일 전)
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     sevenDaysLater.setHours(0, 0, 0, 0);
@@ -176,7 +176,7 @@ async function checkEmbarkationWarning() {
 
       // 3시간 전인지 확인
       const threeHoursBefore = new Date(embarkationDateTime.getTime() - 3 * 60 * 60 * 1000);
-      
+
       if (now >= threeHoursBefore && now < embarkationDateTime) {
         const title = '🚢 터미널로 향할 시간입니다!';
         const body = `${embarkationTime}에 승선합니다. 지금 바로 터미널로 이동해주세요! 여권을 꼭 챙기세요.`;
@@ -241,7 +241,7 @@ async function checkDisembarkationWarning() {
 
       // 1시간 전인지 확인
       const oneHourBefore = new Date(arrivalDateTime.getTime() - 60 * 60 * 1000);
-      
+
       if (now >= oneHourBefore && now < arrivalDateTime) {
         const locationName = itinerary.location || '기항지';
         const title = `🏖️ ${locationName} 도착 1시간 전!`;
@@ -308,7 +308,7 @@ async function checkBoardingWarning() {
 
       // 1시간 전인지 확인
       const oneHourBefore = new Date(departureDateTime.getTime() - 60 * 60 * 1000);
-      
+
       if (now >= oneHourBefore && now < departureDateTime) {
         const locationName = itinerary.location || '기항지';
         const title = '⚠️ 출항 1시간 전! 지금 바로 배로 돌아오세요!';
@@ -427,11 +427,11 @@ async function checkLandingPageNotifications() {
       if (landingPage.boardingTime) {
         const [hours, minutes] = parseTime(landingPage.boardingTime);
         const eventKey = `LANDING_BOARDING_${landingPage.id}_${currentTime}`;
-        
+
         // 현재 시간이 승선 시간과 일치하는지 확인 (10분 단위로 체크)
         if (currentHour === hours && Math.abs(currentMinute - minutes) <= 5) {
           const alreadySent = await hasAlreadySent(0, null, null, 'LANDING_BOARDING', eventKey);
-          
+
           if (!alreadySent) {
             const title = `🚢 승선 시간 안내`;
             const body = `${landingPage.title || '크루즈 여행'}의 승선 시간(${landingPage.boardingTime})입니다. 지금 바로 터미널로 이동해주세요!`;
@@ -454,11 +454,11 @@ async function checkLandingPageNotifications() {
       if (landingPage.disembarkationTime) {
         const [hours, minutes] = parseTime(landingPage.disembarkationTime);
         const eventKey = `LANDING_DISEMBARKATION_${landingPage.id}_${currentTime}`;
-        
+
         // 현재 시간이 하선 시간과 일치하는지 확인 (10분 단위로 체크)
         if (currentHour === hours && Math.abs(currentMinute - minutes) <= 5) {
           const alreadySent = await hasAlreadySent(0, null, null, 'LANDING_DISEMBARKATION', eventKey);
-          
+
           if (!alreadySent) {
             const title = `🏖️ 하선 시간 안내`;
             const body = `${landingPage.title || '크루즈 여행'}의 하선 시간(${landingPage.disembarkationTime})입니다. 여권을 챙기고 준비해주세요!`;
@@ -481,15 +481,15 @@ async function checkLandingPageNotifications() {
       if (landingPage.departureWarning && landingPage.boardingTime) {
         const [hours, minutes] = parseTime(landingPage.boardingTime);
         const eventKey = `LANDING_DEPARTURE_WARNING_${landingPage.id}_${currentTime}`;
-        
+
         // 출항 시간 1시간 전인지 확인
         const departureTime = new Date();
         departureTime.setHours(hours, minutes, 0, 0);
         const oneHourBefore = new Date(departureTime.getTime() - 60 * 60 * 1000);
-        
+
         if (now >= oneHourBefore && now < departureTime) {
           const alreadySent = await hasAlreadySent(0, null, null, 'LANDING_DEPARTURE_WARNING', eventKey);
-          
+
           if (!alreadySent) {
             const title = `⚠️ 출항 1시간 전! 지금 바로 배로 돌아오세요!`;
             const body = `${landingPage.title || '크루즈 여행'}의 출항 시간(${landingPage.boardingTime})이 1시간 남았습니다. 늦으면 배를 놓칠 수 있습니다! 지금 바로 배로 돌아와주세요!`;
@@ -561,5 +561,6 @@ export async function runProactiveEngineNow() {
 // Alias for backwards compatibility
 export const manualRunProactiveEngine = runProactiveEngineNow;
 
-export default { startProactiveEngine, runProactiveEngineNow, manualRunProactiveEngine };
+const proactiveEngine = { startProactiveEngine, runProactiveEngineNow, manualRunProactiveEngine };
+export default proactiveEngine;
 

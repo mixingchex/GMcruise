@@ -6,15 +6,15 @@ import countriesData from '@/data/countries.json';
 // 국가 코드 -> 한국어 이름 매핑 생성
 export const COUNTRY_CODE_TO_KOREAN_NAME: Record<string, string> = (() => {
   const map: Record<string, string> = {};
-  
+
   (countriesData as any[]).forEach(continent => {
     (continent.countries || []).forEach((country: any) => {
       const countryName = country.name;
       if (!countryName) return;
-      
+
       // "대한민국 (South Korea)" 형식에서 한국어 이름 추출
       const koreanName = countryName.split(' (')[0].trim();
-      
+
       // 국가 코드 추출 (ISO 3166-1 alpha-2 코드)
       // 일반적인 국가 코드 매핑
       const codeMap: Record<string, string> = {
@@ -175,61 +175,22 @@ export const COUNTRY_CODE_TO_KOREAN_NAME: Record<string, string> = (() => {
         '지부티': 'DJ',
         '소말리아': 'SO',
         '케냐': 'KE',
-        '탄자니아': 'TZ',
         '우간다': 'UG',
         '르완다': 'RW',
         '부룬디': 'BI',
         '콩고 민주 공화국': 'CD',
         '콩고 공화국': 'CG',
-        '중앙아프리카 공화국': 'CF',
-        '차드': 'TD',
-        '카메룬': 'CM',
-        '적도 기니': 'GQ',
-        '상투메 프린시페': 'ST',
-        '가봉': 'GA',
-        '나이지리아': 'NG',
-        '베냉': 'BJ',
-        '토고': 'TG',
-        '부르키나파소': 'BF',
-        '말리': 'ML',
-        '니제르': 'NE',
-        '세네갈': 'SN',
-        '감비아': 'GM',
-        '기니비사우': 'GW',
         '기니': 'GN',
         '시에라리온': 'SL',
         '라이베리아': 'LR',
         '코트디부아르': 'CI',
         '가나': 'GH',
-        '토고': 'TG',
-        '베냉': 'BJ',
-        '나이지리아': 'NG',
-        '카메룬': 'CM',
-        '적도 기니': 'GQ',
-        '상투메 프린시페': 'ST',
-        '가봉': 'GA',
-        '콩고 공화국': 'CG',
-        '콩고 민주 공화국': 'CD',
-        '중앙아프리카 공화국': 'CF',
-        '차드': 'TD',
-        '수단': 'SD',
-        '남수단': 'SS',
-        '에티오피아': 'ET',
-        '에리트레아': 'ER',
-        '지부티': 'DJ',
-        '소말리아': 'SO',
-        '케냐': 'KE',
-        '우간다': 'UG',
-        '르완다': 'RW',
-        '부룬디': 'BI',
-        '탄자니아': 'TZ',
         '모잠비크': 'MZ',
         '말라위': 'MW',
         '잠비아': 'ZM',
         '짐바브웨': 'ZW',
         '보츠와나': 'BW',
         '나미비아': 'NA',
-        '남아프리카 공화국': 'ZA',
         '레소토': 'LS',
         '에스와티니': 'SZ',
         '모리셔스': 'MU',
@@ -237,58 +198,17 @@ export const COUNTRY_CODE_TO_KOREAN_NAME: Record<string, string> = (() => {
         '마다가스카르': 'MG',
         '코모로': 'KM',
         '카보베르데': 'CV',
-        '알제리': 'DZ',
-        '튀니지': 'TN',
-        '리비아': 'LY',
-        '모로코': 'MA',
         '서사하라': 'EH',
         '모리타니': 'MR',
-        '세네갈': 'SN',
-        '감비아': 'GM',
-        '기니비사우': 'GW',
-        '기니': 'GN',
-        '시에라리온': 'SL',
-        '라이베리아': 'LR',
-        '코트디부아르': 'CI',
-        '가나': 'GH',
-        '부르키나파소': 'BF',
-        '말리': 'ML',
-        '니제르': 'NE',
-        '차드': 'TD',
-        '수단': 'SD',
-        '남수단': 'SS',
-        '에티오피아': 'ET',
-        '에리트레아': 'ER',
-        '지부티': 'DJ',
-        '소말리아': 'SO',
-        '케냐': 'KE',
-        '우간다': 'UG',
-        '르완다': 'RW',
-        '부룬디': 'BI',
-        '탄자니아': 'TZ',
-        '모잠비크': 'MZ',
-        '말라위': 'MW',
-        '잠비아': 'ZM',
-        '짐바브웨': 'ZW',
-        '보츠와나': 'BW',
-        '나미비아': 'NA',
-        '남아프리카 공화국': 'ZA',
-        '레소토': 'LS',
-        '에스와티니': 'SZ',
-        '모리셔스': 'MU',
-        '세이셸': 'SC',
-        '마다가스카르': 'MG',
-        '코모로': 'KM',
-        '카보베르데': 'CV',
       };
-      
+
       const code = codeMap[koreanName];
       if (code) {
         map[code] = koreanName;
       }
     });
   });
-  
+
   return map;
 })();
 

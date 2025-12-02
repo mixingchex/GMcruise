@@ -231,7 +231,7 @@ export default function FileUploader({ type, onUploadComplete }: FileUploaderPro
         <div className="mt-4 space-y-3">
           <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
             <p className="text-sm font-medium text-green-800 mb-2">✅ 파일 처리 완료</p>
-            
+
             {/* 압축 정보 */}
             {type === 'image' && compressionInfo.ratio > 0 && (
               <div className="text-xs text-green-700 space-y-1 mb-3">
@@ -270,6 +270,7 @@ export default function FileUploader({ type, onUploadComplete }: FileUploaderPro
           {previewUrl && type === 'image' && (
             <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
               <p className="text-xs font-medium text-gray-700 mb-2">압축된 이미지 미리보기:</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={previewUrl}
                 alt="압축된 이미지"

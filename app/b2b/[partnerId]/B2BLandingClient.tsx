@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { FiArrowRight, FiX } from 'react-icons/fi';
 
 // 캐시 로그인 유틸리티 (localStorage 기반 7일 체험)
@@ -220,12 +221,16 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
                         <FiX size={32} />
                     </button>
                     <div className="relative max-w-5xl w-full max-h-[90vh] flex items-center justify-center">
-                        <img
-                            src={selectedImage}
-                            alt="확대 이미지"
-                            className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
-                            onClick={(e) => e.stopPropagation()}
-                        />
+                        <div className="relative w-full h-full min-h-[50vh]">
+                            <Image
+                                src={selectedImage}
+                                alt="확대 이미지"
+                                fill
+                                className="object-contain rounded-lg shadow-2xl"
+                                onClick={(e) => e.stopPropagation()}
+                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                            />
+                        </div>
                     </div>
                 </div>
             )}

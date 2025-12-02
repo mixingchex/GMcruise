@@ -104,7 +104,7 @@ export const ATTRACTIONS = [
   { label: '루브르 박물관', value: 'Louvre Museum' },
 ];
 
-interface TerminalData {
+export interface TerminalData {
   id: string;
   name: string;
   name_ko: string;

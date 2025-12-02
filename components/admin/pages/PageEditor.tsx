@@ -125,10 +125,10 @@ export default function PageEditor({
           if (!content) {
             e.preventDefault();
             e.stopPropagation();
-            const finalContentType = contentType || 
-              (section.includes('emoji') || itemId?.includes('emoji') ? 'emoji' : 
-              section.includes('image') || itemId?.includes('image') ? 'image' : 
-              section.includes('button') || itemId?.includes('button') ? 'button' : 'text');
+            const finalContentType = contentType ||
+              (section.includes('emoji') || itemId?.includes('emoji') ? 'emoji' :
+                section.includes('image') || itemId?.includes('image') ? 'image' :
+                  section.includes('button') || itemId?.includes('button') ? 'button' : 'text');
             onAdd(section, finalContentType);
           }
         }}
@@ -171,10 +171,10 @@ export default function PageEditor({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                const finalContentType = contentType || 
-                  (section.includes('emoji') || itemId?.includes('emoji') ? 'emoji' : 
-                  section.includes('image') || itemId?.includes('image') ? 'image' : 
-                  section.includes('button') || itemId?.includes('button') ? 'button' : 'text');
+                const finalContentType = contentType ||
+                  (section.includes('emoji') || itemId?.includes('emoji') ? 'emoji' :
+                    section.includes('image') || itemId?.includes('image') ? 'image' :
+                      section.includes('button') || itemId?.includes('button') ? 'button' : 'text');
                 onAdd(section, finalContentType);
               }}
               className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-semibold hover:bg-blue-700"
@@ -355,6 +355,7 @@ export default function PageEditor({
               placeholder="또는 이미지 URL 직접 입력"
             />
             {editData.content.image && (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={editData.content.image}
                 alt="Preview"
@@ -443,11 +444,11 @@ export default function PageEditor({
             </label>
             <div className="space-y-3">
               {(editData.content.items || []).map((item: any, idx: number) => {
-                const itemData = typeof item === 'string' 
+                const itemData = typeof item === 'string'
                   ? { emoji: '✓', text: item }
                   : { emoji: item.emoji || '✓', text: item.text || item };
                 const pickerId = `list-${content.id}-${idx}`;
-                
+
                 return (
                   <div key={idx} className="p-3 border rounded-lg bg-white relative">
                     <div className="flex items-center gap-2 mb-2">
@@ -553,22 +554,22 @@ export default function PageEditor({
       { icon: '🛡️', title: '해외여행자보험', description: '안전한 크루즈 여행을 위한 해외여행자보험 정보를 제공합니다.', features: ['보험 상품 비교', '보험 가입 안내', '보험료 계산', '보험 청구 안내'] },
     ];
 
-    const services = serviceContents.length > 0 
+    const services = serviceContents.length > 0
       ? serviceContents.map((sc: PageContent) => {
-          const emojiContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'emoji');
-          const titleContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'text' && (c.itemId?.includes('title') || (c.content.text && c.content.text.length < 50)));
-          const descContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'text' && c.content.text && c.content.text.length >= 50);
-          const featuresContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'list');
-          
-          return {
-            id: sc.id,
-            icon: emojiContent?.content?.emoji || '✨',
-            title: titleContent?.content?.text || sc.content?.title || '서비스',
-            description: descContent?.content?.text || sc.content?.description || '',
-            features: featuresContent?.content?.items || sc.content?.features || [],
-            itemId: sc.itemId,
-          };
-        })
+        const emojiContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'emoji');
+        const titleContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'text' && (c.itemId?.includes('title') || (c.content.text && c.content.text.length < 50)));
+        const descContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'text' && c.content.text && c.content.text.length >= 50);
+        const featuresContent = contents.find(c => c.section === 'services' && c.itemId === sc.itemId && c.contentType === 'list');
+
+        return {
+          id: sc.id,
+          icon: emojiContent?.content?.emoji || '✨',
+          title: titleContent?.content?.text || sc.content?.title || '서비스',
+          description: descContent?.content?.text || sc.content?.description || '',
+          features: featuresContent?.content?.items || sc.content?.features || [],
+          itemId: sc.itemId,
+        };
+      })
       : defaultServices.map((s, idx) => ({ ...s, id: idx, itemId: `service-${idx}` }));
 
     return (
@@ -661,7 +662,7 @@ export default function PageEditor({
                           `${service.itemId}-features`,
                           <ul className="space-y-2">
                             {(featuresContent.content.items || []).map((item: any, idx: number) => {
-                              const itemData = typeof item === 'string' 
+                              const itemData = typeof item === 'string'
                                 ? { emoji: '✓', text: item }
                                 : { emoji: item.emoji || '✓', text: item.text || item };
                               return (

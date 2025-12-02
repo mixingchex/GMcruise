@@ -26,17 +26,15 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
   }
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ adminId: string }> }
-) {
+export async function GET(req: NextRequest, props: { params: Promise<{ adminId: string }> }) {
+  const params = await props.params;
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid || !(await checkAdminAuth(sid))) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '인증이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '인증이 필요합니다.'
       }, { status: 403 });
     }
 
@@ -101,15 +99,16 @@ export async function PATCH(
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid || !(await checkAdminAuth(sid))) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '인증이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '인증이 필요합니다.'
       }, { status: 403 });
     }
 
-    const adminId = parseInt(params.adminId, 10);
+    const { adminId: idStr } = await params;
+    const adminId = parseInt(idStr, 10);
     if (isNaN(adminId)) {
       return NextResponse.json(
         { ok: false, error: '잘못된 관리자 ID입니다.' },
@@ -183,17 +182,15 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ adminId: string }> }
-) {
+export async function DELETE(req: NextRequest, props: { params: Promise<{ adminId: string }> }) {
+  const params = await props.params;
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid || !(await checkAdminAuth(sid))) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '인증이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '인증이 필요합니다.'
       }, { status: 403 });
     }
 

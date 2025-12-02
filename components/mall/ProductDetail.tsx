@@ -680,6 +680,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               {/* 메인 이미지/비디오 - 썸네일 우선 표시 */}
               <div className="relative h-80 md:h-[500px] bg-gradient-to-br from-[#051C2C] to-[#0A2E46] rounded-2xl overflow-hidden mb-6 shadow-2xl">
                 {mallContent?.thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={mallContent.thumbnail}
                     alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 썸네일`}
@@ -693,6 +694,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                     allowFullScreen
                   />
                 ) : images.length > 0 && selectedImageIndex < images.length ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={images[selectedImageIndex]}
                     alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 썸네일`}
@@ -736,6 +738,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                       className={`flex-shrink-0 w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border transition-all ${selectedImageIndex === index ? 'border-blue-500 shadow-md' : 'border-gray-200 hover:border-gray-300'
                         }`}
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={image}
                         alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상세 이미지 ${index + 1}`}
@@ -1311,6 +1314,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                     <div className="flex items-center gap-4 p-4 bg-white rounded-xl border-2 border-gray-200 shadow-md hover:shadow-lg transition-all">
                       <FiCheck className="text-green-600 flex-shrink-0" size={24} />
                       <div className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src="/images/ai-cruise-logo.png"
                           alt="Cruisedot"
@@ -1340,6 +1344,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                   if (block.type === 'image') {
                     return (
                       <div key={block.id || index} className="bg-white rounded-xl overflow-hidden shadow-md">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={block.url}
                           alt={block.alt || `${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 이미지 ${index + 1}`}
@@ -1678,6 +1683,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {day.tourImages.slice(0, 2).map((img: string, idx: number) => (
                                 <div key={idx} className="relative rounded-lg overflow-hidden shadow-md">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={img}
                                     alt={`${product.packageName} 기항지 관광 이미지 ${idx + 1}`}
@@ -1759,6 +1765,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                               </div>
                               {day.accommodationImage && (
                                 <div className="w-full">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
                                     src={day.accommodationImage}
                                     alt={`${product.cruiseLine} ${product.shipName} 크루즈 선박 객실 사진`}
@@ -1788,6 +1795,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                                 if (block.type === 'image') {
                                   return (
                                     <div key={block.id || blockIdx} className="rounded-lg overflow-hidden shadow-md">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
                                         src={block.url}
                                         alt={block.alt || `${product.packageName} ${day.day}일차 크루즈 여행 일정 이미지 ${blockIdx + 1}`}
@@ -2392,6 +2400,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             >
               <FiX size={24} />
             </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={modalImageUrl}
               alt="확대 이미지"

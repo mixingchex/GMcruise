@@ -674,7 +674,7 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     <FiPhone className="inline mr-1" />
-                    연락처
+                    영업용 전화번호
                   </label>
                   <input
                     type="tel"
@@ -683,6 +683,9 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
                     placeholder="010-1234-5678"
                     className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    전화상담 신청 완료 시 고객에게 이 번호가 안내됩니다.
+                  </p>
                 </div>
 
                 <div>

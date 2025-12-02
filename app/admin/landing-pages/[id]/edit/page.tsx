@@ -7,7 +7,7 @@ import { FiSave, FiX, FiPlus, FiTrash2, FiEye } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { normalizeLandingHtmlContent, normalizeLandingImageUrl } from '@/lib/landing-html';
-import Image from 'next/image';
+import NextImage from 'next/image';
 
 // 리치 텍스트 에디터 동적 임포트 (SSR 방지)
 const ReactQuill = dynamic(() => import('react-quill'), {
@@ -1974,8 +1974,8 @@ export default function EditLandingPagePage() {
                     type="button"
                     onClick={() => setEditorMode('editor')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${editorMode === 'editor'
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     Editor
@@ -1984,8 +1984,8 @@ export default function EditLandingPagePage() {
                     type="button"
                     onClick={() => setEditorMode('html')}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${editorMode === 'html'
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     HTML
@@ -2760,8 +2760,8 @@ export default function EditLandingPagePage() {
                                 onChange={() => toggleDataFieldRequired(key)}
                                 disabled={!dataFields[key].enabled}
                                 className={`w-5 h-5 rounded border-2 ${dataFields[key].enabled
-                                    ? 'border-blue-600 text-blue-600 cursor-pointer'
-                                    : 'border-gray-300 cursor-not-allowed opacity-50'
+                                  ? 'border-blue-600 text-blue-600 cursor-pointer'
+                                  : 'border-gray-300 cursor-not-allowed opacity-50'
                                   }`}
                               />
                               <span className={`text-sm font-medium ${dataFields[key].enabled ? 'text-gray-700' : 'text-gray-400'
@@ -3481,7 +3481,7 @@ export default function EditLandingPagePage() {
                         <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                           <p className="text-sm text-blue-700 font-medium mb-2">현재 저장된 이미지:</p>
                           <div className="flex items-center gap-3">
-                            <Image
+                            <NextImage
                               src={exposureImageUrl.startsWith('http') ? exposureImageUrl : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${exposureImageUrl}`}
                               alt="저장된 노출용 이미지"
                               width={80}
@@ -3530,7 +3530,7 @@ export default function EditLandingPagePage() {
                           <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm max-w-md">
                             {/* 이미지 */}
                             <div className="w-full aspect-[1.91/1] bg-gray-100 overflow-hidden relative">
-                              <Image
+                              <NextImage
                                 src={exposureImagePreview || exposureImageUrl || ''}
                                 alt="노출용 이미지"
                                 fill
@@ -3607,8 +3607,8 @@ export default function EditLandingPagePage() {
               <button
                 onClick={() => setImageModalMode('upload')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${imageModalMode === 'upload'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 파일 선택
@@ -3616,8 +3616,8 @@ export default function EditLandingPagePage() {
               <button
                 onClick={() => setImageModalMode('cruise')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${imageModalMode === 'cruise'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 크루즈정보사진
@@ -3688,7 +3688,7 @@ export default function EditLandingPagePage() {
                             <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded z-10">
                               {index + 1}
                             </div>
-                            <Image
+                            <NextImage
                               src={img.url}
                               alt={img.name}
                               width={400}
@@ -3764,14 +3764,14 @@ export default function EditLandingPagePage() {
                             }
                           }}
                         >
-                          <Image
+                          <NextImage
                             src={photo.url}
                             alt={photo.title || `사진 ${index + 1}`}
                             width={400}
                             height={128}
                             className={`w-full h-32 object-cover rounded-lg border-2 transition-all ${selectedImages.some((img) => img.url === photo.url)
-                                ? 'border-blue-500 ring-2 ring-blue-200'
-                                : 'border-gray-200'
+                              ? 'border-blue-500 ring-2 ring-blue-200'
+                              : 'border-gray-200'
                               }`}
                             unoptimized
                           />

@@ -49,6 +49,7 @@ interface Product {
   isMainProduct?: boolean; // 주력 상품 여부
   isPopular?: boolean; // 인기 크루즈
   isRecommended?: boolean; // 추천 크루즈
+  isGeniePack?: boolean; // 지니패키지 여부
   startDate?: Date | string | null;
   endDate?: Date | string | null;
   recommendedKeywords?: string[] | any; // 추천 키워드 배열
@@ -110,7 +111,7 @@ export default function ProductsManagementPage() {
   const [departureDate, setDepartureDate] = useState<string>('');
   const [refundPolicy, setRefundPolicy] = useState<string>('');
   const [flightInfo, setFlightInfo] = useState<FlightInfo | null>(null);
-  
+
   // 8. 문의 옵션 (결제하기, 전화상담, AI 지니 채팅봇) - 각각 활성화/비활성화 가능
   const [contactOptions, setContactOptions] = useState<{
     payment: boolean;
@@ -194,7 +195,7 @@ export default function ProductsManagementPage() {
   // 선택된 크루즈선사에 해당하는 크루즈선 목록 (한국어 이름을 value로 사용)
   const shipNameOptions = useMemo(() => {
     if (!formData.cruiseLine) return [];
-    
+
     const selectedLine = (cruiseShipsData as any[]).find((line) => {
       const cruiseLineShort = line.cruise_line.split('(')[0].trim();
       return cruiseLineShort === formData.cruiseLine;
@@ -205,14 +206,14 @@ export default function ProductsManagementPage() {
     const options: Array<{ value: string; label: string }> = [];
     selectedLine.ships.forEach((ship: string) => {
       const shipNameShort = ship.split('(')[0].trim(); // 한국어 이름
-      
+
       // 중복 제거 로직
       let displayLabel = shipNameShort;
       const cruiseLineKeywords = selectedLine.cruise_line.split('(')[0].trim().split(' ').filter((word: string) => word.length > 1);
-      const hasCruiseLineInShipName = cruiseLineKeywords.some((keyword: string) => 
+      const hasCruiseLineInShipName = cruiseLineKeywords.some((keyword: string) =>
         shipNameShort.includes(keyword)
       );
-      
+
       if (!hasCruiseLineInShipName) {
         const simpleCruiseLine = cruiseLineKeywords[0] || selectedLine.cruise_line.split('(')[0].trim();
         displayLabel = `${simpleCruiseLine} ${shipNameShort}`;
@@ -232,7 +233,7 @@ export default function ProductsManagementPage() {
       return cruiseLineOptions.slice(0, 50);
     }
     const term = normalize(cruiseLineSearchTerm);
-    return cruiseLineOptions.filter(option => 
+    return cruiseLineOptions.filter(option =>
       normalize(option.label).includes(term) || normalize(option.value).includes(term)
     ).slice(0, 50);
   }, [cruiseLineSearchTerm, cruiseLineOptions]);
@@ -243,7 +244,7 @@ export default function ProductsManagementPage() {
       return shipNameOptions.slice(0, 50);
     }
     const term = normalize(shipNameSearchTerm);
-    return shipNameOptions.filter(option => 
+    return shipNameOptions.filter(option =>
       normalize(option.label).includes(term) || normalize(option.value).includes(term)
     ).slice(0, 50);
   }, [shipNameSearchTerm, shipNameOptions]);
@@ -349,10 +350,10 @@ export default function ProductsManagementPage() {
     // 판매 상태 필터
     if (saleStatusFilter !== 'all') {
       if (saleStatusFilter === '3일체험') {
-        // 3일 체험 탭: tags 배열에 "테스트용"이 포함된 상품만 필터링
+        // 3일 체험 탭: isGeniePack이 true이거나 테스트 상품(SAMPLE-MED-001, REAL-CRUISE-01)인 상품 필터링
         filtered = filtered.filter(p => {
-          const tags = Array.isArray(p.tags) ? p.tags : [];
-          return tags.includes('테스트용');
+          const isTestProduct = ['SAMPLE-MED-001', 'REAL-CRUISE-01'].includes(p.productCode);
+          return p.isGeniePack || isTestProduct;
         });
       } else {
         // 다른 판매 상태 필터: 기존 로직 유지
@@ -517,12 +518,12 @@ export default function ProductsManagementPage() {
   // 방문 국가 개수에 따라 일정 패턴 자동 생성
   useEffect(() => {
     if (!isModalOpen) return;
-    
+
     // 방문 국가가 없으면 일정 패턴을 초기화하지 않음 (사용자가 직접 설정할 수 있도록)
     if (selectedCountries.length === 0) return;
-    
+
     console.log('[Admin Products] 방문 국가 변경 감지:', selectedCountries.length, '개국');
-    
+
     // 방문 국가 코드 매핑
     const koreanNameToCode: Record<string, string> = {
       '일본': 'JP', 'Japan': 'JP',
@@ -543,7 +544,7 @@ export default function ProductsManagementPage() {
       '필리핀': 'PH', 'Philippines': 'PH',
       '캐나다': 'CA', 'Canada': 'CA',
     };
-    
+
     const countryCodeMap = new Map<string, string>();
     destinationOptions.forEach(opt => {
       const koreanName = opt.label.split('(')[0].trim();
@@ -554,33 +555,33 @@ export default function ProductsManagementPage() {
         countryCodeMap.set(koreanName, code);
       }
     });
-    
+
     const selectedCountryCodes = selectedCountries.map(country => {
       const koreanName = country.value.split('(')[0].trim().split(' - ')[0].trim();
-      return countryCodeMap.get(country.value) || 
-             countryCodeMap.get(country.label) || 
-             countryCodeMap.get(koreanName) ||
-             koreanNameToCode[koreanName] ||
-             '';
+      return countryCodeMap.get(country.value) ||
+        countryCodeMap.get(country.label) ||
+        countryCodeMap.get(koreanName) ||
+        koreanNameToCode[koreanName] ||
+        '';
     }).filter(code => code !== '');
-    
+
     if (selectedCountryCodes.length === 0) {
       console.log('[Admin Products] 국가 코드 변환 실패');
       return;
     }
-    
+
     console.log('[Admin Products] 선택된 국가 코드:', selectedCountryCodes);
-    
+
     // 현재 formData의 일정 패턴을 가져오기 (최신 상태)
     setFormData(prev => {
       const currentPortVisits = prev.itineraryPattern.filter((day: ItineraryDay) => day.type === 'PortVisit');
       console.log('[Admin Products] 현재 기항지 개수:', currentPortVisits.length, '선택된 국가 개수:', selectedCountryCodes.length);
-      
+
       // 방문 국가 개수와 일정 개수가 다르면 자동으로 조정
       if (selectedCountryCodes.length !== currentPortVisits.length) {
         console.log('[Admin Products] 일정 패턴 자동 생성 시작');
         const newPattern: ItineraryDay[] = [];
-        
+
         // 첫 번째 일정: 승선
         if (prev.itineraryPattern.length > 0 && prev.itineraryPattern[0].type === 'Embarkation') {
           const embarkation = prev.itineraryPattern[0];
@@ -598,7 +599,7 @@ export default function ProductsManagementPage() {
             language: 'en',
           });
         }
-        
+
         // 방문 국가 개수만큼 기항지 일정 생성
         selectedCountryCodes.forEach((countryCode, index) => {
           const existingDay = currentPortVisits[index];
@@ -613,7 +614,7 @@ export default function ProductsManagementPage() {
             departure: existingDay?.departure || '',
           });
         });
-        
+
         // 마지막 일정: 하선
         const lastDay = prev.itineraryPattern[prev.itineraryPattern.length - 1];
         if (lastDay && lastDay.type === 'Disembarkation') {
@@ -632,7 +633,7 @@ export default function ProductsManagementPage() {
             language: 'en',
           });
         }
-        
+
         console.log('[Admin Products] 새 일정 패턴 생성 완료:', newPattern.length, '개 일정');
         return { ...prev, itineraryPattern: newPattern };
       } else {
@@ -652,19 +653,19 @@ export default function ProductsManagementPage() {
           }
           return day;
         });
-        
+
         // 변경사항이 있으면 업데이트
         const hasChanges = updatedPattern.some((day: ItineraryDay, index: number) => {
           const original = prev.itineraryPattern[index];
           return day.country !== original?.country;
         });
-        
+
         if (hasChanges) {
           console.log('[Admin Products] 일정 패턴 국가 코드 업데이트');
           return { ...prev, itineraryPattern: updatedPattern };
         }
       }
-      
+
       return prev;
     });
   }, [selectedCountries.length, selectedCountriesKey, isModalOpen, destinationOptions]); // selectedCountries의 값 변경 감지
@@ -673,21 +674,21 @@ export default function ProductsManagementPage() {
   useEffect(() => {
     if (!isModalOpen || editingProduct) return; // 수정 모드가 아닐 때만 자동 생성
     if (!formData.productCode) return; // 상품 코드가 없으면 생성하지 않음
-    
+
     const prefix = formData.isRecommended ? 'REC' : formData.isPopular ? 'POP' : 'MAN';
-    const regionCode = formData.category === '동남아' ? 'SEA' : 
-                      formData.category === '홍콩' ? 'HK' :
-                      formData.category === '일본' ? 'JP' :
-                      formData.category === '대만' ? 'TW' :
-                      formData.category === '중국' ? 'CN' :
-                      formData.category === '알래스카' ? 'AK' :
-                      formData.category === '지중해' ? 'MD' : 'SG';
-    
+    const regionCode = formData.category === '동남아' ? 'SEA' :
+      formData.category === '홍콩' ? 'HK' :
+        formData.category === '일본' ? 'JP' :
+          formData.category === '대만' ? 'TW' :
+            formData.category === '중국' ? 'CN' :
+              formData.category === '알래스카' ? 'AK' :
+                formData.category === '지중해' ? 'MD' : 'SG';
+
     // 기존 코드에서 번호 부분만 추출
     const parts = formData.productCode.split('-');
     const numberPart = parts.length > 2 ? parts[2] : Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     const newCode = `${prefix}-${regionCode}-${numberPart}`;
-    
+
     if (newCode !== formData.productCode) {
       setFormData(prev => ({ ...prev, productCode: newCode }));
     }
@@ -758,7 +759,7 @@ export default function ProductsManagementPage() {
 
       const data = await response.json();
       console.log('[Admin Products] API Response:', data);
-      
+
       if (data.ok && Array.isArray(data.products)) {
         // 필드 안전 처리: 누락된 필드에 기본값 설정
         const safeProducts = data.products.map((product: any) => ({
@@ -771,7 +772,7 @@ export default function ProductsManagementPage() {
         }));
         setProducts(safeProducts);
         console.log('[Admin Products] Loaded products:', safeProducts.length);
-        
+
         // AffiliateProduct 정보 로드
         try {
           const affiliateResponse = await fetch('/api/admin/affiliate/products', {
@@ -817,7 +818,7 @@ export default function ProductsManagementPage() {
     const regionCode = 'SG'; // 기본값
     const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     const autoCode = `${prefix}-${regionCode}-${randomNum}`;
-    
+
     setFormData({
       productCode: autoCode, // 자동 생성된 코드 사용
       cruiseLine: '',
@@ -935,7 +936,7 @@ export default function ProductsManagementPage() {
 
   const openEditModal = async (product: Product) => {
     setEditingProduct(product);
-    
+
     // itineraryPattern에서 방문 국가 추출 (countries.json의 한국어 이름 사용)
     const countriesFromPattern: Option[] = [];
     if (Array.isArray(product.itineraryPattern)) {
@@ -948,7 +949,7 @@ export default function ProductsManagementPage() {
             const optKoreanName = opt.label.split('(')[0].trim();
             return optKoreanName === koreanName || opt.value === koreanName;
           });
-          
+
           if (matchingOption && !countriesFromPattern.find(c => c.value === matchingOption.value)) {
             countriesFromPattern.push(matchingOption);
           } else if (!matchingOption && !countriesFromPattern.find(c => c.value === koreanName)) {
@@ -958,7 +959,7 @@ export default function ProductsManagementPage() {
         }
       });
     }
-    
+
     // tags 파싱
     let tags: string[] = [];
     if (product.tags) {
@@ -972,7 +973,7 @@ export default function ProductsManagementPage() {
         }
       }
     }
-    
+
     // rating과 reviewCount는 MallProductContent.layout에서 가져오기
     let rating = 4.5;
     let reviewCount = 0;
@@ -986,7 +987,7 @@ export default function ProductsManagementPage() {
     let layoutRefundPolicy = '';
     let layoutFlightInfo: FlightInfo | null = null;
     let layoutDepartureDate = '';
-    
+
     if (product.mallProductContent?.layout) {
       const layout = typeof product.mallProductContent.layout === 'string'
         ? JSON.parse(product.mallProductContent.layout)
@@ -1032,7 +1033,7 @@ export default function ProductsManagementPage() {
         aiChatbot: true, // 기본값
       });
     }
-    
+
     // layout 데이터를 state에 설정
     setDetailBlocks(layoutBlocks);
     setIncludedItems(layoutIncluded);
@@ -1042,7 +1043,7 @@ export default function ProductsManagementPage() {
     setRefundPolicy(layoutRefundPolicy);
     setFlightInfo(layoutFlightInfo);
     setDepartureDate(layoutDepartureDate);
-    
+
     // AffiliateProduct 정보도 불러오기
     let affiliateProduct = null;
     try {
@@ -1068,8 +1069,8 @@ export default function ProductsManagementPage() {
       days: product.days,
       rating: rating, // 별점 초기값 설정
       reviewCount: reviewCount, // 리뷰 개수 초기값 설정
-      itineraryPattern: Array.isArray(product.itineraryPattern) 
-        ? product.itineraryPattern 
+      itineraryPattern: Array.isArray(product.itineraryPattern)
+        ? product.itineraryPattern
         : [],
       basePrice: product.basePrice?.toString() || '',
       description: product.description || '',
@@ -1095,10 +1096,10 @@ export default function ProductsManagementPage() {
       defaultSaleAmount: affiliateProduct?.defaultSaleAmount?.toString() || '',
       defaultCostAmount: affiliateProduct?.defaultCostAmount?.toString() || '',
       defaultNetRevenue: affiliateProduct?.defaultNetRevenue?.toString() || '',
-      effectiveFrom: affiliateProduct?.effectiveFrom 
+      effectiveFrom: affiliateProduct?.effectiveFrom
         ? new Date(affiliateProduct.effectiveFrom).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
-      effectiveTo: affiliateProduct?.effectiveTo 
+      effectiveTo: affiliateProduct?.effectiveTo
         ? new Date(affiliateProduct.effectiveTo).toISOString().split('T')[0]
         : '',
       isPublished: affiliateProduct?.isPublished !== false,
@@ -1172,25 +1173,25 @@ export default function ProductsManagementPage() {
       },
     } as any;
   }, [
-    formData, 
-    thumbnail, 
-    detailBlocks, 
-    includedItems, 
-    excludedItems, 
-    itineraryDays, 
-    pricingRows, 
+    formData,
+    thumbnail,
+    detailBlocks,
+    includedItems,
+    excludedItems,
+    itineraryDays,
+    pricingRows,
     departureDate,
-    refundPolicy, 
-    flightInfo, 
+    refundPolicy,
+    flightInfo,
     formData.rating,
     formData.reviewCount,
-    formData.recommendedKeywords, 
-    selectedCountries, 
-    formData.tags, 
-    hasEscort, 
-    hasLocalGuide, 
-    hasCruisedotStaff, 
-    hasTravelInsurance, 
+    formData.recommendedKeywords,
+    selectedCountries,
+    formData.tags,
+    hasEscort,
+    hasLocalGuide,
+    hasCruisedotStaff,
+    hasTravelInsurance,
     contactOptions,
     isModalOpen,
     editingProduct,
@@ -1219,7 +1220,7 @@ export default function ProductsManagementPage() {
 
     // 선택한 방문 국가를 itineraryPattern에 자동 반영
     let updatedPattern = [...formData.itineraryPattern];
-    
+
     // 선택한 국가 이름을 국가 코드로 변환 (countries.json 기반)
     const countryCodeMap = new Map<string, string>();
     // countries.json에서 한국어 이름 -> 국가 코드 매핑 생성
@@ -1250,7 +1251,7 @@ export default function ProductsManagementPage() {
       '노르웨이': 'NO',
       '크로아티아': 'HR',
     };
-    
+
     // destinationOptions의 모든 옵션에 대해 매핑 생성
     destinationOptions.forEach(opt => {
       const koreanName = opt.label.split('(')[0].trim();
@@ -1266,11 +1267,11 @@ export default function ProductsManagementPage() {
     const selectedCountryCodes = selectedCountries.map(country => {
       // country.value는 "일본" 또는 "일본 - 도쿄" 형식일 수 있음
       const koreanName = country.value.split('(')[0].trim().split(' - ')[0].trim();
-      return countryCodeMap.get(country.value) || 
-             countryCodeMap.get(country.label) || 
-             countryCodeMap.get(koreanName) ||
-             koreanNameToCode[koreanName] ||
-             '';
+      return countryCodeMap.get(country.value) ||
+        countryCodeMap.get(country.label) ||
+        countryCodeMap.get(koreanName) ||
+        koreanNameToCode[koreanName] ||
+        '';
     }).filter(code => code !== '');
 
     // itineraryPattern의 모든 일정에 국가 코드 설정
@@ -1278,14 +1279,14 @@ export default function ProductsManagementPage() {
     const portVisitDays = updatedPattern
       .map((day, index) => ({ day, index }))
       .filter(({ day }) => day.type === 'PortVisit');
-    
+
     portVisitDays.forEach(({ day, index }, portIndex) => {
       if (portIndex < selectedCountryCodes.length) {
         const dayIndex = updatedPattern.findIndex(d => d.day === day.day);
         if (dayIndex !== -1) {
-          updatedPattern[dayIndex] = { 
-            ...updatedPattern[dayIndex], 
-            country: selectedCountryCodes[portIndex] 
+          updatedPattern[dayIndex] = {
+            ...updatedPattern[dayIndex],
+            country: selectedCountryCodes[portIndex]
           };
         }
       }
@@ -1295,9 +1296,9 @@ export default function ProductsManagementPage() {
     updatedPattern.forEach((day, index) => {
       if ((day.type === 'Embarkation' || day.type === 'Disembarkation') && !day.country) {
         if (selectedCountryCodes.length > 0) {
-          updatedPattern[index] = { 
-            ...updatedPattern[index], 
-            country: selectedCountryCodes[0] 
+          updatedPattern[index] = {
+            ...updatedPattern[index],
+            country: selectedCountryCodes[0]
           };
         }
       }
@@ -1366,7 +1367,7 @@ export default function ProductsManagementPage() {
         // 수동 추가와 동일하게 저장 로직 통일
         const productData = await response.json();
         const productCode = productData.product?.productCode || editingProduct?.productCode || formData.productCode;
-        
+
         // 썸네일 업로드
         let thumbnailUrl = thumbnail;
         if (thumbnailFile) {
@@ -1388,7 +1389,7 @@ export default function ProductsManagementPage() {
             }
           }
         }
-        
+
         // MallProductContent 업데이트 (수동 추가와 동일한 방식)
         try {
           const contentPayload = {
@@ -1427,14 +1428,14 @@ export default function ProductsManagementPage() {
             hasTravelInsurance: hasTravelInsurance,
             contactOptions: contactOptions, // 8번: 문의 옵션 저장
           };
-          
+
           const contentResponse = await fetch(`/api/admin/products/${productCode}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify(contentPayload),
           });
-          
+
           if (!contentResponse.ok) {
             console.error('Failed to save product content');
             const errorText = await contentResponse.text();
@@ -1443,7 +1444,7 @@ export default function ProductsManagementPage() {
         } catch (contentError) {
           console.error('Error saving product content:', contentError);
         }
-        
+
         // AffiliateProduct 자동 생성/수정
         if (productData.ok && productData.product) {
           try {
@@ -1678,7 +1679,7 @@ export default function ProductsManagementPage() {
         showError('긴급 상품은 최대 3개까지 설정할 수 있습니다.');
         return;
       }
-      
+
       // 주력 상품이면 해제
       const product = products.find(p => p.id === productId);
       if (product?.isMainProduct) {
@@ -1731,7 +1732,7 @@ export default function ProductsManagementPage() {
         showError('주력 상품은 최대 3개까지 설정할 수 있습니다.');
         return;
       }
-      
+
       // 긴급 상품이면 해제
       const product = products.find(p => p.id === productId);
       if (product?.isUrgent) {
@@ -1822,51 +1823,46 @@ export default function ProductsManagementPage() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => setSaleStatusFilter('all')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                      saleStatusFilter === 'all'
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${saleStatusFilter === 'all'
                         ? 'bg-blue-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     전체
                   </button>
                   <button
                     onClick={() => setSaleStatusFilter('판매중')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                      saleStatusFilter === '판매중'
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${saleStatusFilter === '판매중'
                         ? 'bg-green-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     판매중
                   </button>
                   <button
                     onClick={() => setSaleStatusFilter('판매중지')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                      saleStatusFilter === '판매중지'
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${saleStatusFilter === '판매중지'
                         ? 'bg-red-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     판매중지
                   </button>
                   <button
                     onClick={() => setSaleStatusFilter('판매완료')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                      saleStatusFilter === '판매완료'
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${saleStatusFilter === '판매완료'
                         ? 'bg-gray-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     판매완료
                   </button>
                   <button
                     onClick={() => setSaleStatusFilter('3일체험')}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-                      saleStatusFilter === '3일체험'
+                    className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors ${saleStatusFilter === '3일체험'
                         ? 'bg-purple-600 text-white'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     3일체험
                   </button>
@@ -2014,241 +2010,236 @@ export default function ProductsManagementPage() {
                     key={product.id}
                     className="bg-white rounded-xl shadow-md p-6 hover:shadow-lg transition-shadow"
                   >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      {/* 체크박스 */}
-                      <input
-                        type="checkbox"
-                        checked={selectedProductIds.has(product.id)}
-                        onChange={() => handleToggleSelect(product.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                      />
-                      {/* 판매 상태 드롭다운 (상품 코드 왼쪽) */}
-                      <div 
-                        className="relative" 
-                        ref={(el) => {
-                          if (el) {
-                            saleStatusDropdownRefs.current.set(product.id, el);
-                          } else {
-                            saleStatusDropdownRefs.current.delete(product.id);
-                          }
-                        }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSaleStatusDropdownOpen(saleStatusDropdownOpen === product.id ? null : product.id);
-                          }}
-                          className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all hover:shadow-md whitespace-nowrap ${
-                            (product.saleStatus || '판매중') === '판매중'
-                              ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                              : (product.saleStatus || '판매중') === '판매완료'
-                              ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                              : 'bg-red-100 text-red-700 hover:bg-red-200'
-                          }`}
-                        >
-                          {product.saleStatus || '판매중'} ▼
-                        </button>
-                        {saleStatusDropdownOpen === product.id && (
-                          <div className="absolute top-full left-0 mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-xl z-[9999] min-w-[150px]">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          {/* 체크박스 */}
+                          <input
+                            type="checkbox"
+                            checked={selectedProductIds.has(product.id)}
+                            onChange={() => handleToggleSelect(product.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          />
+                          {/* 판매 상태 드롭다운 (상품 코드 왼쪽) */}
+                          <div
+                            className="relative"
+                            ref={(el) => {
+                              if (el) {
+                                saleStatusDropdownRefs.current.set(product.id, el);
+                              } else {
+                                saleStatusDropdownRefs.current.delete(product.id);
+                              }
+                            }}
+                          >
                             <button
-                              onClick={async (e) => {
+                              onClick={(e) => {
                                 e.stopPropagation();
-                                await handleUpdateSaleStatus(product.id, '판매중');
-                                setSaleStatusDropdownOpen(null);
+                                setSaleStatusDropdownOpen(saleStatusDropdownOpen === product.id ? null : product.id);
                               }}
-                              className={`w-full text-left px-4 py-2 text-sm font-semibold hover:bg-green-50 transition-colors ${
-                                (product.saleStatus || '판매중') === '판매중' ? 'bg-green-50 text-green-700' : 'text-gray-700'
-                              }`}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer transition-all hover:shadow-md whitespace-nowrap ${(product.saleStatus || '판매중') === '판매중'
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                  : (product.saleStatus || '판매중') === '판매완료'
+                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                }`}
                             >
-                              판매중
+                              {product.saleStatus || '판매중'} ▼
                             </button>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                await handleUpdateSaleStatus(product.id, '판매중지');
-                                setSaleStatusDropdownOpen(null);
-                              }}
-                              className={`w-full text-left px-4 py-2 text-sm font-semibold hover:bg-red-50 transition-colors ${
-                                (product.saleStatus || '판매중') === '판매중지' ? 'bg-red-50 text-red-700' : 'text-gray-700'
-                              }`}
-                            >
-                              판매중지
-                            </button>
-                            <button
-                              onClick={async (e) => {
-                                e.stopPropagation();
-                                await handleUpdateSaleStatus(product.id, '판매완료');
-                                setSaleStatusDropdownOpen(null);
-                              }}
-                              className={`w-full text-left px-4 py-2 text-sm font-semibold hover:bg-gray-50 transition-colors ${
-                                (product.saleStatus || '판매중') === '판매완료' ? 'bg-gray-50 text-gray-700' : 'text-gray-700'
-                              }`}
-                            >
-                              판매완료
-                            </button>
+                            {saleStatusDropdownOpen === product.id && (
+                              <div className="absolute top-full left-0 mt-1 bg-white border-2 border-gray-300 rounded-lg shadow-xl z-[9999] min-w-[150px]">
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await handleUpdateSaleStatus(product.id, '판매중');
+                                    setSaleStatusDropdownOpen(null);
+                                  }}
+                                  className={`w-full text-left px-4 py-2 text-sm font-semibold hover:bg-green-50 transition-colors ${(product.saleStatus || '판매중') === '판매중' ? 'bg-green-50 text-green-700' : 'text-gray-700'
+                                    }`}
+                                >
+                                  판매중
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await handleUpdateSaleStatus(product.id, '판매중지');
+                                    setSaleStatusDropdownOpen(null);
+                                  }}
+                                  className={`w-full text-left px-4 py-2 text-sm font-semibold hover:bg-red-50 transition-colors ${(product.saleStatus || '판매중') === '판매중지' ? 'bg-red-50 text-red-700' : 'text-gray-700'
+                                    }`}
+                                >
+                                  판매중지
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    await handleUpdateSaleStatus(product.id, '판매완료');
+                                    setSaleStatusDropdownOpen(null);
+                                  }}
+                                  className={`w-full text-left px-4 py-2 text-sm font-semibold hover:bg-gray-50 transition-colors ${(product.saleStatus || '판매중') === '판매완료' ? 'bg-gray-50 text-gray-700' : 'text-gray-700'
+                                    }`}
+                                >
+                                  판매완료
+                                </button>
+                              </div>
+                            )}
                           </div>
+
+                          {/* 상품 코드 */}
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
+                            {product.productCode}
+                          </span>
+
+                          {/* 테스트용 배지 (SAMPLE-MED-001) */}
+                          {product.productCode === 'SAMPLE-MED-001' && (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-300">
+                              🧪 테스트용
+                            </span>
+                          )}
+
+                          {/* AffiliateProduct 뱃지 */}
+                          {(() => {
+                            const affiliateInfo = affiliateProducts.get(product.productCode);
+                            if (affiliateInfo) {
+                              const now = new Date();
+                              const isEffective = affiliateInfo.effectiveFrom
+                                ? affiliateInfo.effectiveFrom <= now
+                                : true;
+                              const isNotExpired = affiliateInfo.effectiveTo
+                                ? affiliateInfo.effectiveTo >= now
+                                : true;
+                              const isActive = affiliateInfo.status === 'active' && affiliateInfo.isPublished && isEffective && isNotExpired;
+
+                              if (isActive) {
+                                return (
+                                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-pink-500 to-rose-500 text-white border border-pink-600 shadow-md">
+                                    ✅ 어필리에이트
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-300 text-gray-700 border border-gray-400">
+                                    ⚠️ 어필리에이트 미승인
+                                  </span>
+                                );
+                              }
+                            }
+                            return null;
+                          })()}
+
+                          {product.source && (
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.source === 'cruisedot'
+                                ? 'bg-green-100 text-green-700'
+                                : product.source === 'wcruise'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-gray-100 text-gray-700'
+                              }`}>
+                              {product.source === 'cruisedot' ? 'CruiseDot' :
+                                product.source === 'wcruise' ? 'WCruise' :
+                                  '수동'}
+                            </span>
+                          )}
+                          {product.isUrgent && (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-500 text-white animate-pulse">
+                              🔥 긴급
+                            </span>
+                          )}
+                          {product.isMainProduct && (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-500 text-white">
+                              ⭐ 주력
+                            </span>
+                          )}
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={product.isUrgent || false}
+                              disabled={product.isMainProduct || (products.filter(p => p.isUrgent && p.id !== product.id).length >= 3 && !product.isUrgent)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleToggleUrgent(product.id, product.isUrgent || false);
+                              }}
+                              className="w-4 h-4 text-red-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={product.isMainProduct ? "주력 상품과 동시에 설정할 수 없습니다" : "긴급 상품으로 설정하면 메인몰 최상단에 고정 표시됩니다 (최대 3개)"}
+                            />
+                            <span className={`text-xs ${product.isMainProduct ? 'text-gray-400' : 'text-gray-600'}`}>긴급</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={product.isMainProduct || false}
+                              disabled={product.isUrgent || (products.filter(p => p.isMainProduct && p.id !== product.id).length >= 3 && !product.isMainProduct)}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                handleToggleMainProduct(product.id, product.isMainProduct || false);
+                              }}
+                              className="w-4 h-4 text-blue-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                              title={product.isUrgent ? "긴급 상품과 동시에 설정할 수 없습니다" : "주력 상품으로 설정하면 메인몰 두 번째에 고정 표시됩니다 (최대 3개)"}
+                            />
+                            <span className={`text-xs ${product.isUrgent ? 'text-gray-400' : 'text-gray-600'}`}>주력</span>
+                          </label>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900">
+                          {getKoreanCruiseLineName(product.cruiseLine)} - {getKoreanShipName(product.cruiseLine, product.shipName)}
+                        </h3>
+                        <p className="text-gray-600 text-lg mb-3">{product.packageName}</p>
+                        <div className="flex gap-4 text-sm text-gray-500 mb-2">
+                          <span>📅 {formatTravelPeriod(product.startDate, product.endDate, product.nights, product.days) || `${product.nights}박 ${product.days}일`}</span>
+                          {product.basePrice && (
+                            <span>💰 {product.basePrice.toLocaleString()}원</span>
+                          )}
+                        </div>
+                        {/* 방문 국가 요약 */}
+                        {(() => {
+                          const itineraryPattern = Array.isArray(product.itineraryPattern) ? product.itineraryPattern : [];
+                          const countries = new Set<string>();
+                          const countryNames: Record<string, string> = {
+                            'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
+                            'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
+                            'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
+                            'PH': '필리핀', 'ID': '인도네시아'
+                          };
+                          itineraryPattern.forEach((day: any) => {
+                            if (day.country && day.country !== 'KR' && (day.type === 'PortVisit' || day.type === 'Embarkation' || day.type === 'Disembarkation')) {
+                              countries.add(day.country);
+                            }
+                          });
+                          const countryList = Array.from(countries).map(code => countryNames[code] || code).join(', ');
+                          return countryList ? (
+                            <div className="text-sm text-gray-600 mb-2">
+                              <span className="font-semibold">🌍 방문 국가:</span> {countryList}
+                            </div>
+                          ) : null;
+                        })()}
+                        {product.itineraryPattern && Array.isArray(product.itineraryPattern) && (
+                          <span className="text-sm text-gray-500">🗺️ {product.itineraryPattern.length}개 일정</span>
                         )}
                       </div>
-                      
-                      {/* 상품 코드 */}
-                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">
-                        {product.productCode}
-                      </span>
-                      
-                      {/* 테스트용 배지 (SAMPLE-MED-001) */}
-                      {product.productCode === 'SAMPLE-MED-001' && (
-                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 border border-purple-300">
-                          🧪 테스트용
-                        </span>
-                      )}
-                      
-                      {/* AffiliateProduct 뱃지 */}
-                      {(() => {
-                        const affiliateInfo = affiliateProducts.get(product.productCode);
-                        if (affiliateInfo) {
-                          const now = new Date();
-                          const isEffective = affiliateInfo.effectiveFrom 
-                            ? affiliateInfo.effectiveFrom <= now 
-                            : true;
-                          const isNotExpired = affiliateInfo.effectiveTo 
-                            ? affiliateInfo.effectiveTo >= now 
-                            : true;
-                          const isActive = affiliateInfo.status === 'active' && affiliateInfo.isPublished && isEffective && isNotExpired;
-                          
-                          if (isActive) {
-                            return (
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gradient-to-r from-pink-500 to-rose-500 text-white border border-pink-600 shadow-md">
-                                ✅ 어필리에이트
-                              </span>
-                            );
-                          } else {
-                            return (
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-gray-300 text-gray-700 border border-gray-400">
-                                ⚠️ 어필리에이트 미승인
-                              </span>
-                            );
-                          }
-                        }
-                        return null;
-                      })()}
-                      
-                      {product.source && (
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                          product.source === 'cruisedot'
-                            ? 'bg-green-100 text-green-700'
-                            : product.source === 'wcruise'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-gray-100 text-gray-700'
-                        }`}>
-                          {product.source === 'cruisedot' ? 'CruiseDot' :
-                           product.source === 'wcruise' ? 'WCruise' :
-                           '수동'}
-                        </span>
-                      )}
-                      {product.isUrgent && (
-                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-red-500 text-white animate-pulse">
-                          🔥 긴급
-                        </span>
-                      )}
-                      {product.isMainProduct && (
-                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-500 text-white">
-                          ⭐ 주력
-                        </span>
-                      )}
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={product.isUrgent || false}
-                          disabled={product.isMainProduct || (products.filter(p => p.isUrgent && p.id !== product.id).length >= 3 && !product.isUrgent)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleToggleUrgent(product.id, product.isUrgent || false);
-                          }}
-                          className="w-4 h-4 text-red-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={product.isMainProduct ? "주력 상품과 동시에 설정할 수 없습니다" : "긴급 상품으로 설정하면 메인몰 최상단에 고정 표시됩니다 (최대 3개)"}
-                        />
-                        <span className={`text-xs ${product.isMainProduct ? 'text-gray-400' : 'text-gray-600'}`}>긴급</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={product.isMainProduct || false}
-                          disabled={product.isUrgent || (products.filter(p => p.isMainProduct && p.id !== product.id).length >= 3 && !product.isMainProduct)}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            handleToggleMainProduct(product.id, product.isMainProduct || false);
-                          }}
-                          className="w-4 h-4 text-blue-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={product.isUrgent ? "긴급 상품과 동시에 설정할 수 없습니다" : "주력 상품으로 설정하면 메인몰 두 번째에 고정 표시됩니다 (최대 3개)"}
-                        />
-                        <span className={`text-xs ${product.isUrgent ? 'text-gray-400' : 'text-gray-600'}`}>주력</span>
-                      </label>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900">
-                      {getKoreanCruiseLineName(product.cruiseLine)} - {getKoreanShipName(product.cruiseLine, product.shipName)}
-                    </h3>
-                    <p className="text-gray-600 text-lg mb-3">{product.packageName}</p>
-                    <div className="flex gap-4 text-sm text-gray-500 mb-2">
-                      <span>📅 {formatTravelPeriod(product.startDate, product.endDate, product.nights, product.days) || `${product.nights}박 ${product.days}일`}</span>
-                      {product.basePrice && (
-                        <span>💰 {product.basePrice.toLocaleString()}원</span>
-                      )}
-                    </div>
-                    {/* 방문 국가 요약 */}
-                    {(() => {
-                      const itineraryPattern = Array.isArray(product.itineraryPattern) ? product.itineraryPattern : [];
-                      const countries = new Set<string>();
-                      const countryNames: Record<string, string> = {
-                        'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-                        'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-                        'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-                        'PH': '필리핀', 'ID': '인도네시아'
-                      };
-                      itineraryPattern.forEach((day: any) => {
-                        if (day.country && day.country !== 'KR' && (day.type === 'PortVisit' || day.type === 'Embarkation' || day.type === 'Disembarkation')) {
-                          countries.add(day.country);
-                        }
-                      });
-                      const countryList = Array.from(countries).map(code => countryNames[code] || code).join(', ');
-                      return countryList ? (
-                        <div className="text-sm text-gray-600 mb-2">
-                          <span className="font-semibold">🌍 방문 국가:</span> {countryList}
-                        </div>
-                      ) : null;
-                    })()}
-                    {product.itineraryPattern && Array.isArray(product.itineraryPattern) && (
-                      <span className="text-sm text-gray-500">🗺️ {product.itineraryPattern.length}개 일정</span>
-                    )}
-                  </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPreviewProductCode(product.productCode)}
-                      className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                      title="미리보기"
-                    >
-                      <FiEye size={20} />
-                    </button>
-                    <button
-                      onClick={() => router.push(`/admin/products/${product.productCode}`)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                      title="상세 편집"
-                    >
-                      <FiEdit2 size={20} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      title="삭제"
-                    >
-                      <FiTrash2 size={20} />
-                    </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setPreviewProductCode(product.productCode)}
+                          className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                          title="미리보기"
+                        >
+                          <FiEye size={20} />
+                        </button>
+                        <button
+                          onClick={() => router.push(`/admin/products/${product.productCode}`)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                          title="상세 편집"
+                        >
+                          <FiEdit2 size={20} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                          title="삭제"
+                        >
+                          <FiTrash2 size={20} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
                 ))}
               </>
             )}
@@ -2292,114 +2283,113 @@ export default function ProductsManagementPage() {
                   <div className="hidden lg:block">
                     {previewProduct && <MobilePreview product={previewProduct} />}
                   </div>
-                  
+
                   {/* 오른쪽: 편집 폼 */}
                   <div className="max-w-6xl space-y-6 md:space-y-8">
-                  {/* 기본 정보 */}
-                  <div className="grid sm:grid-cols-2 gap-5 md:gap-6">
-                    <div>
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        상품 코드 * <span className="text-gray-500 text-sm">(자동 생성)</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        readOnly={!editingProduct} // 수정 모드가 아닐 때만 읽기 전용
-                        value={formData.productCode}
-                        onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
-                        className={`w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg ${
-                          !editingProduct ? 'bg-gray-50 cursor-not-allowed' : ''
-                        }`}
-                        style={{ fontSize: '18px', minHeight: '56px' }}
-                        placeholder="자동 생성 중..."
-                      />
-                      {!editingProduct && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          상품 코드는 자동으로 생성됩니다. 카테고리나 인기/추천 설정에 따라 자동으로 업데이트됩니다.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* 크루즈 라인 - 수동 등록 폼과 동일 (AutocompleteInput 사용) */}
-                    <div>
-                      <AutocompleteInput
-                        value={formData.cruiseLine}
-                        onChange={(value) => setFormData({ ...formData, cruiseLine: value })}
-                        options={cruiseLineAutocompleteOptions}
-                        placeholder="예: MSC 크루즈, Royal Caribbean, 로얄"
-                        label="크루즈 라인"
-                        required
-                      />
-                    </div>
-
-                    {/* 선박명 - 수동 등록 폼과 동일 (AutocompleteInput 사용) */}
-                    <div>
-                      <AutocompleteInput
-                        value={formData.shipName}
-                        onChange={(value) => setFormData({ ...formData, shipName: value })}
-                        options={shipNameAutocompleteOptions}
-                        placeholder="예: MSC 벨리시마, 스펙트럼 오브 더 시즈, 보이저"
-                        label="선박명"
-                        required
-                      />
-                    </div>
-
-                    {/* 후킹 태그 선택 - 패키지명 위에 배치 */}
-                    <div className="p-4 bg-pink-50 border-2 border-pink-300 rounded-lg">
-                      <ProductTagsSelector
-                        selectedTags={formData.tags}
-                        onChange={(tags) => setFormData({ ...formData, tags })}
-                        maxTags={3}
-                      />
-                    </div>
-
-                    {/* 별점 및 리뷰 설정 - 후킹 태그 밑에 배치 */}
-                    <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        별점 및 리뷰 설정
-                      </label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            별점 (0.0 ~ 5.0)
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            max="5"
-                            step="0.1"
-                            value={formData.rating}
-                            onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) || 4.5 })}
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-base"
-                            style={{ fontSize: '18px', minHeight: '56px' }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            리뷰 개수
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={formData.reviewCount}
-                            onChange={(e) => setFormData({ ...formData, reviewCount: parseInt(e.target.value) || 0 })}
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-base"
-                            style={{ fontSize: '18px', minHeight: '56px' }}
-                          />
-                        </div>
+                    {/* 기본 정보 */}
+                    <div className="grid sm:grid-cols-2 gap-5 md:gap-6">
+                      <div>
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          상품 코드 * <span className="text-gray-500 text-sm">(자동 생성)</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          readOnly={!editingProduct} // 수정 모드가 아닐 때만 읽기 전용
+                          value={formData.productCode}
+                          onChange={(e) => setFormData({ ...formData, productCode: e.target.value })}
+                          className={`w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg ${!editingProduct ? 'bg-gray-50 cursor-not-allowed' : ''
+                            }`}
+                          style={{ fontSize: '18px', minHeight: '56px' }}
+                          placeholder="자동 생성 중..."
+                        />
+                        {!editingProduct && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            상품 코드는 자동으로 생성됩니다. 카테고리나 인기/추천 설정에 따라 자동으로 업데이트됩니다.
+                          </p>
+                        )}
                       </div>
-                      <p className="text-xs text-yellow-700 mt-3 font-semibold">
-                        💡 별점과 리뷰 개수는 상품 상세 페이지와 상품 카드에 표시됩니다.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // 리뷰 모달 열기
-                          const modal = document.createElement('div');
-                          modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4';
-                          const currentRating = formData.rating || 4.5;
-                          const currentReviewCount = formData.reviewCount || 0;
-                          modal.innerHTML = `
+
+                      {/* 크루즈 라인 - 수동 등록 폼과 동일 (AutocompleteInput 사용) */}
+                      <div>
+                        <AutocompleteInput
+                          value={formData.cruiseLine}
+                          onChange={(value) => setFormData({ ...formData, cruiseLine: value })}
+                          options={cruiseLineAutocompleteOptions}
+                          placeholder="예: MSC 크루즈, Royal Caribbean, 로얄"
+                          label="크루즈 라인"
+                          required
+                        />
+                      </div>
+
+                      {/* 선박명 - 수동 등록 폼과 동일 (AutocompleteInput 사용) */}
+                      <div>
+                        <AutocompleteInput
+                          value={formData.shipName}
+                          onChange={(value) => setFormData({ ...formData, shipName: value })}
+                          options={shipNameAutocompleteOptions}
+                          placeholder="예: MSC 벨리시마, 스펙트럼 오브 더 시즈, 보이저"
+                          label="선박명"
+                          required
+                        />
+                      </div>
+
+                      {/* 후킹 태그 선택 - 패키지명 위에 배치 */}
+                      <div className="p-4 bg-pink-50 border-2 border-pink-300 rounded-lg">
+                        <ProductTagsSelector
+                          selectedTags={formData.tags}
+                          onChange={(tags) => setFormData({ ...formData, tags })}
+                          maxTags={3}
+                        />
+                      </div>
+
+                      {/* 별점 및 리뷰 설정 - 후킹 태그 밑에 배치 */}
+                      <div className="p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          별점 및 리뷰 설정
+                        </label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              별점 (0.0 ~ 5.0)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="5"
+                              step="0.1"
+                              value={formData.rating}
+                              onChange={(e) => setFormData({ ...formData, rating: parseFloat(e.target.value) || 4.5 })}
+                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-base"
+                              style={{ fontSize: '18px', minHeight: '56px' }}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              리뷰 개수
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData.reviewCount}
+                              onChange={(e) => setFormData({ ...formData, reviewCount: parseInt(e.target.value) || 0 })}
+                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 text-base"
+                              style={{ fontSize: '18px', minHeight: '56px' }}
+                            />
+                          </div>
+                        </div>
+                        <p className="text-xs text-yellow-700 mt-3 font-semibold">
+                          💡 별점과 리뷰 개수는 상품 상세 페이지와 상품 카드에 표시됩니다.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // 리뷰 모달 열기
+                            const modal = document.createElement('div');
+                            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center p-4';
+                            const currentRating = formData.rating || 4.5;
+                            const currentReviewCount = formData.reviewCount || 0;
+                            modal.innerHTML = `
                             <div class="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                               <div class="sticky top-0 bg-white border-b-2 border-gray-300 px-6 py-4 flex items-center justify-between z-10 shadow-sm">
                                 <div class="flex items-center gap-3">
@@ -2419,16 +2409,16 @@ export default function ProductsManagementPage() {
                               </div>
                               <div class="p-6">
                                 ${currentReviewCount > 0 ? Array.from({ length: Math.min(currentReviewCount, 5) }).map((_, index) => {
-                                  const sampleRating = Math.max(1, Math.min(5, Math.round(currentRating) + (index % 2 === 0 ? 1 : -1)));
-                                  const sampleNames = ['김**', '이**', '박**', '최**', '정**'];
-                                  const sampleComments = [
-                                    '크루즈 여행이 정말 만족스러웠습니다. 객실도 깨끗하고 식사도 훌륭했어요!',
-                                    '일정이 알차게 구성되어 있어서 좋았습니다. 다음에도 또 이용하고 싶어요.',
-                                    '가이드 분이 친절하시고 설명도 자세해서 여행이 더욱 즐거웠습니다.',
-                                    '가격 대비 만족도가 높았습니다. 추천합니다!',
-                                    '크루즈 시설이 깨끗하고 편안해서 좋았습니다.',
-                                  ];
-                                  return `
+                              const sampleRating = Math.max(1, Math.min(5, Math.round(currentRating) + (index % 2 === 0 ? 1 : -1)));
+                              const sampleNames = ['김**', '이**', '박**', '최**', '정**'];
+                              const sampleComments = [
+                                '크루즈 여행이 정말 만족스러웠습니다. 객실도 깨끗하고 식사도 훌륭했어요!',
+                                '일정이 알차게 구성되어 있어서 좋았습니다. 다음에도 또 이용하고 싶어요.',
+                                '가이드 분이 친절하시고 설명도 자세해서 여행이 더욱 즐거웠습니다.',
+                                '가격 대비 만족도가 높았습니다. 추천합니다!',
+                                '크루즈 시설이 깨끗하고 편안해서 좋았습니다.',
+                              ];
+                              return `
                                     <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
                                       <div class="flex items-center justify-between mb-2">
                                         <div class="flex items-center gap-2">
@@ -2446,7 +2436,7 @@ export default function ProductsManagementPage() {
                                       <p class="text-gray-700 text-sm leading-relaxed">${sampleComments[index % sampleComments.length]}</p>
                                     </div>
                                   `;
-                                }).join('') + (currentReviewCount > 5 ? `<div class="text-center py-4 text-gray-500">외 ${currentReviewCount - 5}개의 리뷰가 더 있습니다.</div>` : '') : `
+                            }).join('') + (currentReviewCount > 5 ? `<div class="text-center py-4 text-gray-500">외 ${currentReviewCount - 5}개의 리뷰가 더 있습니다.</div>` : '') : `
                                   <div class="text-center py-12">
                                     <svg class="w-12 h-12 text-amber-500 fill-amber-500 mx-auto mb-4" fill="currentColor" viewBox="0 0 20 20">
                                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
@@ -2458,227 +2448,714 @@ export default function ProductsManagementPage() {
                               </div>
                             </div>
                           `;
-                          modal.onclick = (e) => {
-                            if (e.target === modal) modal.remove();
-                          };
-                          document.body.appendChild(modal);
-                        }}
-                        className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm transition-colors flex items-center gap-2"
-                      >
-                        <FiEye size={16} />
-                        미리보기
-                      </button>
-                    </div>
-
-                    {/* 상품 분류 - 딱지 설정 (썸네일 왼쪽 위에 표시) */}
-                    <div className="p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        상품 분류 - 딱지 설정 (썸네일 왼쪽 위에 표시)
-                      </label>
-                      
-                      {/* 인기/추천 딱지 */}
-                      <div className="mb-4 space-y-2">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isPopular}
-                            onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
-                            className="w-5 h-5 text-red-600 rounded"
-                          />
-                          <span className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm md:text-base font-bold shadow-md">
-                            인기
-                          </span>
-                        </label>
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isRecommended}
-                            onChange={(e) => setFormData({ ...formData, isRecommended: e.target.checked })}
-                            className="w-5 h-5 text-blue-600 rounded"
-                          />
-                          <span className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm md:text-base font-bold shadow-md">
-                            추천
-                          </span>
-                        </label>
+                            modal.onclick = (e) => {
+                              if (e.target === modal) modal.remove();
+                            };
+                            document.body.appendChild(modal);
+                          }}
+                          className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm transition-colors flex items-center gap-2"
+                        >
+                          <FiEye size={16} />
+                          미리보기
+                        </button>
                       </div>
-                      
-                      {/* 추가 딱지들 */}
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-gray-700 mb-2">추가 딱지:</p>
-                        {[
-                          { value: 'event', label: '이벤트', color: 'bg-purple-600' },
-                          { value: 'theme', label: '테마', color: 'bg-pink-600' },
-                          { value: 'departure-soon', label: '출발임박', color: 'bg-orange-600' },
-                          { value: 'package-confirmed', label: '패키지확정', color: 'bg-green-600' },
-                          { value: 'closing-soon', label: '마감임박', color: 'bg-red-700' },
-                        ].map((badge) => (
-                          <label key={badge.value} className="flex items-center gap-3 cursor-pointer">
+
+                      {/* 상품 분류 - 딱지 설정 (썸네일 왼쪽 위에 표시) */}
+                      <div className="p-4 bg-indigo-50 border-2 border-indigo-300 rounded-lg">
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          상품 분류 - 딱지 설정 (썸네일 왼쪽 위에 표시)
+                        </label>
+
+                        {/* 인기/추천 딱지 */}
+                        <div className="mb-4 space-y-2">
+                          <label className="flex items-center gap-3 cursor-pointer">
                             <input
                               type="checkbox"
-                              checked={formData.badges.includes(badge.value)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setFormData({ ...formData, badges: [...formData.badges, badge.value] });
-                                } else {
-                                  setFormData({ ...formData, badges: formData.badges.filter(b => b !== badge.value) });
-                                }
-                              }}
-                              className="w-5 h-5 text-indigo-600 rounded"
+                              checked={formData.isPopular}
+                              onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
+                              className="w-5 h-5 text-red-600 rounded"
                             />
-                            <span className={`px-4 py-2 ${badge.color} text-white rounded-lg text-sm md:text-base font-bold shadow-md`}>
-                              {badge.label}
+                            <span className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm md:text-base font-bold shadow-md">
+                              인기
                             </span>
                           </label>
-                        ))}
-                      </div>
-                      <p className="text-xs text-indigo-700 mt-3 font-semibold">
-                        💡 선택한 딱지들은 상품 카드의 썸네일 왼쪽 위에 표시됩니다. 인기/추천 딱지와 추가 딱지들이 함께 표시됩니다.
-                      </p>
-                    </div>
-
-                    {/* 썸네일 사진 - 수동 등록 폼과 동일 */}
-                    <div className="col-span-2">
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        썸네일 사진
-                      </label>
-                      <div className="flex items-start gap-4">
-                        {thumbnail && (
-                          <div className="relative">
-                            <img
-                              src={thumbnail}
-                              alt="썸네일"
-                              className="w-32 h-32 object-cover rounded-lg border border-gray-300"
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
-                            <span className="text-sm font-medium text-gray-700">
-                              {thumbnail ? '썸네일 변경' : '썸네일 업로드'}
-                            </span>
+                          <label className="flex items-center gap-3 cursor-pointer">
                             <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (!file) return;
-                                if (file.size > 10 * 1024 * 1024) {
-                                  showError('이미지 크기는 10MB를 초과할 수 없습니다.');
-                                  return;
-                                }
-                                const reader = new FileReader();
-                                reader.onloadend = () => {
-                                  setThumbnail(reader.result as string);
-                                };
-                                reader.readAsDataURL(file);
-                                setThumbnailFile(file);
+                              type="checkbox"
+                              checked={formData.isRecommended}
+                              onChange={(e) => setFormData({ ...formData, isRecommended: e.target.checked })}
+                              className="w-5 h-5 text-blue-600 rounded"
+                            />
+                            <span className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm md:text-base font-bold shadow-md">
+                              추천
+                            </span>
+                          </label>
+                        </div>
+
+                        {/* 추가 딱지들 */}
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-gray-700 mb-2">추가 딱지:</p>
+                          {[
+                            { value: 'event', label: '이벤트', color: 'bg-purple-600' },
+                            { value: 'theme', label: '테마', color: 'bg-pink-600' },
+                            { value: 'departure-soon', label: '출발임박', color: 'bg-orange-600' },
+                            { value: 'package-confirmed', label: '패키지확정', color: 'bg-green-600' },
+                            { value: 'closing-soon', label: '마감임박', color: 'bg-red-700' },
+                          ].map((badge) => (
+                            <label key={badge.value} className="flex items-center gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={formData.badges.includes(badge.value)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setFormData({ ...formData, badges: [...formData.badges, badge.value] });
+                                  } else {
+                                    setFormData({ ...formData, badges: formData.badges.filter(b => b !== badge.value) });
+                                  }
+                                }}
+                                className="w-5 h-5 text-indigo-600 rounded"
+                              />
+                              <span className={`px-4 py-2 ${badge.color} text-white rounded-lg text-sm md:text-base font-bold shadow-md`}>
+                                {badge.label}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-xs text-indigo-700 mt-3 font-semibold">
+                          💡 선택한 딱지들은 상품 카드의 썸네일 왼쪽 위에 표시됩니다. 인기/추천 딱지와 추가 딱지들이 함께 표시됩니다.
+                        </p>
+                      </div>
+
+                      {/* 썸네일 사진 - 수동 등록 폼과 동일 */}
+                      <div className="col-span-2">
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          썸네일 사진
+                        </label>
+                        <div className="flex items-start gap-4">
+                          {thumbnail && (
+                            <div className="relative">
+                              <img
+                                src={thumbnail}
+                                alt="썸네일"
+                                className="w-32 h-32 object-cover rounded-lg border border-gray-300"
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition-colors">
+                              <span className="text-sm font-medium text-gray-700">
+                                {thumbnail ? '썸네일 변경' : '썸네일 업로드'}
+                              </span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  if (file.size > 10 * 1024 * 1024) {
+                                    showError('이미지 크기는 10MB를 초과할 수 없습니다.');
+                                    return;
+                                  }
+                                  const reader = new FileReader();
+                                  reader.onloadend = () => {
+                                    setThumbnail(reader.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                  setThumbnailFile(file);
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                            <p className="text-xs text-gray-500 mt-2">
+                              권장 크기: 800x600px, 최대 10MB
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 상품 정보 미리보기 */}
+                      <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg">
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          상품 정보 미리보기
+                        </label>
+                        <div className="space-y-2 text-sm text-gray-700">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">📅</span>
+                            <span>{formData.nights}박 {formData.days}일</span>
+                          </div>
+                          {formData.basePrice && (
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">💰</span>
+                              <span>{parseInt(formData.basePrice || '0').toLocaleString('ko-KR')}원</span>
+                              <span className="text-gray-500">/ 월 {Math.ceil(parseInt(formData.basePrice || '0') / 12).toLocaleString('ko-KR')}원</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">🗺️</span>
+                            <span>{formData.itineraryPattern.length}개 일정</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          제목 (패키지명) *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={formData.packageName}
+                          onChange={(e) => {
+                            const packageName = e.target.value;
+                            setFormData(prev => ({
+                              ...prev,
+                              packageName,
+                              // 패키지명이 변경되면 title도 자동으로 업데이트 (title이 비어있을 때만)
+                              title: prev.title || packageName,
+                            }));
+                          }}
+                          className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
+                          style={{ fontSize: '18px', minHeight: '56px' }}
+                          placeholder="예: 싱가포르 3박 4일 크루즈 - 말레이시아, 인도네시아"
+                        />
+                      </div>
+
+                      {/* 로고 선택 - 수동 등록 폼과 동일 */}
+                      <div>
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          로고 선택 *
+                        </label>
+                        <div className="flex gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer p-3 border-2 rounded-lg hover:border-blue-500 transition-colors flex-1">
+                            <input
+                              type="radio"
+                              name="source"
+                              value="wcruise"
+                              checked={formData.source === 'wcruise'}
+                              onChange={(e) => setFormData({ ...formData, source: e.target.value as 'wcruise' | 'cruisedot' | 'manual' })}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <img
+                              src="/images/wcruise-logo.png"
+                              alt="Wcruise"
+                              className="w-8 h-8 object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
                               }}
-                              className="hidden"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Wcruise</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer p-3 border-2 rounded-lg hover:border-blue-500 transition-colors flex-1">
+                            <input
+                              type="radio"
+                              name="source"
+                              value="cruisedot"
+                              checked={formData.source === 'cruisedot'}
+                              onChange={(e) => setFormData({ ...formData, source: e.target.value as 'wcruise' | 'cruisedot' | 'manual' })}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <img
+                              src="/images/ai-cruise-logo.png"
+                              alt="Cruisedot"
+                              className="w-8 h-8 object-contain"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                            <span className="text-sm font-medium text-gray-700">Cruisedot</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* 상품 설명 - 수동 등록 폼과 동일 */}
+                      <div className="col-span-2">
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          상품 설명
+                        </label>
+                        <textarea
+                          value={formData.description}
+                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                          rows={4}
+                          className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y text-base md:text-lg"
+                          style={{ fontSize: '18px' }}
+                          placeholder="상품에 대한 상세 설명을 입력하세요"
+                        />
+                      </div>
+
+                      {/* 카테고리 - 수동 등록 폼과 동일 */}
+                      <div>
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          카테고리
+                        </label>
+                        <select
+                          value={formData.category || ''}
+                          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                          className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
+                          style={{ fontSize: '18px', minHeight: '56px' }}
+                        >
+                          <option value="">선택 안함</option>
+                          <option value="주말크루즈">주말크루즈</option>
+                          <option value="동남아">동남아</option>
+                          <option value="홍콩">홍콩</option>
+                          <option value="일본">일본</option>
+                          <option value="대만">대만</option>
+                          <option value="중국">중국</option>
+                          <option value="알래스카">알래스카</option>
+                          <option value="지중해">지중해</option>
+                        </select>
+                      </div>
+
+                      {/* 어필리에이트 수당 관리 필드 (어필리에이트 수당 관리 페이지와 동일) */}
+                      <div className="col-span-2 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                        <h3 className="text-lg font-bold text-blue-900 mb-4">어필리에이트 수당 설정</h3>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">상품명 (어필리에이트용) *</span>
+                            <input
+                              type="text"
+                              required
+                              value={formData.title}
+                              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                              placeholder="예) MSC 벨리시마 일본 4박 5일 가정의달 크루즈"
+                              className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                             />
                           </label>
-                          <p className="text-xs text-gray-500 mt-2">
-                            권장 크기: 800x600px, 최대 10MB
-                          </p>
+                          <div className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">판매몰 노출</span>
+                            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={formData.isPublished}
+                                onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
+                                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span>{formData.isPublished ? '노출 중 (판매몰에 표시)' : '게시 중지 (판매몰에서 숨김)'}</span>
+                            </label>
+                          </div>
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">통화</span>
+                            <select
+                              value={formData.currency}
+                              onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                              className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            >
+                              <option value="KRW">KRW (원화)</option>
+                              <option value="USD">USD (달러)</option>
+                            </select>
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">적용 시작일 *</span>
+                            <input
+                              type="date"
+                              required
+                              value={formData.effectiveFrom}
+                              onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
+                              className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">적용 종료일 (옵션)</span>
+                            <input
+                              type="date"
+                              value={formData.effectiveTo}
+                              onChange={(e) => setFormData({ ...formData, effectiveTo: e.target.value })}
+                              className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                          </label>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-3 mt-4">
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">기본 판매가</span>
+                            <input
+                              type="text"
+                              value={formData.defaultSaleAmount}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData(prev => {
+                                  const sale = value ? parseInt(value.replace(/,/g, '')) : null;
+                                  const cost = prev.defaultCostAmount ? parseInt(prev.defaultCostAmount.replace(/,/g, '')) : null;
+                                  const netRevenue = sale != null && cost != null ? Math.max(sale - cost, 0) : null;
+                                  return {
+                                    ...prev,
+                                    defaultSaleAmount: value,
+                                    defaultNetRevenue: netRevenue ? netRevenue.toString() : '',
+                                  };
+                                });
+                              }}
+                              placeholder="예) 1,200,000"
+                              className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">기본 입금가</span>
+                            <input
+                              type="text"
+                              value={formData.defaultCostAmount}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                setFormData(prev => {
+                                  const sale = prev.defaultSaleAmount ? parseInt(prev.defaultSaleAmount.replace(/,/g, '')) : null;
+                                  const cost = value ? parseInt(value.replace(/,/g, '')) : null;
+                                  const netRevenue = sale != null && cost != null ? Math.max(sale - cost, 0) : null;
+                                  return {
+                                    ...prev,
+                                    defaultCostAmount: value,
+                                    defaultNetRevenue: netRevenue ? netRevenue.toString() : '',
+                                  };
+                                });
+                              }}
+                              placeholder="예) 900,000"
+                              className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1 text-sm">
+                            <span className="font-semibold text-gray-700">본사 순이익 (자동 계산)</span>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={formData.defaultNetRevenue}
+                                onChange={(e) => setFormData({ ...formData, defaultNetRevenue: e.target.value })}
+                                placeholder="자동 계산 참고용"
+                                className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              />
+                              {(() => {
+                                const sale = formData.defaultSaleAmount ? parseInt(formData.defaultSaleAmount.replace(/,/g, '')) : null;
+                                const cost = formData.defaultCostAmount ? parseInt(formData.defaultCostAmount.replace(/,/g, '')) : null;
+                                if (sale != null && cost != null) {
+                                  return (
+                                    <span className="text-xs font-semibold text-blue-600">
+                                      자동 {Math.max(sale - cost, 0).toLocaleString()}
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              판매가와 입금가를 입력하면 본사 순이익이 자동 계산되어 참고용으로 표시됩니다.
+                            </span>
+                          </label>
                         </div>
                       </div>
-                    </div>
 
-                    {/* 상품 정보 미리보기 */}
-                    <div className="p-4 bg-gray-50 border-2 border-gray-300 rounded-lg">
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        상품 정보 미리보기
-                      </label>
-                      <div className="space-y-2 text-sm text-gray-700">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">📅</span>
-                          <span>{formData.nights}박 {formData.days}일</span>
+                      {/* 출발 날짜 및 종료 날짜 선택 (지도 캘린더) - 여행기간 박수/일수 위에 배치 */}
+                      <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
+                        <div className="text-sm font-bold text-blue-900 mb-4 flex items-center gap-2">
+                          <span className="text-xl">🗓️</span>
+                          <span>출발 날짜 및 종료 날짜 선택 (지도 캘린더)</span>
+                          <span className="text-red-600">* 필수</span>
                         </div>
-                        {formData.basePrice && (
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">💰</span>
-                            <span>{parseInt(formData.basePrice || '0').toLocaleString('ko-KR')}원</span>
-                            <span className="text-gray-500">/ 월 {Math.ceil(parseInt(formData.basePrice || '0') / 12).toLocaleString('ko-KR')}원</span>
+                        <DateRangePicker
+                          startDate={formData.startDate}
+                          endDate={formData.endDate}
+                          onStartDateChange={(date) => {
+                            setFormData(prev => {
+                              let newEndDate = prev.endDate;
+                              // 종료일 자동 계산 (시작일 + 일수 - 1)
+                              if (date && prev.days > 0) {
+                                const start = new Date(date);
+                                const end = new Date(start);
+                                end.setDate(end.getDate() + prev.days - 1);
+                                newEndDate = end.toISOString().split('T')[0];
+                              }
+                              return { ...prev, startDate: date, endDate: newEndDate };
+                            });
+                          }}
+                          onEndDateChange={(date) => {
+                            setFormData(prev => {
+                              // 일수 자동 계산
+                              let newDays = prev.days;
+                              let newNights = prev.nights;
+                              if (prev.startDate && date) {
+                                const start = new Date(prev.startDate);
+                                const end = new Date(date);
+                                const diffTime = end.getTime() - start.getTime();
+                                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                                newDays = diffDays;
+                                newNights = diffDays - 1;
+                              }
+                              return { ...prev, endDate: date, days: newDays, nights: newNights };
+                            });
+                          }}
+                          onDaysChange={(days) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              days,
+                              nights: days > 0 ? days - 1 : 0,
+                            }));
+                          }}
+                        />
+                        <p className="text-xs text-blue-700 mt-3 font-semibold">
+                          💡 캘린더에서 출발 날짜와 종료 날짜를 선택하면 여행 기간이 자동으로 계산됩니다. 온보딩 및 상품몰에 정확하게 반영됩니다.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                            박수 *
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            value={formData.nights}
+                            onChange={(e) => {
+                              const nights = parseInt(e.target.value) || 0;
+                              setFormData(prev => {
+                                const days = nights + 1;
+                                let newEndDate = prev.endDate;
+                                // 종료일 자동 계산 (시작일 + 일수 - 1)
+                                if (prev.startDate && days > 0) {
+                                  const start = new Date(prev.startDate);
+                                  const end = new Date(start);
+                                  end.setDate(end.getDate() + days - 1);
+                                  newEndDate = end.toISOString().split('T')[0];
+                                }
+                                return { ...prev, nights, days, endDate: newEndDate };
+                              });
+                            }}
+                            className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
+                            style={{ fontSize: '18px', minHeight: '56px' }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                            일수 *
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            value={formData.days}
+                            onChange={(e) => {
+                              const days = parseInt(e.target.value) || 0;
+                              setFormData(prev => {
+                                const nights = days > 0 ? days - 1 : 0;
+                                let newEndDate = prev.endDate;
+                                // 종료일 자동 계산 (시작일 + 일수 - 1)
+                                if (prev.startDate && days > 0) {
+                                  const start = new Date(prev.startDate);
+                                  const end = new Date(start);
+                                  end.setDate(end.getDate() + days - 1);
+                                  newEndDate = end.toISOString().split('T')[0];
+                                }
+                                return { ...prev, days, nights, endDate: newEndDate };
+                              });
+                            }}
+                            className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
+                            style={{ fontSize: '18px', minHeight: '56px' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* 추천 키워드 설정 - 마케팅 태그 (방문 국가 설정 위) */}
+                      <div className="p-4 bg-purple-50 border-2 border-purple-300 rounded-lg">
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          추천 키워드 (마케팅 태그) <span className="text-gray-500 text-sm">(최대 5개 선택)</span>
+                        </label>
+                        <p className="text-xs text-purple-700 mb-3 font-semibold">
+                          💡 선택한 키워드는 크루즈몰 검색에서 연관 검색어로 표시됩니다. 실제 검색량이 많은 키워드를 선택하세요.
+                        </p>
+
+                        {/* 선택된 키워드 표시 */}
+                        {formData.recommendedKeywords.length > 0 && (
+                          <div className="mb-3 p-3 bg-white rounded-lg border-2 border-purple-200">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">선택된 키워드 ({formData.recommendedKeywords.length}/5):</p>
+                            <div className="flex flex-wrap gap-2">
+                              {formData.recommendedKeywords.map((keyword, index) => (
+                                <span
+                                  key={index}
+                                  className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
+                                >
+                                  {keyword}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData({
+                                        ...formData,
+                                        recommendedKeywords: formData.recommendedKeywords.filter((_, i) => i !== index),
+                                      });
+                                    }}
+                                    className="ml-2 text-purple-600 hover:text-purple-800"
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         )}
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">🗺️</span>
-                          <span>{formData.itineraryPattern.length}개 일정</span>
+
+                        {/* 드롭다운 선택 */}
+                        {formData.recommendedKeywords.length < 5 && (
+                          <div className="relative" ref={keywordDropdownRef}>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={keywordSearchTerm}
+                                onChange={(e) => {
+                                  setKeywordSearchTerm(e.target.value);
+                                  setKeywordDropdownOpen(true);
+                                }}
+                                onFocus={() => setKeywordDropdownOpen(true)}
+                                placeholder="키워드 검색 (최대 5개 선택 가능)"
+                                className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base md:text-lg pr-12"
+                                style={{ fontSize: '18px', minHeight: '56px' }}
+                              />
+                              {keywordSearchTerm && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setKeywordSearchTerm('');
+                                    setKeywordDropdownOpen(false);
+                                  }}
+                                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors"
+                                >
+                                  <FiX size={22} />
+                                </button>
+                              )}
+                            </div>
+                            {keywordDropdownOpen && filteredKeywords.length > 0 && (
+                              <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-300 rounded-lg shadow-xl max-h-72 overflow-y-auto">
+                                {filteredKeywords
+                                  .filter(keyword => !formData.recommendedKeywords.includes(keyword))
+                                  .map((keyword) => (
+                                    <div
+                                      key={keyword}
+                                      onMouseDown={(e) => {
+                                        e.preventDefault();
+                                        if (formData.recommendedKeywords.length < 5) {
+                                          setFormData({
+                                            ...formData,
+                                            recommendedKeywords: [...formData.recommendedKeywords, keyword],
+                                          });
+                                          setKeywordSearchTerm('');
+                                          setKeywordDropdownOpen(false);
+                                        }
+                                      }}
+                                      className="px-5 py-4 md:px-6 md:py-5 cursor-pointer hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0 font-medium"
+                                      style={{ minHeight: '56px' }}
+                                    >
+                                      <div className="text-lg md:text-xl text-gray-900">{keyword}</div>
+                                    </div>
+                                  ))}
+                              </div>
+                            )}
+                            {keywordDropdownOpen && filteredKeywords.filter(keyword => !formData.recommendedKeywords.includes(keyword)).length === 0 && (
+                              <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 text-center text-gray-500">
+                                {keywordSearchTerm ? '검색 결과가 없습니다.' : '모든 키워드가 선택되었습니다.'}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        {formData.recommendedKeywords.length >= 5 && (
+                          <div className="p-3 bg-yellow-100 border-2 border-yellow-300 rounded-lg text-sm text-yellow-800 font-semibold">
+                            최대 5개까지 선택 가능합니다. 키워드를 삭제하려면 위의 선택된 키워드에서 × 버튼을 클릭하세요.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 방문 국가 설정 - 수동 등록 폼과 동일 (CountrySelector 사용) */}
+                      <div className="col-span-2 p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+                        <CountrySelector
+                          selectedCountries={selectedCountries}
+                          onChange={setSelectedCountries}
+                          maxCount={10}
+                          label="방문 국가 설정"
+                        />
+                      </div>
+
+                      {/* 시작가 - 수동 등록 폼과 동일 */}
+                      <div>
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          시작가 (원)
+                        </label>
+                        <input
+                          type="number"
+                          value={formData.basePrice}
+                          onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
+                          className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
+                          style={{ fontSize: '18px', minHeight: '56px' }}
+                          placeholder="예: 1500000"
+                        />
+                      </div>
+
+                      {/* 상품 분류 설정 - 수동 등록 폼과 동일 */}
+                      <div className="col-span-2">
+                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                          상품 분류
+                        </label>
+                        <div className="flex flex-wrap gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isPopular}
+                              onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">인기 크루즈</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isRecommended}
+                              onChange={(e) => setFormData({ ...formData, isRecommended: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">추천 크루즈</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isPremium}
+                              onChange={(e) => setFormData({ ...formData, isPremium: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">프리미엄 크루즈</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isGeniePack}
+                              onChange={(e) => setFormData({ ...formData, isGeniePack: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">지니패키지 크루즈</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isDomestic}
+                              onChange={(e) => setFormData({ ...formData, isDomestic: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">국내출발 크루즈</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isJapan}
+                              onChange={(e) => setFormData({ ...formData, isJapan: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">일본 크루즈</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.isBudget}
+                              onChange={(e) => setFormData({ ...formData, isBudget: e.target.checked })}
+                              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">알뜰 크루즈</span>
+                          </label>
                         </div>
                       </div>
                     </div>
 
+                    {/* 상품 설명 */}
                     <div>
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        제목 (패키지명) *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={formData.packageName}
-                        onChange={(e) => {
-                          const packageName = e.target.value;
-                          setFormData(prev => ({
-                            ...prev,
-                            packageName,
-                            // 패키지명이 변경되면 title도 자동으로 업데이트 (title이 비어있을 때만)
-                            title: prev.title || packageName,
-                          }));
-                        }}
-                        className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
-                        style={{ fontSize: '18px', minHeight: '56px' }}
-                        placeholder="예: 싱가포르 3박 4일 크루즈 - 말레이시아, 인도네시아"
-                      />
-                    </div>
-
-                    {/* 로고 선택 - 수동 등록 폼과 동일 */}
-                    <div>
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        로고 선택 *
-                      </label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer p-3 border-2 rounded-lg hover:border-blue-500 transition-colors flex-1">
-                          <input
-                            type="radio"
-                            name="source"
-                            value="wcruise"
-                            checked={formData.source === 'wcruise'}
-                            onChange={(e) => setFormData({ ...formData, source: e.target.value as 'wcruise' | 'cruisedot' | 'manual' })}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <img 
-                            src="/images/wcruise-logo.png" 
-                            alt="Wcruise" 
-                            className="w-8 h-8 object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                          <span className="text-sm font-medium text-gray-700">Wcruise</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer p-3 border-2 rounded-lg hover:border-blue-500 transition-colors flex-1">
-                          <input
-                            type="radio"
-                            name="source"
-                            value="cruisedot"
-                            checked={formData.source === 'cruisedot'}
-                            onChange={(e) => setFormData({ ...formData, source: e.target.value as 'wcruise' | 'cruisedot' | 'manual' })}
-                            className="w-4 h-4 text-blue-600"
-                          />
-                          <img 
-                            src="/images/ai-cruise-logo.png" 
-                            alt="Cruisedot" 
-                            className="w-8 h-8 object-contain"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                          <span className="text-sm font-medium text-gray-700">Cruisedot</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    {/* 상품 설명 - 수동 등록 폼과 동일 */}
-                    <div className="col-span-2">
                       <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
                         상품 설명
                       </label>
@@ -2686,886 +3163,399 @@ export default function ProductsManagementPage() {
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         rows={4}
-                        className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y text-base md:text-lg"
+                        className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-base md:text-lg"
                         style={{ fontSize: '18px' }}
-                        placeholder="상품에 대한 상세 설명을 입력하세요"
+                        placeholder="상품에 대한 상세 설명을 입력하세요..."
                       />
                     </div>
 
-                    {/* 카테고리 - 수동 등록 폼과 동일 */}
-                    <div>
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        카테고리
-                      </label>
-                      <select
-                        value={formData.category || ''}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
-                        style={{ fontSize: '18px', minHeight: '56px' }}
-                      >
-                        <option value="">선택 안함</option>
-                        <option value="주말크루즈">주말크루즈</option>
-                        <option value="동남아">동남아</option>
-                        <option value="홍콩">홍콩</option>
-                        <option value="일본">일본</option>
-                        <option value="대만">대만</option>
-                        <option value="중국">중국</option>
-                        <option value="알래스카">알래스카</option>
-                        <option value="지중해">지중해</option>
-                      </select>
-                    </div>
-
-                    {/* 어필리에이트 수당 관리 필드 (어필리에이트 수당 관리 페이지와 동일) */}
-                    <div className="col-span-2 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
-                      <h3 className="text-lg font-bold text-blue-900 mb-4">어필리에이트 수당 설정</h3>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <label className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">상품명 (어필리에이트용) *</span>
-                          <input
-                            type="text"
-                            required
-                            value={formData.title}
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            placeholder="예) MSC 벨리시마 일본 4박 5일 가정의달 크루즈"
-                            className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          />
-                        </label>
-                        <div className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">판매몰 노출</span>
-                          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-                            <input
-                              type="checkbox"
-                              checked={formData.isPublished}
-                              onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
-                              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span>{formData.isPublished ? '노출 중 (판매몰에 표시)' : '게시 중지 (판매몰에서 숨김)'}</span>
-                          </label>
-                        </div>
-                        <label className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">통화</span>
-                          <select
-                            value={formData.currency}
-                            onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
-                            className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          >
-                            <option value="KRW">KRW (원화)</option>
-                            <option value="USD">USD (달러)</option>
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">적용 시작일 *</span>
-                          <input
-                            type="date"
-                            required
-                            value={formData.effectiveFrom}
-                            onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
-                            className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">적용 종료일 (옵션)</span>
-                          <input
-                            type="date"
-                            value={formData.effectiveTo}
-                            onChange={(e) => setFormData({ ...formData, effectiveTo: e.target.value })}
-                            className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          />
-                        </label>
-                      </div>
-                      <div className="grid gap-4 md:grid-cols-3 mt-4">
-                        <label className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">기본 판매가</span>
-                          <input
-                            type="text"
-                            value={formData.defaultSaleAmount}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setFormData(prev => {
-                                const sale = value ? parseInt(value.replace(/,/g, '')) : null;
-                                const cost = prev.defaultCostAmount ? parseInt(prev.defaultCostAmount.replace(/,/g, '')) : null;
-                                const netRevenue = sale != null && cost != null ? Math.max(sale - cost, 0) : null;
-                                return {
-                                  ...prev,
-                                  defaultSaleAmount: value,
-                                  defaultNetRevenue: netRevenue ? netRevenue.toString() : '',
-                                };
-                              });
-                            }}
-                            placeholder="예) 1,200,000"
-                            className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">기본 입금가</span>
-                          <input
-                            type="text"
-                            value={formData.defaultCostAmount}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              setFormData(prev => {
-                                const sale = prev.defaultSaleAmount ? parseInt(prev.defaultSaleAmount.replace(/,/g, '')) : null;
-                                const cost = value ? parseInt(value.replace(/,/g, '')) : null;
-                                const netRevenue = sale != null && cost != null ? Math.max(sale - cost, 0) : null;
-                                return {
-                                  ...prev,
-                                  defaultCostAmount: value,
-                                  defaultNetRevenue: netRevenue ? netRevenue.toString() : '',
-                                };
-                              });
-                            }}
-                            placeholder="예) 900,000"
-                            className="rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          />
-                        </label>
-                        <label className="flex flex-col gap-1 text-sm">
-                          <span className="font-semibold text-gray-700">본사 순이익 (자동 계산)</span>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={formData.defaultNetRevenue}
-                              onChange={(e) => setFormData({ ...formData, defaultNetRevenue: e.target.value })}
-                              placeholder="자동 계산 참고용"
-                              className="flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            />
-                            {(() => {
-                              const sale = formData.defaultSaleAmount ? parseInt(formData.defaultSaleAmount.replace(/,/g, '')) : null;
-                              const cost = formData.defaultCostAmount ? parseInt(formData.defaultCostAmount.replace(/,/g, '')) : null;
-                              if (sale != null && cost != null) {
-                                return (
-                                  <span className="text-xs font-semibold text-blue-600">
-                                    자동 {Math.max(sale - cost, 0).toLocaleString()}
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-                          <span className="text-xs text-gray-500">
-                            판매가와 입금가를 입력하면 본사 순이익이 자동 계산되어 참고용으로 표시됩니다.
+                    {/* 긴급 상품 설정 */}
+                    <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.isUrgent}
+                          onChange={(e) => setFormData({ ...formData, isUrgent: e.target.checked })}
+                          className="w-5 h-5 text-red-600 rounded"
+                        />
+                        <div>
+                          <span className="text-base md:text-lg font-semibold text-red-700">
+                            🔥 긴급 상품
                           </span>
-                        </label>
-                      </div>
+                          <p className="text-xs text-red-600 mt-1">
+                            체크하면 메인몰 최상단에 고정되어 표시됩니다. 우선순위가 가장 높으며 최대 3개까지 표시됩니다. 최근에 설정한 순서대로 표시됩니다.
+                          </p>
+                        </div>
+                      </label>
                     </div>
 
-                    {/* 출발 날짜 및 종료 날짜 선택 (지도 캘린더) - 여행기간 박수/일수 위에 배치 */}
-                    <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
-                      <div className="text-sm font-bold text-blue-900 mb-4 flex items-center gap-2">
-                        <span className="text-xl">🗓️</span>
-                        <span>출발 날짜 및 종료 날짜 선택 (지도 캘린더)</span>
-                        <span className="text-red-600">* 필수</span>
+                    {/* 주력 상품 설정 */}
+                    <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.isMainProduct}
+                          onChange={(e) => setFormData({ ...formData, isMainProduct: e.target.checked })}
+                          className="w-5 h-5 text-blue-600 rounded"
+                        />
+                        <div>
+                          <span className="text-base md:text-lg font-semibold text-blue-700">
+                            ⭐ 주력 상품
+                          </span>
+                          <p className="text-xs text-blue-600 mt-1">
+                            체크하면 메인몰 두 번째에 고정되어 표시됩니다. 긴급 상품 다음 우선순위이며 최대 3개까지 표시됩니다. 최근에 설정한 순서대로 표시됩니다.
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* 판매 상태 */}
+                    <div className="p-4 bg-orange-50 border-2 border-orange-300 rounded-lg">
+                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
+                        판매 상태 <span className="text-red-600">*</span>
+                      </label>
+                      <div className="space-y-3">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="saleStatus"
+                            value="판매중"
+                            checked={formData.saleStatus === '판매중'}
+                            onChange={(e) => setFormData({ ...formData, saleStatus: e.target.value as '판매중' | '판매완료' | '판매중지' })}
+                            className="w-5 h-5 text-green-600"
+                          />
+                          <span className="text-base md:text-lg font-semibold text-green-700">
+                            판매중
+                          </span>
+                          <span className="text-sm text-gray-600">- 크루즈몰에 표시됨</span>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="saleStatus"
+                            value="판매완료"
+                            checked={formData.saleStatus === '판매완료'}
+                            onChange={(e) => setFormData({ ...formData, saleStatus: e.target.value as '판매중' | '판매완료' | '판매중지' })}
+                            className="w-5 h-5 text-gray-600"
+                          />
+                          <span className="text-base md:text-lg font-semibold text-gray-700">
+                            판매완료
+                          </span>
+                          <span className="text-sm text-gray-600">- 크루즈몰에서 숨김</span>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="saleStatus"
+                            value="판매중지"
+                            checked={formData.saleStatus === '판매중지'}
+                            onChange={(e) => setFormData({ ...formData, saleStatus: e.target.value as '판매중' | '판매완료' | '판매중지' })}
+                            className="w-5 h-5 text-red-600"
+                          />
+                          <span className="text-base md:text-lg font-semibold text-red-700">
+                            판매중지
+                          </span>
+                          <span className="text-sm text-gray-600">- 크루즈몰에서 숨김</span>
+                        </label>
                       </div>
-                      <DateRangePicker
+                      <p className="text-xs text-orange-700 mt-3 font-semibold">
+                        💡 판매중인 상품만 크루즈몰에 표시됩니다. 판매완료나 판매중지로 설정하면 메인몰에서 자동으로 내려갑니다.
+                      </p>
+                    </div>
+
+                    {/* 일정 패턴 편집기 */}
+                    <div className="border-t-2 pt-6 md:pt-8">
+                      <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                        <p className="text-base md:text-lg font-bold text-yellow-900 mb-2">
+                          ⚠️ 중요: 방문 국가 설정 (온보딩 연결 필수)
+                        </p>
+                        <ul className="text-sm md:text-base text-yellow-800 space-y-1 list-disc list-inside">
+                          <li>각 일정의 <strong>국가(country)</strong> 필드를 반드시 선택해주세요.</li>
+                          <li>방문 국가 정보는 검색 기능과 크루즈 가이드 지니 AI 날씨 정보에 사용됩니다.</li>
+                          <li>온보딩 시 자동으로 방문 국가가 추출되어 사용자에게 반영됩니다.</li>
+                          <li>기항지(PortVisit), 승선지(Embarkation), 하선지(Disembarkation) 모두 국가를 선택해야 합니다.</li>
+                        </ul>
+                      </div>
+                      <ItineraryPatternEditor
+                        value={formData.itineraryPattern}
+                        onChange={(pattern) => setFormData({ ...formData, itineraryPattern: pattern })}
+                      />
+                    </div>
+
+                    {/* 수동 등록 폼과 동일한 추가 섹션들 */}
+
+                    {/* 2. 상세페이지 구성 */}
+                    <div className="border-t-2 pt-6 md:pt-8">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">2. 상세페이지 구성</h2>
+                      <p className="text-sm text-gray-600 mb-4">
+                        이미지, 동영상, 텍스트 블록을 자유롭게 추가하여 상세페이지를 구성하세요.
+                      </p>
+                      <ProductDetailEditor blocks={detailBlocks} onChange={setDetailBlocks} productCode={editingProduct?.productCode || formData.productCode} />
+                    </div>
+
+                    {/* 3. 항공 정보 */}
+                    <div className="border-t-2 pt-6 md:pt-8">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">3. 항공 정보</h2>
+                      <p className="text-sm text-gray-600 mb-4">
+                        출국 및 귀국 항공편 정보를 입력하세요.
+                      </p>
+                      <FlightInfoEditor
+                        flightInfo={flightInfo}
+                        onChange={setFlightInfo}
                         startDate={formData.startDate}
                         endDate={formData.endDate}
-                        onStartDateChange={(date) => {
-                          setFormData(prev => {
-                            let newEndDate = prev.endDate;
-                            // 종료일 자동 계산 (시작일 + 일수 - 1)
-                            if (date && prev.days > 0) {
-                              const start = new Date(date);
-                              const end = new Date(start);
-                              end.setDate(end.getDate() + prev.days - 1);
-                              newEndDate = end.toISOString().split('T')[0];
-                            }
-                            return { ...prev, startDate: date, endDate: newEndDate };
-                          });
-                        }}
-                        onEndDateChange={(date) => {
-                          setFormData(prev => {
-                            // 일수 자동 계산
-                            let newDays = prev.days;
-                            let newNights = prev.nights;
-                            if (prev.startDate && date) {
-                              const start = new Date(prev.startDate);
-                              const end = new Date(date);
-                              const diffTime = end.getTime() - start.getTime();
-                              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-                              newDays = diffDays;
-                              newNights = diffDays - 1;
-                            }
-                            return { ...prev, endDate: date, days: newDays, nights: newNights };
-                          });
-                        }}
-                        onDaysChange={(days) => {
-                          setFormData(prev => ({
-                            ...prev,
-                            days,
-                            nights: days > 0 ? days - 1 : 0,
-                          }));
-                        }}
+                        nights={formData.nights}
+                        days={formData.days}
                       />
-                      <p className="text-xs text-blue-700 mt-3 font-semibold">
-                        💡 캘린더에서 출발 날짜와 종료 날짜를 선택하면 여행 기간이 자동으로 계산됩니다. 온보딩 및 상품몰에 정확하게 반영됩니다.
-                      </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                          박수 *
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          value={formData.nights}
-                          onChange={(e) => {
-                            const nights = parseInt(e.target.value) || 0;
-                            setFormData(prev => {
-                              const days = nights + 1;
-                              let newEndDate = prev.endDate;
-                              // 종료일 자동 계산 (시작일 + 일수 - 1)
-                              if (prev.startDate && days > 0) {
-                                const start = new Date(prev.startDate);
-                                const end = new Date(start);
-                                end.setDate(end.getDate() + days - 1);
-                                newEndDate = end.toISOString().split('T')[0];
-                              }
-                              return { ...prev, nights, days, endDate: newEndDate };
-                            });
-                          }}
-                          className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
-                          style={{ fontSize: '18px', minHeight: '56px' }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                          일수 *
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="0"
-                          value={formData.days}
-                          onChange={(e) => {
-                            const days = parseInt(e.target.value) || 0;
-                            setFormData(prev => {
-                              const nights = days > 0 ? days - 1 : 0;
-                              let newEndDate = prev.endDate;
-                              // 종료일 자동 계산 (시작일 + 일수 - 1)
-                              if (prev.startDate && days > 0) {
-                                const start = new Date(prev.startDate);
-                                const end = new Date(start);
-                                end.setDate(end.getDate() + days - 1);
-                                newEndDate = end.toISOString().split('T')[0];
-                              }
-                              return { ...prev, days, nights, endDate: newEndDate };
-                            });
-                          }}
-                          className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
-                          style={{ fontSize: '18px', minHeight: '56px' }}
-                        />
-                      </div>
-                    </div>
+                    {/* 4. 포함 사항과 불포함 사항 */}
+                    <div className="border-t-2 pt-6 md:pt-8">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">4. 포함 사항과 불포함 사항</h2>
 
-                    {/* 추천 키워드 설정 - 마케팅 태그 (방문 국가 설정 위) */}
-                    <div className="p-4 bg-purple-50 border-2 border-purple-300 rounded-lg">
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        추천 키워드 (마케팅 태그) <span className="text-gray-500 text-sm">(최대 5개 선택)</span>
-                      </label>
-                      <p className="text-xs text-purple-700 mb-3 font-semibold">
-                        💡 선택한 키워드는 크루즈몰 검색에서 연관 검색어로 표시됩니다. 실제 검색량이 많은 키워드를 선택하세요.
-                      </p>
-                      
-                      {/* 선택된 키워드 표시 */}
-                      {formData.recommendedKeywords.length > 0 && (
-                        <div className="mb-3 p-3 bg-white rounded-lg border-2 border-purple-200">
-                          <p className="text-sm font-semibold text-gray-700 mb-2">선택된 키워드 ({formData.recommendedKeywords.length}/5):</p>
-                          <div className="flex flex-wrap gap-2">
-                            {formData.recommendedKeywords.map((keyword, index) => (
-                              <span
-                                key={index}
-                                className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium"
-                              >
-                                {keyword}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setFormData({
-                                      ...formData,
-                                      recommendedKeywords: formData.recommendedKeywords.filter((_, i) => i !== index),
-                                    });
-                                  }}
-                                  className="ml-2 text-purple-600 hover:text-purple-800"
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 드롭다운 선택 */}
-                      {formData.recommendedKeywords.length < 5 && (
-                        <div className="relative" ref={keywordDropdownRef}>
-                          <div className="relative">
+                      {/* 서비스 옵션 체크박스 */}
+                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                        <p className="text-sm font-semibold text-gray-700 mb-4">서비스 옵션</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
                             <input
-                              type="text"
-                              value={keywordSearchTerm}
-                              onChange={(e) => {
-                                setKeywordSearchTerm(e.target.value);
-                                setKeywordDropdownOpen(true);
-                              }}
-                              onFocus={() => setKeywordDropdownOpen(true)}
-                              placeholder="키워드 검색 (최대 5개 선택 가능)"
-                              className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base md:text-lg pr-12"
-                              style={{ fontSize: '18px', minHeight: '56px' }}
+                              type="checkbox"
+                              checked={hasEscort}
+                              onChange={(e) => setHasEscort(e.target.checked)}
+                              className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                             />
-                            {keywordSearchTerm && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setKeywordSearchTerm('');
-                                  setKeywordDropdownOpen(false);
+                            <span className="text-sm font-medium text-gray-700">인솔자 있음</span>
+                          </label>
+                          <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={hasLocalGuide}
+                              onChange={(e) => setHasLocalGuide(e.target.checked)}
+                              className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">현지가이드 있음</span>
+                          </label>
+                          <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={hasCruisedotStaff}
+                              onChange={(e) => setHasCruisedotStaff(e.target.checked)}
+                              className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <div className="flex items-center gap-2">
+                              <img
+                                src="/images/ai-cruise-logo.png"
+                                alt="Cruisedot"
+                                className="w-6 h-6 object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
                                 }}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors"
-                              >
-                                <FiX size={22} />
-                              </button>
-                            )}
-                          </div>
-                          {keywordDropdownOpen && filteredKeywords.length > 0 && (
-                            <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-300 rounded-lg shadow-xl max-h-72 overflow-y-auto">
-                              {filteredKeywords
-                                .filter(keyword => !formData.recommendedKeywords.includes(keyword))
-                                .map((keyword) => (
-                                  <div
-                                    key={keyword}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      if (formData.recommendedKeywords.length < 5) {
-                                        setFormData({
-                                          ...formData,
-                                          recommendedKeywords: [...formData.recommendedKeywords, keyword],
-                                        });
-                                        setKeywordSearchTerm('');
-                                        setKeywordDropdownOpen(false);
-                                      }
-                                    }}
-                                    className="px-5 py-4 md:px-6 md:py-5 cursor-pointer hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0 font-medium"
-                                    style={{ minHeight: '56px' }}
-                                  >
-                                    <div className="text-lg md:text-xl text-gray-900">{keyword}</div>
-                                  </div>
-                                ))}
+                              />
+                              <span className="text-sm font-medium text-gray-700">크루즈닷 전용 스탭 있음</span>
                             </div>
-                          )}
-                          {keywordDropdownOpen && filteredKeywords.filter(keyword => !formData.recommendedKeywords.includes(keyword)).length === 0 && (
-                            <div className="absolute z-50 w-full mt-2 bg-white border-2 border-gray-300 rounded-lg shadow-xl p-4 text-center text-gray-500">
-                              {keywordSearchTerm ? '검색 결과가 없습니다.' : '모든 키워드가 선택되었습니다.'}
-                            </div>
-                          )}
+                          </label>
+                          <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={hasTravelInsurance}
+                              onChange={(e) => setHasTravelInsurance(e.target.checked)}
+                              className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">여행자보험 있음</span>
+                          </label>
                         </div>
-                      )}
-                      {formData.recommendedKeywords.length >= 5 && (
-                        <div className="p-3 bg-yellow-100 border-2 border-yellow-300 rounded-lg text-sm text-yellow-800 font-semibold">
-                          최대 5개까지 선택 가능합니다. 키워드를 삭제하려면 위의 선택된 키워드에서 × 버튼을 클릭하세요.
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 방문 국가 설정 - 수동 등록 폼과 동일 (CountrySelector 사용) */}
-                    <div className="col-span-2 p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
-                      <CountrySelector
-                        selectedCountries={selectedCountries}
-                        onChange={setSelectedCountries}
-                        maxCount={10}
-                        label="방문 국가 설정"
-                      />
-                    </div>
-
-                    {/* 시작가 - 수동 등록 폼과 동일 */}
-                    <div>
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        시작가 (원)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.basePrice}
-                        onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
-                        className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg"
-                        style={{ fontSize: '18px', minHeight: '56px' }}
-                        placeholder="예: 1500000"
-                      />
-                    </div>
-
-                    {/* 상품 분류 설정 - 수동 등록 폼과 동일 */}
-                    <div className="col-span-2">
-                      <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                        상품 분류
-                      </label>
-                      <div className="flex flex-wrap gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isPopular}
-                            onChange={(e) => setFormData({ ...formData, isPopular: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">인기 크루즈</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isRecommended}
-                            onChange={(e) => setFormData({ ...formData, isRecommended: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">추천 크루즈</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isPremium}
-                            onChange={(e) => setFormData({ ...formData, isPremium: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">프리미엄 크루즈</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isGeniePack}
-                            onChange={(e) => setFormData({ ...formData, isGeniePack: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">지니패키지 크루즈</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isDomestic}
-                            onChange={(e) => setFormData({ ...formData, isDomestic: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">국내출발 크루즈</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isJapan}
-                            onChange={(e) => setFormData({ ...formData, isJapan: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">일본 크루즈</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.isBudget}
-                            onChange={(e) => setFormData({ ...formData, isBudget: e.target.checked })}
-                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                          />
-                          <span className="text-sm text-gray-700">알뜰 크루즈</span>
-                        </label>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* 상품 설명 */}
-                  <div>
-                    <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                      상품 설명
-                    </label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-3 md:px-5 md:py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-base md:text-lg"
-                      style={{ fontSize: '18px' }}
-                      placeholder="상품에 대한 상세 설명을 입력하세요..."
-                    />
-                  </div>
-
-                  {/* 긴급 상품 설정 */}
-                  <div className="p-4 bg-red-50 border-2 border-red-300 rounded-lg">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isUrgent}
-                        onChange={(e) => setFormData({ ...formData, isUrgent: e.target.checked })}
-                        className="w-5 h-5 text-red-600 rounded"
+                      <p className="text-sm text-gray-600 mb-4">
+                        상품에 포함된 사항과 불포함 사항을 입력하세요.
+                      </p>
+                      <IncludedExcludedEditor
+                        included={includedItems}
+                        excluded={excludedItems}
+                        onChange={(included, excluded) => {
+                          setIncludedItems(included);
+                          setExcludedItems(excluded);
+                        }}
                       />
-                      <div>
-                        <span className="text-base md:text-lg font-semibold text-red-700">
-                          🔥 긴급 상품
-                        </span>
-                        <p className="text-xs text-red-600 mt-1">
-                          체크하면 메인몰 최상단에 고정되어 표시됩니다. 우선순위가 가장 높으며 최대 3개까지 표시됩니다. 최근에 설정한 순서대로 표시됩니다.
+                    </div>
+
+                    {/* 5. 여행일정 */}
+                    <div className="border-t-2 pt-6 md:pt-8">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">5. 여행일정</h2>
+                      <p className="text-sm text-gray-600 mb-4">
+                        Day별로 일정을 구성하고, 이미지/동영상/텍스트 블록을 추가하세요. 그룹으로 저장하여 재사용할 수 있습니다.
+                      </p>
+                      <EnhancedItineraryEditor
+                        days={itineraryDays}
+                        onChange={setItineraryDays}
+                        nights={formData.nights}
+                        totalDays={formData.days}
+                        flightInfo={flightInfo}
+                      />
+                    </div>
+
+                    {/* 6. 요금표 */}
+                    <div className="border-t-2 pt-6 md:pt-8">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">6. 요금표</h2>
+                      <div className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-sm font-medium text-gray-700">
+                            출발일 (연령 범위 자동 계산용)
+                          </label>
+                          {formData.startDate && formData.startDate !== departureDate && (
+                            <button
+                              type="button"
+                              onClick={() => setDepartureDate(formData.startDate)}
+                              className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1"
+                            >
+                              <span>📅</span>
+                              <span>여행기간에서 가져오기 ({formData.startDate})</span>
+                            </button>
+                          )}
+                        </div>
+                        <input
+                          type="date"
+                          value={departureDate || ''}
+                          onChange={(e) => setDepartureDate(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          출발일을 설정하면 만2-11세, 만2세미만의 생년월일 범위가 자동으로 계산됩니다.
+                          {formData.startDate && (
+                            <span className="text-blue-600 font-semibold ml-2">
+                              💡 여행기간 출발일: {formData.startDate}
+                            </span>
+                          )}
                         </p>
                       </div>
-                    </label>
-                  </div>
-
-                  {/* 주력 상품 설정 */}
-                  <div className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isMainProduct}
-                        onChange={(e) => setFormData({ ...formData, isMainProduct: e.target.checked })}
-                        className="w-5 h-5 text-blue-600 rounded"
+                      <PricingTableEditor
+                        rows={pricingRows}
+                        onChange={setPricingRows}
+                        departureDate={departureDate || undefined}
                       />
-                      <div>
-                        <span className="text-base md:text-lg font-semibold text-blue-700">
-                          ⭐ 주력 상품
-                        </span>
-                        <p className="text-xs text-blue-600 mt-1">
-                          체크하면 메인몰 두 번째에 고정되어 표시됩니다. 긴급 상품 다음 우선순위이며 최대 3개까지 표시됩니다. 최근에 설정한 순서대로 표시됩니다.
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-
-                  {/* 판매 상태 */}
-                  <div className="p-4 bg-orange-50 border-2 border-orange-300 rounded-lg">
-                    <label className="block text-base md:text-lg font-semibold text-gray-800 mb-3">
-                      판매 상태 <span className="text-red-600">*</span>
-                    </label>
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="saleStatus"
-                          value="판매중"
-                          checked={formData.saleStatus === '판매중'}
-                          onChange={(e) => setFormData({ ...formData, saleStatus: e.target.value as '판매중' | '판매완료' | '판매중지' })}
-                          className="w-5 h-5 text-green-600"
-                        />
-                        <span className="text-base md:text-lg font-semibold text-green-700">
-                          판매중
-                        </span>
-                        <span className="text-sm text-gray-600">- 크루즈몰에 표시됨</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="saleStatus"
-                          value="판매완료"
-                          checked={formData.saleStatus === '판매완료'}
-                          onChange={(e) => setFormData({ ...formData, saleStatus: e.target.value as '판매중' | '판매완료' | '판매중지' })}
-                          className="w-5 h-5 text-gray-600"
-                        />
-                        <span className="text-base md:text-lg font-semibold text-gray-700">
-                          판매완료
-                        </span>
-                        <span className="text-sm text-gray-600">- 크루즈몰에서 숨김</span>
-                      </label>
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="saleStatus"
-                          value="판매중지"
-                          checked={formData.saleStatus === '판매중지'}
-                          onChange={(e) => setFormData({ ...formData, saleStatus: e.target.value as '판매중' | '판매완료' | '판매중지' })}
-                          className="w-5 h-5 text-red-600"
-                        />
-                        <span className="text-base md:text-lg font-semibold text-red-700">
-                          판매중지
-                        </span>
-                        <span className="text-sm text-gray-600">- 크루즈몰에서 숨김</span>
-                      </label>
-                    </div>
-                    <p className="text-xs text-orange-700 mt-3 font-semibold">
-                      💡 판매중인 상품만 크루즈몰에 표시됩니다. 판매완료나 판매중지로 설정하면 메인몰에서 자동으로 내려갑니다.
-                    </p>
                     </div>
 
-                  {/* 일정 패턴 편집기 */}
-                  <div className="border-t-2 pt-6 md:pt-8">
-                    <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
-                      <p className="text-base md:text-lg font-bold text-yellow-900 mb-2">
-                        ⚠️ 중요: 방문 국가 설정 (온보딩 연결 필수)
+                    {/* 7. 환불/취소 규정 */}
+                    <div className="border-t-2 pt-6 md:pt-8">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">7. 환불/취소 규정</h2>
+                      <p className="text-sm text-gray-600 mb-4">
+                        환불 및 취소 규정을 입력하세요. 그룹으로 저장하여 재사용할 수 있습니다.
                       </p>
-                      <ul className="text-sm md:text-base text-yellow-800 space-y-1 list-disc list-inside">
-                        <li>각 일정의 <strong>국가(country)</strong> 필드를 반드시 선택해주세요.</li>
-                        <li>방문 국가 정보는 검색 기능과 크루즈 가이드 지니 AI 날씨 정보에 사용됩니다.</li>
-                        <li>온보딩 시 자동으로 방문 국가가 추출되어 사용자에게 반영됩니다.</li>
-                        <li>기항지(PortVisit), 승선지(Embarkation), 하선지(Disembarkation) 모두 국가를 선택해야 합니다.</li>
-                      </ul>
+                      <RefundPolicyEditor
+                        content={refundPolicy}
+                        onChange={setRefundPolicy}
+                      />
                     </div>
-                    <ItineraryPatternEditor
-                      value={formData.itineraryPattern}
-                      onChange={(pattern) => setFormData({ ...formData, itineraryPattern: pattern })}
-                    />
-                  </div>
 
-                  {/* 수동 등록 폼과 동일한 추가 섹션들 */}
-                  
-                  {/* 2. 상세페이지 구성 */}
-                  <div className="border-t-2 pt-6 md:pt-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">2. 상세페이지 구성</h2>
-                    <p className="text-sm text-gray-600 mb-4">
-                      이미지, 동영상, 텍스트 블록을 자유롭게 추가하여 상세페이지를 구성하세요.
-                    </p>
-                    <ProductDetailEditor blocks={detailBlocks} onChange={setDetailBlocks} productCode={editingProduct?.productCode || formData.productCode} />
-                  </div>
-
-                  {/* 3. 항공 정보 */}
-                  <div className="border-t-2 pt-6 md:pt-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">3. 항공 정보</h2>
-                    <p className="text-sm text-gray-600 mb-4">
-                      출국 및 귀국 항공편 정보를 입력하세요.
-                    </p>
-                    <FlightInfoEditor
-                      flightInfo={flightInfo}
-                      onChange={setFlightInfo}
-                      startDate={formData.startDate}
-                      endDate={formData.endDate}
-                      nights={formData.nights}
-                      days={formData.days}
-                    />
-                  </div>
-
-                  {/* 4. 포함 사항과 불포함 사항 */}
-                  <div className="border-t-2 pt-6 md:pt-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">4. 포함 사항과 불포함 사항</h2>
-                    
-                    {/* 서비스 옵션 체크박스 */}
-                    <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
-                      <p className="text-sm font-semibold text-gray-700 mb-4">서비스 옵션</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+                    {/* 8. 문의 옵션 */}
+                    <div id="section-8-contact-options" className="border-t-2 pt-6 md:pt-8">
+                      <h2 className="text-xl font-bold text-gray-800 mb-4">8. 문의 옵션</h2>
+                      <p className="text-sm text-gray-600 mb-4">
+                        상품 상세 페이지에 표시될 문의 옵션을 선택하세요. 각 옵션을 개별적으로 활성화/비활성화할 수 있습니다.
+                      </p>
+                      <div className="space-y-4">
+                        <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={hasEscort}
-                            onChange={(e) => setHasEscort(e.target.checked)}
+                            checked={contactOptions.payment}
+                            onChange={(e) => setContactOptions({ ...contactOptions, payment: e.target.checked })}
                             className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                           />
-                          <span className="text-sm font-medium text-gray-700">인솔자 있음</span>
-                        </label>
-                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={hasLocalGuide}
-                            onChange={(e) => setHasLocalGuide(e.target.checked)}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                          <span className="text-sm font-medium text-gray-700">현지가이드 있음</span>
-                        </label>
-                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={hasCruisedotStaff}
-                            onChange={(e) => setHasCruisedotStaff(e.target.checked)}
-                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                          />
-                          <div className="flex items-center gap-2">
-                            <img 
-                              src="/images/ai-cruise-logo.png" 
-                              alt="Cruisedot" 
-                              className="w-6 h-6 object-contain"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                            <span className="text-sm font-medium text-gray-700">크루즈닷 전용 스탭 있음</span>
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-800">💳 결제하기</div>
+                            <div className="text-sm text-gray-600">고객이 직접 결제할 수 있는 버튼을 표시합니다.</div>
                           </div>
                         </label>
-                        <label className="flex items-center gap-3 p-3 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+                        <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
                           <input
                             type="checkbox"
-                            checked={hasTravelInsurance}
-                            onChange={(e) => setHasTravelInsurance(e.target.checked)}
+                            checked={contactOptions.phoneCall}
+                            onChange={(e) => setContactOptions({ ...contactOptions, phoneCall: e.target.checked })}
                             className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                           />
-                          <span className="text-sm font-medium text-gray-700">여행자보험 있음</span>
-                        </label>
-                      </div>
-                    </div>
-
-                    <p className="text-sm text-gray-600 mb-4">
-                      상품에 포함된 사항과 불포함 사항을 입력하세요.
-                    </p>
-                    <IncludedExcludedEditor
-                      included={includedItems}
-                      excluded={excludedItems}
-                      onChange={(included, excluded) => {
-                        setIncludedItems(included);
-                        setExcludedItems(excluded);
-                      }}
-                    />
-                  </div>
-
-                  {/* 5. 여행일정 */}
-                  <div className="border-t-2 pt-6 md:pt-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">5. 여행일정</h2>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Day별로 일정을 구성하고, 이미지/동영상/텍스트 블록을 추가하세요. 그룹으로 저장하여 재사용할 수 있습니다.
-                    </p>
-                    <EnhancedItineraryEditor
-                      days={itineraryDays}
-                      onChange={setItineraryDays}
-                      nights={formData.nights}
-                      totalDays={formData.days}
-                      flightInfo={flightInfo}
-                    />
-                  </div>
-
-                  {/* 6. 요금표 */}
-                  <div className="border-t-2 pt-6 md:pt-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">6. 요금표</h2>
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm font-medium text-gray-700">
-                          출발일 (연령 범위 자동 계산용)
-                        </label>
-                        {formData.startDate && formData.startDate !== departureDate && (
-                          <button
-                            type="button"
-                            onClick={() => setDepartureDate(formData.startDate)}
-                            className="text-xs px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1"
-                          >
-                            <span>📅</span>
-                            <span>여행기간에서 가져오기 ({formData.startDate})</span>
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        type="date"
-                        value={departureDate || ''}
-                        onChange={(e) => setDepartureDate(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        출발일을 설정하면 만2-11세, 만2세미만의 생년월일 범위가 자동으로 계산됩니다.
-                        {formData.startDate && (
-                          <span className="text-blue-600 font-semibold ml-2">
-                            💡 여행기간 출발일: {formData.startDate}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                    <PricingTableEditor
-                      rows={pricingRows}
-                      onChange={setPricingRows}
-                      departureDate={departureDate || undefined}
-                    />
-                  </div>
-
-                  {/* 7. 환불/취소 규정 */}
-                  <div className="border-t-2 pt-6 md:pt-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">7. 환불/취소 규정</h2>
-                    <p className="text-sm text-gray-600 mb-4">
-                      환불 및 취소 규정을 입력하세요. 그룹으로 저장하여 재사용할 수 있습니다.
-                    </p>
-                    <RefundPolicyEditor
-                      content={refundPolicy}
-                      onChange={setRefundPolicy}
-                    />
-                  </div>
-
-                  {/* 8. 문의 옵션 */}
-                  <div id="section-8-contact-options" className="border-t-2 pt-6 md:pt-8">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">8. 문의 옵션</h2>
-                    <p className="text-sm text-gray-600 mb-4">
-                      상품 상세 페이지에 표시될 문의 옵션을 선택하세요. 각 옵션을 개별적으로 활성화/비활성화할 수 있습니다.
-                    </p>
-                    <div className="space-y-4">
-                      <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={contactOptions.payment}
-                          onChange={(e) => setContactOptions({ ...contactOptions, payment: e.target.checked })}
-                          className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800">💳 결제하기</div>
-                          <div className="text-sm text-gray-600">고객이 직접 결제할 수 있는 버튼을 표시합니다.</div>
-                        </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={contactOptions.phoneCall}
-                          onChange={(e) => setContactOptions({ ...contactOptions, phoneCall: e.target.checked })}
-                          className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800">📞 전화상담</div>
-                          <div className="text-sm text-gray-600">고객이 전화로 직접 상담을 받을 수 있습니다.</div>
-                        </div>
-                      </label>
-                      <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={contactOptions.aiChatbot}
-                          onChange={(e) => setContactOptions({ ...contactOptions, aiChatbot: e.target.checked })}
-                          className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                        />
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800 flex items-center gap-2">
-                            <img 
-                              src="/images/ai-cruise-logo.png" 
-                              alt="AI 지니" 
-                              className="w-5 h-5 object-contain"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                            AI 지니 채팅봇
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-800">📞 전화상담</div>
+                            <div className="text-sm text-gray-600">고객이 전화로 직접 상담을 받을 수 있습니다.</div>
                           </div>
-                          <div className="text-sm text-gray-600">AI 지니 채팅봇을 통해 실시간으로 상담을 받을 수 있습니다.</div>
-                        </div>
-                      </label>
+                        </label>
+                        <label className="flex items-center gap-3 p-4 bg-white rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={contactOptions.aiChatbot}
+                            onChange={(e) => setContactOptions({ ...contactOptions, aiChatbot: e.target.checked })}
+                            className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                          />
+                          <div className="flex-1">
+                            <div className="font-semibold text-gray-800 flex items-center gap-2">
+                              <img
+                                src="/images/ai-cruise-logo.png"
+                                alt="AI 지니"
+                                className="w-5 h-5 object-contain"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                              AI 지니 채팅봇
+                            </div>
+                            <div className="text-sm text-gray-600">AI 지니 채팅봇을 통해 실시간으로 상담을 받을 수 있습니다.</div>
+                          </div>
+                        </label>
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* 저장하기 버튼 - 8번 섹션 끝에 표시 */}
-                  <div className="mt-6 pt-6 border-t-2 border-gray-300">
-                    <div className="flex gap-4 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setIsModalOpen(false)}
-                        className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold text-base transition-colors"
-                      >
-                        취소
-                      </button>
-                      {(editingProduct?.productCode || formData.productCode) && (
+
+                    {/* 저장하기 버튼 - 8번 섹션 끝에 표시 */}
+                    <div className="mt-6 pt-6 border-t-2 border-gray-300">
+                      <div className="flex gap-4 justify-end">
                         <button
                           type="button"
-                          onClick={async () => {
-                            const productCode = editingProduct?.productCode || formData.productCode;
-                            if (productCode) {
-                              // 먼저 상품이 존재하는지 확인
-                              try {
-                                const response = await fetch(`/api/public/products?limit=1000`);
-                                const data = await response.json();
-                                if (data.ok && Array.isArray(data.products)) {
-                                  const product = data.products.find((p: any) => p.productCode === productCode);
-                                  if (product) {
-                                    window.open(`/products/${productCode}`, '_blank');
+                          onClick={() => setIsModalOpen(false)}
+                          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold text-base transition-colors"
+                        >
+                          취소
+                        </button>
+                        {(editingProduct?.productCode || formData.productCode) && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const productCode = editingProduct?.productCode || formData.productCode;
+                              if (productCode) {
+                                // 먼저 상품이 존재하는지 확인
+                                try {
+                                  const response = await fetch(`/api/public/products?limit=1000`);
+                                  const data = await response.json();
+                                  if (data.ok && Array.isArray(data.products)) {
+                                    const product = data.products.find((p: any) => p.productCode === productCode);
+                                    if (product) {
+                                      window.open(`/products/${productCode}`, '_blank');
+                                    } else {
+                                      showError('상품이 아직 쇼핑몰에 게시되지 않았습니다. 먼저 저장하고 AffiliateProduct를 생성해주세요.');
+                                    }
                                   } else {
-                                    showError('상품이 아직 쇼핑몰에 게시되지 않았습니다. 먼저 저장하고 AffiliateProduct를 생성해주세요.');
+                                    window.open(`/products/${productCode}`, '_blank');
                                   }
-                                } else {
+                                } catch (error) {
+                                  console.error('미리보기 확인 중 오류:', error);
                                   window.open(`/products/${productCode}`, '_blank');
                                 }
-                              } catch (error) {
-                                console.error('미리보기 확인 중 오류:', error);
-                                window.open(`/products/${productCode}`, '_blank');
+                              } else {
+                                showError('상품 코드가 없어서 미리보기를 할 수 없습니다.');
                               }
-                            } else {
-                              showError('상품 코드가 없어서 미리보기를 할 수 없습니다.');
-                            }
-                          }}
-                          className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold text-base transition-colors"
+                            }}
+                            className="flex items-center gap-2 px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-semibold text-base transition-colors"
+                          >
+                            <FiEye size={20} />
+                            미리보기
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md text-base transition-colors"
                         >
-                          <FiEye size={20} />
-                          미리보기
+                          <FiSave size={20} />
+                          저장하기
                         </button>
-                      )}
-                      <button
-                        type="submit"
-                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md text-base transition-colors"
-                      >
-                        <FiSave size={20} />
-                        저장하기
-                      </button>
+                      </div>
                     </div>
-                  </div>
                   </div>
                 </div>
               </form>

@@ -56,7 +56,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
         const link = await prisma.affiliateLink.findUnique({
           where: { id: linkId },
           include: {
-            manager: {
+            AffiliateProfile_AffiliateLink_managerIdToAffiliateProfile: {
               select: {
                 id: true,
                 affiliateCode: true,
@@ -64,7 +64,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
                 userId: true,
               },
             },
-            agent: {
+            AffiliateProfile_AffiliateLink_agentIdToAffiliateProfile: {
               select: {
                 id: true,
                 affiliateCode: true,
@@ -84,12 +84,12 @@ export async function backupLinkData(linkIds: number[]): Promise<{
         const leads = await prisma.affiliateLead.findMany({
           where: { linkId },
           include: {
-            interactions: {
+            AffiliateInteraction: {
               include: {
-                media: true,
+                AffiliateMedia: true,
               },
             },
-            sales: true,
+            AffiliateSale: true,
           },
         });
 
@@ -97,7 +97,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
         const sales = await prisma.affiliateSale.findMany({
           where: { linkId },
           include: {
-            ledgerEntries: true,
+            CommissionLedger: true,
           },
         });
 
@@ -130,90 +130,90 @@ export async function backupLinkData(linkIds: number[]): Promise<{
         const passportSubmissions =
           userIds.length > 0 || leadPhones.length > 0
             ? await prisma.passportSubmission.findMany({
-                where: {
-                  OR: [
-                    ...(userIds.length > 0
-                      ? [
-                          {
-                            userId: {
-                              in: userIds,
+              where: {
+                OR: [
+                  ...(userIds.length > 0
+                    ? [
+                      {
+                        userId: {
+                          in: userIds,
+                        },
+                      },
+                    ]
+                    : []),
+                  ...(leadPhones.length > 0
+                    ? [
+                      {
+                        guests: {
+                          some: {
+                            phone: {
+                              in: leadPhones,
                             },
                           },
-                        ]
-                      : []),
-                    ...(leadPhones.length > 0
-                      ? [
-                          {
-                            guests: {
-                              some: {
-                                phone: {
-                                  in: leadPhones,
-                                },
-                              },
-                            },
-                          },
-                        ]
-                      : []),
-                  ],
-                },
-                include: {
-                  guests: true,
-                },
-              })
+                        },
+                      },
+                    ]
+                    : []),
+                ] as any,
+              },
+              include: {
+                PassportSubmissionGuest: true,
+              },
+            })
             : [];
 
         // 관련 계약서 조회 (프로필 ID로 초대한 계약서)
         const contracts = profileIds.length > 0
           ? await prisma.affiliateContract.findMany({
-              where: {
-                invitedByProfileId: {
-                  in: profileIds,
+            where: {
+              invitedByProfileId: {
+                in: profileIds,
+              },
+            },
+            include: {
+              AffiliateDocument: {
+                include: {
+                  AffiliateMedia: true,
                 },
               },
-              include: {
-                documents: {
-                  include: {
-                    media: true,
-                  },
-                },
-              },
-            })
+            },
+          })
           : [];
 
         // 상호작용 조회
         const interactionIds = leads.flatMap((lead) =>
-          lead.interactions.map((i) => i.id)
+          lead.AffiliateInteraction.map((i) => i.id)
         );
         const interactions =
           interactionIds.length > 0
             ? await prisma.affiliateInteraction.findMany({
-                where: {
-                  id: {
-                    in: interactionIds,
-                  },
+              where: {
+                id: {
+                  in: interactionIds,
                 },
-                include: {
-                  media: true,
-                },
-              })
+              },
+              include: {
+                AffiliateMedia: true,
+              },
+            })
             : [];
 
         // 미디어 조회
         const mediaIds = [
-          ...interactions.flatMap((i) => i.media.map((m) => m.id)),
+          ...interactions.flatMap((i) => i.AffiliateMedia.map((m) => m.id)),
           ...contracts.flatMap((c) =>
-            c.documents.flatMap((d) => d.media.map((m) => m.id))
+            c.AffiliateDocument.flatMap((d) => d.AffiliateMedia.map((m) => m.id))
           ),
         ];
         const media =
           mediaIds.length > 0
             ? await prisma.affiliateMedia.findMany({
-                where: {
-                  id: {
-                    in: mediaIds,
-                  },
+              where: {
+                id: {
+                  in: mediaIds,
                 },
-              })
+              },
+            })
             : [];
 
         // 백업 데이터 구성
@@ -225,9 +225,9 @@ export async function backupLinkData(linkIds: number[]): Promise<{
           agentId: link.agentId,
           profileId: link.managerId || link.agentId || null,
           profileCode:
-            link.manager?.affiliateCode || link.agent?.affiliateCode || null,
+            link.AffiliateProfile_AffiliateLink_managerIdToAffiliateProfile?.affiliateCode || link.AffiliateProfile_AffiliateLink_agentIdToAffiliateProfile?.affiliateCode || null,
           backupDate: new Date().toISOString(),
-          leads: leads.map((lead) => ({
+          leads: leads.map((lead: any) => ({
             id: lead.id,
             customerName: lead.customerName,
             customerPhone: lead.customerPhone,
@@ -240,7 +240,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
             createdAt: lead.createdAt,
             updatedAt: lead.updatedAt,
           })),
-          sales: sales.map((sale) => ({
+          sales: sales.map((sale: any) => ({
             id: sale.id,
             externalOrderCode: sale.externalOrderCode,
             productCode: sale.productCode,
@@ -256,7 +256,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
             createdAt: sale.createdAt,
             updatedAt: sale.updatedAt,
           })),
-          passportSubmissions: passportSubmissions.map((sub) => ({
+          passportSubmissions: passportSubmissions.map((sub: any) => ({
             id: sub.id,
             userId: sub.userId,
             tripId: sub.tripId,
@@ -264,7 +264,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
             isSubmitted: sub.isSubmitted,
             submittedAt: sub.submittedAt,
             driveFolderUrl: sub.driveFolderUrl,
-            guests: sub.guests.map((g) => ({
+            guests: sub.PassportSubmissionGuest.map((g) => ({
               name: g.name,
               phone: g.phone,
               passportNumber: g.passportNumber,
@@ -275,7 +275,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
             createdAt: sub.createdAt,
             updatedAt: sub.updatedAt,
           })),
-          contracts: contracts.map((contract) => ({
+          contracts: contracts.map((contract: any) => ({
             id: contract.id,
             userId: contract.userId,
             name: contract.name,
@@ -290,7 +290,7 @@ export async function backupLinkData(linkIds: number[]): Promise<{
             submittedAt: contract.submittedAt,
             reviewedAt: contract.reviewedAt,
             contractSignedAt: contract.contractSignedAt,
-            documents: contract.documents.map((doc) => ({
+            documents: contract.AffiliateDocument.map((doc) => ({
               documentType: doc.documentType,
               status: doc.status,
               filePath: doc.filePath,

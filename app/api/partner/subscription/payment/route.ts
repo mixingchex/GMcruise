@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     const params = {
       cmd: 'payrequest',
       userid: payappUserid,
-      goodname: `${goodname} - ${sessionUser.name || sessionUser.mallUserId || '정액제 판매원'}`,
+      goodname: `${goodname} - ${sessionUser.name || (sessionUser as any).mallUserId || '정액제 판매원'}`,
       price: price,
       recvphone: (sessionUser.phone || '').replace(/[^0-9]/g, ''), // 숫자만 추출
       memo: `${goodname} 결제`,
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       var1: String(contract.id), // 계약서 ID
       var2: 'SUBSCRIPTION_AGENT', // 계약서 타입
       smsuse: 'n', // SMS 발송 안함
-      returnurl: `${baseUrl}/partner/${sessionUser.mallUserId || sessionUser.phone}/dashboard?payment=success`,
+      returnurl: `${baseUrl}/partner/${(sessionUser as any).mallUserId || sessionUser.phone}/dashboard?payment=success`,
       openpaytype: 'card', // 카드번호 입력 결제만
       checkretry: 'y', // feedbackurl 재시도
       skip_cstpage: 'y', // 매출전표 페이지 이동 안함

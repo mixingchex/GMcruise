@@ -1674,38 +1674,40 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         </div>
 
         {/* B2B 랜딩페이지 링크 섹션 */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6 border border-blue-100">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span className="text-2xl">🔗</span>
-                나만의 B2B 유입 랜딩페이지
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                이 링크를 통해 들어온 고객은 자동으로 'B2B 유입'으로 분류됩니다.
-              </p>
+        {isBranchManager && (
+          <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6 border border-blue-100">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-2xl">🔗</span>
+                  나만의 B2B 유입 랜딩페이지
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  이 링크를 통해 들어온 고객은 자동으로 'B2B 유입'으로 분류됩니다.
+                </p>
+              </div>
+              <div className="flex gap-2 w-full md:w-auto">
+                <button
+                  onClick={copyB2BLink}
+                  className="flex-1 md:flex-none px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-2 font-medium transition-colors"
+                >
+                  <FiLink /> 링크 복사
+                </button>
+                <a
+                  href={b2bLandingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2 font-medium transition-colors"
+                >
+                  <FiEye /> 미리보기
+                </a>
+              </div>
             </div>
-            <div className="flex gap-2 w-full md:w-auto">
-              <button
-                onClick={copyB2BLink}
-                className="flex-1 md:flex-none px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-2 font-medium transition-colors"
-              >
-                <FiLink /> 링크 복사
-              </button>
-              <a
-                href={b2bLandingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2 font-medium transition-colors"
-              >
-                <FiEye /> 미리보기
-              </a>
+            <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 break-all text-sm text-gray-600 font-mono">
+              {b2bLandingUrl}
             </div>
           </div>
-          <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 break-all text-sm text-gray-600 font-mono">
-            {b2bLandingUrl}
-          </div>
-        </div>
+        )}
 
         {/* 통계 카드 - 모바일 최적화 */}
         {loadingStats ? (
@@ -1901,8 +1903,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 <span className="text-xs font-bold md:text-sm">B2B 유입<br />랜딩</span>
               </button>
             )}
-            {/* 이미지 관리 (대리점장 전용) */}
-            {isBranchManager && (
+            {/* 이미지 관리 (대리점장 및 판매원) */}
+            {(isBranchManager || isSalesAgent) && (
               <button
                 onClick={() => router.push(`${partnerBase}/images`)}
                 className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 p-4 text-center transition-all hover:shadow-md md:p-6 text-white"

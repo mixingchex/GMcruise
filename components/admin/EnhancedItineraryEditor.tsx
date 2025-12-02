@@ -3,15 +3,20 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown, FiSave, FiFolder, FiImage, FiVideo, FiFileText, FiX, FiSearch, FiUpload } from 'react-icons/fi';
+import { useState, useEffect, useMemo } from 'react';
+import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown, FiSave, FiFolder, FiImage, FiVideo, FiFileText, FiX, FiSearch, FiUpload, FiMapPin } from 'react-icons/fi';
 import { ContentBlock } from './ProductDetailEditor';
+import countries from '@/data/countries.json';
 
 export interface EnhancedItineraryDay {
   day: number;
   emoji?: string; // 왼쪽 이모티콘
-  // 관광지 도착지
-  arrivalLocation?: string; // 관광지 도착지 텍스트
+  // 관광지 도착지 (크루즈 가이드 지니 연동)
+  arrivalLocation?: string; // 관광지 도착지 텍스트 (한국어 도시명)
+  arrivalCountry?: string; // 도착지 국가코드 (예: JP, TW, VN)
+  arrivalCountryName?: string; // 도착지 국가명 (예: 일본, 대만, 베트남)
+  portArrivalTime?: string; // 입항 시간 (HH:MM 형식) - 크루즈 가이드 지니 내일예정에 표시
+  portDepartureTime?: string; // 출항 시간 (HH:MM 형식)
   // 일정 시작
   scheduleStartTime?: string; // 시간
   scheduleStartTitle?: string; // 일정제목 텍스트
@@ -97,6 +102,57 @@ export default function EnhancedItineraryEditor({
   const MEAL_TYPES: Array<'선상식' | '호텔식' | '현지식' | '정찬식' | '기내식' | '자유식' | '한식'> = [
     '선상식', '호텔식', '현지식', '정찬식', '기내식', '자유식', '한식'
   ];
+
+  // 도착지 옵션 (국가 + 지역) - countries.json에서 생성
+  const destinationOptions = useMemo(() => {
+    const options: { value: string; label: string; country: string; countryCode: string; city: string }[] = [];
+
+    // 특수 옵션 추가
+    options.push({ value: 'sea', label: '🚢 해상 (종일 항해)', country: '', countryCode: '', city: '해상' });
+
+    (countries as any[]).forEach(cont => {
+      (cont?.countries || []).forEach((c: any) => {
+        const countryName = c?.name;
+        const countryCode = c?.code || '';
+        if (!countryName) return;
+
+        // "일본 (Japan)" 형식에서 한국어 이름만 추출
+        const koreanCountry = countryName.split(' (')[0].trim();
+
+        // 지역이 있는 경우
+        if (Array.isArray(c?.regions)) {
+          c.regions.forEach((r: string) => {
+            // "후쿠오카 (Fukuoka)" 형식에서 한국어만 추출
+            const koreanCity = r.split(' (')[0].trim();
+            options.push({
+              value: `${koreanCountry}-${koreanCity}`,
+              label: `${koreanCountry} - ${koreanCity}`,
+              country: koreanCountry,
+              countryCode: countryCode,
+              city: koreanCity
+            });
+          });
+        }
+
+        // 국가만 있는 옵션도 추가
+        options.push({
+          value: koreanCountry,
+          label: koreanCountry,
+          country: koreanCountry,
+          countryCode: countryCode,
+          city: koreanCountry
+        });
+      });
+    });
+
+    // 중복 제거
+    const map = new Map<string, typeof options[0]>();
+    options.forEach(o => map.set(o.value, o));
+    return Array.from(map.values());
+  }, []);
+
+  // 도착지 검색 상태
+  const [destinationSearch, setDestinationSearch] = useState<{ [key: number]: string }>({});
 
   // 크루즈정보사진 폴더 목록 로드
   useEffect(() => {
@@ -883,18 +939,122 @@ export default function EnhancedItineraryEditor({
                       </div>
                     </div>
 
-                    {/* 관광지 도착지 */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        관광지 도착지
-                      </label>
-                      <input
-                        type="text"
-                        value={day.arrivalLocation || ''}
-                        onChange={(e) => updateDay(day.day, { arrivalLocation: e.target.value })}
-                        placeholder="예: 미국-싯카(SIT)"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      />
+                    {/* 관광지 도착지 (드롭다운) - 크루즈 가이드 지니 연동 */}
+                    <div className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FiMapPin className="text-blue-600" size={18} />
+                        <label className="text-sm font-semibold text-blue-800">
+                          기항지 정보 (크루즈 가이드 지니 연동)
+                        </label>
+                      </div>
+                      <p className="text-xs text-blue-600 mb-3">
+                        이 정보는 크루즈 가이드 지니 "내일 예정"에 자동으로 표시됩니다.
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* 도착지 선택 (드롭다운) */}
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            도착지 선택 <span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={destinationSearch[day.day] ?? day.arrivalLocation ?? ''}
+                              onChange={(e) => {
+                                setDestinationSearch({ ...destinationSearch, [day.day]: e.target.value });
+                              }}
+                              placeholder="도시명 검색 (예: 후쿠오카, 지룽, 다낭...)"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                            {destinationSearch[day.day] && (
+                              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                {destinationOptions
+                                  .filter(opt =>
+                                    opt.label.toLowerCase().includes((destinationSearch[day.day] || '').toLowerCase()) ||
+                                    opt.city.toLowerCase().includes((destinationSearch[day.day] || '').toLowerCase())
+                                  )
+                                  .slice(0, 15)
+                                  .map(opt => (
+                                    <button
+                                      key={opt.value}
+                                      type="button"
+                                      onClick={() => {
+                                        updateDay(day.day, {
+                                          arrivalLocation: opt.city,
+                                          arrivalCountry: opt.countryCode,
+                                          arrivalCountryName: opt.country
+                                        });
+                                        setDestinationSearch({ ...destinationSearch, [day.day]: '' });
+                                      }}
+                                      className="w-full px-3 py-2 text-left hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
+                                    >
+                                      <span className="font-medium">{opt.label}</span>
+                                      {opt.countryCode && (
+                                        <span className="ml-2 text-xs text-gray-500">({opt.countryCode})</span>
+                                      )}
+                                    </button>
+                                  ))}
+                                {destinationOptions.filter(opt =>
+                                  opt.label.toLowerCase().includes((destinationSearch[day.day] || '').toLowerCase())
+                                ).length === 0 && (
+                                  <div className="px-3 py-2 text-sm text-gray-500">
+                                    검색 결과가 없습니다
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {/* 선택된 도착지 표시 */}
+                          {day.arrivalLocation && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 text-white rounded-full text-sm">
+                                📍 {day.arrivalCountryName ? `${day.arrivalCountryName} - ` : ''}{day.arrivalLocation}
+                                {day.arrivalCountry && <span className="text-blue-200">({day.arrivalCountry})</span>}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateDay(day.day, {
+                                  arrivalLocation: '',
+                                  arrivalCountry: '',
+                                  arrivalCountryName: ''
+                                })}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                초기화
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 입항 시간 */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            입항 시간
+                          </label>
+                          <input
+                            type="time"
+                            value={day.portArrivalTime || ''}
+                            onChange={(e) => updateDay(day.day, { portArrivalTime: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">크루즈가 기항지에 도착하는 시간</p>
+                        </div>
+
+                        {/* 출항 시간 */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            출항 시간
+                          </label>
+                          <input
+                            type="time"
+                            value={day.portDepartureTime || ''}
+                            onChange={(e) => updateDay(day.day, { portDepartureTime: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">크루즈가 기항지에서 출발하는 시간</p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* 일정 시작 */}

@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
 
     // 이미지 캐시 확인
     if (!refresh && imageCache && imageCache.folderId === targetFolderId && Date.now() - imageCache.timestamp < CACHE_TTL) {
-      console.log('[Image List] Returning cached data');
+
       return NextResponse.json({
         ...imageCache.data,
         folders,
@@ -220,15 +220,13 @@ export async function POST(req: NextRequest) {
     // 권한 체크
     const canManageFolders = authResult.isSuperAdmin || authResult.isBranchManager;
 
-    // 폴더 이름 수정은 관리자/대리점장만 가능
-    if (action === 'renameFolder' && !canManageFolders) {
+    // 폴더 이름 수정, 생성, 파일 이동은 관리자/대리점장만 가능
+    if ((action === 'renameFolder' || action === 'createFolder' || action === 'moveFile') && !canManageFolders) {
       return NextResponse.json(
-        { ok: false, message: '폴더 이름 수정은 관리자 또는 대리점장만 가능합니다.' },
+        { ok: false, message: '폴더 관리 및 파일 이동은 관리자 또는 대리점장만 가능합니다.' },
         { status: 403 }
       );
     }
-
-    // 폴더 생성, 파일 이동은 판매원도 가능 (별도 체크 없음)
 
     // Google Drive 이미지 루트 폴더 ID 가져오기
     const { getDriveFolderId } = await import('@/lib/config/drive-config');
@@ -361,7 +359,7 @@ export async function DELETE(req: NextRequest) {
       const fsPromises = await import('fs/promises');
       const fs = await import('fs');
       const pathModule = await import('path');
-      
+
       const folder = searchParams.get('folder') || 'images';
       const imageLibraryDir = pathModule.join(process.cwd(), 'public', 'image-library');
       const targetDir = pathModule.join(imageLibraryDir, folder);

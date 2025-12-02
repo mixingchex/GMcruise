@@ -17,6 +17,8 @@ import { existsSync } from 'fs';
 
 import { join } from 'path';
 
+const targetFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || 'root';
+
 
 
 // GET: 문서 목록 조회
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest) {
 
     try {
       // 판매원별 폴더 구조로 저장
-      const fileType = documentType === 'ID_CARD' ? 'idCard' : 'bankbook';
+      const fileType = documentType === 'idCard' ? 'idCard' : 'bankbook';
       const backupResult = await uploadAffiliateInfoFile(
         session.userId,
         buffer,

@@ -127,6 +127,7 @@ export default function PublicFooter() {
                   className="mt-4 inline-flex items-center gap-2 bg-[#D4AF37] text-[#051C2C] px-6 py-3 rounded-lg hover:bg-yellow-500 font-semibold transition-colors cursor-pointer shadow-md"
                 >
                   {footerData.customerCenter.consultButton.icon ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={footerData.customerCenter.consultButton.icon} alt="" className="w-5 h-5" />
                   ) : (
                     <FiMessageCircle />
@@ -153,7 +154,10 @@ export default function PublicFooter() {
                     onMouseLeave={() => setActiveTab(null)}
                   >
                     <div className="flex items-center gap-2">
-                      {tab.icon && <img src={tab.icon} alt="" className="w-5 h-5" />}
+                      {tab.icon && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={tab.icon} alt="" className="w-5 h-5" />
+                      )}
                       <span className="font-medium">{tab.name}</span>
                     </div>
                     <FiChevronRight
@@ -173,7 +177,10 @@ export default function PublicFooter() {
                     onMouseLeave={() => setActiveTab(null)}
                   >
                     <div className="flex items-center gap-2">
-                      {footerData.genieButton.icon && <img src={footerData.genieButton.icon} alt="" className="w-5 h-5" />}
+                      {footerData.genieButton.icon && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={footerData.genieButton.icon} alt="" className="w-5 h-5" />
+                      )}
                       <span className="font-medium">{footerData.genieButton.name}</span>
                     </div>
                     <FiChevronRight

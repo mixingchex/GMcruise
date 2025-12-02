@@ -44,12 +44,12 @@ export default function YoutubeVideosSlider() {
     try {
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
-      
+
       const response = await fetch('/api/public/youtube/videos?maxResults=10', {
         signal: abortController.signal,
       });
       clearTimeout(timeoutId);
-      
+
       const data = await response.json();
 
       if (data.ok) {
@@ -131,6 +131,7 @@ export default function YoutubeVideosSlider() {
             >
               {/* 가로형 썸네일 (16:9 비율) */}
               <div className="relative aspect-video overflow-hidden bg-black">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={video.thumbnail}
                   alt={video.title}

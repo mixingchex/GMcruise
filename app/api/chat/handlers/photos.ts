@@ -18,6 +18,7 @@ export async function handleShowPhotos(text: string): Promise<ChatMessage[]> {
       cruisePhotos: [], // 크루즈 사진 없음
       subfolders: [],
       categories: [],
+      query: text,
       // 구글 이미지 검색만 표시
       googleImagesOnly: true
     }];
@@ -51,6 +52,7 @@ export async function handleShowPhotos(text: string): Promise<ChatMessage[]> {
       photoCount: folder.photoCount,
     })),
     categories: [],
+    query: text,
     googleImagesOnly: false
   }];
 } 

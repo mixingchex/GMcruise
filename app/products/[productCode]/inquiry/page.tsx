@@ -41,6 +41,28 @@ export default async function InquiryPage({ params, searchParams }: PageProps) {
       notFound();
     }
 
+    // 파트너 연락처 조회 (계약서의 연락처 또는 프로필의 연락처)
+    let partnerPhone: string | undefined = undefined;
+    if (partnerId) {
+      const partnerProfile = await prisma.affiliateProfile.findFirst({
+        where: {
+          User: { mallUserId: partnerId },
+          status: 'ACTIVE',
+        },
+        select: {
+          contactPhone: true,
+          User: {
+            select: {
+              phone: true,
+            },
+          },
+        },
+      });
+
+      // contactPhone이 있으면 사용, 없으면 User.phone 사용
+      partnerPhone = partnerProfile?.contactPhone || partnerProfile?.User?.phone || undefined;
+    }
+
     const data = { ok: true, product };
 
     return (
@@ -78,7 +100,7 @@ export default async function InquiryPage({ params, searchParams }: PageProps) {
                 </div>
               </div>
 
-              <InquiryForm productCode={productCode} productName={data.product.packageName} partnerId={partnerId} />
+              <InquiryForm productCode={productCode} productName={data.product.packageName} partnerId={partnerId} partnerPhone={partnerPhone} />
             </div>
           </div>
         </div>

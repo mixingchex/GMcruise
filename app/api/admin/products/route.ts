@@ -491,6 +491,25 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'Product ID required' }, { status: 400 });
     }
 
+    // 삭제 전 상품 정보 확인
+    const product = await prisma.cruiseProduct.findUnique({
+      where: { id: parseInt(id) },
+      select: { productCode: true, packageName: true },
+    });
+
+    if (!product) {
+      return NextResponse.json({ ok: false, message: 'Product not found' }, { status: 404 });
+    }
+
+    // 보호된 테스트 상품은 삭제 불가
+    const PROTECTED_PRODUCT_CODES = ['SAMPLE-MED-001', 'REAL-CRUISE-01'];
+    if (PROTECTED_PRODUCT_CODES.includes(product.productCode)) {
+      return NextResponse.json({
+        ok: false,
+        message: `테스트 상품 "${product.packageName}"은(는) 삭제할 수 없습니다. (시스템 테스트용 보호 상품)`,
+      }, { status: 403 });
+    }
+
     await prisma.cruiseProduct.delete({
       where: { id: parseInt(id) },
     });

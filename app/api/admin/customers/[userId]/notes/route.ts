@@ -307,12 +307,52 @@ export async function POST(
       // 알림 생성 실패해도 기록은 성공으로 처리
     }
 
+    // Google 스프레드시트에 상세기록 업데이트 (서버에서 직접 전송)
+    try {
+      const customer = await prisma.user.findUnique({
+        where: { id: customerId },
+        select: { name: true, phone: true },
+      });
+
+      if (customer?.phone) {
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMnRse8lBCmU20IziTTFvLoLjnNUCy1vtE_y-X-niR67Xs63Bf5qBE4Zb5txQZ_R9-/exec';
+        const timestamp = new Date().toLocaleString('ko-KR');
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'updateNote');
+        formData.append('timestamp', timestamp);
+        formData.append('name', customer.name || '');
+        formData.append('phone', customer.phone || '');
+        formData.append('note', content.trim());
+
+        console.log('[Customer Notes API] Google 스프레드시트 전송 시작:', {
+          name: customer.name,
+          phone: customer.phone,
+          note: content.trim().substring(0, 50) + '...',
+        });
+
+        const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
+        });
+
+        const googleResult = await googleResponse.text();
+        console.log('[Customer Notes API] Google 스프레드시트 응답:', googleResult);
+      } else {
+        console.log('[Customer Notes API] 고객 연락처 없음, 스프레드시트 업데이트 생략');
+      }
+    } catch (googleError) {
+      console.error('[Customer Notes API] Google 스프레드시트 전송 실패:', googleError);
+      // 스프레드시트 전송 실패해도 기록은 성공으로 처리
+    }
+
     return NextResponse.json({
       ok: true,
       note: {
         id: note.id,
         content: note.content,
-        createdByLabel: createdByType === 'BRANCH_MANAGER' ? '대리점장' : 
+        createdByLabel: createdByType === 'BRANCH_MANAGER' ? '대리점장' :
                        createdByType === 'SALES_AGENT' ? '판매원' : '본사',
         createdByName,
         createdAt: note.createdAt.toISOString(),

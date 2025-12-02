@@ -12,13 +12,14 @@ export default function LandingPageContent({ htmlContent, headerScript }: Landin
   return (
     <>
       {headerScript && (
+        // eslint-disable-next-line @next/next/no-before-interactive-script-outside-document
         <Script
           id="landing-page-header-script"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: headerScript }}
         />
       )}
-      <div 
+      <div
         dangerouslySetInnerHTML={{ __html: normalizeLandingHtmlContent(htmlContent || '') }}
         className="landing-page-content"
       />

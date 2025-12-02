@@ -91,11 +91,10 @@ export default function ReviewCarousel() {
         <button
           onClick={handlePrev}
           disabled={!canGoPrev}
-          className={`p-2 rounded-full transition-colors ${
-            canGoPrev
+          className={`p-2 rounded-full transition-colors ${canGoPrev
               ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
+            }`}
         >
           <FiChevronLeft size={24} />
         </button>
@@ -105,11 +104,10 @@ export default function ReviewCarousel() {
         <button
           onClick={handleNext}
           disabled={!canGoNext}
-          className={`p-2 rounded-full transition-colors ${
-            canGoNext
+          className={`p-2 rounded-full transition-colors ${canGoNext
               ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
               : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-          }`}
+            }`}
         >
           <FiChevronRight size={24} />
         </button>
@@ -125,6 +123,7 @@ export default function ReviewCarousel() {
           >
             <div className="aspect-video bg-gray-200 relative overflow-hidden">
               {review.images && review.images.length > 0 ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
                 <img
                   src={review.images[0]}
                   alt={review.title || '리뷰 이미지'}

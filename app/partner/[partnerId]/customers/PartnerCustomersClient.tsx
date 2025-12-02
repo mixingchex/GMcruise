@@ -2941,6 +2941,7 @@ export default function PartnerCustomersClient({
                     cruiseName: customer.cruiseName || null,
                     affiliateOwnership: customer.affiliateOwnership || null,
                     userId: customer.userId || null,
+                    leadId: (customer as any).leadId || customer.id, // AffiliateLead ID
                   }))}
                   onRefresh={() => fetchInquiryCustomers(inquiryCurrentPage)}
                 />

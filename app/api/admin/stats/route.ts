@@ -10,7 +10,7 @@ import { getSession } from '@/lib/session';
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.user?.id) {
+    if ((session as any).user.role !== 'ADMIN') {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -18,11 +18,9 @@ export async function GET(req: NextRequest) {
     }
 
     // 관리자 권한 확인
-    const user = await prisma.user.findFirst({
-      where: { id: session.user.id, role: 'admin' },
-    });
+    const user = (session as any).user;
 
-    if (!user) {
+    if (!user) { // This check might be redundant if session.user.role is already checked
       return NextResponse.json(
         { error: '관리자 권한이 없습니다' },
         { status: 403 }
@@ -69,7 +67,7 @@ export async function GET(req: NextRequest) {
     // 변화율 계산 (단순 추정)
     const previousMonthCustomers = totalCustomers > 10 ? Math.floor(totalCustomers * 0.9) : 0;
     const newCustomersThisMonth = totalCustomers - previousMonthCustomers;
-    const customerChange = previousMonthCustomers > 0 
+    const customerChange = previousMonthCustomers > 0
       ? Math.round((newCustomersThisMonth / previousMonthCustomers) * 100)
       : 12;
 

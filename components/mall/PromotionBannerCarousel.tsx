@@ -49,7 +49,7 @@ export default function PromotionBannerCarousel() {
   const [isLoading, setIsLoading] = useState(true);
   const [imageLoadedStates, setImageLoadedStates] = useState<{ [key: number]: boolean }>({});
   const [imageErrorStates, setImageErrorStates] = useState<{ [key: number]: boolean }>({});
-  
+
   // 스와이프를 위한 상태
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -62,7 +62,7 @@ export default function PromotionBannerCarousel() {
   // 이미지 사전 로드
   useEffect(() => {
     if (banners.length === 0) return;
-    
+
     banners.forEach((banner) => {
       if (banner.image) {
         const img = new Image();
@@ -84,7 +84,7 @@ export default function PromotionBannerCarousel() {
     // 항상 기본 배너 사용 (DB에서 가져오지 않음)
     setBanners(defaultBanners);
     setIsLoading(false);
-    
+
     /* DB에서 배너 데이터 로드 (주석 처리)
     try {
       const response = await fetch('/api/admin/mall/hero-banner?section=hero-banner');
@@ -163,7 +163,7 @@ export default function PromotionBannerCarousel() {
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
+
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > minSwipeDistance;
     const isRightSwipe = distance < -minSwipeDistance;
@@ -176,7 +176,7 @@ export default function PromotionBannerCarousel() {
       goToPrevious();
       setIsSwiping(true);
     }
-    
+
     // 스와이프가 끝나면 잠시 후 상태 리셋
     setTimeout(() => {
       setIsSwiping(false);
@@ -210,7 +210,7 @@ export default function PromotionBannerCarousel() {
   if (banners.length === 0) return null;
 
   return (
-    <div 
+    <div
       className="relative w-full h-80 md:h-96 lg:h-[500px] rounded-xl overflow-hidden shadow-2xl"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -221,186 +221,186 @@ export default function PromotionBannerCarousel() {
         {banners.map((banner, index) => {
           const hasButtons = banner.button1Text || banner.button2Text;
           const bannerLink = banner.link || banner.button1Link || '/products';
-          
+
           return (
             <div
               key={banner.id}
-              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-                index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
               onClick={(e) => {
                 // 스와이프 중이면 링크 클릭 방지
                 if (isSwiping) {
                   return;
                 }
-                
+
                 // 버튼이 있으면 전체 배너 클릭 비활성화 (버튼 클릭만 동작)
                 if (hasButtons) {
                   return;
                 }
-                
+
                 // 첫 번째 배너(크루즈닷 지니 AI 출시)는 무조건 /login-test로 이동
                 if (banner.id === 1) {
                   window.open('/login-test', '_blank', 'noopener,noreferrer');
                   return;
                 }
-                
+
                 // 세 번째 배너(크루즈닷과 행복한 크루즈여행 하기)는 외부 링크로 새 창 열기
                 if (banner.id === 3 && banner.link) {
                   window.open(banner.link, '_blank', 'noopener,noreferrer');
                   return;
                 }
-                
+
                 // link가 있고 버튼이 없으면 클릭 허용
                 if (banner.link && !hasButtons) {
                   window.open(banner.link, '_blank', 'noopener,noreferrer');
                 }
               }}
             >
-            {/* 이미지 프리로더 */}
-            {banner.image && (
-              <img
-                src={banner.image}
-                alt=""
-                className="hidden"
-                onError={(e) => {
-                  console.error('[PromotionBanner] Image load error:', banner.image);
-                  // 기본 이미지로 대체
-                  (e.target as HTMLImageElement).src = '/images/promotion-banner-bg.png';
-                }}
-              />
-            )}
-            <div className="w-full h-full relative flex items-center justify-center text-white min-h-[300px] sm:min-h-[400px] md:min-h-[500px]">
-              {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩 + 부드러운 애니메이션) */}
+              {/* 이미지 프리로더 */}
               {banner.image && (
-                <>
-                  {/* 숨겨진 이미지로 사전 로드 */}
-                  <img
-                    src={banner.image}
-                    alt=""
-                    className="hidden"
-                    onLoad={() => {
-                      setImageLoadedStates(prev => ({ ...prev, [banner.id]: true }));
-                      setImageErrorStates(prev => ({ ...prev, [banner.id]: false }));
-                    }}
-                    onError={() => {
-                      console.error('[PromotionBanner] 이미지 로드 실패:', banner.image);
-                      setImageErrorStates(prev => ({ ...prev, [banner.id]: true }));
-                      setImageLoadedStates(prev => ({ ...prev, [banner.id]: false }));
-                    }}
-                  />
-                  {/* 배경 이미지 */}
-                  <div
-                    className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${
-                      imageLoadedStates[banner.id] ? 'opacity-100' : 'opacity-0'
-                    } ${imageErrorStates[banner.id] ? 'hidden' : ''} animate-subtle-zoom`}
-                    style={{
-                      backgroundImage: imageLoadedStates[banner.id]
-                        ? `url('${encodeURI(banner.image)}')`
-                        : 'none',
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      backgroundRepeat: 'no-repeat',
-                    }}
-                  />
-                  {/* 로딩 중 배경 */}
-                  {!imageLoadedStates[banner.id] && !imageErrorStates[banner.id] && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 animate-pulse"></div>
-                  )}
-                  {/* 에러 시 대체 배경 */}
-                  {imageErrorStates[banner.id] && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800"></div>
-                  )}
-                </>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={banner.image}
+                  alt=""
+                  className="hidden"
+                  onError={(e) => {
+                    console.error('[PromotionBanner] Image load error:', banner.image);
+                    // 기본 이미지로 대체
+                    (e.target as HTMLImageElement).src = '/images/promotion-banner-bg.png';
+                  }}
+                />
               )}
-              
-              {/* 세련된 그라데이션 오버레이 */}
-              <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/60"></div>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
-              
-              {/* 컨텐츠 - 모바일 가독성 향상 */}
-              <div className="relative z-10 text-center px-4 sm:px-6 md:px-8 max-w-5xl mx-auto w-full">
-                <h3 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black mb-3 sm:mb-4 md:mb-6 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] leading-tight px-2">
-                  {banner.title || `배너 ${index + 1}`}
-                </h3>
-                {banner.subtitle && (
-                  <p className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl opacity-95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] mb-6 sm:mb-8 md:mb-10 font-bold tracking-tight px-2 sm:px-4">
-                    {banner.subtitle}
-                  </p>
+              <div className="w-full h-full relative flex items-center justify-center text-white min-h-[300px] sm:min-h-[400px] md:min-h-[500px]">
+                {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩 + 부드러운 애니메이션) */}
+                {banner.image && (
+                  <>
+                    {/* 숨겨진 이미지로 사전 로드 */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={banner.image}
+                      alt=""
+                      className="hidden"
+                      onLoad={() => {
+                        setImageLoadedStates(prev => ({ ...prev, [banner.id]: true }));
+                        setImageErrorStates(prev => ({ ...prev, [banner.id]: false }));
+                      }}
+                      onError={() => {
+                        console.error('[PromotionBanner] 이미지 로드 실패:', banner.image);
+                        setImageErrorStates(prev => ({ ...prev, [banner.id]: true }));
+                        setImageLoadedStates(prev => ({ ...prev, [banner.id]: false }));
+                      }}
+                    />
+                    {/* 배경 이미지 */}
+                    <div
+                      className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${imageLoadedStates[banner.id] ? 'opacity-100' : 'opacity-0'
+                        } ${imageErrorStates[banner.id] ? 'hidden' : ''} animate-subtle-zoom`}
+                      style={{
+                        backgroundImage: imageLoadedStates[banner.id]
+                          ? `url('${encodeURI(banner.image)}')`
+                          : 'none',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat',
+                      }}
+                    />
+                    {/* 로딩 중 배경 */}
+                    {!imageLoadedStates[banner.id] && !imageErrorStates[banner.id] && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 animate-pulse"></div>
+                    )}
+                    {/* 에러 시 대체 배경 */}
+                    {imageErrorStates[banner.id] && (
+                      <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800"></div>
+                    )}
+                  </>
                 )}
-                <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-10 px-2">
-                  {banner.button1Text && (
-                    <a
-                      href={banner.button1Link || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (!banner.button1Link || banner.button1Link === '#') {
-                          e.preventDefault();
-                        }
-                      }}
-                      className="bg-white/20 backdrop-blur-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer w-full sm:w-auto"
-                    >
-                      ✓ {banner.button1Text}
-                    </a>
+
+                {/* 세련된 그라데이션 오버레이 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-black/50 to-black/60"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40"></div>
+
+                {/* 컨텐츠 - 모바일 가독성 향상 */}
+                <div className="relative z-10 text-center px-4 sm:px-6 md:px-8 max-w-5xl mx-auto w-full">
+                  <h3 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black mb-3 sm:mb-4 md:mb-6 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] leading-tight px-2">
+                    {banner.title || `배너 ${index + 1}`}
+                  </h3>
+                  {banner.subtitle && (
+                    <p className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl opacity-95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] mb-6 sm:mb-8 md:mb-10 font-bold tracking-tight px-2 sm:px-4">
+                      {banner.subtitle}
+                    </p>
                   )}
-                  {banner.button2Text && (
-                    <a
-                      href={banner.button2Link || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => {
-                        if (!banner.button2Link || banner.button2Link === '#') {
-                          e.preventDefault();
-                        }
-                      }}
-                      className="bg-white/20 backdrop-blur-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer w-full sm:w-auto"
-                    >
-                      ✓ {banner.button2Text}
-                    </a>
-                  )}
-                  {/* 하위 호환성: 버튼이 없고 link만 있는 경우 */}
-                  {!banner.button1Text && !banner.button2Text && (
-                    <>
+                  <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-10 px-2">
+                    {banner.button1Text && (
                       <a
-                        href={banner.link || '#'}
+                        href={banner.button1Link || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
-                          if (banner.link && banner.link !== '#') {
-                            e.stopPropagation(); // 배너 클릭 이벤트와 충돌 방지
-                            window.open(banner.link, '_blank', 'noopener,noreferrer');
-                            e.preventDefault();
-                          } else {
+                          if (!banner.button1Link || banner.button1Link === '#') {
                             e.preventDefault();
                           }
                         }}
                         className="bg-white/20 backdrop-blur-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer w-full sm:w-auto"
                       >
-                        ✓ 프리미엄 서비스
+                        ✓ {banner.button1Text}
                       </a>
+                    )}
+                    {banner.button2Text && (
                       <a
-                        href={banner.link || '#'}
+                        href={banner.button2Link || '#'}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
-                          if (banner.link && banner.link !== '#') {
-                            e.stopPropagation(); // 배너 클릭 이벤트와 충돌 방지
-                            window.open(banner.link, '_blank', 'noopener,noreferrer');
-                            e.preventDefault();
-                          } else {
+                          if (!banner.button2Link || banner.button2Link === '#') {
                             e.preventDefault();
                           }
                         }}
                         className="bg-white/20 backdrop-blur-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer w-full sm:w-auto"
                       >
-                        ✓ 신뢰할 수 있는 여행사
+                        ✓ {banner.button2Text}
                       </a>
-                    </>
-                  )}
+                    )}
+                    {/* 하위 호환성: 버튼이 없고 link만 있는 경우 */}
+                    {!banner.button1Text && !banner.button2Text && (
+                      <>
+                        <a
+                          href={banner.link || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            if (banner.link && banner.link !== '#') {
+                              e.stopPropagation(); // 배너 클릭 이벤트와 충돌 방지
+                              window.open(banner.link, '_blank', 'noopener,noreferrer');
+                              e.preventDefault();
+                            } else {
+                              e.preventDefault();
+                            }
+                          }}
+                          className="bg-white/20 backdrop-blur-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer w-full sm:w-auto"
+                        >
+                          ✓ 프리미엄 서비스
+                        </a>
+                        <a
+                          href={banner.link || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            if (banner.link && banner.link !== '#') {
+                              e.stopPropagation(); // 배너 클릭 이벤트와 충돌 방지
+                              window.open(banner.link, '_blank', 'noopener,noreferrer');
+                              e.preventDefault();
+                            } else {
+                              e.preventDefault();
+                            }
+                          }}
+                          className="bg-white/20 backdrop-blur-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full text-sm sm:text-base md:text-lg font-black shadow-[0_8px_32px_rgba(0,0,0,0.3)] border-2 border-white/60 hover:bg-white/30 hover:border-white/80 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer w-full sm:w-auto"
+                        >
+                          ✓ 신뢰할 수 있는 여행사
+                        </a>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
             </div>
           );
         })}
@@ -439,11 +439,10 @@ export default function PromotionBannerCarousel() {
             <button
               key={index}
               onClick={() => goToSlide(index)}
-              className={`h-3 rounded-full transition-all duration-300 ${
-                index === currentIndex
-                  ? 'w-10 bg-white shadow-[0_4px_12px_rgba(255,255,255,0.5)]'
-                  : 'w-3 bg-white/50 hover:bg-white/70 hover:scale-110'
-              }`}
+              className={`h-3 rounded-full transition-all duration-300 ${index === currentIndex
+                ? 'w-10 bg-white shadow-[0_4px_12px_rgba(255,255,255,0.5)]'
+                : 'w-3 bg-white/50 hover:bg-white/70 hover:scale-110'
+                }`}
               aria-label={`배너 ${index + 1}로 이동`}
             />
           ))}

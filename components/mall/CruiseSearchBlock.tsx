@@ -482,7 +482,7 @@ export default function CruiseSearchBlock() {
 
     console.log('[CruiseSearchBlock] Generated related search terms:', result.length, result);
     return result;
-  }, [allAvailableProducts, cruiseOptions]);
+  }, [allAvailableProducts]);
 
   useEffect(() => {
     // 선택이 변경되면 자동으로 검색

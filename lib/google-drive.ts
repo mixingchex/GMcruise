@@ -24,7 +24,7 @@ type FindOrCreateFolderResult = {
 
 export function getDriveClient() {
   // 1. 환경변수에서 Private Key 찾기 (여러 이름 모두 확인)
-  const rawPrivateKey = 
+  const rawPrivateKey =
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
     process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
     process.env.GOOGLE_PRIVATE_KEY ||
@@ -46,7 +46,7 @@ export function getDriveClient() {
   }
 
   // 2. 환경변수에서 Client Email 찾기 (여러 이름 모두 확인)
-  const clientEmail = 
+  const clientEmail =
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
     process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
     process.env.GOOGLE_CLIENT_EMAIL ||
@@ -77,20 +77,13 @@ export function getDriveClient() {
     console.error('[GoogleDrive] Private key 시작 부분:', privateKey.substring(0, 100));
     throw new Error('Private key 형식이 올바르지 않습니다. -----BEGIN PRIVATE KEY-----로 시작해야 합니다.');
   }
-  
+
   if (!privateKey.includes('-----END PRIVATE KEY-----')) {
     console.error('[GoogleDrive] Private key 형식 오류: END PRIVATE KEY 라인이 없습니다.');
     throw new Error('Private key 형식이 올바르지 않습니다. -----END PRIVATE KEY-----로 끝나야 합니다.');
   }
 
-  // 5. Private key 검증 (디버깅용)
-  const lineCount = privateKey.split('\n').length;
-  console.log('[GoogleDrive] Private key 검증:', {
-    length: privateKey.length,
-    lineCount,
-    hasBegin: privateKey.includes('-----BEGIN PRIVATE KEY-----'),
-    hasEnd: privateKey.includes('-----END PRIVATE KEY-----'),
-  });
+
 
   // 6. Google Auth 생성 (에러 핸들링 강화)
   try {
@@ -109,7 +102,7 @@ export function getDriveClient() {
     console.error('[GoogleDrive] Private Key 길이:', privateKey.length);
     console.error('[GoogleDrive] Private Key 시작:', privateKey.substring(0, 50));
     console.error('[GoogleDrive] Private Key 끝:', privateKey.substring(privateKey.length - 50));
-    
+
     // JWT 관련 에러인 경우 더 자세한 정보 제공
     if (authError?.message?.includes('JWT') || authError?.message?.includes('invalid_grant') || authError?.message?.includes('Invalid JWT')) {
       throw new Error(
@@ -118,7 +111,7 @@ export function getDriveClient() {
         `Private key는 -----BEGIN PRIVATE KEY-----와 -----END PRIVATE KEY----- 사이에 있어야 하며, 각 라인은 64자로 구성되어야 합니다.`
       );
     }
-    
+
     throw authError;
   }
 }
@@ -133,7 +126,7 @@ export async function findOrCreateFolder(
 
     // 먼저 기존 폴더 검색
     let query = `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-    
+
     if (parentFolderId && parentFolderId !== 'root') {
       query += ` and '${parentFolderId}' in parents`;
     } else if (sharedDriveId && sharedDriveId !== 'root') {
@@ -206,7 +199,7 @@ export async function listFilesInFolder(
 ): Promise<{ ok: boolean; files?: Array<{ name: string; url: string; mimeType: string; id: string }>; error?: string }> {
   try {
     const drive = getDriveClient();
-    
+
     // 서브폴더 경로가 있으면 해당 폴더 찾기
     let targetFolderId = folderId;
     if (subfolderPath) {
@@ -289,7 +282,7 @@ export function optimizeDriveUrl(url: string, fileId?: string): string {
     }
     return getDriveFileUrl(fileId, true);
   }
-  
+
   // fileId가 없으면 원본 URL 사용
   return url;
 }
@@ -304,13 +297,15 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       name: fileName,
       mimeType,
     };
-    
+
     // Shared Drive 사용 (서비스 계정 스토리지 할당량 문제 해결)
     const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
-    if (sharedDriveId && sharedDriveId !== 'root') {
-      requestBody.parents = [sharedDriveId];
-    } else if (folderId && folderId !== 'root') {
+
+    // 부모 폴더 설정: folderId가 있으면 우선 사용, 없으면 sharedDriveId 사용
+    if (folderId && folderId !== 'root') {
       requestBody.parents = [folderId];
+    } else if (sharedDriveId && sharedDriveId !== 'root') {
+      requestBody.parents = [sharedDriveId];
     }
 
     // Buffer를 Readable Stream으로 변환 (googleapis가 pipe 메서드를 기대함)
@@ -326,12 +321,12 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       },
       fields: 'id, webViewLink, webContentLink',
     };
-    
+
     // Shared Drive 사용 시 supportsAllDrives 옵션 추가
     if (sharedDriveId && sharedDriveId !== 'root') {
       createOptions.supportsAllDrives = true;
     }
-    
+
     const response = await drive.files.create(createOptions);
 
     const fileId = response.data.id;
@@ -348,12 +343,12 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
           type: 'anyone',
         },
       };
-      
+
       // Shared Drive 사용 시 supportsAllDrives 옵션 추가
       if (sharedDriveId && sharedDriveId !== 'root') {
         permissionOptions.supportsAllDrives = true;
       }
-      
+
       await drive.permissions.create(permissionOptions);
     } else {
       // 기본적으로 'anyone with link'로 설정하여 관리자가 볼 수 있게 함
@@ -364,17 +359,17 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
           type: 'anyone',
         },
       };
-      
+
       if (sharedDriveId && sharedDriveId !== 'root') {
         permissionOptions.supportsAllDrives = true;
       }
-      
+
       await drive.permissions.create(permissionOptions);
     }
 
     // 이미지인지 확인
     const isImage = mimeType?.startsWith('image/') || false;
-    
+
     // 최적화된 URL 사용 (CDN 캐싱 최적화)
     const url = getDriveFileUrl(fileId, isImage);
 
@@ -386,15 +381,15 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       code: error?.code,
       response: error?.response?.data,
     });
-    
+
     // JWT 관련 에러인 경우 더 자세한 메시지 제공
     if (error?.message?.includes('JWT') || error?.message?.includes('invalid_grant') || error?.message?.includes('Invalid JWT')) {
-      return { 
-        ok: false, 
-        error: `Google Drive 인증 실패 (JWT Signature 오류): ${error?.message}. 환경변수 GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY 또는 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY의 줄바꿈 문자(\\n) 처리를 확인해주세요.` 
+      return {
+        ok: false,
+        error: `Google Drive 인증 실패 (JWT Signature 오류): ${error?.message}. 환경변수 GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY 또는 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY의 줄바꿈 문자(\\n) 처리를 확인해주세요.`
       };
     }
-    
+
     return { ok: false, error: error?.message || 'Google Drive 업로드 실패' };
   }
 }

@@ -7,10 +7,10 @@ import { FiSave, FiX, FiPlus, FiTrash2, FiEye } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
 // ErrorBoundary는 전역 Providers에서 처리하므로 여기서는 제거
 import { normalizeLandingImageUrl, normalizeLandingHtmlContent } from '@/lib/landing-html';
-import Image from 'next/image';
+import NextImage from 'next/image';
 
 // 리치 텍스트 에디터 동적 임포트 (SSR 방지)
-const ReactQuill = dynamic(() => import('react-quill'), { 
+const ReactQuill = dynamic(() => import('react-quill'), {
   ssr: false,
   loading: () => <div className="h-[650px] flex items-center justify-center text-gray-500">에디터 로딩 중...</div>
 });
@@ -43,7 +43,7 @@ export default function NewLandingPagePage() {
   const [previewDevice, setPreviewDevice] = useState<'iphone' | 'samsung'>('iphone');
   const [showPreview, setShowPreview] = useState(true);
   const [quillKey, setQuillKey] = useState(0);
-  
+
   // 기본 정보
   const [formData, setFormData] = useState({
     title: '',
@@ -134,7 +134,7 @@ export default function NewLandingPagePage() {
   const onChangeDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const quillValueRef = useRef<string>(formData.htmlContent || '');
   const isUpdatingRef = useRef(false);
-  
+
   // 신규 그룹 추가 모달
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -142,7 +142,7 @@ export default function NewLandingPagePage() {
   const [newGroupColor, setNewGroupColor] = useState('#3B82F6');
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [newGroupTarget, setNewGroupTarget] = useState<'main' | 'payment' | 'db'>('main');
-  
+
   // 이미지 드래그 앤 드롭
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -171,12 +171,12 @@ export default function NewLandingPagePage() {
       quillValueRef.current = formData.htmlContent;
     }
   }, [quillValue, formData.htmlContent]);
-  
+
   // quillValueRef 동기화
   useEffect(() => {
     quillValueRef.current = quillValue;
   }, [quillValue]);
-  
+
   // editorMode가 'editor'로 변경될 때 에디터 강제 표시
   useEffect(() => {
     if (editorMode === 'editor') {
@@ -188,7 +188,7 @@ export default function NewLandingPagePage() {
           container.style.setProperty('visibility', 'visible', 'important');
           container.style.setProperty('opacity', '1', 'important');
           container.classList.remove('hidden');
-          
+
           // Quill 요소도 강제 표시
           const quillElement = container.querySelector('.quill');
           if (quillElement) {
@@ -198,7 +198,7 @@ export default function NewLandingPagePage() {
           }
         }
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
   }, [editorMode]);
@@ -215,7 +215,7 @@ export default function NewLandingPagePage() {
         container.style.setProperty('opacity', '1', 'important');
         container.style.setProperty('position', 'relative', 'important');
         container.style.setProperty('z-index', '1', 'important');
-        
+
         // Quill 요소도 강제 표시
         const quillElement = container.querySelector('.quill');
         if (quillElement) {
@@ -223,14 +223,14 @@ export default function NewLandingPagePage() {
           (quillElement as HTMLElement).style.setProperty('visibility', 'visible', 'important');
           (quillElement as HTMLElement).style.setProperty('opacity', '1', 'important');
         }
-        
+
         const toolbar = container.querySelector('.ql-toolbar');
         if (toolbar) {
           (toolbar as HTMLElement).style.setProperty('display', 'flex', 'important');
           (toolbar as HTMLElement).style.setProperty('visibility', 'visible', 'important');
           (toolbar as HTMLElement).style.setProperty('opacity', '1', 'important');
         }
-        
+
         const editor = container.querySelector('.ql-editor');
         if (editor) {
           (editor as HTMLElement).style.setProperty('display', 'block', 'important');
@@ -239,15 +239,15 @@ export default function NewLandingPagePage() {
         }
       }
     };
-    
+
     // 즉시 실행
     forceShowEditor();
-    
+
     // 매우 빠른 주기로 확인 및 복구
     const keepAliveInterval = setInterval(() => {
       if (editorMode === 'editor') {
         forceShowEditor();
-        
+
         try {
           const container = document.getElementById('quill-editor-container');
           if (container) {
@@ -256,21 +256,21 @@ export default function NewLandingPagePage() {
             const toolbar = container.querySelector('.ql-toolbar') as HTMLElement;
             const qlContainer = container.querySelector('.ql-container') as HTMLElement;
             const qlEditor = container.querySelector('.ql-editor') as HTMLElement;
-            
+
             if (quillElement) {
               quillElement.style.setProperty('display', 'flex', 'important');
               quillElement.style.setProperty('flex-direction', 'column', 'important');
               quillElement.style.setProperty('visibility', 'visible', 'important');
               quillElement.style.setProperty('opacity', '1', 'important');
             }
-            
+
             // 기본 툴바는 사용하지 않으므로 숨김 처리만 수행
             if (toolbar) {
               toolbar.style.setProperty('display', 'none', 'important');
               toolbar.style.setProperty('visibility', 'hidden', 'important');
               toolbar.style.setProperty('opacity', '0', 'important');
             }
-            
+
             if (qlContainer) {
               qlContainer.style.setProperty('display', 'flex', 'important');
               qlContainer.style.setProperty('flex-direction', 'column', 'important');
@@ -279,7 +279,7 @@ export default function NewLandingPagePage() {
               qlContainer.style.setProperty('order', '1', 'important');
               qlContainer.style.setProperty('flex', '1', 'important');
             }
-            
+
             if (qlEditor) {
               qlEditor.style.setProperty('display', 'block', 'important');
               qlEditor.style.setProperty('visibility', 'visible', 'important');
@@ -287,7 +287,7 @@ export default function NewLandingPagePage() {
               qlEditor.style.setProperty('min-height', '600px', 'important');
               qlEditor.style.setProperty('background', 'white', 'important');
             }
-            
+
             // Quill 인스턴스 확인 및 복구
             if (quillElement) {
               const quill = (quillElement as any).__quill || (quillElement as any).quill;
@@ -303,7 +303,7 @@ export default function NewLandingPagePage() {
         }
       }
     }, 50); // 0.05초마다 확인 (매우 빠른 복구)
-    
+
     return () => {
       clearInterval(keepAliveInterval);
     };
@@ -323,13 +323,13 @@ export default function NewLandingPagePage() {
         quillInstanceRef.current = null;
       }
     }
-    
+
     // DOM에서 직접 찾기 (여러 방법 시도)
     const container = document.getElementById('quill-editor-container');
     if (container) {
       // 방법 1: .quill 클래스로 찾기
       let quillElement = container.querySelector('.quill') as HTMLElement;
-      
+
       // 방법 2: .ql-container의 부모 찾기
       if (!quillElement) {
         const qlContainer = container.querySelector('.ql-container');
@@ -337,7 +337,7 @@ export default function NewLandingPagePage() {
           quillElement = qlContainer.closest('.quill') as HTMLElement;
         }
       }
-      
+
       // 방법 3: .ql-editor의 부모 찾기
       if (!quillElement) {
         const qlEditor = container.querySelector('.ql-editor');
@@ -345,11 +345,11 @@ export default function NewLandingPagePage() {
           quillElement = qlEditor.closest('.quill') as HTMLElement;
         }
       }
-      
+
       if (quillElement) {
         // Quill 인스턴스 찾기 (여러 방법 시도)
         let quill = (quillElement as any).__quill || (quillElement as any).quill;
-        
+
         // 방법 2: Quill 전역 객체에서 찾기
         if (!quill && (window as any).Quill) {
           const Quill = (window as any).Quill;
@@ -358,7 +358,7 @@ export default function NewLandingPagePage() {
             quill = editors[0];
           }
         }
-        
+
         if (quill) {
           // Quill 인스턴스가 유효한지 확인
           try {
@@ -373,7 +373,7 @@ export default function NewLandingPagePage() {
         }
       }
     }
-    
+
     return null;
   };
 
@@ -389,10 +389,10 @@ export default function NewLandingPagePage() {
         container.style.setProperty('opacity', '1', 'important');
       }
     };
-    
+
     // 즉시 실행
     forceShow();
-    
+
     let retryTimer: NodeJS.Timeout | null = null;
     const timer = setTimeout(() => {
       try {
@@ -412,30 +412,30 @@ export default function NewLandingPagePage() {
                   if (selection && selection.constructor) {
                     const SelectionClass = selection.constructor;
                     const prototype = SelectionClass.prototype;
-                    
+
                     // setNativeRange 메서드 래핑
                     if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
                       const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
-                      prototype.setNativeRange = function(range: any, force?: boolean) {
+                      prototype.setNativeRange = function (range: any, force?: boolean) {
                         try {
                           if (!range) {
                             return originalSetNativeRange(null, force);
                           }
-                          
+
                           // 현재 에디터의 길이 확인
                           const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
                           if (editor) {
                             const length = editor.textContent?.length || 0;
                             const safeIndex = Math.max(0, Math.min(range.index || 0, length));
                             const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
-                            
+
                             const safeRange = {
                               index: safeIndex,
                               length: safeLength
                             };
                             return originalSetNativeRange(safeRange, force);
                           }
-                          
+
                           return originalSetNativeRange(range, force);
                         } catch (error) {
                           // 에러 무시
@@ -445,7 +445,7 @@ export default function NewLandingPagePage() {
                       prototype._setNativeRangeWrapped = true;
                     }
                   }
-                  
+
                   // setSelection 메서드도 래핑
                   const originalSetSelection = quill.setSelection.bind(quill);
                   quill.setSelection = (index: number, source?: string, force?: boolean) => {
@@ -457,17 +457,17 @@ export default function NewLandingPagePage() {
                       return null;
                     }
                   };
-                  
+
                   quill._selectionWrapped = true;
                 } catch (error) {
                   // 래핑 실패해도 계속 진행
                 }
               }
-              
+
               quillInstanceRef.current = quill;
               quillRef.current = quillElement;
               setIsQuillReady(true);
-              
+
               // 기본 툴바 숨김
               setTimeout(() => {
                 const toolbar = (quillElement as HTMLElement).querySelector('.ql-toolbar') as HTMLElement;
@@ -490,28 +490,28 @@ export default function NewLandingPagePage() {
                       if (selection && selection.constructor) {
                         const SelectionClass = selection.constructor;
                         const prototype = SelectionClass.prototype;
-                        
+
                         if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
                           const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
-                          prototype.setNativeRange = function(range: any, force?: boolean) {
+                          prototype.setNativeRange = function (range: any, force?: boolean) {
                             try {
                               if (!range) {
                                 return originalSetNativeRange(null, force);
                               }
-                              
+
                               const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
                               if (editor) {
                                 const length = editor.textContent?.length || 0;
                                 const safeIndex = Math.max(0, Math.min(range.index || 0, length));
                                 const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
-                                
+
                                 const safeRange = {
                                   index: safeIndex,
                                   length: safeLength
                                 };
                                 return originalSetNativeRange(safeRange, force);
                               }
-                              
+
                               return originalSetNativeRange(range, force);
                             } catch (error) {
                               return null;
@@ -520,7 +520,7 @@ export default function NewLandingPagePage() {
                           prototype._setNativeRangeWrapped = true;
                         }
                       }
-                      
+
                       const originalSetSelection = retryQuill.setSelection.bind(retryQuill);
                       retryQuill.setSelection = (index: number, source?: string, force?: boolean) => {
                         try {
@@ -531,17 +531,17 @@ export default function NewLandingPagePage() {
                           return null;
                         }
                       };
-                      
+
                       retryQuill._selectionWrapped = true;
                     } catch (error) {
                       // 래핑 실패해도 계속 진행
                     }
                   }
-                  
+
                   quillInstanceRef.current = retryQuill;
                   quillRef.current = quillElement;
                   setIsQuillReady(true);
-                  
+
                   // 기본 툴바 숨김
                   setTimeout(() => {
                     const toolbar = (quillElement as HTMLElement).querySelector('.ql-toolbar') as HTMLElement;
@@ -560,7 +560,7 @@ export default function NewLandingPagePage() {
         // 에러 무시 (콘솔에 출력하지 않음)
       }
     }, 1000);
-    
+
     return () => {
       clearTimeout(timer);
       if (retryTimer) clearTimeout(retryTimer);
@@ -576,7 +576,7 @@ export default function NewLandingPagePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.htmlContent, editorMode, isQuillReady]);
-  
+
   // onChange 핸들러 메모이제이션 (리렌더링 최소화)
   const handleQuillChange = useCallback((value: string) => {
     try {
@@ -586,12 +586,12 @@ export default function NewLandingPagePage() {
       } else {
         quillValueRef.current = typeof value === 'string' ? value : String(value || '');
       }
-      
+
       // formData 업데이트는 매우 긴 debounce로 처리 (리렌더링 최소화)
       if (onChangeDebounceRef.current) {
         clearTimeout(onChangeDebounceRef.current);
       }
-      
+
       // 2초 debounce로 formData 업데이트 (에디터가 사라지지 않도록)
       onChangeDebounceRef.current = setTimeout(() => {
         setFormData(prev => ({ ...prev, htmlContent: quillValueRef.current }));
@@ -626,7 +626,7 @@ export default function NewLandingPagePage() {
       if (data.ok && data.group) {
         // 그룹 목록 새로고침
         await fetchCustomerGroups();
-        
+
         // 생성된 그룹을 해당 필드에 설정
         if (newGroupTarget === 'main') {
           setFormData({ ...formData, groupId: data.group.id });
@@ -802,9 +802,9 @@ export default function NewLandingPagePage() {
           url = `${window.location.origin}/${url}`;
         }
       }
-      
+
       const normalizedUrl = normalizeLandingImageUrl(url, { baseOrigin: window.location.origin });
-      
+
       if (normalizedUrl.startsWith('blob:') && img.file) {
         try {
           const dataUrl = await fileToDataUrl(img.file);
@@ -854,7 +854,7 @@ export default function NewLandingPagePage() {
           // Quill 인스턴스가 없으면 잠시 대기 후 재시도
           await new Promise(resolve => setTimeout(resolve, 100));
           quill = getQuillInstance();
-          
+
           // 여전히 없으면 한 번 더 시도
           if (!quill) {
             await new Promise(resolve => setTimeout(resolve, 200));
@@ -867,14 +867,14 @@ export default function NewLandingPagePage() {
             // 현재 커서 위치 가져오기
             const range = quill.getSelection(true);
             let insertIndex = range ? range.index : quill.getLength() - 1;
-            
+
             // 안전한 인덱스로 조정
             const length = quill.getLength();
             insertIndex = Math.max(0, Math.min(insertIndex, length - 1));
-            
+
             // 커서를 삽입 위치로 이동
             quill.setSelection(insertIndex, 0, 'user');
-            
+
             // 각 이미지를 개별적으로 삽입
             for (let index = 0; index < preparedImages.length; index++) {
               const img = preparedImages[index];
@@ -884,13 +884,13 @@ export default function NewLandingPagePage() {
                 let currentIndex = currentRange ? currentRange.index : quill.getLength() - 1;
                 const length = quill.getLength();
                 currentIndex = Math.max(0, Math.min(currentIndex, length - 1));
-                
+
                 // 커서를 삽입 위치로 이동
                 quill.setSelection(currentIndex, 0, 'user');
-                
+
                 // insertEmbed를 사용하여 이미지 삽입
                 quill.insertEmbed(currentIndex, 'image', img.persistentUrl, 'user');
-                
+
                 // 이미지 사이에 줄바꿈 추가 (마지막 이미지가 아닌 경우)
                 if (index < preparedImages.length - 1) {
                   const newLength = quill.getLength();
@@ -909,10 +909,10 @@ export default function NewLandingPagePage() {
                   let currentIndex = currentRange ? currentRange.index : quill.getLength() - 1;
                   const length = quill.getLength();
                   currentIndex = Math.max(0, Math.min(currentIndex, length - 1));
-                  
+
                   const imageHtml = `<img src="${img.persistentUrl}" alt="${img.name || ''}" style="max-width: 100%; height: auto;" />`;
                   const delta = quill.clipboard.convert({ html: imageHtml });
-                  
+
                   // Delta를 사용하여 삽입
                   const Quill = (window as any).Quill;
                   if (Quill && Quill.import) {
@@ -937,19 +937,19 @@ export default function NewLandingPagePage() {
                 }
               }
             }
-            
+
             // 삽입 후 커서를 끝으로 이동
             const newLength = quill.getLength();
             if (newLength > 0) {
               quill.setSelection(newLength - 1, 0, 'user');
             }
-            
+
             // Quill의 내용을 ref와 state에 반영
             const quillContent = quill.root.innerHTML;
             logger.log('[Image Insert] Final Quill content:', quillContent.substring(0, 500));
             quillValueRef.current = quillContent;
             setQuillValue(quillContent);
-            
+
             // formData 업데이트
             if (onChangeDebounceRef.current) {
               clearTimeout(onChangeDebounceRef.current);
@@ -975,7 +975,7 @@ export default function NewLandingPagePage() {
           setQuillValue(newContent);
           setFormData(prev => ({ ...prev, htmlContent: newContent }));
         }
-        
+
         // 에디터가 표시되도록 강제
         setTimeout(() => {
           const container = document.getElementById('quill-editor-container');
@@ -1025,7 +1025,7 @@ export default function NewLandingPagePage() {
     const dataTransfer = new DataTransfer();
     files.forEach((file) => dataTransfer.items.add(file));
     input.files = dataTransfer.files;
-    
+
     const event = new Event('change', { bubbles: true });
     Object.defineProperty(event, 'target', { value: input, enumerable: true });
     handleFileSelect(event as any);
@@ -1051,7 +1051,7 @@ export default function NewLandingPagePage() {
   const handleImageDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (draggedImageIndex === null || draggedImageIndex === dropIndex) {
       setDraggedImageIndex(null);
       setDragOverIndex(null);
@@ -1063,7 +1063,7 @@ export default function NewLandingPagePage() {
     const draggedImage = newImages[draggedImageIndex];
     newImages.splice(draggedImageIndex, 1);
     newImages.splice(dropIndex, 0, draggedImage);
-    
+
     setSelectedImages(newImages);
     setDraggedImageIndex(null);
     setDragOverIndex(null);
@@ -1086,10 +1086,10 @@ export default function NewLandingPagePage() {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (doc) {
         doc.open();
-        
+
         // 활성화된 필드들로 하단 폼 생성
         const formFields: string[] = [];
-        
+
         if (formData.infoCollection) {
           // 활성화된 필드들만 표시
           if (dataFields.phone.enabled) {
@@ -1100,7 +1100,7 @@ export default function NewLandingPagePage() {
               </div>
             `);
           }
-          
+
           if (dataFields.name.enabled) {
             formFields.push(`
               <div class="form-field">
@@ -1109,7 +1109,7 @@ export default function NewLandingPagePage() {
               </div>
             `);
           }
-          
+
           if (dataFields.gender.enabled) {
             formFields.push(`
               <div class="form-field">
@@ -1122,7 +1122,7 @@ export default function NewLandingPagePage() {
               </div>
             `);
           }
-          
+
           if (dataFields.birthDate.enabled) {
             formFields.push(`
               <div class="form-field">
@@ -1131,7 +1131,7 @@ export default function NewLandingPagePage() {
               </div>
             `);
           }
-          
+
           if (dataFields.email.enabled) {
             formFields.push(`
               <div class="form-field">
@@ -1140,7 +1140,7 @@ export default function NewLandingPagePage() {
               </div>
             `);
           }
-          
+
           if (dataFields.address.enabled) {
             formFields.push(`
               <div class="form-field">
@@ -1149,7 +1149,7 @@ export default function NewLandingPagePage() {
               </div>
             `);
           }
-          
+
           if (dataFields.marketingConsent.enabled) {
             formFields.push(`
               <div class="form-field checkbox-field">
@@ -1325,29 +1325,29 @@ export default function NewLandingPagePage() {
                   }
                 </style>
                 ${(() => {
-                  // headerScript에서 중복 선언 방지를 위해 스크립트 태그를 정리
-                  let headerScript = formData.headerScript || '';
-                  // notificationPopup 같은 변수 중복 선언 방지
-                  if (headerScript.includes('notificationPopup')) {
-                    // 모든 선언을 window 객체로 변경하고 중복 체크 추가
-                    headerScript = headerScript.replace(
-                      /(var|let|const)\s+notificationPopup\s*=/gi, 
-                      'if (typeof window.notificationPopup === "undefined") { window.notificationPopup ='
-                    );
-                    // 함수 선언도 처리
-                    headerScript = headerScript.replace(
-                      /function\s+notificationPopup/gi,
-                      'window.notificationPopup = window.notificationPopup || function'
-                    );
-                    // 닫는 중괄호 추가 (열린 중괄호가 있는 경우)
-                    const openBraces = (headerScript.match(/\{/g) || []).length;
-                    const closeBraces = (headerScript.match(/\}/g) || []).length;
-                    if (openBraces > closeBraces) {
-                      headerScript = headerScript + '}';
-                    }
-                  }
-                  return headerScript;
-                })()}
+              // headerScript에서 중복 선언 방지를 위해 스크립트 태그를 정리
+              let headerScript = formData.headerScript || '';
+              // notificationPopup 같은 변수 중복 선언 방지
+              if (headerScript.includes('notificationPopup')) {
+                // 모든 선언을 window 객체로 변경하고 중복 체크 추가
+                headerScript = headerScript.replace(
+                  /(var|let|const)\s+notificationPopup\s*=/gi,
+                  'if (typeof window.notificationPopup === "undefined") { window.notificationPopup ='
+                );
+                // 함수 선언도 처리
+                headerScript = headerScript.replace(
+                  /function\s+notificationPopup/gi,
+                  'window.notificationPopup = window.notificationPopup || function'
+                );
+                // 닫는 중괄호 추가 (열린 중괄호가 있는 경우)
+                const openBraces = (headerScript.match(/\{/g) || []).length;
+                const closeBraces = (headerScript.match(/\}/g) || []).length;
+                if (openBraces > closeBraces) {
+                  headerScript = headerScript + '}';
+                }
+              }
+              return headerScript;
+            })()}
               </head>
               <body>
                 ${normalizeLandingHtmlContent(previewContent || '', { baseOrigin: window.location.origin })}
@@ -1397,10 +1397,10 @@ export default function NewLandingPagePage() {
     }
   }, [
     editorMode,
-    formData.htmlContent, 
+    formData.htmlContent,
     quillValue, // 항상 포함 (조건부 제거로 인한 경고 방지)
-    formData.headerScript, 
-    formData.infoCollection, 
+    formData.headerScript,
+    formData.infoCollection,
     formData.buttonTitle,
     formData.commentEnabled,
     previewComments,
@@ -1490,7 +1490,7 @@ export default function NewLandingPagePage() {
       }
 
       // HTML 콘텐츠 내 이미지 URL 정규화 (HTML 탭일 때는 정규화하지 않음, Editor 형식으로 변환하지 않음)
-      const normalizedHtmlContent = editorMode === 'html' 
+      const normalizedHtmlContent = editorMode === 'html'
         ? finalHtmlContent  // HTML 탭: HTML 코드 그대로 사용 (정규화 없이, Editor 형식으로 변환하지 않음)
         : normalizeLandingHtmlContent(finalHtmlContent, { baseOrigin: window.location.origin });  // Editor 탭: 정규화 필요
 
@@ -1525,7 +1525,7 @@ export default function NewLandingPagePage() {
         }
       });
 
-      const url = savedPageId 
+      const url = savedPageId
         ? `/api/admin/landing-pages/${savedPageId}`
         : '/api/admin/landing-pages';
       const method = savedPageId ? 'PUT' : 'POST';
@@ -1583,7 +1583,7 @@ export default function NewLandingPagePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // 저장 전에 quillValueRef의 최신 값을 formData에 반영
     if (editorMode === 'editor' && quillValueRef.current !== undefined) {
       setFormData(prev => ({ ...prev, htmlContent: quillValueRef.current }));
@@ -1624,12 +1624,12 @@ export default function NewLandingPagePage() {
       } else {
         finalHtmlContent = formData.htmlContent || '';
       }
-      
+
       // HTML 콘텐츠 내 이미지 URL 정규화 (HTML 탭일 때는 정규화하지 않음, Editor 형식으로 변환하지 않음)
-      const normalizedHtmlContent = editorMode === 'html' 
+      const normalizedHtmlContent = editorMode === 'html'
         ? finalHtmlContent  // HTML 탭: HTML 코드 그대로 사용 (정규화 없이, Editor 형식으로 변환하지 않음)
         : normalizeLandingHtmlContent(finalHtmlContent, { baseOrigin: window.location.origin });  // Editor 탭: 정규화 필요
-      
+
       // 노출용 이미지 업로드 (새로 업로드한 파일이 있는 경우)
       let exposureImageUrl = null;
       if (formData.exposureImage) {
@@ -1639,13 +1639,13 @@ export default function NewLandingPagePage() {
           uploadFormData.append('type', 'image');
           uploadFormData.append('category', 'landing-exposure');
           uploadFormData.append('filename', formData.exposureImage.name);
-          
+
           const uploadResponse = await fetch('/api/admin/mall/upload', {
             method: 'POST',
             credentials: 'include',
             body: uploadFormData,
           });
-          
+
           if (uploadResponse.ok) {
             const uploadData = await uploadResponse.json();
             if (uploadData.ok && uploadData.url) {
@@ -1732,7 +1732,7 @@ export default function NewLandingPagePage() {
         const responseText = await response.text();
         logger.log('Server response status:', response.status);
         logger.log('Server response text (first 500 chars):', responseText.substring(0, 500));
-        
+
         try {
           data = JSON.parse(responseText);
         } catch (parseError) {
@@ -1744,7 +1744,7 @@ export default function NewLandingPagePage() {
         console.error('Failed to read response:', textError);
         throw new Error('서버 응답을 읽을 수 없습니다: ' + textError.message);
       }
-      
+
       if (!response.ok || !data.ok) {
         const errorMessage = data.error || data.details?.message || data.details?.code || '랜딩페이지 생성에 실패했습니다.';
         console.error('Landing page creation error:', {
@@ -1754,14 +1754,14 @@ export default function NewLandingPagePage() {
           details: data.details,
           fullData: JSON.stringify(data, null, 2),
         });
-        
+
         // 개발 환경에서 더 자세한 에러 표시
         if (data.details) {
           alert(`에러: ${errorMessage}\n\n상세 정보:\n${JSON.stringify(data.details, null, 2)}`);
         } else {
           alert(`에러: ${errorMessage}`);
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -1771,10 +1771,10 @@ export default function NewLandingPagePage() {
       }
 
       alert('랜딩페이지가 생성되었습니다!');
-      
+
       // 랜딩페이지 목록으로 이동
       router.push(`/admin/landing-pages`);
-      
+
       // 댓글 자동 생성 (댓글 기능이 활성화되고 설정이 있는 경우)
       if (formData.commentEnabled && commentSettings && commentSettings.count && commentSettings.startDate && commentSettings.endDate) {
         try {
@@ -1842,8 +1842,8 @@ export default function NewLandingPagePage() {
     const newValue = !dataFields[field].enabled;
     setDataFields({
       ...dataFields,
-      [field]: { 
-        ...dataFields[field], 
+      [field]: {
+        ...dataFields[field],
         enabled: newValue,
         required: newValue ? dataFields[field].required : false, // 비활성화 시 필수도 해제
       },
@@ -1891,7 +1891,7 @@ export default function NewLandingPagePage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-          <button
+            <button
               type="button"
               onClick={() => setShowPreview(!showPreview)}
               className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
@@ -1901,11 +1901,11 @@ export default function NewLandingPagePage() {
             </button>
             <button
               type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            <FiX size={24} />
-          </button>
+              onClick={() => router.back()}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              <FiX size={24} />
+            </button>
           </div>
         </div>
 
@@ -1965,47 +1965,47 @@ export default function NewLandingPagePage() {
 
             {/* 오른쪽: 에디터 영역 */}
             <div className="flex-1 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]">
-          {/* 기본 정보 */}
+              {/* 기본 정보 */}
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">기본 정보</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       대분류 <span className="text-gray-400 text-xs font-normal">※ 카테고리 분류</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="예: B2B크루즈"
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      placeholder="예: B2B크루즈"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       페이지묶음 <span className="text-gray-400 text-xs font-normal">※ 동일한 묶음끼리 목록에서 표시</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.pageGroup}
-                  onChange={(e) => setFormData({ ...formData, pageGroup: e.target.value })}
-                  placeholder="예: B2B크루즈"
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pageGroup}
+                      onChange={(e) => setFormData({ ...formData, pageGroup: e.target.value })}
+                      placeholder="예: B2B크루즈"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       제목 <span className="text-red-500">*</span>
                     </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">노출용 제목</label>
                     <input
                       type="text"
@@ -2017,44 +2017,42 @@ export default function NewLandingPagePage() {
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">노출용 설명</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={3}
                       placeholder="SNS 공유 시 표시될 설명"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
               {/* 콘텐츠 에디터 */}
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">콘텐츠</h2>
                 <div className="mb-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setEditorMode('editor')}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      editorMode === 'editor' 
-                        ? 'bg-blue-600 text-white shadow-md' 
+                  <button
+                    type="button"
+                    onClick={() => setEditorMode('editor')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${editorMode === 'editor'
+                        ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-              >
-                Editor
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditorMode('html')}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      editorMode === 'html' 
-                        ? 'bg-blue-600 text-white shadow-md' 
+                      }`}
+                  >
+                    Editor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorMode('html')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${editorMode === 'html'
+                        ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-              >
-                HTML
-              </button>
-            </div>
+                      }`}
+                  >
+                    HTML
+                  </button>
+                </div>
                 {/* HTML 탭일 때는 Editor 관련 모든 것을 완전히 숨김, textarea만 표시 */}
                 {editorMode === 'html' ? (
                   /* HTML 탭: HTML 코드만 입력 가능 (Editor 완전히 제거, 툴바 없음, 1칸만 표시) */
@@ -2064,9 +2062,9 @@ export default function NewLandingPagePage() {
                       onChange={(e) => {
                         // HTML 탭에서는 HTML 코드를 그대로 저장 (Editor로 변환하지 않음)
                         const newValue = e.target.value;
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          htmlContent: newValue 
+                        setFormData(prev => ({
+                          ...prev,
+                          htmlContent: newValue
                         }));
                         // HTML 탭에서는 quillValueRef를 절대 업데이트하지 않음
                         // 미리보기는 useEffect에서 formData.htmlContent 변경을 감지하여 자동 업데이트됨
@@ -2074,15 +2072,15 @@ export default function NewLandingPagePage() {
                       onBlur={(e) => {
                         // 포커스를 잃을 때도 HTML 코드 그대로 유지
                         const newValue = e.target.value;
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          htmlContent: newValue 
+                        setFormData(prev => ({
+                          ...prev,
+                          htmlContent: newValue
                         }));
                       }}
                       className="w-full h-[700px] px-6 py-4 border-0 font-mono text-sm focus:outline-none resize-none bg-white text-gray-900"
                       placeholder="HTML 코드를 입력하세요..."
                       spellCheck={false}
-                      style={{ 
+                      style={{
                         minHeight: '700px',
                         height: '700px',
                         width: '100%',
@@ -2099,20 +2097,21 @@ export default function NewLandingPagePage() {
                   </div>
                 ) : editorMode === 'editor' ? (
                   /* Editor 탭: Editor만 표시 */
-                <div className="min-h-[700px] border-2 border-gray-200 rounded-lg overflow-hidden mb-20">
-                    <div 
-                      className="h-[700px] flex flex-col relative" 
-                      id="quill-editor-container" 
-                      style={{ 
-                        display: 'flex', 
-                        visibility: 'visible', 
+                  <div className="min-h-[700px] border-2 border-gray-200 rounded-lg overflow-hidden mb-20">
+                    <div
+                      className="h-[700px] flex flex-col relative"
+                      id="quill-editor-container"
+                      style={{
+                        display: 'flex',
+                        visibility: 'visible',
                         opacity: 1,
                         position: 'relative',
                         zIndex: 1,
                         paddingBottom: '80px' // 하단 툴바 공간 확보
                       }}
                     >
-                      <style dangerouslySetInnerHTML={{__html: `
+                      <style dangerouslySetInnerHTML={{
+                        __html: `
                         #quill-editor-container {
                           display: flex !important;
                           visibility: visible !important;
@@ -2281,157 +2280,157 @@ export default function NewLandingPagePage() {
                       {/* ErrorBoundary는 전역 Providers에서 처리하므로 제거 */}
                       {/* HTML 탭일 때는 ReactQuill을 절대 렌더링하지 않음 */}
                       {editorMode === 'editor' ? (
-                      <>
-                      <ReactQuill
-                          key="editor-fixed"
-                theme="snow"
-                          value={(() => {
-                            // 안전한 값 추출 및 검증
-                            let val: string = '';
-                            try {
-                              val = quillValueRef.current || quillValue || formData.htmlContent || '';
-                              // null, undefined 체크
-                              if (val == null) val = '';
-                              // 문자열이 아닌 경우 변환
-                              if (typeof val !== 'string') {
-                                val = String(val || '');
-                              }
-                              // 빈 문자열 보장
-                              if (!val) val = '';
-                            } catch (error) {
-                              console.error('ReactQuill value 처리 오류:', error);
-                              val = '';
-                            }
-                            return val;
-                          })()}
-                          readOnly={false}
-                          onChange={handleQuillChange}
-                          onChangeSelection={(range) => {
-                            // addRange 에러 방지: range가 유효한지 확인
-                            if (range && quillInstanceRef.current) {
+                        <>
+                          <ReactQuill
+                            key="editor-fixed"
+                            theme="snow"
+                            value={(() => {
+                              // 안전한 값 추출 및 검증
+                              let val: string = '';
                               try {
-                                const length = quillInstanceRef.current.getLength();
-                                if (range.index >= 0 && range.index <= length && 
+                                val = quillValueRef.current || quillValue || formData.htmlContent || '';
+                                // null, undefined 체크
+                                if (val == null) val = '';
+                                // 문자열이 아닌 경우 변환
+                                if (typeof val !== 'string') {
+                                  val = String(val || '');
+                                }
+                                // 빈 문자열 보장
+                                if (!val) val = '';
+                              } catch (error) {
+                                console.error('ReactQuill value 처리 오류:', error);
+                                val = '';
+                              }
+                              return val;
+                            })()}
+                            readOnly={false}
+                            onChange={handleQuillChange}
+                            onChangeSelection={(range) => {
+                              // addRange 에러 방지: range가 유효한지 확인
+                              if (range && quillInstanceRef.current) {
+                                try {
+                                  const length = quillInstanceRef.current.getLength();
+                                  if (range.index >= 0 && range.index <= length &&
                                     range.length >= 0 && range.index + range.length <= length) {
-                                  // 유효한 range
+                                    // 유효한 range
+                                  }
+                                } catch (error) {
+                                  // 무시
+                                }
+                              }
+                            }}
+                            onBlur={() => {
+                              // blur 시에도 에디터가 표시되도록 유지
+                              requestAnimationFrame(() => {
+                                const container = document.getElementById('quill-editor-container');
+                                if (container && editorMode === 'editor') {
+                                  container.style.display = 'flex';
+                                  container.style.visibility = 'visible';
+                                  container.style.opacity = '1';
+                                }
+                              });
+                            }}
+                            onFocus={() => {
+                              // 포커스 시 에디터가 준비되었는지 확인
+                              try {
+                                const container = document.getElementById('quill-editor-container');
+                                if (container) {
+                                  container.style.setProperty('display', 'flex', 'important');
+                                  container.style.setProperty('visibility', 'visible', 'important');
+                                  container.style.setProperty('opacity', '1', 'important');
+                                  container.classList.remove('hidden');
+                                }
+
+                                const quillElement = container?.querySelector('.ql-container')?.closest('.quill');
+                                if (quillElement) {
+                                  const quill = (quillElement as any).__quill || (quillElement as any).quill;
+                                  if (quill) {
+                                    // addRange() 에러 방지: Quill의 Selection 클래스의 setNativeRange 메서드 래핑
+                                    if (!quill._selectionWrapped) {
+                                      try {
+                                        const selection = quill.selection;
+                                        if (selection && selection.constructor) {
+                                          const SelectionClass = selection.constructor;
+                                          const prototype = SelectionClass.prototype;
+
+                                          if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
+                                            const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
+                                            prototype.setNativeRange = function (range: any, force?: boolean) {
+                                              try {
+                                                if (!range) {
+                                                  return originalSetNativeRange(null, force);
+                                                }
+
+                                                const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
+                                                if (editor) {
+                                                  const length = editor.textContent?.length || 0;
+                                                  const safeIndex = Math.max(0, Math.min(range.index || 0, length));
+                                                  const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
+
+                                                  const safeRange = {
+                                                    index: safeIndex,
+                                                    length: safeLength
+                                                  };
+                                                  return originalSetNativeRange(safeRange, force);
+                                                }
+
+                                                return originalSetNativeRange(range, force);
+                                              } catch (error) {
+                                                return null;
+                                              }
+                                            };
+                                            prototype._setNativeRangeWrapped = true;
+                                          }
+                                        }
+
+                                        const originalSetSelection = quill.setSelection.bind(quill);
+                                        quill.setSelection = (index: number, source?: string, force?: boolean) => {
+                                          try {
+                                            const length = quill.getLength();
+                                            const safeIndex = Math.max(0, Math.min(index, length - 1));
+                                            return originalSetSelection(safeIndex, source, force);
+                                          } catch (error) {
+                                            return null;
+                                          }
+                                        };
+
+                                        quill._selectionWrapped = true;
+                                      } catch (error) {
+                                        // 래핑 실패해도 계속 진행
+                                      }
+                                    }
+
+                                    quillInstanceRef.current = quill;
+                                    quillRef.current = quillElement;
+                                    setIsQuillReady(true);
+                                  }
                                 }
                               } catch (error) {
-                                // 무시
+                                // 에러 무시
                               }
-                            }
-                          }}
-                          onBlur={() => {
-                            // blur 시에도 에디터가 표시되도록 유지
-                            requestAnimationFrame(() => {
-                              const container = document.getElementById('quill-editor-container');
-                              if (container && editorMode === 'editor') {
-                                container.style.display = 'flex';
-                                container.style.visibility = 'visible';
-                                container.style.opacity = '1';
-                              }
-                            });
-                          }}
-                          onFocus={() => {
-                            // 포커스 시 에디터가 준비되었는지 확인
-                            try {
-                              const container = document.getElementById('quill-editor-container');
-                              if (container) {
-                                container.style.setProperty('display', 'flex', 'important');
-                                container.style.setProperty('visibility', 'visible', 'important');
-                                container.style.setProperty('opacity', '1', 'important');
-                                container.classList.remove('hidden');
-                              }
-                              
-                              const quillElement = container?.querySelector('.ql-container')?.closest('.quill');
-                              if (quillElement) {
-                                const quill = (quillElement as any).__quill || (quillElement as any).quill;
-                                if (quill) {
-                                  // addRange() 에러 방지: Quill의 Selection 클래스의 setNativeRange 메서드 래핑
-                                  if (!quill._selectionWrapped) {
-                                    try {
-                                      const selection = quill.selection;
-                                      if (selection && selection.constructor) {
-                                        const SelectionClass = selection.constructor;
-                                        const prototype = SelectionClass.prototype;
-                                        
-                                        if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
-                                          const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
-                                          prototype.setNativeRange = function(range: any, force?: boolean) {
-                                            try {
-                                              if (!range) {
-                                                return originalSetNativeRange(null, force);
-                                              }
-                                              
-                                              const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
-                                              if (editor) {
-                                                const length = editor.textContent?.length || 0;
-                                                const safeIndex = Math.max(0, Math.min(range.index || 0, length));
-                                                const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
-                                                
-                                                const safeRange = {
-                                                  index: safeIndex,
-                                                  length: safeLength
-                                                };
-                                                return originalSetNativeRange(safeRange, force);
-                                              }
-                                              
-                                              return originalSetNativeRange(range, force);
-                                            } catch (error) {
-                                              return null;
-                                            }
-                                          };
-                                          prototype._setNativeRangeWrapped = true;
-                                        }
-                                      }
-                                      
-                                      const originalSetSelection = quill.setSelection.bind(quill);
-                                      quill.setSelection = (index: number, source?: string, force?: boolean) => {
-                                        try {
-                                          const length = quill.getLength();
-                                          const safeIndex = Math.max(0, Math.min(index, length - 1));
-                                          return originalSetSelection(safeIndex, source, force);
-                                        } catch (error) {
-                                          return null;
-                                        }
-                                      };
-                                      
-                                      quill._selectionWrapped = true;
-                                    } catch (error) {
-                                      // 래핑 실패해도 계속 진행
-                                    }
-                                  }
-                                  
-                                  quillInstanceRef.current = quill;
-                                  quillRef.current = quillElement;
-                                  setIsQuillReady(true);
-                                }
-                              }
-                            } catch (error) {
-                              // 에러 무시
-                            }
-                          }}
-                          bounds="#quill-editor-container"
-                          preserveWhitespace={true}
-                modules={{
-                            toolbar: [], // 빈 툴바 생성 후 CSS로 숨김
-                          }}
-                          formats={[
-                            'header', 'size',
-                            'bold', 'italic', 'underline', 'strike',
-                            'list', 'bullet',
-                            'color', 'background',
-                            'align',
-                            'link', 'image'
-                          ]}
-                          style={{ height: '650px' }}
-                className="bg-white"
-              />
-              </>
-              ) : null}
-                      
+                            }}
+                            bounds="#quill-editor-container"
+                            preserveWhitespace={true}
+                            modules={{
+                              toolbar: [], // 빈 툴바 생성 후 CSS로 숨김
+                            }}
+                            formats={[
+                              'header', 'size',
+                              'bold', 'italic', 'underline', 'strike',
+                              'list', 'bullet',
+                              'color', 'background',
+                              'align',
+                              'link', 'image'
+                            ]}
+                            style={{ height: '650px' }}
+                            className="bg-white"
+                          />
+                        </>
+                      ) : null}
+
                       {/* 커스텀 하단 고정 툴바 */}
                       {editorMode === 'editor' && (
-                        <div 
+                        <div
                           id="custom-toolbar"
                           className="sticky bottom-0 bg-white border-t-2 border-gray-300 shadow-lg z-50 px-4 py-3 w-full"
                           style={{
@@ -2474,7 +2473,7 @@ export default function NewLandingPagePage() {
                               <option value="2">Heading 2</option>
                               <option value="3">Heading 3</option>
                             </select>
-                            
+
                             {/* 크기 */}
                             <select
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-medium bg-white hover:bg-gray-50 cursor-pointer"
@@ -2507,9 +2506,9 @@ export default function NewLandingPagePage() {
                               <option value="large">Large</option>
                               <option value="huge">Huge</option>
                             </select>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 서식 버튼 */}
                             <button
                               type="button"
@@ -2671,9 +2670,9 @@ export default function NewLandingPagePage() {
                             >
                               S
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 목록 */}
                             <button
                               type="button"
@@ -2727,9 +2726,9 @@ export default function NewLandingPagePage() {
                             >
                               <span className="text-lg">•</span>
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 링크 */}
                             <button
                               type="button"
@@ -2757,7 +2756,7 @@ export default function NewLandingPagePage() {
                             >
                               🔗
                             </button>
-                            
+
                             {/* 이미지 */}
                             <button
                               type="button"
@@ -2770,9 +2769,9 @@ export default function NewLandingPagePage() {
                             >
                               🖼️
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 정렬 */}
                             <button
                               type="button"
@@ -2852,9 +2851,9 @@ export default function NewLandingPagePage() {
                             >
                               ➡️
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 색상 */}
                             <input
                               type="color"
@@ -2902,9 +2901,9 @@ export default function NewLandingPagePage() {
                               }}
                               title="Background Color"
                             />
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 지우기 */}
                             <button
                               type="button"
@@ -2943,7 +2942,7 @@ export default function NewLandingPagePage() {
                         </div>
                       )}
                     </div>
-                </div>
+                  </div>
                 ) : null}
               </div>
 
@@ -2971,24 +2970,22 @@ export default function NewLandingPagePage() {
                         }));
                       }
                     }}
-                    className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                      formData.infoCollection ? 'bg-blue-600' : 'bg-gray-300'
-                    }`}
+                    className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${formData.infoCollection ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
                   >
                     <span
-                      className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                        formData.infoCollection ? 'translate-x-7' : 'translate-x-0'
-                      }`}
+                      className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${formData.infoCollection ? 'translate-x-7' : 'translate-x-0'
+                        }`}
                     />
                   </button>
                 </div>
-          </div>
+              </div>
 
-          {/* 데이터 수집 설정 */}
+              {/* 데이터 수집 설정 */}
               {formData.infoCollection && (
                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                   <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">데이터 수집 설정</h2>
-                  
+
                   <div className="space-y-2 mb-6">
                     {/* 모든 필드 (휴대폰 번호 포함) */}
                     {[
@@ -3002,18 +2999,16 @@ export default function NewLandingPagePage() {
                     ].map(({ key, label }) => (
                       <div key={key} className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
                         <span className="font-medium text-gray-700">{label}</span>
-                <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4">
                           <button
                             type="button"
                             onClick={() => toggleDataField(key)}
-                            className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                              dataFields[key].enabled ? 'bg-blue-600' : 'bg-gray-300'
-                            }`}
+                            className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${dataFields[key].enabled ? 'bg-blue-600' : 'bg-gray-300'
+                              }`}
                           >
                             <span
-                              className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                                dataFields[key].enabled ? 'translate-x-7' : 'translate-x-0'
-                              }`}
+                              className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${dataFields[key].enabled ? 'translate-x-7' : 'translate-x-0'
+                                }`}
                             />
                           </button>
                           <label className="flex items-center gap-2 cursor-pointer">
@@ -3022,45 +3017,41 @@ export default function NewLandingPagePage() {
                               checked={dataFields[key].required}
                               onChange={() => toggleDataFieldRequired(key)}
                               disabled={!dataFields[key].enabled}
-                              className={`w-5 h-5 rounded border-2 ${
-                                dataFields[key].enabled
+                              className={`w-5 h-5 rounded border-2 ${dataFields[key].enabled
                                   ? 'border-blue-600 text-blue-600 cursor-pointer'
                                   : 'border-gray-300 cursor-not-allowed opacity-50'
-                              }`}
+                                }`}
                             />
-                            <span className={`text-sm font-medium ${
-                              dataFields[key].enabled ? 'text-gray-700' : 'text-gray-400'
-                            }`}>
+                            <span className={`text-sm font-medium ${dataFields[key].enabled ? 'text-gray-700' : 'text-gray-400'
+                              }`}>
                               필수
                             </span>
                           </label>
-                </div>
-              </div>
+                        </div>
+                      </div>
                     ))}
 
                     {/* 상품 구매 기능 사용 */}
                     <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
                       <span className="font-medium text-gray-700">상품 구매 기능 사용</span>
-                    <button
-                      type="button"
+                      <button
+                        type="button"
                         onClick={() => setProductPurchase({ ...productPurchase, enabled: !productPurchase.enabled })}
-                        className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                          productPurchase.enabled ? 'bg-blue-600' : 'bg-gray-300'
-                        }`}
+                        className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${productPurchase.enabled ? 'bg-blue-600' : 'bg-gray-300'
+                          }`}
                       >
                         <span
-                          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                            productPurchase.enabled ? 'translate-x-7' : 'translate-x-0'
-                          }`}
+                          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${productPurchase.enabled ? 'translate-x-7' : 'translate-x-0'
+                            }`}
                         />
-                    </button>
+                      </button>
                     </div>
 
                     {/* 상품 구매 설정 */}
                     {productPurchase.enabled && (
                       <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
                         <h3 className="font-bold text-gray-800 mb-3">상품 구매 설정</h3>
-                        
+
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             결제 제공업체 <span className="text-red-500">*</span>
@@ -3124,8 +3115,8 @@ export default function NewLandingPagePage() {
                           <label className="block text-sm font-semibold text-gray-700 mb-2">구매수량</label>
                           <div className="flex items-center gap-3">
                             <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
+                              <input
+                                type="checkbox"
                                 checked={productPurchase.useQuantity}
                                 onChange={(e) => setProductPurchase({ ...productPurchase, useQuantity: e.target.checked })}
                                 className="w-5 h-5 rounded border-2 border-blue-600 text-blue-600"
@@ -3143,9 +3134,9 @@ export default function NewLandingPagePage() {
                                 />
                                 <span className="text-gray-600">개</span>
                               </div>
-                    )}
-                  </div>
-                </div>
+                            )}
+                          </div>
+                        </div>
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -3204,7 +3195,7 @@ export default function NewLandingPagePage() {
                               신규 그룹 만들기
                             </button>
                           </div>
-            </div>
+                        </div>
 
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">DB 작성시 연결그룹</label>
@@ -3243,87 +3234,87 @@ export default function NewLandingPagePage() {
                         {additionalFields.map((field, index) => (
                           <div key={field.id} className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg bg-gray-50">
                             <span className="font-semibold text-gray-700 w-20">질문 #{index + 1}</span>
-                  <input
-                    type="text"
-                    value={field.name}
-                    onChange={(e) => setAdditionalFields(additionalFields.map(f =>
-                      f.id === field.id ? { ...f, name: e.target.value } : f
-                    ))}
+                            <input
+                              type="text"
+                              value={field.name}
+                              onChange={(e) => setAdditionalFields(additionalFields.map(f =>
+                                f.id === field.id ? { ...f, name: e.target.value } : f
+                              ))}
                               placeholder="질문을 입력하세요"
                               className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                            />
                             <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={field.required}
-                    onChange={() => toggleAdditionalFieldRequired(field.id)}
+                              <input
+                                type="checkbox"
+                                checked={field.required}
+                                onChange={() => toggleAdditionalFieldRequired(field.id)}
                                 className="w-5 h-5 rounded border-2 border-blue-600 text-blue-600"
-                  />
+                              />
                               <span className="text-sm font-medium text-gray-700">필수</span>
                             </label>
-                  <button
-                    type="button"
-                    onClick={() => removeAdditionalField(field.id)}
+                            <button
+                              type="button"
+                              onClick={() => removeAdditionalField(field.id)}
                               className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium transition-colors"
-                  >
-                    삭제
-                  </button>
-                </div>
-              ))}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newAdditionalField}
-                  onChange={(e) => setNewAdditionalField(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAdditionalField())}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newAdditionalField}
+                        onChange={(e) => setNewAdditionalField(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAdditionalField())}
                         placeholder="질문을 입력하세요"
                         className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={addAdditionalField}
+                      />
+                      <button
+                        type="button"
+                        onClick={addAdditionalField}
                         className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors shadow-md"
-                >
-                  항목추가
-                </button>
-              </div>
-            </div>
-          </div>
+                      >
+                        항목추가
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
 
-          {/* 그룹 연결 설정 */}
+              {/* 그룹 연결 설정 */}
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">그룹 연결 설정</h2>
-              <div>
+                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">연결할 그룹</label>
-                <div className="flex gap-2">
-                  <select
-                    value={formData.groupId || ''}
-                    onChange={(e) => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.groupId || ''}
+                      onChange={(e) => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
                       className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">연결할 그룹 선택</option>
-                    {customerGroups.map(group => (
-                      <option key={group.id} value={group.id}>{group.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
+                    >
+                      <option value="">연결할 그룹 선택</option>
+                      {customerGroups.map(group => (
+                        <option key={group.id} value={group.id}>{group.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
                       onClick={() => {
                         setNewGroupTarget('main');
                         setShowNewGroupModal(true);
                       }}
                       className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                  >
-                    신규 그룹 만들기
-                  </button>
+                    >
+                      신규 그룹 만들기
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* 기타 설정 */}
+              {/* 기타 설정 */}
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">기타 설정</h2>
                 <div className="space-y-6">
@@ -3331,27 +3322,25 @@ export default function NewLandingPagePage() {
                     <div>
                       <label className="font-semibold text-gray-700">댓글기능</label>
                       <p className="text-xs text-gray-500 mt-1">Gemini API로 자동 댓글 생성</p>
-              </div>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, commentEnabled: !formData.commentEnabled })}
-                      className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                        formData.commentEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, commentEnabled: !formData.commentEnabled })}
+                      className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${formData.commentEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
                     >
                       <span
-                        className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                          formData.commentEnabled ? 'translate-x-7' : 'translate-x-0'
-                        }`}
+                        className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${formData.commentEnabled ? 'translate-x-7' : 'translate-x-0'
+                          }`}
                       />
-                </button>
-              </div>
+                    </button>
+                  </div>
 
                   {/* 댓글 설정 */}
                   {formData.commentEnabled && (
                     <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
                       <h3 className="font-bold text-gray-800 mb-3">댓글 자동 생성 설정</h3>
-                      
+
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           댓글 개수 <span className="text-red-500">*</span>
@@ -3365,10 +3354,10 @@ export default function NewLandingPagePage() {
                           className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         <p className="text-xs text-gray-500 mt-1">생성할 댓글 개수를 입력하세요 (1-100)</p>
-              </div>
+                      </div>
 
                       <div className="grid grid-cols-2 gap-4">
-              <div>
+                        <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             시작일 <span className="text-red-500">*</span>
                           </label>
@@ -3393,11 +3382,11 @@ export default function NewLandingPagePage() {
                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mb-4">
-                        * 지정한 날짜 범위 내에서 랜덤하게 댓글 작성일이 생성됩니다.<br/>
-                        * Gemini API가 글 내용과 이미지를 분석하여 자연스러운 댓글을 자동 생성합니다.<br/>
+                        * 지정한 날짜 범위 내에서 랜덤하게 댓글 작성일이 생성됩니다.<br />
+                        * Gemini API가 글 내용과 이미지를 분석하여 자연스러운 댓글을 자동 생성합니다.<br />
                         * 댓글에는 ㅎㅎ, ㅋㅋ, ^^, :) 등의 이모티콘이 자연스럽게 포함됩니다.
                       </p>
-                      
+
                       {/* AI 댓글 미리보기 생성 버튼 */}
                       <div className="mb-4">
                         <button
@@ -3416,12 +3405,12 @@ export default function NewLandingPagePage() {
                                 .replace(/<[^>]*>/g, ' ')
                                 .replace(/\s+/g, ' ')
                                 .trim() || formData.title || '';
-                              
+
                               // 샘플 댓글 생성 (날짜 범위 내에서 랜덤 생성)
                               const startDate = new Date(commentSettings.startDate);
                               const endDate = new Date(commentSettings.endDate);
                               const timeDiff = endDate.getTime() - startDate.getTime();
-                              
+
                               const emojis = ['ㅎㅎ', 'ㅋㅋ', '^^', ':)', '👍', '😊', '👏', '🎉', '💕', '✨'];
                               const names = ['김민수', '이영희', '박지훈', '최수진', '정다은', '강호영', '윤소미', '임태현', '한지우', '오유진'];
                               const contents = [
@@ -3436,7 +3425,7 @@ export default function NewLandingPagePage() {
                                 '이번 여행 계획에 참고하겠습니다',
                                 '완전 대박이네요!'
                               ];
-                              
+
                               const sampleComments = Array.from({ length: Math.min(commentSettings.count, 50) }, (_, i) => ({
                                 authorName: names[i % names.length],
                                 content: `${contents[i % contents.length]} ${emojis[i % emojis.length]}`,
@@ -3444,7 +3433,7 @@ export default function NewLandingPagePage() {
                                   startDate.getTime() + Math.random() * timeDiff
                                 ).toISOString(),
                               }));
-                              
+
                               setPreviewComments(sampleComments);
                               alert(`${sampleComments.length}개의 댓글 미리보기가 생성되었습니다! 오른쪽 모바일 미리보기에서 확인하세요.`);
                             } catch (error: any) {
@@ -3477,103 +3466,103 @@ export default function NewLandingPagePage() {
                   )}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">정보입력제한</label>
-                <select
-                  value={formData.inputLimit}
-                  onChange={(e) => setFormData({ ...formData, inputLimit: e.target.value })}
+                    <select
+                      value={formData.inputLimit}
+                      onChange={(e) => setFormData({ ...formData, inputLimit: e.target.value })}
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="무제한 허용">무제한 허용 (신청자 또 받을 수 있음)</option>
                       <option value="1회만 허용">1회만 허용 (신청자 1번만 받음)</option>
-                </select>
+                    </select>
                     <p className="text-xs text-gray-500 mt-1">
-                      * 그룹을 연결하여 데이터를 입력받을경우 제한을 사용할수 있습니다.<br/>
-                      랜딩페이지 랜딩데이터 입력 휴대폰 번호를 체크합니다.<br/>
+                      * 그룹을 연결하여 데이터를 입력받을경우 제한을 사용할수 있습니다.<br />
+                      랜딩페이지 랜딩데이터 입력 휴대폰 번호를 체크합니다.<br />
                       목록에서 데이터 확인후 삭제하면 다시 입력받을수 있습니다.
                     </p>
-              </div>
-              <div>
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">신청완료 페이지</label>
-                <input
-                  type="url"
-                  value={formData.completionPageUrl}
-                  onChange={(e) => setFormData({ ...formData, completionPageUrl: e.target.value })}
-                  placeholder="* http:// 포함 url 입력"
+                    <input
+                      type="url"
+                      value={formData.completionPageUrl}
+                      onChange={(e) => setFormData({ ...formData, completionPageUrl: e.target.value })}
+                      placeholder="* http:// 포함 url 입력"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">신청하기 버튼 제목</label>
-                <input
-                  type="text"
-                  value={formData.buttonTitle}
-                  onChange={(e) => setFormData({ ...formData, buttonTitle: e.target.value })}
-                  placeholder="예: 등록, 등록하기"
+                    <input
+                      type="text"
+                      value={formData.buttonTitle}
+                      onChange={(e) => setFormData({ ...formData, buttonTitle: e.target.value })}
+                      placeholder="예: 등록, 등록하기"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <p className="text-xs text-gray-500 mt-1">* 하단의 신청하기 버튼의 텍스트를 변경할수 있습니다.</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* 고급 설정 */}
+              {/* 고급 설정 */}
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">고급 설정</h2>
-            <div className="space-y-4">
-              <div>
+                <div className="space-y-4">
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">헤더 스크립트</label>
                     <p className="text-xs text-gray-500 mb-2">구글, 페이스북 코드 심기</p>
-                <textarea
-                  value={formData.headerScript}
-                  onChange={(e) => setFormData({ ...formData, headerScript: e.target.value })}
+                    <textarea
+                      value={formData.headerScript}
+                      onChange={(e) => setFormData({ ...formData, headerScript: e.target.value })}
                       rows={6}
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="HTML head 태그에 삽입할 스크립트"
-                />
-              </div>
-              <div>
+                      placeholder="HTML head 태그에 삽입할 스크립트"
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">사업자 정보</label>
                     <div className="space-y-2 text-sm">
-                      <input 
-                        type="text" 
-                        placeholder="사이트명" 
+                      <input
+                        type="text"
+                        placeholder="사이트명"
                         value={businessInfoFields.siteName}
                         onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, siteName: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
                       />
-                      <input 
-                        type="text" 
-                        placeholder="회사명" 
+                      <input
+                        type="text"
+                        placeholder="회사명"
                         value={businessInfoFields.companyName}
                         onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, companyName: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
                       />
-                      <input 
-                        type="text" 
-                        placeholder="대표전화" 
+                      <input
+                        type="text"
+                        placeholder="대표전화"
                         value={businessInfoFields.businessPhone}
                         onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, businessPhone: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
                       />
-                      <input 
-                        type="text" 
-                        placeholder="개인정보담당" 
+                      <input
+                        type="text"
+                        placeholder="개인정보담당"
                         value={businessInfoFields.privacyOfficer}
                         onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, privacyOfficer: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
                       />
-                      <input 
-                        type="text" 
-                        placeholder="사업자등록번호" 
+                      <input
+                        type="text"
+                        placeholder="사업자등록번호"
                         value={businessInfoFields.businessNumber}
                         onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, businessNumber: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
                       />
-                      <input 
-                        type="text" 
-                        placeholder="주소" 
+                      <input
+                        type="text"
+                        placeholder="주소"
                         value={businessInfoFields.address}
                         onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, address: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
                       />
                     </div>
                   </div>
@@ -3585,7 +3574,7 @@ export default function NewLandingPagePage() {
                       <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                         <p className="text-sm text-blue-700 font-medium mb-2">현재 저장된 이미지:</p>
                         <div className="flex items-center gap-3">
-                          <Image
+                          <NextImage
                             src={exposureImageUrl}
                             alt="저장된 노출용 이미지"
                             width={80}
@@ -3611,7 +3600,7 @@ export default function NewLandingPagePage() {
                       <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm text-green-700 font-medium mb-2">새로 업로드할 이미지:</p>
                         <div className="relative">
-                          <Image
+                          <NextImage
                             src={exposureImagePreview}
                             alt="노출용 이미지 미리보기"
                             width={400}
@@ -3656,7 +3645,7 @@ export default function NewLandingPagePage() {
                         <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm max-w-md">
                           {/* 이미지 */}
                           <div className="w-full aspect-[1.91/1] bg-gray-100 overflow-hidden relative">
-                            <Image
+                            <NextImage
                               src={exposureImagePreview || exposureImageUrl || ''}
                               alt="노출용 이미지"
                               fill
@@ -3684,27 +3673,27 @@ export default function NewLandingPagePage() {
                         <p className="text-xs text-gray-500 mt-2">카카오톡, 페이스북 등에서 공유 시 이렇게 표시됩니다.</p>
                       </div>
                     )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
               {/* 저장 버튼 */}
               <div className="flex justify-end gap-4 pb-6">
-            <button
-              type="button"
-              onClick={() => router.back()}
+                <button
+                  type="button"
+                  onClick={() => router.back()}
                   className="px-8 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
                   className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 font-semibold shadow-lg transition-colors"
-            >
+                >
                   <FiSave size={20} />
                   {loading ? '저장 중...' : '저장'}
-            </button>
+                </button>
               </div>
             </div>
           </div>
@@ -3729,27 +3718,25 @@ export default function NewLandingPagePage() {
               >
                 <FiX size={24} />
               </button>
-    </div>
+            </div>
 
             {/* 탭 */}
             <div className="border-b px-6 py-3 flex gap-2">
               <button
                 onClick={() => setImageModalMode('upload')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  imageModalMode === 'upload'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${imageModalMode === 'upload'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 파일 선택
               </button>
               <button
                 onClick={() => setImageModalMode('cruise')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  imageModalMode === 'cruise'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${imageModalMode === 'cruise'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 크루즈정보사진
               </button>
@@ -3812,16 +3799,14 @@ export default function NewLandingPagePage() {
                             onDragLeave={handleImageDragLeave}
                             onDrop={(e) => handleImageDrop(e, index)}
                             onDragEnd={handleImageDragEnd}
-                            className={`relative group cursor-move transition-all ${
-                              draggedImageIndex === index ? 'opacity-50 scale-95' : ''
-                            } ${
-                              dragOverIndex === index ? 'ring-4 ring-blue-400 scale-105' : ''
-                            }`}
+                            className={`relative group cursor-move transition-all ${draggedImageIndex === index ? 'opacity-50 scale-95' : ''
+                              } ${dragOverIndex === index ? 'ring-4 ring-blue-400 scale-105' : ''
+                              }`}
                           >
                             <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded z-10">
                               {index + 1}
                             </div>
-                            <Image
+                            <NextImage
                               src={img.url}
                               alt={img.name}
                               width={400}
@@ -3897,16 +3882,15 @@ export default function NewLandingPagePage() {
                             }
                           }}
                         >
-                          <Image
+                          <NextImage
                             src={photo.url}
                             alt={photo.title || `사진 ${index + 1}`}
                             width={400}
                             height={128}
-                            className={`w-full h-32 object-cover rounded-lg border-2 transition-all ${
-                              selectedImages.some((img) => img.url === photo.url)
+                            className={`w-full h-32 object-cover rounded-lg border-2 transition-all ${selectedImages.some((img) => img.url === photo.url)
                                 ? 'border-blue-500 ring-2 ring-blue-200'
                                 : 'border-gray-200'
-                            }`}
+                              }`}
                             unoptimized
                           />
                           {selectedImages.some((img) => img.url === photo.url) && (

@@ -626,10 +626,12 @@ export async function GET(req: NextRequest) {
         // User 정보 추가 (고객 그룹 추가용)
         userId: userInfo?.id ?? null,
         userName: userInfo?.name ?? null,
-        // 전화상담 고객용 추가 정보
-        cruiseName: latestTrip?.cruiseName || null,
+        // 전화상담 고객용 추가 정보 (metadata에서 productName 가져오기)
+        cruiseName: latestTrip?.cruiseName || (lead.metadata as any)?.productName || null,
         // customerSource 추가 (딱지 표시용)
         customerSource: userInfo?.customerSource || lead.source || null,
+        // AffiliateLead ID 추가 (상세기록용)
+        leadId: lead.id,
       };
     });
 

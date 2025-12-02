@@ -6,6 +6,8 @@ export async function handleTaiwanNav(text: string): Promise<ChatMessage[]> {
 
   if (text.includes('타이베이') || text.includes('타이완') || text.includes('대만')) {
     responseMessages.push({
+      id: Math.random().toString(36).substring(7),
+      role: 'assistant',
       type: 'text',
       text: '타이완 관련 길찾기 정보를 찾고 있어요!'
     });
@@ -15,6 +17,8 @@ export async function handleTaiwanNav(text: string): Promise<ChatMessage[]> {
     const keelungPort = '지룽항 크루즈 터미널'
 
     responseMessages.push({
+      id: Math.random().toString(36).substring(7),
+      role: 'assistant',
       type: 'map-links',
       title: '타이완 주요 지점',
       links: [
@@ -27,12 +31,16 @@ export async function handleTaiwanNav(text: string): Promise<ChatMessage[]> {
     } as MapLinksMessage);
 
     responseMessages.push({
+      id: Math.random().toString(36).substring(7),
+      role: 'assistant',
       type: 'text',
       text: '실시간 소요시간·영업시간은 링크에서 자동 갱신됩니다.'
     });
 
   } else {
     responseMessages.push({
+      id: Math.random().toString(36).substring(7),
+      role: 'assistant',
       type: 'text',
       text: '죄송해요, 타이완 관련 길찾기 정보를 찾을 수 없었어요. 다른 검색어를 시도해 보시겠어요?'
     });

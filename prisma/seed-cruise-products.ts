@@ -65,6 +65,7 @@ async function main() {
           time: '09:00',
         },
       ],
+      updatedAt: new Date(),
     },
   });
 
@@ -121,6 +122,7 @@ async function main() {
           time: '08:00',
         },
       ],
+      updatedAt: new Date(),
     },
   });
 
@@ -191,6 +193,7 @@ async function main() {
           time: '09:00',
         },
       ],
+      updatedAt: new Date(),
     },
   });
 

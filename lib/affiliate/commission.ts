@@ -1,4 +1,6 @@
-import type { CommissionEntryType, Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
+
+export type CommissionEntryType = 'HQ_NET' | 'BRANCH_COMMISSION' | 'SALES_COMMISSION' | 'OVERRIDE_COMMISSION' | 'WITHHOLDING' | string;
 
 export const DEFAULT_CURRENCY = 'KRW';
 export const DEFAULT_WITHHOLDING_RATE = 3.3;
@@ -163,6 +165,7 @@ export function generateLedgerEntries(options: LedgerGenerationOptions): LedgerG
       withholdingAmount: 0,
       metadata: notesMetadata,
       isSettled: false,
+      updatedAt: new Date(),
     });
   }
 
@@ -176,6 +179,7 @@ export function generateLedgerEntries(options: LedgerGenerationOptions): LedgerG
       withholdingAmount: breakdown.branchWithholding,
       metadata: notesMetadata,
       isSettled: false,
+      updatedAt: new Date(),
     });
   }
 
@@ -189,6 +193,7 @@ export function generateLedgerEntries(options: LedgerGenerationOptions): LedgerG
       withholdingAmount: breakdown.withholdingAmount,
       metadata: notesMetadata,
       isSettled: false,
+      updatedAt: new Date(),
     });
   }
 
@@ -202,6 +207,7 @@ export function generateLedgerEntries(options: LedgerGenerationOptions): LedgerG
       withholdingAmount: breakdown.overrideWithholding,
       metadata: notesMetadata,
       isSettled: false,
+      updatedAt: new Date(),
     });
   }
 
@@ -226,6 +232,7 @@ export function generateLedgerEntries(options: LedgerGenerationOptions): LedgerG
       metadata: createMetadataNote(`manager-withholding: ${withholdingNote.join(', ')}`),
       notes: `자동 원천징수 (대리점장: ${withholdingNote.join(', ')})`,
       isSettled: false,
+      updatedAt: new Date(),
     });
   }
 
@@ -244,6 +251,7 @@ export function generateLedgerEntries(options: LedgerGenerationOptions): LedgerG
       metadata: adjustment.metadata ?? notesMetadata,
       notes: adjustment.notes ?? undefined,
       isSettled: false,
+      updatedAt: new Date(),
     });
   });
 

@@ -146,6 +146,7 @@ export default function ReviewSlider() {
       {/* 후기 이미지 - 정사각형 */}
       {review.images && review.images.length > 0 ? (
         <div className="relative w-full bg-gray-200 overflow-hidden aspect-square">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={review.images[0]}
             alt={review.title || '후기 사진'}

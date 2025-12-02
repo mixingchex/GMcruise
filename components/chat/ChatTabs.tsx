@@ -1,6 +1,6 @@
 'use client';
 
-type TabKey = 'go' | 'show' | 'general' | 'info' | 'translate';
+type TabKey = 'go' | 'show' | 'general' | 'info' | 'translate' | 'free';
 
 export function ChatTabs({
   value,
@@ -10,7 +10,7 @@ export function ChatTabs({
   onChange: (v: TabKey) => void;
 }) {
   const btn = 'px-6 py-3 rounded-lg border text-lg font-semibold';
-  const on  = btn + ' bg-red-600 text-white border-red-600';
+  const on = btn + ' bg-red-600 text-white border-red-600';
   const off = btn + ' bg-white text-gray-800 border-gray-300 hover:bg-gray-50';
 
   return (

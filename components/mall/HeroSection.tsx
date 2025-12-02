@@ -79,6 +79,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
       {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
         {/* 숨겨진 이미지로 사전 로드 */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={imgRef}
           src={heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png'}
@@ -119,6 +120,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
           {/* AI 지니 로고/아이콘 */}
           {heroConfig.logoUrl && (
             <div className="mb-6">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={heroConfig.logoUrl}
                 alt="크루즈닷 AI 지니"

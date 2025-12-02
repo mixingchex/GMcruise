@@ -119,7 +119,7 @@ export async function searchKnowledgeBase(
         const keywords = item.keywords.toLowerCase().split(/\s+/);
         const queryLower = query.toLowerCase();
         const keywordMatch = keywords.some(kw => queryLower.includes(kw));
-        
+
         if (keywordMatch) {
           results.push({
             id: item.id,
@@ -139,7 +139,7 @@ export async function searchKnowledgeBase(
     logger.debug('[RAG] 검색 결과:', topResults.length, '개');
 
     // embedding 필드 제거 (반환값에는 포함하지 않음)
-    return topResults.map(({ embedding, ...rest }) => rest);
+    return topResults;
   } catch (error: any) {
     logger.error('[RAG] 검색 오류:', error);
     throw new Error(`RAG 검색 실패: ${error.message || '알 수 없는 오류'}`);
@@ -176,7 +176,7 @@ export async function searchKnowledgeBaseByKeywords(
     for (const item of knowledgeItems) {
       const itemText = `${item.title} ${item.content} ${item.keywords}`.toLowerCase();
       const keywords = item.keywords.toLowerCase().split(/\s+/);
-      
+
       // 키워드 매칭 점수 계산
       let matchScore = 0;
       for (const keyword of queryKeywords) {

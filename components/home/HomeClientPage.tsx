@@ -5,21 +5,39 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import dynamicImport from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { FiX, FiChevronRight, FiYoutube } from 'react-icons/fi';
 
-// 정적 컴포넌트 import
+// 정적 컴포넌트 import (Above the fold)
 import HeroSection from '@/components/mall/HeroSection';
-import ProductList from '@/components/mall/ProductList';
-import ReviewSlider from '@/components/mall/ReviewSlider';
-import CruiseSearchBlock from '@/components/mall/CruiseSearchBlock';
-import PublicFooter from '@/components/layout/PublicFooter';
-import CompanyStatsSection from '@/components/mall/CompanyStatsSection';
-import CommunitySection from '@/components/mall/CommunitySection';
-import ThemeProductSection from '@/components/mall/ThemeProductSection';
-import KakaoChannelButton from '@/components/KakaoChannelButton';
 import PWAInstallButtonMall from '@/components/PWAInstallButtonMall';
 import PWAInstallButtonGenie from '@/components/PWAInstallButtonGenie';
+import KakaoChannelButton from '@/components/KakaoChannelButton';
+
+// 동적 임포트 컴포넌트 (성능 최적화: 무거운 컴포넌트는 필요할 때만 로드)
+const ProductList = dynamicImport(() => import('@/components/mall/ProductList'), {
+  loading: () => <div className="h-96 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const ReviewSlider = dynamicImport(() => import('@/components/mall/ReviewSlider'), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const CruiseSearchBlock = dynamicImport(() => import('@/components/mall/CruiseSearchBlock'), {
+  loading: () => <div className="h-48 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const CompanyStatsSection = dynamicImport(() => import('@/components/mall/CompanyStatsSection'), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const CommunitySection = dynamicImport(() => import('@/components/mall/CommunitySection'), {
+  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const ThemeProductSection = dynamicImport(() => import('@/components/mall/ThemeProductSection'), {
+  loading: () => <div className="h-80 bg-gray-100 animate-pulse rounded-lg" />,
+});
+const PublicFooter = dynamicImport(() => import('@/components/layout/PublicFooter'), {
+  loading: () => <div className="h-32 bg-gray-100 animate-pulse" />,
+});
 
 // 동적 임포트 컴포넌트 (성능 최적화: 무거운 컴포넌트는 필요할 때만 로드)
 const YoutubeShortsSlider = dynamicImport(() => import('@/components/mall/YoutubeShortsSlider'), {
@@ -36,6 +54,7 @@ const PromotionBannerCarousel = dynamicImport(() => import('@/components/mall/Pr
 });
 
 export default function HomeClientPage() {
+  const router = useRouter();
   const [user, setUser] = useState<{ name: string | null; role: string } | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [pageConfig, setPageConfig] = useState<any>(null);
@@ -96,13 +115,8 @@ export default function HomeClientPage() {
       if (isMounted) setUser(null);
     }, 3000); // 3초 타임아웃 (단축)
 
-    const checkAuth = async (retryCount = 0) => {
+    const checkAuth = async () => {
       try {
-        // 로그인 직후인 경우만 짧은 대기
-        if (isJustLoggedIn && retryCount === 0) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
-
         const res = await fetch('/api/auth/me', {
           credentials: 'include',
           signal: authAbortController.signal
@@ -116,18 +130,13 @@ export default function HomeClientPage() {
 
         if (data.ok && data.user) {
           setUser(data.user);
-        } else if (isJustLoggedIn && retryCount < 1) {
-          // 로그인 직후에만 1회 재시도
-          setTimeout(() => checkAuth(retryCount + 1), 500);
         } else {
           setUser(null);
         }
       } catch (error: any) {
         clearTimeout(authTimeoutId);
         if (!isMounted) return;
-        if (error.name !== 'AbortError' && isJustLoggedIn && retryCount < 1) {
-          setTimeout(() => checkAuth(retryCount + 1), 500);
-        } else {
+        if (error.name !== 'AbortError') {
           setUser(null);
         }
       }
@@ -159,9 +168,12 @@ export default function HomeClientPage() {
           if (!isMounted) return;
           if (data?.ok && data?.user) {
             setUser(data.user);
+          } else {
+            // 포커스 시 세션이 만료되었으면 로그아웃 처리
+            setUser(null);
           }
         })
-        .catch(() => { }); // 에러 무시 (포커스 체크는 중요하지 않음)
+        .catch(() => { }); // 에러 무시
     };
 
     window.addEventListener('focus', handleFocus);
@@ -180,24 +192,20 @@ export default function HomeClientPage() {
     try {
       setIsLoggingOut(true);
       const logoutApiUrl = '/api/auth/logout';
-      const response = await fetch(logoutApiUrl, {
+      await fetch(logoutApiUrl, {
         method: 'POST',
         credentials: 'include',
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${logoutApiUrl}`);
-      }
-
       setUser(null);
-      // 크루즈가이드 지니에서는 로그아웃 후 크루즈몰로만 이동 (온보딩으로 절대 이동하지 않음)
-      window.location.href = '/';
+      // 로그아웃 후 메인으로 이동 및 새로고침 (쿠키 삭제 반영)
+      router.push('/');
+      router.refresh();
     } catch (error) {
-      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/auth/logout` : '/api/auth/logout';
-      console.error('[HomePage] 로그아웃 실패:', fullUrl, error);
-      // 에러가 발생해도 크루즈몰로 이동
+      console.error('[HomePage] 로그아웃 실패:', error);
       setUser(null);
-      window.location.href = '/';
+      router.push('/');
+      router.refresh();
     } finally {
       setIsLoggingOut(false);
     }
@@ -217,13 +225,13 @@ export default function HomeClientPage() {
             {/* 왼쪽: 로고 및 환영 메시지 */}
             <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
               <Link href="/" className="flex items-center flex-shrink-0 transform hover:scale-105 transition-transform duration-200">
-                <img
+                <Image
                   src="/images/ai-cruise-logo.png"
                   alt="크루즈닷 로고"
-                  className="h-8 sm:h-10 object-contain drop-shadow-md"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/images/placeholder.png';
-                  }}
+                  width={120}
+                  height={40}
+                  className="h-8 sm:h-10 w-auto object-contain drop-shadow-md"
+                  priority
                 />
               </Link>
               {user ? (
@@ -567,6 +575,7 @@ function PopupMessage({ config }: { config: any }) {
           <div>
             {config.link ? (
               <a href={config.link} target="_blank" rel="noopener noreferrer" onClick={handleClose}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={config.imageUrl}
                   alt={config.title}
@@ -577,6 +586,7 @@ function PopupMessage({ config }: { config: any }) {
                 />
               </a>
             ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={config.imageUrl}
                 alt={config.title}

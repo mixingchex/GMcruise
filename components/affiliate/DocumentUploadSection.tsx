@@ -96,7 +96,7 @@ export default function DocumentUploadSection({ partnerId }: DocumentUploadSecti
       });
 
       const json = await res.json();
-      
+
       console.log('[DocumentUpload] Upload response:', {
         status: res.status,
         ok: res.ok,
@@ -185,20 +185,20 @@ export default function DocumentUploadSection({ partnerId }: DocumentUploadSecti
 
   const idCardDoc = documents.find(d => d.documentType === 'ID_CARD');
   const bankbookDoc = documents.find(d => d.documentType === 'BANKBOOK');
-  
+
   // 디버깅: 승인 상태 확인
   if (idCardDoc) {
-    console.log('[DocumentUpload] ID Card doc:', { 
-      isApproved: idCardDoc.isApproved, 
+    console.log('[DocumentUpload] ID Card doc:', {
+      isApproved: idCardDoc.isApproved,
       status: idCardDoc.status,
-      filePath: idCardDoc.filePath 
+      filePath: idCardDoc.filePath
     });
   }
   if (bankbookDoc) {
-    console.log('[DocumentUpload] Bankbook doc:', { 
-      isApproved: bankbookDoc.isApproved, 
+    console.log('[DocumentUpload] Bankbook doc:', {
+      isApproved: bankbookDoc.isApproved,
       status: bankbookDoc.status,
-      filePath: bankbookDoc.filePath 
+      filePath: bankbookDoc.filePath
     });
   }
 
@@ -250,9 +250,8 @@ export default function DocumentUploadSection({ partnerId }: DocumentUploadSecti
               <h3 className="text-base font-semibold text-gray-900">신분증</h3>
               {idCardDoc && (
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-                    getStatusInfo(idCardDoc.status, idCardDoc.isApproved).color
-                  } ${getStatusInfo(idCardDoc.status, idCardDoc.isApproved).bgColor}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${getStatusInfo(idCardDoc.status, idCardDoc.isApproved).color
+                    } ${getStatusInfo(idCardDoc.status, idCardDoc.isApproved).bgColor}`}
                 >
                   {getStatusInfo(idCardDoc.status, idCardDoc.isApproved).icon}
                   {getStatusInfo(idCardDoc.status, idCardDoc.isApproved).label}
@@ -269,6 +268,7 @@ export default function DocumentUploadSection({ partnerId }: DocumentUploadSecti
                       <span className="text-sm font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
                     </div>
                     <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={idCardDoc.filePath.startsWith('http') ? idCardDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${idCardDoc.filePath}` : idCardDoc.filePath)}
                         alt="신분증"
@@ -348,9 +348,8 @@ export default function DocumentUploadSection({ partnerId }: DocumentUploadSecti
               <h3 className="text-base font-semibold text-gray-900">통장사본</h3>
               {bankbookDoc && (
                 <span
-                  className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-                    getStatusInfo(bankbookDoc.status, bankbookDoc.isApproved).color
-                  } ${getStatusInfo(bankbookDoc.status, bankbookDoc.isApproved).bgColor}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${getStatusInfo(bankbookDoc.status, bankbookDoc.isApproved).color
+                    } ${getStatusInfo(bankbookDoc.status, bankbookDoc.isApproved).bgColor}`}
                 >
                   {getStatusInfo(bankbookDoc.status, bankbookDoc.isApproved).icon}
                   {getStatusInfo(bankbookDoc.status, bankbookDoc.isApproved).label}
@@ -367,6 +366,7 @@ export default function DocumentUploadSection({ partnerId }: DocumentUploadSecti
                       <span className="text-sm font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
                     </div>
                     <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={bankbookDoc.filePath.startsWith('http') ? bankbookDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${bankbookDoc.filePath}` : bankbookDoc.filePath)}
                         alt="통장사본"
@@ -441,7 +441,7 @@ export default function DocumentUploadSection({ partnerId }: DocumentUploadSecti
           </div>
         </div>
       )}
-      
+
       {/* 저장/수정 버튼 */}
       <div className="mt-6 flex items-center justify-end gap-3 border-t border-gray-200 pt-4">
         <button

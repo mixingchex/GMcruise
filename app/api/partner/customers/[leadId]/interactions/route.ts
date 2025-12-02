@@ -619,6 +619,47 @@ export async function POST(
       },
     });
 
+    // Google 스프레드시트에 상세기록 업데이트 (서버에서 직접 전송)
+    try {
+      // Lead에서 고객 정보 가져오기
+      const leadForGoogle = await prisma.affiliateLead.findUnique({
+        where: { id: leadId },
+        select: { customerName: true, customerPhone: true },
+      });
+
+      if (leadForGoogle?.customerPhone && note) {
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMnRse8lBCmU20IziTTFvLoLjnNUCy1vtE_y-X-niR67Xs63Bf5qBE4Zb5txQZ_R9-/exec';
+        const timestamp = new Date().toLocaleString('ko-KR');
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'updateNote');
+        formData.append('timestamp', timestamp);
+        formData.append('name', leadForGoogle.customerName || '');
+        formData.append('phone', leadForGoogle.customerPhone || '');
+        formData.append('note', note);
+
+        console.log('[Partner Interactions API] Google 스프레드시트 전송 시작:', {
+          name: leadForGoogle.customerName,
+          phone: leadForGoogle.customerPhone,
+          note: note.substring(0, 50) + '...',
+        });
+
+        const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
+        });
+
+        const googleResult = await googleResponse.text();
+        console.log('[Partner Interactions API] Google 스프레드시트 응답:', googleResult);
+      } else {
+        console.log('[Partner Interactions API] 고객 연락처 없음, 스프레드시트 업데이트 생략');
+      }
+    } catch (googleError) {
+      console.error('[Partner Interactions API] Google 스프레드시트 전송 실패:', googleError);
+      // 스프레드시트 전송 실패해도 기록은 성공으로 처리
+    }
+
     return NextResponse.json({
       ok: true,
       interaction: {

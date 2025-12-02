@@ -16,7 +16,7 @@ async function checkAdminAuth() {
 
     const { getSession } = await import('@/lib/session');
     const session = await getSession();
-    if (!session || session.role !== 'admin') return null;
+    if (!session || session.role !== 'ADMIN') return null;
 
     return { id: session.userId, role: session.role };
   } catch (error) {

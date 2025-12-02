@@ -78,14 +78,14 @@ export async function DELETE(
     // 사용자 존재 확인
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, role: true },
+      select: { id: true, name: true, role: true, phone: true },
     });
     console.log('[Delete User] User found:', user ? JSON.stringify(user) : 'NOT FOUND');
 
     if (!user) {
       console.log('[Delete User] User not found');
-      return NextResponse.json({ 
-        ok: false, 
+      return NextResponse.json({
+        ok: false,
         error: 'User not found',
         errorCode: 'USER_NOT_FOUND',
         userId,
@@ -96,10 +96,23 @@ export async function DELETE(
     // 관리자는 삭제 불가
     if (user.role === 'admin') {
       console.log('[Delete User] Cannot delete admin user');
-      return NextResponse.json({ 
-        ok: false, 
+      return NextResponse.json({
+        ok: false,
         error: 'Cannot delete admin user',
         errorCode: 'CANNOT_DELETE_ADMIN',
+        userId,
+        timestamp: new Date().toISOString(),
+      }, { status: 403 });
+    }
+
+    // 보호된 테스트 계정은 삭제 불가 (모니카: 01024958013)
+    const PROTECTED_TEST_PHONES = ['01024958013'];
+    if (PROTECTED_TEST_PHONES.includes(user.phone || '')) {
+      console.log('[Delete User] Cannot delete protected test account:', user.name);
+      return NextResponse.json({
+        ok: false,
+        error: `테스트 계정 "${user.name}"은(는) 삭제할 수 없습니다. (시스템 테스트용 보호 계정)`,
+        errorCode: 'CANNOT_DELETE_PROTECTED_TEST',
         userId,
         timestamp: new Date().toISOString(),
       }, { status: 403 });

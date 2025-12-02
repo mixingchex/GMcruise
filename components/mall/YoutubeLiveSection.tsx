@@ -18,6 +18,7 @@ export default function YoutubeLiveSection() {
         {/* 크루즈세미나 GIF 이미지 */}
         <div className="mb-6 md:mb-8 flex justify-center">
           <div className="relative w-full max-w-2xl rounded-2xl overflow-hidden shadow-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/크루즈세미나.gif"
               alt="크루즈세미나"

@@ -93,22 +93,25 @@ interface CompanyStatsConfig {
   }>;
 }
 
+
+
+const defaultConfig: CompanyStatsConfig = {
+  title: '크루즈닷의 경험과 신뢰',
+  subtitle: '직접 여행해보고 꼼꼼히 따져보는 크루즈 전문',
+  satisfactionScore: 4.8,
+  topRowCards: [
+    { icon: '👨‍💼', value: '총 67회', description: '상담 매니저 크루즈 경험' },
+    { icon: '✈️', value: '11년~', description: '패키지 크루즈 인솔자 경력' },
+    { icon: '🏢', value: '11년~', description: '크루즈 서비스만 연구한시간' },
+  ],
+  bottomRowCards: [
+    { icon: '📊', value: '222명', description: '다음 크루즈 준비', bgColor: 'blue', autoIncrement: true, incrementInterval: 3, incrementAmount: 3 },
+    { icon: '💬', value: '13,491', description: '지금 크루즈 문의', bgColor: 'yellow', autoIncrement: true, incrementInterval: 5, incrementAmount: 9 },
+    { icon: '🎉', value: '3217명', description: '크루즈닷 회원', bgColor: 'green' },
+  ],
+};
+
 export default function CompanyStatsSection({ config }: { config?: CompanyStatsConfig }) {
-  const defaultConfig: CompanyStatsConfig = {
-    title: '크루즈닷의 경험과 신뢰',
-    subtitle: '직접 여행해보고 꼼꼼히 따져보는 크루즈 전문',
-    satisfactionScore: 4.8,
-    topRowCards: [
-      { icon: '👨‍💼', value: '총 67회', description: '상담 매니저 크루즈 경험' },
-      { icon: '✈️', value: '11년~', description: '패키지 크루즈 인솔자 경력' },
-      { icon: '🏢', value: '11년~', description: '크루즈 서비스만 연구한시간' },
-    ],
-    bottomRowCards: [
-      { icon: '📊', value: '222명', description: '다음 크루즈 준비', bgColor: 'blue', autoIncrement: true, incrementInterval: 3, incrementAmount: 3 },
-      { icon: '💬', value: '13,491', description: '지금 크루즈 문의', bgColor: 'yellow', autoIncrement: true, incrementInterval: 5, incrementAmount: 9 },
-      { icon: '🎉', value: '3217명', description: '크루즈닷 회원', bgColor: 'green' },
-    ],
-  };
 
   // 각 숫자의 현재 값 관리 (값만 관리하고 렌더링은 AnimatedNumber에 위임)
   // 1. 222명: 5초마다 7명씩 증가

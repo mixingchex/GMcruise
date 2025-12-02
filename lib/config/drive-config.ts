@@ -50,7 +50,7 @@ export const DEFAULTS: Record<DriveConfigKey, string> = {
     SALES_BACKUP: '1XQk6nou684nm75djLgDq6eejvJUbWGXg', // Backups/Sales_Data
     SETTLEMENTS_BACKUP: '1oEzUJWJezJPAP-bGZY3do2oVN7eYJ09D', // Backups/Settlements
     TRAVEL_GUIDES: '17QT8_NTQXpOzcfaZ3silp-hqD0sgOAck', // 크루즈정보사진 (Travel Guides)
-    UPLOADS_IMAGES: '1fWbPelIoftl1DqXLayZNle7z-DSYzvl8', // 이미지 라이브러리 업로드용
+    UPLOADS_IMAGES: '1fWbPelIoftl1DqXLayZNle7z-DSYzvl8', // 이미지 라이브러리 업로드용 (User Requested Enforcement)
     UPLOADS_REVIEWS: '1E5iho6Ud7wFLs3Nkp3LGHMKXoN7MYVpO', // 커뮤니티 리뷰 이미지
     UPLOADS_VIDEOS: '1VAZ9bOEV47keU-mJNhlwlgGHi6ONaFFI', // 동영상 업로드
     UPLOADS_FONTS: '1LgxTEm_1pue1XFduypj9YnMStCarxfOt', // 폰트 업로드

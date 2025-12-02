@@ -131,6 +131,7 @@ async function findFolderByPath(drive: any, parentFolderId: string, folderName: 
  * GET: 크루즈정보사진 폴더 구조 및 이미지 목록 조회 (구글 드라이브)
  */
 export async function GET(req: NextRequest) {
+  console.log('[Cruise Photos API] Request received');
   try {
     // 관리자 또는 판매원 권한 확인 (선택적 - 로그인 사용자만 허용하되 에러는 무시)
     let isAuthenticated = false;
@@ -230,11 +231,18 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const folders: Array<{ name: string; path: string; id: string }> = (folderResponse.data.files || []).map((file) => ({
-      name: file.name || '',
-      path: folderPath ? `${folderPath}/${file.name}` : file.name,
-      id: file.id || '',
-    }));
+    const folders: Array<{ name: string; path: string; id: string }> = (folderResponse.data.files || [])
+      .filter(file => file.name !== '.backup') // .backup 폴더 제외
+      .map((file) => ({
+        name: file.name || '',
+        path: folderPath ? `${folderPath}/${file.name}` : file.name,
+        id: file.id || '',
+      }));
+
+    console.log('[Cruise Photos] Folder response:', { count: folders.length });
+    if (folders.length > 0) {
+      console.log('[Cruise Photos] First 5 folders:', folders.slice(0, 5).map(f => f.name));
+    }
 
     // 이미지 파일 목록 조회
     const imageQuery = `'${targetFolderId}' in parents and mimeType contains 'image/' and trashed=false`;
@@ -256,6 +264,11 @@ export async function GET(req: NextRequest) {
       console.log('[Cruise Photos] Image query:', imageQuery);
       imageResponse = await drive.files.list(imageOptions);
       console.log('[Cruise Photos] Image response:', { count: imageResponse.data.files?.length || 0 });
+
+      // 이미지 상세 정보 로그 (디버깅용)
+      if (imageResponse.data.files && imageResponse.data.files.length > 0) {
+        console.log('[Cruise Photos] Images found:', imageResponse.data.files.map(f => ({ name: f.name, mimeType: f.mimeType })));
+      }
     } catch (error: any) {
       console.error('[Cruise Photos] Image list error:', error);
       console.error('[Cruise Photos] Error details:', {
@@ -284,26 +297,13 @@ export async function GET(req: NextRequest) {
           return null;
         }
 
-        try {
-          // 파일 공개 설정 시도
-          try {
-            await drive.permissions.create({
-              fileId: file.id,
-              requestBody: {
-                role: 'reader',
-                type: 'anyone',
-              },
-              supportsAllDrives: sharedDriveId && sharedDriveId !== 'root',
-            });
-          } catch (permError: any) {
-            // 이미 공개되어 있으면 무시
-            if (!permError.message?.includes('already exists')) {
-              console.warn(`[Cruise Photos] Permission error for ${file.id}:`, permError.message);
-            }
-          }
-        } catch (error) {
-          console.warn(`[Cruise Photos] Failed to set permissions for ${file.id}:`, error);
+        // 이미지 파일만 처리
+        if (!file.mimeType?.startsWith('image/')) {
+          return null;
         }
+
+        // 권한 설정 로직 제거 (Service Account가 readonly 권한만 있어서 실패함)
+        // 이미지는 Proxy API를 통해 제공되므로 Drive 상에서 공개일 필요 없음
 
         // 프록시 URL 생성 (WebP 변환 지원)
         const proxyUrl = `/api/admin/cruise-photos/image?id=${file.id}`;

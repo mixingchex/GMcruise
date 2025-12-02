@@ -4,6 +4,7 @@ export type TextMessage = {
   id: string; // id 속성 추가
   role: 'user' | 'assistant'; // role 속성 추가
   text: string;
+  chips?: { label: string; payload: string }[]; // chips 속성 추가
   createdAt?: Date; // createdAt 속성 추가
 };
 export type MapLinksMessage = {
@@ -51,6 +52,7 @@ export type ShowMeMessage = {
   cruisePhotos?: Array<{ url: string; title?: string; tags?: string[] }>;
   categories?: Array<{ name: string; displayName: string; icon?: string }>;
   subfolders?: Array<{ name: string; displayName: string; icon: string; photoCount: number }>;
+  googleImagesOnly?: boolean;
   createdAt?: Date;
 };
 export type ChatMessage = TextMessage | MapLinksMessage | PhotosMessage | PhotoGalleryMessage | GoActionsMessage | ShowMeMessage;

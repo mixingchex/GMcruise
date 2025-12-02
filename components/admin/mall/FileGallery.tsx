@@ -197,14 +197,14 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
                 <div
                   key={file.url}
                   onClick={() => handleSelect(file.url)}
-                  className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-                    selectedUrl === file.url
+                  className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${selectedUrl === file.url
                       ? 'border-blue-500 ring-2 ring-blue-200'
                       : 'border-gray-200 hover:border-blue-300'
-                  }`}
+                    }`}
                 >
                   {file.type === 'image' ? (
                     <div className="aspect-square relative bg-gray-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={file.url}
                         alt={file.filename}
@@ -247,6 +247,15 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
                       </button>
                     </div>
                   )}
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-xs font-medium text-gray-700 mb-2">압축된 이미지 미리보기:</p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={file.url}
+                      alt="Compressed preview"
+                      className="w-full h-auto rounded-md"
+                    />
+                  </div>
                   <div className="p-2 bg-white">
                     <p className="text-xs font-semibold text-gray-800 truncate" title={file.filename}>
                       {file.filename}

@@ -17,7 +17,7 @@ interface Props {
   customerName: string | null;
   isOpen: boolean;
   onClose: () => void;
-  onNoteAdded?: () => void;
+  onNoteAdded?: (note?: string) => void;
 }
 
 export default function CustomerNoteModal({ customerId, customerName, isOpen, onClose, onNoteAdded }: Props) {
@@ -74,12 +74,17 @@ export default function CustomerNoteModal({ customerId, customerName, isOpen, on
       }
 
       // 성공 - 새로고침 없이 메시지만 표시
+      const savedNote = newNote.trim();
       setNewNote('');
       setIsInternal(false);
       setSuccessMessage('기록이 성공적으로 작성되었습니다.');
       setTimeout(() => setSuccessMessage(null), 3000); // 3초 후 메시지 제거
       await loadNotes(); // 목록만 새로고침
-      // onNoteAdded는 호출하지 않음 (새로고침 방지)
+
+      // Google 스프레드시트 업데이트를 위해 콜백 호출
+      if (onNoteAdded) {
+        onNoteAdded(savedNote);
+      }
     } catch (error) {
       console.error('Failed to save note:', error);
       alert(error instanceof Error ? error.message : '기록 작성에 실패했습니다.');
@@ -308,53 +313,29 @@ export default function CustomerNoteModal({ customerId, customerName, isOpen, on
           )}
         </div>
 
-        {/* 기록 작성 폼 - 대화창 입력창 형태 */}
+        {/* 기록 작성 폼 */}
         <div className="p-6 border-t bg-white">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isInternal}
-                  onChange={(e) => setIsInternal(e.target.checked)}
-                  className="w-4 h-4 text-yellow-600 focus:ring-yellow-500"
-                />
-                <span className="text-sm text-gray-700 flex items-center gap-1">
-                  {isInternal ? <FiLock size={14} className="text-yellow-600" /> : <FiUnlock size={14} className="text-gray-400" />}
-                  <span className={isInternal ? 'text-yellow-700 font-semibold' : 'text-gray-600'}>
-                    내부 기록
-                  </span>
-                </span>
-              </label>
-              <span className="text-xs text-gray-500">
-                {isInternal ? '본사/대리점장/판매원만 공개' : '모든 담당자 공개'}
-              </span>
-            </div>
-            <div className="flex items-end gap-2">
-              <textarea
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                placeholder="고객에 대한 기록을 작성하세요... (판매원, 대리점장, 관리자 모두 볼 수 있습니다)"
-                className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                rows={3}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                    handleSubmit();
-                  }
-                }}
-              />
-              <button
-                onClick={handleSubmit}
-                disabled={isSaving || !newNote.trim()}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center gap-2"
-              >
-                <FiSend size={18} />
-                {isSaving ? '전송 중...' : '전송'}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 text-center">
-              💬 대화창처럼 실시간으로 업데이트됩니다 • Cmd/Ctrl + Enter로 빠른 전송
-            </p>
+          <div className="flex items-end gap-2">
+            <textarea
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              placeholder="고객에 대한 기록을 작성하세요..."
+              className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows={3}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  handleSubmit();
+                }
+              }}
+            />
+            <button
+              onClick={handleSubmit}
+              disabled={isSaving || !newNote.trim()}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center gap-2"
+            >
+              <FiSend size={18} />
+              {isSaving ? '전송 중...' : '전송'}
+            </button>
           </div>
         </div>
       </div>

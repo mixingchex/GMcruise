@@ -248,6 +248,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     };
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     // 페이지를 먼저 표시하고 백그라운드에서 로드
     setIsLoading(false);
@@ -262,15 +263,16 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   }, []);
 
   // featuredProductCodes가 변경되면 다시 로드
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (featuredProductCodes.length > 0) {
       loadFeaturedProducts();
     } else {
       setFeaturedProducts([]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [featuredProductCodes.length]); // 길이만 추적 (실제 값 변경은 초기 로드에서만)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     loadProducts();
   }, [filters, page]);
@@ -293,6 +295,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     if (settings['recommended-below-settings']?.type === 'products') {
       loadBelowProducts();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
 
   const loadSettings = async () => {

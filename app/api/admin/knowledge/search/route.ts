@@ -39,7 +39,8 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.user?.id) {
+    const user = (session as any).user;
+    if (!user?.id) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -60,9 +61,9 @@ export async function POST(req: NextRequest) {
     try {
       const embedding = await generateEmbedding(query.trim());
       queryEmbedding = normalizeVector(embedding);
-      logger.debug('[Knowledge Search] Query embedding generated:', { 
-        queryLength: query.length, 
-        embeddingLength: queryEmbedding.length 
+      logger.debug('[Knowledge Search] Query embedding generated:', {
+        queryLength: query.length,
+        embeddingLength: queryEmbedding.length
       });
     } catch (error: any) {
       logger.error('[Knowledge Search] Failed to generate query embedding:', error);
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
           priority: item.priority,
         };
       })
-      .filter((item): item is NonNullable<typeof item> => 
+      .filter((item): item is NonNullable<typeof item> =>
         item !== null && item.similarity >= minSimilarity
       )
       .sort((a, b) => {

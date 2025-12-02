@@ -38,13 +38,7 @@ export async function POST(
     const admin = await prisma.user.findUnique({ where: { id: sessionUser.id }, select: { role: true } });
     const guard = requireAdmin(admin?.role);
     if (guard) {
-      return NextResponse.json(
-        guard.body ? JSON.parse(guard.body as string) : { ok: false, message: 'Admin access required' },
-        {
-          status: guard.status,
-          headers: { 'Content-Type': 'application/json' }
-        }
-      );
+      return guard;
     }
     const contractId = parseInt(contractIdStr);
     if (isNaN(contractId)) {

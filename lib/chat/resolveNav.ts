@@ -5,7 +5,7 @@ import { suggestAirports, suggestCruiseTerminals, normalizeCountryOrCityToken, r
 // ✅ 응답 타입을 세분화
 export type NavAPIResult =
   | { kind: 'need-origin'; message: string; originCandidates: Terminal[]; includeCurrent: boolean; destCandidate?: Terminal }
-  | { kind: 'need-dest';   message: string; destCandidates:   Terminal[]; includeCurrent: boolean; origin: Terminal }
+  | { kind: 'need-dest'; message: string; destCandidates: Terminal[]; includeCurrent: boolean; origin: Terminal }
   | { kind: 'ready'; origin: Terminal; dest: Terminal; links: { transit: string; driving: string; map: string } }
 
 type Params = {
@@ -21,7 +21,7 @@ export async function resolveNavQuery({ text, pick }: Params): Promise<NavAPIRes
   let dest: Terminal | undefined
 
   if (pick?.originId) origin = resolveTerminalByText(pick.originId) || undefined // resolveTerminalByText로 변경
-  if (pick?.destId)   dest   = resolveTerminalByText(pick.destId) || undefined
+  if (pick?.destId) dest = resolveTerminalByText(pick.destId) || undefined
 
   // 2) 문장에서 토큰을 찾아 후보군 생성
   const originCandidates: Terminal[] = [];
@@ -34,7 +34,7 @@ export async function resolveNavQuery({ text, pick }: Params): Promise<NavAPIRes
     originCandidates.push(...suggestAirports(originCtx, 8));
   }
   if (destToken) {
-    destCandidates.push(...suggestCruiseTerminals(destCtx, 12));
+    destCandidates.push(...(suggestCruiseTerminals(destCtx, 12) as unknown as Terminal[]));
   }
 
   // 3) 모호 처리 – 절대로 기본값으로 `현위치`를 끼워 넣지 않는다
@@ -75,7 +75,7 @@ export async function resolveNavQuery({ text, pick }: Params): Promise<NavAPIRes
 
   // (C) 둘 다 확정 → 링크 생성
   const originQ = origin!.name_ko; // Terminal 객체에서 name_ko 사용
-  const destQ   = dest!.name_ko;   // Terminal 객체에서 name_ko 사용
+  const destQ = dest!.name_ko;   // Terminal 객체에서 name_ko 사용
   return {
     kind: 'ready',
     origin: origin!,
@@ -83,13 +83,13 @@ export async function resolveNavQuery({ text, pick }: Params): Promise<NavAPIRes
     links: {
       transit: buildTransitUrl(originQ, destQ),
       driving: buildDrivingUrl(originQ, destQ),
-      map:     buildMapUrl(destQ),
+      map: buildMapUrl(destQ),
     },
   }
 }
 
 // --- 유틸 예시 (기존 구조에 맞춰서 구현) --- //
-function parseText(text: string){
+function parseText(text: string) {
   // "홍콩 공항 -> 카이탁 크루즈 터미널" / "미국 공항 어떻게 가" / "근처 맛집" 등
   const t = text.trim()
   const isNearby = /근처|주변/.test(t)

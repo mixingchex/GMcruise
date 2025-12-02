@@ -17,6 +17,7 @@ async function main() {
       title: 'D-7: 전자기기 충전 및 확인',
       message: '[고객명]님, D-7일 남았습니다!\n카메라/보조배터리 충전하고 메모리 카드 확인!',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -28,6 +29,7 @@ async function main() {
       title: 'D-1: 드디어 내일!',
       message: '[크루즈명] [목적지] 여행 출발!\n여권/집합시간 최종 확인하세요.',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -39,6 +41,7 @@ async function main() {
       title: 'D-DAY: 오늘 출발!',
       message: '즐거운 항해 되세요! 🛳️',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -51,6 +54,7 @@ async function main() {
       title: '🚢 승선 안내',
       message: '[시간]에 [터미널] 터미널로 이동하실 시간입니다! 여권과 승선권을 확인하세요.',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -62,6 +66,7 @@ async function main() {
       title: '🏠 하선 준비 안내',
       message: '[하선시간]에 [위치]에서 하선합니다. 여권 회수 및 짐을 챙기세요!',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -74,6 +79,7 @@ async function main() {
       title: '📍 [기항지명] 도착 안내',
       message: '[도착시간]에 [기항지명]에 도착합니다! 여권과 소지품을 챙기세요.',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -85,6 +91,7 @@ async function main() {
       title: '⚠️ 긴급! 출항 1시간 전',
       message: '[출항시간]에 [기항지명]에서 출항합니다! 지금 바로 배로 돌아오셔야 합니다!',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -97,6 +104,7 @@ async function main() {
       title: '여행은 어떠셨나요?',
       message: '[고객명]님의 소중한 의견을 들려주세요. 더 나은 서비스로 보답하겠습니다! 💙',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 
@@ -109,6 +117,7 @@ async function main() {
       title: '다시 만나서 반가워요!',
       message: '[고객명]님, 지니가 보고 싶었어요! 새로운 크루즈 여행을 준비해볼까요? 🚢',
       isActive: true,
+      updatedAt: new Date(),
     },
   });
 

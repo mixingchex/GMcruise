@@ -15,7 +15,7 @@ const prisma = new PrismaClient();
 async function updateTripStatuses() {
   try {
     console.log('[Trip Status Updater] Starting status update...');
-    
+
     const now = new Date();
     now.setHours(0, 0, 0, 0); // 자정 기준
 
@@ -23,7 +23,7 @@ async function updateTripStatuses() {
     const startedTrips = await prisma.trip.updateMany({
       where: {
         status: 'Upcoming',
-        startDate: {
+        departureDate: {
           lte: now,
         },
         endDate: {
@@ -75,7 +75,7 @@ async function updateTripStatuses() {
  */
 export function startTripStatusScheduler() {
   console.log('[Trip Status Updater] 🚀 Starting scheduler...');
-  
+
   // 매일 자정에 실행 (cron: '0 0 * * *')
   cron.schedule('0 0 * * *', async () => {
     console.log('[Trip Status Updater] ⏰ Running scheduled update at:', new Date().toISOString());
@@ -83,7 +83,7 @@ export function startTripStatusScheduler() {
   });
 
   console.log('[Trip Status Updater] ✅ Scheduler started (runs daily at 00:00)');
-  
+
   // 서버 시작 시 한 번 실행
   updateTripStatuses();
 }

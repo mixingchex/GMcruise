@@ -21,8 +21,8 @@ export type Trip = {
   updatedAt?: string;
 };
 
-export type ChatMessageButton = { label:string; onClick:()=>void };
-export type ChatMessageLink = { label:string; href:string; color:string; emoji:string };
+export type ChatMessageButton = { label: string; onClick: () => void };
+export type ChatMessageLink = { label: string; href: string; color: string; emoji: string };
 
 export interface ChatMessage {
   id: string;
@@ -38,7 +38,7 @@ export type SItem = { id: string; label: string; subtitle?: string };
 export type FromCoords = { lat: number; lng: number; label?: string };
 
 // For ChatInputBar
-export type ChatInputMode = 'go' | 'show' | 'general' | 'info' | 'translate';
+export type ChatInputMode = 'go' | 'show' | 'general' | 'info' | 'translate' | 'free';
 export type ChatInputPayload = {
   mode: ChatInputMode;
   text: string;

@@ -308,10 +308,12 @@ export async function GET(req: NextRequest) {
             interactions: (lead._count?.AffiliateInteraction ?? 0) || 0,
             sales: (lead._count?.AffiliateSale ?? 0) || 0,
           },
-          // 전화상담 고객용 추가 정보
+          // 전화상담 고객용 추가 정보 (metadata에서 productName fallback)
           userId: userInfo?.id || null,
-          cruiseName: latestTrip?.cruiseName || null,
+          cruiseName: latestTrip?.cruiseName || (lead.metadata as any)?.productName || null,
           affiliateOwnership,
+          // AffiliateLead ID 추가 (상세기록용)
+          leadId: lead.id,
         };
         return formatted;
       } catch (itemError: any) {

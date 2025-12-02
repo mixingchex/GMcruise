@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, ReactNode } from 'react';
+import { useEffect, useRef, useState, ReactNode, useCallback } from 'react';
 import { hapticImpact } from '@/lib/haptic';
 
 /**
@@ -15,59 +15,59 @@ interface Props {
   disabled?: boolean;
 }
 
-export default function PullToRefresh({ 
-  onRefresh, 
-  children, 
+export default function PullToRefresh({
+  onRefresh,
+  children,
   threshold = 80,
-  disabled = false 
+  disabled = false
 }: Props) {
   const [isPulling, setIsPulling] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
-  
+
   const startY = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleTouchStart = (e: TouchEvent) => {
+  const handleTouchStart = useCallback((e: TouchEvent) => {
     if (disabled || isRefreshing) return;
-    
+
     const container = containerRef.current;
     if (!container) return;
-    
+
     // 스크롤이 최상단일 때만 활성화
     if (container.scrollTop === 0) {
       startY.current = e.touches[0].clientY;
       setIsPulling(true);
     }
-  };
+  }, [disabled, isRefreshing]);
 
-  const handleTouchMove = (e: TouchEvent) => {
+  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (!isPulling || disabled || isRefreshing) return;
-    
+
     const currentY = e.touches[0].clientY;
     const distance = currentY - startY.current;
-    
+
     if (distance > 0) {
       // 과도한 당김 방지 (고무줄 효과)
       const dampedDistance = Math.min(distance * 0.5, threshold * 1.5);
       setPullDistance(dampedDistance);
-      
+
       // threshold 도달 시 햅틱
       if (dampedDistance >= threshold && pullDistance < threshold) {
         hapticImpact();
       }
     }
-  };
+  }, [isPulling, disabled, isRefreshing, threshold, pullDistance]);
 
-  const handleTouchEnd = async () => {
+  const handleTouchEnd = useCallback(async () => {
     if (!isPulling || disabled) return;
-    
+
     setIsPulling(false);
-    
+
     if (pullDistance >= threshold) {
       setIsRefreshing(true);
       hapticImpact();
-      
+
       try {
         await onRefresh();
       } catch (error) {
@@ -79,7 +79,7 @@ export default function PullToRefresh({
     } else {
       setPullDistance(0);
     }
-  };
+  }, [isPulling, disabled, pullDistance, threshold, onRefresh]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -94,7 +94,7 @@ export default function PullToRefresh({
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isPulling, pullDistance, disabled, isRefreshing, threshold]);
+  }, [isPulling, pullDistance, disabled, isRefreshing, threshold, handleTouchStart, handleTouchMove, handleTouchEnd]);
 
   const progress = Math.min((pullDistance / threshold) * 100, 100);
 
@@ -102,9 +102,9 @@ export default function PullToRefresh({
     <div ref={containerRef} className="relative overflow-y-auto h-full">
       {/* Pull 인디케이터 */}
       {(isPulling || isRefreshing) && (
-        <div 
+        <div
           className="absolute top-0 left-0 right-0 flex items-center justify-center transition-all duration-200 ease-out z-50"
-          style={{ 
+          style={{
             height: `${Math.max(pullDistance, isRefreshing ? 60 : 0)}px`,
             opacity: pullDistance > 0 || isRefreshing ? 1 : 0,
           }}
@@ -117,9 +117,9 @@ export default function PullToRefresh({
               </>
             ) : (
               <>
-                <div 
+                <div
                   className="w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center transition-transform"
-                  style={{ 
+                  style={{
                     transform: `rotate(${progress * 3.6}deg)`,
                     borderColor: progress >= 100 ? '#3b82f6' : '#d1d5db',
                   }}
@@ -136,12 +136,12 @@ export default function PullToRefresh({
           </div>
         </div>
       )}
-      
+
       {/* 콘텐츠 */}
-      <div 
+      <div
         className="transition-transform duration-200 ease-out"
-        style={{ 
-          transform: `translateY(${isPulling || isRefreshing ? Math.max(pullDistance, isRefreshing ? 60 : 0) : 0}px)` 
+        style={{
+          transform: `translateY(${isPulling || isRefreshing ? Math.max(pullDistance, isRefreshing ? 60 : 0) : 0}px)`
         }}
       >
         {children}

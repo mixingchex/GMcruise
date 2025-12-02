@@ -133,6 +133,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
       {/* 썸네일 이미지 (유튜브 스타일 - 16:9 비율) */}
       <div className="relative w-full aspect-video bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 overflow-hidden">
         {product.thumbnail ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={product.thumbnail}
             alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 이미지`}
@@ -186,6 +187,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         <div className="flex items-start gap-2.5 mb-3">
           {/* 출처 로고 */}
           {product.source === 'cruisedot' && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src="/images/ai-cruise-logo.png"
               alt="크루즈닷"
@@ -193,6 +195,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
             />
           )}
           {product.source === 'wcruise' && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src="/images/wcruise-logo.png"
               alt="W크루즈"
@@ -200,6 +203,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
             />
           )}
           {product.source === 'lottejtb' && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src="/images/롯데제이티비.png"
               alt="롯데 제이티비"

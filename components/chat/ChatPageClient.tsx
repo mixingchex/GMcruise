@@ -68,11 +68,11 @@ export default function ChatPageClient({ initialTrip }: ChatPageClientProps) {
       } else {
         responseText += `어디로 가고 싶으신가요? 출발지와 목적지를 말씀해주시면 길을 찾아드릴게요.`;
       }
-      return [{ role: 'assistant', text: responseText }];
+      return [{ role: 'assistant', text: responseText }] as Msg[];
     }
 
     // 기존 로직 유지 (show, free 모드)
-    return [{ role: 'assistant', text: `You said: ${payload.text}` }];
+    return [{ role: 'assistant', text: `You said: ${payload.text}` }] as Msg[];
   }, []);
 
   return (

@@ -1,7 +1,7 @@
 import terminals from '../data/terminals.json';          // Terminal[]
 import aliases from '../data/terminal_aliases.json';     // Record<string, id>
 import { defaultTerminalByCity } from '../config/defaultTerminalByCity';
-import { buildDirectionsUrl, buildSearchUrl, Waypoint } from '../lib/maps';
+import { buildDirectionsUrl, buildSearchUrl } from '../lib/maps';
 import { hasAny } from '../utils/text';
 import { normalizePlace } from '@/lib/normalize';
 
@@ -15,6 +15,14 @@ type Terminal = {
   country: string;
   placeId?: string;
   keywords_ko?: string[];
+};
+
+type Waypoint = {
+  lat?: number;
+  lng?: number;
+  name: string;
+  placeId?: string;
+  label: string;
 };
 
 const T = (terminals as Terminal[]);
@@ -128,15 +136,15 @@ export function resolveDirections(text: string) {
     const n = normalizePlace(text);
     const mode: 'driving' | 'transit' | 'walking' =
       n.includes('대중교통') || n.includes('transit') ? 'transit'
-      : n.includes('도보') || n.includes('걷') || n.includes('walking') ? 'walking'
-      : 'driving';
+        : n.includes('도보') || n.includes('걷') || n.includes('walking') ? 'walking'
+          : 'driving';
 
-    const url = buildDirectionsUrl(
-      origin.name,
-      dest.name_ko || dest.name,
+    const url = buildDirectionsUrl({
+      origin: origin.name,
+      destination: dest.name_ko || dest.name,
       mode
-    );
-    return { 
+    });
+    return {
       ok: true,
       type: 'directions',
       url,
@@ -147,7 +155,7 @@ export function resolveDirections(text: string) {
   }
 
   // 목적지 확정 실패 → 지도검색 버튼으로 폴백
-  const searchUrl = buildSearchUrl({ label: q.dest });
+  const searchUrl = buildSearchUrl(q.dest);
   return {
     ok: false,
     reason: 'dest-not-found' as const,

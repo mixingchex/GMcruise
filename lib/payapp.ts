@@ -68,9 +68,9 @@ export async function payappApiPost(params: PayAppRequestParams): Promise<PayApp
 
     const responseText = await response.text();
     console.log('[PayApp] API 응답 원문:', responseText);
-    
+
     const parseData: Record<string, string> = {};
-    
+
     // URL 인코딩된 응답 파싱
     responseText.split('&').forEach((pair) => {
       const [key, value] = pair.split('=');
@@ -80,7 +80,7 @@ export async function payappApiPost(params: PayAppRequestParams): Promise<PayApp
     });
 
     console.log('[PayApp] 파싱된 응답:', parseData);
-    return parseData as PayAppResponse;
+    return parseData as unknown as PayAppResponse;
   } catch (error: any) {
     console.error('[PayApp] API 호출 오류:', error);
     return {
