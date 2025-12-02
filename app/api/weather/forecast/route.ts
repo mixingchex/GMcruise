@@ -4,7 +4,6 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getWeatherForecast } from '@/lib/weather';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,14 +18,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const weatherData = await getWeatherForecast(city, days);
+    // 환경변수 직접 확인
+    const apiKey = process.env.WEATHER_API_KEY;
 
-    if (!weatherData) {
+    if (!apiKey) {
+      console.error('[Weather API] WEATHER_API_KEY 환경변수가 설정되지 않았습니다.');
       return NextResponse.json(
-        { ok: false, error: '날씨 정보를 가져올 수 없습니다.' },
+        { ok: false, error: 'WEATHER_API_KEY 환경변수가 설정되지 않았습니다.' },
         { status: 500 }
       );
     }
+
+    // WeatherAPI.com 직접 호출
+    const response = await fetch(
+      `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${encodeURIComponent(city)}&days=${days}&lang=ko`,
+      {
+        cache: 'no-store' // 캐싱 비활성화
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Weather API] API 응답 오류:', response.status, errorText);
+      return NextResponse.json(
+        { ok: false, error: `날씨 API 요청 실패: ${response.status}` },
+        { status: 500 }
+      );
+    }
+
+    const weatherData = await response.json();
 
     return NextResponse.json({
       ok: true,
