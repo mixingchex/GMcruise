@@ -15,6 +15,7 @@ import {
   FiX,
   FiDollarSign,
   FiFileText,
+  FiAlertCircle,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
@@ -109,7 +110,7 @@ export default function PartnerStatementsClient({ currentUser, profile }: Partne
       if (!res.ok || !json.ok) {
         throw new Error(json.message || '지급명세서를 불러오지 못했습니다.');
       }
-      
+
       if (json.statements && json.statements.length > 0) {
         setStatement(json.statements[0]);
         setSelectedSettlement(json.settlement);
@@ -173,7 +174,7 @@ export default function PartnerStatementsClient({ currentUser, profile }: Partne
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      
+
       showSuccess('엑셀 파일이 다운로드되었습니다.');
     } catch (error: any) {
       console.error('[PartnerStatements] download error', error);
@@ -385,7 +386,7 @@ export default function PartnerStatementsClient({ currentUser, profile }: Partne
                       </p>
                     </div>
                   </div>
-                  
+
                   {/* 원천징수 계산 안내 */}
                   <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <div className="flex items-start gap-2">

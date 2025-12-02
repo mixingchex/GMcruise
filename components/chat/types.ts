@@ -1,5 +1,5 @@
 // components/chat/types.ts
-export type ChatInputMode = 'go' | 'show' | 'general' | 'info' | 'translate'
+export type ChatInputMode = 'go' | 'show' | 'general' | 'info' | 'translate' | 'free'
 
 export type ChipPick = { id?: string; label?: string } | null
 

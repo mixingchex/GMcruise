@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     // go 모드: 경로 안내
     if (mode === 'go') {
       let messages: ChatMessage[];
-      
+
       // 키워드 검색인지 확인 (맛집, 관광지, 카페 등)
       if (isKeywordSearch(text)) {
         messages = handleKeywordSearch(text, from, to);
@@ -41,32 +41,44 @@ export async function POST(req: NextRequest) {
         const origin = { text: from };
         const dest = { text: to };
         const urls = buildAllDirUrls(origin, dest);
-        
+
         messages = [
-          { type:'text', text:`확인했어요.\n출발지: ${from}\n도착지: ${to}` },
           {
-            type:'map-links',
-            title:'길찾기',
-            links:[
-              { label:'🚗 자동차 길찾기', href: urls.driving, kind: 'directions' },
-              { label:'🚇 대중교통 길찾기', href: urls.transit, kind: 'directions' },
-              { label:'🚶 도보 길찾기', href: urls.walking, kind: 'directions' },
+            id: Date.now().toString() + '-1',
+            role: 'assistant',
+            type: 'text',
+            text: `확인했어요.\n출발지: ${from}\n도착지: ${to}`
+          },
+          {
+            id: Date.now().toString() + '-2',
+            role: 'assistant',
+            type: 'map-links',
+            title: '길찾기',
+            links: [
+              { label: '🚗 자동차 길찾기', href: urls.driving, kind: 'directions' },
+              { label: '🚇 대중교통 길찾기', href: urls.transit, kind: 'directions' },
+              { label: '🚶 도보 길찾기', href: urls.walking, kind: 'directions' },
             ],
           },
-          { type:'text', text:'새 창에서 열려요. 지도에서 **시작**만 누르시면 됩니다.' }
+          {
+            id: Date.now().toString() + '-3',
+            role: 'assistant',
+            type: 'text',
+            text: '새 창에서 열려요. 지도에서 **시작**만 누르시면 됩니다.'
+          }
         ];
       } else {
         // text에서 파싱 (resolveFromTo 사용)
         messages = handleDirections(text);
       }
-      
+
       return NextResponse.json({ ok: true, messages });
     }
 
     // translate 모드: 번역 처리
     if (mode === 'translate') {
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-      
+
       if (!apiKey) {
         return NextResponse.json(
           { ok: false, error: 'GEMINI_API_KEY가 설정되지 않았습니다.' },
@@ -113,16 +125,16 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
         let attempts = 0;
         const maxAttempts = 2;
         const trimmedOriginal = text.trim();
-        
+
         while (attempts < maxAttempts) {
           attempts++;
-          
+
           const result = await model.generateContent(prompt);
           const translated = result.response.text() || '';
-          
+
           // 번역 결과 정리
           cleanedTranslation = translated.trim();
-          
+
           // 불필요한 접두사 제거 (더 포괄적으로)
           cleanedTranslation = cleanedTranslation
             .replace(/^Translation\s*[:：]\s*/i, '')
@@ -133,29 +145,29 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
             .replace(/^The\s+translation\s+is\s*[:：]\s*/i, '')
             .replace(/^Translated\s+text\s*[:：]\s*/i, '')
             .trim();
-          
+
           // 따옴표로 감싸진 경우 제거
           if ((cleanedTranslation.startsWith('"') && cleanedTranslation.endsWith('"')) ||
-              (cleanedTranslation.startsWith("'") && cleanedTranslation.endsWith("'"))) {
+            (cleanedTranslation.startsWith("'") && cleanedTranslation.endsWith("'"))) {
             cleanedTranslation = cleanedTranslation.slice(1, -1).trim();
           }
-          
+
           // 첫 줄만 추출 (여러 줄인 경우)
           const firstLine = cleanedTranslation.split('\n')[0].trim();
           if (firstLine && firstLine.length > 0) {
             cleanedTranslation = firstLine;
           }
-          
+
           const trimmedTranslated = cleanedTranslation.trim();
-          
+
           // 번역 결과가 원문과 동일한 경우 재시도 (단, 같은 언어 간 번역이 아닌 경우만)
           if (trimmedTranslated === trimmedOriginal && trimmedOriginal.length > 3 && from !== to) {
-            console.warn(`[Translation] Attempt ${attempts}: Translation same as original, retrying...`, { 
-              from, 
-              to, 
-              text: text.substring(0, 50) 
+            console.warn(`[Translation] Attempt ${attempts}: Translation same as original, retrying...`, {
+              from,
+              to,
+              text: text.substring(0, 50)
             });
-            
+
             if (attempts < maxAttempts) {
               // 재시도 전에 프롬프트를 더 강화
               continue;
@@ -173,7 +185,12 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
         return NextResponse.json({
           ok: true,
           messages: [
-            { type: 'text', text: cleanedTranslation }
+            {
+              id: Date.now().toString(),
+              role: 'assistant',
+              type: 'text',
+              text: cleanedTranslation
+            }
           ]
         });
       } catch (error: any) {

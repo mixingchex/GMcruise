@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       if (contextError instanceof Error) {
         return NextResponse.json(
           { ok: false, message: contextError.message || '인증 오류가 발생했습니다.' },
-          { status: contextError.status || 401 }
+          { status: (contextError as any).status || 401 }
         );
       }
       return NextResponse.json(
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       let customerName: string | null = null;
       let customerPhone: string | null = null;
       let normalizedPhone: string | null = null;
-      
+
       try {
         // 이름과 연락처 추출 (다양한 컬럼명 지원)
         customerName =
@@ -185,13 +185,13 @@ export async function POST(req: NextRequest) {
           const whereCondition: any = {
             customerPhone: normalizedPhone,
           };
-          
+
           if (profile.type === 'BRANCH_MANAGER') {
             whereCondition.managerId = profile.id;
           } else if (profile.type === 'SALES_AGENT') {
             whereCondition.agentId = profile.id;
           }
-          
+
           const existing = await prisma.affiliateLead.findFirst({
             where: whereCondition,
           });

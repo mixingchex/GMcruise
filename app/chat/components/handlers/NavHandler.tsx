@@ -1,7 +1,6 @@
 "use client"
 import { ReactNode } from 'react'
-import { type POI } from '@/lib/nav/selector'
-import { buildTransitUrl, buildDrivingUrl, buildMapUrl } from '@/lib/nav/urls'
+
 
 // API 응답 타입 (page.tsx에서 직접 받아서 렌더링)
 export type NavResolvedData =

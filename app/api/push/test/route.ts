@@ -16,7 +16,7 @@ import { getSession } from '@/lib/session';
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.user?.id) {
+    if (!(session as any)?.user?.id) {
       return NextResponse.json(
         { error: '인증이 필요합니다' },
         { status: 401 }
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await sendNotificationToUser(session.user.id, {
+    const result = await sendNotificationToUser((session as any).user.id, {
       title,
       body,
       icon: '/images/ai-cruise-logo.png',

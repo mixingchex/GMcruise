@@ -33,69 +33,72 @@ export async function GET(req: NextRequest) {
 
     const baseProfiles = agentProfileIds.length
       ? await prisma.affiliateProfile.findMany({
-          where: { id: { in: agentProfileIds } },
-          select: {
-            id: true,
-            userId: true,
-            affiliateCode: true,
-            type: true,
-            status: true,
-            displayName: true,
-            branchLabel: true,
-            nickname: true,
-            createdAt: true,
-            User: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                mallUserId: true,
-                mallNickname: true,
-                password: true, // 비밀번호 추가
-              },
+        where: { id: { in: agentProfileIds } },
+        select: {
+          id: true,
+          userId: true,
+          affiliateCode: true,
+          type: true,
+          status: true,
+          displayName: true,
+          branchLabel: true,
+          nickname: true,
+          createdAt: true,
+          User: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              mallUserId: true,
+              mallNickname: true,
+              password: true, // 비밀번호 추가
             },
           },
-        })
+        },
+      })
       : [];
 
-    const leadsGroup = agentProfileIds.length
-      ? await prisma.affiliateLead.groupBy({
-          by: ['agentId', 'status'],
-          where: {
-            agentId: { in: agentProfileIds },
-          },
-          _count: { _all: true },
-        })
-      : [];
+    let leadsGroup: Array<any> = [];
+    if (agentProfileIds.length) {
+      leadsGroup = await prisma.affiliateLead.groupBy({
+        by: ['agentId', 'status'],
+        where: {
+          agentId: { in: agentProfileIds },
+        },
+        _count: { _all: true },
+      });
+    }
 
-    const salesGroup = agentProfileIds.length
-      ? await prisma.affiliateSale.groupBy({
-          by: ['agentId', 'status'],
-          where: {
-            agentId: { in: agentProfileIds },
-          },
-          _count: { _all: true },
-          _sum: {
-            saleAmount: true,
-            netRevenue: true,
-          },
-          _max: {
-            saleDate: true,
-          },
-        })
-      : [];
+    let salesGroup: Array<any> = [];
+    if (agentProfileIds.length) {
+      salesGroup = await prisma.affiliateSale.groupBy({
+        by: ['agentId', 'status'],
+        where: {
+          agentId: { in: agentProfileIds },
+        },
+        _count: { _all: true },
+        _sum: {
+          saleAmount: true,
+          netRevenue: true,
+        },
+        _max: {
+          saleDate: true,
+        },
+      });
+    }
 
-    const ledgerGroup = agentProfileIds.length
-      ? await prisma.commissionLedger.groupBy({
-          by: ['profileId', 'entryType', 'isSettled'],
-          where: {
-            profileId: { in: agentProfileIds },
-            entryType: { in: COMMISSION_ENTRY_TYPES },
-          },
-          _sum: { amount: true, withholdingAmount: true },
-        })
-      : [];
+    let ledgerGroup: Array<any> = [];
+    if (agentProfileIds.length) {
+      ledgerGroup = await prisma.commissionLedger.groupBy({
+        by: ['profileId', 'entryType', 'isSettled'],
+        where: {
+          profileId: { in: agentProfileIds },
+          entryType: { in: COMMISSION_ENTRY_TYPES },
+        },
+        _sum: { amount: true, withholdingAmount: true },
+      });
+    }
 
     const leadsByAgent = leadsGroup.reduce<Record<number, Record<string, number>>>((acc, row) => {
       if (row.agentId === null) return acc;

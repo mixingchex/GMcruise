@@ -100,6 +100,7 @@ export async function GET(req: NextRequest) {
       totalSalesCommission: sales.reduce((sum, s) => sum + (s.salesCommission || 0), 0),
       totalOverrideCommission: sales.reduce((sum, s) => sum + (s.overrideCommission || 0), 0),
       totalWithholding: sales.reduce((sum, s) => sum + (s.withholdingAmount || 0), 0),
+      myCommission: 0,
     };
 
     // 내 역할 계산

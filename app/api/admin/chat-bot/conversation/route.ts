@@ -20,8 +20,7 @@ function buildFlowSummary(currentFlow?: {
   const nodeSummary = currentFlow.nodes
     .map(
       (node, index) =>
-        `${index + 1}. ${node.type || 'text'} - ${node.label || '내용 없음'}${
-          node.questionType ? ` (${node.questionType})` : ''
+        `${index + 1}. ${node.type || 'text'} - ${node.label || '내용 없음'}${node.questionType ? ` (${node.questionType})` : ''
         }${node.options && node.options.length ? ` 옵션: ${node.options.join(', ')}` : ''}`,
     )
     .join('\n');
@@ -29,8 +28,8 @@ function buildFlowSummary(currentFlow?: {
   const edgeSummary =
     currentFlow.edges && currentFlow.edges.length > 0
       ? `\n연결 정보:\n${currentFlow.edges
-          .map((edge) => `- ${edge.source} → ${edge.target}`)
-          .join('\n')}`
+        .map((edge) => `- ${edge.source} → ${edge.target}`)
+        .join('\n')}`
       : '';
 
   return `현재 플로우 개요:\n${nodeSummary}${edgeSummary}`;
@@ -102,15 +101,14 @@ export async function POST(req: NextRequest) {
     const contextParts: string[] = [];
     if (productCode || productLabel) {
       contextParts.push(
-        `연결된 상품: ${productLabel || productCode} ${
-          productCode ? `(코드: ${productCode})` : ''
+        `연결된 상품: ${productLabel || productCode} ${productCode ? `(코드: ${productCode})` : ''
         }`,
       );
     }
     contextParts.push(buildFlowSummary(currentFlow));
 
     const trimmedMessages = messages.slice(-8).map((message: ConversationMessage) => ({
-      role: message.role === 'assistant' ? 'assistant' : 'user',
+      role: (message.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
       content: message.content,
     }));
 

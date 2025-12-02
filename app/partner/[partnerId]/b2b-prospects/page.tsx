@@ -858,36 +858,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                 </>
             )}
 
-            {activeTab === 'SHARED' && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <SharedDBTable
-                        leads={sharedLeads}
-                        onRecall={async (leadId) => {
-                            if (!confirm('정말 회수하시겠습니까?')) return;
-                            try {
-                                const res = await fetch('/api/partner/customers/share', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        leadIds: [leadId],
-                                        action: 'RECALL'
-                                    })
-                                });
-                                const json = await res.json();
-                                if (json.ok) {
-                                    alert('회수되었습니다.');
-                                    loadProspects();
-                                } else {
-                                    alert(json.message);
-                                }
-                            } catch (e) {
-                                console.error(e);
-                                alert('오류가 발생했습니다.');
-                            }
-                        }}
-                    />
-                </div>
-            )}
+
 
             {/* Assign Modal */}
             {isAssignModalOpen && (

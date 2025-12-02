@@ -15,7 +15,7 @@ interface ProductCardProps {
     nights: number;
     days: number;
     basePrice: number | null;
-    source: string | null;
+    source?: string | null;
     destination?: string[] | string | null;
     thumbnail?: string | null;
     // 리뷰/평점 데이터 (추후 DB에서 가져올 수 있음)

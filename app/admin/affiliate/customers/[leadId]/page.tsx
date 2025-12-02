@@ -118,6 +118,7 @@ type AffiliateLead = {
       id: number;
       name: string;
       passportNumber: string | null;
+      passportExpiryDate: string | null;
     }>;
   }>;
   userId?: number | null;

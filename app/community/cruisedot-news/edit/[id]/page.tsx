@@ -59,6 +59,7 @@ const BLOCK_LABELS: Record<NewsBlock["type"], string> = {
   callout: "콜아웃",
   image: "이미지",
   summary: "요약",
+  info: "정보",
 };
 
 const BLOCK_ADD_OPTIONS: { type: AddableNewsBlockType; label: string; description: string; icon: ReactNode }[] = [
@@ -189,10 +190,10 @@ export default function CruisedotNewsEditPage() {
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [imagePickerState, setImagePickerState] = useState<
     | {
-        open: true;
-        onSelect: (path: string) => void;
-        suggestedSubfolder?: string;
-      }
+      open: true;
+      onSelect: (path: string) => void;
+      suggestedSubfolder?: string;
+    }
     | null
   >(null);
 

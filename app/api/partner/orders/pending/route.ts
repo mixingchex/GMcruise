@@ -32,11 +32,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'Partner access required' }, { status: 403 });
     }
 
-    const affiliateProfile = userWithProfile.AffiliateProfile?.[0] || 
-                            (Array.isArray(userWithProfile.AffiliateProfile) && userWithProfile.AffiliateProfile.length > 0 
-                              ? userWithProfile.AffiliateProfile[0] 
-                              : null);
-    
+    const affiliateProfile = userWithProfile.AffiliateProfile?.[0] ||
+      (Array.isArray(userWithProfile.AffiliateProfile) && userWithProfile.AffiliateProfile.length > 0
+        ? userWithProfile.AffiliateProfile[0]
+        : null);
+
     if (!affiliateProfile) {
       console.log('[Partner Orders Pending] AffiliateProfile이 없습니다.');
       return NextResponse.json({ ok: true, orders: [] });
@@ -98,20 +98,21 @@ export async function GET(req: NextRequest) {
         .filter((code): code is string => !!code)
     )];
 
-    const products = productCodes.length > 0
-      ? await prisma.cruiseProduct.findMany({
-          where: { productCode: { in: productCodes } },
-          select: {
-            id: true,
-            productCode: true,
-            cruiseLine: true,
-            shipName: true,
-            packageName: true,
-            nights: true,
-            days: true,
-          },
-        })
-      : [];
+    let products: Array<any> = [];
+    if (productCodes.length > 0) {
+      products = await prisma.cruiseProduct.findMany({
+        where: { productCode: { in: productCodes } },
+        select: {
+          id: true,
+          productCode: true,
+          cruiseLine: true,
+          shipName: true,
+          packageName: true,
+          nights: true,
+          days: true,
+        },
+      });
+    }
 
     const productMap = new Map(products.map((p) => [p.productCode, p]));
 
@@ -154,10 +155,10 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('GET /api/partner/orders/pending error:', error);
     // 에러 발생 시 빈 배열 반환 (500 에러 방지)
-    return NextResponse.json({ 
-      ok: true, 
+    return NextResponse.json({
+      ok: true,
       orders: [],
-      error: error.message || '주문 내역 조회 중 오류가 발생했습니다.' 
+      error: error.message || '주문 내역 조회 중 오류가 발생했습니다.'
     });
   }
 }

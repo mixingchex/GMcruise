@@ -181,9 +181,9 @@ export default function DriveSettingsClient({ initialConfigs }: Props) {
                                 </div>
                             </a>
                         )}
-                        {configs.SHARED_DRIVE && (
+                        {configs.ROOT && (
                             <a
-                                href={`https://drive.google.com/drive/folders/${configs.SHARED_DRIVE.value}`}
+                                href={`https://drive.google.com/drive/folders/${configs.ROOT.value}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition"
@@ -191,7 +191,7 @@ export default function DriveSettingsClient({ initialConfigs }: Props) {
                                 <span className="text-2xl">📂</span>
                                 <div className="flex-1">
                                     <div className="font-medium text-gray-900">Shared Drive Root</div>
-                                    <div className="text-xs text-gray-500 font-mono truncate">{configs.SHARED_DRIVE.value}</div>
+                                    <div className="text-xs text-gray-500 font-mono truncate">{configs.ROOT.value}</div>
                                 </div>
                             </a>
                         )}

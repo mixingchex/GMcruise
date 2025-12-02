@@ -33,7 +33,7 @@ export default function MarketingCustomersPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
-  
+
   // 필터 상태
   const [includeGroups, setIncludeGroups] = useState<number[]>([]);
   const [includeGroupsOperator, setIncludeGroupsOperator] = useState<'AND' | 'OR'>('OR');
@@ -46,7 +46,7 @@ export default function MarketingCustomersPage() {
   const [pageSize, setPageSize] = useState(100);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  
+
   // 모달 상태
   const [showGroupMessageModal, setShowGroupMessageModal] = useState(false);
   const [showExcelModal, setShowExcelModal] = useState(false);
@@ -65,7 +65,7 @@ export default function MarketingCustomersPage() {
     profileName: string | null;
   }>>([]);
   const [isLoadingInteractions, setIsLoadingInteractions] = useState(false);
-  
+
   // 그룹문자 보내기 상태
   const [messageTitle, setMessageTitle] = useState('');
   const [messageContent, setMessageContent] = useState('');
@@ -73,23 +73,23 @@ export default function MarketingCustomersPage() {
   const [targetCustomerGroups, setTargetCustomerGroups] = useState<string[]>(['prospects']); // 기본값: 잠재고객
   const [showRecipientSelectModal, setShowRecipientSelectModal] = useState(false);
   const [showEmailRecipientModal, setShowEmailRecipientModal] = useState(false);
-  const [recipientCustomers, setRecipientCustomers] = useState<Array<{id: number; name: string | null; phone: string | null; email: string | null}>>([]);
+  const [recipientCustomers, setRecipientCustomers] = useState<Array<{ id: number; name: string | null; phone: string | null; email: string | null }>>([]);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState<Set<number>>(new Set());
-  const [emailRecipients, setEmailRecipients] = useState<Array<{id: number; name: string | null; phone: string | null; email: string}>>([]);
+  const [emailRecipients, setEmailRecipients] = useState<Array<{ id: number; name: string | null; phone: string | null; email: string }>>([]);
   const [selectedEmailRecipientIds, setSelectedEmailRecipientIds] = useState<Set<number>>(new Set());
   const [recipientSearch, setRecipientSearch] = useState('');
   const [emailRecipientSearch, setEmailRecipientSearch] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
-  
+
   // 엑셀 입력 상태
   const [excelGroupId, setExcelGroupId] = useState<number | null>(null);
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
-  
+
   // 휴대폰 번호 입력 상태
   const [phoneGroupId, setPhoneGroupId] = useState<number | null>(null);
   const [phoneNumbers, setPhoneNumbers] = useState('');
-  
+
   // 고객 등록 상태
   const [newCustomer, setNewCustomer] = useState({
     name: '',
@@ -100,10 +100,7 @@ export default function MarketingCustomersPage() {
     groupIds: [] as number[],
   });
 
-  useEffect(() => {
-    fetchGroups();
-    fetchCustomers();
-  }, [fetchGroups, fetchCustomers]);
+
 
   const loadCustomerInteractions = async (leadId: number | null, phone: string | null) => {
     if (!leadId && !phone) {
@@ -173,13 +170,13 @@ export default function MarketingCustomersPage() {
       const response = await fetch(`/api/admin/marketing/customers?${params}`, {
         credentials: 'include',
       });
-      
+
       const result = await response.json();
-      
+
       if (!response.ok || !result.ok) {
         throw new Error(result.error || '데이터를 불러오는데 실패했습니다.');
       }
-      
+
       setCustomers(result.data.customers || []);
       setTotalCount(result.data.total || 0);
       setError(null);
@@ -201,6 +198,11 @@ export default function MarketingCustomersPage() {
     inflowDateEnd,
     daySearch,
   ]);
+
+  useEffect(() => {
+    fetchGroups();
+    fetchCustomers();
+  }, [fetchGroups, fetchCustomers]);
 
   const handleSelectCustomer = (customerId: number, index: number, shiftKey: boolean) => {
     if (shiftKey && lastSelectedIndex !== null) {
@@ -242,7 +244,7 @@ export default function MarketingCustomersPage() {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     // 모달 열기 (고객 선택은 모달 내에서 진행)
     setShowGroupMessageModal(true);
   };
@@ -256,8 +258,8 @@ export default function MarketingCustomersPage() {
 
     try {
       // 선택된 그룹의 고객들 조회
-      const allCustomers: Array<{id: number; name: string | null; phone: string | null; email: string | null}> = [];
-      
+      const allCustomers: Array<{ id: number; name: string | null; phone: string | null; email: string | null }> = [];
+
       for (const group of targetCustomerGroups) {
         const response = await fetch(`/api/admin/marketing/customers/by-group?customerGroup=${group}`, {
           credentials: 'include',
@@ -291,8 +293,8 @@ export default function MarketingCustomersPage() {
 
     try {
       // 선택된 그룹의 이메일이 있는 고객들만 조회
-      const allCustomers: Array<{id: number; name: string | null; phone: string | null; email: string}> = [];
-      
+      const allCustomers: Array<{ id: number; name: string | null; phone: string | null; email: string }> = [];
+
       for (const group of targetCustomerGroups) {
         const response = await fetch(`/api/admin/marketing/customers/by-group?customerGroup=${group}&hasEmail=true`, {
           credentials: 'include',
@@ -364,9 +366,9 @@ export default function MarketingCustomersPage() {
           const errorData = await smsResponse.json().catch(() => ({}));
           throw new Error(errorData.error || '메시지 전송에 실패했습니다.');
         }
-        
+
         const result = await smsResponse.json();
-        
+
         if (result.ok) {
           showSuccess(`${result.sentCount || phones.length}명에게 SMS가 전송되었습니다.`);
           setShowGroupMessageModal(false);
@@ -413,9 +415,9 @@ export default function MarketingCustomersPage() {
           const errorData = await emailResponse.json().catch(() => ({}));
           throw new Error(errorData.error || '이메일 전송에 실패했습니다.');
         }
-        
+
         const result = await emailResponse.json();
-        
+
         if (result.ok) {
           showSuccess(`${result.sentCount || emails.length}명에게 이메일이 전송되었습니다.`);
           setShowGroupMessageModal(false);
@@ -458,9 +460,9 @@ export default function MarketingCustomersPage() {
           const errorData = await teamMessageResponse.json().catch(() => ({}));
           throw new Error(errorData.error || '팀 대시보드 메시지 전송에 실패했습니다.');
         }
-        
+
         const result = await teamMessageResponse.json();
-        
+
         if (result.ok) {
           showSuccess(`${result.sentCount || userIds.length}명에게 팀 대시보드 메시지가 전송되었습니다.`);
           setShowGroupMessageModal(false);
@@ -482,7 +484,7 @@ export default function MarketingCustomersPage() {
       e.preventDefault();
       e.stopPropagation();
     }
-    
+
     try {
       // 현재 필터 조건을 포함하여 엑셀 다운로드
       const params = new URLSearchParams({
@@ -497,7 +499,7 @@ export default function MarketingCustomersPage() {
       const response = await fetch(`/api/admin/marketing/customers/export?${params.toString()}`, {
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         // JSON 에러 응답 시도
         let errorMessage = '엑셀 다운로드에 실패했습니다.';
@@ -509,7 +511,7 @@ export default function MarketingCustomersPage() {
         }
         throw new Error(errorMessage);
       }
-      
+
       // Content-Type 확인
       const contentType = response.headers.get('content-type');
       if (!contentType || !contentType.includes('spreadsheet')) {
@@ -519,13 +521,13 @@ export default function MarketingCustomersPage() {
           throw new Error(errorData.error || '엑셀 다운로드에 실패했습니다.');
         }
       }
-      
+
       const blob = await response.blob();
-      
+
       if (blob.size === 0) {
         throw new Error('다운로드된 파일이 비어있습니다.');
       }
-      
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -561,7 +563,7 @@ export default function MarketingCustomersPage() {
 
       if (!response.ok) throw new Error('엑셀 업로드에 실패했습니다.');
       const result = await response.json();
-      
+
       if (result.ok) {
         showSuccess(`업로드 완료! 총 ${result.summary?.total || 0}건 중 ${result.summary?.added || 0}건이 추가되었습니다.`);
         setShowExcelModal(false);
@@ -602,7 +604,7 @@ export default function MarketingCustomersPage() {
 
       if (!response.ok) throw new Error('휴대폰 번호 등록에 실패했습니다.');
       const result = await response.json();
-      
+
       if (result.ok) {
         showSuccess(`${result.added || 0}건이 등록되었습니다.`);
         setShowPhoneModal(false);
@@ -640,7 +642,7 @@ export default function MarketingCustomersPage() {
 
       if (!response.ok) throw new Error('고객 등록에 실패했습니다.');
       const result = await response.json();
-      
+
       if (result.ok) {
         showSuccess('고객이 등록되었습니다.');
         setShowCustomerModal(false);
@@ -784,7 +786,7 @@ export default function MarketingCustomersPage() {
                       return group ? group.name : '';
                     }).filter(Boolean).join(', ') || '그룹을 선택하세요'}
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => {
                       setGroupSelectType('include');
@@ -813,7 +815,7 @@ export default function MarketingCustomersPage() {
                       return group ? group.name : '';
                     }).filter(Boolean).join(', ') || '그룹을 선택하세요'}
                   />
-                  <button 
+                  <button
                     type="button"
                     onClick={() => {
                       setGroupSelectType('exclude');
@@ -826,7 +828,7 @@ export default function MarketingCustomersPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* 두 번째 행: 날짜 필터 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -859,7 +861,7 @@ export default function MarketingCustomersPage() {
                 />
               </div>
             </div>
-            
+
             {/* 세 번째 행: 기타 옵션 및 검색 버튼 */}
             <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -980,8 +982,8 @@ export default function MarketingCustomersPage() {
                       const isSelected = selectedIds.has(customer.id);
                       const isLastSelected = lastSelectedIndex === index;
                       return (
-                        <tr 
-                          key={customer.id} 
+                        <tr
+                          key={customer.id}
                           className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${isSelected ? 'bg-blue-50' : 'bg-white'}`}
                         >
                           <td className="px-4 py-3 text-center">
@@ -1104,7 +1106,7 @@ export default function MarketingCustomersPage() {
 
       {/* 그룹문자 보내기 모달 */}
       {showGroupMessageModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
@@ -1112,13 +1114,13 @@ export default function MarketingCustomersPage() {
             }
           }}
         >
-          <div 
+          <div
             className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">고객 메시지 관리</h2>
-              <button 
+              <button
                 type="button"
                 onClick={() => {
                   setShowGroupMessageModal(false);
@@ -1126,7 +1128,7 @@ export default function MarketingCustomersPage() {
                   setMessageContent('');
                   setSelectedRecipientIds(new Set());
                   setSelectedEmailRecipientIds(new Set());
-                }} 
+                }}
                 className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded"
               >
                 <FiX className="text-xl" />
@@ -1539,15 +1541,15 @@ export default function MarketingCustomersPage() {
           <div className="bg-white rounded-lg p-6 max-w-3xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">고객 상세정보</h2>
-              <button 
+              <button
                 type="button"
-                onClick={() => setShowDetailModal(false)} 
+                onClick={() => setShowDetailModal(false)}
                 className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded"
               >
                 <FiX className="text-xl" />
               </button>
             </div>
-            
+
             <div className="mb-4 pb-4 border-b">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1628,15 +1630,15 @@ export default function MarketingCustomersPage() {
           <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">수신자 선택</h2>
-              <button 
+              <button
                 type="button"
-                onClick={() => setShowRecipientSelectModal(false)} 
+                onClick={() => setShowRecipientSelectModal(false)}
                 className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded"
               >
                 <FiX className="text-xl" />
               </button>
             </div>
-            
+
             {/* 검색 */}
             <div className="mb-4">
               <input
@@ -1749,15 +1751,15 @@ export default function MarketingCustomersPage() {
           <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">이메일 수신자 선택</h2>
-              <button 
+              <button
                 type="button"
-                onClick={() => setShowEmailRecipientModal(false)} 
+                onClick={() => setShowEmailRecipientModal(false)}
                 className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded"
               >
                 <FiX className="text-xl" />
               </button>
             </div>
-            
+
             {/* 검색 */}
             <div className="mb-4">
               <input
@@ -1872,9 +1874,9 @@ export default function MarketingCustomersPage() {
               <h2 className="text-xl font-bold">
                 {groupSelectType === 'include' ? '포함 그룹 선택' : '제외 그룹 선택'}
               </h2>
-              <button 
+              <button
                 type="button"
-                onClick={() => setShowGroupSelectModal(false)} 
+                onClick={() => setShowGroupSelectModal(false)}
                 className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded"
               >
                 <FiX className="text-xl" />
@@ -1889,17 +1891,16 @@ export default function MarketingCustomersPage() {
               ) : (
                 <div className="space-y-2">
                   {groups.map((group) => {
-                    const isSelected = groupSelectType === 'include' 
+                    const isSelected = groupSelectType === 'include'
                       ? includeGroups.includes(group.id)
                       : excludeGroups.includes(group.id);
                     return (
                       <label
                         key={group.id}
-                        className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${
-                          isSelected 
-                            ? 'border-blue-500 bg-blue-50' 
+                        className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition-colors ${isSelected
+                            ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         <input
                           type="checkbox"
@@ -1921,7 +1922,7 @@ export default function MarketingCustomersPage() {
                           }}
                           className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <div 
+                        <div
                           className="w-6 h-6 rounded"
                           style={{ backgroundColor: group.color || '#3B82F6' }}
                         />

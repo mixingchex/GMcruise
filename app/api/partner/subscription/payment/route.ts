@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     // 정액제 계약서 확인
     const contract = await prisma.affiliateContract.findFirst({
       where: {
-        userId: sessionUser.id,
+        mallUserId: (sessionUser as any).mallUserId,
         metadata: {
           path: ['contractType'],
           equals: 'SUBSCRIPTION_AGENT',

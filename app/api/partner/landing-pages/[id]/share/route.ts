@@ -28,7 +28,7 @@ export async function POST(
     }
 
     const { profile } = await requirePartnerContext();
-    
+
     // 대리점장만 가능
     if (profile.type !== 'BRANCH_MANAGER') {
       return NextResponse.json({ ok: false, error: '대리점장만 접근 가능합니다' }, { status: 403 });
@@ -100,10 +100,9 @@ export async function POST(
       if (normalizedIds.length > 0) {
         const managers = await prisma.affiliateProfile.findMany({
           where: {
-            id: { in: normalizedIds },
+            id: { in: normalizedIds, not: profile.id },
             type: 'BRANCH_MANAGER',
             status: 'ACTIVE',
-            id: { not: profile.id }, // 자기 자신은 제외
           },
           select: {
             id: true,
@@ -183,7 +182,7 @@ export async function GET(
     }
 
     const { profile } = await requirePartnerContext();
-    
+
     // 대리점장만 가능
     if (profile.type !== 'BRANCH_MANAGER') {
       return NextResponse.json({ ok: false, error: '대리점장만 접근 가능합니다' }, { status: 403 });
@@ -259,7 +258,7 @@ export async function DELETE(
     }
 
     const { profile } = await requirePartnerContext();
-    
+
     // 대리점장만 가능
     if (profile.type !== 'BRANCH_MANAGER') {
       return NextResponse.json({ ok: false, error: '대리점장만 접근 가능합니다' }, { status: 403 });
@@ -295,8 +294,8 @@ export async function DELETE(
 
     const normalizedIds = Array.isArray(body.managerProfileIds)
       ? body.managerProfileIds
-          .map((id) => Number(id))
-          .filter((id) => Number.isInteger(id) && id > 0)
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0)
       : [];
 
     const revokeAll = body.revokeAll || normalizedIds.length === 0;

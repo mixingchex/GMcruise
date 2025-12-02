@@ -325,7 +325,7 @@ export async function GET(req: NextRequest) {
       const variants = phoneSearchVariants(query);
       const searchCondition = {
         OR: [
-          { customerName: { contains: query, mode: 'insensitive' } },
+          { customerName: { contains: query, mode: 'insensitive' as Prisma.QueryMode } },
           ...(variants.length
             ? variants.map((variant) => ({
               customerPhone: {

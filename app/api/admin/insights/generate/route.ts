@@ -11,7 +11,7 @@ const SESSION_COOKIE = 'cg.sid.v2';
 async function checkAdminAuth() {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid) {
       console.log('[Admin Insights Generate] No session cookie found');
       return null;
@@ -51,7 +51,7 @@ async function checkAdminAuth() {
 export async function POST(req: NextRequest) {
   try {
     console.log('[Admin Insights Generate] Request received');
-    
+
     const admin = await checkAdminAuth();
     if (!admin) {
       console.error('[Admin Insights Generate] Unauthorized');
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
             console.log('[Admin Insights Generate] Generating for user:', user.id);
             const insights = await generateAllInsights(user.id);
             console.log('[Admin Insights Generate] Generated', insights.length, 'insights for user:', user.id, 'Types:', insights.map(i => i.type));
-            
+
             if (insights.length === 0) {
               console.log(`[Admin Insights Generate] No insights generated for user ${user.id} - likely no data`);
               // 사용자 데이터 확인
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
               });
               return { userId: user.id, count: 0, skipped: true };
             }
-            
+
             await Promise.all(
               insights.map(async (insight) => {
                 try {
@@ -141,10 +141,10 @@ export async function POST(req: NextRequest) {
       const success = results.filter((r) => r.status === 'fulfilled' && !r.value.skipped).length;
       const skipped = results.filter((r) => r.status === 'fulfilled' && r.value.skipped).length;
       const failed = results.filter((r) => r.status === 'rejected').length;
-      
+
       const errors = results
-        .filter((r) => r.status === 'rejected')
-        .map((r) => r.reason?.message || String(r.reason));
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map((r) => (r.reason instanceof Error ? r.reason.message : String(r.reason)));
 
       console.log('[Admin Insights Generate] Completed:', { success, skipped, failed, total: users.length });
 

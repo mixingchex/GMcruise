@@ -410,18 +410,18 @@ const saveTripsToLocal = (trips: Trip[]) => {
 export default function MapPage() {
   const router = useRouter();
   const pathname = usePathname();
-  
+
   // 경로 보호: 일반 사용자는 /map으로 리다이렉트
   useEffect(() => {
     const checkPath = async () => {
       const testModeInfo = await checkTestModeClient();
       const correctPath = getCorrectPath(pathname || '/map-test', testModeInfo);
-      
+
       if (correctPath !== pathname) {
         router.replace(correctPath);
       }
     };
-    
+
     checkPath();
   }, [pathname, router]);
   const [userTrips, setUserTrips] = useState<Trip[]>([]);
@@ -430,13 +430,13 @@ export default function MapPage() {
   const [currentColor, setCurrentColor] = useState<string>("#EF4444"); // 기본 빨간색
   const [testModeInfo, setTestModeInfo] = useState<TestModeInfo | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [tutorialStep, setTutorialStep] = useState(0);
-  
+  const [tutorialStep, setTutorialStep] = useState<number>(0);
+
   // 테스트 모드 확인
   useEffect(() => {
     checkTestModeClient().then(setTestModeInfo);
   }, []);
-  
+
   // 튜토리얼 표시 (페이지 진입 시마다 항상 표시)
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -445,7 +445,7 @@ export default function MapPage() {
     }, 500);
     return () => clearTimeout(timer);
   }, []);
-  
+
   const handleTutorialNext = () => {
     if (tutorialStep < 2) {
       setTutorialStep(tutorialStep + 1);
@@ -453,11 +453,11 @@ export default function MapPage() {
       setShowTutorial(false);
     }
   };
-  
+
   const handleTutorialSkip = () => {
     setShowTutorial(false);
   };
-  
+
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
@@ -466,7 +466,7 @@ export default function MapPage() {
       console.error('Logout error:', error);
     }
   };
-  
+
   const [countryColorMap, setCountryColorMap] = useState<{ [key: string]: string }>(() => {
     if (typeof window !== 'undefined') {
       const savedColors = localStorage.getItem('countryColors');
@@ -519,32 +519,32 @@ export default function MapPage() {
           // 영어 이름에서 직접 코드 추출 시도
           const countryCodeFromEnglish = englishCountryName === 'South Korea' ? 'KR' :
             englishCountryName === 'Japan' ? 'JP' :
-            englishCountryName === 'Taiwan' ? 'TW' :
-            englishCountryName === 'China' ? 'CN' :
-            englishCountryName === 'Hong Kong' ? 'HK' :
-            englishCountryName === 'Philippines' ? 'PH' :
-            englishCountryName === 'United States' ? 'US' :
-            englishCountryName === 'Thailand' ? 'TH' :
-            englishCountryName === 'Vietnam' ? 'VN' :
-            englishCountryName === 'Singapore' ? 'SG' :
-            englishCountryName === 'Indonesia' ? 'ID' :
-            englishCountryName === 'Malaysia' ? 'MY' :
-            englishCountryName === 'United Kingdom' ? 'GB' :
-            englishCountryName === 'France' ? 'FR' :
-            englishCountryName === 'Germany' ? 'DE' :
-            englishCountryName === 'Italy' ? 'IT' :
-            englishCountryName === 'Spain' ? 'ES' :
-            englishCountryName === 'Australia' ? 'AU' :
-            englishCountryName === 'New Zealand' ? 'NZ' :
-            englishCountryName === 'Canada' ? 'CA' :
-            englishCountryName === 'Mexico' ? 'MX' :
-            englishCountryName === 'Brazil' ? 'BR' :
-            englishCountryName === 'Argentina' ? 'AR' :
-            englishCountryName === 'Greece' ? 'GR' :
-            englishCountryName === 'Russia' ? 'RU' :
-            englishCountryName === 'Turkey' ? 'TR' :
-            englishCountryName === 'Egypt' ? 'EG' :
-            englishCountryName === 'South Africa' ? 'ZA' : null;
+              englishCountryName === 'Taiwan' ? 'TW' :
+                englishCountryName === 'China' ? 'CN' :
+                  englishCountryName === 'Hong Kong' ? 'HK' :
+                    englishCountryName === 'Philippines' ? 'PH' :
+                      englishCountryName === 'United States' ? 'US' :
+                        englishCountryName === 'Thailand' ? 'TH' :
+                          englishCountryName === 'Vietnam' ? 'VN' :
+                            englishCountryName === 'Singapore' ? 'SG' :
+                              englishCountryName === 'Indonesia' ? 'ID' :
+                                englishCountryName === 'Malaysia' ? 'MY' :
+                                  englishCountryName === 'United Kingdom' ? 'GB' :
+                                    englishCountryName === 'France' ? 'FR' :
+                                      englishCountryName === 'Germany' ? 'DE' :
+                                        englishCountryName === 'Italy' ? 'IT' :
+                                          englishCountryName === 'Spain' ? 'ES' :
+                                            englishCountryName === 'Australia' ? 'AU' :
+                                              englishCountryName === 'New Zealand' ? 'NZ' :
+                                                englishCountryName === 'Canada' ? 'CA' :
+                                                  englishCountryName === 'Mexico' ? 'MX' :
+                                                    englishCountryName === 'Brazil' ? 'BR' :
+                                                      englishCountryName === 'Argentina' ? 'AR' :
+                                                        englishCountryName === 'Greece' ? 'GR' :
+                                                          englishCountryName === 'Russia' ? 'RU' :
+                                                            englishCountryName === 'Turkey' ? 'TR' :
+                                                              englishCountryName === 'Egypt' ? 'EG' :
+                                                                englishCountryName === 'South Africa' ? 'ZA' : null;
           countryCode = countryCodeFromEnglish || 'XX'; // 기본값 XX
         }
 
@@ -616,7 +616,7 @@ export default function MapPage() {
         // 1) 여행 기록: localStorage에서 먼저 로드 (사용자가 추가한 여행 보존)
         let localTrips: Trip[] = loadTripsFromLocal();
         console.log('Map Page: Trips loaded from localStorage:', localTrips);
-        
+
         // 2) 지도 페이지 여행 기록 API에서 로드 (서버와 동기화)
         let apiTrips: Trip[] = [];
         try {
@@ -627,11 +627,11 @@ export default function MapPage() {
         } catch (apiError) {
           console.warn('Map Page: API map travel records fetch failed, using localStorage only.', apiError);
         }
-        
+
         // 3) 두 데이터 소스 병합 (localStorage 우선, 중복 제거)
         const mergedTrips: Trip[] = [];
         const tripIdSet = new Set<string | number>();
-        
+
         // 먼저 localStorage 데이터 추가 (우선순위 높음)
         localTrips.forEach(trip => {
           if (!tripIdSet.has(trip.id)) {
@@ -639,7 +639,7 @@ export default function MapPage() {
             tripIdSet.add(trip.id);
           }
         });
-        
+
         // 그 다음 API 데이터 추가 (중복되지 않는 것만)
         apiTrips.forEach(trip => {
           if (!tripIdSet.has(trip.id)) {
@@ -647,20 +647,20 @@ export default function MapPage() {
             tripIdSet.add(trip.id);
           }
         });
-        
+
         // 등록 순서대로 정렬 (오래된 순서부터)
         mergedTrips.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.startDate).getTime();
           const dateB = new Date(b.createdAt || b.startDate).getTime();
           return dateA - dateB; // 오름차순 (등록 순서대로)
         });
-        
+
         console.log('Map Page: Merged trips:', mergedTrips);
         setUserTrips(mergedTrips);
-        
+
         // 병합된 데이터를 localStorage에 저장 (동기화)
         saveTripsToLocal(mergedTrips);
-        
+
         // 4) 여행 데이터에서 방문 국가 자동 추출하여 색상 맵에 추가
         const autoColorMap: { [key: string]: string } = {};
         mergedTrips.forEach((trip) => {
@@ -675,7 +675,7 @@ export default function MapPage() {
             });
           }
         });
-        
+
         // 5) 방문 국가 색상 데이터: localStorage에서 먼저 로드 (사용자가 색칠한 국가 보존)
         let localColorMap: { [key: string]: string } = {};
         if (typeof window !== 'undefined') {
@@ -699,12 +699,12 @@ export default function MapPage() {
             }
           }
         }
-        
+
         // 5) API에서도 방문 국가 데이터 로드 시도 (서버와 동기화)
         try {
           const visitedResponse = await fetch('/api/visited-countries', { credentials: 'include' });
           const visitedData = await visitedResponse.json().catch(() => ({}));
-          
+
           if (visitedData.ok && visitedData.colorMap) {
             console.log('Map Page: Visited countries loaded from API:', visitedData.visitedCountries);
             // API 데이터, localStorage 데이터, 자동 추출된 색상 병합 (우선순위: localStorage > API > 자동)
@@ -724,7 +724,7 @@ export default function MapPage() {
           setCountryColorMap(mergedColorMap);
           localStorage.setItem('countryColors', JSON.stringify(mergedColorMap));
         }
-        
+
         setIsTripsLoaded(true);
 
         // 2) 지도 데이터: 그대로 fetch (정적 파일)
@@ -737,15 +737,15 @@ export default function MapPage() {
         console.log('Map Page: Map data fetched.', world);
         console.log('Map Page: world.objects.countries', world.objects.countries); // 추가된 로그
         const features = (topojson.feature(world, world.objects.countries as any) as any).features;
-        
+
         // 모든 국가 이름 로그 출력 (싱가포르 확인용)
         const allCountryNames = features.map((f: any) => f.properties?.name).filter(Boolean);
         console.log('Map Page: All country names in map data:', allCountryNames.sort());
-        const singaporeInMap = allCountryNames.find((name: string) => 
+        const singaporeInMap = allCountryNames.find((name: string) =>
           name.toLowerCase().includes('singapore')
         );
         console.log('Map Page: Singapore in map data?', singaporeInMap || 'NOT FOUND');
-        
+
         setGeographyData(features);
         setIsMapDataLoaded(true);
         console.log('Map Page: Geography data set.', features);
@@ -764,11 +764,11 @@ export default function MapPage() {
         console.log('[MapPage] 서버에서 여행 기록 다시 불러오기');
         const apiResponse = await fetch('/api/map-travel-records', { credentials: 'include' });
         const apiData = await apiResponse.json().catch(() => ({}));
-        
+
         if (apiData.ok && Array.isArray(apiData.trips)) {
           const apiTrips: Trip[] = apiData.trips;
           console.log('[MapPage] 서버에서 불러온 여행 기록:', apiTrips);
-          
+
           // 서버 데이터가 우선 (서버가 진실의 원천)
           setUserTrips(apiTrips);
           saveTripsToLocal(apiTrips);
@@ -829,21 +829,21 @@ export default function MapPage() {
 
     // ISO 3166-1 alpha-2 국가 코드로 변환 (간단한 매핑)
     const countryCode = englishCountryName === 'South Korea' ? 'KR' :
-                        englishCountryName === 'Japan' ? 'JP' :
-                        englishCountryName === 'Taiwan' ? 'TW' :
-                        englishCountryName === 'China' ? 'CN' :
-                        englishCountryName === 'Hong Kong' ? 'HK' :
-                        englishCountryName === 'Philippines' ? 'PH' :
-                        englishCountryName === 'United States' ? 'US' :
-                        englishCountryName === 'Thailand' ? 'TH' :
-                        englishCountryName === 'Vietnam' ? 'VN' :
-                        englishCountryName === 'Singapore' ? 'SG' :
+      englishCountryName === 'Japan' ? 'JP' :
+        englishCountryName === 'Taiwan' ? 'TW' :
+          englishCountryName === 'China' ? 'CN' :
+            englishCountryName === 'Hong Kong' ? 'HK' :
+              englishCountryName === 'Philippines' ? 'PH' :
+                englishCountryName === 'United States' ? 'US' :
+                  englishCountryName === 'Thailand' ? 'TH' :
+                    englishCountryName === 'Vietnam' ? 'VN' :
+                      englishCountryName === 'Singapore' ? 'SG' :
                         englishCountryName === 'Indonesia' ? 'ID' :
-                        englishCountryName === 'Malaysia' ? 'MY' :
-                        englishCountryName;
-    
+                          englishCountryName === 'Malaysia' ? 'MY' :
+                            englishCountryName;
+
     setSelectedCountryCode(countryCode);
-    
+
     // 방문한 국가인 경우 모달 열기 (방문 기록 있음)
     const isVisited = Object.keys(countryColorMap).includes(englishCountryName);
     if (isVisited) {
@@ -884,7 +884,7 @@ export default function MapPage() {
       // 서버에 저장/수정
       const method = tripData.id ? 'PUT' : 'POST';
       const url = '/api/map-travel-records';
-      
+
       // 날짜 필수 검증 (먼저 확인)
       if (!tripData.startDate || !tripData.endDate) {
         console.error('[MapPage] 날짜 누락:', { startDate: tripData.startDate, endDate: tripData.endDate });
@@ -910,20 +910,20 @@ export default function MapPage() {
         console.error('[MapPage] 종료일 형식 오류:', requestBody.endDate);
         throw new Error(`종료일 형식이 올바르지 않습니다: ${requestBody.endDate}. YYYY-MM-DD 형식이어야 합니다.`);
       }
-      
+
       console.log('[MapPage] 서버 전송 데이터:', requestBody);
-      
+
       // undefined 값 제거 (하지만 startDate와 endDate는 필수이므로 제거하지 않음)
       Object.keys(requestBody).forEach(key => {
         if (key !== 'startDate' && key !== 'endDate' && (requestBody[key] === undefined || requestBody[key] === '')) {
           delete requestBody[key];
         }
       });
-      
+
       if (tripData.id) {
         requestBody.id = tripData.id;
       }
-      
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -951,11 +951,11 @@ export default function MapPage() {
       // 서버에서 최신 데이터 다시 불러오기
       const loadResponse = await fetch('/api/map-travel-records', { credentials: 'include' });
       const loadData = await loadResponse.json();
-      
+
       if (loadData.ok && Array.isArray(loadData.trips)) {
         setUserTrips(loadData.trips);
         saveTripsToLocal(loadData.trips);
-        
+
         // 색상은 선택된 색상이 있으면 그대로 유지 (서버에서 다시 불러올 때 덮어쓰지 않음)
         // 선택된 색상이 없을 때만 기본 색상 적용
         if (tripData.selectedCountriesWithColors && Array.isArray(tripData.selectedCountriesWithColors)) {
@@ -977,11 +977,11 @@ export default function MapPage() {
         code: error?.code,
         hint: error?.hint,
       });
-      
+
       // 서버에서 받은 에러 메시지가 있으면 표시
       const errorMessage = error?.details || error?.message || '알 수 없는 오류';
       const hint = error?.hint || '';
-      
+
       alert(`여행 기록 저장에 실패했습니다: ${errorMessage}${hint ? '\n\n' + hint : ''}`);
     }
   }, [countryKoreanToEnglishMap]);
@@ -1021,7 +1021,7 @@ export default function MapPage() {
       // 서버에서 최신 데이터 다시 불러오기
       const loadResponse = await fetch('/api/map-travel-records', { credentials: 'include' });
       const loadData = await loadResponse.json();
-      
+
       if (loadData.ok && Array.isArray(loadData.trips)) {
         setUserTrips(loadData.trips);
         saveTripsToLocal(loadData.trips);
@@ -1101,9 +1101,9 @@ export default function MapPage() {
                   </button>
                 </div>
                 <div className="mt-4 flex justify-center gap-2">
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${tutorialStep === 0 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${tutorialStep === 1 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${tutorialStep === 2 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${(tutorialStep as number) === 0 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${(tutorialStep as number) === 1 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${(tutorialStep as number) === 2 ? 'scale-125' : ''}`}></div>
                 </div>
               </div>
             )}
@@ -1151,9 +1151,9 @@ export default function MapPage() {
                   </button>
                 </div>
                 <div className="mt-4 flex justify-center gap-2">
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${tutorialStep === 0 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${tutorialStep === 1 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${tutorialStep === 2 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${(tutorialStep as number) === 0 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${(tutorialStep as number) === 1 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${(tutorialStep as number) === 2 ? 'scale-125' : ''}`}></div>
                 </div>
               </div>
             )}
@@ -1201,9 +1201,9 @@ export default function MapPage() {
                   </button>
                 </div>
                 <div className="mt-4 flex justify-center gap-2">
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${tutorialStep === 0 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${tutorialStep === 1 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${tutorialStep === 2 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${(tutorialStep as number) === 0 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${(tutorialStep as number) === 1 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${(tutorialStep as number) === 2 ? 'scale-125' : ''}`}></div>
                 </div>
               </div>
             )}
@@ -1211,136 +1211,136 @@ export default function MapPage() {
         </div>
       )}
 
-    <main className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 text-gray-900 overflow-hidden">
-      {/* Header */}
-      <header className="bg-white/95 backdrop-blur p-4 md:p-5 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b-2 border-gray-200">
-        <div className="flex items-center space-x-3 md:space-x-4 flex-1 min-w-0">
-          <Link href="/profile-test" className="flex items-center text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
-            <FiArrowLeft size={32} className="mr-2" />
-          </Link>
-          <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 p-1 flex-shrink-0">
-            <Image src="/images/ai-cruise-logo.png" alt="크루즈 가이드 로고" width={40} height={40} className="w-full h-full object-contain" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 truncate">🗺️ 나의 크루즈 여행 지도</h1>
-            <p className="text-sm md:text-base lg:text-lg text-gray-600 font-medium truncate">방문했던 국가를 색칠하고 기록해보세요</p>
-          </div>
-        </div>
-        {/* 다시 크루즈 가이드 3일 무료 체험으로 이동하기 버튼 */}
-        <Link
-          href="/chat-test"
-          className="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 text-base md:text-lg flex items-center justify-center gap-2"
-          style={{ minHeight: '56px' }}
-        >
-          <span>🏠</span>
-          <span className="hidden sm:inline">3일 무료체험으로</span>
-          <span className="sm:hidden">홈으로</span>
-        </Link>
-      </header>
-
-      {/* Content - Changed to flex-col */}
-      <div className="flex-1 flex flex-col p-6 overflow-y-auto">
-        {/* Map Section - Increased height */}
-        <div className="relative bg-blue-50 rounded-2xl shadow-xl border border-gray-200 p-6 flex items-center justify-center overflow-hidden mb-6 h-[60vh]">
-          {isLoading ? (
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-lg text-gray-800">지도를 불러오는 중...</p>
+      <main className="flex flex-col h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 text-gray-900 overflow-hidden">
+        {/* Header */}
+        <header className="bg-white/95 backdrop-blur p-4 md:p-5 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b-2 border-gray-200">
+          <div className="flex items-center space-x-3 md:space-x-4 flex-1 min-w-0">
+            <Link href="/profile-test" className="flex items-center text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0">
+              <FiArrowLeft size={32} className="mr-2" />
+            </Link>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-500 p-1 flex-shrink-0">
+              <Image src="/images/ai-cruise-logo.png" alt="크루즈 가이드 로고" width={40} height={40} className="w-full h-full object-contain" />
             </div>
-          ) : (
-            <ComposableMap projection="geoEqualEarth" projectionConfig={{ scale: 150 }} className="w-full h-full">
-              <ZoomableGroup zoom={position.zoom} center={position.coordinates} onMoveEnd={setPosition}>
-                {geographyData && (
-                  <Geographies geography={geographyData || []}>
-                    {({ geographies }: { geographies: any[] }) => {
-                      console.log('Map Page: Rendering geographies.', geographies.length, 'geographies found.');
-                      console.log('Map Page: countryColorMap keys:', Object.keys(countryColorMap));
-                      
-                      // 싱가포르 관련 국가 찾기 (디버깅)
-                      const singaporeCountries = geographies.filter((g: any) => {
-                        const name = g.properties?.name?.toLowerCase() || '';
-                        return name.includes('singapore') || name.includes('싱가포르');
-                      });
-                      if (singaporeCountries.length > 0) {
-                        console.log('Map Page: Singapore-related countries found:', singaporeCountries.map((g: any) => ({
-                          name: g.properties.name,
-                          allProperties: Object.keys(g.properties)
-                        })));
-                      }
-                      
-                      return geographies.map((geo: any) => {
-                        const englishCountryName = geo.properties.name; // name 속성 사용
-                        // name이 없으면 렌더링하지 않거나 기본 처리
-                        if (!englishCountryName) {
-                          console.warn('Map Page: Skipping geo without name:', geo.properties);
-                          return null;
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-gray-800 truncate">🗺️ 나의 크루즈 여행 지도</h1>
+              <p className="text-sm md:text-base lg:text-lg text-gray-600 font-medium truncate">방문했던 국가를 색칠하고 기록해보세요</p>
+            </div>
+          </div>
+          {/* 다시 크루즈 가이드 3일 무료 체험으로 이동하기 버튼 */}
+          <Link
+            href="/chat-test"
+            className="w-full md:w-auto px-5 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl shadow-lg hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 text-base md:text-lg flex items-center justify-center gap-2"
+            style={{ minHeight: '56px' }}
+          >
+            <span>🏠</span>
+            <span className="hidden sm:inline">3일 무료체험으로</span>
+            <span className="sm:hidden">홈으로</span>
+          </Link>
+        </header>
+
+        {/* Content - Changed to flex-col */}
+        <div className="flex-1 flex flex-col p-6 overflow-y-auto">
+          {/* Map Section - Increased height */}
+          <div className="relative bg-blue-50 rounded-2xl shadow-xl border border-gray-200 p-6 flex items-center justify-center overflow-hidden mb-6 h-[60vh]">
+            {isLoading ? (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+                <p className="text-lg text-gray-800">지도를 불러오는 중...</p>
+              </div>
+            ) : (
+              <ComposableMap projection="geoEqualEarth" projectionConfig={{ scale: 150 }} className="w-full h-full">
+                <ZoomableGroup zoom={position.zoom} center={position.coordinates} onMoveEnd={setPosition}>
+                  {geographyData && (
+                    <Geographies geography={geographyData || []}>
+                      {({ geographies }: { geographies: any[] }) => {
+                        console.log('Map Page: Rendering geographies.', geographies.length, 'geographies found.');
+                        console.log('Map Page: countryColorMap keys:', Object.keys(countryColorMap));
+
+                        // 싱가포르 관련 국가 찾기 (디버깅)
+                        const singaporeCountries = geographies.filter((g: any) => {
+                          const name = g.properties?.name?.toLowerCase() || '';
+                          return name.includes('singapore') || name.includes('싱가포르');
+                        });
+                        if (singaporeCountries.length > 0) {
+                          console.log('Map Page: Singapore-related countries found:', singaporeCountries.map((g: any) => ({
+                            name: g.properties.name,
+                            allProperties: Object.keys(g.properties)
+                          })));
                         }
 
-                        // 국가명 매칭 시도 (대소문자 무시, 부분 일치)
-                        let isVisited = Object.keys(countryColorMap).includes(englishCountryName);
-                        let countryColor = countryColorMap[englishCountryName] || "#F8F9FA";
-                        
-                        // 정확히 매칭되지 않으면 대소문자 무시하여 찾기
-                        if (!isVisited) {
-                          const matchedKey = Object.keys(countryColorMap).find(key => 
-                            key.toLowerCase() === englishCountryName.toLowerCase()
-                          );
-                          if (matchedKey) {
-                            isVisited = true;
-                            countryColor = countryColorMap[matchedKey];
-                            console.log(`Map Page: Case-insensitive match found: ${englishCountryName} -> ${matchedKey}`);
+                        return geographies.map((geo: any) => {
+                          const englishCountryName = geo.properties.name; // name 속성 사용
+                          // name이 없으면 렌더링하지 않거나 기본 처리
+                          if (!englishCountryName) {
+                            console.warn('Map Page: Skipping geo without name:', geo.properties);
+                            return null;
                           }
-                        }
-                        
-                        // 여전히 매칭되지 않으면 Singapore 관련 매칭 시도
-                        if (!isVisited && englishCountryName.toLowerCase().includes('singapore')) {
-                          const singaporeKey = Object.keys(countryColorMap).find(key => 
-                            key.toLowerCase().includes('singapore')
-                          );
-                          if (singaporeKey) {
-                            isVisited = true;
-                            countryColor = countryColorMap[singaporeKey];
-                            console.log(`Map Page: Singapore match found: ${englishCountryName} -> ${singaporeKey}`);
+
+                          // 국가명 매칭 시도 (대소문자 무시, 부분 일치)
+                          let isVisited = Object.keys(countryColorMap).includes(englishCountryName);
+                          let countryColor = countryColorMap[englishCountryName] || "#F8F9FA";
+
+                          // 정확히 매칭되지 않으면 대소문자 무시하여 찾기
+                          if (!isVisited) {
+                            const matchedKey = Object.keys(countryColorMap).find(key =>
+                              key.toLowerCase() === englishCountryName.toLowerCase()
+                            );
+                            if (matchedKey) {
+                              isVisited = true;
+                              countryColor = countryColorMap[matchedKey];
+                              console.log(`Map Page: Case-insensitive match found: ${englishCountryName} -> ${matchedKey}`);
+                            }
                           }
-                        }
-                        
-                        const centroid = geoCentroid(geo);
 
-                        return (
-                          <g key={geo.rsmKey}>
-                            <Geography
-                              geography={geo}
-                              fill={isVisited ? countryColor : "#F8F9FA"}
-                              stroke="#868E96"
-                              strokeWidth={0.7}
-                              onClick={() => handleCountryClick(geo)}
-                              style={{
-                                default: { outline: "none" },
-                                hover: { outline: "none", fill: isVisited ? countryColor : "#E0E0E0" },
-                                pressed: { outline: "none" },
-                              }}
-                            />
-                            {isVisited && englishToKoreanCountryNameMap[englishCountryName] && (
-                              <Marker coordinates={centroid}>
-                                <text
-                                  y="5"
-                                  textAnchor="middle"
-                                  className="text-[6px] font-bold fill-white pointer-events-none drop-shadow-sm"
-                                  style={{ paintOrder: "stroke", stroke: "#000", strokeWidth: "1px", strokeLinecap: "round", strokeLinejoin: "round" }}
-                                >
-                                  {englishToKoreanCountryNameMap[englishCountryName]}
-                                </text>
-                              </Marker>
-                            )}
-                          </g>
-                        );
-                      });
-                    }}
-                  </Geographies>
-                )}
+                          // 여전히 매칭되지 않으면 Singapore 관련 매칭 시도
+                          if (!isVisited && englishCountryName.toLowerCase().includes('singapore')) {
+                            const singaporeKey = Object.keys(countryColorMap).find(key =>
+                              key.toLowerCase().includes('singapore')
+                            );
+                            if (singaporeKey) {
+                              isVisited = true;
+                              countryColor = countryColorMap[singaporeKey];
+                              console.log(`Map Page: Singapore match found: ${englishCountryName} -> ${singaporeKey}`);
+                            }
+                          }
 
-                {/* 사용자의 여행 목적지 마커 */}
-                {/* geographyData && userTrips.map((trip) => {
+                          const centroid = geoCentroid(geo);
+
+                          return (
+                            <g key={geo.rsmKey}>
+                              <Geography
+                                geography={geo}
+                                fill={isVisited ? countryColor : "#F8F9FA"}
+                                stroke="#868E96"
+                                strokeWidth={0.7}
+                                onClick={() => handleCountryClick(geo)}
+                                style={{
+                                  default: { outline: "none" },
+                                  hover: { outline: "none", fill: isVisited ? countryColor : "#E0E0E0" },
+                                  pressed: { outline: "none" },
+                                }}
+                              />
+                              {isVisited && englishToKoreanCountryNameMap[englishCountryName] && (
+                                <Marker coordinates={centroid}>
+                                  <text
+                                    y="5"
+                                    textAnchor="middle"
+                                    className="text-[6px] font-bold fill-white pointer-events-none drop-shadow-sm"
+                                    style={{ paintOrder: "stroke", stroke: "#000", strokeWidth: "1px", strokeLinecap: "round", strokeLinejoin: "round" }}
+                                  >
+                                    {englishToKoreanCountryNameMap[englishCountryName]}
+                                  </text>
+                                </Marker>
+                              )}
+                            </g>
+                          );
+                        });
+                      }}
+                    </Geographies>
+                  )}
+
+                  {/* 사용자의 여행 목적지 마커 */}
+                  {/* geographyData && userTrips.map((trip) => {
                   const matchingCountry = Object.values(CONTINENTS_DATA).flat().find(
                     (country) => country.koreanName === trip.destination || country.englishName === trip.destination
                   );
@@ -1363,131 +1363,131 @@ export default function MapPage() {
                   }
                   return null;
                 }) */}
-              </ZoomableGroup>
-            </ComposableMap>
-          )}
+                </ZoomableGroup>
+              </ComposableMap>
+            )}
 
-          {/* 확대/축소 버튼 */}
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col space-y-2">
-            <button
-              onClick={handleZoomIn}
-              className="p-2 bg-white rounded-md shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-red"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6 text-gray-700">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </button>
-            <button
-              onClick={handleZoomOut}
-              className="p-2 bg-white rounded-md shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-red"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6 text-gray-700">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Controls Section - now below the map */}
-        <div className="w-full">
-          {/* 나의 크루즈 여행 기록 */}
-          <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl border-2 border-gray-200 p-6 md:p-8 max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
-                <FiTag className="text-3xl md:text-4xl text-blue-600" /> 
-                <span>나의 크루즈 여행 기록</span>
-              </h2>
-              {/* 새로운 여행 추가하기 버튼 */}
+            {/* 확대/축소 버튼 */}
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col space-y-2">
               <button
-                onClick={() => handleAddTripClick()}
-                className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg text-base md:text-lg whitespace-nowrap transform hover:scale-105"
-                style={{ minHeight: '56px' }}
+                onClick={handleZoomIn}
+                className="p-2 bg-white rounded-md shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-red"
               >
-                + 새로운 여행 추가
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6 text-gray-700">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </button>
+              <button
+                onClick={handleZoomOut}
+                className="p-2 bg-white rounded-md shadow-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-red"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-6 h-6 text-gray-700">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
+                </svg>
               </button>
             </div>
-            {
-              userTrips.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto pr-2">
-                  {userTrips.map((trip, index) => (
-                    <div key={trip.id} className="bg-gradient-to-br from-white to-gray-50 p-4 md:p-5 rounded-xl shadow-md border-2 border-gray-200 hover:shadow-xl hover:border-blue-300 transition-all">
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-bold text-base md:text-lg text-gray-800 flex-1">
-                          {index === 0 && "📌 첫 번째"}
-                          {index === 1 && "📌 두 번째"}
-                          {index === 2 && "📌 세 번째"}
-                          {index > 2 && `📌 ${index + 1}번째`}
-                        </h3>
-                        <div className="flex gap-2 ml-2">
-                          <button
-                            onClick={() => handleEditTripClick(trip)}
-                            className="text-blue-600 hover:text-blue-800 text-lg md:text-xl font-medium px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="수정"
-                          >
-                            ✏️
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTrip(trip.id)}
-                            className="text-red-600 hover:text-red-800 text-lg md:text-xl font-medium px-2 py-1 hover:bg-red-50 rounded-lg transition-colors"
-                            title="삭제"
-                          >
-                            🗑️
-                          </button>
+          </div>
+
+          {/* Controls Section - now below the map */}
+          <div className="w-full">
+            {/* 나의 크루즈 여행 기록 */}
+            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-xl border-2 border-gray-200 p-6 md:p-8 max-w-7xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-3">
+                  <FiTag className="text-3xl md:text-4xl text-blue-600" />
+                  <span>나의 크루즈 여행 기록</span>
+                </h2>
+                {/* 새로운 여행 추가하기 버튼 */}
+                <button
+                  onClick={() => handleAddTripClick()}
+                  className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg text-base md:text-lg whitespace-nowrap transform hover:scale-105"
+                  style={{ minHeight: '56px' }}
+                >
+                  + 새로운 여행 추가
+                </button>
+              </div>
+              {
+                userTrips.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[400px] overflow-y-auto pr-2">
+                    {userTrips.map((trip, index) => (
+                      <div key={trip.id} className="bg-gradient-to-br from-white to-gray-50 p-4 md:p-5 rounded-xl shadow-md border-2 border-gray-200 hover:shadow-xl hover:border-blue-300 transition-all">
+                        <div className="flex items-start justify-between mb-3">
+                          <h3 className="font-bold text-base md:text-lg text-gray-800 flex-1">
+                            {index === 0 && "📌 첫 번째"}
+                            {index === 1 && "📌 두 번째"}
+                            {index === 2 && "📌 세 번째"}
+                            {index > 2 && `📌 ${index + 1}번째`}
+                          </h3>
+                          <div className="flex gap-2 ml-2">
+                            <button
+                              onClick={() => handleEditTripClick(trip)}
+                              className="text-blue-600 hover:text-blue-800 text-lg md:text-xl font-medium px-2 py-1 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="수정"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTrip(trip.id)}
+                              className="text-red-600 hover:text-red-800 text-lg md:text-xl font-medium px-2 py-1 hover:bg-red-50 rounded-lg transition-colors"
+                              title="삭제"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                        <div className="space-y-2 text-sm md:text-base">
+                          <p className="text-gray-800 truncate font-semibold">
+                            <span className="text-xl">🚢</span> {removeEnglishInParentheses(trip.cruiseName)}
+                          </p>
+                          <p className="text-gray-700 truncate">
+                            <span className="text-lg">📍</span> {removeEnglishFromDestination(trip.destination)}
+                          </p>
+                          <p className="text-gray-600 text-sm md:text-base">
+                            <FiCalendar className="inline mr-1" /> {formatDate(trip.startDate)} ~ {formatDate(trip.endDate)}
+                          </p>
+                          <p className="text-blue-600 font-bold text-base md:text-lg">
+                            {calculateDday(trip.startDate) > 0 ? `D-${calculateDday(trip.startDate)}` : `여행 ${-calculateDday(trip.startDate) + 1}일차`}
+                          </p>
                         </div>
                       </div>
-                      <div className="space-y-2 text-sm md:text-base">
-                        <p className="text-gray-800 truncate font-semibold">
-                          <span className="text-xl">🚢</span> {removeEnglishInParentheses(trip.cruiseName)}
-                        </p>
-                        <p className="text-gray-700 truncate">
-                          <span className="text-lg">📍</span> {removeEnglishFromDestination(trip.destination)}
-                        </p>
-                        <p className="text-gray-600 text-sm md:text-base">
-                          <FiCalendar className="inline mr-1" /> {formatDate(trip.startDate)} ~ {formatDate(trip.endDate)}
-                        </p>
-                        <p className="text-blue-600 font-bold text-base md:text-lg">
-                          {calculateDday(trip.startDate) > 0 ? `D-${calculateDday(trip.startDate)}` : `여행 ${-calculateDday(trip.startDate) + 1}일차`}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🗺️</div>
-                  <p className="text-xl md:text-2xl text-gray-700 mb-6 font-semibold">아직 등록된 여행 기록이 없습니다.</p>
-                  <button
-                    onClick={() => handleAddTripClick()}
-                    className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg text-lg md:text-xl transform hover:scale-105"
-                    style={{ minHeight: '64px' }}
-                  >
-                    첫 여행 추가하기 🚀
-                  </button>
-                </div>
-              )
-            }
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🗺️</div>
+                    <p className="text-xl md:text-2xl text-gray-700 mb-6 font-semibold">아직 등록된 여행 기록이 없습니다.</p>
+                    <button
+                      onClick={() => handleAddTripClick()}
+                      className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold py-4 px-8 rounded-xl transition-all shadow-lg text-lg md:text-xl transform hover:scale-105"
+                      style={{ minHeight: '64px' }}
+                    >
+                      첫 여행 추가하기 🚀
+                    </button>
+                  </div>
+                )
+              }
+            </div>
           </div>
         </div>
-      </div>
-      <TripFormModal
-        isOpen={isTripModalOpen}
-        onClose={() => {
-          setIsTripModalOpen(false);
-          setPreselectedCountry(null); // 모달 닫을 때 초기화
-        }}
-        onSubmit={handleTripFormSubmit}
-        initialData={editingTrip ?? undefined} // null일 경우 undefined 전달
-        preselectedCountry={preselectedCountry} // 선택된 국가 전달
-      />
-      
-      <VisitedCountryModal
-        isOpen={isVisitedCountryModalOpen}
-        onClose={() => setIsVisitedCountryModalOpen(false)}
-        countryCode={selectedCountryCode}
-        countryName={selectedCountryFromList}
-        onAddTrip={handleAddTripClick} // 여행 추가 폼 열기 핸들러 전달
-      />
-    </main>
+        <TripFormModal
+          isOpen={isTripModalOpen}
+          onClose={() => {
+            setIsTripModalOpen(false);
+            setPreselectedCountry(null); // 모달 닫을 때 초기화
+          }}
+          onSubmit={handleTripFormSubmit}
+          initialData={editingTrip ?? undefined} // null일 경우 undefined 전달
+          preselectedCountry={preselectedCountry} // 선택된 국가 전달
+        />
+
+        <VisitedCountryModal
+          isOpen={isVisitedCountryModalOpen}
+          onClose={() => setIsVisitedCountryModalOpen(false)}
+          countryCode={selectedCountryCode}
+          countryName={selectedCountryFromList}
+          onAddTrip={handleAddTripClick} // 여행 추가 폼 열기 핸들러 전달
+        />
+      </main>
     </>
   );
 } 

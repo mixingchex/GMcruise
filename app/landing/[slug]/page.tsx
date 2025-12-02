@@ -44,6 +44,7 @@ interface BusinessInfo {
   businessNumber?: string;
   businessPhone?: string;
   privacyOfficer?: string;
+  address?: string;
 }
 
 const DATA_FIELD_ORDER: DataFieldKey[] = ['phone', 'name', 'gender', 'birthDate', 'email', 'address', 'marketingConsent'];
@@ -402,15 +403,15 @@ function buildEnabledFields(fields?: Partial<Record<DataFieldKey, FieldConfig>>)
 export default async function LandingPage({ params }: LandingPageProps) {
   const resolvedParams = await params;
   const slugOrId = resolvedParams.slug;
-  
+
   // slug가 숫자인 경우 ID로 조회, 아니면 slug로 조회
   const landingPageId = parseInt(slugOrId);
   let landingPage = null;
-  
+
   if (!isNaN(landingPageId)) {
     // ID로 조회
     landingPage = await prisma.landingPage.findUnique({
-      where: { 
+      where: {
         id: landingPageId,
       },
       include: {
@@ -422,7 +423,7 @@ export default async function LandingPage({ params }: LandingPageProps) {
         },
       },
     });
-    
+
     // ID로 조회했을 때는 isActive/isPublic 체크
     if (landingPage && (!landingPage.isActive || !landingPage.isPublic)) {
       landingPage = null;
@@ -430,7 +431,7 @@ export default async function LandingPage({ params }: LandingPageProps) {
   } else {
     // slug로 조회
     landingPage = await prisma.landingPage.findUnique({
-      where: { 
+      where: {
         slug: slugOrId,
         isActive: true,
         isPublic: true,
@@ -461,16 +462,21 @@ export default async function LandingPage({ params }: LandingPageProps) {
 
   const businessInfo = parseBusinessInfo(landingPage.businessInfo);
   const enabledFields = buildEnabledFields(businessInfo?.fields);
-  const additionalQuestions = (businessInfo?.additionalFields || []).filter(
-    (field): field is AdditionalField & { name: string } => Boolean(field?.name?.trim())
-  );
+  const additionalQuestions = (businessInfo?.additionalFields || [])
+    .filter((field) => Boolean(field?.name?.trim()))
+    .map((field, index) => ({
+      ...field,
+      id: field.id || `question-${index}`,
+      name: field.name!,
+      required: field.required || false
+    }));
   const productPurchase = normalizeProductPurchase(businessInfo?.productPurchase);
   const showProductSection = Boolean(productPurchase);
   const showFormSection = Boolean(landingPage.infoCollection);
   const comments = landingPage.LandingPageComment || [];
   const shouldRenderExtensions = showProductSection || showFormSection || landingPage.commentEnabled;
   const buttonLabel = landingPage.buttonTitle || '신청하기';
-  
+
   // 랜딩페이지 소유자 확인
   let isLandingPageOwner = false;
   let isBossUser = false;
@@ -495,13 +501,13 @@ export default async function LandingPage({ params }: LandingPageProps) {
     // boss 사용자 확인
     if (sessionUser) {
       const userName = (sessionUser.name || '').toLowerCase();
-      const userEmail = (sessionUser.email || '').toLowerCase();
+      const userEmail = ((sessionUser as any).email || '').toLowerCase();
       isBossUser = userName.startsWith('boss') || userEmail.startsWith('boss');
     }
   } catch (error) {
     console.error('[Landing Page] Session check error:', error);
   }
-  
+
   // 사업자 정보 및 파일 첨부 확인용
   const hasBusinessInfo = businessInfo && (businessInfo.siteName || businessInfo.companyName || businessInfo.businessNumber || businessInfo.businessPhone || businessInfo.privacyOfficer || businessInfo.address);
   const hasAttachment = !!landingPage.attachmentFile;
@@ -528,209 +534,209 @@ export default async function LandingPage({ params }: LandingPageProps) {
       )}
       <div dangerouslySetInnerHTML={{ __html: normalizeLandingHtmlContent(landingPage.htmlContent || '') }} />
 
-        {shouldRenderExtensions && (
-          <div className="lp-extension-root">
-            <div className="lp-extension-container">
-              {/* 자료다운 버튼 - 상품 구매 위에 표시 */}
-              {hasAttachment && landingPage.attachmentFile && (
-                <section className="lp-card" style={{ marginBottom: '32px' }}>
-                  <a
-                    href={landingPage.attachmentFile.startsWith('http') ? landingPage.attachmentFile : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${landingPage.attachmentFile}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="lp-download-button"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '10px',
-                      width: '100%',
-                      padding: '16px 20px',
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '14px',
-                      fontSize: '16px',
-                      fontWeight: '700',
-                      cursor: 'pointer',
-                      textDecoration: 'none',
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#2563eb';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#3b82f6';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>📥 자료 다운로드</span>
-                  </a>
-                </section>
-              )}
+      {shouldRenderExtensions && (
+        <div className="lp-extension-root">
+          <div className="lp-extension-container">
+            {/* 자료다운 버튼 - 상품 구매 위에 표시 */}
+            {hasAttachment && landingPage.attachmentFile && (
+              <section className="lp-card" style={{ marginBottom: '32px' }}>
+                <a
+                  href={landingPage.attachmentFile.startsWith('http') ? landingPage.attachmentFile : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${landingPage.attachmentFile}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="lp-download-button"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    width: '100%',
+                    padding: '16px 20px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2563eb';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#3b82f6';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: '20px', height: '20px' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>📥 자료 다운로드</span>
+                </a>
+              </section>
+            )}
 
-              {showProductSection && productPurchase && (
-                <section className="lp-card" aria-labelledby="lp-product-title">
-                  <div className="lp-section-label">상품 구매</div>
-                  <h2 id="lp-product-title" className="lp-section-title">
-                    {productPurchase.productName || '구매하기'}
-                  </h2>
-                  <div className="lp-product-card">
-                    {formatPrice(productPurchase.sellingPrice as number | undefined) && (
-                      <div className="lp-product-price">
-                        {formatPrice(productPurchase.sellingPrice as number | undefined)}
+            {showProductSection && productPurchase && (
+              <section className="lp-card" aria-labelledby="lp-product-title">
+                <div className="lp-section-label">상품 구매</div>
+                <h2 id="lp-product-title" className="lp-section-title">
+                  {productPurchase.productName || '구매하기'}
+                </h2>
+                <div className="lp-product-card">
+                  {formatPrice(productPurchase.sellingPrice as number | undefined) && (
+                    <div className="lp-product-price">
+                      {formatPrice(productPurchase.sellingPrice as number | undefined)}
+                    </div>
+                  )}
+                  <dl className="lp-product-meta">
+                    <div>
+                      <dt>결제 제공업체</dt>
+                      <dd>{PAYMENT_PROVIDER_LABEL[`${productPurchase.paymentProvider}`] || productPurchase.paymentProvider || '미정'}</dd>
+                    </div>
+                    <div>
+                      <dt>결제 타입</dt>
+                      <dd>{PAYMENT_TYPE_LABEL[`${productPurchase.paymentType}`] || productPurchase.paymentType || '온라인 결제'}</dd>
+                    </div>
+                    {productPurchase.useQuantity && productPurchase.purchaseQuantity !== undefined && (
+                      <div>
+                        <dt>기본 수량</dt>
+                        <dd>{Number(productPurchase.purchaseQuantity) || 1}개</dd>
                       </div>
                     )}
-                    <dl className="lp-product-meta">
-                      <div>
-                        <dt>결제 제공업체</dt>
-                        <dd>{PAYMENT_PROVIDER_LABEL[`${productPurchase.paymentProvider}`] || productPurchase.paymentProvider || '미정'}</dd>
-                      </div>
-                      <div>
-                        <dt>결제 타입</dt>
-                        <dd>{PAYMENT_TYPE_LABEL[`${productPurchase.paymentType}`] || productPurchase.paymentType || '온라인 결제'}</dd>
-                      </div>
-                      {productPurchase.useQuantity && productPurchase.purchaseQuantity !== undefined && (
-                        <div>
-                          <dt>기본 수량</dt>
-                          <dd>{Number(productPurchase.purchaseQuantity) || 1}개</dd>
-                        </div>
-                      )}
-                    </dl>
-                    <LandingPaymentButton
-                      productPurchase={productPurchase}
-                      landingPageId={landingPage.id}
-                      landingPageSlug={slugOrId}
-                    />
-                  </div>
-                </section>
-              )}
-
-              {showFormSection && (
-                <section className="lp-card" aria-labelledby="lp-form-title">
-                  <div className="lp-section-label">상담/신청</div>
-                  <h2 id="lp-form-title" className="lp-section-title">
-                    신청하기
-                  </h2>
-                  <p className="lp-section-description">
-                    필요한 정보를 입력해 주시면 담당자가 확인 후 빠르게 연락드립니다.
-                  </p>
-                  <LandingRegistrationForm
-                    slug={slugOrId}
-                    buttonLabel={buttonLabel}
-                    fields={enabledFields.map(({ key, required }) => {
-                      const definition = FIELD_DEFINITIONS[key];
-                      return {
-                        key,
-                        label: definition.label,
-                        placeholder: definition.placeholder,
-                        inputType: definition.inputType,
-                        options: definition.options,
-                        required,
-                      };
-                    })}
-                    additionalQuestions={additionalQuestions}
+                  </dl>
+                  <LandingPaymentButton
+                    productPurchase={productPurchase}
+                    landingPageId={landingPage.id}
+                    landingPageSlug={slugOrId}
                   />
-                </section>
+                </div>
+              </section>
+            )}
+
+            {showFormSection && (
+              <section className="lp-card" aria-labelledby="lp-form-title">
+                <div className="lp-section-label">상담/신청</div>
+                <h2 id="lp-form-title" className="lp-section-title">
+                  신청하기
+                </h2>
+                <p className="lp-section-description">
+                  필요한 정보를 입력해 주시면 담당자가 확인 후 빠르게 연락드립니다.
+                </p>
+                <LandingRegistrationForm
+                  slug={slugOrId}
+                  buttonLabel={buttonLabel}
+                  fields={enabledFields.map(({ key, required }) => {
+                    const definition = FIELD_DEFINITIONS[key];
+                    return {
+                      key,
+                      label: definition.label,
+                      placeholder: definition.placeholder,
+                      inputType: definition.inputType,
+                      options: definition.options,
+                      required,
+                    };
+                  })}
+                  additionalQuestions={additionalQuestions}
+                />
+              </section>
+            )}
+
+            {landingPage.commentEnabled && (
+              <LandingCommentsSection
+                slug={slugOrId}
+                initialComments={comments.map((comment) => ({
+                  id: comment.id,
+                  authorName: comment.authorName,
+                  content: comment.content,
+                  createdAt: comment.createdAt.toISOString(),
+                  isAutoGenerated: comment.isAutoGenerated,
+                }))}
+                commentEnabled={landingPage.commentEnabled}
+                isLandingPageOwner={isLandingPageOwner}
+                isBossUser={isBossUser}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 사업자 정보 푸터 - 댓글 맨 밑에 표시 */}
+      {hasBusinessInfo && (
+        <footer className="lp-extension-root" style={{ paddingTop: '32px', paddingBottom: '32px', background: '#f8fafc' }}>
+          <div className="lp-extension-container">
+            <div className="lp-card" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
+              <div className="lp-section-label" style={{ color: '#64748b' }}>사업자 정보</div>
+
+              {/* 사업자 정보 텍스트 표시 */}
+              {hasBusinessInfo && businessInfo && (
+                <div style={{
+                  marginTop: '16px',
+                  marginBottom: '0',
+                  padding: '20px',
+                  background: '#ffffff',
+                  borderRadius: '12px',
+                  border: '1px solid #e5e7eb'
+                }}>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#4b5563',
+                    lineHeight: '1.8'
+                  }}>
+                    {businessInfo.siteName && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong style={{ color: '#1f2937' }}>사이트명:</strong> {businessInfo.siteName}
+                      </div>
+                    )}
+                    {businessInfo.companyName && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong style={{ color: '#1f2937' }}>회사명:</strong> {businessInfo.companyName}
+                      </div>
+                    )}
+                    {businessInfo.businessNumber && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong style={{ color: '#1f2937' }}>사업자번호:</strong> {businessInfo.businessNumber}
+                      </div>
+                    )}
+                    {businessInfo.businessPhone && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong style={{ color: '#1f2937' }}>대표연락처:</strong> {businessInfo.businessPhone}
+                      </div>
+                    )}
+                    {businessInfo.privacyOfficer && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong style={{ color: '#1f2937' }}>개인정보담당:</strong> {businessInfo.privacyOfficer}
+                      </div>
+                    )}
+                    {businessInfo.address && (
+                      <div style={{ marginBottom: '8px' }}>
+                        <strong style={{ color: '#1f2937' }}>주소:</strong> {businessInfo.address}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
-              {landingPage.commentEnabled && (
-                <LandingCommentsSection
-                  slug={slugOrId}
-                  initialComments={comments.map((comment) => ({
-                    id: comment.id,
-                    authorName: comment.authorName,
-                    content: comment.content,
-                    createdAt: comment.createdAt.toISOString(),
-                    isAutoGenerated: comment.isAutoGenerated,
-                  }))}
-                  commentEnabled={landingPage.commentEnabled}
-                  isLandingPageOwner={isLandingPageOwner}
-                  isBossUser={isBossUser}
-                />
-              )}
             </div>
           </div>
-        )}
+        </footer>
+      )}
 
-        {/* 사업자 정보 푸터 - 댓글 맨 밑에 표시 */}
-        {hasBusinessInfo && (
-          <footer className="lp-extension-root" style={{ paddingTop: '32px', paddingBottom: '32px', background: '#f8fafc' }}>
-            <div className="lp-extension-container">
-              <div className="lp-card" style={{ background: '#f1f5f9', border: '1px solid #e2e8f0' }}>
-                <div className="lp-section-label" style={{ color: '#64748b' }}>사업자 정보</div>
-                
-                {/* 사업자 정보 텍스트 표시 */}
-                {hasBusinessInfo && businessInfo && (
-                  <div style={{ 
-                    marginTop: '16px',
-                    marginBottom: '0',
-                    padding: '20px', 
-                    background: '#ffffff', 
-                    borderRadius: '12px', 
-                    border: '1px solid #e5e7eb' 
-                  }}>
-                    <div style={{ 
-                      fontSize: '14px', 
-                      color: '#4b5563', 
-                      lineHeight: '1.8' 
-                    }}>
-                      {businessInfo.siteName && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ color: '#1f2937' }}>사이트명:</strong> {businessInfo.siteName}
-                        </div>
-                      )}
-                      {businessInfo.companyName && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ color: '#1f2937' }}>회사명:</strong> {businessInfo.companyName}
-                        </div>
-                      )}
-                      {businessInfo.businessNumber && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ color: '#1f2937' }}>사업자번호:</strong> {businessInfo.businessNumber}
-                        </div>
-                      )}
-                      {businessInfo.businessPhone && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ color: '#1f2937' }}>대표연락처:</strong> {businessInfo.businessPhone}
-                        </div>
-                      )}
-                      {businessInfo.privacyOfficer && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ color: '#1f2937' }}>개인정보담당:</strong> {businessInfo.privacyOfficer}
-                        </div>
-                      )}
-                      {businessInfo.address && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <strong style={{ color: '#1f2937' }}>주소:</strong> {businessInfo.address}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            </div>
-          </footer>
-        )}
-
-        {/* 푸시 알림 권한 요청 - 푸시 알림이 활성화된 경우에만 표시 */}
-        {landingPage.pushNotificationEnabled && (
-          <LandingPushNotificationPrompt
-            landingPageId={landingPage.id}
-            pushNotificationEnabled={landingPage.pushNotificationEnabled}
-            boardingTime={landingPage.boardingTime}
-            disembarkationTime={landingPage.disembarkationTime}
-            departureWarning={landingPage.departureWarning !== undefined ? landingPage.departureWarning : true}
-          />
-        )}
+      {/* 푸시 알림 권한 요청 - 푸시 알림이 활성화된 경우에만 표시 */}
+      {landingPage.pushNotificationEnabled && (
+        <LandingPushNotificationPrompt
+          landingPageId={landingPage.id}
+          pushNotificationEnabled={landingPage.pushNotificationEnabled}
+          boardingTime={landingPage.boardingTime}
+          disembarkationTime={landingPage.disembarkationTime}
+          departureWarning={landingPage.departureWarning !== undefined ? landingPage.departureWarning : true}
+        />
+      )}
     </>
   );
 }

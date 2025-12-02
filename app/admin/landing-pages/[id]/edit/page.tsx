@@ -10,7 +10,7 @@ import { normalizeLandingHtmlContent, normalizeLandingImageUrl } from '@/lib/lan
 import Image from 'next/image';
 
 // 리치 텍스트 에디터 동적 임포트 (SSR 방지)
-const ReactQuill = dynamic(() => import('react-quill'), { 
+const ReactQuill = dynamic(() => import('react-quill'), {
   ssr: false,
   loading: () => <div className="h-[650px] flex items-center justify-center text-gray-500">에디터 로딩 중...</div>
 });
@@ -44,7 +44,7 @@ export default function EditLandingPagePage() {
   const [previewDevice, setPreviewDevice] = useState<'iphone' | 'samsung'>('iphone');
   const [showPreview, setShowPreview] = useState(true);
   const [quillKey, setQuillKey] = useState(0);
-  
+
   // 기본 정보
   const [formData, setFormData] = useState({
     title: '',
@@ -134,7 +134,7 @@ export default function EditLandingPagePage() {
   const editorKeepAliveRef = useRef<NodeJS.Timeout | null>(null);
   const quillValueRef = useRef<string>('');
   const isUpdatingRef = useRef(false);
-  
+
   // 신규 그룹 추가 모달
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -142,7 +142,7 @@ export default function EditLandingPagePage() {
   const [newGroupColor, setNewGroupColor] = useState('#3B82F6');
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
   const [newGroupTarget, setNewGroupTarget] = useState<'main' | 'payment' | 'db'>('main');
-  
+
   // 이미지 드래그 앤 드롭
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -159,19 +159,10 @@ export default function EditLandingPagePage() {
   const previewRef = useRef<HTMLIFrameElement>(null);
   const [previewHtml, setPreviewHtml] = useState<string>('');
 
-  useEffect(() => {
-    fetchCustomerGroups();
-    if (pageId) {
-      fetchLandingPage();
-    }
-  }, [pageId, fetchLandingPage]);
+
 
   // 댓글 기능이 활성화되면 댓글 목록 가져오기
-  useEffect(() => {
-    if (pageId && formData.commentEnabled) {
-      fetchComments();
-    }
-  }, [pageId, formData.commentEnabled, fetchComments]);
+
 
   // 댓글 목록 가져오기
   const fetchComments = useCallback(async () => {
@@ -203,7 +194,7 @@ export default function EditLandingPagePage() {
   // 댓글 삭제
   const handleDeleteComment = async (commentId: number) => {
     if (!confirm('이 댓글을 삭제하시겠습니까?')) return;
-    
+
     try {
       const response = await fetch(`/api/admin/landing-pages/${pageId}/comments/${commentId}`, {
         method: 'DELETE',
@@ -247,7 +238,7 @@ export default function EditLandingPagePage() {
       }
 
       const page = data.landingPage;
-      
+
       // 기본 정보 설정
       setFormData({
         title: page.title || '',
@@ -286,15 +277,15 @@ export default function EditLandingPagePage() {
       let savedEditorMode: 'html' | 'editor' | null = null;
       if (page.businessInfo) {
         try {
-          const businessInfo = typeof page.businessInfo === 'string' 
-            ? JSON.parse(page.businessInfo) 
+          const businessInfo = typeof page.businessInfo === 'string'
+            ? JSON.parse(page.businessInfo)
             : page.businessInfo;
-          
+
           // 저장된 editorMode 확인
           if (businessInfo.editorMode === 'html' || businessInfo.editorMode === 'editor') {
             savedEditorMode = businessInfo.editorMode;
           }
-          
+
           // 사업자 정보 필드 로드
           if (businessInfo.siteName || businessInfo.companyName || businessInfo.businessNumber || businessInfo.businessPhone || businessInfo.privacyOfficer || businessInfo.address) {
             setBusinessInfoFields({
@@ -306,7 +297,7 @@ export default function EditLandingPagePage() {
               address: businessInfo.address || '',
             });
           }
-          
+
           if (businessInfo.fields) {
             const marketingConsent = businessInfo.fields.marketingConsent;
             setDataFields({
@@ -352,6 +343,20 @@ export default function EditLandingPagePage() {
     }
   }, [pageId, router]);
 
+  useEffect(() => {
+    fetchCustomerGroups();
+    if (pageId) {
+      fetchLandingPage();
+    }
+  }, [pageId, fetchLandingPage]);
+
+  // 댓글 기능이 활성화되면 댓글 목록 가져오기
+  useEffect(() => {
+    if (pageId && formData.commentEnabled) {
+      fetchComments();
+    }
+  }, [pageId, formData.commentEnabled, fetchComments]);
+
   // quillValue 초기화
   useEffect(() => {
     if (!quillValue && formData.htmlContent) {
@@ -359,12 +364,12 @@ export default function EditLandingPagePage() {
       quillValueRef.current = formData.htmlContent;
     }
   }, [quillValue, formData.htmlContent]);
-  
+
   // quillValueRef 동기화
   useEffect(() => {
     quillValueRef.current = quillValue;
   }, [quillValue]);
-  
+
   // editorMode가 'editor'로 변경될 때 에디터 강제 표시
   useEffect(() => {
     if (editorMode === 'editor') {
@@ -376,7 +381,7 @@ export default function EditLandingPagePage() {
           container.style.setProperty('visibility', 'visible', 'important');
           container.style.setProperty('opacity', '1', 'important');
           container.classList.remove('hidden');
-          
+
           // ReactQuill ref를 통해 인스턴스 확인
           if (reactQuillComponentRef.current) {
             const quill = reactQuillComponentRef.current.getEditor();
@@ -388,7 +393,7 @@ export default function EditLandingPagePage() {
           }
         }
       }, 100);
-      
+
       return () => clearTimeout(timer);
     }
   }, [editorMode]);
@@ -396,7 +401,7 @@ export default function EditLandingPagePage() {
   // 에디터가 항상 표시되도록 강제 (매우 강력한 보호)
   useEffect(() => {
     if (editorMode !== 'editor') return;
-    
+
     // 에디터 컨테이너가 항상 표시되도록 강제
     const forceShowEditor = () => {
       const container = document.getElementById('quill-editor-container');
@@ -408,7 +413,7 @@ export default function EditLandingPagePage() {
         container.style.setProperty('position', 'relative', 'important');
         container.style.setProperty('z-index', '1', 'important');
         container.classList.remove('hidden');
-        
+
         // ReactQuill ref를 통해 인스턴스 확인 및 표시
         if (reactQuillComponentRef.current) {
           const quill = reactQuillComponentRef.current.getEditor();
@@ -418,7 +423,7 @@ export default function EditLandingPagePage() {
               (quill.root as HTMLElement).style.setProperty('visibility', 'visible', 'important');
               (quill.root as HTMLElement).style.setProperty('opacity', '1', 'important');
             }
-            
+
             const toolbar = quill.getModule('toolbar');
             if (toolbar && toolbar.container) {
               (toolbar.container as HTMLElement).style.setProperty('display', 'none', 'important');
@@ -429,15 +434,15 @@ export default function EditLandingPagePage() {
         }
       }
     };
-    
+
     // 즉시 실행
     forceShowEditor();
-    
+
     // 매우 빠른 주기로 확인 및 복구
     const keepAliveInterval = setInterval(() => {
       if (editorMode === 'editor') {
         forceShowEditor();
-        
+
         try {
           // ReactQuill ref를 통해 인스턴스 가져오기
           if (reactQuillComponentRef.current && !isQuillReady) {
@@ -448,7 +453,7 @@ export default function EditLandingPagePage() {
               quillRef.current = editorElement;
               reactQuillRef.current = editorElement;
               setIsQuillReady(true);
-              
+
               // 기본 툴바 숨김
               const toolbar = quill.getModule('toolbar');
               if (toolbar && toolbar.container) {
@@ -463,7 +468,7 @@ export default function EditLandingPagePage() {
         }
       }
     }, 50); // 0.05초마다 확인 (매우 빠른 복구)
-    
+
     return () => {
       clearInterval(keepAliveInterval);
     };
@@ -496,28 +501,28 @@ export default function EditLandingPagePage() {
                 if (selection && selection.constructor) {
                   const SelectionClass = selection.constructor;
                   const prototype = SelectionClass.prototype;
-                  
+
                   if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
                     const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
-                    prototype.setNativeRange = function(range: any, force?: boolean) {
+                    prototype.setNativeRange = function (range: any, force?: boolean) {
                       try {
                         if (!range) {
                           return originalSetNativeRange(null, force);
                         }
-                        
+
                         const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
                         if (editor) {
                           const length = editor.textContent?.length || 0;
                           const safeIndex = Math.max(0, Math.min(range.index || 0, length));
                           const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
-                          
+
                           const safeRange = {
                             index: safeIndex,
                             length: safeLength
                           };
                           return originalSetNativeRange(safeRange, force);
                         }
-                        
+
                         return originalSetNativeRange(range, force);
                       } catch (error) {
                         return null;
@@ -526,7 +531,7 @@ export default function EditLandingPagePage() {
                     prototype._setNativeRangeWrapped = true;
                   }
                 }
-                
+
                 const originalSetSelection = quill.setSelection.bind(quill);
                 quill.setSelection = (index: number, source?: string, force?: boolean) => {
                   try {
@@ -537,7 +542,7 @@ export default function EditLandingPagePage() {
                     return null;
                   }
                 };
-                
+
                 quill._selectionWrapped = true;
               } catch (error) {
                 // 래핑 실패해도 계속 진행
@@ -550,7 +555,7 @@ export default function EditLandingPagePage() {
             reactQuillRef.current = editorElement;
             setIsQuillReady(true);
             setQuillMounted(true);
-            
+
             // 기본 툴바 숨김
             setTimeout(() => {
               const toolbar = quill.getModule('toolbar');
@@ -560,7 +565,7 @@ export default function EditLandingPagePage() {
                 (toolbar.container as HTMLElement).style.setProperty('opacity', '0', 'important');
               }
             }, 100);
-            
+
             return;
           }
         } catch (e) {
@@ -594,7 +599,7 @@ export default function EditLandingPagePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.htmlContent, editorMode, isQuillReady]);
-  
+
   // onChange 핸들러 메모이제이션 (리렌더링 최소화)
   const handleQuillChange = useCallback((value: string) => {
     try {
@@ -604,12 +609,12 @@ export default function EditLandingPagePage() {
       } else {
         quillValueRef.current = typeof value === 'string' ? value : String(value || '');
       }
-      
+
       // formData 업데이트는 매우 긴 debounce로 처리 (리렌더링 최소화)
       if (onChangeDebounceRef.current) {
         clearTimeout(onChangeDebounceRef.current);
       }
-      
+
       // 2초 debounce로 formData 업데이트 (에디터가 사라지지 않도록)
       onChangeDebounceRef.current = setTimeout(() => {
         setFormData(prev => ({ ...prev, htmlContent: quillValueRef.current }));
@@ -644,7 +649,7 @@ export default function EditLandingPagePage() {
       if (data.ok && data.group) {
         // 그룹 목록 새로고침
         await fetchCustomerGroups();
-        
+
         // 생성된 그룹을 해당 필드에 설정
         if (newGroupTarget === 'main') {
           setFormData({ ...formData, groupId: data.group.id });
@@ -808,25 +813,25 @@ export default function EditLandingPagePage() {
     // 이미지 URL을 절대 경로로 변환하는 헬퍼 함수
     const normalizeImageUrl = (url: string): string => {
       if (!url) return '';
-      
+
       // 빈 문자열이나 공백만 있는 경우
       const trimmedUrl = url.trim();
       if (!trimmedUrl) return '';
-      
+
       // 이미 절대 URL인 경우 (http://, https://, //, blob:, data:)
-      if (trimmedUrl.startsWith('http://') || 
-          trimmedUrl.startsWith('https://') || 
-          trimmedUrl.startsWith('//') ||
-          trimmedUrl.startsWith('blob:') ||
-          trimmedUrl.startsWith('data:')) {
+      if (trimmedUrl.startsWith('http://') ||
+        trimmedUrl.startsWith('https://') ||
+        trimmedUrl.startsWith('//') ||
+        trimmedUrl.startsWith('blob:') ||
+        trimmedUrl.startsWith('data:')) {
         return trimmedUrl;
       }
-      
+
       // 상대 경로인 경우 절대 경로로 변환
       if (trimmedUrl.startsWith('/')) {
         return `${window.location.origin}${trimmedUrl}`;
       }
-      
+
       // 상대 경로가 아닌 경우 (예: 파일명만 있는 경우)
       // 현재 도메인을 기준으로 절대 경로 생성
       return `${window.location.origin}/${trimmedUrl}`;
@@ -879,11 +884,11 @@ export default function EditLandingPagePage() {
       try {
         const currentContent = quillValueRef.current || formData.htmlContent || '';
         const newContent = currentContent + '\n' + imageTags;
-        
+
         // ref와 state 모두 업데이트
         quillValueRef.current = newContent;
         setQuillValue(newContent);
-        
+
         // Quill 인스턴스가 있으면 직접 삽입
         if (reactQuillComponentRef.current) {
           try {
@@ -893,19 +898,19 @@ export default function EditLandingPagePage() {
             // 커서를 끝으로 이동 (안전한 range 확인)
             const safeIndex = Math.max(0, length - 1);
             quill.setSelection(safeIndex, 'user');
-            
+
             // 각 이미지를 개별적으로 삽입 (더 안정적)
             preparedImages.forEach((img, index) => {
               try {
                 logger.log('[Image Insert] Original URL:', img.url, 'Persistent URL:', img.persistentUrl);
-                
+
                 // Quill의 insertEmbed를 사용하여 이미지 삽입 (더 안정적)
                 const length = quill.getLength();
                 const insertIndex = Math.max(0, length - 1);
-                
+
                 // 이미지를 삽입
                 quill.insertEmbed(insertIndex, 'image', img.persistentUrl, 'user');
-                
+
                 // 이미지 사이에 줄바꿈 추가 (마지막 이미지가 아닌 경우)
                 if (index < preparedImages.length - 1) {
                   const newLength = quill.getLength();
@@ -927,13 +932,13 @@ export default function EditLandingPagePage() {
                 }
               }
             });
-            
+
             // 삽입 후 커서를 끝으로 이동
             const newLength = quill.getLength();
             if (newLength > 0) {
               quill.setSelection(newLength - 1, 'user');
             }
-            
+
             // Quill의 내용을 ref와 state에 반영
             const quillContent = quill.root.innerHTML;
             logger.log('[Image Insert] Final Quill content:', quillContent.substring(0, 500));
@@ -944,7 +949,7 @@ export default function EditLandingPagePage() {
             // 에러 발생 시 value prop으로 폴백 (이미 quillValueRef와 setQuillValue로 처리됨)
           }
         }
-        
+
         // formData는 debounce로 업데이트 (리렌더링 최소화)
         if (onChangeDebounceRef.current) {
           clearTimeout(onChangeDebounceRef.current);
@@ -952,7 +957,7 @@ export default function EditLandingPagePage() {
         onChangeDebounceRef.current = setTimeout(() => {
           setFormData(prev => ({ ...prev, htmlContent: newContent }));
         }, 500);
-        
+
         // 에디터가 표시되도록 강제
         setTimeout(() => {
           const container = document.getElementById('quill-editor-container');
@@ -1005,7 +1010,7 @@ export default function EditLandingPagePage() {
     const dataTransfer = new DataTransfer();
     files.forEach((file) => dataTransfer.items.add(file));
     input.files = dataTransfer.files;
-    
+
     const event = new Event('change', { bubbles: true });
     Object.defineProperty(event, 'target', { value: input, enumerable: true });
     handleFileSelect(event as any);
@@ -1031,7 +1036,7 @@ export default function EditLandingPagePage() {
   const handleImageDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (draggedImageIndex === null || draggedImageIndex === dropIndex) {
       setDraggedImageIndex(null);
       setDragOverIndex(null);
@@ -1043,7 +1048,7 @@ export default function EditLandingPagePage() {
     const draggedImage = newImages[draggedImageIndex];
     newImages.splice(draggedImageIndex, 1);
     newImages.splice(dropIndex, 0, draggedImage);
-    
+
     setSelectedImages(newImages);
     setDraggedImageIndex(null);
     setDragOverIndex(null);
@@ -1058,29 +1063,29 @@ export default function EditLandingPagePage() {
   useEffect(() => {
     // 활성화된 필드들로 하단 폼 생성
     const formFields: string[] = [];
-        
-        if (formData.infoCollection) {
-          // 활성화된 필드들만 표시
-          if (dataFields.phone.enabled) {
-            formFields.push(`
+
+    if (formData.infoCollection) {
+      // 활성화된 필드들만 표시
+      if (dataFields.phone.enabled) {
+        formFields.push(`
               <div class="form-field">
                 <label>휴대폰 번호 ${dataFields.phone.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="tel" placeholder="010-1234-5678" ${dataFields.phone.required ? 'required' : ''} />
               </div>
             `);
-          }
-          
-          if (dataFields.name.enabled) {
-            formFields.push(`
+      }
+
+      if (dataFields.name.enabled) {
+        formFields.push(`
               <div class="form-field">
                 <label>이름 ${dataFields.name.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="text" placeholder="이름을 입력하세요" ${dataFields.name.required ? 'required' : ''} />
               </div>
             `);
-          }
-          
-          if (dataFields.gender.enabled) {
-            formFields.push(`
+      }
+
+      if (dataFields.gender.enabled) {
+        formFields.push(`
               <div class="form-field">
                 <label>성별 ${dataFields.gender.required ? '<span class="required">*</span>' : ''}</label>
                 <select ${dataFields.gender.required ? 'required' : ''}>
@@ -1090,37 +1095,37 @@ export default function EditLandingPagePage() {
                 </select>
               </div>
             `);
-          }
-          
-          if (dataFields.birthDate.enabled) {
-            formFields.push(`
+      }
+
+      if (dataFields.birthDate.enabled) {
+        formFields.push(`
               <div class="form-field">
                 <label>생년월일 ${dataFields.birthDate.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="date" ${dataFields.birthDate.required ? 'required' : ''} />
               </div>
             `);
-          }
-          
-          if (dataFields.email.enabled) {
-            formFields.push(`
+      }
+
+      if (dataFields.email.enabled) {
+        formFields.push(`
               <div class="form-field">
                 <label>이메일 ${dataFields.email.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="email" placeholder="example@email.com" ${dataFields.email.required ? 'required' : ''} />
               </div>
             `);
-          }
-          
-          if (dataFields.address.enabled) {
-            formFields.push(`
+      }
+
+      if (dataFields.address.enabled) {
+        formFields.push(`
               <div class="form-field">
                 <label>주소 ${dataFields.address.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="text" placeholder="주소를 입력하세요" ${dataFields.address.required ? 'required' : ''} />
               </div>
             `);
-          }
-          
-          if (dataFields.marketingConsent.enabled) {
-            formFields.push(`
+      }
+
+      if (dataFields.marketingConsent.enabled) {
+        formFields.push(`
               <div class="form-field checkbox-field">
                 <label>
                   <input type="checkbox" checked ${dataFields.marketingConsent.required ? 'required' : ''} />
@@ -1129,67 +1134,67 @@ export default function EditLandingPagePage() {
                 </label>
               </div>
             `);
-          }
+      }
 
-          // 추가 항목 (질문)
-          additionalFields.forEach((field) => {
-            formFields.push(`
+      // 추가 항목 (질문)
+      additionalFields.forEach((field) => {
+        formFields.push(`
               <div class="form-field">
                 <label>${field.name} ${field.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="text" placeholder="${field.name}을(를) 입력하세요" ${field.required ? 'required' : ''} />
               </div>
             `);
-          });
+      });
 
-          // 상품 구매 기능
-          if (productPurchase.enabled) {
-            formFields.push(`
+      // 상품 구매 기능
+      if (productPurchase.enabled) {
+        formFields.push(`
               <div class="product-purchase">
                 <h3>${productPurchase.productName || '상품명'}</h3>
                 <p>판매가격: ${productPurchase.sellingPrice.toLocaleString()}원</p>
                 ${productPurchase.useQuantity ? `<p>구매수량: ${productPurchase.purchaseQuantity}개</p>` : ''}
               </div>
             `);
-          }
+      }
 
-          // 신청하기 버튼
-          formFields.push(`
+      // 신청하기 버튼
+      formFields.push(`
             <div class="form-submit">
               <button type="submit" class="submit-btn">${formData.buttonTitle || '신청하기'}</button>
             </div>
           `);
-        }
+    }
 
-        // Editor 모드와 HTML 모드에 따라 다른 콘텐츠 사용
-        // HTML 모드: formData.htmlContent를 직접 사용 (HTML 코드만 인식, 정규화 없이, Editor로 변환하지 않음)
-        // Editor 모드: quillValueRef.current 사용 (Quill이 생성한 HTML, 정규화 필요)
-        let previewContent = '';
-        if (editorMode === 'html') {
-          // HTML 탭: HTML 코드만 직접 사용 (정규화 없이 순수 HTML 렌더링, Editor 형식으로 변환하지 않음)
-          // formData.htmlContent를 그대로 사용하여 HTML 코드를 직접 렌더링
-          // quillValueRef는 절대 사용하지 않음
-          previewContent = formData.htmlContent || '';
-        } else if (editorMode === 'editor') {
-          // Editor 탭: Quill이 생성한 HTML 사용 (정규화 필요)
-          previewContent = quillValueRef.current || quillValue || formData.htmlContent || '';
-        } else {
-          // 기본값
-          previewContent = formData.htmlContent || '';
-        }
+    // Editor 모드와 HTML 모드에 따라 다른 콘텐츠 사용
+    // HTML 모드: formData.htmlContent를 직접 사용 (HTML 코드만 인식, 정규화 없이, Editor로 변환하지 않음)
+    // Editor 모드: quillValueRef.current 사용 (Quill이 생성한 HTML, 정규화 필요)
+    let previewContent = '';
+    if (editorMode === 'html') {
+      // HTML 탭: HTML 코드만 직접 사용 (정규화 없이 순수 HTML 렌더링, Editor 형식으로 변환하지 않음)
+      // formData.htmlContent를 그대로 사용하여 HTML 코드를 직접 렌더링
+      // quillValueRef는 절대 사용하지 않음
+      previewContent = formData.htmlContent || '';
+    } else if (editorMode === 'editor') {
+      // Editor 탭: Quill이 생성한 HTML 사용 (정규화 필요)
+      previewContent = quillValueRef.current || quillValue || formData.htmlContent || '';
+    } else {
+      // 기본값
+      previewContent = formData.htmlContent || '';
+    }
 
-        // HTML 탭일 때는 HTML 코드를 직접 렌더링 (완전한 HTML 문서일 수 있음, 정규화 없이)
-        let finalHtml = '';
-        if (editorMode === 'html') {
-          // HTML 탭: HTML 코드를 직접 렌더링 (Editor로 변환하지 않음, 정규화하지 않음)
-          // previewContent가 완전한 HTML 문서일 수 있으므로 그대로 렌더링
-          const htmlContent = previewContent || '';
-          // HTML 문서가 완전한 경우 (DOCTYPE, html 태그 포함)
-          if (htmlContent.trim().toLowerCase().startsWith('<!doctype') || htmlContent.trim().toLowerCase().startsWith('<html')) {
-            // 완전한 HTML 문서인 경우 그대로 렌더링 (정규화 없이)
-            finalHtml = htmlContent;
-          } else {
-            // HTML 문서의 일부만 있는 경우 body에 삽입 (정규화 없이)
-            finalHtml = `
+    // HTML 탭일 때는 HTML 코드를 직접 렌더링 (완전한 HTML 문서일 수 있음, 정규화 없이)
+    let finalHtml = '';
+    if (editorMode === 'html') {
+      // HTML 탭: HTML 코드를 직접 렌더링 (Editor로 변환하지 않음, 정규화하지 않음)
+      // previewContent가 완전한 HTML 문서일 수 있으므로 그대로 렌더링
+      const htmlContent = previewContent || '';
+      // HTML 문서가 완전한 경우 (DOCTYPE, html 태그 포함)
+      if (htmlContent.trim().toLowerCase().startsWith('<!doctype') || htmlContent.trim().toLowerCase().startsWith('<html')) {
+        // 완전한 HTML 문서인 경우 그대로 렌더링 (정규화 없이)
+        finalHtml = htmlContent;
+      } else {
+        // HTML 문서의 일부만 있는 경우 body에 삽입 (정규화 없이)
+        finalHtml = `
               <!DOCTYPE html>
               <html>
                 <head>
@@ -1239,10 +1244,10 @@ export default function EditLandingPagePage() {
                 </body>
               </html>
             `;
-          }
-        } else {
-          // Editor 탭: 정규화된 HTML 사용
-          finalHtml = `
+      }
+    } else {
+      // Editor 탭: 정규화된 HTML 사용
+      finalHtml = `
             <!DOCTYPE html>
             <html>
               <head>
@@ -1367,42 +1372,42 @@ export default function EditLandingPagePage() {
             </body>
           </html>
         `;
-        }
-        
-        // [수술용 코드 2] 크루즈정보사진 치환 (이미지 깨짐 해결)
-        // [크루즈정보사진] 플레이스홀더를 실제 이미지 태그로 교체
-        // (주의: 이미지가 없을 경우 깨진 아이콘 대신 빈 문자열로 처리하거나 기본 이미지 사용)
-        if (finalHtml.includes('[크루즈정보사진]')) {
-          const cruiseImgUrl = exposureImageUrl || exposureImagePreview
-            ? ((exposureImageUrl || exposureImagePreview || '').startsWith('http') 
-              ? (exposureImageUrl || exposureImagePreview) 
-              : `${window.location.origin}${exposureImageUrl || exposureImagePreview}`)
-            : 'https://via.placeholder.com/400x300?text=No+Image'; // 이미지가 없을 때 대체 이미지
-          
-          finalHtml = finalHtml.replace(/\[크루즈정보사진\]/g, `<img src="${cruiseImgUrl}" style="max-width:100%; height:auto; display:block;" />`);
-        }
-        
-        // 이미지 경로를 절대 경로로 변환 (상대 경로 문제 해결)
-        finalHtml = finalHtml.replace(/<img([^>]*?)src=["']([^"']+)["']/gi, (match, attrs, src) => {
-          if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('/')) {
-            return match; // 이미 절대 경로이거나 data URL인 경우
-          }
-          // 상대 경로를 절대 경로로 변환
-          const absoluteSrc = src.startsWith('./') ? src.substring(2) : src;
-          return `<img${attrs}src="${window.location.origin}/${absoluteSrc}"`;
-        });
-        
-        setPreviewHtml(finalHtml);
+    }
+
+    // [수술용 코드 2] 크루즈정보사진 치환 (이미지 깨짐 해결)
+    // [크루즈정보사진] 플레이스홀더를 실제 이미지 태그로 교체
+    // (주의: 이미지가 없을 경우 깨진 아이콘 대신 빈 문자열로 처리하거나 기본 이미지 사용)
+    if (finalHtml.includes('[크루즈정보사진]')) {
+      const cruiseImgUrl = exposureImageUrl || exposureImagePreview
+        ? ((exposureImageUrl || exposureImagePreview || '').startsWith('http')
+          ? (exposureImageUrl || exposureImagePreview)
+          : `${window.location.origin}${exposureImageUrl || exposureImagePreview}`)
+        : 'https://via.placeholder.com/400x300?text=No+Image'; // 이미지가 없을 때 대체 이미지
+
+      finalHtml = finalHtml.replace(/\[크루즈정보사진\]/g, `<img src="${cruiseImgUrl}" style="max-width:100%; height:auto; display:block;" />`);
+    }
+
+    // 이미지 경로를 절대 경로로 변환 (상대 경로 문제 해결)
+    finalHtml = finalHtml.replace(/<img([^>]*?)src=["']([^"']+)["']/gi, (match, attrs, src) => {
+      if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:') || src.startsWith('/')) {
+        return match; // 이미 절대 경로이거나 data URL인 경우
+      }
+      // 상대 경로를 절대 경로로 변환
+      const absoluteSrc = src.startsWith('./') ? src.substring(2) : src;
+      return `<img${attrs}src="${window.location.origin}/${absoluteSrc}"`;
+    });
+
+    setPreviewHtml(finalHtml);
   }, [
-    formData.htmlContent, 
+    formData.htmlContent,
     quillValue, // 항상 포함 (조건부 제거로 인한 경고 방지)
-    formData.headerScript, 
-    formData.infoCollection, 
+    formData.headerScript,
+    formData.infoCollection,
     formData.buttonTitle,
     formData.commentEnabled,
     // 메모이제이션된 의존성 값들 사용 (무한 루프 방지)
     editorMode,
-    dataFields, 
+    dataFields,
     additionalFields,
     productPurchase,
     previewComments,
@@ -1484,7 +1489,7 @@ export default function EditLandingPagePage() {
       }
 
       // HTML 콘텐츠 내 이미지 URL 정규화 (HTML 탭일 때는 정규화하지 않음, Editor 형식으로 변환하지 않음)
-      const normalizedHtmlContent = editorMode === 'html' 
+      const normalizedHtmlContent = editorMode === 'html'
         ? finalHtmlContent  // HTML 탭: HTML 코드 그대로 사용 (정규화 없이, Editor 형식으로 변환하지 않음)
         : normalizeLandingHtmlContent(finalHtmlContent, { baseOrigin: window.location.origin });  // Editor 탭: 정규화 필요
 
@@ -1580,7 +1585,7 @@ export default function EditLandingPagePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // 저장 전에 quillValueRef의 최신 값을 formData에 반영
     if (editorMode === 'editor' && quillValueRef.current !== undefined) {
       setFormData(prev => ({ ...prev, htmlContent: quillValueRef.current }));
@@ -1613,7 +1618,7 @@ export default function EditLandingPagePage() {
       }
 
       // HTML 콘텐츠 내 이미지 URL 정규화 (HTML 탭일 때는 정규화하지 않음, Editor 형식으로 변환하지 않음)
-      const normalizedHtmlContent = editorMode === 'html' 
+      const normalizedHtmlContent = editorMode === 'html'
         ? finalHtmlContent  // HTML 탭: HTML 코드 그대로 사용 (정규화 없이, Editor 형식으로 변환하지 않음)
         : normalizeLandingHtmlContent(finalHtmlContent, { baseOrigin: window.location.origin });  // Editor 탭: 정규화 필요
 
@@ -1694,7 +1699,7 @@ export default function EditLandingPagePage() {
         const responseText = await response.text();
         logger.log('Server response status:', response.status);
         logger.log('Server response text (first 500 chars):', responseText.substring(0, 500));
-        
+
         try {
           data = JSON.parse(responseText);
         } catch (parseError) {
@@ -1706,7 +1711,7 @@ export default function EditLandingPagePage() {
         console.error('Failed to read response:', textError);
         throw new Error('서버 응답을 읽을 수 없습니다: ' + textError.message);
       }
-      
+
       if (!response.ok || !data.ok) {
         const errorMessage = data.error || data.details?.message || data.details?.code || '랜딩페이지 생성에 실패했습니다.';
         console.error('Landing page creation error:', {
@@ -1716,14 +1721,14 @@ export default function EditLandingPagePage() {
           details: data.details,
           fullData: JSON.stringify(data, null, 2),
         });
-        
+
         // 개발 환경에서 더 자세한 에러 표시
         if (data.details) {
           alert(`에러: ${errorMessage}\n\n상세 정보:\n${JSON.stringify(data.details, null, 2)}`);
         } else {
           alert(`에러: ${errorMessage}`);
         }
-        
+
         throw new Error(errorMessage);
       }
 
@@ -1762,8 +1767,8 @@ export default function EditLandingPagePage() {
     const newValue = !dataFields[field].enabled;
     setDataFields({
       ...dataFields,
-      [field]: { 
-        ...dataFields[field], 
+      [field]: {
+        ...dataFields[field],
         enabled: newValue,
         required: newValue ? dataFields[field].required : false, // 비활성화 시 필수도 해제
       },
@@ -1822,7 +1827,7 @@ export default function EditLandingPagePage() {
             )}
           </div>
           <div className="flex items-center gap-3">
-          <button
+            <button
               type="button"
               onClick={() => setShowPreview(!showPreview)}
               className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm font-medium"
@@ -1832,11 +1837,11 @@ export default function EditLandingPagePage() {
             </button>
             <button
               type="button"
-            onClick={() => router.back()}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
-          >
-            <FiX size={24} />
-          </button>
+              onClick={() => router.back()}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            >
+              <FiX size={24} />
+            </button>
           </div>
         </div>
 
@@ -1898,47 +1903,47 @@ export default function EditLandingPagePage() {
 
             {/* 오른쪽: 에디터 영역 */}
             <div className="flex-1 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]">
-          {/* 기본 정보 */}
+              {/* 기본 정보 */}
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">기본 정보</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       대분류 <span className="text-gray-400 text-xs font-normal">※ 카테고리 분류</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="예: B2B크루즈"
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      placeholder="예: B2B크루즈"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       페이지묶음 <span className="text-gray-400 text-xs font-normal">※ 동일한 묶음끼리 목록에서 표시</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.pageGroup}
-                  onChange={(e) => setFormData({ ...formData, pageGroup: e.target.value })}
-                  placeholder="예: B2B크루즈"
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.pageGroup}
+                      onChange={(e) => setFormData({ ...formData, pageGroup: e.target.value })}
+                      placeholder="예: B2B크루즈"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       제목 <span className="text-red-500">*</span>
                     </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
+                    />
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">노출용 제목</label>
                     <input
                       type="text"
@@ -1950,44 +1955,42 @@ export default function EditLandingPagePage() {
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">노출용 설명</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={3}
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      rows={3}
                       placeholder="SNS 공유 시 표시될 설명"
                       className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
               {/* 콘텐츠 에디터 */}
               <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
                 <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">콘텐츠</h2>
                 <div className="mb-4 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setEditorMode('editor')}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      editorMode === 'editor' 
-                        ? 'bg-blue-600 text-white shadow-md' 
+                  <button
+                    type="button"
+                    onClick={() => setEditorMode('editor')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${editorMode === 'editor'
+                        ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-              >
-                Editor
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditorMode('html')}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                      editorMode === 'html' 
-                        ? 'bg-blue-600 text-white shadow-md' 
+                      }`}
+                  >
+                    Editor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditorMode('html')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${editorMode === 'html'
+                        ? 'bg-blue-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-              >
-                HTML
-              </button>
-            </div>
+                      }`}
+                  >
+                    HTML
+                  </button>
+                </div>
                 {/* HTML 탭일 때는 Editor 관련 모든 것을 완전히 숨김, textarea만 표시 */}
                 {editorMode === 'html' ? (
                   /* HTML 탭: HTML 코드만 입력 가능 (Editor 완전히 제거, 툴바 없음, 1칸만 표시) */
@@ -1997,9 +2000,9 @@ export default function EditLandingPagePage() {
                       onChange={(e) => {
                         // HTML 탭에서는 HTML 코드를 그대로 저장 (Editor로 변환하지 않음)
                         const newValue = e.target.value;
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          htmlContent: newValue 
+                        setFormData(prev => ({
+                          ...prev,
+                          htmlContent: newValue
                         }));
                         // HTML 탭에서는 quillValueRef를 절대 업데이트하지 않음
                         // 미리보기는 useEffect에서 formData.htmlContent 변경을 감지하여 자동 업데이트됨
@@ -2007,15 +2010,15 @@ export default function EditLandingPagePage() {
                       onBlur={(e) => {
                         // 포커스를 잃을 때도 HTML 코드 그대로 유지
                         const newValue = e.target.value;
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          htmlContent: newValue 
+                        setFormData(prev => ({
+                          ...prev,
+                          htmlContent: newValue
                         }));
                       }}
                       className="w-full h-[700px] px-6 py-4 border-0 font-mono text-sm focus:outline-none resize-none bg-white text-gray-900"
                       placeholder="HTML 코드를 입력하세요..."
                       spellCheck={false}
-                      style={{ 
+                      style={{
                         minHeight: '700px',
                         height: '700px',
                         width: '100%',
@@ -2032,20 +2035,21 @@ export default function EditLandingPagePage() {
                   </div>
                 ) : editorMode === 'editor' ? (
                   /* Editor 탭: Editor만 표시 */
-                <div className="min-h-[700px] border-2 border-gray-200 rounded-lg overflow-hidden mb-20">
-                    <div 
-                      className="h-[700px] flex flex-col relative" 
-                      id="quill-editor-container" 
-                      style={{ 
-                        display: 'flex', 
-                        visibility: 'visible', 
+                  <div className="min-h-[700px] border-2 border-gray-200 rounded-lg overflow-hidden mb-20">
+                    <div
+                      className="h-[700px] flex flex-col relative"
+                      id="quill-editor-container"
+                      style={{
+                        display: 'flex',
+                        visibility: 'visible',
                         opacity: 1,
                         position: 'relative',
                         zIndex: 1,
                         paddingBottom: '80px' // 하단 툴바 공간 확보
                       }}
                     >
-                      <style dangerouslySetInnerHTML={{__html: `
+                      <style dangerouslySetInnerHTML={{
+                        __html: `
                         #quill-editor-container:not(.hidden) {
                           display: flex !important;
                           visibility: visible !important;
@@ -2244,166 +2248,166 @@ export default function EditLandingPagePage() {
                           </div>
                         }
                       >
-              {editorMode === 'editor' && (
-              <ReactQuill
-                          key="editor-fixed"
-                theme="snow"
-                          value={(() => {
-                            // 안전한 값 추출 및 검증
-                            let val: string = '';
-                            try {
-                              val = quillValueRef.current || quillValue || formData.htmlContent || '';
-                              // null, undefined 체크
-                              if (val == null) val = '';
-                              // 문자열이 아닌 경우 변환
-                              if (typeof val !== 'string') {
-                                val = String(val || '');
-                              }
-                              // 빈 문자열 보장
-                              if (!val) val = '';
-                            } catch (error) {
-                              console.error('ReactQuill value 처리 오류:', error);
-                              val = '';
-                            }
-                            return val;
-                          })()}
-                          readOnly={false}
-                          onChange={handleQuillChange}
-                          onChangeSelection={(range) => {
-                            // addRange 에러 방지: range가 유효한지 확인
-                            if (range && quillInstanceRef.current) {
+                        {editorMode === 'editor' && (
+                          <ReactQuill
+                            key="editor-fixed"
+                            theme="snow"
+                            value={(() => {
+                              // 안전한 값 추출 및 검증
+                              let val: string = '';
                               try {
-                                const length = quillInstanceRef.current.getLength();
-                                if (range.index >= 0 && range.index <= length && 
-                                    range.length >= 0 && range.index + range.length <= length) {
-                                  // 유효한 range
+                                val = quillValueRef.current || quillValue || formData.htmlContent || '';
+                                // null, undefined 체크
+                                if (val == null) val = '';
+                                // 문자열이 아닌 경우 변환
+                                if (typeof val !== 'string') {
+                                  val = String(val || '');
                                 }
+                                // 빈 문자열 보장
+                                if (!val) val = '';
                               } catch (error) {
-                                // 무시
+                                console.error('ReactQuill value 처리 오류:', error);
+                                val = '';
                               }
-                            }
-                          }}
-                          onFocus={() => {
-                            // 포커스 시 에디터가 준비되었는지 확인 및 표시 강제
-                            try {
-                              const container = document.getElementById('quill-editor-container');
-                              if (container) {
-                                container.style.setProperty('display', 'flex', 'important');
-                                container.style.setProperty('visibility', 'visible', 'important');
-                                container.style.setProperty('opacity', '1', 'important');
-                                container.classList.remove('hidden');
-                              }
-                              
-                              // Quill 인스턴스 확인 (약간의 지연 후)
-                              setTimeout(() => {
+                              return val;
+                            })()}
+                            readOnly={false}
+                            onChange={handleQuillChange}
+                            onChangeSelection={(range) => {
+                              // addRange 에러 방지: range가 유효한지 확인
+                              if (range && quillInstanceRef.current) {
                                 try {
-                                  if (reactQuillComponentRef.current) {
-                                    const quill = reactQuillComponentRef.current.getEditor();
-                                    if (quill) {
-                                      // addRange() 에러 방지: Quill의 Selection 클래스의 setNativeRange 메서드 래핑
-                                      if (!quill._selectionWrapped) {
-                                        try {
-                                          const selection = quill.selection;
-                                          if (selection && selection.constructor) {
-                                            const SelectionClass = selection.constructor;
-                                            const prototype = SelectionClass.prototype;
-                                            
-                                            if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
-                                              const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
-                                              prototype.setNativeRange = function(range: any, force?: boolean) {
-                                                try {
-                                                  if (!range) {
-                                                    return originalSetNativeRange(null, force);
-                                                  }
-                                                  
-                                                  const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
-                                                  if (editor) {
-                                                    const length = editor.textContent?.length || 0;
-                                                    const safeIndex = Math.max(0, Math.min(range.index || 0, length));
-                                                    const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
-                                                    
-                                                    const safeRange = {
-                                                      index: safeIndex,
-                                                      length: safeLength
-                                                    };
-                                                    return originalSetNativeRange(safeRange, force);
-                                                  }
-                                                  
-                                                  return originalSetNativeRange(range, force);
-                                                } catch (error) {
-                                                  return null;
-                                                }
-                                              };
-                                              prototype._setNativeRangeWrapped = true;
-                                            }
-                                          }
-                                          
-                                          const originalSetSelection = quill.setSelection.bind(quill);
-                                          quill.setSelection = (index: number, source?: string, force?: boolean) => {
-                                            try {
-                                              const length = quill.getLength();
-                                              const safeIndex = Math.max(0, Math.min(index, length - 1));
-                                              return originalSetSelection(safeIndex, source, force);
-                                            } catch (error) {
-                                              return null;
-                                            }
-                                          };
-                                          
-                                          quill._selectionWrapped = true;
-                                        } catch (error) {
-                                          // 래핑 실패해도 계속 진행
-                                        }
-                                      }
-                                      
-                                      quillInstanceRef.current = quill;
-                                      const editorElement = quill.root;
-                                      quillRef.current = editorElement;
-                                      reactQuillRef.current = editorElement;
-                                      setIsQuillReady(true);
-                                    }
+                                  const length = quillInstanceRef.current.getLength();
+                                  if (range.index >= 0 && range.index <= length &&
+                                    range.length >= 0 && range.index + range.length <= length) {
+                                    // 유효한 range
                                   }
                                 } catch (error) {
                                   // 무시
                                 }
-                              }, 100);
-                            } catch (error) {
-                              // 무시
-                            }
-                          }}
-                          onBlur={() => {
-                            // blur 시에도 에디터가 표시되도록 유지
-                            requestAnimationFrame(() => {
-                              const container = document.getElementById('quill-editor-container');
-                              if (container && editorMode === 'editor') {
-                                container.style.display = 'flex';
-                                container.style.visibility = 'visible';
-                                container.style.opacity = '1';
                               }
-                            });
-                          }}
-                          bounds="#quill-editor-container"
-                          preserveWhitespace={true}
-                          placeholder="내용을 입력하세요..."
-                modules={{
-                            toolbar: false, // 기본 툴바 숨김
-                          }}
-                          formats={[
-                            'header', 'size',
-                            'bold', 'italic', 'underline', 'strike',
-                            'list', 'bullet',
-                            'color', 'background',
-                            'align',
-                            'link', 'image'
-                          ]}
-                          style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                className="bg-white quill-wrapper"
-              />
-              )}
+                            }}
+                            onFocus={() => {
+                              // 포커스 시 에디터가 준비되었는지 확인 및 표시 강제
+                              try {
+                                const container = document.getElementById('quill-editor-container');
+                                if (container) {
+                                  container.style.setProperty('display', 'flex', 'important');
+                                  container.style.setProperty('visibility', 'visible', 'important');
+                                  container.style.setProperty('opacity', '1', 'important');
+                                  container.classList.remove('hidden');
+                                }
+
+                                // Quill 인스턴스 확인 (약간의 지연 후)
+                                setTimeout(() => {
+                                  try {
+                                    if (reactQuillComponentRef.current) {
+                                      const quill = reactQuillComponentRef.current.getEditor();
+                                      if (quill) {
+                                        // addRange() 에러 방지: Quill의 Selection 클래스의 setNativeRange 메서드 래핑
+                                        if (!quill._selectionWrapped) {
+                                          try {
+                                            const selection = quill.selection;
+                                            if (selection && selection.constructor) {
+                                              const SelectionClass = selection.constructor;
+                                              const prototype = SelectionClass.prototype;
+
+                                              if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
+                                                const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
+                                                prototype.setNativeRange = function (range: any, force?: boolean) {
+                                                  try {
+                                                    if (!range) {
+                                                      return originalSetNativeRange(null, force);
+                                                    }
+
+                                                    const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
+                                                    if (editor) {
+                                                      const length = editor.textContent?.length || 0;
+                                                      const safeIndex = Math.max(0, Math.min(range.index || 0, length));
+                                                      const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
+
+                                                      const safeRange = {
+                                                        index: safeIndex,
+                                                        length: safeLength
+                                                      };
+                                                      return originalSetNativeRange(safeRange, force);
+                                                    }
+
+                                                    return originalSetNativeRange(range, force);
+                                                  } catch (error) {
+                                                    return null;
+                                                  }
+                                                };
+                                                prototype._setNativeRangeWrapped = true;
+                                              }
+                                            }
+
+                                            const originalSetSelection = quill.setSelection.bind(quill);
+                                            quill.setSelection = (index: number, source?: string, force?: boolean) => {
+                                              try {
+                                                const length = quill.getLength();
+                                                const safeIndex = Math.max(0, Math.min(index, length - 1));
+                                                return originalSetSelection(safeIndex, source, force);
+                                              } catch (error) {
+                                                return null;
+                                              }
+                                            };
+
+                                            quill._selectionWrapped = true;
+                                          } catch (error) {
+                                            // 래핑 실패해도 계속 진행
+                                          }
+                                        }
+
+                                        quillInstanceRef.current = quill;
+                                        const editorElement = quill.root;
+                                        quillRef.current = editorElement;
+                                        reactQuillRef.current = editorElement;
+                                        setIsQuillReady(true);
+                                      }
+                                    }
+                                  } catch (error) {
+                                    // 무시
+                                  }
+                                }, 100);
+                              } catch (error) {
+                                // 무시
+                              }
+                            }}
+                            onBlur={() => {
+                              // blur 시에도 에디터가 표시되도록 유지
+                              requestAnimationFrame(() => {
+                                const container = document.getElementById('quill-editor-container');
+                                if (container && editorMode === 'editor') {
+                                  container.style.display = 'flex';
+                                  container.style.visibility = 'visible';
+                                  container.style.opacity = '1';
+                                }
+                              });
+                            }}
+                            bounds="#quill-editor-container"
+                            preserveWhitespace={true}
+                            placeholder="내용을 입력하세요..."
+                            modules={{
+                              toolbar: false, // 기본 툴바 숨김
+                            }}
+                            formats={[
+                              'header', 'size',
+                              'bold', 'italic', 'underline', 'strike',
+                              'list', 'bullet',
+                              'color', 'background',
+                              'align',
+                              'link', 'image'
+                            ]}
+                            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                            className="bg-white quill-wrapper"
+                          />
+                        )}
                       </ErrorBoundary>
-                      
+
                       {/* 커스텀 하단 고정 툴바 */}
                       {editorMode === 'editor' && (
-                        <div 
+                        <div
                           id="custom-toolbar"
                           className="sticky bottom-0 bg-white border-t-2 border-gray-300 shadow-lg z-50 px-4 py-3 w-full"
                           style={{
@@ -2433,7 +2437,7 @@ export default function EditLandingPagePage() {
                               <option value="2">Heading 2</option>
                               <option value="3">Heading 3</option>
                             </select>
-                            
+
                             {/* 크기 */}
                             <select
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-medium bg-white hover:bg-gray-50 cursor-pointer"
@@ -2453,9 +2457,9 @@ export default function EditLandingPagePage() {
                               <option value="large">Large</option>
                               <option value="huge">Huge</option>
                             </select>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 서식 버튼 */}
                             <button
                               type="button"
@@ -2513,9 +2517,9 @@ export default function EditLandingPagePage() {
                             >
                               S
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 목록 */}
                             <button
                               type="button"
@@ -2543,9 +2547,9 @@ export default function EditLandingPagePage() {
                             >
                               <span className="text-lg">•</span>
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 링크 */}
                             <button
                               type="button"
@@ -2568,7 +2572,7 @@ export default function EditLandingPagePage() {
                             >
                               🔗
                             </button>
-                            
+
                             {/* 이미지 */}
                             <button
                               type="button"
@@ -2581,9 +2585,9 @@ export default function EditLandingPagePage() {
                             >
                               🖼️
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 정렬 */}
                             <button
                               type="button"
@@ -2624,9 +2628,9 @@ export default function EditLandingPagePage() {
                             >
                               ➡️
                             </button>
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 색상 */}
                             <input
                               type="color"
@@ -2648,9 +2652,9 @@ export default function EditLandingPagePage() {
                               }}
                               title="Background Color"
                             />
-                            
+
                             <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                            
+
                             {/* 지우기 */}
                             <button
                               type="button"
@@ -2679,916 +2683,902 @@ export default function EditLandingPagePage() {
                             </button>
                           </div>
                         </div>
-                )}
-              </div>
-                </div>
+                      )}
+                    </div>
+                  </div>
                 ) : null}
 
-              {/* 정보수집 기능 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
-                <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">정보수집</h2>
-                <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg">
-                  <div>
-                    <label className="font-semibold text-gray-700">정보수집 기능 사용</label>
-                    <p className="text-xs text-gray-500 mt-1">정보수집을 활성화하면 하단에 입력 폼이 표시됩니다.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newValue = !formData.infoCollection;
-                      setFormData({ ...formData, infoCollection: newValue });
-                      if (!newValue) {
-                        // 정보수집 끄면 모든 필드 비활성화
-                        setDataFields(createDataFieldsState(false));
-                      } else {
-                        // 정보수집 켜면 마케팅 동의는 자동 활성화 + 필수
-                        setDataFields(prev => ({
-                          ...prev,
-                          marketingConsent: { enabled: true, required: true },
-                        }));
-                      }
-                    }}
-                    className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                      formData.infoCollection ? 'bg-blue-600' : 'bg-gray-300'
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                        formData.infoCollection ? 'translate-x-7' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-          </div>
-
-          {/* 데이터 수집 설정 */}
-              {formData.infoCollection && (
-                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                  <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">데이터 수집 설정</h2>
-                  
-                  <div className="space-y-2 mb-6">
-                    {/* 모든 필드 (휴대폰 번호 포함) */}
-                    {[
-                      { key: 'phone' as const, label: '휴대폰 번호' },
-                      { key: 'name' as const, label: '이름' },
-                      { key: 'gender' as const, label: '성별' },
-                      { key: 'birthDate' as const, label: '생년월일' },
-                      { key: 'email' as const, label: '이메일' },
-                      { key: 'address' as const, label: '주소' },
-                      { key: 'marketingConsent' as const, label: '마케팅 활용 및 광고성 정보 수신 동의' },
-                    ].map(({ key, label }) => (
-                      <div key={key} className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                        <span className="font-medium text-gray-700">{label}</span>
-                <div className="flex items-center gap-4">
-                          <button
-                            type="button"
-                            onClick={() => toggleDataField(key)}
-                            className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                              dataFields[key].enabled ? 'bg-blue-600' : 'bg-gray-300'
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                                dataFields[key].enabled ? 'translate-x-7' : 'translate-x-0'
-                              }`}
-                            />
-                          </button>
-                          <label className="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={dataFields[key].required}
-                              onChange={() => toggleDataFieldRequired(key)}
-                              disabled={!dataFields[key].enabled}
-                              className={`w-5 h-5 rounded border-2 ${
-                                dataFields[key].enabled
-                                  ? 'border-blue-600 text-blue-600 cursor-pointer'
-                                  : 'border-gray-300 cursor-not-allowed opacity-50'
-                              }`}
-                            />
-                            <span className={`text-sm font-medium ${
-                              dataFields[key].enabled ? 'text-gray-700' : 'text-gray-400'
-                            }`}>
-                              필수
-                            </span>
-                          </label>
-                </div>
-              </div>
-                    ))}
-
-                    {/* 상품 구매 기능 사용 */}
-                    <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                      <span className="font-medium text-gray-700">상품 구매 기능 사용</span>
+                {/* 정보수집 기능 */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+                  <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">정보수집</h2>
+                  <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg">
+                    <div>
+                      <label className="font-semibold text-gray-700">정보수집 기능 사용</label>
+                      <p className="text-xs text-gray-500 mt-1">정보수집을 활성화하면 하단에 입력 폼이 표시됩니다.</p>
+                    </div>
                     <button
                       type="button"
-                        onClick={() => setProductPurchase({ ...productPurchase, enabled: !productPurchase.enabled })}
-                        className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                          productPurchase.enabled ? 'bg-blue-600' : 'bg-gray-300'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                            productPurchase.enabled ? 'translate-x-7' : 'translate-x-0'
-                          }`}
-                        />
-                    </button>
-                    </div>
-
-                    {/* 상품 구매 설정 */}
-                    {productPurchase.enabled && (
-                      <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
-                        <h3 className="font-bold text-gray-800 mb-3">상품 구매 설정</h3>
-                        
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            결제 제공업체 <span className="text-red-500">*</span>
-                          </label>
-                          <div className="flex gap-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="paymentProvider"
-                                value="payapp"
-                                checked={productPurchase.paymentProvider === 'payapp'}
-                                onChange={(e) => setProductPurchase({ ...productPurchase, paymentProvider: 'payapp' })}
-                                className="w-5 h-5"
-                              />
-                              <span>페이앱</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="paymentProvider"
-                                value="welcomepay"
-                                checked={productPurchase.paymentProvider === 'welcomepay'}
-                                onChange={(e) => setProductPurchase({ ...productPurchase, paymentProvider: 'welcomepay' })}
-                                className="w-5 h-5"
-                              />
-                              <span>웰컴페이먼츠</span>
-                            </label>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            상품명 <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            value={productPurchase.productName}
-                            onChange={(e) => setProductPurchase({ ...productPurchase, productName: e.target.value })}
-                            placeholder="상품명을 입력하세요"
-                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            판매가격 <span className="text-red-500">*</span>
-                          </label>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              value={productPurchase.sellingPrice}
-                              onChange={(e) => setProductPurchase({ ...productPurchase, sellingPrice: parseInt(e.target.value) || 0 })}
-                              placeholder="0"
-                              className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                            <span className="text-gray-600">원</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">구매수량</label>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                                checked={productPurchase.useQuantity}
-                                onChange={(e) => setProductPurchase({ ...productPurchase, useQuantity: e.target.checked })}
-                                className="w-5 h-5 rounded border-2 border-blue-600 text-blue-600"
-                              />
-                              <span className="text-sm">구매수량 사용</span>
-                            </label>
-                            {productPurchase.useQuantity && (
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  value={productPurchase.purchaseQuantity}
-                                  onChange={(e) => setProductPurchase({ ...productPurchase, purchaseQuantity: parseInt(e.target.value) || 0 })}
-                                  placeholder="0"
-                                  className="w-24 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <span className="text-gray-600">개</span>
-                              </div>
-                    )}
-                  </div>
-                </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            결제 타입 <span className="text-red-500">*</span>
-                          </label>
-                          <div className="space-y-2">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="paymentType"
-                                value="basic"
-                                checked={productPurchase.paymentType === 'basic'}
-                                onChange={(e) => setProductPurchase({ ...productPurchase, paymentType: 'basic' })}
-                                className="w-5 h-5"
-                              />
-                              <span>기본타입</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="paymentType"
-                                value="cardInput"
-                                checked={productPurchase.paymentType === 'cardInput'}
-                                onChange={(e) => setProductPurchase({ ...productPurchase, paymentType: 'cardInput' })}
-                                className="w-5 h-5"
-                              />
-                              <span>카드번호입력#1</span>
-                            </label>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-2">
-                            * 인스타그램 혹은 페이스북 앱 내에서 결제 시 카드번호 입력으로 결제가 진행됩니다. (모듈 팝업 결제 방식을 제공하지 않음)
-                          </p>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">결제요청시 연결그룹</label>
-                          <div className="flex gap-2">
-                            <select
-                              value={productPurchase.paymentGroupId || ''}
-                              onChange={(e) => setProductPurchase({ ...productPurchase, paymentGroupId: e.target.value ? parseInt(e.target.value) : null })}
-                              className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="">결제요청시 그룹 선택</option>
-                              {customerGroups.map(group => (
-                                <option key={group.id} value={group.id}>{group.name}</option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNewGroupTarget('payment');
-                                setShowNewGroupModal(true);
-                              }}
-                              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                            >
-                              신규 그룹 만들기
-                            </button>
-                          </div>
-            </div>
-
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">DB 작성시 연결그룹</label>
-                          <div className="flex gap-2">
-                            <select
-                              value={productPurchase.dbGroupId || ''}
-                              onChange={(e) => setProductPurchase({ ...productPurchase, dbGroupId: e.target.value ? parseInt(e.target.value) : null })}
-                              className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="">연결할 그룹 선택</option>
-                              {customerGroups.map(group => (
-                                <option key={group.id} value={group.id}>{group.name}</option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setNewGroupTarget('db');
-                                setShowNewGroupModal(true);
-                              }}
-                              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                            >
-                              신규 그룹 만들기
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 추가 항목 (질문) */}
-                  <div className="border-t-2 pt-4 mt-6">
-                    <h3 className="font-bold text-gray-800 mb-4">추가 항목 (질문)</h3>
-                    {additionalFields.length > 0 && (
-                      <div className="space-y-3 mb-4">
-                        {additionalFields.map((field, index) => (
-                          <div key={field.id} className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg bg-gray-50">
-                            <span className="font-semibold text-gray-700 w-20">질문 #{index + 1}</span>
-                  <input
-                    type="text"
-                    value={field.name}
-                    onChange={(e) => setAdditionalFields(additionalFields.map(f =>
-                      f.id === field.id ? { ...f, name: e.target.value } : f
-                    ))}
-                              placeholder="질문을 입력하세요"
-                              className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                            <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={field.required}
-                    onChange={() => toggleAdditionalFieldRequired(field.id)}
-                                className="w-5 h-5 rounded border-2 border-blue-600 text-blue-600"
-                  />
-                              <span className="text-sm font-medium text-gray-700">필수</span>
-                            </label>
-                  <button
-                    type="button"
-                    onClick={() => removeAdditionalField(field.id)}
-                              className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium transition-colors"
-                  >
-                    삭제
-                  </button>
-                </div>
-              ))}
-                      </div>
-                    )}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newAdditionalField}
-                  onChange={(e) => setNewAdditionalField(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAdditionalField())}
-                        placeholder="질문을 입력하세요"
-                        className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="button"
-                  onClick={addAdditionalField}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors shadow-md"
-                >
-                  항목추가
-                </button>
-              </div>
-            </div>
-          </div>
-              )}
-
-          {/* 그룹 연결 설정 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">그룹 연결 설정</h2>
-              <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">연결할 그룹</label>
-                <div className="flex gap-2">
-                  <select
-                    value={formData.groupId || ''}
-                    onChange={(e) => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
-                      className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">연결할 그룹 선택</option>
-                    {customerGroups.map(group => (
-                      <option key={group.id} value={group.id}>{group.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
                       onClick={() => {
-                        setNewGroupTarget('main');
-                        setShowNewGroupModal(true);
+                        const newValue = !formData.infoCollection;
+                        setFormData({ ...formData, infoCollection: newValue });
+                        if (!newValue) {
+                          // 정보수집 끄면 모든 필드 비활성화
+                          setDataFields(createDataFieldsState(false));
+                        } else {
+                          // 정보수집 켜면 마케팅 동의는 자동 활성화 + 필수
+                          setDataFields(prev => ({
+                            ...prev,
+                            marketingConsent: { enabled: true, required: true },
+                          }));
+                        }
                       }}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                  >
-                    신규 그룹 만들기
-                  </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 기타 설정 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
-                <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">기타 설정</h2>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg">
-                    <div>
-                      <label className="font-semibold text-gray-700">댓글기능</label>
-                      <p className="text-xs text-gray-500 mt-1">Gemini API로 자동 댓글 생성</p>
-              </div>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, commentEnabled: !formData.commentEnabled })}
-                      className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                        formData.commentEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
+                      className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${formData.infoCollection ? 'bg-blue-600' : 'bg-gray-300'
+                        }`}
                     >
                       <span
-                        className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                          formData.commentEnabled ? 'translate-x-7' : 'translate-x-0'
-                        }`}
-                      />
-                </button>
-              </div>
-
-                  {/* 푸시 알림 설정 */}
-                  <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg">
-                    <div>
-                      <label className="font-semibold text-gray-700">푸시 알림 활성화</label>
-                      <p className="text-xs text-gray-500 mt-1">승선 시간, 하선 시간, 출항 경고 등 중요한 일정 알림</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, pushNotificationEnabled: !formData.pushNotificationEnabled })}
-                      className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                        formData.pushNotificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                          formData.pushNotificationEnabled ? 'translate-x-7' : 'translate-x-0'
-                        }`}
+                        className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${formData.infoCollection ? 'translate-x-7' : 'translate-x-0'
+                          }`}
                       />
                     </button>
                   </div>
+                </div>
 
-                  {/* 푸시 알림 상세 설정 */}
-                  {formData.pushNotificationEnabled && (
-                    <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
-                      <h3 className="font-bold text-gray-800 mb-3">📱 푸시 알림 일정 설정</h3>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            승선 시간 <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="time"
-                            value={formData.boardingTime || ''}
-                            onChange={(e) => setFormData({ ...formData, boardingTime: e.target.value || null })}
-                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="14:00"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">승선 시간을 입력하세요</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            하선 시간 <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="time"
-                            value={formData.disembarkationTime || ''}
-                            onChange={(e) => setFormData({ ...formData, disembarkationTime: e.target.value || null })}
-                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="08:00"
-                          />
-                          <p className="text-xs text-gray-500 mt-1">하선 시간을 입력하세요</p>
-                        </div>
-                      </div>
+                {/* 데이터 수집 설정 */}
+                {formData.infoCollection && (
+                  <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">데이터 수집 설정</h2>
 
-                      <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200">
-                        <div>
-                          <label className="font-semibold text-gray-700">출항 경고 알림</label>
-                          <p className="text-xs text-gray-500 mt-1">출항 1시간 전 자동 알림</p>
+                    <div className="space-y-2 mb-6">
+                      {/* 모든 필드 (휴대폰 번호 포함) */}
+                      {[
+                        { key: 'phone' as const, label: '휴대폰 번호' },
+                        { key: 'name' as const, label: '이름' },
+                        { key: 'gender' as const, label: '성별' },
+                        { key: 'birthDate' as const, label: '생년월일' },
+                        { key: 'email' as const, label: '이메일' },
+                        { key: 'address' as const, label: '주소' },
+                        { key: 'marketingConsent' as const, label: '마케팅 활용 및 광고성 정보 수신 동의' },
+                      ].map(({ key, label }) => (
+                        <div key={key} className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                          <span className="font-medium text-gray-700">{label}</span>
+                          <div className="flex items-center gap-4">
+                            <button
+                              type="button"
+                              onClick={() => toggleDataField(key)}
+                              className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${dataFields[key].enabled ? 'bg-blue-600' : 'bg-gray-300'
+                                }`}
+                            >
+                              <span
+                                className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${dataFields[key].enabled ? 'translate-x-7' : 'translate-x-0'
+                                  }`}
+                              />
+                            </button>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={dataFields[key].required}
+                                onChange={() => toggleDataFieldRequired(key)}
+                                disabled={!dataFields[key].enabled}
+                                className={`w-5 h-5 rounded border-2 ${dataFields[key].enabled
+                                    ? 'border-blue-600 text-blue-600 cursor-pointer'
+                                    : 'border-gray-300 cursor-not-allowed opacity-50'
+                                  }`}
+                              />
+                              <span className={`text-sm font-medium ${dataFields[key].enabled ? 'text-gray-700' : 'text-gray-400'
+                                }`}>
+                                필수
+                              </span>
+                            </label>
+                          </div>
                         </div>
+                      ))}
+
+                      {/* 상품 구매 기능 사용 */}
+                      <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                        <span className="font-medium text-gray-700">상품 구매 기능 사용</span>
                         <button
                           type="button"
-                          onClick={() => setFormData({ ...formData, departureWarning: !formData.departureWarning })}
-                          className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${
-                            formData.departureWarning ? 'bg-blue-600' : 'bg-gray-300'
-                          }`}
+                          onClick={() => setProductPurchase({ ...productPurchase, enabled: !productPurchase.enabled })}
+                          className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${productPurchase.enabled ? 'bg-blue-600' : 'bg-gray-300'
+                            }`}
                         >
                           <span
-                            className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${
-                              formData.departureWarning ? 'translate-x-7' : 'translate-x-0'
-                            }`}
+                            className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${productPurchase.enabled ? 'translate-x-7' : 'translate-x-0'
+                              }`}
                           />
                         </button>
                       </div>
 
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <p className="text-xs text-gray-700 font-semibold mb-1">💡 푸시 알림 안내</p>
-                        <p className="text-xs text-gray-600">
-                          • 승선 시간과 하선 시간을 설정하면 해당 시간에 푸시 알림이 발송됩니다.<br/>
-                          • 출항 경고 알림은 출항 1시간 전에 자동으로 발송됩니다.<br/>
-                          • 고객이 랜딩페이지에서 푸시 알림 권한을 허용해야 알림을 받을 수 있습니다.<br/>
-                          • 알림 권한 요청은 부드럽게 표시되며, 갑자기 뜨지 않습니다.
-                        </p>
-                      </div>
+                      {/* 상품 구매 설정 */}
+                      {productPurchase.enabled && (
+                        <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
+                          <h3 className="font-bold text-gray-800 mb-3">상품 구매 설정</h3>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              결제 제공업체 <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex gap-4">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="paymentProvider"
+                                  value="payapp"
+                                  checked={productPurchase.paymentProvider === 'payapp'}
+                                  onChange={(e) => setProductPurchase({ ...productPurchase, paymentProvider: 'payapp' })}
+                                  className="w-5 h-5"
+                                />
+                                <span>페이앱</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="paymentProvider"
+                                  value="welcomepay"
+                                  checked={productPurchase.paymentProvider === 'welcomepay'}
+                                  onChange={(e) => setProductPurchase({ ...productPurchase, paymentProvider: 'welcomepay' })}
+                                  className="w-5 h-5"
+                                />
+                                <span>웰컴페이먼츠</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              상품명 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={productPurchase.productName}
+                              onChange={(e) => setProductPurchase({ ...productPurchase, productName: e.target.value })}
+                              placeholder="상품명을 입력하세요"
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              판매가격 <span className="text-red-500">*</span>
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                value={productPurchase.sellingPrice}
+                                onChange={(e) => setProductPurchase({ ...productPurchase, sellingPrice: parseInt(e.target.value) || 0 })}
+                                placeholder="0"
+                                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <span className="text-gray-600">원</span>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">구매수량</label>
+                            <div className="flex items-center gap-3">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={productPurchase.useQuantity}
+                                  onChange={(e) => setProductPurchase({ ...productPurchase, useQuantity: e.target.checked })}
+                                  className="w-5 h-5 rounded border-2 border-blue-600 text-blue-600"
+                                />
+                                <span className="text-sm">구매수량 사용</span>
+                              </label>
+                              {productPurchase.useQuantity && (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    value={productPurchase.purchaseQuantity}
+                                    onChange={(e) => setProductPurchase({ ...productPurchase, purchaseQuantity: parseInt(e.target.value) || 0 })}
+                                    placeholder="0"
+                                    className="w-24 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                  <span className="text-gray-600">개</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              결제 타입 <span className="text-red-500">*</span>
+                            </label>
+                            <div className="space-y-2">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="paymentType"
+                                  value="basic"
+                                  checked={productPurchase.paymentType === 'basic'}
+                                  onChange={(e) => setProductPurchase({ ...productPurchase, paymentType: 'basic' })}
+                                  className="w-5 h-5"
+                                />
+                                <span>기본타입</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="paymentType"
+                                  value="cardInput"
+                                  checked={productPurchase.paymentType === 'cardInput'}
+                                  onChange={(e) => setProductPurchase({ ...productPurchase, paymentType: 'cardInput' })}
+                                  className="w-5 h-5"
+                                />
+                                <span>카드번호입력#1</span>
+                              </label>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-2">
+                              * 인스타그램 혹은 페이스북 앱 내에서 결제 시 카드번호 입력으로 결제가 진행됩니다. (모듈 팝업 결제 방식을 제공하지 않음)
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">결제요청시 연결그룹</label>
+                            <div className="flex gap-2">
+                              <select
+                                value={productPurchase.paymentGroupId || ''}
+                                onChange={(e) => setProductPurchase({ ...productPurchase, paymentGroupId: e.target.value ? parseInt(e.target.value) : null })}
+                                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">결제요청시 그룹 선택</option>
+                                {customerGroups.map(group => (
+                                  <option key={group.id} value={group.id}>{group.name}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewGroupTarget('payment');
+                                  setShowNewGroupModal(true);
+                                }}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                              >
+                                신규 그룹 만들기
+                              </button>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">DB 작성시 연결그룹</label>
+                            <div className="flex gap-2">
+                              <select
+                                value={productPurchase.dbGroupId || ''}
+                                onChange={(e) => setProductPurchase({ ...productPurchase, dbGroupId: e.target.value ? parseInt(e.target.value) : null })}
+                                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="">연결할 그룹 선택</option>
+                                {customerGroups.map(group => (
+                                  <option key={group.id} value={group.id}>{group.name}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewGroupTarget('db');
+                                  setShowNewGroupModal(true);
+                                }}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                              >
+                                신규 그룹 만들기
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  {/* 댓글 설정 */}
-                  {formData.commentEnabled && (
-                    <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
-                      <h3 className="font-bold text-gray-800 mb-3">댓글 자동 생성 설정</h3>
-                      
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          댓글 개수 <span className="text-red-500">*</span>
-                        </label>
+                    {/* 추가 항목 (질문) */}
+                    <div className="border-t-2 pt-4 mt-6">
+                      <h3 className="font-bold text-gray-800 mb-4">추가 항목 (질문)</h3>
+                      {additionalFields.length > 0 && (
+                        <div className="space-y-3 mb-4">
+                          {additionalFields.map((field, index) => (
+                            <div key={field.id} className="flex items-center gap-3 p-4 border-2 border-gray-200 rounded-lg bg-gray-50">
+                              <span className="font-semibold text-gray-700 w-20">질문 #{index + 1}</span>
+                              <input
+                                type="text"
+                                value={field.name}
+                                onChange={(e) => setAdditionalFields(additionalFields.map(f =>
+                                  f.id === field.id ? { ...f, name: e.target.value } : f
+                                ))}
+                                placeholder="질문을 입력하세요"
+                                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={field.required}
+                                  onChange={() => toggleAdditionalFieldRequired(field.id)}
+                                  className="w-5 h-5 rounded border-2 border-blue-600 text-blue-600"
+                                />
+                                <span className="text-sm font-medium text-gray-700">필수</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => removeAdditionalField(field.id)}
+                                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium transition-colors"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
                         <input
-                          type="number"
-                          min="1"
-                          max="100"
-                          value={commentSettings.count}
-                          onChange={(e) => setCommentSettings({ ...commentSettings, count: parseInt(e.target.value) || 10 })}
-                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          type="text"
+                          value={newAdditionalField}
+                          onChange={(e) => setNewAdditionalField(e.target.value)}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAdditionalField())}
+                          placeholder="질문을 입력하세요"
+                          className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
-                        <p className="text-xs text-gray-500 mt-1">생성할 댓글 개수를 입력하세요 (1-100)</p>
-              </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-              <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            시작일 <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            value={commentSettings.startDate}
-                            onChange={(e) => setCommentSettings({ ...commentSettings, startDate: e.target.value })}
-                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            종료일 <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="date"
-                            value={commentSettings.endDate}
-                            onChange={(e) => setCommentSettings({ ...commentSettings, endDate: e.target.value })}
-                            min={commentSettings.startDate}
-                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                      </div>
-
-                      {/* 활성화하기 버튼 */}
-                      <div className="pt-4 border-t border-blue-200">
                         <button
                           type="button"
-                          onClick={async () => {
-                            if (!commentSettings.count || !commentSettings.startDate || !commentSettings.endDate) {
-                              alert('댓글 개수, 시작일, 종료일을 모두 입력해주세요.');
-                              return;
-                            }
+                          onClick={addAdditionalField}
+                          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors shadow-md"
+                        >
+                          항목추가
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                            setIsGeneratingComments(true);
-                            try {
-                              const response = await fetch(`/api/admin/landing-pages/${pageId}/comments/generate`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include',
-                                body: JSON.stringify({
-                                  count: commentSettings.count,
-                                  departureDate: commentSettings.startDate,
-                                  endDate: commentSettings.endDate,
-                                }),
-                              });
+                {/* 그룹 연결 설정 */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">그룹 연결 설정</h2>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">연결할 그룹</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={formData.groupId || ''}
+                        onChange={(e) => setFormData({ ...formData, groupId: e.target.value ? parseInt(e.target.value) : null })}
+                        className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">연결할 그룹 선택</option>
+                        {customerGroups.map(group => (
+                          <option key={group.id} value={group.id}>{group.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewGroupTarget('main');
+                          setShowNewGroupModal(true);
+                        }}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                      >
+                        신규 그룹 만들기
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
-                              if (!response.ok) {
-                                const errorData = await response.json().catch(() => ({}));
-                                throw new Error(errorData?.error || '댓글 생성에 실패했습니다.');
+                {/* 기타 설정 */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
+                  <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">기타 설정</h2>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg">
+                      <div>
+                        <label className="font-semibold text-gray-700">댓글기능</label>
+                        <p className="text-xs text-gray-500 mt-1">Gemini API로 자동 댓글 생성</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, commentEnabled: !formData.commentEnabled })}
+                        className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${formData.commentEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                          }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${formData.commentEnabled ? 'translate-x-7' : 'translate-x-0'
+                            }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* 푸시 알림 설정 */}
+                    <div className="flex items-center justify-between p-4 border-2 border-gray-200 rounded-lg">
+                      <div>
+                        <label className="font-semibold text-gray-700">푸시 알림 활성화</label>
+                        <p className="text-xs text-gray-500 mt-1">승선 시간, 하선 시간, 출항 경고 등 중요한 일정 알림</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, pushNotificationEnabled: !formData.pushNotificationEnabled })}
+                        className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${formData.pushNotificationEnabled ? 'bg-blue-600' : 'bg-gray-300'
+                          }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${formData.pushNotificationEnabled ? 'translate-x-7' : 'translate-x-0'
+                            }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* 푸시 알림 상세 설정 */}
+                    {formData.pushNotificationEnabled && (
+                      <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
+                        <h3 className="font-bold text-gray-800 mb-3">📱 푸시 알림 일정 설정</h3>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              승선 시간 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="time"
+                              value={formData.boardingTime || ''}
+                              onChange={(e) => setFormData({ ...formData, boardingTime: e.target.value || null })}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="14:00"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">승선 시간을 입력하세요</p>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              하선 시간 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="time"
+                              value={formData.disembarkationTime || ''}
+                              onChange={(e) => setFormData({ ...formData, disembarkationTime: e.target.value || null })}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="08:00"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">하선 시간을 입력하세요</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-200">
+                          <div>
+                            <label className="font-semibold text-gray-700">출항 경고 알림</label>
+                            <p className="text-xs text-gray-500 mt-1">출항 1시간 전 자동 알림</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, departureWarning: !formData.departureWarning })}
+                            className={`relative w-14 h-7 rounded-full transition-colors duration-200 ${formData.departureWarning ? 'bg-blue-600' : 'bg-gray-300'
+                              }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-200 ${formData.departureWarning ? 'translate-x-7' : 'translate-x-0'
+                                }`}
+                            />
+                          </button>
+                        </div>
+
+                        <div className="p-3 bg-blue-100 rounded-lg">
+                          <p className="text-xs text-gray-700 font-semibold mb-1">💡 푸시 알림 안내</p>
+                          <p className="text-xs text-gray-600">
+                            • 승선 시간과 하선 시간을 설정하면 해당 시간에 푸시 알림이 발송됩니다.<br />
+                            • 출항 경고 알림은 출항 1시간 전에 자동으로 발송됩니다.<br />
+                            • 고객이 랜딩페이지에서 푸시 알림 권한을 허용해야 알림을 받을 수 있습니다.<br />
+                            • 알림 권한 요청은 부드럽게 표시되며, 갑자기 뜨지 않습니다.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 댓글 설정 */}
+                    {formData.commentEnabled && (
+                      <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg space-y-4">
+                        <h3 className="font-bold text-gray-800 mb-3">댓글 자동 생성 설정</h3>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            댓글 개수 <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={commentSettings.count}
+                            onChange={(e) => setCommentSettings({ ...commentSettings, count: parseInt(e.target.value) || 10 })}
+                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">생성할 댓글 개수를 입력하세요 (1-100)</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              시작일 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="date"
+                              value={commentSettings.startDate}
+                              onChange={(e) => setCommentSettings({ ...commentSettings, startDate: e.target.value })}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">
+                              종료일 <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="date"
+                              value={commentSettings.endDate}
+                              onChange={(e) => setCommentSettings({ ...commentSettings, endDate: e.target.value })}
+                              min={commentSettings.startDate}
+                              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+
+                        {/* 활성화하기 버튼 */}
+                        <div className="pt-4 border-t border-blue-200">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!commentSettings.count || !commentSettings.startDate || !commentSettings.endDate) {
+                                alert('댓글 개수, 시작일, 종료일을 모두 입력해주세요.');
+                                return;
                               }
 
-                              const data = await response.json();
-                              if (!data.ok) {
-                                throw new Error(data.error || '댓글 생성에 실패했습니다.');
-                              }
+                              setIsGeneratingComments(true);
+                              try {
+                                const response = await fetch(`/api/admin/landing-pages/${pageId}/comments/generate`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  credentials: 'include',
+                                  body: JSON.stringify({
+                                    count: commentSettings.count,
+                                    departureDate: commentSettings.startDate,
+                                    endDate: commentSettings.endDate,
+                                  }),
+                                });
 
-                              // 생성된 댓글을 미리보기로 표시
-                              if (data.comments && Array.isArray(data.comments)) {
-                                setPreviewComments(data.comments.map((comment: any) => ({
-                                  authorName: comment.authorName || '익명',
-                                  content: comment.content || '',
-                                  createdAt: comment.createdAt || new Date().toISOString(),
-                                })));
-                                // 모바일 미리보기 자동 업데이트 (useEffect가 트리거됨)
-                                // 미리보기가 닫혀있으면 열기
+                                if (!response.ok) {
+                                  const errorData = await response.json().catch(() => ({}));
+                                  throw new Error(errorData?.error || '댓글 생성에 실패했습니다.');
+                                }
+
+                                const data = await response.json();
+                                if (!data.ok) {
+                                  throw new Error(data.error || '댓글 생성에 실패했습니다.');
+                                }
+
+                                // 생성된 댓글을 미리보기로 표시
+                                if (data.comments && Array.isArray(data.comments)) {
+                                  setPreviewComments(data.comments.map((comment: any) => ({
+                                    authorName: comment.authorName || '익명',
+                                    content: comment.content || '',
+                                    createdAt: comment.createdAt || new Date().toISOString(),
+                                  })));
+                                  // 모바일 미리보기 자동 업데이트 (useEffect가 트리거됨)
+                                  // 미리보기가 닫혀있으면 열기
+                                  if (!showPreview) {
+                                    setShowPreview(true);
+                                  }
+                                  // 모바일 미리보기로 스크롤
+                                  setTimeout(() => {
+                                    const previewSection = document.querySelector('[data-preview-section]');
+                                    if (previewSection) {
+                                      previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                    }
+                                  }, 100);
+                                }
+                                // 댓글 목록 새로고침
+                                await fetchComments();
+                                alert(`댓글 ${data.count}개가 생성되었습니다! 미리보기에서 확인하세요.`);
+                              } catch (error: any) {
+                                console.error('댓글 생성 중 오류:', error);
+                                alert(error?.message || '댓글 생성 중 오류가 발생했습니다.');
+                              } finally {
+                                setIsGeneratingComments(false);
+                              }
+                            }}
+                            disabled={isGeneratingComments || !commentSettings.count || !commentSettings.startDate || !commentSettings.endDate}
+                            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-md"
+                          >
+                            {isGeneratingComments ? (
+                              <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                생성 중...
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-lg">✨</span>
+                                활성화하기 (미리보기)
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        <div className="p-3 bg-blue-100 rounded-lg">
+                          <p className="text-xs text-gray-700 font-semibold mb-1">💡 AI 댓글 생성 안내</p>
+                          <p className="text-xs text-gray-600">
+                            • 지정한 날짜 범위 내에서 랜덤하게 댓글 작성일이 생성됩니다.<br />
+                            • Gemini API가 글 내용과 이미지를 분석하여 자연스러운 댓글을 자동 생성합니다.<br />
+                            • 댓글에는 ㅎㅎ, ㅋㅋ, ^^, :) 등의 이모티콘이 자연스럽게 포함됩니다.<br />
+                            • 생성된 댓글은 아래 미리보기에서 확인할 수 있습니다.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 댓글 목록 및 미리보기 */}
+                    {formData.commentEnabled && (
+                      <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-gray-800">댓글 목록 ({actualComments.length})</h3>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
                                 if (!showPreview) {
                                   setShowPreview(true);
                                 }
-                                // 모바일 미리보기로 스크롤
                                 setTimeout(() => {
                                   const previewSection = document.querySelector('[data-preview-section]');
                                   if (previewSection) {
                                     previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                   }
                                 }, 100);
-                              }
-                              // 댓글 목록 새로고침
-                              await fetchComments();
-                              alert(`댓글 ${data.count}개가 생성되었습니다! 미리보기에서 확인하세요.`);
-                            } catch (error: any) {
-                              console.error('댓글 생성 중 오류:', error);
-                              alert(error?.message || '댓글 생성 중 오류가 발생했습니다.');
-                            } finally {
-                              setIsGeneratingComments(false);
-                            }
-                          }}
-                          disabled={isGeneratingComments || !commentSettings.count || !commentSettings.startDate || !commentSettings.endDate}
-                          className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 shadow-md"
-                        >
-                          {isGeneratingComments ? (
-                            <>
-                              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                              생성 중...
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-lg">✨</span>
-                              활성화하기 (미리보기)
-                            </>
-                          )}
-                        </button>
-                      </div>
-
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <p className="text-xs text-gray-700 font-semibold mb-1">💡 AI 댓글 생성 안내</p>
-                        <p className="text-xs text-gray-600">
-                          • 지정한 날짜 범위 내에서 랜덤하게 댓글 작성일이 생성됩니다.<br/>
-                          • Gemini API가 글 내용과 이미지를 분석하여 자연스러운 댓글을 자동 생성합니다.<br/>
-                          • 댓글에는 ㅎㅎ, ㅋㅋ, ^^, :) 등의 이모티콘이 자연스럽게 포함됩니다.<br/>
-                          • 생성된 댓글은 아래 미리보기에서 확인할 수 있습니다.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 댓글 목록 및 미리보기 */}
-                  {formData.commentEnabled && (
-                    <div className="p-4 bg-gray-50 border-2 border-gray-200 rounded-lg space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-gray-800">댓글 목록 ({actualComments.length})</h3>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (!showPreview) {
-                                setShowPreview(true);
-                              }
-                              setTimeout(() => {
-                                const previewSection = document.querySelector('[data-preview-section]');
-                                if (previewSection) {
-                                  previewSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                }
-                              }, 100);
-                            }}
-                            className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
-                            title="모바일 미리보기에서 댓글 확인"
-                          >
-                            <FiEye className="inline mr-1" />
-                            미리보기
-                          </button>
-                          <button
-                            type="button"
-                            onClick={fetchComments}
-                            disabled={isLoadingComments}
-                            className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50"
-                          >
-                            {isLoadingComments ? '로딩...' : '새로고침'}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {isLoadingComments ? (
-                        <div className="text-center py-4 text-gray-500">댓글을 불러오는 중...</div>
-                      ) : actualComments.length === 0 ? (
-                        <div className="text-center py-4 text-gray-500">댓글이 없습니다. 위에서 댓글을 생성해주세요.</div>
-                      ) : (
-                        <div className="max-h-96 overflow-y-auto space-y-3">
-                          {actualComments.map((comment) => (
-                            <div key={comment.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-semibold text-sm text-gray-800">{comment.authorName || '익명'}</span>
-                                    <span className="text-xs text-gray-500">
-                                      {new Date(comment.createdAt).toLocaleDateString('ko-KR', { 
-                                        year: 'numeric', 
-                                        month: '2-digit', 
-                                        day: '2-digit' 
-                                      })}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm text-gray-700 line-clamp-3">{comment.content}</p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteComment(comment.id)}
-                                  className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
-                                  title="댓글 삭제"
-                                >
-                                  삭제
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">정보입력제한</label>
-                <select
-                  value={formData.inputLimit}
-                  onChange={(e) => setFormData({ ...formData, inputLimit: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="무제한 허용">무제한 허용 (신청자 또 받을 수 있음)</option>
-                      <option value="1회만 허용">1회만 허용 (신청자 1번만 받음)</option>
-                </select>
-                    <p className="text-xs text-gray-500 mt-1">
-                      * 그룹을 연결하여 데이터를 입력받을경우 제한을 사용할수 있습니다.<br/>
-                      랜딩페이지 랜딩데이터 입력 휴대폰 번호를 체크합니다.<br/>
-                      목록에서 데이터 확인후 삭제하면 다시 입력받을수 있습니다.
-                    </p>
-              </div>
-              <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">신청완료 페이지</label>
-                <input
-                  type="url"
-                  value={formData.completionPageUrl}
-                  onChange={(e) => setFormData({ ...formData, completionPageUrl: e.target.value })}
-                  placeholder="* http:// 포함 url 입력"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">신청하기 버튼 제목</label>
-                <input
-                  type="text"
-                  value={formData.buttonTitle}
-                  onChange={(e) => setFormData({ ...formData, buttonTitle: e.target.value })}
-                  placeholder="예: 등록, 등록하기"
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">* 하단의 신청하기 버튼의 텍스트를 변경할수 있습니다.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 고급 설정 */}
-              <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">고급 설정</h2>
-            <div className="space-y-4">
-              <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">헤더 스크립트</label>
-                    <p className="text-xs text-gray-500 mb-2">구글, 페이스북 코드 심기</p>
-                <textarea
-                  value={formData.headerScript}
-                  onChange={(e) => setFormData({ ...formData, headerScript: e.target.value })}
-                      rows={6}
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="HTML head 태그에 삽입할 스크립트"
-                />
-              </div>
-              <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">사업자 정보</label>
-                    <div className="space-y-2 text-sm">
-                      <input 
-                        type="text" 
-                        placeholder="사이트명" 
-                        value={businessInfoFields.siteName}
-                        onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, siteName: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="회사명" 
-                        value={businessInfoFields.companyName}
-                        onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, companyName: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="대표전화" 
-                        value={businessInfoFields.businessPhone}
-                        onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, businessPhone: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="개인정보담당" 
-                        value={businessInfoFields.privacyOfficer}
-                        onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, privacyOfficer: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="사업자등록번호" 
-                        value={businessInfoFields.businessNumber}
-                        onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, businessNumber: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
-                      />
-                      <input 
-                        type="text" 
-                        placeholder="주소" 
-                        value={businessInfoFields.address}
-                        onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, address: e.target.value })}
-                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg" 
-                      />
-                    </div>
-                  </div>
-              <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">노출용 이미지</label>
-                    <p className="text-xs text-gray-500 mb-2">* 1200 x 630 권장 (광고 썸네일)</p>
-                    {exposureImageUrl && !exposureImagePreview && (
-                      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-700 font-medium mb-2">현재 저장된 이미지:</p>
-                        <div className="flex items-center gap-3">
-                          <Image
-                            src={exposureImageUrl.startsWith('http') ? exposureImageUrl : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${exposureImageUrl}`}
-                            alt="저장된 노출용 이미지"
-                            width={80}
-                            height={80}
-                            className="w-20 h-20 object-cover rounded border border-gray-300"
-                            unoptimized
-                          />
-                          <div className="flex-1">
-                            <p className="text-xs text-gray-600 break-all">{exposureImageUrl}</p>
+                              }}
+                              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 font-semibold"
+                              title="모바일 미리보기에서 댓글 확인"
+                            >
+                              <FiEye className="inline mr-1" />
+                              미리보기
+                            </button>
                             <button
                               type="button"
-                              onClick={() => {
-                                setExposureImageUrl(null);
-                                setFormData({ ...formData, exposureImage: null });
-                              }}
-                              className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+                              onClick={fetchComments}
+                              disabled={isLoadingComments}
+                              className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50"
                             >
-                              이미지 제거
+                              {isLoadingComments ? '로딩...' : '새로고침'}
                             </button>
                           </div>
                         </div>
+
+                        {isLoadingComments ? (
+                          <div className="text-center py-4 text-gray-500">댓글을 불러오는 중...</div>
+                        ) : actualComments.length === 0 ? (
+                          <div className="text-center py-4 text-gray-500">댓글이 없습니다. 위에서 댓글을 생성해주세요.</div>
+                        ) : (
+                          <div className="max-h-96 overflow-y-auto space-y-3">
+                            {actualComments.map((comment) => (
+                              <div key={comment.id} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-semibold text-sm text-gray-800">{comment.authorName || '익명'}</span>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(comment.createdAt).toLocaleDateString('ko-KR', {
+                                          year: 'numeric',
+                                          month: '2-digit',
+                                          day: '2-digit'
+                                        })}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-700 line-clamp-3">{comment.content}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteComment(comment.id)}
+                                    className="px-2 py-1 text-xs text-red-600 hover:bg-red-50 rounded transition-colors"
+                                    title="댓글 삭제"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    setFormData({ ...formData, exposureImage: file });
-                    // 새로 업로드한 이미지 미리보기 URL 생성
-                    if (file) {
-                      const previewUrl = URL.createObjectURL(file);
-                      setExposureImagePreview(previewUrl);
-                      // 새 파일을 선택하면 기존 저장된 이미지 URL 초기화
-                      setExposureImageUrl(null);
-                    } else {
-                      setExposureImagePreview(null);
-                    }
-                  }}
-                      className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
-                />
-                {/* SNS 공유 미리보기 */}
-                {(exposureImagePreview || exposureImageUrl) && (
-                  <div className="mt-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">SNS 공유 미리보기</h3>
-                    <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm max-w-md">
-                      {/* 이미지 */}
-                      <div className="w-full aspect-[1.91/1] bg-gray-100 overflow-hidden relative">
-                        <Image
-                          src={exposureImagePreview || exposureImageUrl || ''}
-                          alt="노출용 이미지"
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      </div>
-                      {/* 제목 및 설명 */}
-                      <div className="p-4">
-                        {formData.exposureTitle && (
-                          <h4 className="text-base font-semibold text-gray-900 mb-2 line-clamp-2">
-                            {formData.exposureTitle}
-                          </h4>
-                        )}
-                        {formData.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2">
-                            {formData.description}
-                          </p>
-                        )}
-                      </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">정보입력제한</label>
+                      <select
+                        value={formData.inputLimit}
+                        onChange={(e) => setFormData({ ...formData, inputLimit: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="무제한 허용">무제한 허용 (신청자 또 받을 수 있음)</option>
+                        <option value="1회만 허용">1회만 허용 (신청자 1번만 받음)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        * 그룹을 연결하여 데이터를 입력받을경우 제한을 사용할수 있습니다.<br />
+                        랜딩페이지 랜딩데이터 입력 휴대폰 번호를 체크합니다.<br />
+                        목록에서 데이터 확인후 삭제하면 다시 입력받을수 있습니다.
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">신청완료 페이지</label>
+                      <input
+                        type="url"
+                        value={formData.completionPageUrl}
+                        onChange={(e) => setFormData({ ...formData, completionPageUrl: e.target.value })}
+                        placeholder="* http:// 포함 url 입력"
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">신청하기 버튼 제목</label>
+                      <input
+                        type="text"
+                        value={formData.buttonTitle}
+                        onChange={(e) => setFormData({ ...formData, buttonTitle: e.target.value })}
+                        placeholder="예: 등록, 등록하기"
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">* 하단의 신청하기 버튼의 텍스트를 변경할수 있습니다.</p>
                     </div>
                   </div>
-                )}
-            </div>
+                </div>
 
-            {/* 저장 버튼 */}
-            <div className="flex justify-end gap-4 pb-6">
-              <button
-                type="button"
-                onClick={() => router.back()}
-                className="px-8 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 font-semibold shadow-lg transition-colors"
-              >
-                <FiSave size={20} />
-                {loading ? '저장 중...' : '저장'}
-              </button>
+                {/* 고급 설정 */}
+                <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                  <h2 className="text-lg font-bold mb-4 text-gray-800 border-b pb-2">고급 설정</h2>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">헤더 스크립트</label>
+                      <p className="text-xs text-gray-500 mb-2">구글, 페이스북 코드 심기</p>
+                      <textarea
+                        value={formData.headerScript}
+                        onChange={(e) => setFormData({ ...formData, headerScript: e.target.value })}
+                        rows={6}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="HTML head 태그에 삽입할 스크립트"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">사업자 정보</label>
+                      <div className="space-y-2 text-sm">
+                        <input
+                          type="text"
+                          placeholder="사이트명"
+                          value={businessInfoFields.siteName}
+                          onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, siteName: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                        />
+                        <input
+                          type="text"
+                          placeholder="회사명"
+                          value={businessInfoFields.companyName}
+                          onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, companyName: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                        />
+                        <input
+                          type="text"
+                          placeholder="대표전화"
+                          value={businessInfoFields.businessPhone}
+                          onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, businessPhone: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                        />
+                        <input
+                          type="text"
+                          placeholder="개인정보담당"
+                          value={businessInfoFields.privacyOfficer}
+                          onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, privacyOfficer: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                        />
+                        <input
+                          type="text"
+                          placeholder="사업자등록번호"
+                          value={businessInfoFields.businessNumber}
+                          onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, businessNumber: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                        />
+                        <input
+                          type="text"
+                          placeholder="주소"
+                          value={businessInfoFields.address}
+                          onChange={(e) => setBusinessInfoFields({ ...businessInfoFields, address: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">노출용 이미지</label>
+                      <p className="text-xs text-gray-500 mb-2">* 1200 x 630 권장 (광고 썸네일)</p>
+                      {exposureImageUrl && !exposureImagePreview && (
+                        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-sm text-blue-700 font-medium mb-2">현재 저장된 이미지:</p>
+                          <div className="flex items-center gap-3">
+                            <Image
+                              src={exposureImageUrl.startsWith('http') ? exposureImageUrl : `${process.env.NEXT_PUBLIC_BASE_URL || ''}${exposureImageUrl}`}
+                              alt="저장된 노출용 이미지"
+                              width={80}
+                              height={80}
+                              className="w-20 h-20 object-cover rounded border border-gray-300"
+                              unoptimized
+                            />
+                            <div className="flex-1">
+                              <p className="text-xs text-gray-600 break-all">{exposureImageUrl}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setExposureImageUrl(null);
+                                  setFormData({ ...formData, exposureImage: null });
+                                }}
+                                className="mt-2 text-xs text-red-600 hover:text-red-800 underline"
+                              >
+                                이미지 제거
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          setFormData({ ...formData, exposureImage: file });
+                          // 새로 업로드한 이미지 미리보기 URL 생성
+                          if (file) {
+                            const previewUrl = URL.createObjectURL(file);
+                            setExposureImagePreview(previewUrl);
+                            // 새 파일을 선택하면 기존 저장된 이미지 URL 초기화
+                            setExposureImageUrl(null);
+                          } else {
+                            setExposureImagePreview(null);
+                          }
+                        }}
+                        className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg"
+                      />
+                      {/* SNS 공유 미리보기 */}
+                      {(exposureImagePreview || exposureImageUrl) && (
+                        <div className="mt-4 p-4 bg-gray-50 border-2 border-gray-200 rounded-lg">
+                          <h3 className="text-sm font-semibold text-gray-700 mb-3">SNS 공유 미리보기</h3>
+                          <div className="bg-white border border-gray-300 rounded-lg overflow-hidden shadow-sm max-w-md">
+                            {/* 이미지 */}
+                            <div className="w-full aspect-[1.91/1] bg-gray-100 overflow-hidden relative">
+                              <Image
+                                src={exposureImagePreview || exposureImageUrl || ''}
+                                alt="노출용 이미지"
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </div>
+                            {/* 제목 및 설명 */}
+                            <div className="p-4">
+                              {formData.exposureTitle && (
+                                <h4 className="text-base font-semibold text-gray-900 mb-2 line-clamp-2">
+                                  {formData.exposureTitle}
+                                </h4>
+                              )}
+                              {formData.description && (
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {formData.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 저장 버튼 */}
+                    <div className="flex justify-end gap-4 pb-6">
+                      <button
+                        type="button"
+                        onClick={() => router.back()}
+                        className="px-8 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold transition-colors"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 font-semibold shadow-lg transition-colors"
+                      >
+                        <FiSave size={20} />
+                        {loading ? '저장 중...' : '저장'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        </div>
-        </div>
-        </div>
         </form>
       </div>
 
@@ -3610,27 +3600,25 @@ export default function EditLandingPagePage() {
               >
                 <FiX size={24} />
               </button>
-    </div>
+            </div>
 
             {/* 탭 */}
             <div className="border-b px-6 py-3 flex gap-2">
               <button
                 onClick={() => setImageModalMode('upload')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  imageModalMode === 'upload'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${imageModalMode === 'upload'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 파일 선택
               </button>
               <button
                 onClick={() => setImageModalMode('cruise')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  imageModalMode === 'cruise'
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${imageModalMode === 'cruise'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 크루즈정보사진
               </button>
@@ -3693,11 +3681,9 @@ export default function EditLandingPagePage() {
                             onDragLeave={handleImageDragLeave}
                             onDrop={(e) => handleImageDrop(e, index)}
                             onDragEnd={handleImageDragEnd}
-                            className={`relative group cursor-move transition-all ${
-                              draggedImageIndex === index ? 'opacity-50 scale-95' : ''
-                            } ${
-                              dragOverIndex === index ? 'ring-4 ring-blue-400 scale-105' : ''
-                            }`}
+                            className={`relative group cursor-move transition-all ${draggedImageIndex === index ? 'opacity-50 scale-95' : ''
+                              } ${dragOverIndex === index ? 'ring-4 ring-blue-400 scale-105' : ''
+                              }`}
                           >
                             <div className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded z-10">
                               {index + 1}
@@ -3783,11 +3769,10 @@ export default function EditLandingPagePage() {
                             alt={photo.title || `사진 ${index + 1}`}
                             width={400}
                             height={128}
-                            className={`w-full h-32 object-cover rounded-lg border-2 transition-all ${
-                              selectedImages.some((img) => img.url === photo.url)
+                            className={`w-full h-32 object-cover rounded-lg border-2 transition-all ${selectedImages.some((img) => img.url === photo.url)
                                 ? 'border-blue-500 ring-2 ring-blue-200'
                                 : 'border-gray-200'
-                            }`}
+                              }`}
                             unoptimized
                           />
                           {selectedImages.some((img) => img.url === photo.url) && (

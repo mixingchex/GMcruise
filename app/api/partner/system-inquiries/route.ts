@@ -8,7 +8,7 @@ import { requirePartnerContext } from '@/app/api/partner/_utils';
 // GET: 파트너용 시스템 문의 목록 조회
 export async function GET(req: NextRequest) {
     try {
-        const { profile } = await requirePartnerContext(req);
+        const { profile } = await requirePartnerContext();
         const { searchParams } = new URL(req.url);
 
         // Pagination

@@ -7,11 +7,11 @@ import { ChatInputPayload } from './types';
 import { findOrigins, findDestinations, isCruise } from '@/lib/nav/selector';
 import { gmapsDir, gmapsNearby } from '@/lib/nav/urls';
 
-type Mode = 'go'|'show'|'free';
-type Msg = { role:'user'|'assistant'; text?:string; };
+type Mode = 'go' | 'show' | 'free';
+type Msg = { role: 'user' | 'assistant'; text?: string; };
 
 interface ChatPageClientProps {
-  initialTrip?: { cruiseName?:string; destinations?:string[]; start?:string; end?:string };
+  initialTrip?: { cruiseName?: string; destinations?: string[]; start?: string; end?: string };
 }
 
 export default function ChatPageClient({ initialTrip }: ChatPageClientProps) {
@@ -45,9 +45,9 @@ export default function ChatPageClient({ initialTrip }: ChatPageClientProps) {
           const originQ = origin || '현재 위치';
 
           // Transit option
-          links += `- [대중교통 길찾기](${gmapsDir(originQ, dest.q, 'transit')})\n`;
+          links += `- [대중교통 길찾기](${gmapsDir(originQ, dest.name_ko || dest.name, 'transit')})\n`;
           // Driving option
-          links += `- [자동차 길찾기](${gmapsDir(originQ, dest.q, 'driving')})\n`;
+          links += `- [자동차 길찾기](${gmapsDir(originQ, dest.name_ko || dest.name, 'driving')})\n`;
 
           responseText += links;
 

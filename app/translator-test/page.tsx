@@ -17,12 +17,12 @@ const DESTINATION_LANGUAGE_MAP: Record<string, { code: string; name: string; fla
   홍콩: { code: 'zh-HK', name: '광둥어', flag: '🇭🇰' },
   대만: { code: 'zh-TW', name: '대만어', flag: '🇹🇼' },
   미국: { code: 'en-US', name: '영어', flag: '🇺🇸' },
-          // 영어는 US만 사용 (50대 이상 사용자 혼란 방지)
-          // 영국: { code: 'en-GB', name: '영어', flag: '🇬🇧' },
-          // 싱가포르: { code: 'en-SG', name: '영어', flag: '🇸🇬' },
+  // 영어는 US만 사용 (50대 이상 사용자 혼란 방지)
+  // 영국: { code: 'en-GB', name: '영어', flag: '🇬🇧' },
+  // 싱가포르: { code: 'en-SG', name: '영어', flag: '🇸🇬' },
   태국: { code: 'th-TH', name: '태국어', flag: '🇹🇭' },
   베트남: { code: 'vi-VN', name: '베트남어', flag: '🇻🇳' },
-          // 필리핀: { code: 'en-PH', name: '영어', flag: '🇵🇭' },
+  // 필리핀: { code: 'en-PH', name: '영어', flag: '🇵🇭' },
   인도네시아: { code: 'id-ID', name: '인도네시아어', flag: '🇮🇩' },
   말레이시아: { code: 'ms-MY', name: '말레이어', flag: '🇲🇾' },
   프랑스: { code: 'fr-FR', name: '프랑스어', flag: '🇫🇷' },
@@ -60,7 +60,7 @@ export default function TranslatorPage() {
     const loadTestModeInfo = async () => {
       const info = await checkTestModeClient();
       setTestModeInfo(info);
-      
+
       // 경로 보호: 일반 사용자는 /translator로 리다이렉트
       const correctPath = getCorrectPath(pathname || '/translator-test', info);
       if (correctPath !== pathname) {
@@ -93,14 +93,14 @@ export default function TranslatorPage() {
   // 튜토리얼 상태
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState<number>(0); // 0: 음성, 1: 사진, 2: 상황별 도우미
-  
+
   // 카테고리 선택 상태
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   // 상황별 번역도우미 접기/펼치기 상태 - 기본값을 true로 유지하여 항상 보이도록
   const [isPhraseHelperExpanded, setIsPhraseHelperExpanded] = useState(true);
   // 발음 캐시 (phrase.target -> pronunciation)
   const [pronunciationCache, setPronunciationCache] = useState<Record<string, string>>({});
-  
+
   // 마이크 권한 상태 (전역으로 관리하여 모든 에러 핸들러에서 접근 가능)
   const micPermissionRef = useRef<boolean>(false);
 
@@ -161,7 +161,7 @@ export default function TranslatorPage() {
       try {
         const res = await fetch('/api/itinerary/current', { credentials: 'include' });
         const data = await res.json();
-        
+
         if (!data.ok) {
           setDestination('여행 정보 없음');
           return;
@@ -192,7 +192,7 @@ export default function TranslatorPage() {
             setLocalLang(portLang || { code: 'en-US', name: '영어', flag: '🇺🇸' });
           }
           setIsCruising(false);
-          
+
           // 기항지 상세 정보
           const arrival = port.arrival ? ` 입항 ${port.arrival}` : '';
           const departure = port.departure ? ` 출항 ${port.departure}` : '';
@@ -249,72 +249,72 @@ export default function TranslatorPage() {
       if (langCode === 'ko-KR' || langCode === 'ko') {
         return '';
       }
-      
+
       // 캐시 확인
       const cacheKey = `${foreignText}_${langCode}`;
       if (useCache && pronunciationCache[cacheKey]) {
         return pronunciationCache[cacheKey];
       }
-      
+
       console.log('[Pronunciation] Calling API:', { text: foreignText, langCode, cacheKey, retryCount });
       const res = await csrfFetch('/api/translation/pronunciation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: foreignText, langCode }),
       });
-      
+
       if (!res.ok) {
         const errorText = await res.text().catch(() => '');
         console.error('[Pronunciation] API error:', res.status, res.statusText, errorText);
-        
+
         // 재시도 (최대 2번)
         if (retryCount < 2) {
           console.log(`[Pronunciation] Retrying... (${retryCount + 1}/2)`);
           await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1))); // 지수 백오프
           return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
         }
-        
+
         return '';
       }
-      
+
       const data = await res.json();
       console.log('[Pronunciation] API response:', JSON.stringify(data, null, 2));
-      
+
       if (!data.ok) {
         console.error('[Pronunciation] API returned error:', data.error);
-        
+
         // 재시도 (최대 2번)
         if (retryCount < 2) {
           console.log(`[Pronunciation] Retrying after error... (${retryCount + 1}/2)`);
           await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
           return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
         }
-        
+
         return '';
       }
-      
+
       let pronunciation = data?.pronunciation || '';
-      
+
       if (!pronunciation) {
         console.error('[Pronunciation] Empty pronunciation in API response:', data);
-        
+
         // 재시도 (최대 2번)
         if (retryCount < 2) {
           console.log(`[Pronunciation] Retrying after empty response... (${retryCount + 1}/2)`);
           await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
           return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
         }
-        
+
         return '';
       }
-      
+
       // 이미 괄호가 포함되어 있으면 그대로 사용
       if (pronunciation && !pronunciation.trim().startsWith('(')) {
         pronunciation = `(${pronunciation.trim()})`;
       }
-      
+
       console.log('[Pronunciation] Final pronunciation:', pronunciation);
-      
+
       // 캐시에 저장
       if (useCache && pronunciation) {
         setPronunciationCache(prev => {
@@ -323,18 +323,18 @@ export default function TranslatorPage() {
           return newCache;
         });
       }
-      
+
       return pronunciation;
     } catch (error: any) {
       console.warn('[Pronunciation] Error:', error);
-      
+
       // 재시도 (최대 2번)
       if (retryCount < 2) {
         console.log(`[Pronunciation] Retrying after exception... (${retryCount + 1}/2)`);
         await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
         return getPronunciation(foreignText, langCode, useCache, retryCount + 1);
       }
-      
+
       return ''; // 실패 시 빈 문자열 반환 (번역은 계속 진행)
     }
   }
@@ -365,15 +365,15 @@ export default function TranslatorPage() {
           to: toEnglish, // 영어 언어 정보 전달
         }),
       });
-      
+
       if (!res.ok) {
         console.error('[Translation] API error:', res.status, res.statusText);
         // API 오류 시 원문 반환 (부분 번역 시도 안 함)
         return { translated: text, pronunciation: '' };
       }
-      
+
       const data = await res.json();
-      
+
       // 백엔드 응답 구조에 맞춰 추출
       let translated = '';
       if (data?.messages && Array.isArray(data.messages)) {
@@ -384,35 +384,35 @@ export default function TranslatorPage() {
       } else if (typeof data === 'string') {
         translated = data;
       }
-      
+
       // ⚠️ 중요: 번역 실패 감지
       if (!data.ok) {
         console.error('[Translation] API returned error:', data.error);
         // 에러 시 원문 반환 (alert 제거 - 사용자 경험 개선)
         return { translated: text, pronunciation: '' };
       }
-      
+
       // 에러 메시지 감지
       if (translated && (translated.includes('번역 중 오류가 발생했습니다') || translated.includes('번역에 실패했습니다'))) {
         console.error('[Translation] Error message in response');
         return { translated: text, pronunciation: '' }; // 원문 반환
       }
-      
+
       // 번역 결과가 없거나 빈 문자열인 경우
       if (!translated || translated.trim() === '') {
         console.error('[Translation] Empty translation received');
         return { translated: text, pronunciation: '' }; // 원문 반환
       }
-      
+
       // ⚠️ 중요: 번역 결과가 원문과 동일하면 실패 처리 (하지만 원문 반환)
       const trimmedTranslated = translated.trim();
       const trimmedOriginal = text.trim();
-      
+
       if (trimmedTranslated === trimmedOriginal && trimmedOriginal.length > 3) {
         console.warn('[Translation] Translation same as original - returning original');
         return { translated: text, pronunciation: '' }; // 원문 반환 (alert 제거)
       }
-      
+
       return { translated: trimmedTranslated, pronunciation: '' };
     } catch (error: any) {
       console.error('[Translation] Error:', error);
@@ -435,7 +435,7 @@ export default function TranslatorPage() {
       alert('❌ 이 브라우저는 음성 인식을 지원하지 않습니다.\n\n음성 인식을 지원하는 브라우저(Chrome, Edge, Safari 등)를 사용해주세요.');
       return;
     }
-    
+
     try {
       recRef.current.abort?.(); // 혹시 켜져있으면 끊고 시작
     } catch (e) {
@@ -451,7 +451,7 @@ export default function TranslatorPage() {
     try {
       // 1단계: 실제 마이크 권한 확인 (getUserMedia로 확실하게 확인)
       micPermissionRef.current = false; // 초기화
-      
+
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           // Permissions Policy 경고는 무시하고 getUserMedia 시도
@@ -478,64 +478,64 @@ export default function TranslatorPage() {
       }
 
       // 2단계: Speech Recognition 시작
-    const r = recRef.current!;
+      const r = recRef.current!;
       if (!r) {
         alert('❌ 음성 인식 초기화에 실패했습니다.');
         setListening('none');
         setPreview('');
         return;
       }
-      
-      // 음성 인식 언어 설정
-    r.lang = from.code;
 
-    let accumulatedFinalText = '';
-      
-    r.onresult = (e: SpeechRecognitionEvent) => {
-      let newFinalText = accumulatedFinalText;
-      let newInterimText = '';
-      
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const chunk = e.results[i][0].transcript;
-        if (e.results[i].isFinal) {
-          newFinalText += chunk + ' ';
-          accumulatedFinalText = newFinalText;
-        } else {
-          newInterimText = chunk;
+      // 음성 인식 언어 설정
+      r.lang = from.code;
+
+      let accumulatedFinalText = '';
+
+      r.onresult = (e: SpeechRecognitionEvent) => {
+        let newFinalText = accumulatedFinalText;
+        let newInterimText = '';
+
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const chunk = e.results[i][0].transcript;
+          if (e.results[i].isFinal) {
+            newFinalText += chunk + ' ';
+            accumulatedFinalText = newFinalText;
+          } else {
+            newInterimText = chunk;
+          }
         }
-      }
-      
-      // 상태 업데이트 - 인식 과정을 실시간으로 표시
-      setFinalText(newFinalText.trim());
-      setInterimText(newInterimText);
-      
-      // 프리뷰 텍스트 업데이트 (최종 + 중간 합쳐서)
-      const displayText = (newFinalText.trim() + ' ' + newInterimText).trim();
-      setPreview(displayText || '🎤 듣는 중...');
-    };
-      
+
+        // 상태 업데이트 - 인식 과정을 실시간으로 표시
+        setFinalText(newFinalText.trim());
+        setInterimText(newInterimText);
+
+        // 프리뷰 텍스트 업데이트 (최종 + 중간 합쳐서)
+        const displayText = (newFinalText.trim() + ' ' + newInterimText).trim();
+        setPreview(displayText || '🎤 듣는 중...');
+      };
+
       r.onstart = () => {
         setListening('recording');
         setPreview('🎤 말씀하세요...');
         setFinalText('');
         setInterimText('');
       };
-      
+
       r.onerror = (e: any) => {
         const errorType = e?.error || 'unknown';
-        
+
         // ⚡ 권한이 허용된 경우 → 모든 에러 조용히 처리 (메시지 없음)
         if (micPermissionRef.current) {
           console.log('[Speech Recognition] Permission granted, error silently handled:', errorType);
-      setListening('none');
-      setPreview('');
+          setListening('none');
+          setPreview('');
           return; // 조용히 종료 (사용자에게 알림 안 함)
         }
-        
+
         // 권한이 거부된 경우만 에러 처리
-      setListening('none');
-      setPreview('');
-        
+        setListening('none');
+        setPreview('');
+
         if (errorType === 'not-allowed' || errorType === 'permission-denied') {
           alert('❌ 마이크 권한이 필요합니다.\n\n💡 해결 방법:\n1. 브라우저 주소창 왼쪽 🔒 아이콘 클릭\n2. "마이크" → "허용" 선택\n3. 페이지 새로고침 (F5)\n4. 버튼을 다시 눌러주세요');
         } else if (errorType === 'no-speech') {
@@ -548,10 +548,10 @@ export default function TranslatorPage() {
           console.error('[Speech Recognition Error]', errorType);
         }
       };
-      
+
       // 음성 인식 시작
       try {
-    r.start();
+        r.start();
       } catch (startError: any) {
         // ⚡ 권한이 허용된 경우 → 에러 무시 (메시지 없음)
         if (micPermissionRef.current) {
@@ -560,12 +560,12 @@ export default function TranslatorPage() {
           setPreview('');
           return; // 조용히 종료
         }
-        
+
         // 권한이 거부된 경우만 에러 처리
         console.error('[Speech Recognition Start Error]', startError);
         setListening('none');
         setPreview('');
-        
+
         if (startError?.name === 'NotAllowedError' || startError?.message?.includes('permission')) {
           alert('❌ 마이크 권한이 필요합니다.\n\n💡 해결 방법:\n1. 브라우저 주소창 왼쪽 🔒 아이콘 클릭\n2. "마이크" → "허용" 선택\n3. 페이지 새로고침 (F5)\n4. 버튼을 다시 눌러주세요');
         } else {
@@ -575,14 +575,14 @@ export default function TranslatorPage() {
         return;
       }
 
-    // 손을 떼면 stopListening 호출에서 번역/추가
-    (r as any).__translatePair = { from, to };
-    (r as any).__acc = () => {
-      // 최종 텍스트와 중간 텍스트를 합쳐서 반환
-      const combined = (accumulatedFinalText + ' ' + (interimText || '')).trim();
-      return combined || accumulatedFinalText.trim();
-    };
-      
+      // 손을 떼면 stopListening 호출에서 번역/추가
+      (r as any).__translatePair = { from, to };
+      (r as any).__acc = () => {
+        // 최종 텍스트와 중간 텍스트를 합쳐서 반환
+        const combined = (accumulatedFinalText + ' ' + (interimText || '')).trim();
+        return combined || accumulatedFinalText.trim();
+      };
+
     } catch (error: any) {
       // ⚡ 권한이 허용된 경우 → 에러 무시 (메시지 없음)
       if (micPermissionRef.current) {
@@ -591,12 +591,12 @@ export default function TranslatorPage() {
         setPreview('');
         return; // 조용히 종료
       }
-      
+
       // 권한이 거부된 경우만 에러 처리
       console.error('[Start Speech Recognition Error]', error);
       setListening('none');
       setPreview('');
-      
+
       if (error?.name === 'NotAllowedError' || error?.message?.includes('permission')) {
         alert('❌ 마이크 권한이 필요합니다.\n\n💡 해결 방법:\n1. 브라우저 주소창 왼쪽 🔒 아이콘 클릭\n2. "마이크" → "허용" 선택\n3. 페이지 새로고침 (F5)\n4. 버튼을 다시 눌러주세요');
       } else {
@@ -611,23 +611,23 @@ export default function TranslatorPage() {
     if (!r) return;
     try {
       r.stop();
-    } catch {}
+    } catch { }
     setListening('none');
     const pair = r.__translatePair as { from: any; to: any } | undefined;
     const acc = typeof r.__acc === 'function' ? r.__acc() : '';
-    
+
     // 최종 텍스트가 있으면 사용, 없으면 상태에서 가져오기
     const finalAcc = acc || (finalText + ' ' + interimText).trim();
-    
+
     // 상태 초기화
     setPreview('');
     setFinalText('');
     setInterimText('');
-    
+
     if (!pair || !finalAcc) return;
 
     const { translated } = await translateText(finalAcc, pair.from.name, pair.to.name);
-    
+
     // 발음 생성 제거 - 번역 속도 개선을 위해
     const newItem = {
       id: Date.now().toString(),
@@ -638,9 +638,9 @@ export default function TranslatorPage() {
       when: new Date().toLocaleTimeString('ko-KR'),
       kind: 'speech' as const,
     };
-    
+
     setItems((prev) => [newItem, ...prev]);
-    
+
     // 들려주는 쪽은 목적 언어
     speak(translated, pair.to.code);
   }
@@ -821,9 +821,9 @@ export default function TranslatorPage() {
                   </button>
                 </div>
                 <div className="mt-4 flex justify-center gap-2">
-                  <div className={`w-3 h-3 rounded-full transition-all ${tutorialStep >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${tutorialStep === 0 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-3 h-3 rounded-full transition-all ${tutorialStep >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${tutorialStep === 1 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-3 h-3 rounded-full transition-all ${tutorialStep >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${tutorialStep === 2 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-3 h-3 rounded-full transition-all ${(tutorialStep as number) >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${(tutorialStep as number) === 0 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-3 h-3 rounded-full transition-all ${(tutorialStep as number) >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${(tutorialStep as number) === 1 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-3 h-3 rounded-full transition-all ${(tutorialStep as number) >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${(tutorialStep as number) === 2 ? 'scale-125' : ''}`}></div>
                 </div>
               </div>
             )}
@@ -871,9 +871,9 @@ export default function TranslatorPage() {
                   </button>
                 </div>
                 <div className="mt-5 flex justify-center gap-3">
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${tutorialStep === 0 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${tutorialStep === 1 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${tutorialStep === 2 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-3 h-3 rounded-full transition-all ${(tutorialStep as number) >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${(tutorialStep as number) === 0 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-3 h-3 rounded-full transition-all ${(tutorialStep as number) >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${(tutorialStep as number) === 1 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-3 h-3 rounded-full transition-all ${(tutorialStep as number) >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${(tutorialStep as number) === 2 ? 'scale-125' : ''}`}></div>
                 </div>
               </div>
             )}
@@ -921,61 +921,60 @@ export default function TranslatorPage() {
                   </button>
                 </div>
                 <div className="mt-5 flex justify-center gap-3">
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${tutorialStep === 0 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${tutorialStep === 1 ? 'scale-125' : ''}`}></div>
-                  <div className={`w-4 h-4 rounded-full transition-all ${tutorialStep >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${tutorialStep === 2 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 0 ? 'bg-blue-600' : 'bg-gray-300'} ${(tutorialStep as number) === 0 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 1 ? 'bg-green-600' : 'bg-gray-300'} ${(tutorialStep as number) === 1 ? 'scale-125' : ''}`}></div>
+                  <div className={`w-4 h-4 rounded-full transition-all ${(tutorialStep as number) >= 2 ? 'bg-purple-600' : 'bg-gray-300'} ${(tutorialStep as number) === 2 ? 'scale-125' : ''}`}></div>
                 </div>
               </div>
             )}
           </div>
         </div>
       )}
-      
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 text-gray-900 flex flex-col">
-      {/* 헤더 */}
-      <header className="sticky top-0 z-20 border-b-2 border-purple-200 bg-white/95 backdrop-blur shadow-md px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
-          <button 
-            onClick={() => router.push('/tools-test')} 
-            className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-semibold border-2 border-purple-200 px-4 py-3 rounded-lg hover:bg-purple-50 transition-colors text-base md:text-lg"
-            style={{ minHeight: '56px' }}
-          >
-            <FiArrowLeft size={24} />
-            <span className="text-base md:text-lg">뒤로가기</span>
-          </button>
-          <div className="flex-1 text-center">
-            <div className="flex items-center justify-center gap-3">
-              <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                <span className="text-2xl md:text-3xl">🌐</span>
+
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 text-gray-900 flex flex-col">
+        {/* 헤더 */}
+        <header className="sticky top-0 z-20 border-b-2 border-purple-200 bg-white/95 backdrop-blur shadow-md px-4 py-3">
+          <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
+            <button
+              onClick={() => router.push('/tools-test')}
+              className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 font-semibold border-2 border-purple-200 px-4 py-3 rounded-lg hover:bg-purple-50 transition-colors text-base md:text-lg"
+              style={{ minHeight: '56px' }}
+            >
+              <FiArrowLeft size={24} />
+              <span className="text-base md:text-lg">뒤로가기</span>
+            </button>
+            <div className="flex-1 text-center">
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                  <span className="text-2xl md:text-3xl">🌐</span>
+                </div>
+                <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
+                  AI 통번역기
+                </h1>
               </div>
-              <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
-                AI 통번역기
-              </h1>
+              <p className="text-sm md:text-base text-gray-500 mt-2 leading-relaxed">72시간 무료 체험</p>
             </div>
-            <p className="text-sm md:text-base text-gray-500 mt-2 leading-relaxed">72시간 무료 체험</p>
           </div>
-        </div>
-        <div className="max-w-3xl mx-auto mt-3 flex flex-col sm:flex-row sm:items-center gap-3 text-base md:text-lg">
-          <div className={`inline-flex items-center gap-3 px-4 py-2.5 rounded-lg ${
-            isCruising ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'
-          }`}>
-            <span className="text-2xl">{isCruising ? '⛵' : '🏝️'}</span>
-            <span className="font-semibold leading-relaxed">
-              {isCruising ? '항해 중' : `현재 기항지: ${destination}`}
-            </span>
-          </div>
-          {/* 언어 선택 드롭다운 */}
-          <div className="relative">
-            <select
-              value={localLang.code}
-              onChange={(e) => {
-                const selectedCode = e.target.value;
-                const selectedLang = Object.values(DESTINATION_LANGUAGE_MAP).find(lang => lang.code === selectedCode) 
-                  || { code: 'en-US', name: '영어', flag: '🇺🇸' };
-                setLocalLang(selectedLang);
-                setSelectedCategory(null); // 언어 변경 시 카테고리 초기화
-              }}
-              className="
+          <div className="max-w-3xl mx-auto mt-3 flex flex-col sm:flex-row sm:items-center gap-3 text-base md:text-lg">
+            <div className={`inline-flex items-center gap-3 px-4 py-2.5 rounded-lg ${isCruising ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'
+              }`}>
+              <span className="text-2xl">{isCruising ? '⛵' : '🏝️'}</span>
+              <span className="font-semibold leading-relaxed">
+                {isCruising ? '항해 중' : `현재 기항지: ${destination}`}
+              </span>
+            </div>
+            {/* 언어 선택 드롭다운 */}
+            <div className="relative">
+              <select
+                value={localLang.code}
+                onChange={(e) => {
+                  const selectedCode = e.target.value;
+                  const selectedLang = Object.values(DESTINATION_LANGUAGE_MAP).find(lang => lang.code === selectedCode)
+                    || { code: 'en-US', name: '영어', flag: '🇺🇸' };
+                  setLocalLang(selectedLang);
+                  setSelectedCategory(null); // 언어 변경 시 카테고리 초기화
+                }}
+                className="
                 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg 
                 bg-purple-50 text-purple-700 font-semibold
                 border-2 border-purple-200
@@ -983,77 +982,77 @@ export default function TranslatorPage() {
                 cursor-pointer appearance-none
                 pr-8 min-w-[140px]
               "
-            >
-              {Object.values(DESTINATION_LANGUAGE_MAP).map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.flag} {lang.name}
-                </option>
-              ))}
-            </select>
-            <span className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-700">
-              ▼
-            </span>
-          </div>
-          {portInfo && (
-            <div className="text-xs text-gray-500">
-              {portInfo}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* 본문 */}
-      <main className="max-w-3xl mx-auto w-full flex-1 px-4 py-4">
-        {/* 프리뷰(인식 중) - 개선된 버전: 인식 과정을 실시간으로 표시 */}
-        {listening !== 'none' && (
-          <div className="rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-50 to-purple-50 p-6 mb-4 shadow-lg">
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <div className={`w-3 h-3 rounded-full ${listening === 'recording' ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`}></div>
-              <span className="text-sm font-semibold text-gray-600">
-                {listening === 'recording' ? '🎤 인식 중...' : '⏳ 준비 중...'}
+              >
+                {Object.values(DESTINATION_LANGUAGE_MAP).map((lang) => (
+                  <option key={lang.code} value={lang.code}>
+                    {lang.flag} {lang.name}
+                  </option>
+                ))}
+              </select>
+              <span className="absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-700">
+                ▼
               </span>
             </div>
-            <div className="text-center min-h-[80px] flex flex-col justify-center">
-              {finalText || interimText ? (
-                <div className="space-y-3">
-                  {/* 최종 확정된 텍스트 (검은색, 굵게) */}
-                  {finalText && (
-                    <div className="text-2xl sm:text-3xl font-bold text-gray-900 break-words px-2">
-                      {finalText}
-                    </div>
-                  )}
-                  {/* 인식 중인 텍스트 (회색, 기울임, 깜빡이는 커서) */}
-                  {interimText && (
-                    <div className="text-xl sm:text-2xl font-semibold text-gray-500 italic break-words px-2">
-                      {interimText}
-                      <span className="inline-block w-2 h-6 bg-gray-400 ml-1 animate-pulse">|</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-xl sm:text-2xl font-semibold text-gray-600">
-                  {preview || '🎤 말씀하세요...'}
-                </div>
-              )}
-            </div>
-            {/* 진행 표시 (인식 중일 때만) */}
-            {listening === 'recording' && (
-              <div className="mt-4 flex items-center justify-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            {portInfo && (
+              <div className="text-xs text-gray-500">
+                {portInfo}
               </div>
             )}
           </div>
-        )}
+        </header>
 
-        {/* ⚡ 카테고리별 빠른 문장 (50대 이상 사용자 친화적) - 더 눈에 띄게 개선 */}
-        <div className="mb-6 bg-gradient-to-r from-purple-100 via-pink-100 to-orange-100 p-6 rounded-2xl border-4 border-purple-400 shadow-2xl">
-          {!isDestinationReady && (
-            <div className="mb-4 rounded-2xl border border-dashed border-purple-300 bg-white/70 px-4 py-3 text-sm md:text-base text-purple-900 font-semibold">
-              🗺️ 여행 일정이 없어도 모든 상황별 문장을 바로 사용할 수 있어요. 위에서 원하는 국가를 선택하면 해당 언어 문장이 자동으로 준비됩니다.
+        {/* 본문 */}
+        <main className="max-w-3xl mx-auto w-full flex-1 px-4 py-4">
+          {/* 프리뷰(인식 중) - 개선된 버전: 인식 과정을 실시간으로 표시 */}
+          {listening !== 'none' && (
+            <div className="rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-50 to-purple-50 p-6 mb-4 shadow-lg">
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <div className={`w-3 h-3 rounded-full ${listening === 'recording' ? 'bg-red-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+                <span className="text-sm font-semibold text-gray-600">
+                  {listening === 'recording' ? '🎤 인식 중...' : '⏳ 준비 중...'}
+                </span>
+              </div>
+              <div className="text-center min-h-[80px] flex flex-col justify-center">
+                {finalText || interimText ? (
+                  <div className="space-y-3">
+                    {/* 최종 확정된 텍스트 (검은색, 굵게) */}
+                    {finalText && (
+                      <div className="text-2xl sm:text-3xl font-bold text-gray-900 break-words px-2">
+                        {finalText}
+                      </div>
+                    )}
+                    {/* 인식 중인 텍스트 (회색, 기울임, 깜빡이는 커서) */}
+                    {interimText && (
+                      <div className="text-xl sm:text-2xl font-semibold text-gray-500 italic break-words px-2">
+                        {interimText}
+                        <span className="inline-block w-2 h-6 bg-gray-400 ml-1 animate-pulse">|</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xl sm:text-2xl font-semibold text-gray-600">
+                    {preview || '🎤 말씀하세요...'}
+                  </div>
+                )}
+              </div>
+              {/* 진행 표시 (인식 중일 때만) */}
+              {listening === 'recording' && (
+                <div className="mt-4 flex items-center justify-center gap-1">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              )}
             </div>
           )}
+
+          {/* ⚡ 카테고리별 빠른 문장 (50대 이상 사용자 친화적) - 더 눈에 띄게 개선 */}
+          <div className="mb-6 bg-gradient-to-r from-purple-100 via-pink-100 to-orange-100 p-6 rounded-2xl border-4 border-purple-400 shadow-2xl">
+            {!isDestinationReady && (
+              <div className="mb-4 rounded-2xl border border-dashed border-purple-300 bg-white/70 px-4 py-3 text-sm md:text-base text-purple-900 font-semibold">
+                🗺️ 여행 일정이 없어도 모든 상황별 문장을 바로 사용할 수 있어요. 위에서 원하는 국가를 선택하면 해당 언어 문장이 자동으로 준비됩니다.
+              </div>
+            )}
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-2xl font-extrabold flex items-center gap-3">
                 <span className="text-4xl animate-pulse">⚡</span>
@@ -1072,7 +1071,7 @@ export default function TranslatorPage() {
                 ▼
               </button>
             </div>
-            
+
             {/* 카테고리 버튼 (선택된 카테고리가 없을 때) */}
             {isPhraseHelperExpanded && !selectedCategory && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -1158,8 +1157,8 @@ export default function TranslatorPage() {
                         </button>
                       </div>
                       {/* 발음 표시 - PHRASE_CATEGORIES에 있거나 캐시에 있으면 표시 */}
-                      <PronunciationDisplay 
-                        phrase={phrase} 
+                      <PronunciationDisplay
+                        phrase={phrase}
                         langCode={localLang.code}
                         pronunciationCache={pronunciationCache}
                       />
@@ -1168,108 +1167,108 @@ export default function TranslatorPage() {
                 </div>
               </div>
             )}
-        </div>
+          </div>
 
-        {/* 대화 기록 */}
-        <div className="space-y-4">
-          {items.length === 0 && (
-            <div className="rounded-xl border bg-gray-50 p-6 text-center text-gray-600">
-              <div className="text-5xl mb-2">🗣️</div>
-              <div className="text-lg font-semibold">아래 버튼을 꾹 누르고 말씀하세요</div>
-              <div className="text-sm mt-1">말씀을 마친 뒤 손을 떼면 번역 결과가 나타납니다</div>
-              {isCruising && (
-                <div className="mt-4 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                  ⛵ 현재 항해 중입니다. 기본 영어 번역 모드로 설정되어 있습니다.
-                </div>
-              )}
-              {!isCruising && destination !== '확인 중...' && destination !== '여행 미등록' && (
-                <div className="mt-4 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm">
-                  🏝️ 오늘의 기항지 <b>{destination}</b>에 맞춰 {localLang.flag} {localLang.name} 번역이 준비되었습니다!
-                </div>
-              )}
-            </div>
-          )}
-
-          {items.map((it) => (
-            <div key={it.id} className="rounded-xl border bg-white p-4 shadow-sm">
-              <div className="text-xs text-gray-500 mb-2">{it.when} · {it.kind === 'photo' ? '📸 사진' : '🎤 음성'}</div>
-              {/* 사진 번역 기능 제거됨 */}
-              {it.kind === 'photo' ? null : (
-                /* 음성 번역: 원본 + 번역 함께 표시 */
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-gray-50 p-3">
-                  <div className="text-xs text-gray-500 mb-1 flex items-center justify-between">
-                    <span>{it.from.flag} {it.from.name}</span>
-                    {/* 원문 재생 버튼 */}
-                    {it.source && (
-                      <button
-                        onClick={() => speak(it.source, it.from.code || 'ko-KR')}
-                        className="text-gray-500 hover:text-gray-700 active:scale-110 transition-all"
-                        title={`${it.from.name}로 재생`}
-                      >
-                        🔊
-                      </button>
-                    )}
+          {/* 대화 기록 */}
+          <div className="space-y-4">
+            {items.length === 0 && (
+              <div className="rounded-xl border bg-gray-50 p-6 text-center text-gray-600">
+                <div className="text-5xl mb-2">🗣️</div>
+                <div className="text-lg font-semibold">아래 버튼을 꾹 누르고 말씀하세요</div>
+                <div className="text-sm mt-1">말씀을 마친 뒤 손을 떼면 번역 결과가 나타납니다</div>
+                {isCruising && (
+                  <div className="mt-4 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                    ⛵ 현재 항해 중입니다. 기본 영어 번역 모드로 설정되어 있습니다.
                   </div>
-                  <div className="text-base">{it.source}</div>
-                </div>
-                <div className="rounded-lg bg-blue-50 p-3">
-              <div className="text-xs text-blue-600 mb-1 flex items-center justify-between overflow-hidden">
-                <span className="min-w-0">{it.to.flag} {it.to.name}</span>
-                {/* 번역 결과 재생 버튼 */}
-                {it.translated && (
-                  <button
-                    onClick={() => speak(it.translated, it.to.code || 'en-US')}
-                    className="text-blue-500 hover:text-blue-700 active:scale-110 transition-all flex-shrink-0"
-                    title={`${it.to.name}로 재생`}
-                  >
-                    🔊
-                  </button>
+                )}
+                {!isCruising && destination !== '확인 중...' && destination !== '여행 미등록' && (
+                  <div className="mt-4 px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm">
+                    🏝️ 오늘의 기항지 <b>{destination}</b>에 맞춰 {localLang.flag} {localLang.name} 번역이 준비되었습니다!
+                  </div>
                 )}
               </div>
-                  <div className="text-base font-semibold break-words">{it.translated}</div>
-              </div>
-              </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </main>
+            )}
 
-      {/* 하단 고정 버튼들(모바일에 최적) - 크기 조정 */}
-      <footer className="sticky bottom-0 z-20 border-t bg-white px-4 pb-[env(safe-area-inset-bottom)]">
-        <div className="max-w-3xl mx-auto py-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {BTN_PAIRS.map((p) => (
-            <button
-              key={p.label}
-              onMouseDown={() => startPressToTalk(p.from, p.to)}
-              onMouseUp={stopPressToTalk}
-              onTouchStart={() => startPressToTalk(p.from, p.to)}
-              onTouchEnd={stopPressToTalk}
-              className={`
+            {items.map((it) => (
+              <div key={it.id} className="rounded-xl border bg-white p-4 shadow-sm">
+                <div className="text-xs text-gray-500 mb-2">{it.when} · {it.kind === 'photo' ? '📸 사진' : '🎤 음성'}</div>
+                {/* 사진 번역 기능 제거됨 */}
+                {it.kind === 'photo' ? null : (
+                  /* 음성 번역: 원본 + 번역 함께 표시 */
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      <div className="text-xs text-gray-500 mb-1 flex items-center justify-between">
+                        <span>{it.from.flag} {it.from.name}</span>
+                        {/* 원문 재생 버튼 */}
+                        {it.source && (
+                          <button
+                            onClick={() => speak(it.source, it.from.code || 'ko-KR')}
+                            className="text-gray-500 hover:text-gray-700 active:scale-110 transition-all"
+                            title={`${it.from.name}로 재생`}
+                          >
+                            🔊
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-base">{it.source}</div>
+                    </div>
+                    <div className="rounded-lg bg-blue-50 p-3">
+                      <div className="text-xs text-blue-600 mb-1 flex items-center justify-between overflow-hidden">
+                        <span className="min-w-0">{it.to.flag} {it.to.name}</span>
+                        {/* 번역 결과 재생 버튼 */}
+                        {it.translated && (
+                          <button
+                            onClick={() => speak(it.translated, it.to.code || 'en-US')}
+                            className="text-blue-500 hover:text-blue-700 active:scale-110 transition-all flex-shrink-0"
+                            title={`${it.to.name}로 재생`}
+                          >
+                            🔊
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-base font-semibold break-words">{it.translated}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </main>
+
+        {/* 하단 고정 버튼들(모바일에 최적) - 크기 조정 */}
+        <footer className="sticky bottom-0 z-20 border-t bg-white px-4 pb-[env(safe-area-inset-bottom)]">
+          <div className="max-w-3xl mx-auto py-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {BTN_PAIRS.map((p) => (
+              <button
+                key={p.label}
+                onMouseDown={() => startPressToTalk(p.from, p.to)}
+                onMouseUp={stopPressToTalk}
+                onTouchStart={() => startPressToTalk(p.from, p.to)}
+                onTouchEnd={stopPressToTalk}
+                className={`
                 w-full px-4 py-4 rounded-xl text-lg font-bold shadow-lg
                 min-h-[80px]
-                ${listening === 'recording' 
-                  ? 'bg-gradient-to-r from-red-600 to-red-500 text-white animate-pulse' 
-                  : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600'
-                }
+                ${listening === 'recording'
+                    ? 'bg-gradient-to-r from-red-600 to-red-500 text-white animate-pulse'
+                    : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600'
+                  }
                 active:scale-95 transition-all
               `}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-3xl">
-                  {listening === 'recording' ? '🔴' : '🎤'}
-              </span>
-                <span className="text-lg">{p.label}</span>
-                <span className="text-xs font-normal opacity-90">
-                  (버튼을 꾹 누르고 말하세요)
-              </span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </footer>
-    </div>
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <span className="text-3xl">
+                    {listening === 'recording' ? '🔴' : '🎤'}
+                  </span>
+                  <span className="text-lg">{p.label}</span>
+                  <span className="text-xs font-normal opacity-90">
+                    (버튼을 꾹 누르고 말하세요)
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </footer>
+      </div>
     </>
   );
 } 
