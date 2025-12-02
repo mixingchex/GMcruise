@@ -792,13 +792,21 @@ export async function POST(req: Request) {
           productId: existingTrip?.productId
         });
 
-        // SAMPLE-MED-001 상품 조회 (항상 조회)
-        console.log('[Auth Login] 테스트 모드: SAMPLE-MED-001 상품 조회 시작');
-        const product = await prisma.cruiseProduct.findUnique({
+        // SAMPLE-MED-001 상품 조회, 없으면 TEST-001로 fallback
+        console.log('[Auth Login] 테스트 모드: 테스트 상품 조회 시작');
+        let product = await prisma.cruiseProduct.findUnique({
           where: { productCode: 'SAMPLE-MED-001' },
         });
 
-        console.log('[Auth Login] 테스트 모드: SAMPLE-MED-001 상품 조회 결과:', {
+        // SAMPLE-MED-001이 없으면 TEST-001로 fallback
+        if (!product) {
+          console.log('[Auth Login] 테스트 모드: SAMPLE-MED-001 없음, TEST-001로 fallback');
+          product = await prisma.cruiseProduct.findUnique({
+            where: { productCode: 'TEST-001' },
+          });
+        }
+
+        console.log('[Auth Login] 테스트 모드: 테스트 상품 조회 결과:', {
           found: !!product,
           productId: product?.id,
           productCode: product?.productCode,
@@ -838,10 +846,10 @@ export async function POST(req: Request) {
           try {
             console.log('[Auth Login] 테스트 모드: ✅ SAMPLE-MED-001 상품 찾음, UserTrip 생성 시작');
 
-            // 출발일: 로그인한 날짜로부터 3일 전 (테스트 모드용)
-            // 예: 오늘이 1월 10일이면 출발일은 1월 7일
+            // 출발일: 로그인한 날짜로부터 3일 후 (테스트 모드용 - D-3 표시)
+            // 예: 오늘이 1월 10일이면 출발일은 1월 13일 (D-3)
             const startDate = new Date(now);
-            startDate.setDate(startDate.getDate() - 3);
+            startDate.setDate(startDate.getDate() + 3);
             startDate.setHours(0, 0, 0, 0);
 
             // 종료 날짜 계산 (출발일 + (days - 1)일)
