@@ -25,12 +25,12 @@ function parseId(raw: string | undefined, name: string) {
 
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
-    const { profile, sessionUser } = await requirePartnerContext();
+    const { profile, sessionUser } = await requirePartnerContext({ includeManagedAgents: true });
     const leadId = parseId(context.params.leadId, '고객');
     const saleId = parseId(context.params.saleId, '매출');
 
     // 고객 정보 조회 및 권한 확인
-    await getPartnerLead(profile.id, leadId, { interactions: 1, sales: 1 });
+    await getPartnerLead(profile.id, leadId, { interactions: 1, sales: 1 }, profile.type);
 
     // 매출 정보 조회
     const sale = await prisma.affiliateSale.findUnique({

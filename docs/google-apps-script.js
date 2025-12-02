@@ -38,7 +38,7 @@
 
 // 스프레드시트 ID (URL에서 /d/ 다음의 문자열)
 const SPREADSHEET_ID = '1HeRlmTFrTgtFwU3PiswoOyL7EaBvL0ijwR74Uc2umgs';
-const SHEET_NAME = '전화상담고객'; // 시트 이름 (첫 번째 시트가 아니면 이름 확인)
+const SHEET_NAME = '고객관리'; // 시트 이름 - 대리점장/판매원 모두 이 시트로 데이터 저장
 
 function doPost(e) {
   try {

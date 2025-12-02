@@ -24,7 +24,7 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
       setHasError(false);
       setRefreshKey(prev => prev + 1);
       setForceRefresh(prev => prev + 1);
-      
+
       // productProp이 없으면 서버에서 로드
       if (!productProp) {
         loadProduct();
@@ -33,18 +33,18 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
         setIsLoading(false);
       }
     }
-  }, [isOpen, productCode, productProp]);
+  }, [isOpen, productCode, productProp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadProduct = async () => {
     try {
       const res = await fetch(`/api/admin/products/${productCode}`, {
         credentials: 'include'
       });
-      
+
       if (!res.ok) {
         throw new Error('상품을 불러올 수 없습니다.');
       }
-      
+
       const data = await res.json();
       if (data.ok && data.product) {
         setProduct(data.product);
@@ -105,7 +105,7 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
             </button>
           </div>
         </div>
-        
+
         {/* 스마트폰 미리보기 컨테이너 */}
         <div className="flex-1 overflow-auto relative bg-gray-100 flex items-center justify-center p-8">
           {isLoading && !hasError && (
@@ -117,7 +117,7 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
               </div>
             </div>
           )}
-          
+
           {hasError && (
             <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
               <div className="text-center p-8">
@@ -146,10 +146,10 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
               <div className="bg-gray-800 rounded-t-[2rem] h-8 flex items-center justify-center">
                 <div className="w-32 h-5 bg-black rounded-full"></div>
               </div>
-              
+
               {/* 화면 */}
               <div className="bg-white rounded-[1.5rem] overflow-hidden relative" style={{ height: '812px', maxHeight: '90vh' }}>
-                <div 
+                <div
                   key={`${refreshKey}-${forceRefresh}`}
                   className="w-full h-full overflow-y-auto"
                   style={{
@@ -166,7 +166,7 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
                   </div>
                 </div>
               </div>
-              
+
               {/* 홈 인디케이터 */}
               <div className="bg-gray-800 rounded-b-[2rem] h-6 flex items-center justify-center">
                 <div className="w-32 h-1 bg-gray-600 rounded-full"></div>

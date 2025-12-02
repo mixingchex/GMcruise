@@ -385,11 +385,10 @@ export default function PagesManagementPage() {
             </button>
             <button
               onClick={() => setViewMode(viewMode === 'code' ? 'preview' : 'code')}
-              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                viewMode === 'preview'
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${viewMode === 'preview'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-200 text-gray-700'
-              }`}
+                }`}
             >
               {viewMode === 'preview' ? <FiCode /> : <FiEye />}
               {viewMode === 'preview' ? '코드 보기' : '미리보기'}
@@ -398,11 +397,10 @@ export default function PagesManagementPage() {
               <button
                 onClick={handleSave}
                 disabled={!hasChanges || saving}
-                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                  hasChanges && !saving
+                className={`px-4 py-2 rounded-lg flex items-center gap-2 ${hasChanges && !saving
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 <FiSave />
                 {saving ? '저장 중...' : '저장'}
@@ -420,11 +418,10 @@ export default function PagesManagementPage() {
             <button
               key={page.path}
               onClick={() => setSelectedPage(page.path)}
-              className={`p-4 rounded-lg border-2 transition-all ${
-                selectedPage === page.path
+              className={`p-4 rounded-lg border-2 transition-all ${selectedPage === page.path
                   ? 'border-blue-600 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300'
-              }`}
+                }`}
             >
               <div className="text-3xl mb-2">{page.icon}</div>
               <div className="font-semibold">{page.name}</div>
@@ -474,7 +471,7 @@ export default function PagesManagementPage() {
                 </div>
               ) : notices.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
-                  등록된 공지사항이 없습니다. "공지사항 추가" 버튼을 클릭하여 추가하세요.
+                  등록된 공지사항이 없습니다. &quot;공지사항 추가&quot; 버튼을 클릭하여 추가하세요.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -558,7 +555,7 @@ export default function PagesManagementPage() {
                     </p>
                   </div>
                   <div className="border rounded-lg p-4 bg-white">
-                    <div 
+                    <div
                       className="w-full h-[600px] border-0 overflow-auto"
                       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(htmlContent) }}
                     />
@@ -648,7 +645,7 @@ export default function PagesManagementPage() {
                   <br />
                   💡 <strong>하위 폴더 생성:</strong> 파일명에 슬래시(/)를 사용하면 하위 폴더가 자동으로 생성됩니다.
                   <br />
-                  예: "2024/크루즈/사진1" → 크루즈정보사진/[카테고리]/2024/크루즈/사진1.jpg
+                  예: &quot;2024/크루즈/사진1&quot; → 크루즈정보사진/[카테고리]/2024/크루즈/사진1.jpg
                 </p>
               </div>
               <div className="flex gap-2">
@@ -673,7 +670,7 @@ export default function PagesManagementPage() {
                   취소
                 </button>
               </div>
-              
+
               {/* 업로드된 이미지 HTML 소스 표시 */}
               {uploadedImageHtml && (
                 <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -720,7 +717,7 @@ export default function PagesManagementPage() {
                 <FiX size={24} />
               </button>
             </div>
-            
+
             {!selectedFolder ? (
               <div>
                 <p className="text-sm text-gray-600 mb-4">카테고리를 선택하세요:</p>
@@ -755,11 +752,10 @@ export default function PagesManagementPage() {
                   {cruiseImages.map((imageUrl) => (
                     <div
                       key={imageUrl}
-                      className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform border-2 ${
-                        selectedImageHtml && selectedImageHtml.includes(imageUrl)
+                      className={`relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:scale-105 transition-transform border-2 ${selectedImageHtml && selectedImageHtml.includes(imageUrl)
                           ? 'border-blue-500'
                           : 'border-transparent hover:border-blue-500'
-                      }`}
+                        }`}
                       onClick={() => selectCruiseImage(imageUrl)}
                     >
                       <img
@@ -778,7 +774,7 @@ export default function PagesManagementPage() {
                 {cruiseImages.length === 0 && (
                   <p className="text-center text-gray-500 py-8">이 폴더에 이미지가 없습니다.</p>
                 )}
-                
+
                 {/* 선택된 이미지 HTML 소스 표시 */}
                 {selectedImageHtml && (
                   <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">

@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { buildScopedGroupWhere } from '@/app/api/partner/customer-groups/utils';
 
-// GET: 그룹별 스크립트 생성
+// GET: 그룹별 스크립트 생성 (PartnerCustomerGroup 사용)
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -24,7 +24,7 @@ export async function GET(
 
     // 판매원/대리점장 프로필 확인
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
-      where: { 
+      where: {
         userId: user.id,
       },
       select: { id: true, type: true, status: true },
@@ -34,9 +34,9 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    // 그룹 소유권 확인 (CustomerGroup)
-    const where = buildScopedGroupWhere(groupId, user.id, affiliateProfile.id);
-    const group = await prisma.customerGroup.findFirst({
+    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    const where = buildScopedGroupWhere(groupId, affiliateProfile.id);
+    const group = await prisma.partnerCustomerGroup.findFirst({
       where,
       select: { id: true, name: true },
     });
@@ -49,8 +49,8 @@ export async function GET(
     }
 
     // 기본 URL (환경 변수 또는 기본값 사용)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
       : 'http://localhost:3000');
 
     // 그룹에 연결된 랜딩페이지 찾기
@@ -89,36 +89,36 @@ export async function GET(
   <form id="cg-group-${groupId}-registration-form" style="display: flex; flex-direction: column; gap: 15px;">
     <div>
       <label for="cg-name-${groupId}" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">이름 *</label>
-      <input 
-        type="text" 
-        id="cg-name-${groupId}" 
-        name="name" 
-        required 
+      <input
+        type="text"
+        id="cg-name-${groupId}"
+        name="name"
+        required
         style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box;"
       />
     </div>
     <div>
       <label for="cg-phone-${groupId}" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">연락처 *</label>
-      <input 
-        type="tel" 
-        id="cg-phone-${groupId}" 
-        name="phone" 
-        required 
+      <input
+        type="tel"
+        id="cg-phone-${groupId}"
+        name="phone"
+        required
         placeholder="010-1234-5678"
         style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box;"
       />
     </div>
     <div>
       <label for="cg-email-${groupId}" style="display: block; margin-bottom: 5px; font-weight: 600; color: #333;">이메일 (선택)</label>
-      <input 
-        type="email" 
-        id="cg-email-${groupId}" 
-        name="email" 
+      <input
+        type="email"
+        id="cg-email-${groupId}"
+        name="email"
         style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; box-sizing: border-box;"
       />
     </div>
-    <button 
-      type="submit" 
+    <button
+      type="submit"
       id="cg-submit-${groupId}"
       style="padding: 12px 24px; background-color: #3B82F6; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s;"
       onmouseover="this.style.backgroundColor='#2563EB'"
@@ -135,26 +135,26 @@ export async function GET(
   const form = document.getElementById('cg-group-${groupId}-registration-form');
   const submitBtn = document.getElementById('cg-submit-${groupId}');
   const messageDiv = document.getElementById('cg-message-${groupId}');
-  
+
   if (!form) return;
-  
+
   form.addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     const name = document.getElementById('cg-name-${groupId}').value.trim();
     const phone = document.getElementById('cg-phone-${groupId}').value.trim();
     const email = document.getElementById('cg-email-${groupId}').value.trim();
-    
+
     if (!name || !phone) {
       showMessage('이름과 연락처는 필수입니다.', 'error');
       return;
     }
-    
+
     // 버튼 비활성화
     submitBtn.disabled = true;
     submitBtn.textContent = '등록 중...';
     messageDiv.style.display = 'none';
-    
+
     try {
       const response = await fetch('${baseUrl}/api/public/landing-pages/${landingPageSlug}/register', {
         method: 'POST',
@@ -163,13 +163,13 @@ export async function GET(
         },
         body: JSON.stringify({ name, phone, email: email || undefined }),
       });
-      
+
       const data = await response.json();
-      
+
       if (data.ok) {
         showMessage('등록이 완료되었습니다!', 'success');
         form.reset();
-        
+
         // 완료 페이지로 리다이렉트 (있는 경우)
         if (data.completionUrl) {
           setTimeout(() => {
@@ -186,7 +186,7 @@ export async function GET(
       submitBtn.textContent = '등록하기';
     }
   });
-  
+
   function showMessage(text, type) {
     messageDiv.textContent = text;
     messageDiv.style.display = 'block';
@@ -204,8 +204,8 @@ export async function GET(
       },
       script,
       landingPageSlug,
-      instructions: `이 스크립트를 HTML 페이지에 삽입하세요. 
-폼 제출 시 자동으로 '${group.name}' 그룹에 고객이 추가되며, 
+      instructions: `이 스크립트를 HTML 페이지에 삽입하세요.
+폼 제출 시 자동으로 '${group.name}' 그룹에 고객이 추가되며,
 연결된 예약 메시지가 자동으로 활성화됩니다.`,
     });
   } catch (error) {

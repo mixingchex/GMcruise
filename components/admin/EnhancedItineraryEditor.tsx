@@ -74,14 +74,14 @@ export default function EnhancedItineraryEditor({
   const [showEmojiPicker, setShowEmojiPicker] = useState<number | null>(null);
   const [showAccommodationImagePicker, setShowAccommodationImagePicker] = useState<number | null>(null);
   const [showTourImagePicker, setShowTourImagePicker] = useState<number | null>(null);
-  
+
   // 이미지 업로드 카테고리 모달 상태
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [pendingUpload, setPendingUpload] = useState<{ 
-    dayNumber?: number; 
-    blockIndex?: number; 
-    file?: File; 
-    files?: FileList; 
+  const [pendingUpload, setPendingUpload] = useState<{
+    dayNumber?: number;
+    blockIndex?: number;
+    file?: File;
+    files?: FileList;
     type: 'single' | 'multiple' | 'tour' | 'accommodation';
     uploadType: 'image' | 'video';
   } | null>(null);
@@ -281,6 +281,7 @@ export default function EnhancedItineraryEditor({
         onChange(newDays);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
   // 항공 정보 기반 자동 일정 생성
@@ -297,14 +298,14 @@ export default function EnhancedItineraryEditor({
     }
 
     const newDays: EnhancedItineraryDay[] = [];
-    
+
     // 출발일부터 시작
     const startDate = departure.date ? new Date(departure.date) : new Date();
-    
+
     for (let i = 1; i <= (totalDays || 1); i++) {
       const currentDate = new Date(startDate);
       currentDate.setDate(startDate.getDate() + i - 1);
-      
+
       const dayInfo: EnhancedItineraryDay = {
         day: i,
         blocks: []
@@ -367,7 +368,7 @@ export default function EnhancedItineraryEditor({
             attractions: day.attractions || [],
             blocks: day.blocks || []
           }));
-          
+
           onChange(parsedDays);
           setShowPPTUpload(false);
           alert('PPT 문서에서 일정을 불러왔습니다.');
@@ -409,7 +410,7 @@ export default function EnhancedItineraryEditor({
   const moveDay = (day: number, direction: 'up' | 'down') => {
     const index = days.findIndex(d => d.day === day);
     if (index === -1) return;
-    
+
     if (direction === 'up' && index > 0) {
       const newDays = [...days];
       [newDays[index], newDays[index - 1]] = [newDays[index - 1], newDays[index]];
@@ -424,15 +425,15 @@ export default function EnhancedItineraryEditor({
   };
 
   const addBlock = (dayNumber: number, type: 'image' | 'video' | 'text') => {
-    const newBlock: ContentBlock = 
-      type === 'image' 
+    const newBlock: ContentBlock =
+      type === 'image'
         ? { type: 'image', id: `block-${Date.now()}`, url: '', alt: '' }
         : type === 'video'
-        ? { type: 'video', id: `block-${Date.now()}`, url: '', title: '' }
-        : { type: 'text', id: `block-${Date.now()}`, content: '' };
-    
-    const updated = days.map(d => 
-      d.day === dayNumber 
+          ? { type: 'video', id: `block-${Date.now()}`, url: '', title: '' }
+          : { type: 'text', id: `block-${Date.now()}`, content: '' };
+
+    const updated = days.map(d =>
+      d.day === dayNumber
         ? { ...d, blocks: [...d.blocks, newBlock] }
         : d
     );
@@ -527,10 +528,10 @@ export default function EnhancedItineraryEditor({
       if (res.ok) {
         const data = await res.json();
         if (data.ok && data.group) {
-          const parsedItinerary = typeof data.group.itinerary === 'string' 
+          const parsedItinerary = typeof data.group.itinerary === 'string'
             ? JSON.parse(data.group.itinerary)
             : data.group.itinerary;
-          
+
           if (Array.isArray(parsedItinerary)) {
             onChange(parsedItinerary);
             alert('그룹이 불러와졌습니다.');
@@ -556,7 +557,7 @@ export default function EnhancedItineraryEditor({
       await uploadFile(dayNumber, blockIndex, file, type);
     }
   };
-  
+
   const uploadFile = async (dayNumber: number, blockIndex: number, file: File, type: 'image' | 'video', category?: string, filename?: string) => {
     try {
       const formData = new FormData();
@@ -586,21 +587,21 @@ export default function EnhancedItineraryEditor({
       alert('파일 업로드에 실패했습니다.');
     }
   };
-  
+
   const handleTourImageUpload = async (dayNumber: number, file: File) => {
     setPendingUpload({ dayNumber, file, type: 'tour', uploadType: 'image' });
     setCategoryInput('');
     setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
     setShowCategoryModal(true);
   };
-  
+
   const handleAccommodationImageUpload = async (dayNumber: number, file: File) => {
     setPendingUpload({ dayNumber, file, type: 'accommodation', uploadType: 'image' });
     setCategoryInput('');
     setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
     setShowCategoryModal(true);
   };
-  
+
   const uploadTourImage = async (dayNumber: number, file: File, category: string, filename: string) => {
     try {
       const formData = new FormData();
@@ -620,8 +621,8 @@ export default function EnhancedItineraryEditor({
         if (data.ok) {
           const day = days.find(d => d.day === dayNumber);
           if (day) {
-            const updatedDays = days.map(d => 
-              d.day === dayNumber 
+            const updatedDays = days.map(d =>
+              d.day === dayNumber
                 ? { ...d, tourImages: [...(d.tourImages || []), data.url] }
                 : d
             );
@@ -634,7 +635,7 @@ export default function EnhancedItineraryEditor({
       alert('파일 업로드에 실패했습니다.');
     }
   };
-  
+
   const uploadAccommodationImage = async (dayNumber: number, file: File, category: string, filename: string) => {
     try {
       const formData = new FormData();
@@ -652,8 +653,8 @@ export default function EnhancedItineraryEditor({
       if (res.ok) {
         const data = await res.json();
         if (data.ok) {
-          const updatedDays = days.map(d => 
-            d.day === dayNumber 
+          const updatedDays = days.map(d =>
+            d.day === dayNumber
               ? { ...d, accommodationImage: data.url }
               : d
           );
@@ -665,23 +666,23 @@ export default function EnhancedItineraryEditor({
       alert('파일 업로드에 실패했습니다.');
     }
   };
-  
+
   const handleCategorySubmit = async () => {
     if (!pendingUpload) return;
-    
+
     if (!categoryInput.trim() || !filenameInput.trim()) {
       alert('카테고리와 파일명을 모두 입력해주세요.');
       return;
     }
-    
+
     if (pendingUpload.type === 'single' && pendingUpload.dayNumber !== undefined && pendingUpload.blockIndex !== undefined && pendingUpload.file) {
       // 단일 블록 이미지 업로드
       await uploadFile(
-        pendingUpload.dayNumber, 
-        pendingUpload.blockIndex, 
-        pendingUpload.file, 
-        pendingUpload.uploadType, 
-        categoryInput.trim(), 
+        pendingUpload.dayNumber,
+        pendingUpload.blockIndex,
+        pendingUpload.file,
+        pendingUpload.uploadType,
+        categoryInput.trim(),
         filenameInput.trim()
       );
       setShowCategoryModal(false);
@@ -691,9 +692,9 @@ export default function EnhancedItineraryEditor({
     } else if (pendingUpload.type === 'tour' && pendingUpload.dayNumber !== undefined && pendingUpload.file) {
       // 관광 이미지 업로드
       await uploadTourImage(
-        pendingUpload.dayNumber, 
-        pendingUpload.file, 
-        categoryInput.trim(), 
+        pendingUpload.dayNumber,
+        pendingUpload.file,
+        categoryInput.trim(),
         filenameInput.trim()
       );
       setShowCategoryModal(false);
@@ -703,9 +704,9 @@ export default function EnhancedItineraryEditor({
     } else if (pendingUpload.type === 'accommodation' && pendingUpload.dayNumber !== undefined && pendingUpload.file) {
       // 숙박 이미지 업로드
       await uploadAccommodationImage(
-        pendingUpload.dayNumber, 
-        pendingUpload.file, 
-        categoryInput.trim(), 
+        pendingUpload.dayNumber,
+        pendingUpload.file,
+        categoryInput.trim(),
         filenameInput.trim()
       );
       setShowCategoryModal(false);
@@ -880,7 +881,7 @@ export default function EnhancedItineraryEditor({
                   <div className="flex-1">
                     <p className="font-bold text-gray-900">Day {day.day}</p>
                     <p className="text-sm text-gray-600">
-                      {day.departure && day.arrival 
+                      {day.departure && day.arrival
                         ? `${day.departure} → ${day.arrival}`
                         : day.departure || day.arrival || '정보 없음'}
                     </p>
@@ -948,7 +949,7 @@ export default function EnhancedItineraryEditor({
                         </label>
                       </div>
                       <p className="text-xs text-blue-600 mb-3">
-                        이 정보는 크루즈 가이드 지니 "내일 예정"에 자동으로 표시됩니다.
+                        이 정보는 크루즈 가이드 지니 &quot;내일 예정&quot;에 자동으로 표시됩니다.
                       </p>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -998,10 +999,10 @@ export default function EnhancedItineraryEditor({
                                 {destinationOptions.filter(opt =>
                                   opt.label.toLowerCase().includes((destinationSearch[day.day] || '').toLowerCase())
                                 ).length === 0 && (
-                                  <div className="px-3 py-2 text-sm text-gray-500">
-                                    검색 결과가 없습니다
-                                  </div>
-                                )}
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      검색 결과가 없습니다
+                                    </div>
+                                  )}
                               </div>
                             )}
                           </div>
@@ -1097,6 +1098,7 @@ export default function EnhancedItineraryEditor({
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {day.tourImages.map((img, idx) => (
                               <div key={idx} className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={img}
                                   alt={`관광 이미지 ${idx + 1}`}
@@ -1221,6 +1223,7 @@ export default function EnhancedItineraryEditor({
                           </label>
                           {day.accommodationImage ? (
                             <div className="relative">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img
                                 src={day.accommodationImage}
                                 alt="숙박 사진"
@@ -1363,8 +1366,8 @@ export default function EnhancedItineraryEditor({
                           >
                             <div className="flex items-center justify-between mb-3">
                               <span className="text-sm font-medium text-gray-700">
-                                {block.type === 'image' ? '🖼️ 이미지' : 
-                                 block.type === 'video' ? '🎥 동영상' : '📝 텍스트'}
+                                {block.type === 'image' ? '🖼️ 이미지' :
+                                  block.type === 'video' ? '🎥 동영상' : '📝 텍스트'}
                               </span>
                               <button
                                 onClick={() => removeBlock(day.day, blockIndex)}
@@ -1378,6 +1381,7 @@ export default function EnhancedItineraryEditor({
                               <div className="space-y-2">
                                 {block.url ? (
                                   <div className="relative">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
                                       src={block.url}
                                       alt={block.alt || '이미지'}
@@ -1564,7 +1568,7 @@ export default function EnhancedItineraryEditor({
                 <FiX size={24} />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-hidden flex">
               {/* 폴더 목록 */}
               <div className="w-1/3 border-r overflow-y-auto p-4">
@@ -1588,18 +1592,17 @@ export default function EnhancedItineraryEditor({
                         setSelectedFolder(folder);
                         loadCruiseImages(folder);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                        selectedFolder === folder
-                          ? 'bg-blue-100 text-blue-700 font-semibold'
-                          : 'hover:bg-gray-100 text-gray-700'
-                      }`}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedFolder === folder
+                        ? 'bg-blue-100 text-blue-700 font-semibold'
+                        : 'hover:bg-gray-100 text-gray-700'
+                        }`}
                     >
                       {folder}
                     </button>
                   ))}
                 </div>
               </div>
-              
+
               {/* 이미지 그리드 */}
               <div className="flex-1 overflow-y-auto p-4">
                 {selectedFolder ? (
@@ -1611,6 +1614,7 @@ export default function EnhancedItineraryEditor({
                           onClick={() => handleSelectCruiseImage(imageUrl)}
                           className="relative aspect-square cursor-pointer group"
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={imageUrl}
                             alt={imageUrl}
@@ -1637,7 +1641,7 @@ export default function EnhancedItineraryEditor({
           </div>
         </div>
       )}
-      
+
       {/* 카테고리 입력 모달 */}
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1648,7 +1652,7 @@ export default function EnhancedItineraryEditor({
             <p className="text-sm text-gray-600 mb-4">
               [크루즈정보사진] 폴더에 저장할 카테고리와 파일명을 입력하세요.
             </p>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1663,7 +1667,7 @@ export default function EnhancedItineraryEditor({
                   autoFocus
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   파일명 *
@@ -1677,7 +1681,7 @@ export default function EnhancedItineraryEditor({
                 />
               </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => {

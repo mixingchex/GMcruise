@@ -52,7 +52,7 @@ export default function CertificateApprovals() {
 
   useEffect(() => {
     loadApprovals();
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadApprovals = async () => {
     setLoading(true);
@@ -196,48 +196,44 @@ export default function CertificateApprovals() {
       {/* 필터 */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">신청한 고객 승인요청</h2>
-        
+
         <div className="flex flex-wrap gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">상태</label>
             <div className="flex gap-2">
               <button
                 onClick={() => setStatusFilter('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === 'all'
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'all'
                     ? 'bg-indigo-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 전체
               </button>
               <button
                 onClick={() => setStatusFilter('pending')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === 'pending'
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'pending'
                     ? 'bg-yellow-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 대기중
               </button>
               <button
                 onClick={() => setStatusFilter('approved')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === 'approved'
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'approved'
                     ? 'bg-green-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 승인됨
               </button>
               <button
                 onClick={() => setStatusFilter('rejected')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === 'rejected'
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'rejected'
                     ? 'bg-red-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 거부됨
               </button>
@@ -249,31 +245,28 @@ export default function CertificateApprovals() {
             <div className="flex gap-2">
               <button
                 onClick={() => setTypeFilter('all')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  typeFilter === 'all'
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'all'
                     ? 'bg-indigo-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 전체
               </button>
               <button
                 onClick={() => setTypeFilter('purchase')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  typeFilter === 'purchase'
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'purchase'
                     ? 'bg-indigo-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 구매확인
               </button>
               <button
                 onClick={() => setTypeFilter('refund')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  typeFilter === 'refund'
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'refund'
                     ? 'bg-red-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 환불인증
               </button>

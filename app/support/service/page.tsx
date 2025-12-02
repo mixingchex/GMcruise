@@ -30,12 +30,7 @@ export default function ServicePage() {
     loadHtml();
   }, []);
 
-  // 저장된 HTML이 있으면 렌더링
-  if (htmlContent) {
-    return (
-      <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
-    );
-  }
+
 
   // 기본 페이지 (기존 코드)
   const [headerTitle, setHeaderTitle] = useState('크루즈닷 서비스 소개');
@@ -92,29 +87,29 @@ export default function ServicePage() {
       try {
         const res = await fetch(`/api/pages/content?pagePath=${encodeURIComponent('/support/service')}`);
         const data = await res.json();
-        
+
         if (data.ok && data.contents) {
           const contents = data.contents;
-          
+
           // 헤더 콘텐츠
           const headerTitleContent = contents.find((c: any) => c.section === 'header' && c.contentType === 'text' && c.itemId === 'title');
           const headerSubtitleContent = contents.find((c: any) => c.section === 'header' && c.contentType === 'text' && c.itemId === 'subtitle');
-          
+
           if (headerTitleContent) setHeaderTitle(headerTitleContent.content.text || headerTitle);
           if (headerSubtitleContent) setHeaderSubtitle(headerSubtitleContent.content.text || headerSubtitle);
-          
+
           // 하이라이트 콘텐츠
           const highlightTitleContent = contents.find((c: any) => c.section === 'highlight' && c.contentType === 'text' && c.itemId === 'title');
           const highlightTextContent = contents.find((c: any) => c.section === 'highlight' && c.contentType === 'text' && c.itemId === 'text');
           const highlightButtonContent = contents.find((c: any) => c.section === 'highlight' && c.contentType === 'button' && c.itemId === 'button');
-          
+
           if (highlightTitleContent) setHighlightTitle(highlightTitleContent.content.text || highlightTitle);
           if (highlightTextContent) setHighlightText(highlightTextContent.content.text || highlightText);
           if (highlightButtonContent) {
             setHighlightButtonText(highlightButtonContent.content.title || highlightButtonText);
             setHighlightButtonLink(highlightButtonContent.content.link || highlightButtonLink);
           }
-          
+
           // 서비스 목록
           const serviceContents = contents.filter((c: any) => c.section === 'services');
           if (serviceContents.length > 0) {
@@ -125,7 +120,7 @@ export default function ServicePage() {
                 const titleContent = contents.find((tc: any) => tc.section === 'services' && tc.itemId === c.itemId && tc.contentType === 'text' && tc.content.text?.includes('title'));
                 const descContent = contents.find((dc: any) => dc.section === 'services' && dc.itemId === c.itemId && dc.contentType === 'text' && dc.content.text?.includes('description'));
                 const featuresContent = contents.find((fc: any) => fc.section === 'services' && fc.itemId === c.itemId && fc.contentType === 'list');
-                
+
                 return {
                   icon: emojiContent?.content.emoji || '✨',
                   title: titleContent?.content.text || c.content.title || '서비스',
@@ -133,7 +128,7 @@ export default function ServicePage() {
                   features: featuresContent?.content.items || c.content.features || [],
                 };
               });
-            
+
             if (loadedServices.length > 0) {
               setServices(loadedServices);
             }
@@ -143,9 +138,15 @@ export default function ServicePage() {
         console.error('Failed to load page content:', error);
       }
     };
-    
+
     loadContent();
   }, []);
+
+  if (htmlContent) {
+    return (
+      <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+    );
+  }
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">로딩 중...</div>;

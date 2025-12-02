@@ -20,15 +20,14 @@ export default function GenieLinkSection({ userRole, userName, userPhone }: Geni
     genieLinkedAt: string | null;
   } | null>(null);
 
-  // 크루즈몰 사용자(role: 'community')인 경우에만 표시
-  if (userRole !== 'community') {
-    return null;
-  }
+
 
   useEffect(() => {
     // 연동 정보 확인
-    checkLinkStatus();
-  }, []);
+    if (userRole === 'community') {
+      checkLinkStatus();
+    }
+  }, [userRole]);
 
   const checkLinkStatus = async () => {
     try {
@@ -88,6 +87,11 @@ export default function GenieLinkSection({ userRole, userName, userPhone }: Geni
       setIsLinking(false);
     }
   };
+
+  // 크루즈몰 사용자(role: 'community')인 경우에만 표시
+  if (userRole !== 'community') {
+    return null;
+  }
 
   return (
     <section className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-green-200 mb-6">

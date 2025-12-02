@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { buildScopedGroupWhere } from '@/app/api/partner/customer-groups/utils';
 
-// PUT: 퍼널 설정 업데이트
+// PUT: 퍼널 설정 업데이트 (PartnerCustomerGroup 사용)
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -25,7 +25,7 @@ export async function PUT(
 
     // 판매원/대리점장 프로필 확인
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
-      where: { 
+      where: {
         userId: user.id,
       },
       select: { id: true, type: true, status: true },
@@ -38,9 +38,9 @@ export async function PUT(
     const body = await req.json();
     const { funnelTalkIds, funnelSmsIds, funnelEmailIds, reEntryHandling } = body;
 
-    // 그룹 소유권 확인 (CustomerGroup)
-    const where = buildScopedGroupWhere(groupId, user.id, affiliateProfile.id);
-    const existingGroup = await prisma.customerGroup.findFirst({
+    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    const where = buildScopedGroupWhere(groupId, affiliateProfile.id);
+    const existingGroup = await prisma.partnerCustomerGroup.findFirst({
       where,
     });
 
@@ -49,13 +49,14 @@ export async function PUT(
     }
 
     // 퍼널 설정 업데이트
-    const group = await prisma.customerGroup.update({
+    const group = await prisma.partnerCustomerGroup.update({
       where: { id: groupId },
       data: {
         funnelTalkIds: Array.isArray(funnelTalkIds) && funnelTalkIds.length > 0 ? funnelTalkIds : null,
         funnelSmsIds: Array.isArray(funnelSmsIds) && funnelSmsIds.length > 0 ? funnelSmsIds : null,
         funnelEmailIds: Array.isArray(funnelEmailIds) && funnelEmailIds.length > 0 ? funnelEmailIds : null,
         reEntryHandling: reEntryHandling || null,
+        updatedAt: new Date(),
       },
     });
 

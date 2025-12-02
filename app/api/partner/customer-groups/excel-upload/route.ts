@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/partner/customer-groups/excel-upload
- * 엑셀 파일로 고객 일괄 등록
+ * 엑셀 파일로 고객 일괄 등록 (PartnerCustomerGroup 사용 - AffiliateLead 기반)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -85,8 +85,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    const group = await prisma.customerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, sessionUser.id, affiliateProfile.id),
+    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    const group = await prisma.partnerCustomerGroup.findFirst({
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
       select: { id: true },
     });
 
@@ -130,7 +131,6 @@ export async function POST(req: NextRequest) {
             row['phone'] ||
             row['Phone'] ||
             '';
-          const email = row['이메일'] || row['email'] || row['Email'] || null;
           const notes = row['비고'] || row['notes'] || row['Notes'] || null;
 
           if (!name || !phone) {
@@ -146,48 +146,46 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          let customer = await prisma.user.findFirst({
-            where: { phone: normalizedPhone },
+          // 동일한 전화번호로 이미 등록된 고객이 있는지 확인
+          const existingLead = await prisma.affiliateLead.findFirst({
+            where: {
+              customerPhone: normalizedPhone,
+              OR: [
+                { managerId: affiliateProfile.id },
+                { agentId: affiliateProfile.id },
+              ],
+            },
           });
 
-          if (!customer) {
-            customer = await prisma.user.create({
+          if (existingLead) {
+            // 기존 고객의 그룹 업데이트
+            if (existingLead.groupId !== groupId) {
+              await prisma.affiliateLead.update({
+                where: { id: existingLead.id },
+                data: {
+                  groupId: groupId,
+                  updatedAt: new Date(),
+                },
+              });
+              addedCount++;
+            } else {
+              skippedCount++;
+            }
+          } else {
+            // 새 고객 생성
+            await prisma.affiliateLead.create({
               data: {
-                name: String(name).trim(),
-                phone: normalizedPhone,
-                email: email ? String(email).trim() : null,
-                password: '3800',
-                role: 'user',
-                customerStatus: 'active',
-                customerSource: 'excel-import',
-                metadata: notes ? { notes: String(notes).trim() } : null,
-              },
-            });
-          } else if (notes) {
-            const existingMetadata = (customer.metadata as any) || {};
-            await prisma.user.update({
-              where: { id: customer.id },
-              data: {
-                metadata: { ...existingMetadata, notes: String(notes).trim() },
-              },
-            });
-          }
-
-          try {
-            await prisma.customerGroupMember.create({
-              data: {
-                groupId,
-                userId: customer.id,
-                addedBy: sessionUser.id,
+                customerName: String(name).trim(),
+                customerPhone: normalizedPhone,
+                managerId: affiliateProfile.id,
+                groupId: groupId,
+                source: 'excel-import',
+                status: 'NEW',
+                notes: notes ? String(notes).trim() : null,
+                updatedAt: new Date(),
               },
             });
             addedCount++;
-          } catch (memberError: any) {
-            if (memberError.code === 'P2002') {
-              skippedCount++;
-            } else {
-              throw memberError;
-            }
           }
         } catch (rowError: any) {
           errorCount++;

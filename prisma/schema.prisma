@@ -221,6 +221,7 @@ model AffiliateLead {
   AffiliateProfile_AffiliateLead_managerIdToAffiliateProfile         AffiliateProfile?      @relation("AffiliateLead_managerIdToAffiliateProfile", fields: [managerId], references: [id])
   AffiliateProfile_AffiliateLead_sharedToManagerIdToAffiliateProfile AffiliateProfile?      @relation("AffiliateLead_sharedToManagerIdToAffiliateProfile", fields: [sharedToManagerId], references: [id])
   AffiliateSale                                                      AffiliateSale[]
+  DocumentApproval                                                   DocumentApproval[]
 
   @@index([agentId, status])
   @@index([customerPhone])
@@ -475,6 +476,7 @@ model AffiliateSale {
   CommissionLedger                                           CommissionLedger[]
   Payment                                                    Payment?
   Reservation                                                Reservation[]
+  DocumentApproval                                           DocumentApproval[]
 
   @@index([agentId])
   @@index([managerId])
@@ -2222,6 +2224,8 @@ model User {
   UserSchedule                                                  UserSchedule[]
   UserTrip                                                      UserTrip[]
   VisitedCountry                                                VisitedCountry[]
+  DocumentApproval_Requester                                    DocumentApproval[] @relation("DocumentRequester")
+  DocumentApproval_Approver                                     DocumentApproval[] @relation("DocumentApprover")
 
   @@index([createdAt])
   @@index([customerStatus])
@@ -2517,4 +2521,27 @@ model SystemConsultation {
   @@index([managerId])
   @@index([agentId])
   @@index([createdAt])
+}
+
+model DocumentApproval {
+  id              Int       @id @default(autoincrement())
+  type            String    // 'PURCHASE_CONFIRMATION' | 'REFUND_CERTIFICATE'
+  requesterId     Int       // User.id of requester
+  saleId          Int       // AffiliateSale.id
+  leadId          Int?      // AffiliateLead.id (optional)
+  status          String    @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
+  requestData     Json?     // Document generation data
+  adminNotes      String?   // Admin's approval/rejection reason
+  approvedBy      Int?      // User.id of admin who approved/rejected
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime? // When approved/rejected
+  
+  requester       User            @relation("DocumentRequester", fields: [requesterId], references: [id])
+  approver        User?           @relation("DocumentApprover", fields: [approvedBy], references: [id])
+  sale            AffiliateSale   @relation(fields: [saleId], references: [id])
+  lead            AffiliateLead?  @relation(fields: [leadId], references: [id])
+
+  @@index([requesterId, status])
+  @@index([status, createdAt])
+  @@index([saleId])
 }

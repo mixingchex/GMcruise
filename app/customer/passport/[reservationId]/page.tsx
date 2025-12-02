@@ -67,7 +67,7 @@ export default function CustomerPassportPage() {
   const params = useParams();
   const router = useRouter();
   const reservationId = params.reservationId as string;
-  
+
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [travelers, setTravelers] = useState<Traveler[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +83,7 @@ export default function CustomerPassportPage() {
   const [verifyPhone, setVerifyPhone] = useState(''); // 입력 중인 전화번호
   const [isVerifying, setIsVerifying] = useState(false);
   const [isAdminMode, setIsAdminMode] = useState(false); // 관리자/파트너 모드
-  
+
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
 
   // 본인 확인 처리
@@ -98,7 +98,7 @@ export default function CustomerPassportPage() {
 
     try {
       const response = await fetch(`/api/customer/reservation/${reservationId}?phone=${encodeURIComponent(verifyPhone)}`);
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           setError('예약 정보를 찾을 수 없거나 전화번호가 일치하지 않습니다.');
@@ -108,17 +108,17 @@ export default function CustomerPassportPage() {
         setIsVerifying(false);
         return;
       }
-      
+
       const data = await response.json();
-      
+
       if (data.ok && data.reservation) {
         setVerifiedPhone(verifyPhone);
         setReservation(data.reservation);
-        
+
         // Traveler 배열 초기화
         const initialTravelers: Traveler[] = [];
         const totalPeople = data.reservation.totalPeople || 1;
-        
+
         if (data.reservation.travelers && data.reservation.travelers.length > 0) {
           data.reservation.travelers.forEach((t: any, index: number) => {
             initialTravelers.push({
@@ -154,13 +154,13 @@ export default function CustomerPassportPage() {
             });
           }
         }
-        
+
         setTravelers(initialTravelers);
-        
+
         if (initialTravelers.length >= 10) {
           setIsHelpMode(true);
         }
-        
+
         setCurrentStep(1); // 본인 확인 완료 후 1단계로
         setLoading(false);
       } else {
@@ -182,35 +182,35 @@ export default function CustomerPassportPage() {
       try {
         setLoading(true);
         setError('');
-        
+
         // 관리자 또는 파트너 인증 확인
         const authResponse = await fetch('/api/auth/me', {
           credentials: 'include',
         });
-        
+
         if (authResponse.ok) {
           const authData = await authResponse.json();
-          
+
           // 관리자 또는 파트너로 로그인된 경우
-          if (authData.ok && authData.user && 
-              (authData.user.role === 'admin' || authData.user.role === 'partner')) {
+          if (authData.ok && authData.user &&
+            (authData.user.role === 'admin' || authData.user.role === 'partner')) {
             setIsAdminMode(true);
-            
+
             // 본인 확인 없이 바로 예약 정보 로드
             const response = await fetch(`/api/customer/reservation/${reservationId}`, {
               credentials: 'include',
             });
-            
+
             if (response.ok) {
               const data = await response.json();
-              
+
               if (data.ok && data.reservation) {
                 setReservation(data.reservation);
-                
+
                 // Traveler 배열 초기화
                 const initialTravelers: Traveler[] = [];
                 const totalPeople = data.reservation.totalPeople || 1;
-                
+
                 if (data.reservation.travelers && data.reservation.travelers.length > 0) {
                   data.reservation.travelers.forEach((t: any, index: number) => {
                     initialTravelers.push({
@@ -246,13 +246,13 @@ export default function CustomerPassportPage() {
                     });
                   }
                 }
-                
+
                 setTravelers(initialTravelers);
-                
+
                 if (initialTravelers.length >= 10) {
                   setIsHelpMode(true);
                 }
-                
+
                 setCurrentStep(1); // 관리자는 Step 1부터 시작
                 setLoading(false);
               } else {
@@ -373,7 +373,7 @@ export default function CustomerPassportPage() {
     try {
       // 이미지 압축 (속도 향상)
       const compressedFile = await compressImage(file);
-      
+
       // FormData 생성
       const formData = new FormData();
       formData.append('file', compressedFile);
@@ -388,7 +388,7 @@ export default function CustomerPassportPage() {
 
       if (data.ok && data.data) {
         const passportData = data.data;
-        
+
         // OCR 결과로 필드 자동 채우기
         updatedTravelers[travelerIndex] = {
           ...updatedTravelers[travelerIndex],
@@ -401,7 +401,7 @@ export default function CustomerPassportPage() {
           nationality: passportData.nationality || updatedTravelers[travelerIndex].nationality,
           isScanning: false,
         };
-        
+
         setTravelers(updatedTravelers);
         alert('✅ 여권 정보가 자동으로 입력되었습니다!');
 
@@ -455,7 +455,7 @@ export default function CustomerPassportPage() {
       setIsHelpMode(true);
       return;
     }
-    
+
     setTravelers([
       ...travelers,
       {
@@ -480,10 +480,10 @@ export default function CustomerPassportPage() {
       alert('최소 1명의 여행자가 필요합니다.');
       return;
     }
-    
+
     const updatedTravelers = travelers.filter((_, i) => i !== index);
     setTravelers(updatedTravelers);
-    
+
     // 10명 미만이면 도움 요청 모드 해제
     if (updatedTravelers.length < 10) {
       setIsHelpMode(false);
@@ -497,7 +497,7 @@ export default function CustomerPassportPage() {
     // 유효성 검사
     for (let i = 0; i < travelers.length; i++) {
       const traveler = travelers[i];
-      
+
       // 추후 제출이 아닌 경우 필수 정보 검증
       if (!traveler.isSubmitLater) {
         if (!traveler.korName) {
@@ -515,7 +515,7 @@ export default function CustomerPassportPage() {
           return;
         }
       }
-      
+
       // 대표자(첫 번째)는 연락처 필수
       if (i === 0 && !traveler.phone) {
         alert('대표자 연락처는 필수 입력 항목입니다.');
@@ -723,18 +723,16 @@ export default function CustomerPassportPage() {
               {[1, 2, 3, 4, 5].map((step) => (
                 <div
                   key={step}
-                  className={`flex flex-col items-center ${
-                    step <= currentStep ? 'text-blue-600' : 'text-gray-400'
-                  }`}
+                  className={`flex flex-col items-center ${step <= currentStep ? 'text-blue-600' : 'text-gray-400'
+                    }`}
                 >
                   <div
-                    className={`mb-1 flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                      step < currentStep
+                    className={`mb-1 flex h-8 w-8 items-center justify-center rounded-full border-2 ${step < currentStep
                         ? 'border-blue-600 bg-blue-600 text-white'
                         : step === currentStep
-                        ? 'border-blue-600 bg-white text-blue-600'
-                        : 'border-gray-300 bg-white text-gray-400'
-                    }`}
+                          ? 'border-blue-600 bg-white text-blue-600'
+                          : 'border-gray-300 bg-white text-gray-400'
+                      }`}
                   >
                     {step < currentStep ? '✓' : step}
                   </div>
@@ -795,7 +793,7 @@ export default function CustomerPassportPage() {
                 </button>
               </div>
             </div>
-            
+
             <div className="mt-6 rounded-lg bg-blue-50 p-4">
               <p className="text-sm text-blue-900">
                 <span className="font-semibold">🔒 보안 안내:</span><br />
@@ -956,11 +954,11 @@ export default function CustomerPassportPage() {
                     동행자가 있으시면 아래 버튼을 눌러 추가해주세요.
                   </p>
                   <p className="mt-1 text-xs text-blue-700">
-                    동행자가 없으시면 "다음 단계로" 버튼을 눌러 진행하세요.
+                    동행자가 없으시면 &quot;다음 단계로&quot; 버튼을 눌러 진행하세요.
                   </p>
                 </div>
               )}
-              
+
               {travelers.length < 10 && (
                 <button
                   type="button"
@@ -970,7 +968,7 @@ export default function CustomerPassportPage() {
                   + 동행자 추가하기
                 </button>
               )}
-              
+
               <div className="mt-6 flex justify-between">
                 <button
                   onClick={goToPreviousStep}
@@ -1092,9 +1090,8 @@ export default function CustomerPassportPage() {
                           value={traveler.passportNo}
                           onChange={(e) => updateTraveler(index, 'passportNo', e.target.value.toUpperCase())}
                           disabled={traveler.isSubmitLater}
-                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                            traveler.isSubmitLater ? 'bg-gray-100' : ''
-                          }`}
+                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${traveler.isSubmitLater ? 'bg-gray-100' : ''
+                            }`}
                           placeholder="M12345678"
                         />
                       </div>
@@ -1108,9 +1105,8 @@ export default function CustomerPassportPage() {
                           value={traveler.dateOfBirth}
                           onChange={(e) => updateTraveler(index, 'dateOfBirth', e.target.value)}
                           disabled={traveler.isSubmitLater}
-                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                            traveler.isSubmitLater ? 'bg-gray-100' : ''
-                          }`}
+                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${traveler.isSubmitLater ? 'bg-gray-100' : ''
+                            }`}
                         />
                       </div>
 
@@ -1123,9 +1119,8 @@ export default function CustomerPassportPage() {
                           value={traveler.passportExpiryDate}
                           onChange={(e) => updateTraveler(index, 'passportExpiryDate', e.target.value)}
                           disabled={traveler.isSubmitLater}
-                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                            traveler.isSubmitLater ? 'bg-gray-100' : ''
-                          }`}
+                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${traveler.isSubmitLater ? 'bg-gray-100' : ''
+                            }`}
                         />
                       </div>
 
@@ -1138,9 +1133,8 @@ export default function CustomerPassportPage() {
                           value={traveler.nationality}
                           onChange={(e) => updateTraveler(index, 'nationality', e.target.value)}
                           disabled={traveler.isSubmitLater}
-                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${
-                            traveler.isSubmitLater ? 'bg-gray-100' : ''
-                          }`}
+                          className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${traveler.isSubmitLater ? 'bg-gray-100' : ''
+                            }`}
                           placeholder="KOR"
                         />
                       </div>
@@ -1215,7 +1209,7 @@ export default function CustomerPassportPage() {
           <div className="mb-8 space-y-6">
             <div className="rounded-lg bg-white p-6 shadow-md">
               <h2 className="mb-4 text-xl font-bold text-gray-900">5단계: 최종 확인 및 제출</h2>
-              
+
               {/* 제출 후 절차 안내 */}
               <div className="mb-6 rounded-lg bg-blue-50 p-4 border-2 border-blue-200">
                 <h3 className="mb-2 flex items-center gap-2 text-lg font-semibold text-blue-900">

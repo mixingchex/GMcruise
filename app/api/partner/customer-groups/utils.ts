@@ -1,109 +1,51 @@
 import { Prisma } from '@prisma/client';
 
+// PartnerCustomerGroup 모델을 위한 include 설정
+// PartnerCustomerGroup은 간단한 구조로 CustomerGroupMember 등 관련 테이블이 없음
 export const partnerGroupInclude = {
-  CustomerGroupMember: {
-    include: {
-      User_CustomerGroupMember_userIdToUser: {
-        select: {
-          id: true,
-          name: true,
-          phone: true,
-          email: true,
-        },
-      },
-    },
-  },
-  other_CustomerGroup: {
+  AffiliateProfile: {
     select: {
       id: true,
-      name: true,
-      color: true,
-      parentGroupId: true,
-      _count: {
-        select: {
-          CustomerGroupMember: true,
-        },
-      },
+      displayName: true,
+      type: true,
     },
   },
-  ScheduledMessage: {
-    select: {
-      id: true,
-      title: true,
-      isActive: true,
-    },
-  },
-  _count: {
-    select: {
-      CustomerGroupMember: true,
-    },
-  },
-} satisfies Prisma.CustomerGroupInclude;
+} satisfies Prisma.PartnerCustomerGroupInclude;
 
-export type PartnerGroupWithRelations = Prisma.CustomerGroupGetPayload<{
+export type PartnerGroupWithRelations = Prisma.PartnerCustomerGroupGetPayload<{
   include: typeof partnerGroupInclude;
 }>;
 
 export const serializePartnerGroup = (group: PartnerGroupWithRelations, leadCount?: number) => ({
   id: group.id,
-  adminId: group.adminId,
   name: group.name,
   description: group.description,
   color: group.color,
-  parentGroupId: group.parentGroupId,
-  affiliateProfileId: group.affiliateProfileId,
+  productCode: group.productCode,
+  profileId: group.profileId,
   createdAt: group.createdAt instanceof Date ? group.createdAt.toISOString() : group.createdAt,
   updatedAt: group.updatedAt instanceof Date ? group.updatedAt.toISOString() : group.updatedAt,
-  leadCount: leadCount ?? 0, // AffiliateLead에서 계산된 고객 수
-  members: group.CustomerGroupMember.map((member) => ({
-    id: member.id,
-    groupId: member.groupId,
-    userId: member.userId,
-    addedAt: member.addedAt instanceof Date ? member.addedAt.toISOString() : member.addedAt,
-    addedBy: member.addedBy,
-    user: member.User_CustomerGroupMember_userIdToUser,
-  })),
-  subGroups:
-    (Array.isArray(group.other_CustomerGroup) ? group.other_CustomerGroup : []).map((subGroup) => ({
-      id: subGroup.id,
-      name: subGroup.name,
-      color: subGroup.color,
-      parentGroupId: subGroup.parentGroupId,
-      _count: {
-        members: subGroup._count.CustomerGroupMember,
-      },
-    })),
-  scheduledMessages:
-    (Array.isArray(group.ScheduledMessage) ? group.ScheduledMessage : []).map((message) => ({
-      id: message.id,
-      title: message.title,
-      isActive: message.isActive,
-    })),
+  leadCount: leadCount ?? 0,
   funnelTalkIds: Array.isArray(group.funnelTalkIds) ? group.funnelTalkIds : (group.funnelTalkIds ? [group.funnelTalkIds] : []),
   funnelSmsIds: Array.isArray(group.funnelSmsIds) ? group.funnelSmsIds : (group.funnelSmsIds ? [group.funnelSmsIds] : []),
   funnelEmailIds: Array.isArray(group.funnelEmailIds) ? group.funnelEmailIds : (group.funnelEmailIds ? [group.funnelEmailIds] : []),
   reEntryHandling: group.reEntryHandling || null,
-  _count: {
-    members: group._count.CustomerGroupMember,
-  },
+  affiliateProfile: group.AffiliateProfile ? {
+    id: group.AffiliateProfile.id,
+    displayName: group.AffiliateProfile.displayName,
+    type: group.AffiliateProfile.type,
+  } : null,
 });
 
 export const buildOwnershipFilter = (
-  userId: number,
-  affiliateProfileId?: number
-): Prisma.CustomerGroupWhereInput => {
-  if (affiliateProfileId) {
-    return {
-      OR: [{ adminId: userId }, { affiliateProfileId }],
-    };
-  }
-  return { adminId: userId };
+  profileId: number
+): Prisma.PartnerCustomerGroupWhereInput => {
+  return { profileId };
 };
 
 export const buildScopedGroupWhere = (
   groupId: number,
-  userId: number,
-  affiliateProfileId?: number
-): Prisma.CustomerGroupWhereInput => ({
-  AND: [{ id: groupId }, buildOwnershipFilter(userId, affiliateProfileId)],
+  profileId: number
+): Prisma.PartnerCustomerGroupWhereInput => ({
+  AND: [{ id: groupId }, buildOwnershipFilter(profileId)],
 });

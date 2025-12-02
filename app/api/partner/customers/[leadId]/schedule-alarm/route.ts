@@ -24,7 +24,7 @@ function parseLeadId(raw: string | undefined) {
 
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
-    const { profile, sessionUser } = await requirePartnerContext();
+    const { profile, sessionUser } = await requirePartnerContext({ includeManagedAgents: true });
     const params = await context.params;
     const leadId = parseLeadId(params.leadId);
     const payload = await req.json().catch(() => ({}));
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     // 고객 정보 조회 및 권한 확인
-    await getPartnerLead(profile.id, leadId, { interactions: 1 });
+    await getPartnerLead(profile.id, leadId, { interactions: 1 }, profile.type);
 
     const actionDate = new Date(nextActionAt);
     if (Number.isNaN(actionDate.getTime())) {

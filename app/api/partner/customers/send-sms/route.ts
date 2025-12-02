@@ -10,7 +10,7 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    const { profile, sessionUser } = await requirePartnerContext();
+    const { profile, sessionUser } = await requirePartnerContext({ includeManagedAgents: true });
     const payload = await req.json().catch(() => ({}));
 
     const { leadId, phone, message, aligoApiKey, aligoUserId, aligoSenderPhone } = payload;
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     // leadId가 있으면 고객 정보 조회 및 권한 확인
     if (leadId) {
-      await getPartnerLead(profile.id, leadId, { interactions: 1 });
+      await getPartnerLead(profile.id, leadId, { interactions: 1 }, profile.type);
     }
 
     // SMS API로 발송 (제공자에 따라 분기)

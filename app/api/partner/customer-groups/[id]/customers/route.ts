@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { buildScopedGroupWhere } from '@/app/api/partner/customer-groups/utils';
 
-// GET: 그룹별 고객 리스트 조회 (유입날짜, 일차, 문자 발송 횟수 포함)
+// GET: 그룹별 고객 리스트 조회 (PartnerCustomerGroup 사용 - AffiliateLead 기반)
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> | { id: string } }
@@ -24,7 +24,7 @@ export async function GET(
 
     // 판매원/대리점장 프로필 확인
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
-      where: { 
+      where: {
         userId: user.id,
       },
       select: { id: true, type: true, status: true },
@@ -34,11 +34,17 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    // 그룹 소유권 확인 (CustomerGroup)
-    const where = buildScopedGroupWhere(groupId, user.id, affiliateProfile.id);
-    const group = await prisma.customerGroup.findFirst({
+    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    const where = buildScopedGroupWhere(groupId, affiliateProfile.id);
+    const group = await prisma.partnerCustomerGroup.findFirst({
       where,
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        funnelTalkIds: true,
+        funnelSmsIds: true,
+        funnelEmailIds: true,
+      },
     });
 
     if (!group) {
@@ -54,103 +60,86 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '50');
     const skip = (page - 1) * limit;
 
-    // CustomerGroupMember에서 그룹에 속한 고객 조회
-    const memberWhere: any = {
+    // AffiliateLead에서 그룹에 속한 고객 조회
+    const leadWhere: any = {
       groupId,
+      OR: [
+        { managerId: affiliateProfile.id },
+        { agentId: affiliateProfile.id },
+      ],
     };
 
-    // 검색 필터 (고객명, 전화번호, 이메일로 검색)
+    // 검색 필터 (고객명, 전화번호로 검색)
     if (search) {
-      memberWhere.OR = [
-        { User_CustomerGroupMember_userIdToUser: { name: { contains: search } } },
-        { User_CustomerGroupMember_userIdToUser: { phone: { contains: search } } },
-        { User_CustomerGroupMember_userIdToUser: { email: { contains: search } } },
-      ];
+      leadWhere.AND = {
+        OR: [
+          { customerName: { contains: search } },
+          { customerPhone: { contains: search } },
+        ],
+      };
     }
 
-    const [members, total] = await Promise.all([
-      prisma.customerGroupMember.findMany({
-        where: memberWhere,
-        include: {
-          User_CustomerGroupMember_userIdToUser: {
-            select: {
-              id: true,
-              name: true,
-              phone: true,
-              email: true,
-            },
-          },
+    const [leads, total] = await Promise.all([
+      prisma.affiliateLead.findMany({
+        where: leadWhere,
+        select: {
+          id: true,
+          customerName: true,
+          customerPhone: true,
+          status: true,
+          source: true,
+          createdAt: true,
+          notes: true,
+          lastContactedAt: true,
+          nextActionAt: true,
         },
-        orderBy: { addedAt: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
       }),
-      prisma.customerGroupMember.count({ where: memberWhere }),
+      prisma.affiliateLead.count({ where: leadWhere }),
     ]);
 
     // 일차 계산 헬퍼 함수
-    const calculateDays = (addedAt: Date): number => {
+    const calculateDays = (createdAt: Date): number => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const joinDate = new Date(addedAt);
+      const joinDate = new Date(createdAt);
       joinDate.setHours(0, 0, 0, 0);
       const diffTime = today.getTime() - joinDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
       return diffDays + 1; // 1일차부터 시작
     };
 
-    // 그룹에 연결된 ScheduledMessage 찾기 (funnelTalkIds, funnelSmsIds, funnelEmailIds 사용)
-    const groupWithFunnels = await prisma.customerGroup.findUnique({
-      where: { id: groupId },
-      select: {
-        funnelTalkIds: true,
-        funnelSmsIds: true,
-        funnelEmailIds: true,
-      },
-    });
-
+    // 펀널 메시지 ID 수집
     const allFunnelMessageIds: number[] = [];
-    if (groupWithFunnels) {
-      if (Array.isArray(groupWithFunnels.funnelTalkIds)) {
-        allFunnelMessageIds.push(...groupWithFunnels.funnelTalkIds);
+    if (group) {
+      if (Array.isArray(group.funnelTalkIds)) {
+        allFunnelMessageIds.push(...group.funnelTalkIds);
       }
-      if (Array.isArray(groupWithFunnels.funnelSmsIds)) {
-        allFunnelMessageIds.push(...groupWithFunnels.funnelSmsIds);
+      if (Array.isArray(group.funnelSmsIds)) {
+        allFunnelMessageIds.push(...group.funnelSmsIds);
       }
-      if (Array.isArray(groupWithFunnels.funnelEmailIds)) {
-        allFunnelMessageIds.push(...groupWithFunnels.funnelEmailIds);
+      if (Array.isArray(group.funnelEmailIds)) {
+        allFunnelMessageIds.push(...group.funnelEmailIds);
       }
     }
 
-    // 각 고객별 문자 발송 횟수 계산 (ScheduledMessageLog 사용)
-    const customers = await Promise.all(
-      members.map(async (member) => {
-        const userId = member.userId;
-
-        // ScheduledMessageLog에서 전송 횟수 조회
-        let totalSentCount = 0;
-        if (allFunnelMessageIds.length > 0 && userId) {
-          totalSentCount = await prisma.scheduledMessageLog.count({
-            where: {
-              userId,
-              status: 'sent',
-              scheduledMessageId: { in: allFunnelMessageIds },
-            },
-          });
-        }
-
-        return {
-          id: member.id,
-          userId: userId,
-          customerName: member.User_CustomerGroupMember_userIdToUser?.name || null,
-          phone: member.User_CustomerGroupMember_userIdToUser?.phone || null,
-          email: member.User_CustomerGroupMember_userIdToUser?.email || null,
-          groupInflowDate: member.addedAt.toISOString().split('T')[0], // YYYY-MM-DD 형식
-          daysSinceInflow: calculateDays(member.addedAt), // 일차
-          messageSentCount: totalSentCount, // 예약 메시지 발송 횟수 (ScheduledMessageLog 기반)
-        };
-      })
-    );
+    // 고객 정보 변환
+    const customers = leads.map((lead) => ({
+      id: lead.id,
+      leadId: lead.id,
+      customerName: lead.customerName || null,
+      phone: lead.customerPhone || null,
+      status: lead.status,
+      source: lead.source,
+      notes: lead.notes,
+      groupInflowDate: lead.createdAt.toISOString().split('T')[0],
+      daysSinceInflow: calculateDays(lead.createdAt),
+      lastContactedAt: lead.lastContactedAt?.toISOString() || null,
+      nextActionAt: lead.nextActionAt?.toISOString() || null,
+      messageSentCount: 0, // PartnerCustomerGroup에서는 ScheduledMessageLog 연동이 다르므로 0으로 설정
+    }));
 
     return NextResponse.json({
       ok: true,

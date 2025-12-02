@@ -154,7 +154,7 @@ export default function ContractInviteModal({
   // 계약서 타입 정보 로드
   useEffect(() => {
     if (!isOpen || !contractType) return;
-    
+
     const loadContractTypeInfo = async () => {
       try {
         const res = await fetch('/api/public/contract-types');
@@ -169,7 +169,7 @@ export default function ContractInviteModal({
         console.error('[ContractInviteModal] load contract type info error', error);
       }
     };
-    
+
     loadContractTypeInfo();
   }, [isOpen, contractType]);
 
@@ -229,7 +229,7 @@ export default function ContractInviteModal({
                 phone: profile?.phone || '',
               };
               setInviteForm(autoFilledForm);
-              
+
               // skipLinkGeneration이 true이고 이름/전화번호가 모두 있으면 바로 계약서 작성 폼 열기
               if (skipLinkGeneration && autoFilledForm.name && autoFilledForm.phone) {
                 setTimeout(() => {
@@ -261,7 +261,10 @@ export default function ContractInviteModal({
           // 에러는 무시 (선택적 기능)
         }
       };
+
+      // 판매원 프로필 목록 자동 로드
       loadCurrentUserInfo();
+      loadProfiles();
     } else {
       setSelectedProfile(null);
       setContractLink(null);
@@ -270,7 +273,9 @@ export default function ContractInviteModal({
       setInviteMessage('');
       setInviteForm({ name: '', phone: '' });
       setLinkGenerated(false);
+      setProfiles([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const loadProfiles = async () => {
@@ -299,16 +304,16 @@ export default function ContractInviteModal({
     // 계약서 작성 링크 생성 (판매원 선택 없이)
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
     let contractUrl = `${baseUrl}/affiliate/contract`;
-    
+
     const params = new URLSearchParams();
     // 계약서 타입 추가
     params.append('type', contractType);
-    
+
     // 현재 프로필 ID가 있으면 invitedBy 파라미터 추가
     if (currentProfileId) {
       params.append('invitedBy', String(currentProfileId));
     }
-    
+
     // 개인정보를 URL 파라미터로 추가 (자동 채우기용)
     // 보안을 위해 base64 인코딩 또는 간단한 인코딩 사용
     if (inviteForm.name.trim()) {
@@ -317,7 +322,7 @@ export default function ContractInviteModal({
     if (inviteForm.phone.trim()) {
       params.append('phone', encodeURIComponent(inviteForm.phone.trim()));
     }
-    
+
     if (params.toString()) {
       contractUrl += `?${params.toString()}`;
     }
@@ -409,7 +414,7 @@ export default function ContractInviteModal({
 
     try {
       setGeneratingInvite(true);
-      
+
       const message = buildInviteMessage(inviteForm.name, inviteForm.phone, contractLink!);
       setInviteMessage(message);
 
@@ -640,13 +645,12 @@ export default function ContractInviteModal({
               <div className="space-y-2 text-sm">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
-                      contractType === 'BRANCH_MANAGER' ? 'bg-purple-100 text-purple-700' :
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${contractType === 'BRANCH_MANAGER' ? 'bg-purple-100 text-purple-700' :
                       contractType === 'CRUISE_STAFF' ? 'bg-green-100 text-green-700' :
-                      contractType === 'SUBSCRIPTION_AGENT' ? 'bg-orange-100 text-orange-700' :
-                      contractTypeInfo?.isCustom ? 'bg-indigo-100 text-indigo-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
+                        contractType === 'SUBSCRIPTION_AGENT' ? 'bg-orange-100 text-orange-700' :
+                          contractTypeInfo?.isCustom ? 'bg-indigo-100 text-indigo-700' :
+                            'bg-blue-100 text-blue-700'
+                      }`}>
                       {getContractTypeIcon()} {getContractTypeLabel()}
                     </span>
                     <span className="text-gray-700">필요한 계약서:</span>
@@ -790,9 +794,8 @@ export default function ContractInviteModal({
                           handleGenerateLink();
                         }
                       }}
-                      className={`w-full text-left px-4 py-2 border-b border-gray-100 hover:bg-blue-50 transition-colors text-sm ${
-                        selectedProfile?.id === profile.id ? 'bg-blue-100 border-blue-300' : ''
-                      }`}
+                      className={`w-full text-left px-4 py-2 border-b border-gray-100 hover:bg-blue-50 transition-colors text-sm ${selectedProfile?.id === profile.id ? 'bg-blue-100 border-blue-300' : ''
+                        }`}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -999,6 +1002,7 @@ export default function ContractInviteModal({
                     <div className="rounded-lg border-2 border-green-200 bg-green-50/30 p-4">
                       <p className="mb-2 text-xs font-semibold text-green-800">저장된 싸인 미리보기:</p>
                       <div className="rounded-lg bg-white p-3 shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={signaturePreview} alt="서명 미리보기" className="h-32 w-auto" />
                       </div>
                     </div>

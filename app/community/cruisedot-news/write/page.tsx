@@ -824,10 +824,6 @@ function ImageLibraryModal({ open, onClose, onSelect, suggestedSubfolder }: Imag
     }
   }, [open, suggestedSubfolder]);
 
-  if (!open) {
-    return null;
-  }
-
   const filteredFiles = useMemo(() => {
     if (selectedDirectory === "all") {
       if (!normalizedFilter) return files;
@@ -835,6 +831,10 @@ function ImageLibraryModal({ open, onClose, onSelect, suggestedSubfolder }: Imag
     }
     return files.filter((file) => file.path.startsWith(selectedDirectory));
   }, [files, selectedDirectory, normalizedFilter]);
+
+  if (!open) {
+    return null;
+  }
 
   const handleUpload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

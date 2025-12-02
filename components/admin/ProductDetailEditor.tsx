@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { FiImage, FiVideo, FiFileText, FiX, FiChevronUp, FiChevronDown, FiTrash2, FiPlus, FiFolder, FiSearch } from 'react-icons/fi';
 
-export type ContentBlock = 
+export type ContentBlock =
   | { type: 'image'; id: string; url: string; alt?: string }
   | { type: 'video'; id: string; url: string; title?: string }
   | { type: 'text'; id: string; content: string };
@@ -28,14 +28,14 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   const [selectingForIndex, setSelectingForIndex] = useState<number | null>(null);
   const [hoveredImageIndex, setHoveredImageIndex] = useState<number | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  
+
   // 구글 드라이브 상품 폴더 모달 상태
   const [showGoogleDriveModal, setShowGoogleDriveModal] = useState(false);
   const [googleDriveFolders, setGoogleDriveFolders] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedGoogleDriveFolder, setSelectedGoogleDriveFolder] = useState<string>('');
   const [googleDriveImages, setGoogleDriveImages] = useState<Array<{ id: string; name: string; url: string; thumbnail?: string }>>([]);
   const [googleDriveSearchTerm, setGoogleDriveSearchTerm] = useState('');
-  
+
   // 이미지 업로드 카테고리 모달 상태
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [pendingUpload, setPendingUpload] = useState<{ index?: number; files?: FileList; file?: File; type: 'single' | 'multiple' } | null>(null);
@@ -43,13 +43,13 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   const [filenameInput, setFilenameInput] = useState('');
 
   const addBlock = (type: 'image' | 'video' | 'text') => {
-    const newBlock: ContentBlock = 
-      type === 'image' 
+    const newBlock: ContentBlock =
+      type === 'image'
         ? { type: 'image', id: `block-${Date.now()}`, url: '', alt: '' }
         : type === 'video'
-        ? { type: 'video', id: `block-${Date.now()}`, url: '', title: '' }
-        : { type: 'text', id: `block-${Date.now()}`, content: '' };
-    
+          ? { type: 'video', id: `block-${Date.now()}`, url: '', title: '' }
+          : { type: 'text', id: `block-${Date.now()}`, content: '' };
+
     onChange([...blocks, newBlock]);
   };
 
@@ -185,20 +185,20 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
 
   const loadGoogleDriveImages = async (folderId?: string) => {
     try {
-      const url = folderId 
+      const url = folderId
         ? `/api/admin/mall/google-drive-products?folderId=${encodeURIComponent(folderId)}`
         : '/api/admin/mall/google-drive-products';
       const res = await fetch(url, {
         credentials: 'include',
       });
-      
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         console.error('[Google Drive] Failed to load images:', errorData);
         alert(`이미지를 불러오는데 실패했습니다: ${errorData.error || '알 수 없는 오류'}`);
         return;
       }
-      
+
       const data = await res.json();
       if (data.ok) {
         if (data.images && Array.isArray(data.images)) {
@@ -252,7 +252,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
       await uploadFile(index, file, type);
     }
   };
-  
+
   const uploadFile = async (index: number, file: File, type: 'image' | 'video', category?: string, filename?: string) => {
     try {
       const formData = new FormData();
@@ -286,15 +286,15 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
       alert('파일 업로드에 실패했습니다.');
     }
   };
-  
+
   const handleCategorySubmit = async () => {
     if (!pendingUpload) return;
-    
+
     if (!categoryInput.trim() || !filenameInput.trim()) {
       alert('카테고리와 파일명을 모두 입력해주세요.');
       return;
     }
-    
+
     if (pendingUpload.type === 'single' && pendingUpload.index !== undefined && pendingUpload.file) {
       // 단일 파일 업로드
       await uploadFile(pendingUpload.index, pendingUpload.file, 'image', categoryInput.trim(), filenameInput.trim());
@@ -311,7 +311,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
       setFilenameInput('');
     }
   };
-  
+
   const handleMultipleImageUploadWithCategory = async (files: FileList, category: string, baseFilename: string) => {
     if (!files || files.length === 0) {
       alert('이미지를 선택해주세요.');
@@ -323,7 +323,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
       const uploadPromises: Promise<void>[] = [];
       let successCount = 0;
       let failCount = 0;
-      
+
       // 모든 파일을 병렬로 업로드
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -473,13 +473,12 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
               onDragOver={(e) => handleDragOver(e, index)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
-              className={`bg-white border-2 rounded-lg p-4 transition-all cursor-move ${
-                draggedIndex === index
+              className={`bg-white border-2 rounded-lg p-4 transition-all cursor-move ${draggedIndex === index
                   ? 'opacity-50 border-blue-500'
                   : dragOverIndex === index
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-200 hover:border-blue-300'
-              }`}
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
             >
               {/* 블록 헤더 */}
               <div className="flex items-center justify-between mb-3 pb-3 border-b">
@@ -523,7 +522,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
               {block.type === 'image' && (
                 <div className="space-y-3">
                   {block.url ? (
-                    <div 
+                    <div
                       className="relative group"
                       onMouseEnter={() => {
                         setHoveredImageIndex(index);
@@ -710,7 +709,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                 <FiX size={24} />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-hidden flex">
               {/* 폴더 목록 */}
               <div className="w-1/3 border-r overflow-y-auto p-4">
@@ -734,18 +733,17 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                         setSelectedFolder(folder);
                         loadCruiseImages(folder);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                        selectedFolder === folder
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedFolder === folder
                           ? 'bg-blue-100 text-blue-700 font-semibold'
                           : 'hover:bg-gray-100 text-gray-700'
-                      }`}
+                        }`}
                     >
                       {folder}
                     </button>
                   ))}
                 </div>
               </div>
-              
+
               {/* 이미지 그리드 */}
               <div className="flex-1 overflow-y-auto p-4">
                 {selectedFolder ? (
@@ -803,7 +801,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                 <FiX size={24} />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-hidden flex">
               {/* 폴더 목록 */}
               <div className="w-1/3 border-r overflow-y-auto p-4">
@@ -825,11 +823,10 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                       setSelectedGoogleDriveFolder('');
                       loadGoogleDriveImages(); // 루트 폴더 이미지 로드
                     }}
-                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                      selectedGoogleDriveFolder === ''
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedGoogleDriveFolder === ''
                         ? 'bg-blue-100 text-blue-700 font-semibold'
                         : 'hover:bg-gray-100 text-gray-700'
-                    }`}
+                      }`}
                   >
                     📁 루트 폴더
                   </button>
@@ -840,18 +837,17 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                         setSelectedGoogleDriveFolder(folder.id);
                         loadGoogleDriveImages(folder.id);
                       }}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                        selectedGoogleDriveFolder === folder.id
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedGoogleDriveFolder === folder.id
                           ? 'bg-blue-100 text-blue-700 font-semibold'
                           : 'hover:bg-gray-100 text-gray-700'
-                      }`}
+                        }`}
                     >
                       {folder.name}
                     </button>
                   ))}
                 </div>
               </div>
-              
+
               {/* 이미지 그리드 */}
               <div className="flex-1 overflow-y-auto p-4">
                 {googleDriveImages.length > 0 ? (
@@ -876,7 +872,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                               directUrl: (image as any).directUrl,
                               proxyUrl: (image as any).proxyUrl,
                             });
-                            
+
                             // 로드 실패 시 다른 URL 시도
                             if ((image as any).proxyUrl && currentSrc !== (image as any).proxyUrl) {
                               // 프록시 URL 시도
@@ -931,7 +927,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
           </div>
         </div>
       )}
-      
+
       {/* 카테고리 입력 모달 */}
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -942,7 +938,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
             <p className="text-sm text-gray-600 mb-4">
               [크루즈정보사진] 폴더에 저장할 카테고리와 파일명을 입력하세요.
             </p>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -957,7 +953,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                   autoFocus
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   파일명 *
@@ -971,12 +967,12 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                 />
                 {pendingUpload?.type === 'multiple' && pendingUpload.files && (
                   <p className="text-xs text-gray-500 mt-1">
-                    {pendingUpload.files.length}개의 파일이 "{filenameInput}_1", "{filenameInput}_2" 형식으로 저장됩니다.
+                    {pendingUpload.files.length}개의 파일이 &quot;{filenameInput}_1&quot;, &quot;{filenameInput}_2&quot; 형식으로 저장됩니다.
                   </p>
                 )}
               </div>
             </div>
-            
+
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => {

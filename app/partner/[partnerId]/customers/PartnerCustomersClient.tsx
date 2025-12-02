@@ -30,6 +30,9 @@ import {
   FiArrowRight,
   FiLayers,
   FiMonitor,
+  FiCloud,
+  FiDownload,
+  FiFile,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
@@ -80,6 +83,16 @@ type SaleSummary = {
   lastSaleStatus: string | null;
 };
 
+type InteractionMedia = {
+  id: number;
+  fileName: string | null;
+  fileSize: number | null;
+  mimeType: string | null;
+  url: string;
+  isBackedUp: boolean;
+  googleDriveFileId: string | null;
+};
+
 type Interaction = {
   id: number;
   interactionType: string;
@@ -91,6 +104,7 @@ type Interaction = {
     name: string | null;
     phone: string | null;
   } | null;
+  media?: InteractionMedia[];
 };
 
 type PartnerCustomer = {
@@ -452,6 +466,10 @@ export default function PartnerCustomersClient({
   }>>([]);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<number | null>(null);
+  // 고객 선택 및 삭제 관련 상태 (대리점장만 삭제 가능)
+  const [selectedForDelete, setSelectedForDelete] = useState<Set<number>>(new Set());
+  const [deletingCustomers, setDeletingCustomers] = useState(false);
+
   // 전화상담고객 별도 상태
   const [inquiryCustomers, setInquiryCustomers] = useState<PartnerCustomer[]>([]);
   const [inquiryPagination, setInquiryPagination] = useState<Pagination>({
@@ -737,6 +755,82 @@ export default function PartnerCustomersClient({
     }
   };
 
+  // 고객 선택 토글 (삭제용)
+  const toggleCustomerForDelete = (customerId: number) => {
+    setSelectedForDelete(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(customerId)) {
+        newSet.delete(customerId);
+      } else {
+        newSet.add(customerId);
+      }
+      return newSet;
+    });
+  };
+
+  // 전체 선택/해제 (삭제용)
+  const toggleAllForDelete = (customerIds: number[]) => {
+    setSelectedForDelete(prev => {
+      const allSelected = customerIds.every(id => prev.has(id));
+      if (allSelected) {
+        // 모두 해제
+        const newSet = new Set(prev);
+        customerIds.forEach(id => newSet.delete(id));
+        return newSet;
+      } else {
+        // 모두 선택
+        const newSet = new Set(prev);
+        customerIds.forEach(id => newSet.add(id));
+        return newSet;
+      }
+    });
+  };
+
+  // 선택된 고객 삭제 (대리점장만 가능)
+  const handleDeleteSelectedCustomers = async () => {
+    if (partner.type !== 'BRANCH_MANAGER') {
+      showError('삭제 권한이 없습니다.');
+      return;
+    }
+
+    if (selectedForDelete.size === 0) {
+      showError('삭제할 고객을 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택된 ${selectedForDelete.size}명의 고객을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setDeletingCustomers(true);
+    try {
+      const deletePromises = Array.from(selectedForDelete).map(leadId =>
+        fetch(`/api/partner/customers/${leadId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const successCount = results.filter(r => r.ok).length;
+      const failCount = results.length - successCount;
+
+      if (successCount > 0) {
+        showSuccess(`${successCount}명의 고객이 삭제되었습니다.`);
+        setSelectedForDelete(new Set());
+        fetchCustomers(currentPage);
+      }
+      if (failCount > 0) {
+        showError(`${failCount}명의 고객 삭제에 실패했습니다.`);
+      }
+    } catch (error) {
+      console.error('Error deleting customers:', error);
+      showError('고객 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingCustomers(false);
+    }
+  };
+
   const fetchCustomers = useCallback(
     async (pageValue: number) => {
       setLoading(true);
@@ -788,7 +882,7 @@ export default function PartnerCustomersClient({
     [searchTerm, statusFilter, selectedAgentFilter, sourceFilter],
   );
 
-  const loadLeadDetail = useCallback(async (leadId: number) => {
+  const loadLeadDetail = useCallback(async (leadId: number): Promise<PartnerCustomer | null> => {
     setDetailLoading(true);
     try {
       const res = await fetch(`/api/partner/customers/${leadId}`, {
@@ -799,6 +893,7 @@ export default function PartnerCustomersClient({
         throw new Error(json?.message || '고객 정보를 불러오지 못했습니다.');
       }
       setSelectedLead(json.customer);
+      return json.customer;
     } catch (error) {
       console.error('loadLeadDetail error', error);
       showError(
@@ -806,6 +901,7 @@ export default function PartnerCustomersClient({
           ? error.message
           : '고객 정보를 불러오지 못했습니다.',
       );
+      return null;
     } finally {
       setDetailLoading(false);
     }
@@ -981,7 +1077,7 @@ export default function PartnerCustomersClient({
 
     setSendingDb(true);
     try {
-      const res = await fetch('/api/partner/customers/assign', {
+      const res = await fetch('/api/partner/customers/assign-leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1022,7 +1118,7 @@ export default function PartnerCustomersClient({
     }
 
     try {
-      const res = await fetch('/api/partner/customers/assign', {
+      const res = await fetch('/api/partner/customers/assign-leads', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1503,33 +1599,71 @@ export default function PartnerCustomersClient({
       if (!res.ok || !json?.ok) {
         throw new Error(json?.message || '상담 기록을 저장하지 못했습니다.');
       }
-      showSuccess('상담 기록이 추가되었습니다.');
+
+      // 파일이 있으면 백그라운드에서 업로드 (사용자가 기다리지 않음)
+      const filesToUpload = [...interactionForm.files];
+      const interactionId = json.interaction?.id;
+
+      // 폼 초기화 및 성공 메시지 먼저 표시
       setInteractionForm({ note: '', status: '', nextActionAt: '', occurredAt: '', files: [] });
 
-      // 파일 업로드 (있는 경우)
-      if (interactionForm.files.length > 0 && json.interaction?.id) {
-        for (const file of interactionForm.files) {
-          const formData = new FormData();
-          formData.append('file', file);
+      if (filesToUpload.length > 0 && interactionId) {
+        showSuccess(`상담 기록이 저장되었습니다. 파일 ${filesToUpload.length}개 업로드 중...`);
 
-          try {
-            const uploadRes = await fetch(`/api/admin/affiliate/interactions/${json.interaction.id}/upload`, {
-              method: 'POST',
-              credentials: 'include',
-              body: formData,
-            });
-            const uploadJson = await uploadRes.json();
-            if (!uploadRes.ok || !uploadJson.ok) {
-              console.error('File upload failed:', uploadJson.message);
+        // 백그라운드에서 파일 업로드 (Promise.all로 병렬 처리)
+        Promise.all(
+          filesToUpload.map(async (file) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+              const uploadRes = await fetch(`/api/admin/affiliate/interactions/${interactionId}/upload`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData,
+              });
+              const uploadJson = await uploadRes.json();
+              if (!uploadRes.ok || !uploadJson.ok) {
+                console.error('File upload failed:', uploadJson.message);
+                return { success: false, fileName: file.name };
+              }
+              return { success: true, fileName: file.name };
+            } catch (uploadError) {
+              console.error('File upload error:', uploadError);
+              return { success: false, fileName: file.name };
             }
-          } catch (uploadError) {
-            console.error('File upload error:', uploadError);
+          })
+        ).then((results) => {
+          const successCount = results.filter(r => r.success).length;
+          const failCount = results.filter(r => !r.success).length;
+
+          if (failCount === 0) {
+            showSuccess(`파일 ${successCount}개 업로드 완료!`);
+          } else if (successCount > 0) {
+            showSuccess(`파일 ${successCount}개 업로드 완료, ${failCount}개 실패`);
+          } else {
+            showError(`파일 업로드 실패`);
           }
-        }
+
+          // 업로드 완료 후 상세정보 새로고침
+          if (selectedLeadId) {
+            loadLeadDetail(selectedLeadId);
+          }
+        });
+      } else {
+        showSuccess('상담 기록이 추가되었습니다.');
       }
 
-      await loadLeadDetail(selectedLeadId);
-      fetchCustomers(currentPage);
+      // 상세정보만 새로고침 (고객 목록은 새로고침하지 않음 - 화면 유지)
+      const updatedLead = await loadLeadDetail(selectedLeadId);
+
+      // 상태나 다음 조치일시가 변경된 경우에만 목록에서 해당 고객 정보 업데이트
+      if (updatedLead) {
+        setCustomers(prev => prev.map(c =>
+          c.id === selectedLeadId
+            ? { ...c, status: updatedLead.status, nextActionAt: updatedLead.nextActionAt, lastContactedAt: updatedLead.lastContactedAt }
+            : c
+        ));
+      }
 
       // 다음 조치 시간이 설정되었으면 알람 스케줄링
       if (interactionForm.nextActionAt && selectedLead && selectedLeadId) {
@@ -2270,7 +2404,7 @@ export default function PartnerCustomersClient({
                         </div>
                       ) : (
                         <p className="text-sm text-emerald-800">
-                          아래 고객 목록에서 "문자 보내기" 버튼을 클릭하거나, 고객을 선택한 후 상세 정보에서 "문자 보내기" 버튼을 클릭하세요.
+                          아래 고객 목록에서 &quot;문자 보내기&quot; 버튼을 클릭하거나, 고객을 선택한 후 상세 정보에서 &quot;문자 보내기&quot; 버튼을 클릭하세요.
                         </p>
                       )}
                     </div>
@@ -2278,236 +2412,48 @@ export default function PartnerCustomersClient({
                 </div>
               )}
 
-              {/* 전화상담 신청 고객 섹션 */}
+              {/* 일반 고객 목록 */}
               {!loading && customers.length > 0 && (() => {
-                const inquiryCustomers = customers.filter(c =>
-                  c.source?.startsWith('mall-') || c.source === 'product-inquiry'
-                );
+                // 일반 고객: 전화상담 고객이 아닌 모든 고객 (partner-manual, affiliate-manual 등)
                 const regularCustomers = customers.filter(c =>
-                  !c.source?.startsWith('mall-') && c.source !== 'product-inquiry'
+                  !c.source?.startsWith('mall-') && c.source !== 'product-inquiry' && c.source !== 'phone-consultation'
                 );
 
                 return (
                   <>
-                    {inquiryCustomers.length > 0 && (
-                      <div className="mb-8">
-                        <h3 className="mb-4 text-xl font-bold text-slate-900 flex items-center gap-2">
-                          <FiPhone className="text-blue-600" />
-                          전화상담 신청 고객 ({inquiryCustomers.length}명)
-                        </h3>
-                        {inquiryCustomers.length >= 10 ? (
-                          // 10명 이상일 때 테이블 형태로 표시
-                          <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white">
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-slate-200">
-                                <thead className="bg-blue-50">
-                                  <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                      고객
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                      신청 상품
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                      유입날짜
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                      상태
-                                    </th>
-                                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                      작업
-                                    </th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 bg-white">
-                                  {inquiryCustomers.map((customer) => {
-                                    const productCode = customer.metadata?.productCode || customer.metadata?.product_code;
-                                    const productName = customer.metadata?.productName || customer.metadata?.product_name;
-                                    const partnerId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
-
-                                    return (
-                                      <tr key={customer.id} className="hover:bg-blue-50/50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                          <div>
-                                            <div className="flex items-center gap-2">
-                                              <div className="text-sm font-semibold text-slate-900">
-                                                {customer.customerName ?? '이름 미입력'}
-                                              </div>
-                                              <CustomerStatusBadges
-                                                testModeStartedAt={customer.testModeStartedAt}
-                                                customerStatus={customer.customerStatus}
-                                                customerSource={customer.customerSource}
-                                                mallUserId={customer.mallUserId}
-                                              />
-                                            </div>
-                                            <div className="text-xs text-slate-600">
-                                              {customer.customerPhone ?? '연락처 미입력'}
-                                            </div>
-                                          </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                          {productCode ? (
-                                            <div>
-                                              <div className="text-sm font-semibold text-slate-900">
-                                                {productName || productCode}
-                                              </div>
-                                              <Link
-                                                href={partnerId
-                                                  ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
-                                                  : `/products/${productCode}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                                              >
-                                                상품 보기 →
-                                              </Link>
-                                            </div>
-                                          ) : (
-                                            <span className="text-xs text-slate-400">상품 정보 없음</span>
-                                          )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                                          {formatDate(customer.createdAt)}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                          <StatusBadge status={customer.status} options={leadStatusOptions} />
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                          <div className="flex items-center gap-2 justify-end">
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                // 고객 ID 사용 (AffiliateLead ID)
-                                                setSelectedCustomerForNote({ id: customer.id, name: customer.customerName });
-                                                setNoteModalOpen(true);
-                                              }}
-                                              className="flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-medium transition-colors"
-                                              title="고객 기록 작성"
-                                            >
-                                              <FiFileText size={14} />
-                                              기록
-                                            </button>
-                                            {searchParams.get('action') === 'sms' && (
-                                              <button
-                                                type="button"
-                                                onClick={async () => {
-                                                  await openDetail(customer.id);
-                                                  if (!selectedLead && customer.id) {
-                                                    await loadLeadDetail(customer.id);
-                                                  }
-                                                  setShowSmsModal(true);
-                                                }}
-                                                className="text-emerald-600 hover:text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded text-xs"
-                                              >
-                                                문자 보내기
-                                              </button>
-                                            )}
-                                            <button
-                                              type="button"
-                                              onClick={() => openDetail(customer.id)}
-                                              className="text-blue-600 hover:text-blue-700 font-semibold"
-                                            >
-                                              상세 보기 →
-                                            </button>
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        ) : (
-                          // 10명 미만일 때 카드 형태로 표시
-                          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {inquiryCustomers.map((customer) => {
-                              const productCode = customer.metadata?.productCode || customer.metadata?.product_code;
-                              const productName = customer.metadata?.productName || customer.metadata?.product_name;
-                              const partnerId = customer.metadata?.mallUserId || customer.metadata?.affiliateMallUserId;
-
-                              return (
-                                <div key={customer.id} className="rounded-xl border-2 border-blue-200 bg-blue-50/50 p-5 hover:shadow-lg transition-shadow">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-bold text-slate-900">
-                                          {customer.customerName ?? '이름 미입력'}
-                                        </h4>
-                                        <CustomerStatusBadges
-                                          testModeStartedAt={customer.testModeStartedAt}
-                                          customerStatus={customer.customerStatus}
-                                          customerSource={customer.customerSource}
-                                          mallUserId={customer.mallUserId}
-                                        />
-                                      </div>
-                                      <p className="text-sm text-slate-600 mb-2">
-                                        {customer.customerPhone ?? '연락처 미입력'}
-                                      </p>
-                                      {productCode && (
-                                        <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
-                                          <p className="text-xs font-semibold text-slate-500 mb-1">신청 상품</p>
-                                          <p className="text-sm font-semibold text-slate-900 mb-2">
-                                            {productName || productCode}
-                                          </p>
-                                          <Link
-                                            href={partnerId
-                                              ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}`
-                                              : `/products/${productCode}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:underline"
-                                          >
-                                            상품 보기 →
-                                          </Link>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <StatusBadge status={customer.status} options={leadStatusOptions} />
-                                  </div>
-                                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-blue-200">
-                                    <span className="text-xs text-slate-500">
-                                      {formatDate(customer.createdAt)}
-                                    </span>
-                                    <div className="flex items-center gap-2">
-                                      {searchParams.get('action') === 'sms' && (
-                                        <button
-                                          type="button"
-                                          onClick={async () => {
-                                            await openDetail(customer.id);
-                                            if (!selectedLead && customer.id) {
-                                              await loadLeadDetail(customer.id);
-                                            }
-                                            setShowSmsModal(true);
-                                          }}
-                                          className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-2 py-1 rounded"
-                                        >
-                                          문자 보내기
-                                        </button>
-                                      )}
-                                      <button
-                                        type="button"
-                                        onClick={() => openDetail(customer.id)}
-                                        className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                                      >
-                                        상세 보기 →
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                    {/* 선택된 고객이 있을 때 삭제 버튼 표시 (대리점장만) */}
+                    {partner.type === 'BRANCH_MANAGER' && selectedForDelete.size > 0 && (
+                      <div className="mb-4 flex items-center justify-between rounded-xl bg-red-50 border border-red-200 px-4 py-3">
+                        <span className="text-sm font-medium text-red-700">
+                          {selectedForDelete.size}명 선택됨
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleDeleteSelectedCustomers}
+                          disabled={deletingCustomers}
+                          className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <FiTrash2 />
+                          {deletingCustomers ? '삭제 중...' : '선택 삭제'}
+                        </button>
                       </div>
                     )}
-
-                    {/* 일반 고객 목록 */}
                     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-slate-200">
                           <thead className="bg-slate-100">
                             <tr>
+                              {/* 체크박스 열 (대리점장만) */}
+                              {partner.type === 'BRANCH_MANAGER' && (
+                                <th className="w-12 px-4 py-3 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={regularCustomers.length > 0 && regularCustomers.every(c => selectedForDelete.has(c.id))}
+                                    onChange={() => toggleAllForDelete(regularCustomers.map(c => c.id))}
+                                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                  />
+                                </th>
+                              )}
                               <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                                 고객
                               </th>
@@ -2534,19 +2480,19 @@ export default function PartnerCustomersClient({
                           <tbody className="divide-y divide-slate-100">
                             {loading ? (
                               <tr>
-                                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
+                                <td colSpan={partner.type === 'BRANCH_MANAGER' ? 8 : 7} className="px-6 py-10 text-center text-sm text-slate-500">
                                   데이터를 불러오는 중입니다...
                                 </td>
                               </tr>
                             ) : regularCustomers.length === 0 && inquiryCustomers.length === 0 ? (
                               <tr>
-                                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
+                                <td colSpan={partner.type === 'BRANCH_MANAGER' ? 8 : 7} className="px-6 py-10 text-center text-sm text-slate-500">
                                   등록된 고객이 없습니다. &ldquo;새 고객 추가&rdquo; 버튼으로 고객을 등록해 주세요.
                                 </td>
                               </tr>
                             ) : regularCustomers.length === 0 ? (
                               <tr>
-                                <td colSpan={7} className="px-6 py-10 text-center text-sm text-slate-500">
+                                <td colSpan={partner.type === 'BRANCH_MANAGER' ? 8 : 7} className="px-6 py-10 text-center text-sm text-slate-500">
                                   일반 고객이 없습니다.
                                 </td>
                               </tr>
@@ -2558,6 +2504,17 @@ export default function PartnerCustomersClient({
 
                                 return (
                                   <tr key={customer.id} className="hover:bg-slate-50">
+                                    {/* 체크박스 (대리점장만) */}
+                                    {partner.type === 'BRANCH_MANAGER' && (
+                                      <td className="w-12 px-4 py-4 text-center">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedForDelete.has(customer.id)}
+                                          onChange={() => toggleCustomerForDelete(customer.id)}
+                                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                      </td>
+                                    )}
                                     <td className="px-6 py-4 text-sm text-slate-700">
                                       <div className="flex flex-col gap-1">
                                         <span className="font-semibold text-slate-900">
@@ -2692,13 +2649,6 @@ export default function PartnerCustomersClient({
                                     </td>
                                     <td className="px-6 py-4 text-right text-sm">
                                       <div className="flex items-center gap-2 justify-end">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleExtendTrial(customer.id, customer.customerName || '고객')}
-                                          className="inline-flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2 text-xs font-semibold text-green-600 hover:bg-green-100"
-                                        >
-                                          +7일 연장
-                                        </button>
                                         {searchParams.get('action') === 'sms' && (
                                           <button
                                             type="button"
@@ -3274,7 +3224,7 @@ export default function PartnerCustomersClient({
                 <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
                   <li>첫 번째 행은 헤더(컬럼명)입니다</li>
                   <li>필수 컬럼: <strong>이름</strong>, <strong>연락처</strong></li>
-                  <li>컬럼명은 "이름", "연락처" 또는 "name", "phone" 등으로 작성 가능합니다</li>
+                  <li>컬럼명은 &quot;이름&quot;, &quot;연락처&quot; 또는 &quot;name&quot;, &quot;phone&quot; 등으로 작성 가능합니다</li>
                   <li>샘플 파일을 다운로드하여 형식을 확인하세요</li>
                 </ul>
               </div>
@@ -3905,6 +3855,34 @@ export default function PartnerCustomersClient({
                                       >
                                         <div className="text-xs font-semibold mb-2 opacity-70">{interaction.interactionType}</div>
                                         <p>{interaction.note ?? '메모 없음'}</p>
+
+                                        {/* 첨부 파일 목록 - 간소화 버전 */}
+                                        {interaction.media && interaction.media.length > 0 && (
+                                          <div className="mt-3 pt-3 border-t border-slate-200">
+                                            <div className="flex flex-wrap gap-2">
+                                              {interaction.media.map((file) => (
+                                                <a
+                                                  key={file.id}
+                                                  href={file.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                                  title={file.fileName || '파일 열기'}
+                                                >
+                                                  {file.mimeType?.startsWith('audio/') ? (
+                                                    <FiMic className="text-blue-500 flex-shrink-0" />
+                                                  ) : (
+                                                    <FiFile className="text-slate-400 flex-shrink-0" />
+                                                  )}
+                                                  <span className="truncate max-w-[120px] font-medium">
+                                                    {file.fileName || '파일'}
+                                                  </span>
+                                                  <FiDownload className="text-blue-500 flex-shrink-0" />
+                                                </a>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   );

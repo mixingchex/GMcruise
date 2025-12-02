@@ -180,7 +180,10 @@ export async function GET(req: NextRequest) {
       }
     } else {
       // 일반 고객 (기존 로직)
-      if (profile.type === 'BRANCH_MANAGER') {
+      if (profile.type === 'HQ') {
+        // 본사(HQ): 모든 고객 접근 가능
+        whereConditions = [{}]; // 빈 조건 = 모든 고객
+      } else if (profile.type === 'BRANCH_MANAGER') {
         // 대리점장: 본인 고객 + 소속 판매원 고객
         const agentIds = profile.managedAgents?.map(a => a.id) || [];
 
@@ -226,7 +229,7 @@ export async function GET(req: NextRequest) {
           { agentId: profile.id },
         ];
       } else {
-        // 본사(HQ) 또는 기타: 본인 고객
+        // 기타: 본인 고객
         whereConditions = [
           { OR: [{ managerId: profile.id }, { agentId: profile.id }] },
         ];
@@ -885,6 +888,7 @@ export async function POST(req: NextRequest) {
               role: 'user',
               customerSource: 'affiliate-manual',
               customerStatus: 'active',
+              updatedAt: new Date(),
             },
             select: { id: true, name: true, phone: true },
           });
@@ -896,6 +900,52 @@ export async function POST(req: NextRequest) {
           // User 생성 실패해도 AffiliateLead는 이미 생성되었으므로 계속 진행
         }
       }
+    }
+
+    // Google 스프레드시트에 고객 데이터 전송 (고객관리 시트)
+    try {
+      const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMnRse8lBCmU20IziTTFvLoLjnNUCy1vtE_y-X-niR67Xs63Bf5qBE4Zb5txQZ_R9-/exec';
+      const timestamp = new Date().toLocaleString('ko-KR');
+
+      // 담당자 정보 결정
+      let channel = '본사';
+      let manager = '';
+      if (profile.type === 'BRANCH_MANAGER') {
+        channel = '대리점장';
+        manager = profile.displayName || sessionUser.name || '';
+      } else if (profile.type === 'SALES_AGENT') {
+        channel = '판매원';
+        manager = profile.displayName || sessionUser.name || '';
+      }
+
+      const formData = new URLSearchParams();
+      formData.append('action', 'addRow');
+      formData.append('timestamp', timestamp);
+      formData.append('name', customerName || '');
+      formData.append('phone', customerPhone || '');
+      formData.append('source', source === 'partner-manual' ? '수동입력' : source);
+      formData.append('productName', '');
+      formData.append('channel', channel);
+      formData.append('manager', manager);
+
+      console.log('[POST /api/partner/customers] Google 스프레드시트 전송 시작:', {
+        name: customerName,
+        phone: customerPhone,
+        channel,
+        manager,
+      });
+
+      const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formData.toString(),
+      });
+
+      const googleResult = await googleResponse.text();
+      console.log('[POST /api/partner/customers] Google 스프레드시트 응답:', googleResult);
+    } catch (googleError) {
+      console.error('[POST /api/partner/customers] Google 스프레드시트 전송 실패:', googleError);
+      // 스프레드시트 전송 실패해도 고객 추가는 성공으로 처리
     }
 
     return NextResponse.json({

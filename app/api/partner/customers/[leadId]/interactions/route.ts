@@ -28,12 +28,12 @@ export async function GET(
 ) {
   let resolvedParams: { leadId: string } = { leadId: 'unknown' };
   try {
-    const { profile } = await requirePartnerContext();
+    const { profile } = await requirePartnerContext({ includeManagedAgents: true });
     // Next.js 15+에서는 params가 Promise일 수 있음
     resolvedParams = await params;
     const leadId = parseLeadId(resolvedParams.leadId);
 
-    await getPartnerLead(profile.id, leadId, { interactions: 1 });
+    await getPartnerLead(profile.id, leadId, { interactions: 1 }, profile.type);
 
     const interactions = await prisma.affiliateInteraction.findMany({
       where: { leadId },
@@ -51,6 +51,17 @@ export async function GET(
             id: true,
             name: true,
             phone: true,
+          },
+        },
+        AffiliateMedia: {
+          select: {
+            id: true,
+            fileName: true,
+            fileSize: true,
+            mimeType: true,
+            storagePath: true,
+            createdAt: true,
+            metadata: true,
           },
         },
       },
@@ -72,6 +83,15 @@ export async function GET(
               phone: interaction.User.phone,
             }
           : null,
+        media: interaction.AffiliateMedia.map((m) => ({
+          id: m.id,
+          fileName: m.fileName,
+          fileSize: m.fileSize,
+          mimeType: m.mimeType,
+          url: m.storagePath,
+          isBackedUp: !!(m.metadata as any)?.googleDriveFileId,
+          googleDriveFileId: (m.metadata as any)?.googleDriveFileId || null,
+        })),
       })),
     });
   } catch (error) {
@@ -89,7 +109,7 @@ export async function POST(
 ) {
   let resolvedParams: { leadId: string } = { leadId: 'unknown' };
   try {
-    const { profile, sessionUser } = await requirePartnerContext();
+    const { profile, sessionUser } = await requirePartnerContext({ includeManagedAgents: true });
     // Next.js 15+에서는 params가 Promise일 수 있음
     resolvedParams = await params;
     const leadId = parseLeadId(resolvedParams.leadId);
@@ -102,7 +122,7 @@ export async function POST(
       throw new PartnerApiError('상담 메모를 입력해주세요.', 400);
     }
 
-    await getPartnerLead(profile.id, leadId, { interactions: 1 });
+    await getPartnerLead(profile.id, leadId, { interactions: 1 }, profile.type);
 
     let occurredAt = new Date();
     if (payload.occurredAt) {
@@ -123,7 +143,7 @@ export async function POST(
     const status = ensureValidLeadStatus(payload.status);
 
     // lead 정보 가져오기 (productCode 확인용)
-    const lead = await getPartnerLead(profile.id, leadId, { interactions: 1 });
+    const lead = await getPartnerLead(profile.id, leadId, { interactions: 1 }, profile.type);
 
     const result = await prisma.$transaction(async (tx) => {
       const createdInteraction = await tx.affiliateInteraction.create({

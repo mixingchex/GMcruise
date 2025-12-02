@@ -56,7 +56,7 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
 
   useEffect(() => {
     loadFiles();
-  }, [type]);
+  }, [type]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 파일 크기 포맷팅
   const formatFileSize = (bytes: number): string => {
@@ -198,8 +198,8 @@ export default function FileGallery({ type, onSelect, onClose, currentUrl }: Fil
                   key={file.url}
                   onClick={() => handleSelect(file.url)}
                   className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${selectedUrl === file.url
-                      ? 'border-blue-500 ring-2 ring-blue-200'
-                      : 'border-gray-200 hover:border-blue-300'
+                    ? 'border-blue-500 ring-2 ring-blue-200'
+                    : 'border-gray-200 hover:border-blue-300'
                     }`}
                 >
                   {file.type === 'image' ? (

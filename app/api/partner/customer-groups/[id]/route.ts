@@ -7,11 +7,11 @@ import { buildScopedGroupWhere, partnerGroupInclude, serializePartnerGroup } fro
 
 /**
  * GET /api/partner/customer-groups/[id]
- * 특정 그룹 조회 (CustomerGroup 모델 사용)
+ * 특정 그룹 조회 (PartnerCustomerGroup 모델 사용)
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const user = await getSessionUser();
@@ -28,13 +28,14 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    const groupId = Number((await params).id);
+    const resolvedParams = await Promise.resolve(params);
+    const groupId = Number(resolvedParams.id);
     if (!Number.isInteger(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    const group = await prisma.customerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, user.id, affiliateProfile.id),
+    const group = await prisma.partnerCustomerGroup.findFirst({
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
       include: partnerGroupInclude,
     });
 
@@ -42,7 +43,18 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, group: serializePartnerGroup(group) });
+    // 고객 수 계산
+    const leadCount = await prisma.affiliateLead.count({
+      where: {
+        groupId: group.id,
+        OR: [
+          { managerId: affiliateProfile.id },
+          { agentId: affiliateProfile.id },
+        ],
+      },
+    });
+
+    return NextResponse.json({ ok: true, group: serializePartnerGroup(group, leadCount) });
   } catch (error) {
     console.error('[Partner Customer Groups GET] Error:', error);
     return NextResponse.json(
@@ -54,11 +66,11 @@ export async function GET(
 
 /**
  * PUT /api/partner/customer-groups/[id]
- * 그룹 수정 (CustomerGroup 모델 사용)
+ * 그룹 수정 (PartnerCustomerGroup 모델 사용)
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const user = await getSessionUser();
@@ -75,13 +87,14 @@ export async function PUT(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    const groupId = Number((await params).id);
+    const resolvedParams = await Promise.resolve(params);
+    const groupId = Number(resolvedParams.id);
     if (!Number.isInteger(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    const existingGroup = await prisma.customerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, user.id, affiliateProfile.id),
+    const existingGroup = await prisma.partnerCustomerGroup.findFirst({
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
     });
 
     if (!existingGroup) {
@@ -89,16 +102,9 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { name, description, color, parentGroupId, funnelTalkIds, funnelSmsIds, funnelEmailIds, reEntryHandling } = body;
+    const { name, description, color, productCode, funnelTalkIds, funnelSmsIds, funnelEmailIds, reEntryHandling } = body;
 
-    const resolvedParentGroupId =
-      parentGroupId === null || parentGroupId === undefined
-        ? existingGroup.parentGroupId
-        : Number.isFinite(Number(parentGroupId))
-          ? Number(parentGroupId)
-          : existingGroup.parentGroupId;
-
-    const group = await prisma.customerGroup.update({
+    const group = await prisma.partnerCustomerGroup.update({
       where: { id: groupId },
       data: {
         name: name?.trim() || existingGroup.name,
@@ -107,22 +113,34 @@ export async function PUT(
             ? description?.trim() || null
             : existingGroup.description,
         color: color !== undefined ? color || null : existingGroup.color,
-        parentGroupId: resolvedParentGroupId,
-        funnelTalkIds: funnelTalkIds !== undefined 
+        productCode: productCode !== undefined ? productCode || null : existingGroup.productCode,
+        funnelTalkIds: funnelTalkIds !== undefined
           ? (Array.isArray(funnelTalkIds) && funnelTalkIds.length > 0 ? funnelTalkIds : null)
           : existingGroup.funnelTalkIds,
-        funnelSmsIds: funnelSmsIds !== undefined 
+        funnelSmsIds: funnelSmsIds !== undefined
           ? (Array.isArray(funnelSmsIds) && funnelSmsIds.length > 0 ? funnelSmsIds : null)
           : existingGroup.funnelSmsIds,
-        funnelEmailIds: funnelEmailIds !== undefined 
+        funnelEmailIds: funnelEmailIds !== undefined
           ? (Array.isArray(funnelEmailIds) && funnelEmailIds.length > 0 ? funnelEmailIds : null)
           : existingGroup.funnelEmailIds,
         reEntryHandling: reEntryHandling !== undefined ? (reEntryHandling || null) : existingGroup.reEntryHandling,
+        updatedAt: new Date(),
       },
       include: partnerGroupInclude,
     });
 
-    return NextResponse.json({ ok: true, group: serializePartnerGroup(group) });
+    // 고객 수 계산
+    const leadCount = await prisma.affiliateLead.count({
+      where: {
+        groupId: group.id,
+        OR: [
+          { managerId: affiliateProfile.id },
+          { agentId: affiliateProfile.id },
+        ],
+      },
+    });
+
+    return NextResponse.json({ ok: true, group: serializePartnerGroup(group, leadCount) });
   } catch (error) {
     console.error('[Partner Customer Groups PUT] Error:', error);
     return NextResponse.json(
@@ -134,11 +152,11 @@ export async function PUT(
 
 /**
  * DELETE /api/partner/customer-groups/[id]
- * 그룹 삭제 (CustomerGroup 모델 사용)
+ * 그룹 삭제 (PartnerCustomerGroup 모델 사용)
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const user = await getSessionUser();
@@ -155,13 +173,14 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    const groupId = Number((await params).id);
+    const resolvedParams = await Promise.resolve(params);
+    const groupId = Number(resolvedParams.id);
     if (!Number.isInteger(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    const group = await prisma.customerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, user.id, affiliateProfile.id),
+    const group = await prisma.partnerCustomerGroup.findFirst({
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
       select: { id: true },
     });
 
@@ -184,7 +203,7 @@ export async function DELETE(
     });
 
     // 그룹 삭제
-    await prisma.customerGroup.delete({
+    await prisma.partnerCustomerGroup.delete({
       where: { id: groupId },
     });
 

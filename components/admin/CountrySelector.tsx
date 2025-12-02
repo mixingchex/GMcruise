@@ -16,9 +16,9 @@ interface CountrySelectorProps {
   label?: string;
 }
 
-export default function CountrySelector({ 
-  selectedCountries, 
-  onChange, 
+export default function CountrySelector({
+  selectedCountries,
+  onChange,
   maxCount = 10,
   label = '방문 국가 설정'
 }: CountrySelectorProps) {
@@ -33,10 +33,10 @@ export default function CountrySelector({
       (cont?.countries || []).forEach((c: any) => {
         const countryName = c?.name;
         if (!countryName) return;
-        
+
         // "대한민국 (South Korea)" 형식에서 한국어 이름만 추출
         const koreanName = countryName.split(' (')[0].trim();
-        
+
         // 모든 국가는 국가와 지역 모두 추가 (한국어만 사용)
         out.push({ value: koreanName, label: koreanName });
         if (Array.isArray(c?.regions)) {
@@ -86,13 +86,13 @@ export default function CountrySelector({
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label} <span className="text-red-600">*</span>
       </label>
-      
+
       {/* 방문 국가 개수 선택 */}
       <div>
         <label className="block text-xs text-gray-600 mb-1">방문 국가 개수 (1-10개)</label>
-        <select 
-          value={visitCount} 
-          onChange={(e) => handleVisitCountChange(parseInt(e.target.value, 10))} 
+        <select
+          value={visitCount}
+          onChange={(e) => handleVisitCountChange(parseInt(e.target.value, 10))}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         >
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
@@ -106,9 +106,9 @@ export default function CountrySelector({
         <label className="block text-xs text-gray-600 mb-1">
           목적지 선택 <span className="text-blue-600 font-bold">({selectedCountries.length}/{visitCount}개 선택)</span>
           {selectedCountries.length > 0 && (
-            <button 
-              type="button" 
-              onClick={() => onChange([])} 
+            <button
+              type="button"
+              onClick={() => onChange([])}
               className="ml-2 text-red-500 text-xs font-medium hover:underline"
             >
               초기화
@@ -172,7 +172,7 @@ export default function CountrySelector({
             ))}
           </div>
           <p className="text-xs text-blue-700 mt-2 font-semibold">
-            → 크루즈몰에 "{selectedCountries.length}개국 여행"으로 표시됩니다
+            → 크루즈몰에 &quot;{selectedCountries.length}개국 여행&quot;으로 표시됩니다
           </p>
         </div>
       )}

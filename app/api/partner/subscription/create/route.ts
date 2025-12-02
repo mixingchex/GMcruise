@@ -96,6 +96,7 @@ export async function POST(req: Request) {
           password: 'zxc1', // 정액제 기본 비밀번호
           role: 'community',
           customerSource: 'subscription-agent-creation',
+          updatedAt: new Date(),
         },
         include: {
           AffiliateProfile: true,

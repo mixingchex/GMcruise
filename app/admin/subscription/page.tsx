@@ -231,9 +231,9 @@ export default function SubscriptionManagementPage() {
                   <p className="font-semibold mb-1">📝 로그인 안내</p>
                   <p className="mb-1">정액제 판매원(gest) 계정 로그인:</p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>파트너 모드 로그인 페이지에서 <strong>"정액제 판매원(gest)"</strong> 모드 선택</li>
+                    <li>파트너 모드 로그인 페이지에서 <strong>&quot;정액제 판매원(gest)&quot;</strong> 모드 선택</li>
                     <li>아이디: <code className="bg-blue-100 px-1 rounded">gest1</code>, 비밀번호: <code className="bg-blue-100 px-1 rounded">zxc1</code></li>
-                    <li>일반 판매원/대리점장은 <strong>"판매원/대리점장"</strong> 모드 선택</li>
+                    <li>일반 판매원/대리점장은 <strong>&quot;판매원/대리점장&quot;</strong> 모드 선택</li>
                   </ul>
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
@@ -266,13 +266,13 @@ export default function SubscriptionManagementPage() {
                       a.click();
                       document.body.removeChild(a);
                       URL.revokeObjectURL(url);
-                      
+
                       // 성공 메시지에 Google Drive 저장 여부 포함
                       const successMsg = data.driveBackupUrl
                         ? `전체 DB 백업이 완료되었습니다. (Google Drive에도 자동 저장됨)`
                         : `전체 DB 백업이 완료되었습니다. (로컬 다운로드만 가능)`;
                       showSuccess(successMsg);
-                      
+
                       // Google Drive URL이 있으면 로그에 기록
                       if (data.driveBackupUrl) {
                         logger.log('[SubscriptionManagement] Google Drive 전체 백업 URL:', data.driveBackupUrl);
@@ -314,7 +314,7 @@ export default function SubscriptionManagementPage() {
 
                     const data = await response.json();
                     if (data.ok) {
-                      const userList = data.users.map((u: any) => 
+                      const userList = data.users.map((u: any) =>
                         `아이디: ${u.mallUserId}, 비밀번호: ${u.password}, 이름: ${u.name}`
                       ).join('\n');
                       alert(`테스트 계정이 생성되었습니다!\n\n${userList}`);
@@ -355,11 +355,10 @@ export default function SubscriptionManagementPage() {
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    statusFilter === status
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${statusFilter === status
                       ? 'bg-blue-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {status === 'all' ? '전체' : statusLabels[status]}
                 </button>
@@ -503,13 +502,13 @@ export default function SubscriptionManagementPage() {
                                   a.click();
                                   document.body.removeChild(a);
                                   URL.revokeObjectURL(url);
-                                  
+
                                   // 성공 메시지에 Google Drive 저장 여부 포함
                                   const successMsg = data.driveBackupUrl
                                     ? `DB 백업이 완료되었습니다. (Google Drive에도 자동 저장됨)`
                                     : `DB 백업이 완료되었습니다. (로컬 다운로드만 가능)`;
                                   showSuccess(successMsg);
-                                  
+
                                   // Google Drive URL이 있으면 로그에 기록
                                   if (data.driveBackupUrl) {
                                     logger.log('[SubscriptionManagement] Google Drive 백업 URL:', data.driveBackupUrl);
@@ -553,7 +552,7 @@ export default function SubscriptionManagementPage() {
                                     credentials: 'include',
                                   });
                                   usageData = await usageRes.json();
-                                  
+
                                   if (!usageData.ok) {
                                     showError(usageData.message || '데이터 사용량 확인에 실패했습니다.');
                                     return;
@@ -564,7 +563,7 @@ export default function SubscriptionManagementPage() {
                                     credentials: 'include',
                                   });
                                   checkData = await checkRes.json();
-                                  
+
                                   if (!checkData.ok) {
                                     showError(checkData.message || 'DB 확인에 실패했습니다.');
                                     return;
@@ -712,21 +711,19 @@ export default function SubscriptionManagementPage() {
 
                 {/* 무료 체험 중인 경우 */}
                 {deleteModalData.subscription.isTrial && deleteModalData.usageData && (
-                  <div className={`border-2 rounded-lg p-4 ${
-                    deleteModalData.usageData.canDelete 
-                      ? 'bg-yellow-50 border-yellow-200' 
+                  <div className={`border-2 rounded-lg p-4 ${deleteModalData.usageData.canDelete
+                      ? 'bg-yellow-50 border-yellow-200'
                       : 'bg-red-50 border-red-200'
-                  }`}>
-                    <h3 className={`font-bold mb-2 ${
-                      deleteModalData.usageData.canDelete ? 'text-yellow-900' : 'text-red-900'
                     }`}>
+                    <h3 className={`font-bold mb-2 ${deleteModalData.usageData.canDelete ? 'text-yellow-900' : 'text-red-900'
+                      }`}>
                       {deleteModalData.usageData.canDelete ? '✅ 삭제 가능' : '❌ 삭제 불가능'}
                     </h3>
                     <div className="space-y-2 text-sm">
                       <p className={deleteModalData.usageData.canDelete ? 'text-yellow-800' : 'text-red-800'}>
                         <strong>데이터 사용량:</strong> {deleteModalData.usageData.dataUsage}개
-                        {deleteModalData.usageData.canDelete 
-                          ? ` (5% 미만: ${deleteModalData.usageData.threshold}개 미만)` 
+                        {deleteModalData.usageData.canDelete
+                          ? ` (5% 미만: ${deleteModalData.usageData.threshold}개 미만)`
                           : ` (5% 이상: ${deleteModalData.usageData.threshold}개 이상)`
                         }
                       </p>
@@ -752,14 +749,12 @@ export default function SubscriptionManagementPage() {
 
                 {/* 정식 구독 중인 경우 */}
                 {!deleteModalData.subscription.isTrial && deleteModalData.checkData && (
-                  <div className={`border-2 rounded-lg p-4 ${
-                    !deleteModalData.checkData.hasDb 
-                      ? 'bg-yellow-50 border-yellow-200' 
+                  <div className={`border-2 rounded-lg p-4 ${!deleteModalData.checkData.hasDb
+                      ? 'bg-yellow-50 border-yellow-200'
                       : 'bg-red-50 border-red-200'
-                  }`}>
-                    <h3 className={`font-bold mb-2 ${
-                      !deleteModalData.checkData.hasDb ? 'text-yellow-900' : 'text-red-900'
                     }`}>
+                    <h3 className={`font-bold mb-2 ${!deleteModalData.checkData.hasDb ? 'text-yellow-900' : 'text-red-900'
+                      }`}>
                       {!deleteModalData.checkData.hasDb ? '✅ 삭제 가능' : '❌ 삭제 불가능'}
                     </h3>
                     <div className="space-y-2 text-sm">
@@ -792,12 +787,12 @@ export default function SubscriptionManagementPage() {
                 {/* 삭제 가능한 경우에만 확인 버튼 표시 */}
                 {((deleteModalData.subscription.isTrial && deleteModalData.usageData?.canDelete) ||
                   (!deleteModalData.subscription.isTrial && !deleteModalData.checkData?.hasDb)) && (
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800 mb-2">
-                      ⚠️ 삭제 후에는 복구할 수 없습니다. 정말로 삭제하시겠습니까?
-                    </p>
-                  </div>
-                )}
+                    <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+                      <p className="text-sm text-blue-800 mb-2">
+                        ⚠️ 삭제 후에는 복구할 수 없습니다. 정말로 삭제하시겠습니까?
+                      </p>
+                    </div>
+                  )}
               </div>
 
               <div className="mt-6 flex justify-end gap-3">
@@ -812,33 +807,33 @@ export default function SubscriptionManagementPage() {
                 </button>
                 {((deleteModalData.subscription.isTrial && deleteModalData.usageData?.canDelete) ||
                   (!deleteModalData.subscription.isTrial && !deleteModalData.checkData?.hasDb)) && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(`/api/admin/subscription/${deleteModalData.subscription.id}/delete`, {
-                          method: 'DELETE',
-                          credentials: 'include',
-                        });
+                    <button
+                      onClick={async () => {
+                        try {
+                          const response = await fetch(`/api/admin/subscription/${deleteModalData.subscription.id}/delete`, {
+                            method: 'DELETE',
+                            credentials: 'include',
+                          });
 
-                        const data = await response.json();
-                        if (data.ok) {
-                          showSuccess(data.message || '정액제 판매원 계약서가 삭제되었습니다.');
-                          setShowDeleteModal(false);
-                          setDeleteModalData(null);
-                          loadSubscriptions();
-                        } else {
-                          showError(data.message || '삭제에 실패했습니다.');
+                          const data = await response.json();
+                          if (data.ok) {
+                            showSuccess(data.message || '정액제 판매원 계약서가 삭제되었습니다.');
+                            setShowDeleteModal(false);
+                            setDeleteModalData(null);
+                            loadSubscriptions();
+                          } else {
+                            showError(data.message || '삭제에 실패했습니다.');
+                          }
+                        } catch (error: any) {
+                          logger.error('[SubscriptionManagement] Delete error:', error);
+                          showError('삭제 중 오류가 발생했습니다.');
                         }
-                      } catch (error: any) {
-                        logger.error('[SubscriptionManagement] Delete error:', error);
-                        showError('삭제 중 오류가 발생했습니다.');
-                      }
-                    }}
-                    className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
-                  >
-                    삭제 확인
-                  </button>
-                )}
+                      }}
+                      className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-semibold transition-colors"
+                    >
+                      삭제 확인
+                    </button>
+                  )}
               </div>
             </div>
           </div>

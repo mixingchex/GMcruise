@@ -6,11 +6,11 @@ import { getSessionUser } from '@/lib/auth';
 
 /**
  * GET /api/partner/customer-groups/[id]/message-logs
- * 대리점의 고객 그룹 예약 메시지 전송 기록 조회
+ * 대리점의 고객 그룹 예약 메시지 전송 기록 조회 (PartnerCustomerGroup 사용)
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const user = await getSessionUser();
@@ -28,16 +28,17 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    const groupId = parseInt(params.id);
+    const resolvedParams = await Promise.resolve(params);
+    const groupId = parseInt(resolvedParams.id);
     if (isNaN(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    // 고객 그룹 존재 및 권한 확인
-    const group = await prisma.customerGroup.findFirst({
+    // 고객 그룹 존재 및 권한 확인 (PartnerCustomerGroup)
+    const group = await prisma.partnerCustomerGroup.findFirst({
       where: {
         id: groupId,
-        affiliateProfileId: affiliateProfile.id,
+        profileId: affiliateProfile.id,
       },
       select: { id: true, name: true },
     });
@@ -46,80 +47,56 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '고객 그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
     }
 
-    // 그룹 멤버와 전송 기록 조회
-    const members = await prisma.customerGroupMember.findMany({
+    // AffiliateLead에서 그룹 멤버 조회
+    const leads = await prisma.affiliateLead.findMany({
       where: {
         groupId: groupId,
-        releasedAt: null,
+        OR: [
+          { managerId: affiliateProfile.id },
+          { agentId: affiliateProfile.id },
+        ],
       },
-      include: {
-        User_CustomerGroupMember_userIdToUser: {
+      select: {
+        id: true,
+        customerName: true,
+        customerPhone: true,
+        createdAt: true,
+        AffiliateInteraction: {
+          orderBy: { occurredAt: 'desc' },
+          take: 5,
           select: {
             id: true,
-            name: true,
-            email: true,
-            phone: true,
+            type: true,
+            note: true,
+            occurredAt: true,
+            status: true,
           },
         },
       },
-      orderBy: { addedAt: 'desc' },
+      orderBy: { createdAt: 'desc' },
     });
 
-    // 각 멤버별 전송 기록 집계
     const now = new Date();
-    const memberStats = await Promise.all(
-      members.map(async (member) => {
-        const user = member.User_CustomerGroupMember_userIdToUser;
-        const addedAt = new Date(member.addedAt);
-        const daysSinceAdded = Math.floor((now.getTime() - addedAt.getTime()) / (1000 * 60 * 60 * 24));
+    const memberStats = leads.map((lead) => {
+      const addedAt = new Date(lead.createdAt);
+      const daysSinceAdded = Math.floor((now.getTime() - addedAt.getTime()) / (1000 * 60 * 60 * 24));
 
-        // 전송 기록 조회
-        const logs = await prisma.scheduledMessageLog.findMany({
-          where: {
-            userId: user.id,
-            ScheduledMessage: {
-              targetGroupId: groupId,
-            },
-          },
-          include: {
-            ScheduledMessage: {
-              select: {
-                id: true,
-                title: true,
-                sendMethod: true,
-              },
-            },
-          },
-          orderBy: { sentAt: 'desc' },
-        });
-
-        const sentCount = logs.filter((log) => log.status === 'sent').length;
-        const failedCount = logs.filter((log) => log.status === 'failed').length;
-
-        const recentLogs = logs.slice(0, 5).map((log) => ({
-          id: log.id,
-          messageTitle: log.ScheduledMessage.title,
-          sendMethod: log.ScheduledMessage.sendMethod,
-          stageNumber: log.stageNumber,
-          sentAt: log.sentAt.toISOString(),
-          status: log.status,
-          errorMessage: log.errorMessage,
-        }));
-
-        return {
-          userId: user.id,
-          userName: user.name,
-          userEmail: user.email,
-          userPhone: user.phone,
-          addedAt: addedAt.toISOString(),
-          daysSinceAdded,
-          sentCount,
-          failedCount,
-          totalCount: sentCount + failedCount,
-          recentLogs,
-        };
-      })
-    );
+      return {
+        leadId: lead.id,
+        customerName: lead.customerName,
+        customerPhone: lead.customerPhone,
+        addedAt: addedAt.toISOString(),
+        daysSinceAdded,
+        interactionCount: lead.AffiliateInteraction.length,
+        recentInteractions: lead.AffiliateInteraction.map((interaction) => ({
+          id: interaction.id,
+          type: interaction.type,
+          note: interaction.note,
+          occurredAt: interaction.occurredAt.toISOString(),
+          status: interaction.status,
+        })),
+      };
+    });
 
     return NextResponse.json({
       ok: true,
@@ -129,9 +106,8 @@ export async function GET(
       },
       members: memberStats,
       summary: {
-        totalMembers: members.length,
-        totalSent: memberStats.reduce((sum, m) => sum + m.sentCount, 0),
-        totalFailed: memberStats.reduce((sum, m) => sum + m.failedCount, 0),
+        totalMembers: leads.length,
+        totalInteractions: memberStats.reduce((sum, m) => sum + m.interactionCount, 0),
       },
     });
   } catch (error: any) {

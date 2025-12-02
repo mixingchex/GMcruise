@@ -2286,7 +2286,7 @@ export default function CustomerDetailPage() {
                 <div className="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 mb-4">
                   <p className="font-bold mb-1">💡 그룹 번호 안내</p>
                   <p>같은 객실을 사용하는 인원끼리 <strong>같은 번호</strong>를 입력해주세요.</p>
-                  <p>(예: 부부 2명은 모두 '1', 자녀 2명은 모두 '2')</p>
+                  <p>(예: 부부 2명은 모두 &apos;1&apos;, 자녀 2명은 모두 &apos;2&apos;)</p>
                 </div>
 
                 {pnrForm.map((item, index) => (

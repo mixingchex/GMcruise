@@ -100,6 +100,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
   const [passportScanned, setPassportScanned] = useState(false); // 여권 스캔 완료 여부
   const [isScanning, setIsScanning] = useState(false); // 스캔 중 상태
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isOpen && customerId) {
       loadCustomerDetail();
@@ -113,16 +114,16 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
       const response = await fetch(`/api/admin/users/${customerId}`, {
         credentials: 'include',
       });
-      
+
       if (!response.ok) {
         throw new Error('고객 정보를 불러올 수 없습니다.');
       }
-      
+
       const data = await response.json();
       if (!data.ok || !data.user) {
         throw new Error(data.error || '고객 정보를 불러올 수 없습니다.');
       }
-      
+
       // 디버깅: 여권 정보 확인
       if (process.env.NODE_ENV === 'development') {
         const tripsWithReservations = data.user.trips?.map((trip: any) => ({
@@ -144,7 +145,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
             })),
           })) || [],
         })) || [];
-        
+
         console.log('[CustomerDetailModal] Customer data:', {
           id: data.user.id,
           tripsCount: data.user.trips?.length || 0,
@@ -166,7 +167,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
           tripsWithReservations,
         });
       }
-      
+
       setCustomer(data.user);
     } catch (err) {
       console.error('[CustomerDetailModal] Error loading customer:', err);
@@ -329,8 +330,8 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
               )}
 
               {/* 구매 상품 정보 */}
-              {(customer.reservations && customer.reservations.length > 0) || 
-               (customer.trips && customer.trips.some(t => t.Reservation && t.Reservation.length > 0)) ? (
+              {(customer.reservations && customer.reservations.length > 0) ||
+                (customer.trips && customer.trips.some(t => t.Reservation && t.Reservation.length > 0)) ? (
                 <section className="bg-green-50 rounded-lg p-4">
                   <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <FiShoppingCart size={20} />
@@ -340,7 +341,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                     {customer.trips?.map((trip) => {
                       const reservations = trip.Reservation || [];
                       if (reservations.length === 0) return null;
-                      
+
                       return (
                         <div key={trip.id} className="border border-green-200 rounded-lg p-4 bg-white">
                           <div className="font-semibold mb-2">{trip.cruiseName || '여행 정보'}</div>
@@ -565,8 +566,8 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                           res.Traveler.forEach((traveler) => {
                             // passportNo가 있는 Traveler만 수집
                             if (traveler.passportNo && traveler.passportNo.trim() !== '') {
-                              const name = traveler.korName || 
-                                `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() || 
+                              const name = traveler.korName ||
+                                `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() ||
                                 '이름 없음';
                               allTravelers.push({
                                 name,
@@ -588,8 +589,8 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                     res.Traveler?.forEach((traveler) => {
                       // passportNo가 있는 Traveler만 수집
                       if (traveler.passportNo && traveler.passportNo.trim() !== '') {
-                        const name = traveler.korName || 
-                          `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() || 
+                        const name = traveler.korName ||
+                          `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() ||
                           '이름 없음';
                         allTravelers.push({
                           name,
@@ -614,7 +615,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                         const now = new Date();
                         const sixMonthsLater = new Date();
                         sixMonthsLater.setMonth(now.getMonth() + 6);
-                        
+
                         let statusColor = 'text-gray-700';
                         let statusText = '';
                         if (expiryDate) {
@@ -656,7 +657,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                     </div>
                   );
                 })()}
-                
+
                 {/* 수동 여권 등록 버튼 */}
                 <div className="mt-4">
                   <button
@@ -909,11 +910,10 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                           }
                         }}
                         disabled={!passportScanned}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                          passportScanned
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${passportScanned
                             ? 'bg-green-600 text-white hover:bg-green-700'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
+                          }`}
                       >
                         <FiSave size={16} />
                         저장 {!passportScanned && '(여권 스캔 필수)'}

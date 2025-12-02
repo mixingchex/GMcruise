@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
     const { profile } = await requirePartnerContext({ includeManagedAgents: true });
     const leadId = parseLeadId(leadIdParam);
 
-    const lead = await getPartnerLead(profile.id, leadId, { interactions: 50, sales: 50 });
+    const lead = await getPartnerLead(profile.id, leadId, { interactions: 50, sales: 50 }, profile.type);
 
     const saleSummary = await prisma.affiliateSale.aggregate({
       where: { leadId },
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     const leadId = parseLeadId(leadIdParam);
     const payload = await req.json().catch(() => ({}));
 
-    await getPartnerLead(profile.id, leadId, { interactions: 1, sales: 1 });
+    await getPartnerLead(profile.id, leadId, { interactions: 1, sales: 1 }, profile.type);
 
     const data: Prisma.AffiliateLeadUpdateInput = {};
 
@@ -162,7 +162,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
 
     if (Object.keys(data).length === 0) {
-      const lead = await getPartnerLead(profile.id, leadId, { interactions: 50, sales: 50 });
+      const lead = await getPartnerLead(profile.id, leadId, { interactions: 50, sales: 50 }, profile.type);
       return NextResponse.json({
         ok: true,
         customer: serializeLead(lead, {
@@ -191,7 +191,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       },
     });
 
-    const updatedLead = await getPartnerLead(profile.id, leadId, { interactions: 50, sales: 50 });
+    const updatedLead = await getPartnerLead(profile.id, leadId, { interactions: 50, sales: 50 }, profile.type);
 
     return NextResponse.json({
       ok: true,
@@ -243,7 +243,7 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
     }
 
     // 고객 정보 조회 및 권한 확인
-    const lead = await getPartnerLead(profile.id, leadId, { interactions: 1, sales: 1 });
+    const lead = await getPartnerLead(profile.id, leadId, { interactions: 1, sales: 1 }, profile.type);
 
     // 본인이 관리하는 고객인지 확인
     if (profile.type === 'BRANCH_MANAGER') {

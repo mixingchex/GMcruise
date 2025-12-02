@@ -7,11 +7,11 @@ import { buildScopedGroupWhere } from '@/app/api/partner/customer-groups/utils';
 
 /**
  * POST /api/partner/customer-groups/[id]/members
- * 그룹에 고객 추가
+ * 그룹에 고객(AffiliateLead) 추가 - PartnerCustomerGroup 사용
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -19,7 +19,8 @@ export async function POST(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const groupId = Number((await params).id);
+    const resolvedParams = await Promise.resolve(params);
+    const groupId = Number(resolvedParams.id);
     if (!Number.isInteger(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
@@ -34,28 +35,32 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { userIds } = body;
+    const { leadIds, userIds } = body;
 
-    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    // userIds와 leadIds 모두 지원 (하위 호환성)
+    const idsToAdd = userIds || leadIds;
+
+    if (!idsToAdd || !Array.isArray(idsToAdd) || idsToAdd.length === 0) {
       return NextResponse.json(
         { ok: false, error: '추가할 고객 ID 목록이 필요합니다.' },
         { status: 400 }
       );
     }
 
-    const normalizedUserIds = userIds
-      .map((memberId: number) => Number(memberId))
-      .filter((memberId) => Number.isInteger(memberId) && memberId > 0);
+    const normalizedLeadIds = idsToAdd
+      .map((id: number) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0);
 
-    if (normalizedUserIds.length === 0) {
+    if (normalizedLeadIds.length === 0) {
       return NextResponse.json(
         { ok: false, error: '유효한 고객 ID가 없습니다.' },
         { status: 400 }
       );
     }
 
-    const group = await prisma.customerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, sessionUser.id, affiliateProfile.id),
+    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    const group = await prisma.partnerCustomerGroup.findFirst({
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
       select: { id: true },
     });
 
@@ -63,32 +68,25 @@ export async function POST(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
     }
 
-    let addedCount = 0;
-    let skippedCount = 0;
-
-    for (const memberId of normalizedUserIds) {
-      try {
-        await prisma.customerGroupMember.create({
-          data: {
-            groupId,
-            userId: memberId,
-            addedBy: sessionUser.id,
-          },
-        });
-        addedCount++;
-      } catch (error: any) {
-        if (error.code === 'P2002') {
-          skippedCount++;
-        } else {
-          throw error;
-        }
-      }
-    }
+    // AffiliateLead의 groupId를 업데이트 (권한 있는 고객만)
+    const result = await prisma.affiliateLead.updateMany({
+      where: {
+        id: { in: normalizedLeadIds },
+        OR: [
+          { managerId: affiliateProfile.id },
+          { agentId: affiliateProfile.id },
+        ],
+      },
+      data: {
+        groupId: groupId,
+        updatedAt: new Date(),
+      },
+    });
 
     return NextResponse.json({
       ok: true,
-      added: addedCount,
-      skipped: skippedCount,
+      added: result.count,
+      message: `${result.count}명의 고객이 그룹에 추가되었습니다.`,
     });
   } catch (error: any) {
     console.error('[Partner Customer Groups Members POST] Error:', error);
@@ -101,11 +99,11 @@ export async function POST(
 
 /**
  * DELETE /api/partner/customer-groups/[id]/members
- * 그룹에서 고객 제거
+ * 그룹에서 고객(AffiliateLead) 제거 - PartnerCustomerGroup 사용
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const sessionUser = await getSessionUser();
@@ -113,23 +111,24 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const groupId = Number((await params).id);
+    const resolvedParams = await Promise.resolve(params);
+    const groupId = Number(resolvedParams.id);
     if (!Number.isInteger(groupId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
     const { searchParams } = new URL(req.url);
-    const userIdParam = searchParams.get('userId');
+    const leadIdParam = searchParams.get('leadId');
 
-    if (!userIdParam) {
+    if (!leadIdParam) {
       return NextResponse.json(
         { ok: false, error: '제거할 고객 ID가 필요합니다.' },
         { status: 400 }
       );
     }
 
-    const memberId = Number(userIdParam);
-    if (!Number.isInteger(memberId)) {
+    const leadId = Number(leadIdParam);
+    if (!Number.isInteger(leadId)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 고객 ID입니다.' }, { status: 400 });
     }
 
@@ -142,8 +141,9 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    const group = await prisma.customerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, sessionUser.id, affiliateProfile.id),
+    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    const group = await prisma.partnerCustomerGroup.findFirst({
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
       select: { id: true },
     });
 
@@ -151,10 +151,19 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
     }
 
-    await prisma.customerGroupMember.deleteMany({
+    // AffiliateLead의 groupId를 null로 설정 (그룹에서 제거)
+    await prisma.affiliateLead.updateMany({
       where: {
-        groupId,
-        userId: memberId,
+        id: leadId,
+        groupId: groupId,
+        OR: [
+          { managerId: affiliateProfile.id },
+          { agentId: affiliateProfile.id },
+        ],
+      },
+      data: {
+        groupId: null,
+        updatedAt: new Date(),
       },
     });
 

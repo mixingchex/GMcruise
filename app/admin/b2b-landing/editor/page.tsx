@@ -268,8 +268,8 @@ export default function B2BLandingEditorPage() {
                             아래의 <strong>주석 코드</strong>를 원하는 위치에 붙여넣으시면, 해당 위치에 <span className="text-blue-600 font-bold">이름 입력칸, 연락처 입력칸, 신청하기 버튼</span>이 자동으로 생성됩니다.
                         </p>
                         <div className="mt-2 p-2 bg-gray-800 text-yellow-300 font-mono rounded text-xs">
-                            &lt;!-- FORM_TOP --&gt; <span className="text-gray-400">// 상단용 입력폼 (주로 메인 비주얼 아래)</span><br />
-                            &lt;!-- FORM_MIDDLE --&gt; <span className="text-gray-400">// 중간용 입력폼 (설명 섹션 사이)</span>
+                            &lt;!-- FORM_TOP --&gt; <span className="text-gray-400">{`// 상단용 입력폼 (주로 메인 비주얼 아래)`}</span><br />
+                            &lt;!-- FORM_MIDDLE --&gt; <span className="text-gray-400">{`// 중간용 입력폼 (설명 섹션 사이)`}</span>
                         </div>
                         <p className="mt-1 text-red-600 text-xs font-bold">
                             ※ 주의: 직접 &lt;input&gt; 태그를 작성하지 마세요! 위 주석 코드만 넣으면 시스템이 알아서 입력폼을 만들어줍니다.

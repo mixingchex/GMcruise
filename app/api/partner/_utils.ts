@@ -165,6 +165,16 @@ export const partnerLeadInclude = {
           phone: true,
         },
       },
+      AffiliateMedia: {
+        select: {
+          id: true,
+          fileName: true,
+          fileSize: true,
+          mimeType: true,
+          storagePath: true,
+          metadata: true,
+        },
+      },
     },
   },
   AffiliateSale: {
@@ -253,6 +263,15 @@ export function serializeLead(
               phone: interaction.User.phone,
             }
           : null,
+        media: interaction.AffiliateMedia?.map((m) => ({
+          id: m.id,
+          fileName: m.fileName,
+          fileSize: m.fileSize,
+          mimeType: m.mimeType,
+          url: m.storagePath,
+          isBackedUp: !!(m.metadata as any)?.googleDriveFileId,
+          googleDriveFileId: (m.metadata as any)?.googleDriveFileId || null,
+        })) ?? [],
       })) ?? [],
     sales:
       lead.AffiliateSale?.map((sale) => ({
@@ -328,6 +347,7 @@ export async function getPartnerLead(
   profileId: number,
   leadId: number,
   options: LeadFetchOptions = {},
+  profileType?: string,
 ) {
   const include: Prisma.AffiliateLeadInclude = {
     ...partnerLeadInclude,
@@ -341,11 +361,44 @@ export async function getPartnerLead(
     },
   };
 
-  const lead = await prisma.affiliateLead.findFirst({
-    where: {
+  // 권한에 따라 where 조건 설정
+  let whereCondition: Prisma.AffiliateLeadWhereInput = { id: leadId };
+
+  if (profileType === 'HQ') {
+    // 본사는 모든 고객 접근 가능
+    whereCondition = { id: leadId };
+  } else if (profileType === 'BRANCH_MANAGER') {
+    // 대리점장은 자신이 담당하거나, 자기 팀 판매원이 담당하는 고객 접근 가능
+    // 팀 판매원 ID 조회
+    const teamRelations = await prisma.affiliateRelation.findMany({
+      where: {
+        managerId: profileId,
+        status: 'ACTIVE',
+      },
+      select: { agentId: true },
+    });
+    const teamAgentIds = teamRelations
+      .map((r) => r.agentId)
+      .filter((id): id is number => id !== null);
+
+    whereCondition = {
+      id: leadId,
+      OR: [
+        { managerId: profileId },
+        { agentId: profileId },
+        ...(teamAgentIds.length > 0 ? [{ agentId: { in: teamAgentIds } }] : []),
+      ],
+    };
+  } else {
+    // 판매원은 자신이 담당하는 고객만 접근 가능
+    whereCondition = {
       id: leadId,
       OR: [{ managerId: profileId }, { agentId: profileId }],
-    },
+    };
+  }
+
+  const lead = await prisma.affiliateLead.findFirst({
+    where: whereCondition,
     include,
   });
 

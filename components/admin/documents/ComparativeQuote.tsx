@@ -145,7 +145,7 @@ const COUNTRIES_CITIES: Record<string, string[]> = {
 };
 
 // 기항지 선택 컴포넌트
-function PortSelector({ onSelect, getCitiesByCountry }: { 
+function PortSelector({ onSelect, getCitiesByCountry }: {
   onSelect: (port: { name: string; country: string }) => void;
   getCitiesByCountry: (country: string) => string[];
 }) {
@@ -298,8 +298,8 @@ export default function ComparativeQuote() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string>('');
-  
-  
+
+
   const quoteRef = useRef<HTMLDivElement>(null);
 
   // 크루즈 상품 목록 로드
@@ -312,7 +312,7 @@ export default function ComparativeQuote() {
       setIsLoadingProducts(true);
       const response = await fetch('/api/cms/products');
       const data = await response.json();
-      
+
       if (data.ok && Array.isArray(data.products)) {
         setCruiseProducts(data.products);
       } else {
@@ -353,7 +353,7 @@ export default function ComparativeQuote() {
   // 크루즈 상품 선택 시 자동 채움
   const handleProductSelect = async (productCode: string) => {
     setSelectedProductCode(productCode);
-    
+
     if (!productCode) {
       // 초기화
       setCruiseProduct({
@@ -387,12 +387,12 @@ export default function ComparativeQuote() {
       // 포함사항/불포함사항 파싱
       let included: string[] = [];
       let excluded: string[] = [];
-      
+
       if (product.mallProductContent?.layout) {
         const layout = typeof product.mallProductContent.layout === 'string'
           ? JSON.parse(product.mallProductContent.layout)
           : product.mallProductContent.layout;
-        
+
         if (layout.included && Array.isArray(layout.included)) {
           included = layout.included.filter((item: string) => item && item.trim());
         }
@@ -480,7 +480,7 @@ export default function ComparativeQuote() {
       // 실제 렌더링은 794px x 1123px (96 DPI)로 하고 scale로 확대
       const a4Width = 794; // 96 DPI 기준
       const a4Height = 1123; // 96 DPI 기준
-      
+
       const canvas = await html2canvas(quoteRef.current, {
         backgroundColor: '#ffffff',
         scale: 3, // 고해상도 (794 * 3 = 2382px, 1123 * 3 = 3369px)
@@ -501,7 +501,7 @@ export default function ComparativeQuote() {
   const handleDownloadImage = async () => {
     setIsDownloading(true);
     const dataUrl = await generateImage();
-    
+
     if (dataUrl) {
       const link = document.createElement('a');
       const fileName = `비교견적서_${cruiseProduct.productName}_${new Date().toISOString().split('T')[0]}.png`;
@@ -512,7 +512,7 @@ export default function ComparativeQuote() {
       document.body.removeChild(link);
       showSuccess('견적서 이미지가 다운로드되었습니다.');
     }
-    
+
     setIsDownloading(false);
   };
 
@@ -520,12 +520,12 @@ export default function ComparativeQuote() {
   const handleOpenPreview = async () => {
     setIsDownloading(true);
     const dataUrl = await generateImage();
-    
+
     if (dataUrl) {
       setPreviewImageUrl(dataUrl);
       setIsPreviewModalOpen(true);
     }
-    
+
     setIsDownloading(false);
   };
 
@@ -552,7 +552,7 @@ export default function ComparativeQuote() {
 
     try {
       setIsSendingEmail(true);
-      
+
       const dataUrl = await generateImage();
       if (!dataUrl) {
         return;
@@ -580,7 +580,7 @@ export default function ComparativeQuote() {
         showError('전송 실패. 다시 시도해주세요.');
         console.error('[Send Email] API Error:', result.error);
       }
-      
+
     } catch (error: any) {
       console.error('[Send Email] Error:', error);
       showError('전송 실패. 다시 시도해주세요.');
@@ -594,7 +594,7 @@ export default function ComparativeQuote() {
       {/* 크루즈닷 상품 입력 섹션 */}
       <div className="bg-white rounded-xl shadow-lg p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">크루즈닷 상품 정보</h2>
-        
+
         <div className="grid md:grid-cols-2 gap-6">
           {/* 크루즈 상품 선택 */}
           <div>
@@ -947,7 +947,7 @@ export default function ComparativeQuote() {
       {/* 경쟁사 상품 입력 섹션 */}
       <div className="bg-white rounded-xl shadow-lg p-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">경쟁사 상품 정보</h2>
-        
+
         <div className="grid md:grid-cols-2 gap-6">
           {/* 상품명 */}
           <div>
@@ -1289,8 +1289,8 @@ export default function ComparativeQuote() {
       {/* 비교견적서 미리보기 */}
       {cruiseProduct.productName && cruiseProduct.price > 0 && (
         <div className="bg-white rounded-xl shadow-lg p-8">
-          <div 
-            ref={quoteRef} 
+          <div
+            ref={quoteRef}
             className="bg-white"
             style={{
               width: '794px', // A4 width in pixels (96 DPI)
@@ -1310,7 +1310,7 @@ export default function ComparativeQuote() {
                 className="object-contain"
               />
             </div>
-            
+
             {/* VS 헤더 */}
             <div className="flex flex-col items-center justify-center mb-10 relative">
               <div className="absolute inset-0 flex items-center">
@@ -1654,6 +1654,7 @@ export default function ComparativeQuote() {
             <div className="p-6 flex justify-center items-center min-h-[80vh]">
               {previewImageUrl ? (
                 <div className="flex justify-center items-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={previewImageUrl}
                     alt="비교견적서 미리보기"

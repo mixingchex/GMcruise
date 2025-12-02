@@ -97,6 +97,7 @@ export default function ImageLibrary({
         } else if (activeTab === 'cruise') {
             loadCruisePhotos();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentFolderId, activeTab, cruiseCurrentPath]);
 
     const loadImages = async () => {
@@ -913,7 +914,7 @@ export default function ImageLibrary({
                                     <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
                                         <FiImage className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                                         <p className="text-gray-600 text-lg">이미지가 없습니다.</p>
-                                        <p className="text-gray-400 text-sm mt-2">위의 "이미지 업로드" 버튼을 클릭하여 이미지를 업로드하세요.</p>
+                                        <p className="text-gray-400 text-sm mt-2">위의 &quot;이미지 업로드&quot; 버튼을 클릭하여 이미지를 업로드하세요.</p>
                                     </div>
                                 ) : filteredImages.length === 0 ? (
                                     <div className="text-center py-8 text-gray-500">

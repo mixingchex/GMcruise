@@ -211,7 +211,7 @@ export default function SendDbClient({ partner }: SendDbClientProps) {
 
     setSending(true);
     try {
-      const res = await fetch('/api/partner/customers/assign', {
+      const res = await fetch('/api/partner/customers/assign-leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

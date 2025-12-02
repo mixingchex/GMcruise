@@ -11,16 +11,17 @@ type CustomerGroup = {
   name: string;
   description: string | null;
   color: string | null;
-  parentGroupId: number | null;
+  parentGroupId?: number | null;
+  productCode?: string | null;
+  profileId?: number;
   createdAt: string;
+  updatedAt?: string;
   funnelTalkIds?: number[] | null;
   funnelSmsIds?: number[] | null;
   funnelEmailIds?: number[] | null;
   reEntryHandling?: string | null;
-  _count: {
-    members: number;
-  };
-  members: Array<{
+  leadCount: number; // API returns leadCount instead of _count.members
+  members?: Array<{
     id: number;
     user: {
       id: number;
@@ -28,16 +29,21 @@ type CustomerGroup = {
       phone: string | null;
       email: string | null;
     };
-  }>;
+  }>; // Optional: only available when explicitly loaded
   subGroups?: CustomerGroup[];
   scheduledMessages?: Array<{ id: number; title: string; isActive: boolean }>;
+  affiliateProfile?: {
+    id: number;
+    displayName: string | null;
+    type: string;
+  } | null;
 };
 
 export default function PartnerCustomerGroupsPage() {
   const params = useParams();
   const router = useRouter();
   const partnerId = params.partnerId as string;
-  
+
   const [groups, setGroups] = useState<CustomerGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -51,7 +57,7 @@ export default function PartnerCustomerGroupsPage() {
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   const [customerSearch, setCustomerSearch] = useState('');
   const [isLoadingCustomerList, setIsLoadingCustomerList] = useState(false);
-  
+
   // 고객 리스트 모달
   const [showCustomerListModal, setShowCustomerListModal] = useState(false);
   const [customerListGroup, setCustomerListGroup] = useState<CustomerGroup | null>(null);
@@ -69,13 +75,13 @@ export default function PartnerCustomerGroupsPage() {
   const [customerListPage, setCustomerListPage] = useState(1);
   const [customerListTotal, setCustomerListTotal] = useState(0);
   const [releasingMemberId, setReleasingMemberId] = useState<number | null>(null);
-  
+
   // 스크립트 모달
   const [showScriptModal, setShowScriptModal] = useState(false);
   const [scriptGroup, setScriptGroup] = useState<CustomerGroup | null>(null);
   const [groupScript, setGroupScript] = useState<string>('');
   const [isLoadingScript, setIsLoadingScript] = useState(false);
-  
+
   // 새 고객 추가 관련 상태
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [newCustomerForm, setNewCustomerForm] = useState({
@@ -138,10 +144,10 @@ export default function PartnerCustomerGroupsPage() {
   const loadAvailableCustomers = async () => {
     try {
       if (!selectedGroup) return;
-      
+
       setIsLoadingCustomerList(true);
       setAvailableCustomers([]);
-      
+
       // 이미 그룹에 속한 고객은 제외하고 나머지 고객만 표시
       const searchParam = customerSearch ? `&search=${encodeURIComponent(customerSearch)}` : '';
       const response = await fetch(`/api/partner/customer-groups/customers?limit=1000&groupId=${selectedGroup.id}${searchParam}`, {
@@ -350,14 +356,14 @@ export default function PartnerCustomerGroupsPage() {
         status: newCustomerForm.status || undefined,
         notes: newCustomerForm.notes || undefined,
       };
-      
+
       if (newCustomerForm.createdAt) {
         // 유입날짜를 ISO 형식으로 변환
         const createdAtDate = new Date(newCustomerForm.createdAt);
         createdAtDate.setHours(0, 0, 0, 0);
         payload.createdAt = createdAtDate.toISOString();
       }
-      
+
       if (newCustomerForm.nextActionAt) {
         // 다음 조치 예정일을 ISO 형식으로 변환 (날짜+시간)
         const nextActionDate = new Date(newCustomerForm.nextActionAt);
@@ -370,27 +376,27 @@ export default function PartnerCustomerGroupsPage() {
         credentials: 'include',
         body: JSON.stringify(payload),
       });
-      
+
       const json = await res.json();
       if (!res.ok || !json?.ok) {
         throw new Error(json?.message || '고객 추가에 실패했습니다.');
       }
 
       console.log('[Customer Groups] Created customer response:', json);
-      
+
       // 생성된 고객의 userId 확인 (API 응답에서)
       const createdCustomer = json.customer;
       console.log('[Customer Groups] Created customer:', createdCustomer);
       console.log('[Customer Groups] UserId:', createdCustomer?.userId);
-      
+
       let userIdToAdd = createdCustomer?.userId;
-      
+
       // userId가 없으면 잠시 대기 후 고객 목록에서 다시 조회
       if (!userIdToAdd) {
         console.log('[Customer Groups] UserId not found in response, waiting and retrying...');
         await new Promise(resolve => setTimeout(resolve, 1000));
         await loadAvailableCustomers();
-        
+
         const updatedCustomers = await fetch(`/api/partner/customers?limit=1000`, {
           credentials: 'include',
         }).then(r => r.json());
@@ -401,7 +407,7 @@ export default function PartnerCustomerGroupsPage() {
             const cPhone = c.customerPhone?.replace(/[^0-9]/g, '') || c.phone?.replace(/[^0-9]/g, '');
             return cPhone === customerPhone && c.userId;
           });
-          
+
           console.log('[Customer Groups] Found customer in list:', foundCustomer);
           userIdToAdd = foundCustomer?.userId;
         }
@@ -419,7 +425,7 @@ export default function PartnerCustomerGroupsPage() {
 
         const addData = await addResponse.json();
         console.log('[Customer Groups] Add to group response:', addData);
-        
+
         if (addResponse.ok && addData?.ok) {
           showSuccess('고객이 생성되고 그룹에 추가되었습니다.');
           setShowNewCustomerForm(false);
@@ -535,12 +541,12 @@ export default function PartnerCustomerGroupsPage() {
       if (customerListSearch) {
         params.set('search', customerListSearch);
       }
-      
+
       const response = await fetch(`/api/partner/customer-groups/${groupId}/customers?${params}`, {
         credentials: 'include',
       });
       const data = await response.json();
-      
+
       if (data.ok) {
         setGroupCustomers(data.customers || []);
         setCustomerListTotal(data.pagination?.total || 0);
@@ -559,12 +565,12 @@ export default function PartnerCustomerGroupsPage() {
   // 고객 리스트 검색 (debounce)
   useEffect(() => {
     if (!showCustomerListModal || !customerListGroup) return;
-    
+
     const timer = setTimeout(() => {
       setCustomerListPage(1);
       loadGroupCustomers(customerListGroup.id, 1);
     }, 500);
-    
+
     return () => clearTimeout(timer);
   }, [customerListSearch]);
 
@@ -581,7 +587,7 @@ export default function PartnerCustomerGroupsPage() {
         credentials: 'include',
       });
       const data = await response.json();
-      
+
       if (data.ok) {
         showSuccess('고객이 그룹에서 해제되었습니다.');
         // 고객 리스트 새로고침
@@ -607,13 +613,13 @@ export default function PartnerCustomerGroupsPage() {
     setShowScriptModal(true);
     setIsLoadingScript(true);
     setGroupScript('');
-    
+
     try {
       const response = await fetch(`/api/partner/customer-groups/${group.id}/script`, {
         credentials: 'include',
       });
       const data = await response.json();
-      
+
       if (data.ok) {
         setGroupScript(data.script || '');
       } else {
@@ -771,7 +777,7 @@ export default function PartnerCustomerGroupsPage() {
                     <h3 className="text-lg font-bold text-gray-900">{group.name}</h3>
                     <p className="text-sm text-gray-500">
                       <FiUsers className="inline mr-1" />
-                      {group._count.members}명
+                      {group.leadCount || 0}명
                       {group.scheduledMessages && group.scheduledMessages.length > 0 && (
                         <span className="ml-2 text-blue-600">
                           · {group.scheduledMessages.length}개의 퍼널문자
@@ -856,7 +862,8 @@ export default function PartnerCustomerGroupsPage() {
                 </button>
               </div>
 
-              {group.members.length > 0 && (
+              {/* 멤버 목록은 "고객 리스트" 버튼을 통해 확인 가능 */}
+              {group.members && group.members.length > 0 && (
                 <div className="border-t pt-4">
                   <p className="text-xs font-semibold text-gray-500 mb-2">그룹 멤버</p>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -1036,7 +1043,7 @@ export default function PartnerCustomerGroupsPage() {
                   검색
                 </button>
               </div>
-              
+
               {/* 고객 직접 추가 버튼 */}
               <button
                 onClick={() => setShowNewCustomerForm(!showNewCustomerForm)}
@@ -1133,7 +1140,7 @@ export default function PartnerCustomerGroupsPage() {
                   {availableCustomers.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                       <p>등록된 고객이 없습니다.</p>
-                      <p className="text-sm mt-2">"새 고객 추가" 탭에서 고객을 추가해주세요.</p>
+                      <p className="text-sm mt-2">&quot;새 고객 추가&quot; 탭에서 고객을 추가해주세요.</p>
                     </div>
                   ) : (
                     availableCustomers.map((customer) => (
@@ -1337,34 +1344,34 @@ export default function PartnerCustomerGroupsPage() {
                       {funnelTalks.filter(group => group.messages.some(msg => formData.funnelTalkIds.includes(msg.id))).length}개 그룹 선택됨
                     </p>
                     <select
-                    multiple
-                    size={Math.min(funnelTalks.length, 10)}
-                    value={funnelTalks
-                      .filter(group => group.messages.some(msg => formData.funnelTalkIds.includes(msg.id)))
-                      .map(group => group.groupName)}
-                    onChange={(e) => {
-                      const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
-                      const allMessageIds: number[] = [];
-                      
-                      funnelTalks.forEach(group => {
-                        if (selectedGroupNames.includes(group.groupName)) {
-                          allMessageIds.push(...group.messages.map(m => m.id));
-                        }
-                      });
-                      
-                      setFormData({
-                        ...formData,
-                        funnelTalkIds: allMessageIds,
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {funnelTalks.map((group) => (
-                      <option key={group.groupName} value={group.groupName}>
-                        {group.groupName} ({group.messages.length}개 메시지)
-                      </option>
-                    ))}
-                  </select>
+                      multiple
+                      size={Math.min(funnelTalks.length, 10)}
+                      value={funnelTalks
+                        .filter(group => group.messages.some(msg => formData.funnelTalkIds.includes(msg.id)))
+                        .map(group => group.groupName)}
+                      onChange={(e) => {
+                        const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
+                        const allMessageIds: number[] = [];
+
+                        funnelTalks.forEach(group => {
+                          if (selectedGroupNames.includes(group.groupName)) {
+                            allMessageIds.push(...group.messages.map(m => m.id));
+                          }
+                        });
+
+                        setFormData({
+                          ...formData,
+                          funnelTalkIds: allMessageIds,
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {funnelTalks.map((group) => (
+                        <option key={group.groupName} value={group.groupName}>
+                          {group.groupName} ({group.messages.length}개 메시지)
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
@@ -1385,34 +1392,34 @@ export default function PartnerCustomerGroupsPage() {
                       {funnelSms.filter(group => group.messages.some(msg => formData.funnelSmsIds.includes(msg.id))).length}개 그룹 선택됨
                     </p>
                     <select
-                    multiple
-                    size={Math.min(funnelSms.length, 10)}
-                    value={funnelSms
-                      .filter(group => group.messages.some(msg => formData.funnelSmsIds.includes(msg.id)))
-                      .map(group => group.groupName)}
-                    onChange={(e) => {
-                      const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
-                      const allMessageIds: number[] = [];
-                      
-                      funnelSms.forEach(group => {
-                        if (selectedGroupNames.includes(group.groupName)) {
-                          allMessageIds.push(...group.messages.map(m => m.id));
-                        }
-                      });
-                      
-                      setFormData({
-                        ...formData,
-                        funnelSmsIds: allMessageIds,
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {funnelSms.map((group) => (
-                      <option key={group.groupName} value={group.groupName}>
-                        {group.groupName} ({group.messages.length}개 메시지)
-                      </option>
-                    ))}
-                  </select>
+                      multiple
+                      size={Math.min(funnelSms.length, 10)}
+                      value={funnelSms
+                        .filter(group => group.messages.some(msg => formData.funnelSmsIds.includes(msg.id)))
+                        .map(group => group.groupName)}
+                      onChange={(e) => {
+                        const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
+                        const allMessageIds: number[] = [];
+
+                        funnelSms.forEach(group => {
+                          if (selectedGroupNames.includes(group.groupName)) {
+                            allMessageIds.push(...group.messages.map(m => m.id));
+                          }
+                        });
+
+                        setFormData({
+                          ...formData,
+                          funnelSmsIds: allMessageIds,
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {funnelSms.map((group) => (
+                        <option key={group.groupName} value={group.groupName}>
+                          {group.groupName} ({group.messages.length}개 메시지)
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
@@ -1433,34 +1440,34 @@ export default function PartnerCustomerGroupsPage() {
                       {funnelEmails.filter(group => group.messages.some(msg => formData.funnelEmailIds.includes(msg.id))).length}개 그룹 선택됨
                     </p>
                     <select
-                    multiple
-                    size={Math.min(funnelEmails.length, 10)}
-                    value={funnelEmails
-                      .filter(group => group.messages.some(msg => formData.funnelEmailIds.includes(msg.id)))
-                      .map(group => group.groupName)}
-                    onChange={(e) => {
-                      const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
-                      const allMessageIds: number[] = [];
-                      
-                      funnelEmails.forEach(group => {
-                        if (selectedGroupNames.includes(group.groupName)) {
-                          allMessageIds.push(...group.messages.map(m => m.id));
-                        }
-                      });
-                      
-                      setFormData({
-                        ...formData,
-                        funnelEmailIds: allMessageIds,
-                      });
-                    }}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  >
-                    {funnelEmails.map((group) => (
-                      <option key={group.groupName} value={group.groupName}>
-                        {group.groupName} ({group.messages.length}개 메시지)
-                      </option>
-                    ))}
-                  </select>
+                      multiple
+                      size={Math.min(funnelEmails.length, 10)}
+                      value={funnelEmails
+                        .filter(group => group.messages.some(msg => formData.funnelEmailIds.includes(msg.id)))
+                        .map(group => group.groupName)}
+                      onChange={(e) => {
+                        const selectedGroupNames = Array.from(e.target.selectedOptions, option => option.value);
+                        const allMessageIds: number[] = [];
+
+                        funnelEmails.forEach(group => {
+                          if (selectedGroupNames.includes(group.groupName)) {
+                            allMessageIds.push(...group.messages.map(m => m.id));
+                          }
+                        });
+
+                        setFormData({
+                          ...formData,
+                          funnelEmailIds: allMessageIds,
+                        });
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      {funnelEmails.map((group) => (
+                        <option key={group.groupName} value={group.groupName}>
+                          {group.groupName} ({group.messages.length}개 메시지)
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
@@ -1776,7 +1783,7 @@ export default function PartnerCustomerGroupsPage() {
                     <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
                       <li>위 스크립트를 복사합니다.</li>
                       <li>HTML 페이지의 원하는 위치에 붙여넣습니다.</li>
-                      <li>폼 제출 시 자동으로 '{scriptGroup.name}' 그룹에 고객이 추가됩니다.</li>
+                      <li>폼 제출 시 자동으로 &apos;{scriptGroup.name}&apos; 그룹에 고객이 추가됩니다.</li>
                       <li>그룹에 연결된 예약 메시지가 자동으로 활성화됩니다.</li>
                     </ol>
                   </div>

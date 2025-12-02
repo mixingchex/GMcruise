@@ -1582,7 +1582,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
       <div className={`mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 md:gap-8 md:px-6 ${subscriptionInfo ? (isInstallable || (!isStandalone && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : ''))) && !isStandalone ? 'pt-32 md:pt-36' : 'pt-20 md:pt-24' : 'pt-6 md:pt-10'
         }`}>
         {/* 헤더 - 역할 명확하게 표시 */}
-        <header className={`relative overflow-hidden bg-gradient-to-r ${roleColor} text-white rounded-2xl md:rounded-3xl shadow-xl`}>
+        <header className={`relative bg-gradient-to-r ${roleColor} text-white rounded-2xl md:rounded-3xl shadow-xl`}>
           <div className="relative z-10 flex flex-col gap-6 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-6 md:py-12">
             {/* 알림 종 (오른쪽 상단) */}
             <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20">

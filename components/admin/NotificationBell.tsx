@@ -23,6 +23,7 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [teamMessageCount, setTeamMessageCount] = useState(0); // 팀 메시지 개수
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 알림 로드
@@ -41,6 +42,25 @@ export default function NotificationBell() {
       console.error('Failed to load notifications:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // 팀 메시지 개수 로드
+  const loadTeamMessageCount = async () => {
+    try {
+      const isPartner = window.location.pathname.startsWith('/partner');
+      if (!isPartner) return; // 파트너 페이지에서만 팀 메시지 카운트 표시
+
+      const response = await fetch('/api/partner/messages?type=received', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok && data.messages) {
+        const unreadTeamMessages = data.messages.filter((msg: any) => !msg.isRead);
+        setTeamMessageCount(unreadTeamMessages.length);
+      }
+    } catch (error) {
+      console.error('Failed to load team message count:', error);
     }
   };
 
@@ -77,7 +97,7 @@ export default function NotificationBell() {
   // 알림 클릭 처리
   const handleNotificationClick = (notification: Notification) => {
     markAsRead(notification.id);
-    
+
     if (notification.relatedCustomerId) {
       router.push(`/admin/customers/${notification.relatedCustomerId}`);
       setIsOpen(false);
@@ -91,6 +111,7 @@ export default function NotificationBell() {
   useEffect(() => {
     // 초기 로드
     loadNotifications();
+    loadTeamMessageCount();
 
     // 페이지가 보일 때만 폴링 (탭이 비활성화되면 중지)
     const startPolling = () => {
@@ -100,6 +121,7 @@ export default function NotificationBell() {
       pollIntervalRef.current = setInterval(() => {
         if (document.visibilityState === 'visible') {
           loadNotifications();
+          loadTeamMessageCount();
         }
       }, 30000); // 30초마다
     };
@@ -117,6 +139,7 @@ export default function NotificationBell() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadNotifications();
+        loadTeamMessageCount();
         startPolling();
       } else {
         stopPolling();
@@ -213,11 +236,10 @@ export default function NotificationBell() {
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
-                      className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${
-                        notification.isRead
-                          ? 'border-transparent'
-                          : 'border-blue-500'
-                      } ${getNotificationStyle(notification)}`}
+                      className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${notification.isRead
+                        ? 'border-transparent'
+                        : 'border-blue-500'
+                        } ${getNotificationStyle(notification)}`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
@@ -243,24 +265,59 @@ export default function NotificationBell() {
               )}
             </div>
 
-            {/* 푸터 */}
-            {notifications.length > 0 && (
-              <div className="p-3 border-t bg-gray-50 text-center">
+            {/* Footer / Quick Menu */}
+            <div className="p-3 border-t bg-gray-50">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    const isPartner = window.location.pathname.startsWith('/partner');
+                    if (isPartner) {
+                      // Extract partnerId from URL or use current context if available
+                      // Assuming URL structure /partner/[partnerId]/...
+                      const pathParts = window.location.pathname.split('/');
+                      const partnerId = pathParts[2];
+                      if (partnerId) {
+                        router.push(`/partner/${partnerId}/messages`);
+                      } else {
+                        // Fallback or error
+                        console.error('Partner ID not found in URL');
+                      }
+                    } else {
+                      router.push('/admin/team-dashboard-messages');
+                    }
+                    setIsOpen(false);
+                  }}
+                  className="flex items-center justify-center gap-2 p-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors relative"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                  팀 메시지
+                  {teamMessageCount > 0 && (
+                    <span className="ml-1 bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {teamMessageCount > 9 ? '9+' : teamMessageCount}
+                    </span>
+                  )}
+                </button>
                 <button
                   onClick={() => {
                     router.push('/admin/notifications');
                     setIsOpen(false);
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-700"
+                  className="flex items-center justify-center gap-2 p-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors"
                 >
-                  전체 알림 보기
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  전체 알림
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </>
       )}
     </div>
   );
 }
+
 

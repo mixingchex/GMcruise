@@ -47,12 +47,12 @@ export async function POST(
     }
 
     // 그룹 소유권 확인 (groupId가 null이 아닌 경우)
-    // CustomerGroup 모델 사용 (판매원/대리점장 모두 자신의 그룹 사용)
+    // PartnerCustomerGroup 모델 사용 (AffiliateLead.groupId가 참조하는 테이블)
     if (groupId !== null && groupId !== undefined) {
-      const group = await prisma.customerGroup.findFirst({
+      const group = await prisma.partnerCustomerGroup.findFirst({
         where: {
           id: parseInt(String(groupId)),
-          affiliateProfileId: profile.id,
+          profileId: profile.id,
         },
       });
 

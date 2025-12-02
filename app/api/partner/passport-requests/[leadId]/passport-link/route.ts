@@ -39,10 +39,10 @@ export async function POST(
   try {
     logger.log('[PartnerPassportLink] POST 요청 시작');
     
-    const { profile, sessionUser } = await requirePartnerContext();
+    const { profile, sessionUser } = await requirePartnerContext({ includeManagedAgents: true });
     const params = await context.params;
     const { leadId: leadIdStr } = params;
-    
+
     const leadId = Number(leadIdStr);
     if (isNaN(leadId) || leadId <= 0) {
       logger.error('[PartnerPassportLink] 유효하지 않은 leadId:', { leadIdStr, leadId });
@@ -50,7 +50,7 @@ export async function POST(
     }
 
     // 권한 확인: 본인의 고객인지 확인
-    await getPartnerLead(profile.id, leadId, { interactions: 0 });
+    await getPartnerLead(profile.id, leadId, { interactions: 0 }, profile.type);
 
     // 고객 정보 조회
     const lead = await prisma.affiliateLead.findUnique({

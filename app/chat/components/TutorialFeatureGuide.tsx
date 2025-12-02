@@ -152,7 +152,7 @@ export default function TutorialFeatureGuide({
                       </div>
                       <div className="flex-1">
                         <h5 className="font-bold text-gray-900 mb-1 text-lg">
-                          "{mode.name}"
+                          &quot;{mode.name}&quot;
                         </h5>
                         <p className="text-gray-700 mb-2">{mode.description}</p>
                         {mode.bonus && (
@@ -183,11 +183,10 @@ export default function TutorialFeatureGuide({
           <button
             onClick={onPrev}
             disabled={currentStep === 0}
-            className={`px-6 py-3 rounded-xl font-bold transition-all ${
-              currentStep === 0
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${currentStep === 0
                 ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-            }`}
+              }`}
           >
             ← 이전
           </button>
