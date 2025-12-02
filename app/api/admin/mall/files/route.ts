@@ -63,8 +63,9 @@ export async function GET(req: NextRequest) {
     }> = [];
 
     // 이미지 파일 목록 (Google Drive에서 가져오기)
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
     if (type === 'image' || type === 'all') {
-      const imagesFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
+      const imagesFolderId = await getDriveFolderId('UPLOADS_IMAGES');
       if (imagesFolderId) {
         try {
           const result = await listFilesInFolder(imagesFolderId);
@@ -90,7 +91,7 @@ export async function GET(req: NextRequest) {
 
     // 영상 파일 목록 (Google Drive에서 가져오기)
     if (type === 'video' || type === 'all') {
-      const videosFolderId = process.env.GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID;
+      const videosFolderId = await getDriveFolderId('UPLOADS_VIDEOS');
       if (videosFolderId) {
         try {
           const result = await listFilesInFolder(videosFolderId);

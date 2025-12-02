@@ -78,15 +78,19 @@ function getDriveClient() {
 // GET: 구글 드라이브 이미지 가져오기 (WebP 변환 및 다운로드 지원)
 export async function GET(req: NextRequest) {
   try {
-    // 관리자 또는 판매원 권한 확인
-    const authResult = await requireAdminOrPartner();
-    if ('status' in authResult) return authResult; // 에러 응답인 경우
-
     const url = new URL(req.url);
+    const download = url.searchParams.get('download') === 'true';
+
     const fileId = url.searchParams.get('id');
     const format = url.searchParams.get('format'); // 'webp' 또는 null
-    const download = url.searchParams.get('download') === 'true'; // PNG 다운로드
     const watermark = url.searchParams.get('watermark') !== 'false'; // 워터마크 (기본값: true)
+
+    // 다운로드 요청시에만 권한 확인 (이미지 조회는 허용)
+    // 이미지 자체는 공개되지만, 워터마크 포함 다운로드는 인증 필요
+    if (download) {
+      const authResult = await requireAdminOrPartner();
+      if ('status' in authResult) return authResult;
+    }
 
     if (!fileId) {
       return NextResponse.json({ ok: false, error: 'File ID is required' }, { status: 400 });
@@ -157,7 +161,7 @@ export async function GET(req: NextRequest) {
         // 크루즈닷 로고 워터마크 경로 (public 폴더에 있어야 함)
         const watermarkPath = process.cwd() + '/public/logo-watermark.png';
         const fs = await import('fs/promises');
-        
+
         let watermarkBuffer: Buffer | null = null;
         try {
           watermarkBuffer = await fs.readFile(watermarkPath);
@@ -167,14 +171,16 @@ export async function GET(req: NextRequest) {
 
         let processedImage = sharp(imageBuffer);
 
-        // 워터마크 추가
+        // 워터마크 추가 (정중앙에 크게 배치)
         if (watermark && watermarkBuffer) {
           const metadata = await processedImage.metadata();
+          const imageWidth = metadata.width || 1000;
+          const imageHeight = metadata.height || 1000;
           const watermarkImage = sharp(watermarkBuffer);
           const watermarkMetadata = await watermarkImage.metadata();
 
-          // 워터마크 크기 조정 (원본 이미지의 20% 크기)
-          const watermarkWidth = Math.floor((metadata.width || 1000) * 0.2);
+          // 워터마크 크기 조정 (원본 이미지의 50% 크기로 크게)
+          const watermarkWidth = Math.floor(imageWidth * 0.5);
           const watermarkHeight = Math.floor((watermarkMetadata.height || 1) * (watermarkWidth / (watermarkMetadata.width || 1)));
 
           // 워터마크 리사이즈
@@ -184,50 +190,44 @@ export async function GET(req: NextRequest) {
             .png()
             .toBuffer();
 
-          // 투명도 적용 (불투명도 30% = 알파 0.3)
-          const opacity = 0.3;
-          const watermarkWithOpacity = await sharp(resizedWatermark)
-            .ensureAlpha()
-            .png({ 
-              quality: 100,
-              compressionLevel: 9,
-            })
-            .toBuffer();
-          
-          // 알파 채널에 투명도 적용
-          const watermarkData = await sharp(watermarkWithOpacity)
+          // 투명도 적용 (불투명도 25% = 알파 0.25 - 음영으로 표시)
+          const opacity = 0.25;
+          const watermarkData = await sharp(resizedWatermark)
             .raw()
             .ensureAlpha()
             .toBuffer({ resolveWithObject: true });
-          
+
           const pixels = watermarkData.data;
           for (let i = 3; i < pixels.length; i += 4) {
             pixels[i] = Math.floor(pixels[i] * opacity); // 알파 채널에 투명도 적용
           }
-          
+
           const finalWatermark = await sharp(Buffer.from(pixels), {
             raw: {
-              width: watermarkWidth,
-              height: watermarkHeight,
+              width: watermarkData.info.width,
+              height: watermarkData.info.height,
               channels: 4,
             },
           })
             .png()
             .toBuffer();
 
-          // 워터마크를 오른쪽 하단에 배치
+          // 워터마크를 정중앙에 배치
+          const centerTop = Math.floor((imageHeight - watermarkData.info.height) / 2);
+          const centerLeft = Math.floor((imageWidth - watermarkData.info.width) / 2);
+
           processedImage = processedImage.composite([
             {
               input: finalWatermark,
-              top: (metadata.height || 0) - watermarkHeight - 20,
-              left: (metadata.width || 0) - watermarkWidth - 20,
+              top: centerTop,
+              left: centerLeft,
               blend: 'over',
             },
           ]);
         }
 
-        // PNG로 변환
-        imageBuffer = (await processedImage.png().toBuffer()) as Buffer;
+        // PNG로 변환 (품질과 속도 균형)
+        imageBuffer = (await processedImage.png({ compressionLevel: 6 }).toBuffer()) as Buffer;
         outputMimeType = 'image/png';
         outputFileName = fileName.replace(/\.[^/.]+$/, '') + '.png';
       } catch (error) {

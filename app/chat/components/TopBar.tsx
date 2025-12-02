@@ -11,21 +11,21 @@ import { FiVolume2, FiVolumeX } from "react-icons/fi";
 export default function TopBar() {
   const router = useRouter();
   const pathname = usePathname();
-  const isTestMode = pathname?.includes('/chat-test') || 
-                     pathname?.includes('/tools-test') || 
-                     pathname?.includes('/translator-test') || 
-                     pathname?.includes('/profile-test') ||
-                     pathname?.includes('/checklist-test') ||
-                     pathname?.includes('/wallet-test');
-  
+  const isTestMode = pathname?.includes('/chat-test') ||
+    pathname?.includes('/tools-test') ||
+    pathname?.includes('/translator-test') ||
+    pathname?.includes('/profile-test') ||
+    pathname?.includes('/checklist-test') ||
+    pathname?.includes('/wallet-test');
+
   const getChatHref = () => {
     return isTestMode ? '/chat-test' : '/chat';
   };
-  
+
   const getLoginHref = () => {
     return isTestMode ? '/login-test' : '/login';
   };
-  
+
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg'>('md');
 
@@ -59,7 +59,7 @@ export default function TopBar() {
   const fontSizeLabel = { sm: '작게', md: '보통', lg: '크게' }[fontSize];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-50 w-full border-b border-[#1e3a52] bg-gradient-to-r from-[#051C2C] to-[#0A2E46] backdrop-blur shadow-lg">
       <div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-4 gap-2">
         {/* 좌측: 로고 */}
         <Link href={getChatHref()} className="flex items-center gap-2 flex-shrink-0">
@@ -70,12 +70,12 @@ export default function TopBar() {
             height={28}
             priority
           />
-          <span className="text-sm font-semibold tracking-tight hidden sm:inline">크루즈닷</span>
+          <span className="text-sm font-semibold tracking-tight hidden sm:inline text-white">크루즈닷</span>
         </Link>
 
         {/* 중앙: 타이틀 */}
-        <h1 className="absolute left-1/2 -translate-x-1/2 text-base font-bold whitespace-nowrap hidden md:block">
-          크루즈 가이드 지니 AI
+        <h1 className="absolute left-1/2 -translate-x-1/2 text-base font-bold whitespace-nowrap hidden md:block text-white">
+          <span className="text-[#FDB931]">크루즈 가이드 지니</span> AI
         </h1>
 
         {/* 우측: 설정 버튼들 */}
@@ -83,7 +83,7 @@ export default function TopBar() {
           {/* TTS 토글 */}
           <button
             onClick={toggleTTS}
-            className="rounded-md border px-2 py-1.5 text-sm font-medium hover:bg-gray-50 flex items-center gap-1"
+            className="rounded-md border border-[#FDB931] px-2 py-1.5 text-sm font-medium hover:bg-[#FDB931]/10 flex items-center gap-1 text-white"
             title={ttsEnabled ? "음성 읽기 켜짐" : "음성 읽기 꺼짐"}
           >
             {ttsEnabled ? <FiVolume2 size={16} /> : <FiVolumeX size={16} />}
@@ -93,7 +93,7 @@ export default function TopBar() {
           {/* 글씨 크기 */}
           <button
             onClick={changeFontSize}
-            className="rounded-md border px-2 py-1.5 text-sm font-medium hover:bg-gray-50"
+            className="rounded-md border border-[#FDB931] px-2 py-1.5 text-sm font-medium hover:bg-[#FDB931]/10 text-white"
             title="글씨 크기 변경"
           >
             <span className="text-xs">A {fontSizeLabel}</span>
@@ -106,7 +106,7 @@ export default function TopBar() {
               clearAllLocalStorage();
               router.replace(getLoginHref());
             }}
-            className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-gray-50"
+            className="rounded-md border border-[#FDB931] px-3 py-1.5 text-sm font-medium hover:bg-[#FDB931]/10 text-white"
           >
             로그아웃
           </button>

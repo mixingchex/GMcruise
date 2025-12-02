@@ -221,23 +221,38 @@ export async function listFilesInFolder(
       }
     }
 
+    // Shared Drive 사용 여부 확인
+    const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
+
     // 폴더 내 파일 목록 가져오기
-    const response = await drive.files.list({
+    const listOptions: any = {
       q: `'${targetFolderId}' in parents and trashed=false`,
-      fields: 'files(id, name, mimeType, webViewLink, webContentLink)',
-      orderBy: 'name',
-    });
+      fields: 'files(id, name, mimeType, webViewLink, webContentLink, size, modifiedTime)',
+      orderBy: 'modifiedTime desc',
+      pageSize: 1000,
+    };
+
+    // Shared Drive 사용 시 옵션 추가
+    if (sharedDriveId && sharedDriveId !== 'root') {
+      listOptions.supportsAllDrives = true;
+      listOptions.includeItemsFromAllDrives = true;
+      listOptions.corpora = 'allDrives';
+    }
+
+    const response = await drive.files.list(listOptions);
 
     const files = (response.data.files || []).map(file => {
       const fileId = file.id || '';
       const mimeType = file.mimeType || '';
       const isImage = mimeType.startsWith('image/');
-      
+
       return {
         name: file.name || '',
         url: getDriveFileUrl(fileId, isImage),
         mimeType,
         id: fileId,
+        size: parseInt(file.size || '0', 10),
+        modifiedTime: file.modifiedTime ? new Date(file.modifiedTime) : new Date(),
       };
     });
 
@@ -386,7 +401,7 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
 
 /**
  * Google Drive에서 파일 삭제
- * @param fileId - Google Drive 파일 ID 또는 URL
+ * @param fileIdOrUrl - Google Drive 파일 ID 또는 URL
  * @returns 삭제 성공 여부
  */
 export async function deleteFileFromDrive(
@@ -394,34 +409,229 @@ export async function deleteFileFromDrive(
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const drive = getDriveClient();
-    
-    // URL에서 파일 ID 추출
+    const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
+
+    // URL에서 파일 ID 추출 (다양한 형식 지원)
     let fileId = fileIdOrUrl;
-    if (fileIdOrUrl.includes('drive.google.com')) {
-      const idMatch = fileIdOrUrl.match(/[\/=]([a-zA-Z0-9_-]{25,})/);
-      if (idMatch) {
-        fileId = idMatch[1];
+    if (fileIdOrUrl.includes('drive.google.com') || fileIdOrUrl.includes('id=')) {
+      // 형식 1: https://drive.google.com/uc?export=view&id=xxx
+      const idParamMatch = fileIdOrUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (idParamMatch) {
+        fileId = idParamMatch[1];
       } else {
-        return { ok: false, error: '유효하지 않은 Google Drive URL입니다.' };
+        // 형식 2: https://drive.google.com/file/d/xxx/view
+        const idPathMatch = fileIdOrUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+        if (idPathMatch) {
+          fileId = idPathMatch[1];
+        } else {
+          // 형식 3: 마지막 시도 - 긴 영숫자 문자열 추출
+          const idFallbackMatch = fileIdOrUrl.match(/([a-zA-Z0-9_-]{20,})/);
+          if (idFallbackMatch) {
+            fileId = idFallbackMatch[1];
+          } else {
+            return { ok: false, error: '유효하지 않은 Google Drive URL입니다.' };
+          }
+        }
       }
     }
 
-    // 파일 삭제
-    await drive.files.delete({
-      fileId: fileId,
-    });
+    console.log(`[GoogleDrive] Attempting to delete file: ${fileId}`);
 
-    console.log(`[GoogleDrive] File deleted: ${fileId}`);
+    // 파일 삭제 (Shared Drive 지원)
+    const deleteOptions: any = {
+      fileId: fileId,
+    };
+
+    if (sharedDriveId && sharedDriveId !== 'root') {
+      deleteOptions.supportsAllDrives = true;
+    }
+
+    await drive.files.delete(deleteOptions);
+
+    console.log(`[GoogleDrive] File deleted successfully: ${fileId}`);
     return { ok: true };
   } catch (error: any) {
     console.error('[GoogleDrive] deleteFileFromDrive error:', error);
-    
+    console.error('[GoogleDrive] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      fileIdOrUrl,
+    });
+
     // 파일이 이미 삭제된 경우 성공으로 처리
-    if (error?.code === 404 || error?.message?.includes('not found')) {
+    if (error?.code === 404 || error?.message?.includes('not found') || error?.message?.includes('File not found')) {
+      console.log('[GoogleDrive] File already deleted or not found, treating as success');
       return { ok: true };
     }
-    
+
     return { ok: false, error: error?.message || '파일 삭제 실패' };
+  }
+}
+
+/**
+ * Google Drive 폴더 내 하위 폴더 목록 가져오기
+ * @param parentFolderId - 상위 폴더 ID
+ * @returns 하위 폴더 목록
+ */
+export async function listFoldersInFolder(
+  parentFolderId: string
+): Promise<{ ok: boolean; folders?: Array<{ id: string; name: string; path: string }>; error?: string }> {
+  try {
+    const drive = getDriveClient();
+    const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
+
+    const listOptions: any = {
+      q: `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id, name)',
+      orderBy: 'name',
+      pageSize: 100,
+    };
+
+    if (sharedDriveId && sharedDriveId !== 'root') {
+      listOptions.supportsAllDrives = true;
+      listOptions.includeItemsFromAllDrives = true;
+      listOptions.corpora = 'allDrives';
+    }
+
+    const response = await drive.files.list(listOptions);
+
+    const folders = (response.data.files || []).map(folder => ({
+      id: folder.id || '',
+      name: folder.name || '',
+      path: folder.name || '', // 단일 레벨에서는 이름이 경로
+    }));
+
+    return { ok: true, folders };
+  } catch (error: any) {
+    console.error('[GoogleDrive] listFoldersInFolder error:', error);
+    return { ok: false, error: error?.message || '폴더 목록 가져오기 실패' };
+  }
+}
+
+/**
+ * Google Drive에서 파일을 다른 폴더로 이동
+ * @param fileId - 이동할 파일 ID
+ * @param targetFolderId - 대상 폴더 ID
+ * @param currentFolderId - 현재 폴더 ID (선택)
+ * @returns 이동 성공 여부
+ */
+export async function moveFileToFolder(
+  fileId: string,
+  targetFolderId: string,
+  currentFolderId?: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const drive = getDriveClient();
+    const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
+
+    // 현재 부모 폴더 가져오기
+    const fileOptions: any = {
+      fileId,
+      fields: 'parents',
+    };
+
+    if (sharedDriveId && sharedDriveId !== 'root') {
+      fileOptions.supportsAllDrives = true;
+    }
+
+    const file = await drive.files.get(fileOptions);
+    const previousParents = currentFolderId || (file.data.parents ? file.data.parents.join(',') : '');
+
+    // 파일 이동
+    const updateOptions: any = {
+      fileId,
+      addParents: targetFolderId,
+      removeParents: previousParents,
+      fields: 'id, parents',
+    };
+
+    if (sharedDriveId && sharedDriveId !== 'root') {
+      updateOptions.supportsAllDrives = true;
+    }
+
+    await drive.files.update(updateOptions);
+
+    return { ok: true };
+  } catch (error: any) {
+    console.error('[GoogleDrive] moveFileToFolder error:', error);
+    return { ok: false, error: error?.message || '파일 이동 실패' };
+  }
+}
+
+/**
+ * Google Drive 폴더 생성 (간단 버전)
+ * @param folderName - 생성할 폴더 이름
+ * @param parentFolderId - 상위 폴더 ID
+ * @returns 생성된 폴더 ID
+ */
+export async function createFolder(
+  folderName: string,
+  parentFolderId: string
+): Promise<{ ok: boolean; folderId?: string; error?: string }> {
+  try {
+    const drive = getDriveClient();
+    const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
+
+    const createBody: Record<string, any> = {
+      name: folderName,
+      mimeType: 'application/vnd.google-apps.folder',
+      parents: [parentFolderId],
+    };
+
+    const createOptions: any = {
+      requestBody: createBody,
+      fields: 'id, name',
+    };
+
+    if (sharedDriveId && sharedDriveId !== 'root') {
+      createOptions.supportsAllDrives = true;
+    }
+
+    const response = await drive.files.create(createOptions);
+
+    if (!response.data.id) {
+      throw new Error('폴더 생성에 실패했습니다.');
+    }
+
+    return { ok: true, folderId: response.data.id };
+  } catch (error: any) {
+    console.error('[GoogleDrive] createFolder error:', error);
+    return { ok: false, error: error?.message || '폴더 생성 실패' };
+  }
+}
+
+/**
+ * Google Drive 폴더 이름 변경
+ * @param folderId - 변경할 폴더 ID
+ * @param newName - 새로운 폴더 이름
+ * @returns 변경 성공 여부
+ */
+export async function renameFolder(
+  folderId: string,
+  newName: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const drive = getDriveClient();
+    const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
+
+    const updateOptions: any = {
+      fileId: folderId,
+      requestBody: {
+        name: newName,
+      },
+      fields: 'id, name',
+    };
+
+    if (sharedDriveId && sharedDriveId !== 'root') {
+      updateOptions.supportsAllDrives = true;
+    }
+
+    await drive.files.update(updateOptions);
+
+    return { ok: true };
+  } catch (error: any) {
+    console.error('[GoogleDrive] renameFolder error:', error);
+    return { ok: false, error: error?.message || '폴더 이름 변경 실패' };
   }
 }
 

@@ -59,14 +59,8 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(bytes);
 
     // Google Drive 리뷰 폴더 ID 가져오기
-    const reviewsFolderId = process.env.GOOGLE_DRIVE_UPLOADS_REVIEWS_FOLDER_ID;
-    
-    if (!reviewsFolderId) {
-      return NextResponse.json(
-        { ok: false, error: 'Google Drive 리뷰 폴더 ID가 설정되지 않았습니다.' },
-        { status: 500 }
-      );
-    }
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const reviewsFolderId = await getDriveFolderId('UPLOADS_REVIEWS');
 
     // Google Drive에 업로드
     const uploadResult = await uploadFileToDrive({

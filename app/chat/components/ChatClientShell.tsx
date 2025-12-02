@@ -70,23 +70,23 @@ export default function ChatClientShell({
 
     const loadChatHistory = async () => {
       if (hasLoadedHistoryRef.current) return; // 이미 로드했으면 스킵
-      
+
       try {
         setIsLoading(true);
         // test 모드 확인
         const testModeInfo = await checkTestModeClient();
         const testSuffix = testModeInfo.isTestMode ? '_test' : '';
-        
+
         // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리 + test 모드 구분)
-        const sessionId = (mode === 'general' ? 'general' : 
-                         mode === 'go' ? 'go' : 
-                         mode === 'show' ? 'show' : 
-                         mode === 'translate' ? 'translate' : 'default') + testSuffix;
-        
+        const sessionId = (mode === 'general' ? 'general' :
+          mode === 'go' ? 'go' :
+            mode === 'show' ? 'show' :
+              mode === 'translate' ? 'translate' : 'default') + testSuffix;
+
         const response = await fetch(`/api/chat/history?sessionId=${sessionId}`, {
           credentials: 'include',
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
@@ -140,13 +140,13 @@ export default function ChatClientShell({
       // test 모드 확인
       const testModeInfo = await checkTestModeClient();
       const testSuffix = testModeInfo.isTestMode ? '_test' : '';
-      
+
       // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리 + test 모드 구분)
-      const sessionId = (mode === 'general' ? 'general' : 
-                       mode === 'go' ? 'go' : 
-                       mode === 'show' ? 'show' : 
-                       mode === 'translate' ? 'translate' : 'default') + testSuffix;
-      
+      const sessionId = (mode === 'general' ? 'general' :
+        mode === 'go' ? 'go' :
+          mode === 'show' ? 'show' :
+            mode === 'translate' ? 'translate' : 'default') + testSuffix;
+
       // ChatMessage 형식을 API 형식으로 변환
       const apiMessages = messagesToSave.map(msg => {
         const base = {
@@ -156,7 +156,7 @@ export default function ChatClientShell({
           text: msg.type === 'text' ? (msg.text || '') : '',
           timestamp: new Date().toISOString(),
         };
-        
+
         // 타입별 속성 추가
         if (msg.type === 'map-links' && 'links' in msg) {
           return { ...base, links: msg.links };
@@ -176,7 +176,7 @@ export default function ChatClientShell({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: apiMessages,
           sessionId, // 모드별 세션 ID
         }),
@@ -194,7 +194,7 @@ export default function ChatClientShell({
       type: 'text',
       text: payload.text,
     };
-    
+
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setIsSending(true);
 
@@ -211,7 +211,7 @@ export default function ChatClientShell({
           type: 'text',
           text: '',
         };
-        
+
         setMessages((prevMessages) => [...prevMessages, streamingMessage]);
 
         // 스트리밍 API 호출
@@ -224,7 +224,7 @@ export default function ChatClientShell({
             { role: 'user', content: payload.text },
           ],
         };
-        
+
         // 개발 환경에서만 디버그 로그
         if (process.env.NODE_ENV === 'development') {
           logger.log('[ChatClientShell] Sending request to /api/chat/stream:', {
@@ -232,14 +232,14 @@ export default function ChatClientShell({
             lastMessage: requestBody.messages[requestBody.messages.length - 1]?.content?.substring(0, 50)
           });
         }
-        
+
         const response = await fetch('/api/chat/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify(requestBody),
         });
-        
+
         // 개발 환경에서만 디버그 로그
         if (process.env.NODE_ENV === 'development') {
           const responseHeaders: Record<string, string> = {};
@@ -267,7 +267,7 @@ export default function ChatClientShell({
             errorMessage = errorText || errorMessage;
             console.error('[ChatClientShell] Stream API error (text):', errorText);
           }
-          
+
           // 스트리밍 메시지를 에러 메시지로 교체
           setMessages((prevMessages) =>
             prevMessages.map((msg) =>
@@ -301,7 +301,7 @@ export default function ChatClientShell({
           if (isDev) {
             logger.log('[ChatClientShell] Read #' + readCount + ', done:', done, 'hasValue:', !!value);
           }
-          
+
           if (done) {
             if (isDev) {
               logger.log('[ChatClientShell] Stream done, total reads:', readCount, 'accumulated:', accumulatedText.substring(0, 100));
@@ -346,10 +346,10 @@ export default function ChatClientShell({
                 if (isDev) {
                   logger.log('[ChatClientShell] Parsed text:', typeof parsed, parsed?.substring?.(0, 50));
                 }
-                
+
                 if (parsed && typeof parsed === 'string') {
                   accumulatedText += parsed;
-                  
+
                   // 메시지 업데이트
                   setMessages((prevMessages) =>
                     prevMessages.map((msg) =>
@@ -380,7 +380,7 @@ export default function ChatClientShell({
               ? { ...msg, id: Date.now().toString() }
               : msg
           );
-          
+
           // 히스토리 저장 (debounce)
           if (ENABLE_CHAT_HISTORY && saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current);
@@ -390,7 +390,7 @@ export default function ChatClientShell({
               saveChatHistory(updated);
             }, 1000); // 1초 후 저장
           }
-          
+
           return updated;
         });
 
@@ -418,15 +418,15 @@ export default function ChatClientShell({
         }
 
         const data = await response.json();
-        
+
         // 개발 환경에서만 디버그 로그
         if (process.env.NODE_ENV === 'development') {
-          logger.log('[ChatClientShell] API Response:', { 
-            ok: data.ok, 
+          logger.log('[ChatClientShell] API Response:', {
+            ok: data.ok,
             messagesCount: data.messages?.length,
-            messages: data.messages 
+            messages: data.messages
           });
-          
+
           // 디버그: show-me 메시지의 subfolders 확인
           if (data.messages && Array.isArray(data.messages)) {
             data.messages.forEach((msg: any, idx: number) => {
@@ -448,7 +448,7 @@ export default function ChatClientShell({
         if (data.ok && Array.isArray(data.messages)) {
           setMessages((prevMessages) => {
             const updated = [...prevMessages, ...data.messages];
-            
+
             // 히스토리 저장 (debounce)
             if (ENABLE_CHAT_HISTORY && saveTimeoutRef.current) {
               clearTimeout(saveTimeoutRef.current);
@@ -458,10 +458,10 @@ export default function ChatClientShell({
                 saveChatHistory(updated);
               }, 1000); // 1초 후 저장
             }
-            
+
             return updated;
           });
-          
+
           // TTS: AI 응답 음성 재생 (텍스트 타입 메시지만, 사용자 설정 확인)
           if (tts.getEnabled()) {
             const textMessages = data.messages.filter((msg: ChatMessage): msg is TextMessage =>
@@ -485,10 +485,10 @@ export default function ChatClientShell({
       }
     } catch (error) {
       console.error('[ChatClientShell] Error sending message:', error);
-      
+
       // 에러 타입에 따라 다른 메시지 표시
       let errorText = '네트워크 오류가 발생했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.';
-      
+
       if (error instanceof Error) {
         if (error.message.includes('Unauthorized') || error.message.includes('401')) {
           errorText = '로그인이 필요합니다. 다시 로그인해주세요.';
@@ -500,7 +500,7 @@ export default function ChatClientShell({
           errorText = `오류: ${error.message}`;
         }
       }
-      
+
       // 스트리밍 메시지가 있으면 교체, 없으면 새로 추가
       setMessages((prevMessages) => {
         const hasStreamingMessage = prevMessages.some(msg => msg.id.startsWith('streaming-'));
@@ -528,7 +528,7 @@ export default function ChatClientShell({
   // 채팅 기록 삭제 함수
   const handleDeleteChatHistory = async () => {
     setIsDeleting(true);
-    
+
     try {
       const response = await fetch('/api/chat/history', {
         method: 'DELETE',
@@ -539,7 +539,7 @@ export default function ChatClientShell({
         // 성공적으로 삭제되면 메시지 상태 초기화
         setMessages([]);
         setIsDeleteModalOpen(false);
-        
+
         // 성공 메시지 표시 (선택사항)
         if (process.env.NODE_ENV === 'development') {
           logger.log('채팅 기록이 삭제되었습니다.');
@@ -636,7 +636,7 @@ export default function ChatClientShell({
       ) : (
         <>
           <ChatWindow messages={messages} mode={mode} onSend={onSend} />
-          
+
           {/* 하위 폴더 버튼들 - 최근 show-me 메시지의 하위 폴더 표시 */}
           {mode === 'show' && (() => {
             // 가장 최근의 show-me 타입 메시지 찾기
@@ -644,23 +644,23 @@ export default function ChatClientShell({
             if (process.env.NODE_ENV === 'development') {
               logger.log('[ChatClientShell] Show-me messages:', showMeMessages.length, showMeMessages);
             }
-            
+
             const latestShowMeMessage = [...showMeMessages].reverse().find(
               (msg) => {
                 const showMeMsg = msg as ChatMessage & { subfolders?: Array<{ name: string; displayName: string; icon: string; photoCount: number }> };
                 const hasSubfolders = showMeMsg.subfolders && showMeMsg.subfolders.length > 0;
                 if (process.env.NODE_ENV === 'development') {
-                  logger.log('[ChatClientShell] Checking message:', { 
-                    id: showMeMsg.id, 
-                    type: showMeMsg.type, 
+                  logger.log('[ChatClientShell] Checking message:', {
+                    id: showMeMsg.id,
+                    type: showMeMsg.type,
                     hasSubfolders,
-                    subfoldersCount: showMeMsg.subfolders?.length || 0 
+                    subfoldersCount: showMeMsg.subfolders?.length || 0
                   });
                 }
                 return hasSubfolders;
               }
             ) as ChatMessage & { subfolders?: Array<{ name: string; displayName: string; icon: string; photoCount: number }> };
-            
+
             if (process.env.NODE_ENV === 'development') {
               logger.log('[ChatClientShell] Latest show-me message with subfolders:', latestShowMeMessage ? {
                 id: latestShowMeMessage.id,
@@ -668,9 +668,9 @@ export default function ChatClientShell({
                 subfolders: latestShowMeMessage.subfolders?.map(s => s.displayName)
               } : 'not found');
             }
-            
+
             if (!latestShowMeMessage) return null;
-            
+
             return (
               <div className="px-3 pt-3 pb-2 bg-gray-50 border-t border-gray-200">
                 <div className="flex items-center gap-2 text-base font-bold mb-2">
@@ -695,12 +695,12 @@ export default function ChatClientShell({
                       className="
                         flex flex-col items-center justify-center gap-1
                         px-3 py-3
-                        bg-gradient-to-br from-purple-50 to-pink-50
-                        border-2 border-purple-200
+                        bg-white
+                        border-2 border-[#051C2C]/20
                         rounded-lg
                         shadow-sm
-                        hover:shadow-md
-                        hover:border-purple-300
+                        hover:shadow-lg
+                        hover:border-[#FDB931]
                         text-sm font-bold
                         min-h-[80px]
                         active:scale-95
@@ -718,7 +718,7 @@ export default function ChatClientShell({
               </div>
             );
           })()}
-          
+
           <div className="px-3 pb-3 pt-2 bg-white border-t">
             <InputBar mode={mode} onSend={onSend} disabled={isSending} />
             {isSending && (

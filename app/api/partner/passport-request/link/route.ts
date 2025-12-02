@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
-import { generatePassportToken } from '@/app/api/admin/passport-request/_utils';
+import { generatePassportTokenAsync } from '@/app/api/admin/passport-request/_utils';
 
 /**
  * POST: 파트너용 여권/PNR 등록 링크 생성
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 토큰 생성
-        const token = await generatePassportToken(Number(userId), tripId);
+        const token = await generatePassportTokenAsync(Number(userId), tripId);
 
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://cruiseguide.co.kr';
         const passportLink = `${baseUrl}/passport/${token}?mode=passport`;

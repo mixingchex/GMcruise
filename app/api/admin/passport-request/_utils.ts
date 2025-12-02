@@ -131,6 +131,45 @@ export function decodePassportToken(shortToken: string): string {
   return shortToken;
 }
 
+// 토큰 생성 함수
+export function generatePassportToken(): string {
+  // 24바이트(48자 hex) 랜덤 토큰 생성
+  const crypto = require('crypto');
+  return crypto.randomBytes(24).toString('hex');
+}
+
+// 비동기 버전 (userId, tripId 받아서 DB에 저장 후 토큰 반환)
+export async function generatePassportTokenAsync(userId: number, tripId: number): Promise<string> {
+  const prisma = (await import('@/lib/prisma')).default;
+  const token = generatePassportToken();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 3); // 3일 유효
+
+  // 기존 submission 확인
+  let submission = await prisma.passportSubmission.findFirst({
+    where: {
+      userId: userId,
+      tripId: tripId,
+      tokenExpiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!submission) {
+    submission = await prisma.passportSubmission.create({
+      data: {
+        userId: userId,
+        tripId: tripId,
+        token: token,
+        tokenExpiresAt: expiresAt,
+        status: 'PENDING',
+      },
+    });
+  }
+
+  return submission.token;
+}
+
 export function fillTemplate(
   template: string,
   replacements: Record<string, string | null | undefined>

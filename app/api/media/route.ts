@@ -15,13 +15,8 @@ export async function GET(req: NextRequest) {
     }
 
     // Google Drive 폴더 ID 가져오기
-    const cruiseImagesFolderId = process.env.GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID;
-    if (!cruiseImagesFolderId) {
-      return NextResponse.json(
-        { error: 'Google Drive 크루즈 이미지 폴더 ID가 설정되지 않았습니다.' },
-        { status: 500 }
-      );
-    }
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const cruiseImagesFolderId = await getDriveFolderId('CRUISE_IMAGES');
 
     // Google Drive에서 파일 목록 가져오기
     const result = await listFilesInFolder(cruiseImagesFolderId, slug);

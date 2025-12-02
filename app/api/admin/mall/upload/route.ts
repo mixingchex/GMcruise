@@ -157,7 +157,8 @@ export async function POST(req: NextRequest) {
             select: { configValue: true },
           });
 
-          const productsFolderId = productsConfig?.configValue || process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID || '18YuEBt313yyKI3F7PSzjFFRF3Af-bVPH';
+          const { getDriveFolderId: getDriveProductsFolderId } = await import('@/lib/config/drive-config');
+          const productsFolderId = productsConfig?.configValue || await getDriveProductsFolderId('PRODUCTS');
 
           if (productsFolderId && productsFolderId !== 'root') {
             // 상품 코드별 폴더 생성 또는 찾기
@@ -201,7 +202,8 @@ export async function POST(req: NextRequest) {
           select: { configValue: true },
         });
 
-        const folderId = config?.configValue || process.env.GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID;
+        const { getDriveFolderId: getDriveCruiseFolderId } = await import('@/lib/config/drive-config');
+        const folderId = config?.configValue || await getDriveCruiseFolderId('CRUISE_IMAGES');
 
         if (folderId && folderId !== 'root') {
           // Google Drive에서 하위 폴더 구조 생성
@@ -281,11 +283,15 @@ export async function POST(req: NextRequest) {
       const { getDriveFolderId } = await import('@/lib/config/drive-config');
       const imagesFolderId = await getDriveFolderId('UPLOADS_IMAGES');
 
+      const videosFolderId = await getDriveFolderId('UPLOADS_VIDEOS');
+      const fontsFolderId = await getDriveFolderId('UPLOADS_FONTS');
+      const documentsFolderId = await getDriveFolderId('UPLOADS_DOCUMENTS');
+
       const folderIdMap: Record<string, string | undefined> = {
         images: imagesFolderId,
-        videos: process.env.GOOGLE_DRIVE_UPLOADS_VIDEOS_FOLDER_ID,
-        fonts: process.env.GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID,
-        documents: process.env.GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID,
+        videos: videosFolderId,
+        fonts: fontsFolderId,
+        documents: documentsFolderId,
       };
 
       const targetFolderId = folderIdMap[subDir] || imagesFolderId;

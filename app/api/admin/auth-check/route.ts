@@ -28,48 +28,62 @@ export async function GET() {
       return NextResponse.json({ ok: false, authenticated: false });
     }
 
-    // 관리자 패널 접근 권한: 01024958013 또는 01038609161만 허용, user1~user10은 차단
+    // 관리자 패널 접근 권한: 01024958013, 01038609161 또는 대리점장 허용, user1~user10은 차단
     const user = await prisma.user.findUnique({
       where: { id: session.User.id },
-      select: { role: true, phone: true }
+      select: {
+        role: true,
+        phone: true,
+        AffiliateProfile: {
+          select: { type: true }
+        }
+      }
     });
 
-    if (!user || user.role !== 'admin') {
-      console.log('[Admin Auth Check] 관리자가 아님:', { userId: session.User.id, role: user?.role });
-      return NextResponse.json({ ok: false, authenticated: false });
-    }
-
     // 전화번호 정규화 (로그인 시와 동일하게 처리)
-    const normalizedPhone = user.phone?.replace(/[-\s]/g, '') || '';
+    const normalizedPhone = user?.phone?.replace(/[-\s]/g, '') || '';
 
     // user1~user10은 관리자 패널 접근 불가
     if (normalizedPhone && /^user(1[0]|[1-9])$/.test(normalizedPhone)) {
       console.log('[Admin Auth Check] user1~user10 차단:', { phone: normalizedPhone });
-      return NextResponse.json({ 
-        ok: false, 
+      return NextResponse.json({
+        ok: false,
         authenticated: false,
         error: 'user1~user10은 관리자 패널에 접근할 수 없습니다.'
       });
     }
 
-    // 01024958013 또는 01038609161만 접근 허용 (정규화된 전화번호로 비교)
-    const isAuthorized = normalizedPhone === '01024958013' || normalizedPhone === '01038609161';
-    
-    console.log('[Admin Auth Check] 권한 확인:', { 
-      phone: normalizedPhone, 
+    // 대리점장인지 확인
+    const isBranchManager = user?.AffiliateProfile?.type === 'BRANCH_MANAGER';
+
+    // 01024958013 또는 01038609161 또는 대리점장(BRANCH_MANAGER)만 접근 허용
+    const isSuperAdmin = normalizedPhone === '01024958013' || normalizedPhone === '01038609161';
+    const isAuthorized = isSuperAdmin || isBranchManager;
+
+    console.log('[Admin Auth Check] 권한 확인:', {
+      phone: normalizedPhone,
       isAuthorized,
-      originalPhone: user.phone 
+      isSuperAdmin,
+      isBranchManager,
+      originalPhone: user?.phone
     });
+
+    if (!isAuthorized) {
+      console.log('[Admin Auth Check] 접근 권한 없음:', { userId: session.User.id, role: user?.role });
+      return NextResponse.json({ ok: false, authenticated: false });
+    }
 
     return NextResponse.json({
       ok: true,
       authenticated: isAuthorized,
-      user: isAuthorized ? {
+      user: {
         id: session.User.id,
         name: session.User.name,
         role: session.User.role,
-        phone: user.phone
-      } : null,
+        phone: user?.phone,
+        isBranchManager,
+        isSuperAdmin
+      },
     });
   } catch (error) {
     console.error('[Admin Auth Check] Error:', error);

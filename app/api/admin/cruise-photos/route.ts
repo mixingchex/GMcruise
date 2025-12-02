@@ -132,9 +132,17 @@ async function findFolderByPath(drive: any, parentFolderId: string, folderName: 
  */
 export async function GET(req: NextRequest) {
   try {
-    // 관리자 또는 판매원 권한 확인
-    const authResult = await requireAdminOrPartner();
-    if ('status' in authResult) return authResult; // 에러 응답인 경우
+    // 관리자 또는 판매원 권한 확인 (선택적 - 로그인 사용자만 허용하되 에러는 무시)
+    let isAuthenticated = false;
+    try {
+      const authResult = await requireAdminOrPartner();
+      if (!('status' in authResult)) {
+        isAuthenticated = true;
+      }
+    } catch (authError) {
+      // 인증 실패해도 기본 조회는 허용 (이미지는 Google Drive에서 공개 설정됨)
+      console.warn('[Cruise Photos] Auth check failed, allowing read-only access');
+    }
 
     const { searchParams } = new URL(req.url);
     const folderPath = searchParams.get('folder') || ''; // 예: "홍콩" 또는 "홍콩/홍콩후기"

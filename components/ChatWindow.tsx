@@ -87,7 +87,7 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
           }
           return false;
         });
-        
+
         setSelectedSubfolder({
           messageId,
           subfolderName: displayName, // 표시명 저장
@@ -169,18 +169,17 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
       {messages.map((message, index) => {
         // 고유 key 생성: id가 있으면 사용하고, 없으면 인덱스와 타입으로 구성
         const uniqueKey = message.id || `${message.type}-${message.role}-${index}`;
-        
+
         // 메시지 타입에 따라 렌더링
         if (message.type === 'text') {
           return (
             <div key={uniqueKey} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
               <div className="flex flex-col">
                 <div
-                  className={`max-w-[80%] rounded-xl p-5 text-xl sm:text-2xl leading-relaxed ${
-                    message.role === 'user'
-                      ? 'bg-red-500 text-white'
-                      : 'bg-gray-100 text-gray-800'
-                  }`}
+                  className={`max-w-[80%] rounded-xl p-5 text-xl sm:text-2xl leading-relaxed ${message.role === 'user'
+                      ? 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] text-[#051C2C] shadow-md font-semibold'
+                      : 'bg-white text-gray-800 border border-[#051C2C]/10 shadow-sm'
+                    }`}
                 >
                   {message.text}
                 </div>
@@ -202,7 +201,7 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block px-6 py-5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-xl sm:text-2xl font-medium"
+                      className="block px-6 py-5 bg-[#051C2C] text-white rounded-lg hover:bg-[#0A2E46] transition-colors text-xl sm:text-2xl font-medium shadow-md hover:shadow-lg"
                     >
                       {link.label}
                     </a>
@@ -351,7 +350,7 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
                           className="
                             flex items-center justify-center gap-2
                             px-5 py-5
-                            bg-gradient-to-r from-purple-600 to-purple-400
+                            bg-gradient-to-r from-[#051C2C] to-[#0A2E46]
                             text-white
                             rounded-xl
                             shadow-md
@@ -388,8 +387,8 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
                           className="
                             flex items-center justify-center gap-2
                             px-5 py-5
-                            bg-gradient-to-r from-blue-600 to-blue-400
-                            text-white
+                            bg-gradient-to-r from-[#FDB931] to-[#E1A21E]
+                            text-[#051C2C]
                             rounded-xl
                             shadow-md
                             hover:shadow-lg

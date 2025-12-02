@@ -175,11 +175,10 @@ export async function POST(
     
     // 7. Google Drive에 직접 업로드
     const { uploadFileToDrive } = await import('@/lib/google-drive');
-    
+
     // Google Drive 오디오 폴더 ID 가져오기
-    const audioFolderId = process.env.GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID || 
-                         process.env.GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID ||
-                         '1dhTmPheRvOsc0V0ukpKOqD2Ry1IN-OrH'; // 기본값
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const audioFolderId = await getDriveFolderId('UPLOADS_SALES_AUDIO');
     
     let googleDriveFileId: string | null = null;
     let googleDriveUrl: string | null = null;

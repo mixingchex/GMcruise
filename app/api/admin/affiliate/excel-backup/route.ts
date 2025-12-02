@@ -2,20 +2,27 @@
 // 관리자 패널에서 엑셀 백업 트리거
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
+import prisma from '@/lib/prisma';
 import { uploadAllExcels, uploadCashflowExcel, uploadTotalcashExcel } from '@/lib/affiliate/excel-backup';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const sessionUser = await getSessionUser();
 
-    if (!session || !session.user) {
+    if (!sessionUser) {
       return NextResponse.json({ error: '인증되지 않음' }, { status: 401 });
     }
 
     // 관리자 권한 확인
-    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'admin';
+    const user = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { role: true }
+    });
+
+    const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin';
     if (!isAdmin) {
       return NextResponse.json({ error: '권한 없음' }, { status: 403 });
     }
@@ -68,13 +75,19 @@ export async function POST(request: NextRequest) {
 // 백업 상태 조회 (옵션)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const sessionUser = await getSessionUser();
 
-    if (!session || !session.user) {
+    if (!sessionUser) {
       return NextResponse.json({ error: '인증되지 않음' }, { status: 401 });
     }
 
-    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'admin';
+    // 관리자 권한 확인
+    const user = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { role: true }
+    });
+
+    const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin';
     if (!isAdmin) {
       return NextResponse.json({ error: '권한 없음' }, { status: 403 });
     }

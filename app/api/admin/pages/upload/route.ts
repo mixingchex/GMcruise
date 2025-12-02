@@ -76,8 +76,9 @@ export async function POST(req: NextRequest) {
     const filename = `pages_${timestamp}_${originalName}`;
 
     // Google Drive 이미지 폴더 ID 가져오기
-    const imagesFolderId = process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID;
-    
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const imagesFolderId = await getDriveFolderId('UPLOADS_IMAGES');
+
     if (!imagesFolderId) {
       return NextResponse.json(
         { ok: false, error: 'Google Drive 이미지 폴더 ID가 설정되지 않았습니다.' },

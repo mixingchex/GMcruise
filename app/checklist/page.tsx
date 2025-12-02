@@ -39,12 +39,12 @@ export default function ChecklistPage() {
     const checkPath = async () => {
       const testModeInfo = await checkTestModeClient();
       const correctPath = getCorrectPath(pathname || '/checklist', testModeInfo);
-      
+
       if (correctPath !== pathname) {
         router.replace(correctPath);
       }
     };
-    
+
     checkPath();
   }, [pathname, router]);
 
@@ -59,10 +59,10 @@ export default function ChecklistPage() {
     } catch (e) {
       // 무시
     }
-    
+
     setSpeakingCategory(category);
     setIsPaused(false);
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'ko-KR';
     utterance.rate = 0.9; // 읽기 속도 (조금 느리게)
@@ -183,7 +183,7 @@ export default function ChecklistPage() {
     if (hasCreatedDefaultsRef.current && items.length > 0) {
       return;
     }
-    
+
     for (const item of defaultItems) {
       try {
         const res = await fetch('/api/checklist', {
@@ -192,7 +192,7 @@ export default function ChecklistPage() {
           credentials: 'include',
           body: JSON.stringify({ text: item.text }),
         });
-        
+
         if (res.ok) {
           const serverItem = await res.json();
           const finalItem = serverItem.item || serverItem;
@@ -226,12 +226,12 @@ export default function ChecklistPage() {
     if (!skipError) {
       setError(null);
     }
-    
+
     try {
       const res = await fetch('/api/checklist', {
         credentials: 'include',
       });
-      
+
       if (!res.ok) {
         // 401이나 429 오류는 재시도하지 않음
         if (res.status === 401) {
@@ -242,10 +242,10 @@ export default function ChecklistPage() {
         }
         throw new Error('체크리스트를 불러올 수 없습니다.');
       }
-      
+
       const data = await res.json();
       const items = data.items || data;
-      
+
       if (Array.isArray(items)) {
         // 서버에서 받은 항목을 클라이언트 형식으로 변환 (id: number 유지)
         const formattedItems = items.map((item: any) => ({
@@ -253,7 +253,7 @@ export default function ChecklistPage() {
           text: item.text || '',
           completed: item.completed || false,
         }));
-        
+
         // 항목이 없으면 기본 항목 생성 (한 번만)
         if (formattedItems.length === 0 && !skipError && !hasCreatedDefaultsRef.current) {
           hasCreatedDefaultsRef.current = true;
@@ -273,7 +273,7 @@ export default function ChecklistPage() {
       if (!skipError) {
         setError(`체크리스트를 불러오는 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
       }
-      
+
       // 401이나 429 오류가 아니고, 아직 기본 항목을 생성하지 않았으면 생성
       const errorMessage = err?.message || '';
       if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많') && !hasCreatedDefaultsRef.current) {
@@ -315,13 +315,13 @@ export default function ChecklistPage() {
   const handleAdd = async (value?: string) => {
     const text = (value !== undefined ? value : newText).trim();
     if (!text) return;
-    
+
     if (value === undefined) setNewText('');
-    
+
     setIsLoading(true);
     setError(null);
     hapticClick();
-    
+
     try {
       const res = await fetch('/api/checklist', {
         method: 'POST',
@@ -331,18 +331,18 @@ export default function ChecklistPage() {
         credentials: 'include',
         body: JSON.stringify({ text }),
       });
-      
+
       if (!res.ok) {
-        const errorData = res.status === 401 || res.status === 429 
+        const errorData = res.status === 401 || res.status === 429
           ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
           : await res.json().catch(() => ({ error: '항목 추가 실패' }));
-        
+
         throw new Error(errorData.error || '항목 추가 실패');
       }
-      
+
       const serverItem = await res.json();
       const finalItem = serverItem.item || serverItem;
-      
+
       // 서버에서 받은 항목을 상태에 추가
       setItems(prev => [...prev, finalItem]);
     } catch (err: any) {
@@ -363,7 +363,7 @@ export default function ChecklistPage() {
     const oldCompleted = item.completed;
 
     // 즉시 UI 업데이트 (낙관적 업데이트)
-    setItems(prev => prev.map(i => 
+    setItems(prev => prev.map(i =>
       i.id === id ? { ...i, completed: newCompleted } : i
     ));
 
@@ -388,25 +388,25 @@ export default function ChecklistPage() {
         credentials: 'include',
         body: JSON.stringify({ id: numericId, completed: newCompleted }),
       });
-      
+
       if (!res.ok) {
         // 상태 롤백
-        setItems(prev => prev.map(i => 
+        setItems(prev => prev.map(i =>
           i.id === id ? { ...i, completed: oldCompleted } : i
         ));
-        
-        const errorData = res.status === 401 || res.status === 429 
+
+        const errorData = res.status === 401 || res.status === 429
           ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
           : await res.json().catch(() => ({ error: '상태 변경 실패' }));
-        
+
         throw new Error(errorData.error || '상태 변경 실패');
       }
-      
+
       const result = await res.json();
       const updatedItem = result.item || result;
-      
+
       // 서버에서 받은 업데이트된 항목으로 상태 업데이트
-      setItems(prev => prev.map(i => 
+      setItems(prev => prev.map(i =>
         i.id === id ? updatedItem : i
       ));
     } catch (err: any) {
@@ -414,7 +414,7 @@ export default function ChecklistPage() {
       console.error('[Checklist] Error toggling item:', err);
       const errorMessage = err.message || '알 수 없는 오류';
       setError(`상태 변경 중 오류가 발생했습니다: ${errorMessage}`);
-      
+
       // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
       if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
         // 짧은 딜레이 후 재시도 (무한 루프 방지)
@@ -439,7 +439,7 @@ export default function ChecklistPage() {
     const oldText = item?.text || '';
 
     // 즉시 UI 업데이트 (낙관적 업데이트)
-    setItems(prev => prev.map(i => 
+    setItems(prev => prev.map(i =>
       i.id === id ? { ...i, text: trimmedText } : i
     ));
 
@@ -459,25 +459,25 @@ export default function ChecklistPage() {
         credentials: 'include',
         body: JSON.stringify({ id: numericId, text: trimmedText }),
       });
-      
+
       if (!res.ok) {
         // 상태 롤백
-        setItems(prev => prev.map(i => 
+        setItems(prev => prev.map(i =>
           i.id === id ? { ...i, text: oldText } : i
         ));
-        
-        const errorData = res.status === 401 || res.status === 429 
+
+        const errorData = res.status === 401 || res.status === 429
           ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
           : await res.json().catch(() => ({ error: '수정 실패' }));
-        
+
         throw new Error(errorData.error || '수정 실패');
       }
-      
+
       const result = await res.json();
       const updatedItem = result.item || result;
-      
+
       // 서버에서 받은 업데이트된 항목으로 상태 업데이트
-      setItems(prev => prev.map(i => 
+      setItems(prev => prev.map(i =>
         i.id === id ? updatedItem : i
       ));
     } catch (err: any) {
@@ -485,7 +485,7 @@ export default function ChecklistPage() {
       console.error('[Checklist] Error updating item:', err);
       const errorMessage = err.message || '알 수 없는 오류';
       setError(`수정 중 오류가 발생했습니다: ${errorMessage}`);
-      
+
       // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
       if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
         // 짧은 딜레이 후 재시도 (무한 루프 방지)
@@ -515,7 +515,7 @@ export default function ChecklistPage() {
     if (!window.confirm('체크리스트를 초기 상태로 리셋하시겠습니까?\n모든 항목과 체크 상태가 삭제되고 기본 항목으로 다시 시작됩니다.')) {
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
 
@@ -532,7 +532,7 @@ export default function ChecklistPage() {
             credentials: 'include',
             body: JSON.stringify({ id: item.id }),
           });
-          
+
           if (!res.ok) {
             // 개별 삭제 실패는 경고만 (전체 실패는 아님)
             // 개발 환경에서만 로깅
@@ -571,13 +571,13 @@ export default function ChecklistPage() {
   // 삭제 (API 전용)
   const handleDelete = async (id: number | string) => {
     hapticImpact();
-    
+
     const item = items.find(i => i.id === id);
     if (!item) return;
 
     // 즉시 UI에서 제거 (낙관적 업데이트)
     setItems(prev => prev.filter(i => i.id !== id));
-    
+
     setIsLoading(true);
     setError(null);
 
@@ -592,25 +592,25 @@ export default function ChecklistPage() {
         credentials: 'include',
         body: JSON.stringify({ id: numericId }),
       });
-      
+
       if (!res.ok) {
         // 상태 롤백 (항목 다시 추가)
         setItems(prev => [...prev, item]);
-        
-        const errorData = res.status === 401 || res.status === 429 
+
+        const errorData = res.status === 401 || res.status === 429
           ? { error: res.status === 401 ? '인증이 필요합니다' : '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' }
           : await res.json().catch(() => ({ error: '삭제 실패' }));
-        
+
         throw new Error(errorData.error || '삭제 실패');
       }
-      
+
       // 서버에서 삭제 성공 (이미 UI에서 제거됨)
     } catch (err: any) {
       // 에러는 항상 로깅
       console.error('[Checklist] Error deleting item:', err);
       const errorMessage = err.message || '알 수 없는 오류';
       setError(`삭제 중 오류가 발생했습니다: ${errorMessage}`);
-      
+
       // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
       if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
         // 짧은 딜레이 후 재시도 (무한 루프 방지)
@@ -712,7 +712,7 @@ export default function ChecklistPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+    <main className="min-h-screen bg-[#F5F7FA]">
       {/* 상단 고정 헤더 */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b">
         <div className="mx-auto max-w-3xl px-4 py-4 md:py-5 flex items-center justify-between">
@@ -756,7 +756,7 @@ export default function ChecklistPage() {
           </div>
           <div className="h-4 md:h-5 w-full rounded-full bg-gray-200 overflow-hidden shadow-inner">
             <div
-              className="h-full rounded-full bg-blue-500 transition-all shadow-md"
+              className="h-full rounded-full bg-gradient-to-r from-[#FDB931] to-[#E1A21E] transition-all shadow-md"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -774,348 +774,343 @@ export default function ChecklistPage() {
       {/* 컨텐츠 */}
       {!isLoading && (
         <div className="mx-auto max-w-3xl px-4 py-4 sm:py-6">
-        {/* 글자 크기 조절 및 리셋 */}
-        <div className="mb-4 md:mb-5 flex items-center gap-3 flex-wrap">
-          <span className="text-lg md:text-xl text-gray-700 font-semibold">글자 크기</span>
-          <div className="flex overflow-hidden rounded-xl border-2">
+          {/* 글자 크기 조절 및 리셋 */}
+          <div className="mb-4 md:mb-5 flex items-center gap-3 flex-wrap">
+            <span className="text-lg md:text-xl text-gray-700 font-semibold">글자 크기</span>
+            <div className="flex overflow-hidden rounded-xl border-2">
+              <button
+                className={`px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold ${textScale === 1 ? 'bg-[#051C2C] text-white' : 'bg-white text-gray-800'}`}
+                onClick={() => setTextScale(1)}
+              >
+                작게
+              </button>
+              <button
+                className={`px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold ${textScale === 2 ? 'bg-[#051C2C] text-white' : 'bg-white text-gray-800'}`}
+                onClick={() => setTextScale(2)}
+              >
+                보통
+              </button>
+              <button
+                className={`px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold ${textScale === 3 ? 'bg-[#051C2C] text-white' : 'bg-white text-gray-800'}`}
+                onClick={() => setTextScale(3)}
+              >
+                크게
+              </button>
+            </div>
             <button
-              className={`px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold ${textScale === 1 ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-              onClick={() => setTextScale(1)}
+              onClick={handleReset}
+              disabled={isLoading}
+              className="ml-auto px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              aria-label="체크리스트 초기화"
             >
-              작게
-            </button>
-            <button
-              className={`px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold ${textScale === 2 ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-              onClick={() => setTextScale(2)}
-            >
-              보통
-            </button>
-            <button
-              className={`px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold ${textScale === 3 ? 'bg-blue-600 text-white' : 'bg-white text-gray-800'}`}
-              onClick={() => setTextScale(3)}
-            >
-              크게
+              🔄 리셋
             </button>
           </div>
-          <button
-            onClick={handleReset}
-            disabled={isLoading}
-            className="ml-auto px-4 md:px-5 py-2 md:py-2.5 text-base md:text-lg font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-            aria-label="체크리스트 초기화"
-          >
-            🔄 리셋
-          </button>
-        </div>
 
-        {/* 안내 메시지 */}
-        <div className="mb-6 md:mb-8 bg-blue-50 border-2 border-blue-200 rounded-xl p-5 md:p-6 shadow-md">
-          <p className="text-xl md:text-2xl text-blue-900 font-semibold leading-relaxed">
-            ✓ 준비한 항목을 체크하세요
-          </p>
-          <p className="text-lg md:text-xl text-blue-700 mt-2 leading-relaxed">
-            체크한 내용은 자동으로 저장됩니다
-          </p>
-        </div>
+          {/* 안내 메시지 */}
+          <div className="mb-6 md:mb-8 bg-[#FDB931]/10 border-2 border-[#FDB931]/30 rounded-xl p-5 md:p-6 shadow-md">
+            <p className="text-xl md:text-2xl text-blue-900 font-semibold leading-relaxed">
+              ✓ 준비한 항목을 체크하세요
+            </p>
+            <p className="text-lg md:text-xl text-blue-700 mt-2 leading-relaxed">
+              체크한 내용은 자동으로 저장됩니다
+            </p>
+          </div>
 
-        {/* 금지 물품 정보 (접기/펼치기) */}
-        <div className="mb-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl overflow-hidden">
-          <button
-            onClick={() => setIsProhibitedItemsExpanded(!isProhibitedItemsExpanded)}
-            className="w-full flex items-center justify-between p-4 text-left hover:bg-yellow-100 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">⚠️</span>
-              <span className="text-xl font-bold text-yellow-900">
-                가져가면 안 되는 물건 확인하기
-              </span>
-            </div>
-            {isProhibitedItemsExpanded ? (
-              <FiChevronUp className="text-2xl text-yellow-700" />
-            ) : (
-              <FiChevronDown className="text-2xl text-yellow-700" />
-            )}
-          </button>
-
-          {isProhibitedItemsExpanded && (
-            <div className="px-4 pb-4 space-y-4">
-              {/* 비행기 금지 물품 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <span>✈️</span>
-                    {prohibitedItems.flight.title}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      const flightText = `${prohibitedItems.flight.title}. ${prohibitedItems.flight.items.join(', ')}. ${prohibitedItems.flight.specialItems?.[0]?.title || ''}. ${prohibitedItems.flight.specialItems?.[0]?.details.join('. ') || ''}`;
-                      handleSpeechToggle('flight', flightText);
-                    }}
-                    className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${
-                      speakingCategory === 'flight'
-                        ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-red-600 border-red-700 text-white animate-pulse')
-                        : 'bg-yellow-400 border-yellow-500 hover:bg-yellow-500 text-white shadow-xl'
-                    }`}
-                    aria-label={speakingCategory === 'flight' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
-                    title={speakingCategory === 'flight' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
-                  >
-                    {speakingCategory === 'flight'
-                      ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
-                      : <FiVolume2 className="text-3xl font-bold" />}
-                  </button>
-                </div>
-                <ul className="space-y-2 ml-6">
-                  {prohibitedItems.flight.items.map((item, idx) => (
-                    <li key={idx} className="text-lg text-gray-700 list-disc">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                
-                {/* 보조배터리 상세 정보 */}
-                {prohibitedItems.flight.specialItems && prohibitedItems.flight.specialItems.map((special, idx) => (
-                  <div key={idx} className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-lg font-bold text-blue-900">
-                        {special.title}
-                      </h4>
-                      <button
-                        onClick={() => {
-                          const batteryText = `${special.title}. ${special.details.join('. ')}`;
-                          handleSpeechToggle('flight-battery', batteryText);
-                        }}
-                        className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${
-                          speakingCategory === 'flight-battery'
-                            ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-blue-600 border-blue-700 text-white animate-pulse')
-                            : 'bg-blue-500 border-blue-600 hover:bg-blue-600 text-white shadow-xl'
-                        }`}
-                        aria-label={speakingCategory === 'flight-battery' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
-                        title={speakingCategory === 'flight-battery' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
-                      >
-                        {speakingCategory === 'flight-battery'
-                          ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
-                          : <FiVolume2 className="text-3xl font-bold" />}
-                      </button>
-                    </div>
-                    <ul className="space-y-2 ml-4">
-                      {special.details.map((detail, detailIdx) => (
-                        <li key={detailIdx} className="text-base text-blue-800">
-                          {detail}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-
-              {/* 크루즈 금지 물품 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <span>🚢</span>
-                    {prohibitedItems.cruise.title}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      const cruiseText = `${prohibitedItems.cruise.title}. ${prohibitedItems.cruise.items.join(', ')}. ${prohibitedItems.cruise.specialItems?.[0]?.title || ''}. ${prohibitedItems.cruise.specialItems?.[0]?.details.join('. ') || ''}`;
-                      handleSpeechToggle('cruise', cruiseText);
-                    }}
-                    className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${
-                      speakingCategory === 'cruise'
-                        ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-red-600 border-red-700 text-white animate-pulse')
-                        : 'bg-yellow-400 border-yellow-500 hover:bg-yellow-500 text-white shadow-xl'
-                    }`}
-                    aria-label={speakingCategory === 'cruise' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
-                    title={speakingCategory === 'cruise' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
-                  >
-                    {speakingCategory === 'cruise'
-                      ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
-                      : <FiVolume2 className="text-3xl font-bold" />}
-                  </button>
-                </div>
-                <ul className="space-y-2 ml-6">
-                  {prohibitedItems.cruise.items.map((item, idx) => (
-                    <li key={idx} className="text-lg text-gray-700 list-disc">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                
-                {/* 보조배터리 상세 정보 */}
-                {prohibitedItems.cruise.specialItems && prohibitedItems.cruise.specialItems.map((special, idx) => (
-                  <div key={idx} className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-lg font-bold text-blue-900">
-                        {special.title}
-                      </h4>
-                      <button
-                        onClick={() => {
-                          const batteryText = `${special.title}. ${special.details.join('. ')}`;
-                          handleSpeechToggle('cruise-battery', batteryText);
-                        }}
-                        className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${
-                          speakingCategory === 'cruise-battery'
-                            ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-blue-600 border-blue-700 text-white animate-pulse')
-                            : 'bg-blue-500 border-blue-600 hover:bg-blue-600 text-white shadow-xl'
-                        }`}
-                        aria-label={speakingCategory === 'cruise-battery' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
-                        title={speakingCategory === 'cruise-battery' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
-                      >
-                        {speakingCategory === 'cruise-battery'
-                          ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
-                          : <FiVolume2 className="text-3xl font-bold" />}
-                      </button>
-                    </div>
-                    <ul className="space-y-2 ml-4">
-                      {special.details.map((detail, detailIdx) => (
-                        <li key={detailIdx} className="text-base text-blue-800">
-                          {detail}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-
-              {/* 나라별 주의 물품 */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                    <span>🌍</span>
-                    {prohibitedItems.countries.title}
-                  </h3>
-                  <button
-                    onClick={() => {
-                      const countriesText = `${prohibitedItems.countries.title}. ${prohibitedItems.countries.items.join('. ')}`;
-                      handleSpeechToggle('countries', countriesText);
-                    }}
-                    className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${
-                      speakingCategory === 'countries'
-                        ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-red-600 border-red-700 text-white animate-pulse')
-                        : 'bg-yellow-400 border-yellow-500 hover:bg-yellow-500 text-white shadow-xl'
-                    }`}
-                    aria-label={speakingCategory === 'countries' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
-                    title={speakingCategory === 'countries' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
-                  >
-                    {speakingCategory === 'countries'
-                      ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
-                      : <FiVolume2 className="text-3xl font-bold" />}
-                  </button>
-                </div>
-                <ul className="space-y-2 ml-6">
-                  {prohibitedItems.countries.items.map((item, idx) => (
-                    <li key={idx} className="text-lg text-gray-700 list-disc">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="mt-3 pt-3 border-t border-yellow-300">
-                <p className="text-base text-yellow-800 italic">
-                  💡 주의: 규정은 항공사 및 크루즈 회사, 국가별로 다를 수 있으니 출발 전 반드시 확인하세요.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 빠른 추가 칩 */}
-        <div className="mb-4 flex flex-wrap gap-2">
-          {quickChips.map(chip => (
+          {/* 금지 물품 정보 (접기/펼치기) */}
+          <div className="mb-6 bg-yellow-50 border-2 border-yellow-200 rounded-xl overflow-hidden">
             <button
-              key={chip}
-              onClick={() => handleAdd(chip)}
-              className="rounded-full border bg-white px-4 py-2 text-base font-semibold hover:bg-gray-50"
-              disabled={isLoading}
+              onClick={() => setIsProhibitedItemsExpanded(!isProhibitedItemsExpanded)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-yellow-100 transition-colors"
             >
-              + {chip}
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">⚠️</span>
+                <span className="text-xl font-bold text-yellow-900">
+                  가져가면 안 되는 물건 확인하기
+                </span>
+              </div>
+              {isProhibitedItemsExpanded ? (
+                <FiChevronUp className="text-2xl text-yellow-700" />
+              ) : (
+                <FiChevronDown className="text-2xl text-yellow-700" />
+              )}
             </button>
-          ))}
-        </div>
 
-        {/* 리스트 */}
-        <ul className="space-y-3">
-          {sorted.map(item => (
-            <li
-              key={item.id}
-              className={`flex items-center gap-3 rounded-2xl border bg-white px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm
-                          ${item.completed ? 'opacity-80' : ''}`}
-            >
+            {isProhibitedItemsExpanded && (
+              <div className="px-4 pb-4 space-y-4">
+                {/* 비행기 금지 물품 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <span>✈️</span>
+                      {prohibitedItems.flight.title}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        const flightText = `${prohibitedItems.flight.title}. ${prohibitedItems.flight.items.join(', ')}. ${prohibitedItems.flight.specialItems?.[0]?.title || ''}. ${prohibitedItems.flight.specialItems?.[0]?.details.join('. ') || ''}`;
+                        handleSpeechToggle('flight', flightText);
+                      }}
+                      className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${speakingCategory === 'flight'
+                        ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-red-600 border-red-700 text-white animate-pulse')
+                        : 'bg-yellow-400 border-yellow-500 hover:bg-yellow-500 text-white shadow-xl'
+                        }`}
+                      aria-label={speakingCategory === 'flight' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
+                      title={speakingCategory === 'flight' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
+                    >
+                      {speakingCategory === 'flight'
+                        ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
+                        : <FiVolume2 className="text-3xl font-bold" />}
+                    </button>
+                  </div>
+                  <ul className="space-y-2 ml-6">
+                    {prohibitedItems.flight.items.map((item, idx) => (
+                      <li key={idx} className="text-lg text-gray-700 list-disc">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* 보조배터리 상세 정보 */}
+                  {prohibitedItems.flight.specialItems && prohibitedItems.flight.specialItems.map((special, idx) => (
+                    <div key={idx} className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-lg font-bold text-blue-900">
+                          {special.title}
+                        </h4>
+                        <button
+                          onClick={() => {
+                            const batteryText = `${special.title}. ${special.details.join('. ')}`;
+                            handleSpeechToggle('flight-battery', batteryText);
+                          }}
+                          className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${speakingCategory === 'flight-battery'
+                            ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-blue-600 border-blue-700 text-white animate-pulse')
+                            : 'bg-blue-500 border-blue-600 hover:bg-blue-600 text-white shadow-xl'
+                            }`}
+                          aria-label={speakingCategory === 'flight-battery' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
+                          title={speakingCategory === 'flight-battery' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
+                        >
+                          {speakingCategory === 'flight-battery'
+                            ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
+                            : <FiVolume2 className="text-3xl font-bold" />}
+                        </button>
+                      </div>
+                      <ul className="space-y-2 ml-4">
+                        {special.details.map((detail, detailIdx) => (
+                          <li key={detailIdx} className="text-base text-blue-800">
+                            {detail}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 크루즈 금지 물품 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <span>🚢</span>
+                      {prohibitedItems.cruise.title}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        const cruiseText = `${prohibitedItems.cruise.title}. ${prohibitedItems.cruise.items.join(', ')}. ${prohibitedItems.cruise.specialItems?.[0]?.title || ''}. ${prohibitedItems.cruise.specialItems?.[0]?.details.join('. ') || ''}`;
+                        handleSpeechToggle('cruise', cruiseText);
+                      }}
+                      className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${speakingCategory === 'cruise'
+                        ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-red-600 border-red-700 text-white animate-pulse')
+                        : 'bg-yellow-400 border-yellow-500 hover:bg-yellow-500 text-white shadow-xl'
+                        }`}
+                      aria-label={speakingCategory === 'cruise' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
+                      title={speakingCategory === 'cruise' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
+                    >
+                      {speakingCategory === 'cruise'
+                        ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
+                        : <FiVolume2 className="text-3xl font-bold" />}
+                    </button>
+                  </div>
+                  <ul className="space-y-2 ml-6">
+                    {prohibitedItems.cruise.items.map((item, idx) => (
+                      <li key={idx} className="text-lg text-gray-700 list-disc">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* 보조배터리 상세 정보 */}
+                  {prohibitedItems.cruise.specialItems && prohibitedItems.cruise.specialItems.map((special, idx) => (
+                    <div key={idx} className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-lg font-bold text-blue-900">
+                          {special.title}
+                        </h4>
+                        <button
+                          onClick={() => {
+                            const batteryText = `${special.title}. ${special.details.join('. ')}`;
+                            handleSpeechToggle('cruise-battery', batteryText);
+                          }}
+                          className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${speakingCategory === 'cruise-battery'
+                            ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-blue-600 border-blue-700 text-white animate-pulse')
+                            : 'bg-blue-500 border-blue-600 hover:bg-blue-600 text-white shadow-xl'
+                            }`}
+                          aria-label={speakingCategory === 'cruise-battery' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
+                          title={speakingCategory === 'cruise-battery' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
+                        >
+                          {speakingCategory === 'cruise-battery'
+                            ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
+                            : <FiVolume2 className="text-3xl font-bold" />}
+                        </button>
+                      </div>
+                      <ul className="space-y-2 ml-4">
+                        {special.details.map((detail, detailIdx) => (
+                          <li key={detailIdx} className="text-base text-blue-800">
+                            {detail}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 나라별 주의 물품 */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <span>🌍</span>
+                      {prohibitedItems.countries.title}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        const countriesText = `${prohibitedItems.countries.title}. ${prohibitedItems.countries.items.join('. ')}`;
+                        handleSpeechToggle('countries', countriesText);
+                      }}
+                      className={`flex items-center justify-center w-16 h-16 rounded-full transition-all shadow-lg border-4 ${speakingCategory === 'countries'
+                        ? (isPaused ? 'bg-yellow-500 border-yellow-600 text-white' : 'bg-red-600 border-red-700 text-white animate-pulse')
+                        : 'bg-yellow-400 border-yellow-500 hover:bg-yellow-500 text-white shadow-xl'
+                        }`}
+                      aria-label={speakingCategory === 'countries' ? (isPaused ? '음성 재개' : '음성 일시정지') : '음성으로 듣기'}
+                      title={speakingCategory === 'countries' ? (isPaused ? '재개' : '일시정지') : '음성으로 듣기'}
+                    >
+                      {speakingCategory === 'countries'
+                        ? (isPaused ? <FiPlay className="text-3xl font-bold" /> : <FiPause className="text-3xl font-bold" />)
+                        : <FiVolume2 className="text-3xl font-bold" />}
+                    </button>
+                  </div>
+                  <ul className="space-y-2 ml-6">
+                    {prohibitedItems.countries.items.map((item, idx) => (
+                      <li key={idx} className="text-lg text-gray-700 list-disc">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-yellow-300">
+                  <p className="text-base text-yellow-800 italic">
+                    💡 주의: 규정은 항공사 및 크루즈 회사, 국가별로 다를 수 있으니 출발 전 반드시 확인하세요.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 빠른 추가 칩 */}
+          <div className="mb-4 flex flex-wrap gap-2">
+            {quickChips.map(chip => (
               <button
-                aria-label={item.completed ? '완료 해제' : '완료 처리'}
-                onClick={() => {
-                  if (editingItemId === item.id) {
-                    // 편집 중이면 체크 클릭 시 수정 완료
-                    handleUpdate(item.id, editingText);
-                  } else {
-                    // 편집 중이 아니면 완료 토글
-                    handleToggle(item.id);
-                  }
-                }}
-                className={`flex-shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-full border
+                key={chip}
+                onClick={() => handleAdd(chip)}
+                className="rounded-full border bg-white px-4 py-2 text-base font-semibold hover:bg-gray-50"
+                disabled={isLoading}
+              >
+                + {chip}
+              </button>
+            ))}
+          </div>
+
+          {/* 리스트 */}
+          <ul className="space-y-3">
+            {sorted.map(item => (
+              <li
+                key={item.id}
+                className={`flex items-center gap-3 rounded-2xl border bg-white px-3 sm:px-4 py-3 sm:py-3.5 shadow-sm
+                          ${item.completed ? 'opacity-80' : ''}`}
+              >
+                <button
+                  aria-label={item.completed ? '완료 해제' : '완료 처리'}
+                  onClick={() => {
+                    if (editingItemId === item.id) {
+                      // 편집 중이면 체크 클릭 시 수정 완료
+                      handleUpdate(item.id, editingText);
+                    } else {
+                      // 편집 중이 아니면 완료 토글
+                      handleToggle(item.id);
+                    }
+                  }}
+                  className={`flex-shrink-0 inline-flex h-11 w-11 items-center justify-center rounded-full border
                             ${item.completed ? 'bg-green-50 border-green-300' : 'bg-white'}
                             ${editingItemId === item.id ? 'bg-blue-50 border-blue-300' : ''}
                             active:scale-[0.98] transition-transform`}
-                disabled={isLoading}
-              >
-                {editingItemId === item.id ? (
-                  <FiCheck className="text-blue-600 text-2xl" />
-                ) : item.completed ? (
-                  <FiCheck className="text-green-600 text-2xl" />
-                ) : (
-                  <span className="block h-5 w-5 rounded-md border" />
-                )}
-              </button>
-
-              {editingItemId === item.id ? (
-                // 편집 모드
-                <div className="flex-1 flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={editingText}
-                    onChange={(e) => setEditingText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleUpdate(item.id, editingText);
-                      } else if (e.key === 'Escape') {
-                        handleCancelEdit();
-                      }
-                    }}
-                    autoFocus
-                    className={`flex-1 rounded-lg border-2 border-blue-300 px-3 py-2 ${fontCls} focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                    disabled={isLoading}
-                  />
-                  <button
-                    onClick={handleCancelEdit}
-                    className="flex-shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 active:scale-95 transition-transform"
-                    aria-label="취소"
-                  >
-                    <FiX className="text-lg text-gray-600" />
-                  </button>
-                </div>
-              ) : (
-                // 표시 모드
-                <div 
-                  className={`flex-1 ${fontCls} cursor-pointer`}
-                  onClick={() => handleStartEdit(item)}
+                  disabled={isLoading}
                 >
-                  <span className={`${item.completed ? 'line-through text-gray-400' : 'text-gray-900'} font-bold hover:text-blue-600 transition-colors`}>
-                    {item.text}
-                  </span>
-                </div>
-              )}
+                  {editingItemId === item.id ? (
+                    <FiCheck className="text-blue-600 text-2xl" />
+                  ) : item.completed ? (
+                    <FiCheck className="text-green-600 text-2xl" />
+                  ) : (
+                    <span className="block h-5 w-5 rounded-md border" />
+                  )}
+                </button>
 
-              <button
-                aria-label="삭제"
-                onClick={() => handleDelete(item.id)}
-                className="ml-1 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-transform"
-                disabled={isLoading || editingItemId === item.id}
-              >
-                <FiTrash2 className="text-lg" />
-              </button>
-            </li>
-          ))}
-        </ul>
+                {editingItemId === item.id ? (
+                  // 편집 모드
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleUpdate(item.id, editingText);
+                        } else if (e.key === 'Escape') {
+                          handleCancelEdit();
+                        }
+                      }}
+                      autoFocus
+                      className={`flex-1 rounded-lg border-2 border-blue-300 px-3 py-2 ${fontCls} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                      disabled={isLoading}
+                    />
+                    <button
+                      onClick={handleCancelEdit}
+                      className="flex-shrink-0 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 active:scale-95 transition-transform"
+                      aria-label="취소"
+                    >
+                      <FiX className="text-lg text-gray-600" />
+                    </button>
+                  </div>
+                ) : (
+                  // 표시 모드
+                  <div
+                    className={`flex-1 ${fontCls} cursor-pointer`}
+                    onClick={() => handleStartEdit(item)}
+                  >
+                    <span className={`${item.completed ? 'line-through text-gray-400' : 'text-gray-900'} font-bold hover:text-blue-600 transition-colors`}>
+                      {item.text}
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  aria-label="삭제"
+                  onClick={() => handleDelete(item.id)}
+                  className="ml-1 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 transition-transform"
+                  disabled={isLoading || editingItemId === item.id}
+                >
+                  <FiTrash2 className="text-lg" />
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
@@ -1133,7 +1128,7 @@ export default function ChecklistPage() {
           <button
             onClick={() => handleAdd()}
             disabled={isLoading || !newText.trim()}
-            className="h-12 rounded-xl bg-blue-600 px-4 text-white text-lg font-semibold hover:bg-blue-700 inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-12 rounded-xl bg-gradient-to-r from-[#FDB931] to-[#E1A21E] px-4 text-[#051C2C] text-lg font-semibold hover:shadow-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FiPlus className="text-xl" />
             추가

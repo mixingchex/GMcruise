@@ -50,9 +50,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const safeFileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')}`;
 
     // 통일된 여권 백업 폴더에 업로드
-    const passportFolderId = process.env.GOOGLE_DRIVE_PASSPORT_FOLDER_ID || 
-                             process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID || 
-                             '0AJVz1C-KYWR0Uk9PVA';
+    const { getDriveFolderId } = await import('@/lib/config/drive-config');
+    const passportFolderId = await getDriveFolderId('PASSPORTS');
 
     // Submission별 하위 폴더 생성
     const submissionFolderName = `passport_submission_${submission.id}`;

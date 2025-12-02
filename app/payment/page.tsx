@@ -110,6 +110,10 @@ function PaymentPageContent({ productCode, productName, amount }: PaymentPagePro
             form.appendChild(input);
           }
 
+          // 디버깅: 전송할 데이터 확인
+          console.log('[Payment] Form action:', form.action);
+          console.log('[Payment] Payment data:', data.paymentData);
+
           document.body.appendChild(form);
           form.submit();
         } else {

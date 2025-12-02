@@ -61,31 +61,31 @@ export default function WalletPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-[#F5F7FA]">
       {/* 72시간 카운트다운 배너 (상단 고정) */}
       {testModeInfo && testModeInfo.isTestMode && (
         <TutorialCountdown testModeInfo={testModeInfo} onLogout={handleLogout} />
       )}
 
       {/* 헤더 - 튜토리얼 스타일 */}
-      <div className="bg-white/95 backdrop-blur shadow-md border-b-2 border-purple-200">
+      <div className="bg-white/95 backdrop-blur shadow-md border-b-2 border-[#051C2C]/10">
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <Link
               href="/chat"
-              className="p-2 hover:bg-purple-50 rounded-lg transition-colors border-2 border-purple-200"
+              className="p-2 hover:bg-[#FDB931]/10 rounded-lg transition-colors border-2 border-[#FDB931]/30"
               aria-label="뒤로가기"
             >
-              <FiChevronLeft className="w-7 h-7 text-purple-600" />
+              <FiChevronLeft className="w-7 h-7 text-[#051C2C]" />
             </Link>
             <div className="flex-1">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#FDB931] to-[#E1A21E] rounded-full flex items-center justify-center shadow-lg">
                   <span className="text-2xl">💰</span>
                 </div>
                 <div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 bg-clip-text text-transparent leading-tight">
-                    여행 가계부
+                  <h1 className="text-3xl md:text-4xl font-extrabold text-[#051C2C] leading-tight">
+                    <span className="text-[#FDB931]">여행</span> 가계부
                   </h1>
                   <p className="text-base md:text-lg text-gray-600 leading-relaxed">
                     {testModeInfo && testModeInfo.isTestMode
@@ -100,14 +100,14 @@ export default function WalletPage() {
       </div>
 
       {/* 탭 네비게이션 - 튜토리얼 스타일 */}
-      <div className="bg-white/95 backdrop-blur border-b-2 border-purple-200 sticky top-0 z-10 shadow-md">
+      <div className="bg-white/95 backdrop-blur border-b-2 border-[#051C2C]/10 sticky top-0 z-10 shadow-md">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex gap-2 py-3">
             <button
               onClick={() => setActiveTab('calculator')}
               className={`flex-1 flex flex-col items-center justify-center py-4 rounded-xl transition-all border-2 ${activeTab === 'calculator'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg border-blue-600'
-                : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 hover:bg-gradient-to-r hover:from-blue-50 hover:to-blue-100 border-gray-200'
+                ? 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] text-[#051C2C] shadow-lg border-[#FDB931]'
+                : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 hover:bg-gradient-to-r hover:from-[#FDB931]/10 hover:to-[#FDB931]/5 border-gray-200'
                 }`}
             >
               <FiDollarSign className="w-8 h-8 md:w-10 md:h-10 mb-2" />
@@ -117,8 +117,8 @@ export default function WalletPage() {
             <button
               onClick={() => setActiveTab('expenses')}
               className={`flex-1 flex flex-col items-center justify-center py-5 md:py-6 rounded-xl transition-all border-2 ${activeTab === 'expenses'
-                ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg border-green-600'
-                : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100 border-gray-200'
+                ? 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] text-[#051C2C] shadow-lg border-[#FDB931]'
+                : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 hover:bg-gradient-to-r hover:from-[#FDB931]/10 hover:to-[#FDB931]/5 border-gray-200'
                 }`}
             >
               <FiList className="w-8 h-8 md:w-10 md:h-10 mb-2" />
@@ -128,8 +128,8 @@ export default function WalletPage() {
             <button
               onClick={() => setActiveTab('statistics')}
               className={`flex-1 flex flex-col items-center justify-center py-5 md:py-6 rounded-xl transition-all border-2 ${activeTab === 'statistics'
-                ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-lg border-purple-600'
-                : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 border-gray-200'
+                ? 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] text-[#051C2C] shadow-lg border-[#FDB931]'
+                : 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-600 hover:bg-gradient-to-r hover:from-[#FDB931]/10 hover:to-[#FDB931]/5 border-gray-200'
                 }`}
             >
               <FiPieChart className="w-8 h-8 md:w-10 md:h-10 mb-2" />

@@ -800,26 +800,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       }
 
       if (featuredProducts.length === 0) {
-        return (
-          <section className="mb-12">
-            <div className="mb-6">
-              <h2 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-2">
-                나의 추천 상품
-              </h2>
-              <p className="text-gray-600 text-sm md:text-base">
-                개인 링크로 등록된 특별 상품을 확인하세요
-              </p>
-            </div>
-            <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6 text-center">
-              <p className="text-lg text-yellow-800 font-semibold mb-2">
-                등록된 상품 코드: {codesToCheck.join(', ')}
-              </p>
-              <p className="text-sm text-yellow-700">
-                상품을 불러오는 중이거나 상품 정보를 찾을 수 없습니다.
-              </p>
-            </div>
-          </section>
-        );
+        // 상품이 없으면 섹션 자체를 표시하지 않음
+        return null;
       }
     }
 

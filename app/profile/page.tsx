@@ -16,11 +16,11 @@ export default async function ProfilePage() {
   // 경로 보호: 테스트 모드 사용자는 /profile-test로 리다이렉트
   const testModeInfo = await checkTestMode();
   const correctPath = getCorrectPath('/profile', testModeInfo);
-  
+
   if (correctPath !== '/profile') {
     redirect(correctPath);
   }
-  
+
   // 1) 세션 (❗️중요: await 필수)
   const session = await getServerSession();
 
@@ -31,16 +31,16 @@ export default async function ProfilePage() {
   let user: { id: number; name?: string | null; phone?: string | null } | null = null;
   let trip:
     | {
-        id: number;
-        cruiseName?: string | null;
-        destination?: string | null;
-        startDate?: string | null;
-        endDate?: string | null;
-        userId: number;
-        nights?: number | null;
-        days?: number | null;
-        companionType?: string | null;
-      }
+      id: number;
+      cruiseName?: string | null;
+      destination?: string | null;
+      startDate?: string | null;
+      endDate?: string | null;
+      userId: number;
+      nights?: number | null;
+      days?: number | null;
+      companionType?: string | null;
+    }
     | null = null;
   let signatureUrl: string | null = null;
 
@@ -73,9 +73,9 @@ export default async function ProfilePage() {
         },
       });
 
-      console.log('[Profile Page] Found trip:', trip ? { 
-        id: trip.id, 
-        cruiseName: trip.cruiseName, 
+      console.log('[Profile Page] Found trip:', trip ? {
+        id: trip.id,
+        cruiseName: trip.cruiseName,
         userId: trip.userId,
         nights: trip.nights,
         days: trip.days,
@@ -84,7 +84,7 @@ export default async function ProfilePage() {
 
       // 계약서 싸인 이미지 조회
       const contract = await prisma.affiliateContract.findFirst({
-        where: { 
+        where: {
           userId: user.id,
           status: { in: ['completed', 'approved'] }
         },
@@ -111,24 +111,24 @@ export default async function ProfilePage() {
 
   if (user && trip?.startDate && trip?.endDate) {
     dday = getDdayMessage(trip.startDate, trip.endDate, user.phone);
-    
+
     const endDate = new Date(trip.endDate);
     const gracePeriodEnd = new Date(endDate);
     gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 1);
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    
+
     if (now > gracePeriodEnd) {
       isTripExpired = true;
     } else {
       const startDate = new Date(trip.startDate);
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(0, 0, 0, 0);
-      
+
       // 테스트 사용자(전혜선)인 경우 D-day 고정
       const TEST_USER_PHONE = '01024958013';
       const FIXED_DDAY = 100;
-      
+
       // 항상 출발일 기준으로 D-day 계산 (briefing API와 동일)
       if (now < startDate) {
         // 전혜선 계정이고 여행 시작 전인 경우 D-day 고정
@@ -152,7 +152,7 @@ export default async function ProfilePage() {
         ddayType = 'departure';
       }
     }
-    
+
     console.log('[Profile] D-day 계산 결과:', {
       userId: user.id,
       startDate: trip.startDate,
@@ -215,7 +215,7 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 pb-20">
+    <main className="min-h-screen bg-[#F5F7FA] pb-20">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
         {/* 헤더 */}
         <div className="mb-8">
@@ -226,7 +226,7 @@ export default async function ProfilePage() {
             <FiArrowLeft size={20} />
             <span className="text-base font-medium">뒤로가기</span>
           </Link>
-          
+
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-5 shadow-xl">
               <FiUser size={48} className="text-white md:w-12 md:h-12" />
@@ -319,13 +319,13 @@ export default async function ProfilePage() {
                         지니의 여행 준비 가이드
                         <span className="text-5xl md:text-6xl">✨</span>
                       </h2>
-                      
+
                       {/* 현재 D-day에 맞는 메시지 표시 */}
                       {(() => {
                         let pastKey: string | null = null;
                         let currentKey: string | null = null;
                         let futureKey: string | null = null;
-                        
+
                         console.log('[Profile] 메시지 키 선택 시작:', {
                           currentDday,
                           ddayType,
@@ -333,15 +333,15 @@ export default async function ProfilePage() {
                           startDate: trip?.startDate,
                           endDate: trip?.endDate,
                         });
-                        
+
                         if (currentDday !== null) {
                           if (ddayType === 'departure') {
                             const validDdays = [0, 1, 2, 3, 7, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-                            
+
                             // 현재 D-day가 양수인 경우 (여행 시작 전)
                             if (currentDday >= 0) {
                               let currentDdayKey: string | null = null;
-                              
+
                               // 현재 D-day가 validDdays에 정확히 있는지 확인
                               if (validDdays.includes(currentDday)) {
                                 currentDdayKey = String(currentDday);
@@ -352,17 +352,17 @@ export default async function ProfilePage() {
                                   currentDdayKey = String(nextDday);
                                 }
                               }
-                              
+
                               console.log('[Profile] 메시지 키 선택 (출발일 기준):', {
                                 currentDday,
                                 currentDdayKey,
                                 isValidDday: validDdays.includes(currentDday),
                               });
-                              
+
                               if (currentDdayKey) {
                                 currentKey = currentDdayKey;
                                 const currentNum = parseInt(currentDdayKey);
-                                
+
                                 // 앞으로 봐야 할 메시지: 현재보다 작은 D-day (숫자가 적어지는 방향)
                                 const futureDdays = validDdays.filter(d => d < currentNum).reverse();
                                 for (const futureDday of futureDdays) {
@@ -371,7 +371,7 @@ export default async function ProfilePage() {
                                     break;
                                   }
                                 }
-                                
+
                                 // 이미 봤던 메시지: 현재보다 큰 D-day (숫자가 많아지는 방향)
                                 const pastDday = validDdays.find(d => d > currentNum);
                                 if (pastDday !== undefined && ddayMessages.messages[String(pastDday)]) {
@@ -413,34 +413,34 @@ export default async function ProfilePage() {
                             }
                           }
                         }
-                        
+
                         // 메시지가 없으면 기본 메시지 표시
                         if (!currentKey && ddayMessages.messages['7']) {
                           currentKey = '7';
                         }
-                        
+
                         console.log('[Profile] 메시지 키 선택 결과:', {
                           currentKey,
                           futureKey,
                           pastKey,
                           currentDday,
                         });
-                        
+
                         const renderOrder = [futureKey, currentKey, pastKey].filter((k): k is string => k !== null);
-                        
+
                         return (
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 mb-8">
                             {renderOrder.map((key) => {
                               const message = ddayMessages.messages[key];
                               if (!message) return null;
-                              
+
                               const isCurrent = key === currentKey;
                               const isFuture = key === futureKey;
                               const isPast = key === pastKey;
-                              
+
                               const getCardStyle = () => {
                                 if (key === 'end_1' || key === 'end_0') {
-                                  return isCurrent 
+                                  return isCurrent
                                     ? 'bg-white border-2 border-purple-300 shadow-lg relative transform scale-105'
                                     : 'bg-white border border-gray-200 shadow-md';
                                 }
@@ -452,34 +452,33 @@ export default async function ProfilePage() {
                                 }
                                 return 'bg-gray-50 border border-gray-200 shadow-sm';
                               };
-                              
+
                               const getDdayLabel = () => {
                                 if (key === 'end_1') return 'D-1(귀국)';
                                 if (key === 'end_0') return 'D-0(귀국일)';
                                 return `D-${key}`;
                               };
-                              
+
                               const getLabel = () => {
                                 if (isCurrent) return '지금 봐야 할 메시지';
                                 if (isFuture) return '앞으로 봐야 할 메시지';
                                 if (isPast) return '이미 봤던 메시지';
                                 return '';
                               };
-                              
+
                               return (
                                 <div key={key} className={`${getCardStyle()} rounded-xl p-6 md:p-8`}>
                                   <div className="mb-4">
-                                    <span className={`text-sm md:text-base px-4 py-2 rounded-full font-semibold ${
-                                      isCurrent 
-                                        ? 'bg-blue-100 text-blue-700 border-2 border-blue-200' 
+                                    <span className={`text-sm md:text-base px-4 py-2 rounded-full font-semibold ${isCurrent
+                                        ? 'bg-blue-100 text-blue-700 border-2 border-blue-200'
                                         : isFuture
-                                        ? 'bg-yellow-50 text-yellow-700 border-2 border-yellow-200'
-                                        : 'bg-gray-100 text-gray-600 border-2 border-gray-200'
-                                    }`}>
+                                          ? 'bg-yellow-50 text-yellow-700 border-2 border-yellow-200'
+                                          : 'bg-gray-100 text-gray-600 border-2 border-gray-200'
+                                      }`}>
                                       {getLabel()}
                                     </span>
                                   </div>
-                                  
+
                                   {isCurrent && (
                                     <div className="flex items-center justify-center mb-5">
                                       <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-100 rounded-full flex items-center justify-center border-2 border-blue-300">
@@ -492,24 +491,22 @@ export default async function ProfilePage() {
                                       <div className="text-5xl md:text-6xl text-gray-300">{isFuture ? '⏩' : '✓'}</div>
                                     </div>
                                   )}
-                                  <div className={`${
-                                    isCurrent 
-                                      ? 'bg-blue-50 border-2 border-blue-200' 
+                                  <div className={`${isCurrent
+                                      ? 'bg-blue-50 border-2 border-blue-200'
                                       : isFuture
-                                      ? 'bg-yellow-50 border-2 border-yellow-200'
-                                      : 'bg-gray-50 border-2 border-gray-200'
-                                  } rounded-lg px-5 py-4 text-center mb-5`}>
-                                    <span className={`font-bold text-2xl md:text-3xl ${
-                                      isCurrent ? 'text-blue-700' : isFuture ? 'text-yellow-700' : 'text-gray-600'
-                                    }`}>{getDdayLabel()}</span>
+                                        ? 'bg-yellow-50 border-2 border-yellow-200'
+                                        : 'bg-gray-50 border-2 border-gray-200'
+                                    } rounded-lg px-5 py-4 text-center mb-5`}>
+                                    <span className={`font-bold text-2xl md:text-3xl ${isCurrent ? 'text-blue-700' : isFuture ? 'text-yellow-700' : 'text-gray-600'
+                                      }`}>{getDdayLabel()}</span>
                                   </div>
                                   <h3 className="font-bold text-xl md:text-2xl mb-5 leading-tight text-gray-900 break-words">
                                     {message.title.replace(/^D-\d+:\s*/, '').replace(/^D-\d+\(귀국\):\s*/, '').replace(/^귀국일:\s*/, '')}
                                   </h3>
-                                  <div 
+                                  <div
                                     className="text-base md:text-lg text-gray-700 leading-relaxed [&>span]:bg-yellow-200 [&>span]:text-gray-900 [&>span]:px-2 [&>span]:py-0.5 [&>span]:rounded [&>span]:font-semibold break-words"
                                     style={{ lineHeight: '1.8', fontSize: '18px' }}
-                                    dangerouslySetInnerHTML={{ 
+                                    dangerouslySetInnerHTML={{
                                       __html: message.message
                                         .replace(/\[고객명\]/g, `<span class="bg-yellow-200 text-gray-900 px-2 py-0.5 rounded font-semibold">${user.name || '고객'}</span>`)
                                         .replace(/\[크루즈명\]/g, trip.cruiseName || '크루즈')
@@ -544,10 +541,10 @@ export default async function ProfilePage() {
                       {/* D-Day 상세 정보 */}
                       {trip?.startDate && trip?.endDate && currentDday !== null && (() => {
                         let detailMessageKey: string | null = null;
-                        
+
                         if (ddayType === 'departure') {
                           const validDdays = [0, 1, 2, 3, 7, 10, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-                          
+
                           // 현재 D-day가 양수인 경우 (여행 시작 전)
                           if (currentDday >= 0) {
                             if (validDdays.includes(currentDday)) {
@@ -571,21 +568,21 @@ export default async function ProfilePage() {
                             detailMessageKey = 'end_0';
                           }
                         }
-                        
+
                         const detailMessage = detailMessageKey ? ddayMessages.messages[detailMessageKey] : null;
-                        
+
                         if (!detailMessage) return null;
-                        
+
                         return (
                           <section className="mt-4 rounded-xl border bg-white p-4">
                             <h2 className="text-base font-semibold text-gray-800">D-Day ({dday ?? '정보 없음'})</h2>
                             <p className="mt-2 text-gray-600">📅 출발 {formatDateK(trip.startDate)} · 도착 {formatDateK(trip.endDate)}</p>
                             <div className="mt-4 p-6 bg-white rounded-lg border border-gray-200 shadow-sm">
                               <h3 className="font-bold text-gray-900 mb-4 text-lg md:text-xl">{detailMessage.title}</h3>
-                              <div 
+                              <div
                                 className="text-base md:text-lg text-gray-700 leading-relaxed [&>span]:bg-yellow-200 [&>span]:text-gray-900 [&>span]:px-2 [&>span]:py-0.5 [&>span]:rounded [&>span]:font-semibold"
                                 style={{ lineHeight: '1.8' }}
-                                dangerouslySetInnerHTML={{ 
+                                dangerouslySetInnerHTML={{
                                   __html: detailMessage.message
                                     .replace(/\[고객명\]/g, `<span class="bg-yellow-200 text-gray-900 px-2 py-0.5 rounded font-semibold">${user.name || '고객'}</span>`)
                                     .replace(/\[크루즈명\]/g, trip.cruiseName || '크루즈')

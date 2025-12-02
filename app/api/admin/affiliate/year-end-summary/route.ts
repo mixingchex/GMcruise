@@ -2,19 +2,26 @@
 // 연말 합산 데이터 API
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const sessionUser = await getSessionUser();
 
-    if (!session || !session.user) {
+    if (!sessionUser) {
       return NextResponse.json({ error: '인증되지 않음' }, { status: 401 });
     }
 
-    const isAdmin = session.user.role === 'ADMIN' || session.user.role === 'admin';
+    // 관리자 권한 확인
+    const user = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { role: true }
+    });
+
+    const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin';
     if (!isAdmin) {
       return NextResponse.json({ error: '권한 없음' }, { status: 403 });
     }

@@ -226,6 +226,19 @@ export async function POST(req: NextRequest) {
       paymentUrl = `${welcomePayUrl}?${params.toString()}`;
     }
 
+
+    // 디버깅: 결제 데이터 출력
+    console.log('[Payment Request] Payment Data:', JSON.stringify({
+      mid: paymentData.mid,
+      orderId: paymentData.orderId,
+      amount: paymentData.amount,
+      productName: paymentData.productName,
+      buyerName: paymentData.buyerName,
+      buyerTel: paymentData.buyerTel,
+      returnUrl: paymentData.returnUrl,
+      notifyUrl: paymentData.notifyUrl,
+    }, null, 2));
+
     return NextResponse.json({
       ok: true,
       orderId,

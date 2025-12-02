@@ -33,9 +33,9 @@ type Props = {
 
 export default function InputBar({ mode, trip, onSend, disabled = false }: Props) {
   const [originText, setOriginText] = useState('')
-  const [destText, setDestText]     = useState('')
-  const [originPick, setOriginPick] = useState<null|SItem>(null)
-  const [destPick, setDestPick]     = useState<null|SItem>(null)
+  const [destText, setDestText] = useState('')
+  const [originPick, setOriginPick] = useState<null | SItem>(null)
+  const [destPick, setDestPick] = useState<null | SItem>(null)
   // 초기 제안 버튼들을 바로 표시하기 위해 기본값 설정
   const [oSug, setOSug] = useState<SItem[]>([{ id: 'current_location', label: '현 위치' }])
   const [dSug, setDSug] = useState<SItem[]>([
@@ -45,12 +45,12 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     { id: 'restaurant', label: '맛집' },
     { id: 'cafe', label: '카페' },
   ])
-  
+
   // 고정 버튼 정의
   const fixedOriginButtons: SItem[] = [
     { id: 'current_location', label: '현 위치' },
   ];
-  
+
   const fixedDestButtons: SItem[] = [
     { id: 'convenience', label: '편의점' },
     { id: 'mart', label: '마트' },
@@ -64,11 +64,11 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   const [openHelp, setOpenHelp] = useState(false);
   const [originFocused, setOriginFocused] = useState(false);
   const [destFocused, setDestFocused] = useState(false);
-  
+
   // 로딩 상태 추가
   const [originLoading, setOriginLoading] = useState(false);
   const [destLoading, setDestLoading] = useState(false);
-  
+
   // 검색 결과 캐싱 (5분 유효)
   const cacheRef = useRef<Map<string, { data: SItem[]; timestamp: number }>>(new Map());
   const CACHE_DURATION = 5 * 60 * 1000; // 5분
@@ -87,7 +87,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   // Speech Recognition 초기화
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
       console.warn('[InputBar] Speech Recognition not supported');
@@ -107,7 +107,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
 
     recRef.current = recog;
   }, []);
-  
+
   // 모드 변경 시 입력 필드 및 제안 초기화
   useEffect(() => {
     if (mode === 'go') {
@@ -126,66 +126,66 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     const cacheKey = `${role}:${q}:${hint}`;
     const cached = cacheRef.current.get(cacheKey);
     const now = Date.now();
-    
+
     // 캐시 확인 (5분 이내면 캐시 사용)
     if (cached && (now - cached.timestamp) < CACHE_DURATION) {
       logger.log('[InputBar] ✅ Using cached suggestions:', { cacheKey, itemCount: cached.data.length });
       return cached.data;
     }
-    
+
     try {
       const url = `/api/nav/suggest?slot=${role}&q=${encodeURIComponent(q)}&hint=${encodeURIComponent(hint)}`;
       logger.log('[InputBar] fetchSuggestions calling:', { url, role, q, hint });
-      
+
       const res = await fetch(url);
-      
+
       // HTTP 에러 처리
       if (!res.ok) {
         throw new Error(`API 요청 실패 (${res.status}): ${res.statusText}`);
       }
-      
+
       const data = await res.json();
-      
+
       // API 응답 에러 처리
       if (!data || !Array.isArray(data.items)) {
         throw new Error('검색 결과 형식이 올바르지 않습니다.');
       }
-      
-      logger.log('[InputBar] fetchSuggestions response:', { 
-        url, 
-        role, 
-        q, 
-        hint, 
+
+      logger.log('[InputBar] fetchSuggestions response:', {
+        url,
+        role,
+        q,
+        hint,
         itemsCount: data.items?.length
       });
-      
+
       const mapped = (data.items || []).map((item: { id: string; label: string; subtitle?: string }) => ({
         id: item.id,
         label: item.label,
         subtitle: item.subtitle,
       }));
-      
+
       // 캐시에 저장 (5분 유효)
       cacheRef.current.set(cacheKey, { data: mapped, timestamp: now });
-      
+
       // 캐시 크기 제한 (최대 50개)
       if (cacheRef.current.size > 50) {
         const firstKey = cacheRef.current.keys().next().value;
         cacheRef.current.delete(firstKey);
       }
-      
+
       logger.log('[InputBar] ✅ fetchSuggestions returning:', mapped.length, 'items (cached)');
       return mapped;
     } catch (error) {
       console.error('[InputBar] ❌ fetchSuggestions error:', error);
-      
+
       // 사용자 친화적 에러 메시지 반환 (빈 배열 대신 에러 표시용)
       // 실제로는 빈 배열을 반환하되, UI에서 로딩 상태를 해제
       return [];
     }
   }, []);
 
-  useEffect(()=>{
+  useEffect(() => {
     window.clearTimeout(typingO.current)
     if (mode !== 'go') {
       logger.log('[InputBar] useEffect originText: mode is not "go", skipping:', { mode });
@@ -219,7 +219,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     }
 
     // 텍스트 입력 시: 고정 버튼 + 연관검색 결과 (국가별 검색 시 더 많이 표시)
-    typingO.current = window.setTimeout(async ()=>{
+    typingO.current = window.setTimeout(async () => {
       const q = originText.trim()
       const hint = destText.trim();
 
@@ -260,13 +260,13 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     }, 200)
   }, [originText, destText, fetchSuggestions, mode])
 
-  useEffect(()=>{
+  useEffect(() => {
     window.clearTimeout(typingD.current)
     if (mode !== 'go' && mode !== 'show') {
       logger.log('[InputBar] useEffect destText: mode is not "go" or "show", skipping:', { mode });
       return; // Only fetch suggestions for 'go' or 'show' mode
     }
-    
+
     logger.log('[InputBar] useEffect destText triggered:', { destText, originText, mode });
 
     if (!destText.trim()) {
@@ -364,12 +364,12 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     };
   }, [trip, mode]); // mode 변경 시에도 examples 업데이트
 
-  const canSend = useMemo(()=>{
+  const canSend = useMemo(() => {
     if (mode === 'go') {
       // 출발지: 텍스트가 있거나, "현 위치" 패턴이거나, 선택된 값이 있으면 OK
-      const hasOrigin = originText.trim().length > 0 || 
-                       /현\s*위치|현재\s*위치/i.test(originText) || 
-                       originPick !== null;
+      const hasOrigin = originText.trim().length > 0 ||
+        /현\s*위치|현재\s*위치/i.test(originText) ||
+        originPick !== null;
       // 도착지: 텍스트가 있거나, 선택된 값이 있으면 OK
       const hasDest = destText.trim().length > 0 || destPick !== null;
       return hasOrigin && hasDest;
@@ -401,25 +401,25 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       // originPick이나 destPick이 있으면 그것을 우선 사용
       const finalOrigin = originPick?.label || originText.trim();
       const finalDest = destPick?.label || destText.trim();
-      
-      const combinedText = mode === 'go' 
-        ? [finalOrigin, finalDest].filter(Boolean).join(' → ') 
+
+      const combinedText = mode === 'go'
+        ? [finalOrigin, finalDest].filter(Boolean).join(' → ')
         : finalDest || finalOrigin || '';
-      
+
       if (!combinedText.trim()) {
         console.error('[InputBar] Empty text, cannot send');
         return;
       }
-      
+
       logger.log('[InputBar] Sending:', { mode, combinedText, finalOrigin, finalDest, originPick, destPick });
-      
+
       onSend({
-        mode: mode === 'go' ? 'go' : 'show', 
+        mode: mode === 'go' ? 'go' : 'show',
         text: combinedText,
         from: finalOrigin || undefined,
         to: finalDest || undefined,
       });
-      
+
       // 전송 후 입력 필드 초기화
       setOriginText('');
       setDestText('');
@@ -748,7 +748,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
                 id="from-input"
                 value={originText}
                 placeholder={examples.originPH}
-                onChange={v=> setOriginText(v)}
+                onChange={v => setOriginText(v)}
                 onKeyDown={onKey}
                 onFocus={() => setOriginFocused(true)}
                 onBlur={() => setOriginFocused(false)}
@@ -757,11 +757,10 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
               <button
                 onClick={startVoiceInputOrigin}
                 disabled={disabled || listeningOrigin}
-                className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${
-                  listeningOrigin
+                className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${listeningOrigin
                     ? 'bg-red-500 text-white border-red-500'
                     : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="음성으로 입력하기"
               >
                 {listeningOrigin ? <FiMicOff className="w-5 h-5" /> : <FiMic className="w-5 h-5" />}
@@ -769,7 +768,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
             </div>
             <Chips
               items={oSug}
-              onClick={(it)=>{
+              onClick={(it) => {
                 setOriginText(it.label);
                 setOriginPick(it);
                 // 클릭 후에도 연관검색 버튼은 유지 (사용자가 다시 변경할 수 있도록)
@@ -784,7 +783,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
                 id="to-input"
                 value={destText}
                 placeholder={examples.destPH}
-                onChange={v=> setDestText(v)}
+                onChange={v => setDestText(v)}
                 onKeyDown={onKey}
                 onFocus={() => setDestFocused(true)}
                 onBlur={() => setDestFocused(false)}
@@ -793,11 +792,10 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
               <button
                 onClick={startVoiceInputDest}
                 disabled={disabled || listeningDest}
-                className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${
-                  listeningDest
+                className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${listeningDest
                     ? 'bg-red-500 text-white border-red-500'
                     : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="음성으로 입력하기"
               >
                 {listeningDest ? <FiMicOff className="w-5 h-5" /> : <FiMic className="w-5 h-5" />}
@@ -805,7 +803,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
             </div>
             <Chips
               items={dSug}
-              onClick={(it)=>{
+              onClick={(it) => {
                 setDestText(it.label);
                 setDestPick(it);
                 setDSug([]);
@@ -821,18 +819,17 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
                 id="general-input"
                 value={generalText}
                 placeholder={examples.generalPH}
-                onChange={v=> setGeneralText(v)}
+                onChange={v => setGeneralText(v)}
                 onKeyDown={onKey}
                 disabled={disabled}
               />
               <button
                 onClick={startVoiceInputGeneral}
                 disabled={disabled || listeningGeneral}
-                className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${
-                  listeningGeneral
+                className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${listeningGeneral
                     ? 'bg-red-500 text-white border-red-500'
                     : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="음성으로 입력하기"
               >
                 {listeningGeneral ? <FiMicOff className="w-5 h-5" /> : <FiMic className="w-5 h-5" />}
@@ -855,18 +852,17 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
               id="single-input"
               value={destText}
               placeholder={examples.singlePH}
-              onChange={v=> setDestText(v)}
+              onChange={v => setDestText(v)}
               onKeyDown={onKey}
               disabled={disabled}
             />
             <button
               onClick={startVoiceInputDest}
               disabled={disabled || listeningDest}
-              className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${
-                listeningDest
+              className={`shrink-0 w-12 h-12 rounded-lg border-2 flex items-center justify-center transition-all ${listeningDest
                   ? 'bg-red-500 text-white border-red-500'
                   : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-300'
-              } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               title="음성으로 입력하기"
             >
               {listeningDest ? <FiMicOff className="w-5 h-5" /> : <FiMic className="w-5 h-5" />}
@@ -877,9 +873,8 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         <button
           onClick={submit}
           disabled={disabled || !canSend}
-          className={`px-6 py-3 bg-red-600 text-white text-lg font-semibold rounded-lg hover:bg-red-700 active:opacity-90 transition-all ${
-            disabled || !canSend ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          className={`px-6 py-3 bg-gradient-to-r from-[#FDB931] to-[#E1A21E] text-[#051C2C] text-lg font-semibold rounded-lg hover:shadow-lg active:opacity-90 transition-all ${disabled || !canSend ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           title={!canSend ? '입력 내용을 확인해주세요' : '보내기'}
         >
           {disabled ? '전송 중...' : '보내기'}
@@ -891,11 +886,11 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   );
 }
 
-function Input({id, value, onChange, placeholder, onKeyDown, onFocus, onBlur, className, disabled}:{
+function Input({ id, value, onChange, placeholder, onKeyDown, onFocus, onBlur, className, disabled }: {
   id: string;
-  value:string,
-  onChange:(v:string)=>void,
-  placeholder:string,
+  value: string,
+  onChange: (v: string) => void,
+  placeholder: string,
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void,
   onFocus?: () => void;
   onBlur?: () => void;
@@ -904,13 +899,13 @@ function Input({id, value, onChange, placeholder, onKeyDown, onFocus, onBlur, cl
 }) {
   return (
     <input id={id} className={`w-full rounded-xl border px-4 py-3 text-lg outline-none ${className}`}
-           value={value} placeholder={placeholder}
-           onChange={e=>onChange(e.target.value)} onKeyDown={onKeyDown} onFocus={onFocus} onBlur={onBlur} disabled={disabled} />
+      value={value} placeholder={placeholder}
+      onChange={e => onChange(e.target.value)} onKeyDown={onKeyDown} onFocus={onFocus} onBlur={onBlur} disabled={disabled} />
   )
 }
-function Chips({items, onClick, compact = false, loading = false}:{items:SItem[], onClick:(it:SItem)=>void, compact?: boolean, loading?: boolean}) {
+function Chips({ items, onClick, compact = false, loading = false }: { items: SItem[], onClick: (it: SItem) => void, compact?: boolean, loading?: boolean }) {
   logger.log('[Chips] Rendering with items:', items?.length, items?.map(i => ({ id: i.id, label: i.label })), 'compact:', compact, 'loading:', loading);
-  
+
   // 로딩 중일 때 스켈레톤 UI 표시
   if (loading) {
     if (compact) {
@@ -930,34 +925,34 @@ function Chips({items, onClick, compact = false, loading = false}:{items:SItem[]
       </div>
     );
   }
-  
+
   if (!items?.length) {
     logger.log('[Chips] No items, returning null');
     return null;
   }
-  
+
   // compact 모드 (도착지 고정 버튼용): 한 줄로 작은 버튼
   if (compact) {
     return (
       <div className="mt-3 flex flex-wrap gap-2">
-        {items.map(it=>(
-          <button 
-            key={it.id} 
+        {items.map(it => (
+          <button
+            key={it.id}
             className="
               rounded-lg
               px-3 py-2
               text-base font-semibold
               border-2
               bg-white
-              hover:bg-blue-50
-              hover:border-blue-500
+              hover:bg-[#FDB931]/10
+              hover:border-[#FDB931]
               active:scale-95
               transition-all
               shadow-sm
               hover:shadow-md
               whitespace-nowrap
             "
-            onClick={()=>onClick(it)}
+            onClick={() => onClick(it)}
           >
             {it.label}
           </button>
@@ -965,13 +960,13 @@ function Chips({items, onClick, compact = false, loading = false}:{items:SItem[]
       </div>
     );
   }
-  
+
   // 일반 모드 (출발지용): 2줄 그리드
   return (
     <div className="mt-3 grid grid-cols-2 gap-3">
-      {items.map(it=>(
-        <button 
-          key={it.id} 
+      {items.map(it => (
+        <button
+          key={it.id}
           className="
             rounded-xl
             px-5 py-4
@@ -979,14 +974,14 @@ function Chips({items, onClick, compact = false, loading = false}:{items:SItem[]
             border-2
             min-h-[70px]
             bg-white
-            hover:bg-blue-50
-            hover:border-blue-500
+            hover:bg-[#051C2C]/5
+            hover:border-[#051C2C]
             active:scale-95
             transition-all
             shadow-sm
             hover:shadow-md
           "
-          onClick={()=>onClick(it)}
+          onClick={() => onClick(it)}
         >
           <div className="flex flex-col items-center gap-1">
             <span>{it.label}</span>

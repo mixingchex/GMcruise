@@ -50,17 +50,17 @@ export default function ToolsPage() {
     const checkPath = async () => {
       const testModeInfo = await checkTestModeClient();
       const correctPath = getCorrectPath(pathname || '/tools', testModeInfo);
-      
+
       if (correctPath !== pathname) {
         router.replace(correctPath);
       }
     };
-    
+
     checkPath();
   }, [pathname, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-[#F5F7FA]">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         {/* 헤더 */}
         <div className="mb-8">
@@ -68,19 +68,19 @@ export default function ToolsPage() {
           <div className="mb-6 flex justify-center">
             <Link
               href="/chat"
-              className="inline-flex items-center gap-2 rounded-xl border border-purple-300 bg-white px-5 py-2.5 hover:bg-purple-50 text-base md:text-lg font-semibold text-purple-700 shadow-sm transition-all duration-200 hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-xl border border-[#FDB931] bg-white px-5 py-2.5 hover:bg-[#FDB931]/10 text-base md:text-lg font-semibold text-[#051C2C] shadow-sm transition-all duration-200 hover:shadow-md"
             >
               <FiMessageCircle className="text-xl" />
               <span>지니채팅 돌아가기</span>
             </Link>
           </div>
-          
+
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full mb-5 shadow-xl">
+            <div className="inline-flex items-center justify-center w-24 h-24 md:w-28 md:h-28 bg-gradient-to-br from-[#051C2C] to-[#0A2E46] rounded-full mb-5 shadow-2xl">
               <FiTool size={48} className="text-white md:w-12 md:h-12" />
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-4 leading-tight">
-              🛠️ 도구함
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-[#051C2C] mb-4 leading-tight">
+              <span className="text-[#FDB931]">🛠️</span> 도구함
             </h1>
             <p className="text-lg md:text-xl text-gray-700 font-medium leading-relaxed">
               여행에 유용한 도구들을 모았어요
@@ -100,7 +100,7 @@ export default function ToolsPage() {
                   block bg-white rounded-3xl shadow-xl p-8
                   transition-all duration-300 transform
                   ${tool.hoverColor} hover:shadow-2xl hover:scale-[1.02]
-                  border-4 border-transparent hover:border-purple-300
+                  border-4 border-transparent hover:border-[#FDB931]
                 `}
               >
                 <div className="flex flex-col md:flex-row items-start gap-6">
@@ -122,12 +122,12 @@ export default function ToolsPage() {
                     </p>
 
                     {/* 주요 기능 */}
-                    <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-5 md:p-6 mb-5 border-2 border-gray-200">
+                    <div className="bg-[#F5F7FA] rounded-xl p-5 md:p-6 mb-5 border-2 border-[#051C2C]/10">
                       <h3 className="font-bold text-gray-900 mb-3 text-base md:text-lg">주요 기능:</h3>
                       <ul className="space-y-3">
                         {tool.features.map((feature, idx) => (
                           <li key={idx} className="flex items-start gap-3">
-                            <span className="text-purple-600 mt-1 text-xl flex-shrink-0">✓</span>
+                            <span className="text-[#FDB931] mt-1 text-xl flex-shrink-0">✓</span>
                             <span className="text-gray-700 text-base md:text-lg leading-relaxed">{feature}</span>
                           </li>
                         ))}
@@ -135,7 +135,7 @@ export default function ToolsPage() {
                     </div>
 
                     {/* 예시 */}
-                    <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 md:p-5">
+                    <div className="bg-[#FDB931]/10 border-2 border-[#FDB931]/30 rounded-xl p-4 md:p-5">
                       <p className="text-gray-800 text-base md:text-lg leading-relaxed">
                         <span className="font-bold">💡 예시:</span> {tool.example}
                       </p>
@@ -143,7 +143,7 @@ export default function ToolsPage() {
                   </div>
 
                   {/* 화살표 */}
-                  <div className="flex-shrink-0 text-purple-400 transform transition-transform group-hover:translate-x-2">
+                  <div className="flex-shrink-0 text-[#FDB931] transform transition-transform group-hover:translate-x-2">
                     <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
