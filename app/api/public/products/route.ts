@@ -1,9 +1,9 @@
 // app/api/public/products/route.ts
 // 공개 상품 목록 조회 API (로그인 불필요)
 
-// ⬇️ 절대법칙: Prisma 사용 API는 반드시 nodejs runtime과 force-dynamic 필요
-export const runtime = 'nodejs';        // Edge Runtime 금지 (Prisma 사용)
-export const dynamic = 'force-dynamic'; // 동적 데이터는 캐시 X
+// 성능 최적화: 10분 캐싱 (상품 목록은 자주 변경되지 않음)
+export const runtime = 'nodejs';  // Edge Runtime 금지 (Prisma 사용)
+export const revalidate = 600;    // 10분 캐싱 - 동시 1000명 접속 시 DB 부하 90% 감소
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';

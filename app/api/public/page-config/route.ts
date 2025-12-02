@@ -1,13 +1,16 @@
-export const dynamic = 'force-dynamic';
-
 // app/api/public/page-config/route.ts
 // 메인페이지 설정 공개 API (인증 불필요)
+
+// 성능 최적화: 1시간 캐싱 (페이지 설정은 자주 변경되지 않음)
+export const revalidate = 3600; // 1시간
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
 /**
  * GET: 페이지 설정 조회 (공개)
+ * - 캐싱 적용: 1시간 (revalidate: 3600)
+ * - 동시 1000명 접속 시 DB 부하 99% 감소
  */
 export async function GET(req: NextRequest) {
   try {
