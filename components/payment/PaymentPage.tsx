@@ -257,7 +257,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
           // 숨겨진 폼 생성 및 POST 제출
           const form = document.createElement('form');
           form.method = 'POST';
-          form.action = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://pay.welcomepayments.co.kr/payment';
+          form.action = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
           form.acceptCharset = 'UTF-8';
 
           // 웰컴페이먼츠 표준결제 파라미터 (P_ 접두사 형식)
@@ -646,8 +646,8 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
                     type="submit"
                     disabled={isProcessing || !canProceed()}
                     className={`w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-bold text-lg transition-all flex items-center justify-center gap-2 ${isProcessing || !canProceed()
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl'
+                      ? 'opacity-50 cursor-not-allowed'
+                      : 'hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl'
                       }`}
                   >
                     {isProcessing ? (

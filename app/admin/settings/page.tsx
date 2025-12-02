@@ -160,7 +160,7 @@ export default function AdminSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  
+
   // 각 카테고리별 편집 상태
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [categoryEditableInfo, setCategoryEditableInfo] = useState<Partial<AdminInfo>>({});
@@ -172,7 +172,7 @@ export default function AdminSettingsPage() {
   const [showKakaoAdminKey, setShowKakaoAdminKey] = useState(false);
   const [showAligoApiKey, setShowAligoApiKey] = useState(false);
   const [showAligoKakaoSenderKey, setShowAligoKakaoSenderKey] = useState(false);
-  
+
   // SMS API 설정 (DB에서 관리)
   const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
   const [isLoadingSmsConfig, setIsLoadingSmsConfig] = useState(false);
@@ -185,24 +185,24 @@ export default function AdminSettingsPage() {
   const [showPgFieldEncryptKeyNonAuth, setShowPgFieldEncryptKeyNonAuth] = useState(false);
   const [showYoutubeApiKey, setShowYoutubeApiKey] = useState(false);
   const [showGoogleDrivePrivateKey, setShowGoogleDrivePrivateKey] = useState(false);
-  
+
   // 자동화 설정 (DB에서 관리)
   const [automationSettings, setAutomationSettings] = useState<Record<string, boolean>>({});
   const [isSavingAutomation, setIsSavingAutomation] = useState(false);
-  
+
   // 스프레드시트 복사 기능
   const [copySpreadsheetId, setCopySpreadsheetId] = useState('');
   const [copyTargetFolderId, setCopyTargetFolderId] = useState('');
   const [copyFolderName, setCopyFolderName] = useState('');
   const [isCopyingSpreadsheet, setIsCopyingSpreadsheet] = useState(false);
-  
+
   // 마케팅 설정 (DB에서 관리)
   const [marketingConfig, setMarketingConfig] = useState<MarketingConfig | null>(null);
   const [isLoadingMarketingConfig, setIsLoadingMarketingConfig] = useState(false);
   const [isEditingMarketingConfig, setIsEditingMarketingConfig] = useState(false);
   const [isSavingMarketingConfig, setIsSavingMarketingConfig] = useState(false);
   const [editableMarketingConfig, setEditableMarketingConfig] = useState<Partial<MarketingConfig>>({});
-  
+
   // SEO 전역 설정 (DB에서 관리)
   type SeoGlobalConfig = {
     id: number;
@@ -233,22 +233,22 @@ export default function AdminSettingsPage() {
   const [editableSeoGlobalConfig, setEditableSeoGlobalConfig] = useState<Partial<SeoGlobalConfig>>({});
   const [showGoogleApiKey, setShowGoogleApiKey] = useState(false);
   const [showFacebookAccessToken, setShowFacebookAccessToken] = useState(false);
-  
+
   // 카카오톡 API 담당자 관리
   const [newManagerName, setNewManagerName] = useState('');
   const [newManagerPhone, setNewManagerPhone] = useState('');
   const [newManagerNotify, setNewManagerNotify] = useState(true);
-  
+
   // API Key 관리
   const [newApiKeyIdentifier, setNewApiKeyIdentifier] = useState('');
-  
+
   // Senderkey 관리
   const [newSenderKeyChannelId, setNewSenderKeyChannelId] = useState('');
   const [newSenderKey, setNewSenderKey] = useState('');
-  
+
   // 서버 IP 관리
   const [newServerIp, setNewServerIp] = useState('');
-  
+
 
   useEffect(() => {
     loadAdminInfo();
@@ -541,15 +541,15 @@ export default function AdminSettingsPage() {
         pgMidPassword: '',
         pgMidNonAuth: '',
         pgAdminUrl: '',
-          pgMerchantName: '',
-          baseUrl: '',
-          welcomePayUrl: '',
-          payappUserid: '',
-          payappLinkkey: '',
-          payappLinkval: '',
-          socketUrl: '',
-          cronSecret: '',
-          pgCallbackUrl: '',
+        pgMerchantName: '',
+        baseUrl: '',
+        welcomePayUrl: '',
+        payappUserid: '',
+        payappLinkkey: '',
+        payappLinkval: '',
+        socketUrl: '',
+        cronSecret: '',
+        pgCallbackUrl: '',
         pgNotifyUrl: '',
         pgVirtualAccountUrl: '',
         sendMethod: '',
@@ -580,7 +580,7 @@ export default function AdminSettingsPage() {
 
     try {
       setIsSaving(true);
-      
+
       // 환경 변수 매핑
       const envMapping: Record<string, string> = {
         email: 'EMAIL_SMTP_USER',
@@ -678,7 +678,7 @@ export default function AdminSettingsPage() {
       const data = await response.json();
       if (data.ok) {
         let message = data.message || '저장되었습니다.';
-        
+
         // Vercel 업데이트 결과 추가
         if (data.vercelUpdated && data.vercelUpdated.length > 0) {
           message += `\n\n✅ Vercel 자동 업데이트: ${data.vercelUpdated.length}개 환경변수 업데이트 완료`;
@@ -686,11 +686,11 @@ export default function AdminSettingsPage() {
         if (data.vercelErrors && data.vercelErrors.length > 0) {
           message += `\n\n⚠️ Vercel 업데이트 경고:\n${data.vercelErrors.join('\n')}`;
         }
-        
+
         if (data.warning) {
           message += '\n\n' + data.warning;
         }
-        
+
         alert(message);
         setIsEditing(false);
         await loadAdminInfo(); // 다시 로드
@@ -714,7 +714,7 @@ export default function AdminSettingsPage() {
   const handleSaveCategory = async (category: string, fields: string[]) => {
     try {
       setCategorySaving(category);
-      
+
       // 환경 변수 매핑
       const envMapping: Record<string, string> = {
         email: 'EMAIL_SMTP_USER',
@@ -786,8 +786,8 @@ export default function AdminSettingsPage() {
 
       const updates: Record<string, string> = {};
       for (const field of fields) {
-        if (categoryEditableInfo[field as keyof AdminInfo] !== undefined && 
-            categoryEditableInfo[field as keyof AdminInfo] !== adminInfo?.[field as keyof AdminInfo]) {
+        if (categoryEditableInfo[field as keyof AdminInfo] !== undefined &&
+          categoryEditableInfo[field as keyof AdminInfo] !== adminInfo?.[field as keyof AdminInfo]) {
           const envKey = envMapping[field];
           if (envKey) {
             updates[envKey] = String(categoryEditableInfo[field as keyof AdminInfo] || '');
@@ -812,7 +812,7 @@ export default function AdminSettingsPage() {
       const data = await response.json();
       if (data.ok) {
         let message = data.message || '저장되었습니다.';
-        
+
         // Vercel 업데이트 결과 추가
         if (data.vercelUpdated && data.vercelUpdated.length > 0) {
           message += `\n\n✅ Vercel 자동 업데이트: ${data.vercelUpdated.length}개 환경변수 업데이트 완료`;
@@ -820,11 +820,11 @@ export default function AdminSettingsPage() {
         if (data.vercelErrors && data.vercelErrors.length > 0) {
           message += `\n\n⚠️ Vercel 업데이트 경고:\n${data.vercelErrors.join('\n')}`;
         }
-        
+
         if (data.warning) {
           message += '\n\n' + data.warning;
         }
-        
+
         alert(message);
         setEditingCategory(null);
         setCategoryEditableInfo({});
@@ -1214,16 +1214,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'email' 
+              onClick={editingCategory === 'email'
                 ? () => handleSaveCategory('email', ['email', 'emailFromName', 'emailSmtpHost', 'emailSmtpPort', 'emailSmtpPassword', 'adminEmail'])
                 : () => handleStartEditCategory('email', ['email', 'emailFromName', 'emailSmtpHost', 'emailSmtpPort', 'emailSmtpPassword', 'adminEmail'])
               }
               disabled={categorySaving === 'email'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'email'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'email'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'email' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'email' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'email' ? (
                 <>
@@ -1309,7 +1308,7 @@ export default function AdminSettingsPage() {
           </div>
           <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
-              <strong>⚠️ 발송 제한:</strong> Gmail SMTP는 일일 500통까지 발송 가능합니다. 
+              <strong>⚠️ 발송 제한:</strong> Gmail SMTP는 일일 500통까지 발송 가능합니다.
               더 많은 발송이 필요하면 SendGrid나 AWS SES를 고려하세요.
             </p>
           </div>
@@ -1333,16 +1332,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'gemini' 
+              onClick={editingCategory === 'gemini'
                 ? () => handleSaveCategory('gemini', ['geminiApiKey', 'geminiModel', 'weatherApiKey', 'openweatherApiKey'])
                 : () => handleStartEditCategory('gemini', ['geminiApiKey', 'geminiModel', 'weatherApiKey', 'openweatherApiKey'])
               }
               disabled={categorySaving === 'gemini'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'gemini'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'gemini'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'gemini' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'gemini' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'gemini' ? (
                 <>
@@ -1404,7 +1402,7 @@ export default function AdminSettingsPage() {
           />
           <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다. 
+              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다.
               VERCEL_API_TOKEN과 VERCEL_PROJECT_ID가 설정되어 있어야 자동 동기화가 작동합니다.
             </p>
           </div>
@@ -1428,16 +1426,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'kakao' 
+              onClick={editingCategory === 'kakao'
                 ? () => handleSaveCategory('kakao', ['kakaoAppName', 'kakaoAppId', 'kakaoJsKey', 'kakaoRestApiKey', 'kakaoAdminKey', 'kakaoChannelId', 'kakaoChannelBotId', 'kakaoChannelName', 'kakaoChannelSearchId', 'kakaoChannelUrl', 'kakaoChannelChatUrl'])
                 : () => handleStartEditCategory('kakao', ['kakaoAppName', 'kakaoAppId', 'kakaoJsKey', 'kakaoRestApiKey', 'kakaoAdminKey', 'kakaoChannelId', 'kakaoChannelBotId', 'kakaoChannelName', 'kakaoChannelSearchId', 'kakaoChannelUrl', 'kakaoChannelChatUrl'])
               }
               disabled={categorySaving === 'kakao'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'kakao'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'kakao'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'kakao' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'kakao' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'kakao' ? (
                 <>
@@ -1510,63 +1507,63 @@ export default function AdminSettingsPage() {
                 isEditing={editingCategory === 'kakao'}
                 onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoChannelChatUrl: value })}
               />
-          <EditablePasswordRow
-            label="JavaScript 키"
-            value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoJsKey || '') : (adminInfo?.kakaoJsKey || '')}
-            onCopy={() => copyToClipboard(adminInfo?.kakaoJsKey || '', 'kakaoKey')}
-            copied={copiedField === 'kakaoKey'}
-            isEditing={editingCategory === 'kakao'}
-            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoJsKey: value })}
-            show={showKakaoKey}
-            onToggleShow={() => setShowKakaoKey(!showKakaoKey)}
-          />
-          <EditablePasswordRow
-            label="REST API 키"
-            value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoRestApiKey || '') : (adminInfo?.kakaoRestApiKey || '')}
-            onCopy={() => copyToClipboard(adminInfo?.kakaoRestApiKey || '', 'kakaoRestApiKey')}
-            copied={copiedField === 'kakaoRestApiKey'}
-            isEditing={editingCategory === 'kakao'}
-            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoRestApiKey: value })}
-            show={showKakaoRestApiKey}
-            onToggleShow={() => setShowKakaoRestApiKey(!showKakaoRestApiKey)}
-          />
-          <EditablePasswordRow
-            label="Admin 키 (서버 전용)"
-            value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoAdminKey || '') : (adminInfo?.kakaoAdminKey || '')}
-            onCopy={() => copyToClipboard(adminInfo?.kakaoAdminKey || '', 'kakaoAdminKey')}
-            copied={copiedField === 'kakaoAdminKey'}
-            isEditing={editingCategory === 'kakao'}
-            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoAdminKey: value })}
-            show={showKakaoAdminKey}
-            onToggleShow={() => setShowKakaoAdminKey(!showKakaoAdminKey)}
-          />
-          <InfoRow
-            label="채널 공개 ID"
-            value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoChannelId || '') : (adminInfo?.kakaoChannelId || 'N/A')}
-            onCopy={() => copyToClipboard(adminInfo?.kakaoChannelId || '', 'kakaoChannelId')}
-            copied={copiedField === 'kakaoChannelId'}
-            isEditing={editingCategory === 'kakao'}
-            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoChannelId: value })}
-          />
-          <InfoRow
-            label="봇 ID"
-            value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoChannelBotId || '') : (adminInfo?.kakaoChannelBotId || 'N/A')}
-            onCopy={() => copyToClipboard(adminInfo?.kakaoChannelBotId || '', 'kakaoChannelBotId')}
-            copied={copiedField === 'kakaoChannelBotId'}
-            isEditing={editingCategory === 'kakao'}
-            onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoChannelBotId: value })}
-          />
+              <EditablePasswordRow
+                label="JavaScript 키"
+                value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoJsKey || '') : (adminInfo?.kakaoJsKey || '')}
+                onCopy={() => copyToClipboard(adminInfo?.kakaoJsKey || '', 'kakaoKey')}
+                copied={copiedField === 'kakaoKey'}
+                isEditing={editingCategory === 'kakao'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoJsKey: value })}
+                show={showKakaoKey}
+                onToggleShow={() => setShowKakaoKey(!showKakaoKey)}
+              />
+              <EditablePasswordRow
+                label="REST API 키"
+                value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoRestApiKey || '') : (adminInfo?.kakaoRestApiKey || '')}
+                onCopy={() => copyToClipboard(adminInfo?.kakaoRestApiKey || '', 'kakaoRestApiKey')}
+                copied={copiedField === 'kakaoRestApiKey'}
+                isEditing={editingCategory === 'kakao'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoRestApiKey: value })}
+                show={showKakaoRestApiKey}
+                onToggleShow={() => setShowKakaoRestApiKey(!showKakaoRestApiKey)}
+              />
+              <EditablePasswordRow
+                label="Admin 키 (서버 전용)"
+                value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoAdminKey || '') : (adminInfo?.kakaoAdminKey || '')}
+                onCopy={() => copyToClipboard(adminInfo?.kakaoAdminKey || '', 'kakaoAdminKey')}
+                copied={copiedField === 'kakaoAdminKey'}
+                isEditing={editingCategory === 'kakao'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoAdminKey: value })}
+                show={showKakaoAdminKey}
+                onToggleShow={() => setShowKakaoAdminKey(!showKakaoAdminKey)}
+              />
+              <InfoRow
+                label="채널 공개 ID"
+                value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoChannelId || '') : (adminInfo?.kakaoChannelId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.kakaoChannelId || '', 'kakaoChannelId')}
+                copied={copiedField === 'kakaoChannelId'}
+                isEditing={editingCategory === 'kakao'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoChannelId: value })}
+              />
+              <InfoRow
+                label="봇 ID"
+                value={editingCategory === 'kakao' ? (categoryEditableInfo.kakaoChannelBotId || '') : (adminInfo?.kakaoChannelBotId || 'N/A')}
+                onCopy={() => copyToClipboard(adminInfo?.kakaoChannelBotId || '', 'kakaoChannelBotId')}
+                copied={copiedField === 'kakaoChannelBotId'}
+                isEditing={editingCategory === 'kakao'}
+                onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, kakaoChannelBotId: value })}
+              />
             </div>
           </div>
           <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
-              <strong>💡 안내:</strong> 카카오톡 공유 기능은 이 JavaScript 키를 사용합니다. 
+              <strong>💡 안내:</strong> 카카오톡 공유 기능은 이 JavaScript 키를 사용합니다.
               키가 설정되어 있으면 로그인 페이지에서 카카오톡 공유 버튼이 활성화됩니다.
             </p>
           </div>
           <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 Kakao 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다. 
+              <strong>🚀 자동 동기화:</strong> 이 페이지에서 설정한 모든 Kakao 환경변수는 저장 시 자동으로 Vercel 환경변수에 동기화됩니다.
               VERCEL_API_TOKEN과 VERCEL_PROJECT_ID가 설정되어 있어야 자동 동기화가 작동합니다.
             </p>
           </div>
@@ -1594,11 +1591,10 @@ export default function AdminSettingsPage() {
             )}
             <button
               onClick={isEditingSmsConfig ? handleSaveSmsConfig : () => setIsEditingSmsConfig(true)}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                isEditingSmsConfig
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${isEditingSmsConfig
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
+                }`}
             >
               {isEditingSmsConfig ? (
                 <>
@@ -1707,7 +1703,7 @@ export default function AdminSettingsPage() {
             </div>
             <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                <strong>💡 안내:</strong> SMS API 설정을 변경하면 즉시 적용됩니다. 
+                <strong>💡 안내:</strong> SMS API 설정을 변경하면 즉시 적용됩니다.
                 다른 API 제공자로 변경하려면 제공자를 선택하고 해당 API의 정보를 입력하세요.
               </p>
             </div>
@@ -1737,11 +1733,10 @@ export default function AdminSettingsPage() {
             <button
               onClick={isEditingSeoGlobalConfig ? handleSaveSeoGlobalConfig : () => setIsEditingSeoGlobalConfig(true)}
               disabled={isSavingSeoGlobalConfig}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                isEditingSeoGlobalConfig
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${isEditingSeoGlobalConfig
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
             >
               {isSavingSeoGlobalConfig ? (
                 <>
@@ -1787,9 +1782,9 @@ export default function AdminSettingsPage() {
                     </p>
                     <ol className="text-xs text-gray-700 list-decimal list-inside space-y-1 ml-2">
                       <li>
-                        <a 
-                          href="https://search.google.com/search-console" 
-                          target="_blank" 
+                        <a
+                          href="https://search.google.com/search-console"
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:underline font-semibold"
                         >
@@ -1853,9 +1848,9 @@ export default function AdminSettingsPage() {
                   </p>
                   <ol className="text-xs text-gray-700 list-decimal list-inside space-y-1 ml-2">
                     <li>
-                      <a 
-                        href="https://analytics.google.com" 
-                        target="_blank" 
+                      <a
+                        href="https://analytics.google.com"
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline font-semibold"
                       >
@@ -2078,7 +2073,7 @@ export default function AdminSettingsPage() {
 
             <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
-                <strong>💡 안내:</strong> SEO 설정을 변경하면 검색 엔진 최적화가 개선됩니다. 
+                <strong>💡 안내:</strong> SEO 설정을 변경하면 검색 엔진 최적화가 개선됩니다.
                 Google Search Console과 Google Analytics는 사이트 성능 모니터링에 필수입니다.
               </p>
             </div>
@@ -2099,7 +2094,7 @@ export default function AdminSettingsPage() {
             (잔여포인트 소진 알림 금액 변경을 원하신다면 고객센터로 문의 바랍니다.)
           </p>
         </div>
-        
+
         {/* 담당자 목록 */}
         <div className="mb-4">
           <div className="overflow-x-auto">
@@ -2197,7 +2192,7 @@ export default function AdminSettingsPage() {
           <span className="text-3xl">🔑</span>
           기존 API Key
         </h2>
-        
+
         {/* API Key 목록 */}
         <div className="mb-4">
           <div className="overflow-x-auto">
@@ -2270,7 +2265,7 @@ export default function AdminSettingsPage() {
           <span className="text-3xl">📨</span>
           Senderkey
         </h2>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border-2 border-gray-300">
             <thead>
@@ -2307,7 +2302,7 @@ export default function AdminSettingsPage() {
           <span className="text-3xl">🌐</span>
           발송 서버 IP
         </h2>
-        
+
         {adminInfo?.currentIp && (
           <div className="mb-4 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
             <p className="text-sm text-blue-800">
@@ -2401,16 +2396,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'pg' 
+              onClick={editingCategory === 'pg'
                 ? () => handleSaveCategory('pg', ['pgMerchantName', 'pgMidAuth', 'pgMidNonAuth', 'pgMidPassword', 'pgSignkey', 'pgFieldEncryptIv', 'pgFieldEncryptKey', 'pgSignkeyNonAuth', 'pgFieldEncryptIvNonAuth', 'pgFieldEncryptKeyNonAuth', 'pgAdminUrl', 'baseUrl', 'welcomePayUrl'])
                 : () => handleStartEditCategory('pg', ['pgMerchantName', 'pgMidAuth', 'pgMidNonAuth', 'pgMidPassword', 'pgSignkey', 'pgFieldEncryptIv', 'pgFieldEncryptKey', 'pgSignkeyNonAuth', 'pgFieldEncryptIvNonAuth', 'pgFieldEncryptKeyNonAuth', 'pgAdminUrl', 'baseUrl', 'welcomePayUrl'])
               }
               disabled={categorySaving === 'pg'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'pg'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'pg'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'pg' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'pg' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'pg' ? (
                 <>
@@ -2548,8 +2542,8 @@ export default function AdminSettingsPage() {
               />
               <InfoRow
                 label="웰컴페이먼츠 결제 페이지 URL"
-                value={editingCategory === 'pg' ? (categoryEditableInfo.welcomePayUrl || 'https://pay.welcomepayments.co.kr/payment') : (adminInfo?.welcomePayUrl || 'https://pay.welcomepayments.co.kr/payment')}
-                onCopy={() => copyToClipboard(adminInfo?.welcomePayUrl || 'https://pay.welcomepayments.co.kr/payment', 'welcomePayUrl')}
+                value={editingCategory === 'pg' ? (categoryEditableInfo.welcomePayUrl || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp') : (adminInfo?.welcomePayUrl || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp')}
+                onCopy={() => copyToClipboard(adminInfo?.welcomePayUrl || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp', 'welcomePayUrl')}
                 copied={copiedField === 'welcomePayUrl'}
                 isEditing={editingCategory === 'pg'}
                 onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, welcomePayUrl: value })}
@@ -2624,7 +2618,7 @@ export default function AdminSettingsPage() {
           </div>
           <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
             <p className="text-sm text-yellow-800">
-              <strong>💡 안내:</strong> 웰컴페이먼츠 PG 결제 연동을 위한 설정입니다. 
+              <strong>💡 안내:</strong> 웰컴페이먼츠 PG 결제 연동을 위한 설정입니다.
               인증 결제는 MID (인증)을, 비인증 결제는 MID (비인증)을 사용합니다.
               <br />
               <strong>⚠️ 중요:</strong> 위 콜백 URL들을 웰컴페이먼츠 관리자 페이지에 설정해야 합니다.
@@ -2650,16 +2644,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'payapp' 
+              onClick={editingCategory === 'payapp'
                 ? () => handleSaveCategory('payapp', ['payappUserid', 'payappLinkkey', 'payappLinkval'])
                 : () => handleStartEditCategory('payapp', ['payappUserid', 'payappLinkkey', 'payappLinkval'])
               }
               disabled={categorySaving === 'payapp'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'payapp'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'payapp'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'payapp' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'payapp' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'payapp' ? (
                 <>
@@ -2734,16 +2727,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'youtube' 
+              onClick={editingCategory === 'youtube'
                 ? () => handleSaveCategory('youtube', ['youtubeApiKey'])
                 : () => handleStartEditCategory('youtube', ['youtubeApiKey'])
               }
               disabled={categorySaving === 'youtube'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'youtube'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'youtube'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'youtube' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'youtube' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'youtube' ? (
                 <>
@@ -2836,16 +2828,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'other' 
+              onClick={editingCategory === 'other'
                 ? () => handleSaveCategory('other', ['socketUrl', 'cronSecret'])
                 : () => handleStartEditCategory('other', ['socketUrl', 'cronSecret'])
               }
               disabled={categorySaving === 'other'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'other'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'other'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'other' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'other' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'other' ? (
                 <>
@@ -2910,16 +2901,15 @@ export default function AdminSettingsPage() {
               </button>
             )}
             <button
-              onClick={editingCategory === 'googledrive' 
+              onClick={editingCategory === 'googledrive'
                 ? () => handleSaveCategory('googledrive', ['googleDriveServiceAccountEmail', 'googleDriveServiceAccountPrivateKey', 'googleDriveSharedDriveId', 'googleDriveRootFolderId', 'googleDrivePassportFolderId'])
                 : () => handleStartEditCategory('googledrive', ['googleDriveServiceAccountEmail', 'googleDriveServiceAccountPrivateKey', 'googleDriveSharedDriveId', 'googleDriveRootFolderId', 'googleDrivePassportFolderId'])
               }
               disabled={categorySaving === 'googledrive'}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                editingCategory === 'googledrive'
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${editingCategory === 'googledrive'
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              } ${categorySaving === 'googledrive' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                } ${categorySaving === 'googledrive' ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {categorySaving === 'googledrive' ? (
                 <>
@@ -2983,7 +2973,7 @@ export default function AdminSettingsPage() {
             isEditing={editingCategory === 'googledrive'}
             onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, googleDrivePassportFolderId: value })}
           />
-          
+
           <div className="mt-6 pt-6 border-t-2 border-gray-200">
             <h3 className="text-lg font-bold text-gray-700 mb-4">📊 Google Sheets 설정</h3>
             <InfoRow
@@ -3002,7 +2992,7 @@ export default function AdminSettingsPage() {
               isEditing={editingCategory === 'googledrive'}
               onValueChange={(value) => setCategoryEditableInfo({ ...categoryEditableInfo, tripApisArchiveSpreadsheetId: value })}
             />
-            
+
             <div className="mt-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
               <h4 className="font-bold text-gray-800 mb-3">📋 스프레드시트 복사 기능</h4>
               <p className="text-sm text-gray-600 mb-4">
@@ -3048,11 +3038,10 @@ export default function AdminSettingsPage() {
                 <button
                   onClick={handleCopySpreadsheet}
                   disabled={isCopyingSpreadsheet || !copySpreadsheetId || !copyTargetFolderId}
-                  className={`w-full px-4 py-2 rounded-lg font-semibold transition-colors ${
-                    isCopyingSpreadsheet || !copySpreadsheetId || !copyTargetFolderId
+                  className={`w-full px-4 py-2 rounded-lg font-semibold transition-colors ${isCopyingSpreadsheet || !copySpreadsheetId || !copyTargetFolderId
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                       : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
+                    }`}
                 >
                   {isCopyingSpreadsheet ? (
                     <>
@@ -3243,11 +3232,10 @@ export default function AdminSettingsPage() {
           <button
             onClick={handleSaveAutomation}
             disabled={isSavingAutomation}
-            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-              isSavingAutomation
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${isSavingAutomation
                 ? 'bg-gray-400 text-white cursor-not-allowed'
                 : 'bg-green-600 text-white hover:bg-green-700'
-            }`}
+              }`}
           >
             {isSavingAutomation ? (
               <>
@@ -3268,7 +3256,7 @@ export default function AdminSettingsPage() {
               <strong>💡 안내:</strong> 각 자동화 기능을 켜고 끌 수 있습니다. 설정 변경 후 저장 버튼을 클릭하세요.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* 여권 업로드 자동화 */}
             <div className="p-4 bg-white border-2 border-gray-200 rounded-lg">
@@ -3447,11 +3435,10 @@ export default function AdminSettingsPage() {
             <button
               onClick={isEditingMarketingConfig ? handleSaveMarketingConfig : () => setIsEditingMarketingConfig(true)}
               disabled={isSavingMarketingConfig}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
-                isEditingMarketingConfig
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${isEditingMarketingConfig
                   ? 'bg-green-600 text-white hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
+                }`}
             >
               {isEditingMarketingConfig ? (
                 <>
@@ -3713,10 +3700,10 @@ export default function AdminSettingsPage() {
   );
 }
 
-function InfoRow({ label, value, onCopy, copied, isEditing, onValueChange }: { 
-  label: string; 
-  value: string; 
-  onCopy: () => void; 
+function InfoRow({ label, value, onCopy, copied, isEditing, onValueChange }: {
+  label: string;
+  value: string;
+  onCopy: () => void;
   copied: boolean;
   isEditing?: boolean;
   onValueChange?: (value: string) => void;
@@ -3755,19 +3742,19 @@ function InfoRow({ label, value, onCopy, copied, isEditing, onValueChange }: {
   );
 }
 
-function EditablePasswordRow({ 
-  label, 
-  value, 
-  onCopy, 
-  copied, 
-  isEditing, 
+function EditablePasswordRow({
+  label,
+  value,
+  onCopy,
+  copied,
+  isEditing,
   onValueChange,
   show,
   onToggleShow
-}: { 
-  label: string; 
-  value: string; 
-  onCopy: () => void; 
+}: {
+  label: string;
+  value: string;
+  onCopy: () => void;
   copied: boolean;
   isEditing?: boolean;
   onValueChange?: (value: string) => void;

@@ -30,8 +30,8 @@
 | 환경변수명 | 값 |
 |-----------|-----|
 | `NEXT_PUBLIC_WELCOME_STD_PAY_URL` | `https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp` |
-| `NEXT_PUBLIC_WELCOME_PAY_URL` | `https://pay.welcomepayments.co.kr/payment` |
-| `WELCOME_PAY_URL` | `https://pay.welcomepayments.co.kr/payment` |
+| `NEXT_PUBLIC_WELCOME_PAY_URL` | `https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp` |
+| `WELCOME_PAY_URL` | `https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp` |
 | 관리자 페이지 | `http://wbiz.paywelcome.co.kr` |
 
 ---
@@ -129,7 +129,7 @@
 
 #### 환경변수 10: NEXT_PUBLIC_WELCOME_PAY_URL
 - **Key**: `NEXT_PUBLIC_WELCOME_PAY_URL`
-- **Value**: `https://pay.welcomepayments.co.kr/payment`
+- **Value**: `https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp`
 - **Environment**: 
   - ✅ Production
   - ✅ Preview
@@ -137,7 +137,7 @@
 
 #### 환경변수 11: WELCOME_PAY_URL
 - **Key**: `WELCOME_PAY_URL`
-- **Value**: `https://pay.welcomepayments.co.kr/payment`
+- **Value**: `https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp`
 - **Environment**: 
   - ✅ Production
   - ✅ Preview
@@ -200,8 +200,8 @@ PG_FIELD_ENCRYPT_KEY_NON_AUTH=11e782ef3a738e140872b5074967c5de
 PG_MID_PASSWORD=Ronaldo7@@
 
 # 웰컴페이먼츠 URL
-NEXT_PUBLIC_WELCOME_PAY_URL=https://pay.welcomepayments.co.kr/payment
-WELCOME_PAY_URL=https://pay.welcomepayments.co.kr/payment
+NEXT_PUBLIC_WELCOME_PAY_URL=https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp
+WELCOME_PAY_URL=https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp
 ```
 
 **주의**: `.env.local` 파일은 Git에 커밋하지 마세요 (이미 `.gitignore`에 포함됨)
@@ -307,7 +307,7 @@ WELCOME_PAY_URL=https://pay.welcomepayments.co.kr/payment
 ## 📞 참고 정보
 
 - **관리자 페이지**: http://wbiz.paywelcome.co.kr
-- **결제 URL**: https://pay.welcomepayments.co.kr/payment
+- **결제 URL**: https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp
 - **가맹점 상호**: 크루즈닷
 - **인증 MID**: wpcrdot200
 - **비인증 MID**: wpcrdot300

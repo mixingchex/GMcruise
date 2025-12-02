@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 웰컴페이먼츠 결제 페이지 URL 생성
-    const welcomePayUrl = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || process.env.WELCOME_PAY_URL || 'https://pay.welcomepayments.co.kr/payment';
+    const welcomePayUrl = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || process.env.WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
     let paymentUrl = '';
 
     if (welcomePayUrl) {
