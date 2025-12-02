@@ -6,18 +6,19 @@ import Link from 'next/link';
 
 interface HeroConfig {
   videoUrl?: string;
+  backgroundImage?: string; // 배경 이미지 URL
   logoUrl?: string; // 로고 이미지 URL
   title?: string;
   subtitle?: string;
-  buttons?: Array<{ 
-    text: string; 
+  buttons?: Array<{
+    text: string;
     link: string;
     backgroundColor?: string; // 버튼 배경색
     textColor?: string; // 버튼 글씨색
   }>;
 }
 
-export default function HeroSection({ config }: { config?: HeroConfig }) {
+export default function HeroSection({ config, hideButtons = false }: { config?: HeroConfig; hideButtons?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -31,9 +32,9 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
     title: '크루즈닷 AI 지니',
     subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
     buttons: [
-      { text: '지금 시작하기', link: '/login?next=/chat', backgroundColor: '#2563eb', textColor: '#ffffff' }, // 파란색 - 로그인 후 채팅으로 이동
+      { text: '지금 시작하기', link: '/login', backgroundColor: '#2563eb', textColor: '#ffffff' }, // 파란색 - 로그인 (지니 AI)
       { text: '라이브방송참여', link: '#live-broadcast', backgroundColor: '#dc2626', textColor: '#ffffff' }, // 빨간색 - 라이브 방송 섹션으로 이동
-      { text: '상품 둘러보기', link: '#popular-cruises', backgroundColor: '#eab308', textColor: '#000000' }, // 노란색 - 인기 크루즈 섹션으로 이동
+      { text: '상품 둘러보기', link: '#products', backgroundColor: '#eab308', textColor: '#000000' }, // 노란색 - 상품 섹션으로 이동
     ],
   };
 
@@ -41,12 +42,12 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
   useEffect(() => {
     const img = new Image();
     const imageUrl = heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png';
-    
+
     img.onload = () => {
       setImageLoaded(true);
       setImageError(false);
     };
-    
+
     img.onerror = () => {
       console.error('[HeroSection] 이미지 로드 실패:', imageUrl);
       setImageError(true);
@@ -63,7 +64,7 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
       };
       fallbackImg.src = fallbackUrl;
     };
-    
+
     img.src = imageUrl;
     if (imgRef.current) {
       imgRef.current.src = imageUrl;
@@ -73,7 +74,7 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
   return (
     <div
       className="relative text-white py-12 sm:py-16 md:py-20 lg:py-24 overflow-hidden cursor-pointer min-h-[500px] sm:min-h-[600px] md:min-h-[700px] flex items-center"
-      onClick={() => window.location.href = '/login-test'}
+      onClick={() => window.open('/login', '_blank')}
     >
       {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
@@ -88,11 +89,10 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
         />
         {/* 배경 이미지 */}
         <div
-          className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          } ${imageError ? 'hidden' : ''} animate-subtle-zoom`}
+          className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${imageLoaded ? 'opacity-100' : 'opacity-0'
+            } ${imageError ? 'hidden' : ''} animate-subtle-zoom`}
           style={{
-            backgroundImage: imageLoaded 
+            backgroundImage: imageLoaded
               ? `url('${encodeURI(heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png')}')`
               : 'none',
             backgroundSize: 'cover',
@@ -109,19 +109,19 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
           <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800"></div>
         )}
       </div>
-      
+
       {/* 어두운 오버레이 (가독성 향상) */}
       <div className="absolute inset-0 bg-black/50 z-10"></div>
-      
+
       {/* 컨텐츠 */}
       <div className="relative z-20 container mx-auto px-4 pb-8">
         <div className="max-w-3xl mx-auto text-center">
           {/* AI 지니 로고/아이콘 */}
           {heroConfig.logoUrl && (
             <div className="mb-6">
-              <img 
-                src={heroConfig.logoUrl} 
-                alt="크루즈닷 AI 지니" 
+              <img
+                src={heroConfig.logoUrl}
+                alt="크루즈닷 AI 지니"
                 className="mx-auto h-20 md:h-24"
                 onError={(e) => {
                   // 이미지 로드 실패 시 기본 로고로 대체
@@ -164,79 +164,81 @@ export default function HeroSection({ config }: { config?: HeroConfig }) {
           </div>
 
           {/* CTA 버튼 - 모바일에서 세로로, 데스크톱에서 가로로 */}
-          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 lg:gap-6 justify-center px-2 sm:px-4">
-            {heroConfig.buttons?.map((btn, idx) => {
-              // 버튼 스타일 생성
-              const buttonStyle: React.CSSProperties = {};
-              let buttonClass = "px-6 py-3 md:px-8 md:py-4 lg:px-10 lg:py-5 text-base md:text-lg lg:text-xl font-black rounded-xl transition-all shadow-2xl drop-shadow-2xl min-h-[48px] md:min-h-[56px] flex items-center justify-center hover:scale-105 active:scale-95";
-              
-              // 배경색 처리
-              if (btn.backgroundColor) {
-                if (btn.backgroundColor.startsWith('#')) {
-                  buttonStyle.backgroundColor = btn.backgroundColor;
+          {!hideButtons && (
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 lg:gap-6 justify-center px-2 sm:px-4">
+              {heroConfig.buttons?.map((btn, idx) => {
+                // 버튼 스타일 생성
+                const buttonStyle: React.CSSProperties = {};
+                let buttonClass = "px-6 py-3 md:px-8 md:py-4 lg:px-10 lg:py-5 text-base md:text-lg lg:text-xl font-black rounded-xl transition-all shadow-lg hover:shadow-xl min-h-[48px] md:min-h-[56px] flex items-center justify-center hover:scale-105 active:scale-95 border-2 border-white/20 backdrop-blur-sm";
+
+                // 배경색 처리
+                if (btn.backgroundColor) {
+                  if (btn.backgroundColor.startsWith('#')) {
+                    buttonStyle.backgroundColor = btn.backgroundColor;
+                  } else {
+                    buttonStyle.backgroundColor = '#2563eb';
+                  }
                 } else {
                   buttonStyle.backgroundColor = '#2563eb';
                 }
-              } else {
-                buttonStyle.backgroundColor = '#2563eb';
-              }
-              
-              // 글씨색 처리
-              if (btn.textColor) {
-                if (btn.textColor.startsWith('#')) {
-                  buttonStyle.color = btn.textColor;
+
+                // 글씨색 처리
+                if (btn.textColor) {
+                  if (btn.textColor.startsWith('#')) {
+                    buttonStyle.color = btn.textColor;
+                  } else {
+                    buttonStyle.color = '#ffffff';
+                  }
                 } else {
                   buttonStyle.color = '#ffffff';
                 }
-              } else {
-                buttonStyle.color = '#ffffff';
-              }
-              
-              // 버튼별 동작 처리
-              const handleButtonClick = (e: React.MouseEvent) => {
-                e.stopPropagation();
-                
-                if (btn.text === '라이브방송참여') {
-                  // 라이브 방송 섹션으로 스크롤
-                  const liveSection = document.getElementById('live-broadcast');
-                  if (liveSection) {
-                    liveSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }
-                } else if (btn.text === '상품 둘러보기') {
-                  // 프로모션 배너 섹션으로 스크롤 (크루즈닷 지니 TV영상 밑)
-                  const promotionSection = document.getElementById('promotion-banner');
-                  if (promotionSection) {
-                    promotionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  } else {
-                    // 프로모션 배너 섹션을 찾을 수 없으면 products 섹션으로
-                    const productsSection = document.getElementById('products');
-                    if (productsSection) {
-                      productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                // 버튼별 동작 처리
+                const handleButtonClick = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+
+                  if (btn.text === '라이브방송참여') {
+                    // 라이브 방송 섹션으로 스크롤
+                    const liveSection = document.getElementById('live-broadcast');
+                    if (liveSection) {
+                      liveSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
+                  } else if (btn.text === '상품 둘러보기') {
+                    // 프로모션 배너 섹션으로 스크롤 (크루즈닷 지니 TV영상 밑)
+                    const promotionSection = document.getElementById('promotion-banner');
+                    if (promotionSection) {
+                      promotionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    } else {
+                      // 프로모션 배너 섹션을 찾을 수 없으면 products 섹션으로
+                      const productsSection = document.getElementById('products');
+                      if (productsSection) {
+                        productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }
+                  } else if (btn.text === '지금 시작하기') {
+                    // 지금 시작하기 버튼은 새 창으로 열기
+                    e.preventDefault();
+                    window.open(btn.link || '/login', '_blank');
+                  } else {
+                    // 기타 버튼은 기존 동작
+                    window.location.href = btn.link || '/login';
                   }
-                } else if (btn.text === '지금 시작하기') {
-                  // 지금 시작하기 버튼은 새 창으로 열기
-                  e.preventDefault();
-                  window.open(btn.link || '/login-test', '_blank');
-                } else {
-                  // 기타 버튼은 기존 동작
-                  window.location.href = btn.link || '/login-test';
-                }
-              };
-              
-              return (
-                <a
-                  key={idx}
-                  href={btn.text === '라이브방송참여' ? '#live-broadcast' : btn.text === '상품 둘러보기' ? '#products' : btn.link || '/login-test'}
-                  onClick={handleButtonClick}
-                  className={buttonClass}
-                  style={buttonStyle}
-                >
-                  {btn.text}
-                </a>
-              );
-            })}
-          </div>
+                };
+
+                return (
+                  <a
+                    key={idx}
+                    href={btn.text === '라이브방송참여' ? '#live-broadcast' : btn.text === '상품 둘러보기' ? '#products' : btn.link || '/login-test'}
+                    onClick={handleButtonClick}
+                    className={buttonClass}
+                    style={buttonStyle}
+                  >
+                    {btn.text}
+                  </a>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

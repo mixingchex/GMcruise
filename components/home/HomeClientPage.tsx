@@ -293,40 +293,7 @@ export default function HomeClientPage() {
       {/* 히어로 섹션 */}
       {/* 히어로 섹션 */}
       <div className="relative">
-        <HeroSection config={pageConfig?.hero} hideButtons={true} />
-        {/* 히어로 섹션 하단 버튼 (예쁜 디자인) */}
-        <div className="absolute bottom-10 left-0 right-0 z-20">
-          <div className="container mx-auto px-4">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.location.href = '/login-test';
-                }}
-                className="w-full sm:w-auto px-10 py-4 bg-[#2563EB] hover:bg-[#1d4ed8] text-white text-lg font-black rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-white/20 backdrop-blur-sm"
-              >
-                지금 시작하기
-              </button>
-              <button
-                onClick={() => window.open('https://www.youtube.com/@cruisedot', '_blank')}
-                className="w-full sm:w-auto px-10 py-4 bg-[#DC2626] hover:bg-[#b91c1c] text-white text-lg font-black rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-white/20 backdrop-blur-sm"
-              >
-                라이브방송참여
-              </button>
-              <button
-                onClick={() => {
-                  const productSection = document.getElementById('products');
-                  if (productSection) {
-                    productSection.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }}
-                className="w-full sm:w-auto px-10 py-4 bg-[#FACC15] hover:bg-[#eab308] text-black text-lg font-black rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-white/20 backdrop-blur-sm"
-              >
-                상품 둘러보기
-              </button>
-            </div>
-          </div>
-        </div>
+        <HeroSection config={pageConfig?.hero} />
       </div>
 
 
@@ -376,9 +343,9 @@ export default function HomeClientPage() {
 
 
       {/* 크루즈닷의 경험과 신뢰 */}
-      {pageConfig?.companyStats?.enabled && (
+      {pageConfig?.companyStats?.enabled !== false && (
         <section className="container mx-auto px-4 py-12 bg-white">
-          <CompanyStatsSection config={pageConfig.companyStats} />
+          <CompanyStatsSection config={pageConfig?.companyStats} />
         </section>
       )}
 
@@ -417,7 +384,7 @@ export default function HomeClientPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
           {/* 카카오톡 참여하기 (Solid Yellow) */}
           <a
-            href="https://pf.kakao.com/_vzxnKx"
+            href="https://open.kakao.com/o/plREDDUh"
             target="_blank"
             rel="noopener noreferrer"
             className="group relative overflow-hidden rounded-xl bg-[#FEE500] p-8 shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
@@ -435,7 +402,7 @@ export default function HomeClientPage() {
 
           {/* 유튜브 구독하기 (Solid Red) */}
           <a
-            href="https://www.youtube.com/@cruisedot"
+            href="https://www.youtube.com/@cruisedotgini?sub_confirmation=1"
             target="_blank"
             rel="noopener noreferrer"
             className="group relative overflow-hidden rounded-xl bg-[#E50914] p-8 shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
