@@ -1,5 +1,5 @@
 // app/api/admin/cruise-photos/image/route.ts
-// 크루즈정보사진 이미지 프록시 API (WebP 변환 및 다운로드 지원)
+// 크루즈정보사진 이미지 프록시 API
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
@@ -37,15 +37,15 @@ async function requireAdminOrPartner() {
 
 
 
-// GET: 구글 드라이브 이미지 가져오기 (WebP 변환 및 다운로드 지원)
+// GET: 구글 드라이브 이미지 가져오기
+// - 조회: 원본 이미지 그대로 반환
+// - 다운로드: 워터마크 포함 PNG로 변환
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const download = url.searchParams.get('download') === 'true';
 
     const fileId = url.searchParams.get('id');
-    const format = url.searchParams.get('format'); // 'webp' 또는 null
-    const watermark = url.searchParams.get('watermark') !== 'false'; // 워터마크 (기본값: true)
 
     // 다운로드 요청시에만 권한 확인 (이미지 조회는 허용)
     // 이미지 자체는 공개되지만, 워터마크 포함 다운로드는 인증 필요
@@ -103,22 +103,8 @@ export async function GET(req: NextRequest) {
     let outputMimeType = mimeType;
     let outputFileName = fileName;
 
-    // WebP 변환
-    if (format === 'webp') {
-      try {
-        imageBuffer = await sharp(imageBuffer)
-          .webp({ quality: 80 })
-          .toBuffer();
-        outputMimeType = 'image/webp';
-        outputFileName = fileName.replace(/\.[^/.]+$/, '') + '.webp';
-      } catch (error) {
-        console.error('[Cruise Photos Image] WebP conversion error:', error);
-        // 변환 실패 시 원본 반환
-      }
-    }
-
-    // PNG 다운로드 (워터마크 포함)
-    if (download && format !== 'webp') {
+    // 다운로드시 워터마크 포함 PNG로 변환
+    if (download) {
       try {
         // 크루즈닷 로고 워터마크 경로 (public 폴더에 있어야 함)
         const watermarkPath = process.cwd() + '/public/logo-watermark.png';
@@ -133,8 +119,8 @@ export async function GET(req: NextRequest) {
 
         let processedImage = sharp(imageBuffer);
 
-        // 워터마크 추가 (정중앙에 크게 배치)
-        if (watermark && watermarkBuffer) {
+        // 워터마크 추가 (정중앙에 크게 배치) - 다운로드시 무조건 적용
+        if (watermarkBuffer) {
           const metadata = await processedImage.metadata();
           const imageWidth = metadata.width || 1000;
           const imageHeight = metadata.height || 1000;

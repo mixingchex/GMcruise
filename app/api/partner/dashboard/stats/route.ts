@@ -98,22 +98,20 @@ export async function GET(req: NextRequest) {
         _count: { id: true },
       });
 
-      // 4. 수수료 통계
+      // 4. 수수료 통계 (CommissionLedger는 status 필드가 없으므로 amount 합계 사용)
       const thisMonthCommission = await prisma.commissionLedger.aggregate({
         where: {
           profileId: profile.id,
           createdAt: { gte: thisMonthStart },
-          status: 'APPROVED',
         },
-        _sum: { saleAmount: true },
+        _sum: { amount: true },
       });
 
       const totalCommission = await prisma.commissionLedger.aggregate({
         where: {
           profileId: profile.id,
-          status: 'APPROVED',
         },
-        _sum: { saleAmount: true },
+        _sum: { amount: true },
       });
 
       // 5. 고객 통계
@@ -218,22 +216,20 @@ export async function GET(req: NextRequest) {
         _count: { id: true },
       });
 
-      // 2. 수수료 통계
+      // 2. 수수료 통계 (CommissionLedger는 status 필드가 없으므로 amount 합계 사용)
       const thisMonthCommission = await prisma.commissionLedger.aggregate({
         where: {
           profileId: profile.id,
           createdAt: { gte: thisMonthStart },
-          status: 'APPROVED',
         },
-        _sum: { saleAmount: true },
+        _sum: { amount: true },
       });
 
       const totalCommission = await prisma.commissionLedger.aggregate({
         where: {
           profileId: profile.id,
-          status: 'APPROVED',
         },
-        _sum: { saleAmount: true },
+        _sum: { amount: true },
       });
 
       // 3. 고객 통계
