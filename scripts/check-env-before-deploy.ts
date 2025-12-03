@@ -15,6 +15,7 @@ const requiredEnvVars = [
   'DATABASE_URL',
   'NEXT_PUBLIC_BASE_URL',
   'GOOGLE_DRIVE_AFFILIATE_INFO_FOLDER_ID',
+  'GOOGLE_DRIVE_SHARED_DRIVE_ID',
 ];
 
 const optionalEnvVars = [
