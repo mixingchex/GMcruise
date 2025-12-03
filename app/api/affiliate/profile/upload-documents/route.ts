@@ -11,12 +11,6 @@ import prisma from '@/lib/prisma';
 import { uploadFileToDrive } from '@/lib/google-drive';
 import { uploadAffiliateInfoFile } from '@/lib/google-drive-affiliate-info';
 
-import { writeFile, mkdir } from 'fs/promises';
-
-import { existsSync } from 'fs';
-
-import { join } from 'path';
-
 const targetFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || 'root';
 
 
@@ -96,41 +90,20 @@ export async function POST(req: NextRequest) {
     // 타입 정규화
     const documentType = (rawType === 'BANKBOOK') ? 'bankbook' : 'idCard';
 
-    // 1단계: 서버에 먼저 저장 (안정성 확보)
     const buffer = Buffer.from(await file.arrayBuffer());
     const timestamp = Date.now();
     const random = Math.random().toString(36).substring(2, 8);
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const localFileName = `${documentType.toLowerCase()}_${session.userId}_${timestamp}_${random}_${originalName}`;
 
-    // 업로드 디렉토리 확인/생성
-
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'documents');
-
-    if (!existsSync(uploadDir)) {
-
-      await mkdir(uploadDir, { recursive: true });
-
-    }
-
-    const filepath = join(uploadDir, localFileName);
-
-    await writeFile(filepath, buffer);
-
-    const serverUrl = `/uploads/documents/${localFileName}`;
-
-    console.log('[Upload Documents] 파일이 서버에 저장되었습니다:', serverUrl);
-
-
-
-    // 2단계: 구글 드라이브 백업 (판매원별 폴더 구조로 저장)
-    let backupUrl: string | null = null;
-    let backupError: string | null = null;
+    // Google Drive에 직접 저장 (Vercel 서버리스 환경에서는 로컬 저장 불가)
+    let driveUrl: string | null = null;
+    let driveError: string | null = null;
 
     try {
       // 판매원별 폴더 구조로 저장
       const fileType = documentType === 'idCard' ? 'idCard' : 'bankbook';
-      const backupResult = await uploadAffiliateInfoFile(
+      const driveResult = await uploadAffiliateInfoFile(
         session.userId,
         buffer,
         `${documentType}_${file.name}`,
@@ -138,9 +111,9 @@ export async function POST(req: NextRequest) {
         fileType
       );
 
-      if (backupResult.ok && backupResult.url) {
-        backupUrl = backupResult.url;
-        console.log('[Upload Documents] 구글 드라이브 백업 성공 (판매원별 폴더):', backupUrl);
+      if (driveResult.ok && driveResult.url) {
+        driveUrl = driveResult.url;
+        console.log('[Upload Documents] 구글 드라이브 저장 성공 (판매원별 폴더):', driveUrl);
       } else {
         // 폴더 구조 저장 실패 시 기존 방식으로 폴백
         const fallbackResult = await uploadFileToDrive({
@@ -152,24 +125,28 @@ export async function POST(req: NextRequest) {
         });
 
         if (fallbackResult.ok && fallbackResult.url) {
-          backupUrl = fallbackResult.url;
-          console.log('[Upload Documents] 구글 드라이브 백업 성공 (기존 방식):', backupUrl);
+          driveUrl = fallbackResult.url;
+          console.log('[Upload Documents] 구글 드라이브 저장 성공 (기존 방식):', driveUrl);
         } else {
-          backupError = backupResult.error || fallbackResult.error || '구글 드라이브 백업 실패';
-          console.warn('[Upload Documents] 구글 드라이브 백업 실패 (서버 저장은 성공):', backupError);
+          driveError = driveResult.error || fallbackResult.error || '구글 드라이브 저장 실패';
+          console.error('[Upload Documents] 구글 드라이브 저장 실패:', driveError);
         }
       }
-    } catch (backupErr: any) {
-      backupError = backupErr?.message || '구글 드라이브 백업 중 오류 발생';
-      console.warn('[Upload Documents] 구글 드라이브 백업 중 오류 (서버 저장은 성공):', backupError);
-      // 백업 실패해도 서버 저장은 성공했으므로 계속 진행
+    } catch (driveErr: any) {
+      driveError = driveErr?.message || '구글 드라이브 저장 중 오류 발생';
+      console.error('[Upload Documents] 구글 드라이브 저장 중 오류:', driveError);
     }
 
+    // Drive URL이 없으면 에러 반환
+    if (!driveUrl) {
+      return NextResponse.json({
+        ok: false,
+        error: driveError || '파일 저장에 실패했습니다.'
+      }, { status: 500 });
+    }
 
-
-    // 서버 URL을 기본으로 사용 (백업 URL은 metadata에 저장)
-
-    const fileUrl = serverUrl;
+    // Drive URL을 기본 URL로 사용
+    const fileUrl = driveUrl;
 
 
 
@@ -183,19 +160,13 @@ export async function POST(req: NextRequest) {
 
     if (!profile) {
 
-      // 프로필이 없으면 파일은 서버에 저장되었지만 DB에는 저장되지 않음
-
-      console.warn('[Upload Documents] 프로필이 없어서 DB에 저장하지 못했습니다. 파일은 서버에 저장되었습니다:', serverUrl);
+      console.warn('[Upload Documents] 프로필이 없어서 DB에 저장하지 못했습니다.');
 
       return NextResponse.json({
 
         ok: false,
 
-        error: '어필리에이트 프로필이 없습니다. 프로필을 먼저 생성해주세요.',
-
-        url: serverUrl, // 서버에 저장된 파일 URL은 반환
-
-        warning: '파일은 서버에 저장되었지만 프로필이 없어 DB에 저장하지 못했습니다.'
+        error: '어필리에이트 프로필이 없습니다. 프로필을 먼저 생성해주세요.'
 
       }, { status: 400 });
 
@@ -205,21 +176,11 @@ export async function POST(req: NextRequest) {
 
     if (fileUrl) {
 
-      const metadata: any = {};
-
-      if (backupUrl) {
-
-        metadata.backupUrl = backupUrl;
-
-        metadata.backedUpAt = new Date().toISOString();
-
-      }
-
-      if (backupError) {
-
-        metadata.backupError = backupError;
-
-      }
+      const metadata: any = {
+        uploadedToDrive: true,
+        driveUrl: driveUrl,
+        uploadedAt: new Date().toISOString()
+      };
 
       const existing = await prisma.affiliateDocument.findFirst({
 
