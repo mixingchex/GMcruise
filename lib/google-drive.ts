@@ -63,13 +63,22 @@ export function getDriveClient() {
   }
 
   // 3. 줄바꿈 문자 처리 (google-sheets.ts와 동일한 방식 사용)
-  let privateKey = rawPrivateKey
-    // 앞뒤 따옴표 제거 (환경변수에 따옴표가 포함된 경우)
-    .replace(/^["']+|["']+$/g, '')
-    // 앞뒤 공백 제거
-    .trim()
-    // 이스케이프된 줄바꿈 문자를 실제 줄바꿈으로 변환 (google-sheets.ts 방식)
-    .replace(/\\n/g, '\n');
+  // 3. 줄바꿈 문자 처리 및 형식 정규화
+  let privateKey = rawPrivateKey.trim();
+
+  // 따옴표로 감싸져 있다면 제거 (또는 JSON 문자열일 경우 파싱)
+  if (privateKey.startsWith('"') || privateKey.startsWith("'")) {
+    try {
+      // JSON 문자열로 파싱 시도 (이중 이스케이프 처리 등)
+      privateKey = JSON.parse(privateKey);
+    } catch (e) {
+      // 파싱 실패 시 단순 따옴표 제거
+      privateKey = privateKey.replace(/^["']+|["']+$/g, '');
+    }
+  }
+
+  // 이스케이프된 줄바꿈 문자를 실제 줄바꿈으로 변환
+  privateKey = privateKey.replace(/\\n/g, '\n');
 
   // 4. BEGIN/END 라인 확인
   if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
