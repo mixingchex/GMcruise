@@ -34,19 +34,19 @@ export async function uploadAffiliateInfoFile(
     const idNum = Number(affiliateId);
     if (!isNaN(idNum)) {
       try {
-        // 1순위: AffiliateProfile 조회 (affiliateCode 사용)
-        let profile = await prisma.affiliateProfile.findUnique({
-          where: { id: idNum },
+        // 1순위: userId로 AffiliateProfile 조회 (업로드 API에서 session.userId를 전달하므로)
+        let profile = await prisma.affiliateProfile.findFirst({
+          where: { userId: idNum },
           select: {
             affiliateCode: true,
             User: { select: { name: true } }
           }
         });
 
-        // ID로 못 찾았으면 User ID로 조회 시도
+        // userId로 못 찾았으면 profile.id로 조회 시도 (백업용)
         if (!profile) {
-          profile = await prisma.affiliateProfile.findFirst({
-            where: { userId: idNum },
+          profile = await prisma.affiliateProfile.findUnique({
+            where: { id: idNum },
             select: {
               affiliateCode: true,
               User: { select: { name: true } }
