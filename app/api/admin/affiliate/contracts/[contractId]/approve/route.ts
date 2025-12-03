@@ -462,6 +462,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     // 관리자 승인은 아이디 생성만 수행 (PDF 전송은 대리점장이 완료 승인 시 수행)
     // 계약자에게 완료된 계약서 PDF 전송은 하지 않음
 
+    // Google Drive에 서명 이미지 및 계약서 PDF 백업 (비동기 - 실패해도 승인은 완료)
+    import('@/lib/google-drive-affiliate-info').then(({ backupContractSignaturesToDrive, backupContractPDFToDrive }) => {
+      // 서명 이미지 백업
+      backupContractSignaturesToDrive(contractId, profile.id, contract.name).catch((err) => {
+        console.error('[Approve Contract] Drive 서명 백업 실패:', err);
+      });
+      // 계약서 PDF 백업 (Contracts 폴더에 저장)
+      backupContractPDFToDrive(contractId, profile.id, contract.name).catch((err) => {
+        console.error('[Approve Contract] Drive PDF 백업 실패:', err);
+      });
+    });
+
     return NextResponse.json({ ok: true, profile, profileId: profile.id });
   } catch (error: any) {
     const errorContractId = resolvedParams ? resolvedParams.contractId : 'unknown';

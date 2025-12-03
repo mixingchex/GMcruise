@@ -137,6 +137,123 @@ export async function uploadAffiliateInfoFile(
 }
 
 /**
+ * 계약서 승인 시 서명 이미지를 Drive에 백업
+ */
+export async function backupContractSignaturesToDrive(
+  contractId: number,
+  profileId: number,
+  contractName: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    // 계약서 조회
+    const contract = await prisma.affiliateContract.findUnique({
+      where: { id: contractId },
+      select: {
+        metadata: true,
+      },
+    });
+
+    if (!contract) {
+      return { ok: false, error: '계약서를 찾을 수 없습니다.' };
+    }
+
+    const metadata = contract.metadata as any;
+    const signatures = metadata?.signatures;
+
+    if (!signatures) {
+      console.log('[Signature Backup] 서명이 없습니다.');
+      return { ok: true }; // 서명이 없어도 성공으로 처리
+    }
+
+    // 프로필 조회
+    const profile = await prisma.affiliateProfile.findUnique({
+      where: { id: profileId },
+      select: {
+        affiliateCode: true,
+        User: { select: { name: true } },
+      },
+    });
+
+    if (!profile) {
+      return { ok: false, error: '프로필을 찾을 수 없습니다.' };
+    }
+
+    // 서명 타입별로 업로드
+    for (const sigType of ['main', 'b2b', 'education']) {
+      const sig = signatures[sigType];
+      if (sig?.url && sig.url.startsWith('data:image')) {
+        // Base64 데이터 추출
+        const matches = sig.url.match(/^data:([^;]+);base64,(.+)$/);
+        if (matches) {
+          const mimeType = matches[1];
+          const base64Content = matches[2];
+          const buffer = Buffer.from(base64Content, 'base64');
+          const fileName = `${sigType}_signature_${contractName}_${contractId}.png`;
+
+          const result = await uploadAffiliateInfoFile(
+            profileId,
+            buffer,
+            fileName,
+            mimeType,
+            'signature'
+          );
+
+          if (result.ok) {
+            console.log(`[Signature Backup] ${sigType} 서명 업로드 성공: ${result.url}`);
+          } else {
+            console.error(`[Signature Backup] ${sigType} 서명 업로드 실패: ${result.error}`);
+          }
+        }
+      }
+    }
+
+    return { ok: true };
+  } catch (error: any) {
+    console.error('[Signature Backup] Error:', error);
+    return { ok: false, error: error?.message || '서명 백업 중 오류가 발생했습니다.' };
+  }
+}
+
+/**
+ * 계약서 승인 시 PDF를 Drive에 백업 (Contracts 폴더에 저장)
+ */
+export async function backupContractPDFToDrive(
+  contractId: number,
+  profileId: number,
+  contractName: string
+): Promise<{ ok: boolean; url?: string; error?: string }> {
+  try {
+    // PDF 생성
+    const { generateContractPDFFromId } = await import('@/lib/affiliate/contract-pdf');
+    const pdfBuffer = await generateContractPDFFromId(contractId);
+
+    // 파일명 생성
+    const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const fileName = `contract_${contractName}_${contractId}_${timestamp}.pdf`;
+
+    // uploadAffiliateInfoFile을 사용하여 Contracts 폴더에 저장
+    const result = await uploadAffiliateInfoFile(
+      profileId,
+      pdfBuffer,
+      fileName,
+      'application/pdf',
+      'contract'
+    );
+
+    if (result.ok) {
+      console.log(`[Contract PDF Backup] PDF 업로드 성공: ${result.url}`);
+      return { ok: true, url: result.url };
+    } else {
+      console.error(`[Contract PDF Backup] PDF 업로드 실패: ${result.error}`);
+      return { ok: false, error: result.error };
+    }
+  } catch (error: any) {
+    console.error('[Contract PDF Backup] Error:', error);
+    return { ok: false, error: error?.message || 'PDF 백업 중 오류가 발생했습니다.' };
+  }
+}
+
+/**
  * Deprecated: Use uploadAffiliateInfoFile instead
  */
 export async function uploadAffiliateFileByType(

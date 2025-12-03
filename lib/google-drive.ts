@@ -137,11 +137,11 @@ export async function findOrCreateFolder(
       q: query,
       fields: 'files(id, name)',
       pageSize: 1,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     };
 
     if (sharedDriveId && sharedDriveId !== 'root') {
-      searchOptions.supportsAllDrives = true;
-      searchOptions.includeItemsFromAllDrives = true;
       searchOptions.corpora = 'allDrives';
     }
 
@@ -170,11 +170,8 @@ export async function findOrCreateFolder(
     const createOptions: any = {
       requestBody: createBody,
       fields: 'id, name',
+      supportsAllDrives: true,
     };
-
-    if (sharedDriveId && sharedDriveId !== 'root') {
-      createOptions.supportsAllDrives = true;
-    }
 
     const createResponse = await drive.files.create(createOptions);
     const folderId = createResponse.data.id;
@@ -320,12 +317,8 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
         body: bufferStream,
       },
       fields: 'id, webViewLink, webContentLink',
+      supportsAllDrives: true,
     };
-
-    // Shared Drive 사용 시 supportsAllDrives 옵션 추가
-    if (sharedDriveId && sharedDriveId !== 'root') {
-      createOptions.supportsAllDrives = true;
-    }
 
     const response = await drive.files.create(createOptions);
 
@@ -342,12 +335,8 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
           role: 'reader',
           type: 'anyone',
         },
+        supportsAllDrives: true,
       };
-
-      // Shared Drive 사용 시 supportsAllDrives 옵션 추가
-      if (sharedDriveId && sharedDriveId !== 'root') {
-        permissionOptions.supportsAllDrives = true;
-      }
 
       await drive.permissions.create(permissionOptions);
     } else {

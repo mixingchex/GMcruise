@@ -47,19 +47,22 @@ function getDriveClient() {
     process.env.PRIVATE_KEY;
 
   if (!clientEmail || !privateKey) {
+    const envStatus = {
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL,
+      GOOGLE_SERVICE_ACCOUNT_EMAIL: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
+      GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
+      CLIENT_EMAIL: !!process.env.CLIENT_EMAIL,
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
+      GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
+      PRIVATE_KEY: !!process.env.PRIVATE_KEY,
+    };
     console.error('[Cruise Photos] Missing credentials:', {
       hasEmail: !!clientEmail,
       hasKey: !!privateKey,
-      emailEnv: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ? 'GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL' :
-        process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ? 'GOOGLE_SERVICE_ACCOUNT_EMAIL' :
-          process.env.GOOGLE_CLIENT_EMAIL ? 'GOOGLE_CLIENT_EMAIL' :
-            process.env.CLIENT_EMAIL ? 'CLIENT_EMAIL' : 'none',
-      keyEnv: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ? 'GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY' :
-        process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ? 'GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY' :
-          process.env.GOOGLE_PRIVATE_KEY ? 'GOOGLE_PRIVATE_KEY' :
-            process.env.PRIVATE_KEY ? 'PRIVATE_KEY' : 'none',
+      envStatus
     });
-    throw new Error('Google Drive 서비스 계정 정보가 설정되어 있지 않습니다.');
+    throw new Error(`Google Drive 서비스 계정 정보가 설정되어 있지 않습니다. (Email: ${Object.entries(envStatus).filter(([k, v]) => k.includes('EMAIL') && v).map(([k]) => k).join(',') || 'NONE'}, Key: ${Object.entries(envStatus).filter(([k, v]) => k.includes('KEY') && v).map(([k]) => k).join(',') || 'NONE'})`);
   }
 
   try {
