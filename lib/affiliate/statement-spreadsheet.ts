@@ -2,36 +2,12 @@
 // 지급명세서 Google Sheets 백업 유틸리티
 
 import { google } from 'googleapis';
+import { getGoogleAuth } from '@/lib/google-drive';
 
 const SPREADSHEET_ID = '1gt4J8qKGK6XpPVQa8u2skeUKKwIfvDMav1PO4c4oehQ';
 
 function getSheetsClient() {
-  const rawPrivateKey =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_PRIVATE_KEY ||
-    process.env.PRIVATE_KEY;
-
-  const clientEmail =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_CLIENT_EMAIL ||
-    process.env.CLIENT_EMAIL;
-
-  if (!rawPrivateKey || !clientEmail) {
-    throw new Error('Google Sheets 인증 정보가 없습니다.');
-  }
-
-  const privateKey = rawPrivateKey.replace(/^["']|["']$/g, '').trim().replace(/\\n/g, '\n');
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey,
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
+  const auth = getGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
   return google.sheets({ version: 'v4', auth });
 }
 

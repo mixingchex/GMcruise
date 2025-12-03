@@ -625,7 +625,7 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
         setLoadingDocs(false);
       }
     };
-    
+
     loadDocuments();
   }, [profile]);
 
@@ -655,7 +655,7 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
 
       showSuccess('완료되었습니다');
       setIdCardFile(null);
-      
+
       // 문서 목록 다시 로드
       const docRes = await fetch('/api/affiliate/profile/upload-documents', {
         credentials: 'include',
@@ -670,7 +670,7 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
           });
         }
       }
-      
+
       // 파일 입력 초기화
       const input = document.getElementById('idCardInput') as HTMLInputElement;
       if (input) input.value = '';
@@ -708,7 +708,7 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
 
       showSuccess('완료되었습니다');
       setBankbookFile(null);
-      
+
       // 문서 목록 다시 로드
       const docRes = await fetch('/api/affiliate/profile/upload-documents', {
         credentials: 'include',
@@ -723,7 +723,7 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
           });
         }
       }
-      
+
       // 파일 입력 초기화
       const input = document.getElementById('bankbookInput') as HTMLInputElement;
       if (input) input.value = '';
@@ -747,16 +747,25 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
             <p className="text-xs text-slate-500 mb-2">문서 정보를 불러오는 중...</p>
           ) : idCardDoc ? (
             <div className="space-y-3">
-              {/* 승인된 경우 이미지 미리보기 */}
-              {idCardDoc.isApproved && idCardDoc.filePath && (
-                <div className="rounded-lg border-2 border-green-200 bg-green-50 p-3">
-                  <div className="mb-2 flex items-center gap-2">
-                    <FiCheck className="text-green-600" />
-                    <span className="text-xs font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
-                  </div>
-                  <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+              {/* 이미지 미리보기 (승인 여부 상관없이 표시) */}
+              {idCardDoc.filePath && (
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-3">
+                  {idCardDoc.isApproved && (
+                    <div className="mb-2 flex items-center gap-2">
+                      <FiCheck className="text-green-600" />
+                      <span className="text-xs font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
+                    </div>
+                  )}
+                  <div className="rounded-lg overflow-hidden border border-slate-200 bg-white">
                     <img
-                      src={idCardDoc.filePath.startsWith('http') ? idCardDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${idCardDoc.filePath}` : idCardDoc.filePath)}
+                      src={(() => {
+                        const url = idCardDoc.filePath;
+                        if (url.includes('drive.google.com')) {
+                          const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
+                          if (match) return `/api/admin/mall/google-drive-image?fileId=${match[1]}`;
+                        }
+                        return url;
+                      })()}
                       alt="신분증"
                       className="w-full h-auto max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => {
@@ -826,16 +835,25 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
             <p className="text-xs text-slate-500 mb-2">문서 정보를 불러오는 중...</p>
           ) : bankbookDoc ? (
             <div className="space-y-3">
-              {/* 승인된 경우 이미지 미리보기 */}
-              {bankbookDoc.isApproved && bankbookDoc.filePath && (
-                <div className="rounded-lg border-2 border-green-200 bg-green-50 p-3">
-                  <div className="mb-2 flex items-center gap-2">
-                    <FiCheck className="text-green-600" />
-                    <span className="text-xs font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
-                  </div>
-                  <div className="rounded-lg overflow-hidden border border-green-200 bg-white">
+              {/* 이미지 미리보기 (승인 여부 상관없이 표시) */}
+              {bankbookDoc.filePath && (
+                <div className="rounded-lg border-2 border-slate-200 bg-slate-50 p-3">
+                  {bankbookDoc.isApproved && (
+                    <div className="mb-2 flex items-center gap-2">
+                      <FiCheck className="text-green-600" />
+                      <span className="text-xs font-semibold text-green-700">✅ 승인 완료 - 활성화됨</span>
+                    </div>
+                  )}
+                  <div className="rounded-lg overflow-hidden border border-slate-200 bg-white">
                     <img
-                      src={bankbookDoc.filePath.startsWith('http') ? bankbookDoc.filePath : (typeof window !== 'undefined' ? `${window.location.origin}${bankbookDoc.filePath}` : bankbookDoc.filePath)}
+                      src={(() => {
+                        const url = bankbookDoc.filePath;
+                        if (url.includes('drive.google.com')) {
+                          const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
+                          if (match) return `/api/admin/mall/google-drive-image?fileId=${match[1]}`;
+                        }
+                        return url;
+                      })()}
                       alt="통장사본"
                       className="w-full h-auto max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => {

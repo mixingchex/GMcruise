@@ -14,6 +14,7 @@ const requiredEnvVars = [
   'GOOGLE_DRIVE_CLIENT_SECRET',
   'DATABASE_URL',
   'NEXT_PUBLIC_BASE_URL',
+  'GOOGLE_DRIVE_AFFILIATE_INFO_FOLDER_ID',
 ];
 
 const optionalEnvVars = [
@@ -35,7 +36,7 @@ requiredEnvVars.forEach(varName => {
   } else {
     // 값이 있는 경우 마스킹하여 표시 (보안)
     const value = process.env[varName] || '';
-    const masked = value.length > 10 
+    const masked = value.length > 10
       ? `${value.substring(0, 4)}...${value.substring(value.length - 4)}`
       : '***';
     console.log(`✅ 설정됨: ${varName} = ${masked}`);

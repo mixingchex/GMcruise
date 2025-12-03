@@ -115,22 +115,10 @@ export async function POST(req: NextRequest) {
         driveUrl = driveResult.url;
         console.log('[Upload Documents] 구글 드라이브 저장 성공 (판매원별 폴더):', driveUrl);
       } else {
-        // 폴더 구조 저장 실패 시 기존 방식으로 폴백
-        const fallbackResult = await uploadFileToDrive({
-          folderId: targetFolderId,
-          fileName: `${session.userId}_${documentType}_${file.name}`,
-          mimeType: file.type,
-          buffer: buffer,
-          makePublic: false,
-        });
-
-        if (fallbackResult.ok && fallbackResult.url) {
-          driveUrl = fallbackResult.url;
-          console.log('[Upload Documents] 구글 드라이브 저장 성공 (기존 방식):', driveUrl);
-        } else {
-          driveError = driveResult.error || fallbackResult.error || '구글 드라이브 저장 실패';
-          console.error('[Upload Documents] 구글 드라이브 저장 실패:', driveError);
-        }
+        // 폴더 구조 저장 실패 시 에러 반환 (Fallback 제거)
+        driveError = driveResult.error || '구글 드라이브 저장 실패 (폴더 구조 생성 실패)';
+        console.error('[Upload Documents] 구글 드라이브 저장 실패:', driveError);
+        // Fallback logic removed to ensure files go to the correct location
       }
     } catch (driveErr: any) {
       driveError = driveErr?.message || '구글 드라이브 저장 중 오류 발생';

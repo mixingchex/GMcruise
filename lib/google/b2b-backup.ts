@@ -1,5 +1,6 @@
 
 import { google } from 'googleapis';
+import { getGoogleAuth } from '@/lib/google-drive';
 
 // 고정된 B2B 잠재고객 백업 스프레드시트 ID
 // 모든 판매원, 대리점장에서 들어오는 B2B DB가 이 시트로 백업됨
@@ -8,22 +9,7 @@ const B2B_BACKUP_SPREADSHEET_ID = '11_cfi841QGIDaBmYdjdk3aHYp2UYpCnx1QVVrgV7QJY'
 /**
  * 서비스 계정으로 Google API 인증
  */
-function getServiceAccountAuth() {
-    const privateKey = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n');
-    const clientEmail = process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL;
-
-    if (!privateKey || !clientEmail) {
-        throw new Error('Google Service Account credentials not configured');
-    }
-
-    return new google.auth.GoogleAuth({
-        credentials: {
-            client_email: clientEmail,
-            private_key: privateKey,
-        },
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
-}
+// getServiceAccountAuth function removed, using getGoogleAuth directly
 
 /**
  * Appends a new B2B lead to the fixed Google Sheet.
@@ -38,7 +24,7 @@ export async function appendB2BLeadToSheet(leadData: {
     notes?: string;
 }) {
     try {
-        const auth = getServiceAccountAuth();
+        const auth = getGoogleAuth();
         const sheets = google.sheets({ version: 'v4', auth });
 
         // B2B 잠재고객 시트에 데이터 추가
@@ -80,7 +66,7 @@ export async function appendSystemConsultationToSheet(data: {
     message?: string;
 }) {
     try {
-        const auth = getServiceAccountAuth();
+        const auth = getGoogleAuth();
         const sheets = google.sheets({ version: 'v4', auth });
 
         // 시스템 상담 시트에 데이터 추가

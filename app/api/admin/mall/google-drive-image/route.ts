@@ -55,19 +55,26 @@ export async function GET(req: NextRequest) {
     const sharedDriveId = process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID;
 
     try {
-      // 파일 정보 가져오기 (mimeType 확인)
+      // 2. 파일 메타데이터 조회 (MIME 타입 확인)
+      // sharedDriveId 유무와 관계없이 supportsAllDrives: true 설정
       const fileInfoOptions: any = {
         fileId,
-        fields: 'mimeType',
+        fields: 'mimeType, size',
+        supportsAllDrives: true,
       };
 
-      if (sharedDriveId && sharedDriveId !== 'root') {
-        fileInfoOptions.supportsAllDrives = true;
+      let fileInfo;
+      try {
+        const response = await drive.files.get(fileInfoOptions);
+        fileInfo = response.data;
+      } catch (error: any) {
+        if (error.code === 404) {
+          return new NextResponse('File not found', { status: 404 });
+        }
+        throw error;
       }
 
-      const fileInfo = await drive.files.get(fileInfoOptions);
-
-      const mimeType = fileInfo.data.mimeType || 'image/jpeg';
+      const mimeType = fileInfo.mimeType || 'image/jpeg';
 
       // 이미지가 아니면 에러 반환
       if (!mimeType.startsWith('image/')) {
@@ -76,18 +83,11 @@ export async function GET(req: NextRequest) {
       }
 
       // 이미지 데이터 가져오기 (alt: 'media' 사용)
-      const getOptions: any = {
-        fileId,
-        alt: 'media', // 중요: 미디어 콘텐츠를 가져오기 위해 필요
-      };
-
-      if (sharedDriveId && sharedDriveId !== 'root') {
-        getOptions.supportsAllDrives = true;
-      }
-
-      const imageResponse = await drive.files.get(getOptions, {
-        responseType: 'arraybuffer',
-      });
+      // 3. 이미지 데이터 가져오기
+      const imageResponse = await drive.files.get(
+        { fileId, alt: 'media', supportsAllDrives: true },
+        { responseType: 'arraybuffer' }
+      );
 
       if (!imageResponse.data) {
         throw new Error('Failed to fetch image data: response data is empty');

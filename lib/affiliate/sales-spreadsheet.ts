@@ -2,36 +2,12 @@
 // 판매 목록 Google Sheets 백업 유틸리티 (월별 시트 자동 생성)
 
 import { google, sheets_v4 } from 'googleapis';
+import { getGoogleAuth } from '@/lib/google-drive';
 
 const SPREADSHEET_ID = '14YAucoDM9Rn6Df4Fy10SUyAmhxb9Of8DTrM3fjQkPaI';
 
 function getSheetsClient(): sheets_v4.Sheets {
-  const rawPrivateKey =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_PRIVATE_KEY ||
-    process.env.PRIVATE_KEY;
-
-  const clientEmail =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_CLIENT_EMAIL ||
-    process.env.CLIENT_EMAIL;
-
-  if (!rawPrivateKey || !clientEmail) {
-    throw new Error('Google Sheets 인증 정보가 없습니다.');
-  }
-
-  const privateKey = rawPrivateKey.replace(/^["']|["']$/g, '').trim().replace(/\\n/g, '\n');
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey,
-    },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-  });
-
+  const auth = getGoogleAuth(['https://www.googleapis.com/auth/spreadsheets']);
   return google.sheets({ version: 'v4', auth });
 }
 
@@ -107,7 +83,7 @@ async function ensureMonthlySheet(sheets: sheets_v4.Sheets, sheetName: string): 
       console.log(`[SalesSpreadsheet] Headers added to sheet: ${sheetName}`);
     }
   } catch (error: any) {
-    console.error(`[SalesSpreadsheet] Error ensuring sheet ${sheetName}:`, error);
+    console.error(`[SalesSpreadsheet] Error ensuring sheet ${sheetName}: `, error);
     throw error;
   }
 }

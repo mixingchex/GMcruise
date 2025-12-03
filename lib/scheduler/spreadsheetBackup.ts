@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma';
 import { google } from 'googleapis';
+import { getGoogleAuth } from '@/lib/google-drive';
 import * as XLSX from 'xlsx';
 import { uploadFileToDrive, findOrCreateFolder } from '@/lib/google-drive';
 import dayjs from 'dayjs';
@@ -31,28 +32,14 @@ interface SpreadsheetBackupLog {
 /**
  * 구글 시트 API 클라이언트 생성
  */
+/**
+ * 구글 시트 API 클라이언트 생성
+ */
 function getSheetsClient() {
-  const clientEmail =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-
-  if (!clientEmail || !privateKey) {
-    throw new Error('Google 서비스 계정 정보가 설정되어 있지 않습니다.');
-  }
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey.replace(/\\n/g, '\n'),
-    },
-    scopes: [
-      'https://www.googleapis.com/auth/spreadsheets.readonly',
-      'https://www.googleapis.com/auth/drive.file',
-    ],
-  });
+  const auth = getGoogleAuth([
+    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    'https://www.googleapis.com/auth/drive.file',
+  ]);
 
   return google.sheets({ version: 'v4', auth });
 }

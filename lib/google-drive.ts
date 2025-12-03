@@ -22,7 +22,11 @@ type FindOrCreateFolderResult = {
   error?: string;
 };
 
-export function getDriveClient() {
+/**
+ * Google Auth 클라이언트 생성 (공통 인증 로직)
+ * Private Key 형식을 자동으로 보정하여 인증 객체를 반환합니다.
+ */
+export function getGoogleAuth(scopes?: string[]) {
   // 1. 환경변수에서 Private Key 찾기 (여러 이름 모두 확인)
   const rawPrivateKey =
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
@@ -31,18 +35,8 @@ export function getDriveClient() {
     process.env.PRIVATE_KEY;
 
   if (!rawPrivateKey) {
-    console.error('[GoogleDrive] Private Key가 환경변수에 없습니다.');
-    console.error('[GoogleDrive] 확인할 환경변수:');
-    console.error('  - GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY');
-    console.error('  - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
-    console.error('  - GOOGLE_PRIVATE_KEY');
-    console.error('  - PRIVATE_KEY');
-    console.error('[GoogleDrive] 환경변수 존재 여부:');
-    console.error(`  - GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY: ${!!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY}`);
-    console.error(`  - GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: ${!!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY}`);
-    console.error(`  - GOOGLE_PRIVATE_KEY: ${!!process.env.GOOGLE_PRIVATE_KEY}`);
-    console.error(`  - PRIVATE_KEY: ${!!process.env.PRIVATE_KEY}`);
-    throw new Error('Google Drive Private Key 설정 오류');
+    console.error('[GoogleAuth] Private Key가 환경변수에 없습니다.');
+    throw new Error('Google Service Account Private Key 설정 오류');
   }
 
   // 2. 환경변수에서 Client Email 찾기 (여러 이름 모두 확인)
@@ -53,16 +47,10 @@ export function getDriveClient() {
     process.env.CLIENT_EMAIL;
 
   if (!clientEmail) {
-    console.error('[GoogleDrive] Client Email이 환경변수에 없습니다.');
-    console.error('[GoogleDrive] 확인할 환경변수:');
-    console.error('  - GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL');
-    console.error('  - GOOGLE_SERVICE_ACCOUNT_EMAIL');
-    console.error('  - GOOGLE_CLIENT_EMAIL');
-    console.error('  - CLIENT_EMAIL');
-    throw new Error('Google Drive Client Email 설정 오류');
+    console.error('[GoogleAuth] Client Email이 환경변수에 없습니다.');
+    throw new Error('Google Service Account Client Email 설정 오류');
   }
 
-  // 3. 줄바꿈 문자 처리 (google-sheets.ts와 동일한 방식 사용)
   // 3. 줄바꿈 문자 처리 및 형식 정규화
   let privateKey = rawPrivateKey.trim();
 
@@ -82,46 +70,39 @@ export function getDriveClient() {
 
   // 4. BEGIN/END 라인 확인
   if (!privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
-    console.error('[GoogleDrive] Private key 형식 오류: BEGIN PRIVATE KEY 라인이 없습니다.');
-    console.error('[GoogleDrive] Private key 시작 부분:', privateKey.substring(0, 100));
+    console.error('[GoogleAuth] Private key 형식 오류: BEGIN PRIVATE KEY 라인이 없습니다.');
     throw new Error('Private key 형식이 올바르지 않습니다. -----BEGIN PRIVATE KEY-----로 시작해야 합니다.');
   }
 
   if (!privateKey.includes('-----END PRIVATE KEY-----')) {
-    console.error('[GoogleDrive] Private key 형식 오류: END PRIVATE KEY 라인이 없습니다.');
+    console.error('[GoogleAuth] Private key 형식 오류: END PRIVATE KEY 라인이 없습니다.');
     throw new Error('Private key 형식이 올바르지 않습니다. -----END PRIVATE KEY-----로 끝나야 합니다.');
   }
 
-
-
-  // 6. Google Auth 생성 (에러 핸들링 강화)
+  // 5. Google Auth 생성
   try {
-    const auth = new google.auth.GoogleAuth({
+    return new google.auth.GoogleAuth({
       credentials: {
         client_email: clientEmail,
         private_key: privateKey,
       },
-      scopes: ['https://www.googleapis.com/auth/drive'],
+      scopes: scopes || [
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/spreadsheets'
+      ],
     });
-
-    return google.drive({ version: 'v3', auth });
   } catch (authError: any) {
-    console.error('[GoogleDrive] GoogleAuth 생성 실패:', authError);
-    console.error('[GoogleDrive] Client Email:', clientEmail);
-    console.error('[GoogleDrive] Private Key 길이:', privateKey.length);
-    console.error('[GoogleDrive] Private Key 시작:', privateKey.substring(0, 50));
-    console.error('[GoogleDrive] Private Key 끝:', privateKey.substring(privateKey.length - 50));
-
-    // JWT 관련 에러인 경우 더 자세한 정보 제공
-    if (authError?.message?.includes('JWT') || authError?.message?.includes('invalid_grant') || authError?.message?.includes('Invalid JWT')) {
-      throw new Error(
-        `Google Drive 인증 실패 (JWT Signature 오류): ${authError?.message}. ` +
-        `환경변수 GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY 또는 GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY의 줄바꿈 문자(\\n) 처리를 확인해주세요. ` +
-        `Private key는 -----BEGIN PRIVATE KEY-----와 -----END PRIVATE KEY----- 사이에 있어야 하며, 각 라인은 64자로 구성되어야 합니다.`
-      );
-    }
-
+    console.error('[GoogleAuth] GoogleAuth 생성 실패:', authError);
     throw authError;
+  }
+}
+
+export function getDriveClient() {
+  try {
+    const auth = getGoogleAuth();
+    return google.drive({ version: 'v3', auth });
+  } catch (error: any) {
+    throw error;
   }
 }
 

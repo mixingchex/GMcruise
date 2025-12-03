@@ -3,6 +3,7 @@
 
 import prisma from '@/lib/prisma';
 import { google } from 'googleapis';
+import { getGoogleAuth } from '@/lib/google-drive';
 import { nanoid } from 'nanoid';
 
 /**
@@ -28,16 +29,10 @@ export async function updateContractStatus(
 
 // 구글 문서 API 클라이언트 초기화
 function getGoogleDocsClient() {
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    },
-    scopes: [
-      'https://www.googleapis.com/auth/documents',
-      'https://www.googleapis.com/auth/drive',
-    ],
-  });
+  const auth = getGoogleAuth([
+    'https://www.googleapis.com/auth/documents',
+    'https://www.googleapis.com/auth/drive',
+  ]);
 
   return {
     docs: google.docs({ version: 'v1', auth }),
@@ -76,10 +71,10 @@ export async function createContractDocument(
   }
 ): Promise<{ documentId: string; documentUrl: string }> {
   try {
-    // 구글 서비스 계정 인증 정보 확인
-    if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
-      throw new Error('구글 서비스 계정 설정이 필요합니다.');
-    }
+    // 구글 서비스 계정 인증 정보 확인 (getGoogleAuth 내부에서 처리됨)
+    // if (!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || !process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY) {
+    //   throw new Error('구글 서비스 계정 설정이 필요합니다.');
+    // }
 
     const { docs, drive } = getGoogleDocsClient();
 

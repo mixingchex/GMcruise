@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import prisma from '@/lib/prisma';
 
+import { getGoogleAuth } from '@/lib/google-drive';
+
 // 구글 스프레드시트에 잠재고객 정보 저장
 async function saveToProspectSpreadsheet(name: string, phone: string) {
   try {
@@ -13,24 +15,8 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
       return { ok: false, error: '스프레드시트 ID가 설정되지 않았습니다.' };
     }
 
-    // Google Sheets 클라이언트 가져오기
-    const credentials = {
-      clientEmail: process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL || process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      privateKey: (process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY || process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-    };
-
-    if (!credentials.clientEmail || !credentials.privateKey) {
-      console.warn('[Subscription Trial] 구글 인증 정보가 설정되지 않았습니다.');
-      return { ok: false, error: '구글 인증 정보가 설정되지 않았습니다.' };
-    }
-
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: credentials.clientEmail,
-        private_key: credentials.privateKey,
-      },
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    // Google Auth 공통 함수 사용
+    const auth = getGoogleAuth();
 
     const sheets = google.sheets({ version: 'v4', auth });
 

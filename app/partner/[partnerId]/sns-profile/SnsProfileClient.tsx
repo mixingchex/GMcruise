@@ -5,6 +5,16 @@ import Link from 'next/link';
 import { FiArrowLeft, FiSave, FiUser, FiLink, FiPlus, FiX, FiImage, FiChevronLeft, FiChevronRight, FiPlay, FiExternalLink, FiShoppingBag, FiUpload, FiCheck, FiCopy } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
+// Google Drive 이미지 프록시 URL 변환 헬퍼
+const getProxyImageUrl = (url: string | null | undefined) => {
+  if (!url) return '';
+  if (url.includes('drive.google.com')) {
+    const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
+    if (match) return `/api/admin/mall/google-drive-image?fileId=${match[1]}`;
+  }
+  return url;
+};
+
 type SnsProfileClientProps = {
   user: {
     id: number;
@@ -26,13 +36,13 @@ interface CustomLink {
 export default function SnsProfileClient({ user, profile }: SnsProfileClientProps) {
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
-  
+
   // JSON 필드 파싱 함수들
   const parseCustomLinks = (): CustomLink[] => {
     if (!profile?.customLinks) return [];
     try {
-      const parsed = typeof profile.customLinks === 'string' 
-        ? JSON.parse(profile.customLinks) 
+      const parsed = typeof profile.customLinks === 'string'
+        ? JSON.parse(profile.customLinks)
         : profile.customLinks;
       if (Array.isArray(parsed)) {
         return parsed.map((link: any) => ({
@@ -164,8 +174,8 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       // 기존 단일 youtubeVideoUrl을 배열로 변환
       if (profile?.youtubeVideoUrl) {
         try {
-          const parsed = typeof profile.youtubeVideoUrl === 'string' 
-            ? JSON.parse(profile.youtubeVideoUrl) 
+          const parsed = typeof profile.youtubeVideoUrl === 'string'
+            ? JSON.parse(profile.youtubeVideoUrl)
             : profile.youtubeVideoUrl;
           if (Array.isArray(parsed)) {
             return parsed.filter((url: any) => url && typeof url === 'string' && url.trim());
@@ -187,8 +197,8 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
     if (profile?.youtubeVideoUrl !== undefined) {
       const videoUrls = (() => {
         try {
-          const parsed = typeof profile.youtubeVideoUrl === 'string' 
-            ? JSON.parse(profile.youtubeVideoUrl) 
+          const parsed = typeof profile.youtubeVideoUrl === 'string'
+            ? JSON.parse(profile.youtubeVideoUrl)
             : profile.youtubeVideoUrl;
           if (Array.isArray(parsed)) {
             return parsed.filter((url: any) => url && typeof url === 'string' && url.trim());
@@ -211,12 +221,12 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
 
     try {
       const { customLinks, galleryImages, featuredImages, youtubeVideoUrls, ...restFormData } = formData;
-      
+
       const filteredCustomLinks = customLinks.filter(link => link.label.trim() && link.url.trim());
       const filteredGalleryImages = galleryImages.filter((img: string) => img && img.trim());
       const filteredFeaturedImages = featuredImages.filter((img: string) => img && img.trim());
       const filteredYoutubeVideoUrls = youtubeVideoUrls.filter((url: string) => url && url.trim());
-      
+
       const res = await fetch('/api/partner/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -226,7 +236,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
           customLinks: filteredCustomLinks.length > 0 ? filteredCustomLinks : null,
           galleryImages: filteredGalleryImages.length > 0 ? filteredGalleryImages : null,
           featuredImages: filteredFeaturedImages.length > 0 ? filteredFeaturedImages : null,
-          youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0 
+          youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0
             ? (filteredYoutubeVideoUrls.length === 1 ? filteredYoutubeVideoUrls[0] : JSON.stringify(filteredYoutubeVideoUrls))
             : null,
         }),
@@ -261,7 +271,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
         credentials: 'include',
         body: uploadFormData,
       });
-      
+
       const json = await res.json();
 
       if (!res.ok || !json.ok) {
@@ -269,16 +279,16 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       }
 
       const imageUrl = json.profileImage;
-      
+
       if (typeof imageUrl !== 'string') {
         throw new Error('이미지 URL이 올바르지 않습니다.');
       }
-      
+
       setFormData((prev) => ({
         ...prev,
         profileImage: imageUrl,
       }));
-      
+
       showSuccess('프로필 이미지가 업로드되었습니다!');
     } catch (error: any) {
       console.error('[SnsProfileClient] Image upload error:', error);
@@ -311,10 +321,10 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       if (typeof imageUrl !== 'string' || !imageUrl.trim()) {
         throw new Error('이미지 URL이 올바르지 않습니다.');
       }
-      
+
       const trimmedUrl = imageUrl.trim();
       console.log('[GalleryImageUpload] Uploaded image URL:', trimmedUrl, 'at index:', index);
-      
+
       setFormData((prev) => {
         const newGalleryImages = [...prev.galleryImages];
         newGalleryImages[index] = trimmedUrl;
@@ -352,10 +362,10 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       if (typeof imageUrl !== 'string' || !imageUrl.trim()) {
         throw new Error('이미지 URL이 올바르지 않습니다.');
       }
-      
+
       const trimmedUrl = imageUrl.trim();
       console.log('[FeaturedImageUpload] Uploaded image URL:', trimmedUrl, 'at index:', index);
-      
+
       setFormData((prev) => {
         const newFeaturedImages = [...prev.featuredImages];
         newFeaturedImages[index] = trimmedUrl;
@@ -477,7 +487,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                         <div className="relative">
                           {profileImageUrl ? (
                             <img
-                              src={profileImageUrl}
+                              src={getProxyImageUrl(profileImageUrl)}
                               alt="Profile"
                               className="w-24 h-24 rounded-full object-cover border-4 border-pink-200"
                               onError={(e) => {
@@ -798,7 +808,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                       featuredImages: formData.featuredImages.filter((img: string) => img.trim()),
                       youtubeVideoUrl: (() => {
                         const filtered = formData.youtubeVideoUrls.filter((url: string) => url && url.trim());
-                        return filtered.length > 0 
+                        return filtered.length > 0
                           ? (filtered.length === 1 ? filtered[0] : JSON.stringify(filtered))
                           : null;
                       })(),
@@ -819,17 +829,17 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                       나의 SNS 프로필을 위한 독립적인 공유 링크를 생성합니다. 이 링크는 판매몰과 별개로 작동합니다.
                     </p>
                   </div>
-                  <LittlyLinkGenerator 
-                    partnerId={partnerId} 
+                  <LittlyLinkGenerator
+                    partnerId={partnerId}
                     onSaveProfile={async () => {
                       // 프로필 자동 저장
                       const { customLinks, galleryImages, featuredImages, youtubeVideoUrls, ...restFormData } = formData;
-                      
+
                       const filteredCustomLinks = customLinks.filter(link => link.label.trim() && link.url.trim());
                       const filteredGalleryImages = galleryImages.filter((img: string) => img && img.trim());
                       const filteredFeaturedImages = featuredImages.filter((img: string) => img && img.trim());
                       const filteredYoutubeVideoUrls = youtubeVideoUrls.filter((url: string) => url && url.trim());
-                      
+
                       const res = await fetch('/api/partner/profile', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
@@ -839,7 +849,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                           customLinks: filteredCustomLinks.length > 0 ? filteredCustomLinks : null,
                           galleryImages: filteredGalleryImages.length > 0 ? filteredGalleryImages : null,
                           featuredImages: filteredFeaturedImages.length > 0 ? filteredFeaturedImages : null,
-                          youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0 
+                          youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0
                             ? (filteredYoutubeVideoUrls.length === 1 ? filteredYoutubeVideoUrls[0] : JSON.stringify(filteredYoutubeVideoUrls))
                             : null,
                         }),
@@ -939,7 +949,7 @@ function GalleryImageManager({
           {imageUrl && typeof imageUrl === 'string' && imageUrl.trim() ? (
             <>
               <img
-                src={imageUrl}
+                src={getProxyImageUrl(imageUrl)}
                 alt={`Gallery ${index + 1}`}
                 className="w-full h-full object-cover"
                 onError={(e) => {
@@ -1050,7 +1060,7 @@ function FeaturedImageManager({
           {/* 대표 이미지 - 유튜브 썸네일 비율 (16:9) */}
           <div className="relative w-full bg-gray-100" style={{ aspectRatio: '16/9' }}>
             <img
-              src={activeImages[currentIndex]}
+              src={getProxyImageUrl(activeImages[currentIndex])}
               alt={`Featured ${currentIndex + 1}`}
               className="w-full h-full object-cover"
               onError={(e) => {
@@ -1077,9 +1087,8 @@ function FeaturedImageManager({
                   {activeImages.map((_, i) => (
                     <div
                       key={i}
-                      className={`w-2 h-2 rounded-full ${
-                        i === currentIndex ? 'bg-white' : 'bg-white/50'
-                      }`}
+                      className={`w-2 h-2 rounded-full ${i === currentIndex ? 'bg-white' : 'bg-white/50'
+                        }`}
                     />
                   ))}
                 </div>
@@ -1157,13 +1166,13 @@ function translateTagToKorean(tag: string): string {
     'best': '베스트',
     'special': '특가',
   };
-  
+
   const tagLower = tag.toLowerCase().replace(/^#/, '').trim();
   return tagMap[tagLower] || tag;
 }
 
 // 스마트폰 미리보기 컴포넌트
-function MobilePreview({ profile }: { 
+function MobilePreview({ profile }: {
   profile: {
     displayName: string;
     bio: string;
@@ -1237,8 +1246,8 @@ function MobilePreview({ profile }: {
     // youtubeVideoUrl이 있으면 파싱
     if (!profile.youtubeVideoUrl) return [];
     try {
-      const parsed = typeof profile.youtubeVideoUrl === 'string' 
-        ? JSON.parse(profile.youtubeVideoUrl) 
+      const parsed = typeof profile.youtubeVideoUrl === 'string'
+        ? JSON.parse(profile.youtubeVideoUrl)
         : profile.youtubeVideoUrl;
       if (Array.isArray(parsed)) {
         return parsed.filter((url: any) => url && typeof url === 'string' && url.trim());
@@ -1267,7 +1276,7 @@ function MobilePreview({ profile }: {
         setProductsLoading(false);
         return;
       }
-      
+
       try {
         setProductsLoading(true);
         const res = await fetch(`/api/public/products?limit=6`);
@@ -1299,21 +1308,19 @@ function MobilePreview({ profile }: {
       <div className="flex gap-4 justify-center">
         <button
           onClick={() => setDeviceType('iphone')}
-          className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-            deviceType === 'iphone'
-              ? 'bg-gray-900 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+          className={`px-6 py-3 rounded-lg font-semibold transition-colors ${deviceType === 'iphone'
+            ? 'bg-gray-900 text-white'
+            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
         >
           📱 iPhone
         </button>
         <button
           onClick={() => setDeviceType('samsung')}
-          className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-            deviceType === 'samsung'
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-          }`}
+          className={`px-6 py-3 rounded-lg font-semibold transition-colors ${deviceType === 'samsung'
+            ? 'bg-blue-600 text-white'
+            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            }`}
         >
           📱 Samsung
         </button>
@@ -1322,21 +1329,19 @@ function MobilePreview({ profile }: {
       {/* 스마트폰 프레임 */}
       <div className="flex justify-center">
         <div
-          className={`relative ${
-            deviceType === 'iphone'
-              ? 'w-[375px] h-[812px] bg-black rounded-[3rem] p-2 shadow-2xl'
-              : 'w-[360px] h-[800px] bg-gray-800 rounded-[2rem] p-2 shadow-2xl'
-          }`}
+          className={`relative ${deviceType === 'iphone'
+            ? 'w-[375px] h-[812px] bg-black rounded-[3rem] p-2 shadow-2xl'
+            : 'w-[360px] h-[800px] bg-gray-800 rounded-[2rem] p-2 shadow-2xl'
+            }`}
         >
           {/* 노치/상단바 */}
           <div
-            className={`absolute top-0 left-1/2 -translate-x-1/2 ${
-              deviceType === 'iphone'
-                ? 'w-[150px] h-[30px] bg-black rounded-b-[1rem]'
-                : 'w-full h-[24px] bg-gray-800'
-            }`}
+            className={`absolute top-0 left-1/2 -translate-x-1/2 ${deviceType === 'iphone'
+              ? 'w-[150px] h-[30px] bg-black rounded-b-[1rem]'
+              : 'w-full h-[24px] bg-gray-800'
+              }`}
           />
-          
+
           {/* 화면 */}
           <div className="w-full h-full bg-white rounded-[2.5rem] overflow-hidden relative">
             <div className="w-full h-full overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -1393,9 +1398,8 @@ function MobilePreview({ profile }: {
                               {profile.featuredImages.map((_, i) => (
                                 <div
                                   key={i}
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    i === featuredIndex ? 'bg-white' : 'bg-white/50'
-                                  }`}
+                                  className={`w-1.5 h-1.5 rounded-full ${i === featuredIndex ? 'bg-white' : 'bg-white/50'
+                                    }`}
                                 />
                               ))}
                             </div>
@@ -1460,7 +1464,7 @@ function MobilePreview({ profile }: {
                             className="aspect-square rounded-lg overflow-hidden"
                           >
                             <img
-                              src={imageUrl}
+                              src={getProxyImageUrl(imageUrl)}
                               alt={`Gallery ${index + 1}`}
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -1512,9 +1516,8 @@ function MobilePreview({ profile }: {
                               {youtubeVideoIds.map((_, i) => (
                                 <div
                                   key={i}
-                                  className={`w-1.5 h-1.5 rounded-full ${
-                                    i === youtubeIndex ? 'bg-white' : 'bg-white/50'
-                                  }`}
+                                  className={`w-1.5 h-1.5 rounded-full ${i === youtubeIndex ? 'bg-white' : 'bg-white/50'
+                                    }`}
                                 />
                               ))}
                             </div>
@@ -1538,7 +1541,7 @@ function MobilePreview({ profile }: {
                           {products.slice(0, 3).map((product: any) => {
                             // 태그 파싱 - boolean 필드들도 태그로 추가
                             let tags: string[] = [];
-                            
+
                             // boolean 필드들을 태그로 추가
                             if (product.isUrgent) tags.push('urgent');
                             if (product.isMainProduct) tags.push('main');
@@ -1549,7 +1552,7 @@ function MobilePreview({ profile }: {
                             if (product.isDomestic) tags.push('domestic');
                             if (product.isJapan) tags.push('japan');
                             if (product.isBudget) tags.push('budget');
-                            
+
                             // product.tags 필드에서 추가 태그 파싱
                             if (product.tags) {
                               if (Array.isArray(product.tags)) {
@@ -1570,16 +1573,16 @@ function MobilePreview({ profile }: {
                                 }
                               }
                             }
-                            
+
                             // 중복 제거 및 최대 3개만 유지
                             const uniqueTags = Array.from(new Set(tags)).slice(0, 3);
-                            
+
                             // 태그를 한글로 변환
                             const koreanTags = uniqueTags.map(tag => translateTagToKorean(tag));
-                            
+
                             // 상품명 추출 (packageName 또는 title)
                             const productName = product.packageName || product.title || '상품명 없음';
-                            
+
                             return (
                               <a
                                 key={product.id || product.productCode}
