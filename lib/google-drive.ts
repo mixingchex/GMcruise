@@ -318,7 +318,8 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
     }
 
     // 권한 설정 (공개/비공개)
-    if (makePublic) {
+    // 공유 드라이브에서는 상위 폴더 권한을 상속받으므로 개별 파일 권한 설정이 실패할 수 있음
+    try {
       const permissionOptions: any = {
         fileId,
         requestBody: {
@@ -329,21 +330,9 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       };
 
       await drive.permissions.create(permissionOptions);
-    } else {
-      // 기본적으로 'anyone with link'로 설정하여 관리자가 볼 수 있게 함
-      const permissionOptions: any = {
-        fileId,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
-      };
-
-      if (sharedDriveId && sharedDriveId !== 'root') {
-        permissionOptions.supportsAllDrives = true;
-      }
-
-      await drive.permissions.create(permissionOptions);
+    } catch (permError: any) {
+      // 공유 드라이브에서 상속된 권한보다 제한적인 권한 설정 시 에러 발생 - 무시
+      console.warn('[GoogleDrive] Permission setting skipped (inherited from parent):', permError?.message);
     }
 
     // 이미지인지 확인

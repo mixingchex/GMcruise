@@ -137,13 +137,19 @@ export async function createContractDocument(
     }
 
     // 문서 공유 설정 (읽기 전용)
-    await drive.permissions.create({
-      fileId: documentId,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone',
-      },
-    });
+    // 공유 드라이브에서는 상위 폴더 권한을 상속받으므로 실패할 수 있음
+    try {
+      await drive.permissions.create({
+        fileId: documentId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+        supportsAllDrives: true,
+      });
+    } catch (permError: any) {
+      console.warn('[Contract] Permission setting skipped:', permError?.message);
+    }
 
     const documentUrl = `https://docs.google.com/document/d/${documentId}/edit`;
 
