@@ -41,10 +41,10 @@ export async function appendB2BLeadToSheet(leadData: {
         const auth = getServiceAccountAuth();
         const sheets = google.sheets({ version: 'v4', auth });
 
-        // 고정된 스프레드시트에 데이터 추가
+        // B2B 잠재고객 시트에 데이터 추가
         await sheets.spreadsheets.values.append({
             spreadsheetId: B2B_BACKUP_SPREADSHEET_ID,
-            range: 'A1',
+            range: 'B2B 잠재고객!A1',
             valueInputOption: 'USER_ENTERED',
             requestBody: {
                 values: [[
@@ -64,6 +64,47 @@ export async function appendB2BLeadToSheet(leadData: {
     } catch (error) {
         console.error('[B2B Backup] Failed to backup lead:', error);
         // Don't throw, just log. We don't want to fail the registration if backup fails.
+        return false;
+    }
+}
+
+/**
+ * 시스템 상담 신청을 스프레드시트에 백업
+ */
+export async function appendSystemConsultationToSheet(data: {
+    name: string;
+    phone: string;
+    partnerName: string;
+    status: string;
+    createdAt: string;
+    message?: string;
+}) {
+    try {
+        const auth = getServiceAccountAuth();
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // 시스템 상담 시트에 데이터 추가
+        await sheets.spreadsheets.values.append({
+            spreadsheetId: B2B_BACKUP_SPREADSHEET_ID,
+            range: '시스템 상담!A1',
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values: [[
+                    data.name,
+                    data.phone,
+                    data.partnerName,
+                    data.status,
+                    data.createdAt,
+                    data.message || ''
+                ]],
+            },
+        });
+
+        console.log('[System Consultation Backup] Successfully appended to sheet');
+        return true;
+
+    } catch (error) {
+        console.error('[System Consultation Backup] Failed:', error);
         return false;
     }
 }

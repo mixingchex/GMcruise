@@ -58,6 +58,35 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 스프레드시트 백업 (비동기)
+    // 파트너 이름 조회 (계약서 실명 우선)
+    let partnerName = '본사';
+    const profileId = agentId || managerId;
+    if (profileId) {
+      const profile = await prisma.affiliateProfile.findUnique({
+        where: { id: profileId },
+        select: { displayName: true, userId: true },
+      });
+      if (profile) {
+        const contract = await prisma.affiliateContract.findFirst({
+          where: { userId: profile.userId, status: 'approved' },
+          select: { name: true },
+        });
+        partnerName = contract?.name || profile.displayName || '파트너';
+      }
+    }
+
+    import('@/lib/google/b2b-backup').then(({ appendSystemConsultationToSheet }) => {
+      appendSystemConsultationToSheet({
+        name: consultation.name,
+        phone: consultation.phone,
+        partnerName,
+        status: consultation.status,
+        createdAt: consultation.createdAt.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+        message: consultation.message || '',
+      }).catch(err => console.error('System consultation backup failed:', err));
+    });
+
     return NextResponse.json({
       ok: true,
       message: '시스템 상담 문의가 접수되었습니다. 곧 연락드리겠습니다.',

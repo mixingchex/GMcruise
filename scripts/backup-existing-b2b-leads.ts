@@ -156,14 +156,6 @@ async function backupSystemConsultations(sheets: any) {
     console.log('\n=== 시스템 상담 신청 백업 시작 ===');
 
     const consultations = await prisma.systemConsultation.findMany({
-        include: {
-            AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile: {
-                select: { displayName: true, userId: true },
-            },
-            AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile: {
-                select: { displayName: true, userId: true },
-            },
-        },
         orderBy: { createdAt: 'asc' },
     });
 
@@ -174,21 +166,27 @@ async function backupSystemConsultations(sheets: any) {
         return;
     }
 
-    // 파트너 userId 목록 수집
-    const userIds = new Set<number>();
+    // 파트너 프로필 ID 목록 수집
+    const profileIds = new Set<number>();
     consultations.forEach(c => {
-        if (c.AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile?.userId) {
-            userIds.add(c.AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile.userId);
-        }
-        if (c.AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile?.userId) {
-            userIds.add(c.AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile.userId);
-        }
+        if (c.managerId) profileIds.add(c.managerId);
+        if (c.agentId) profileIds.add(c.agentId);
     });
 
+    // 프로필 정보 조회
+    const profiles = await prisma.affiliateProfile.findMany({
+        where: { id: { in: Array.from(profileIds) } },
+        select: { id: true, displayName: true, userId: true },
+    });
+
+    const profileMap = new Map<number, { displayName: string | null, userId: number }>();
+    profiles.forEach(p => profileMap.set(p.id, { displayName: p.displayName, userId: p.userId }));
+
     // 계약서에서 실명 조회
+    const userIds = profiles.map(p => p.userId);
     const contracts = await prisma.affiliateContract.findMany({
         where: {
-            userId: { in: Array.from(userIds) },
+            userId: { in: userIds },
             status: 'approved',
         },
         select: { userId: true, name: true },
@@ -200,14 +198,15 @@ async function backupSystemConsultations(sheets: any) {
     });
 
     const rows = consultations.map(c => {
-        const managerProfile = c.AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile;
-        const agentProfile = c.AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile;
-
         let partnerName = '본사';
-        if (agentProfile) {
-            partnerName = contractNameMap.get(agentProfile.userId) || agentProfile.displayName || '판매원';
-        } else if (managerProfile) {
-            partnerName = contractNameMap.get(managerProfile.userId) || managerProfile.displayName || '대리점장';
+
+        // agentId 우선, 없으면 managerId
+        const profileId = c.agentId || c.managerId;
+        if (profileId) {
+            const profile = profileMap.get(profileId);
+            if (profile) {
+                partnerName = contractNameMap.get(profile.userId) || profile.displayName || '파트너';
+            }
         }
 
         return [
