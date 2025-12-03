@@ -9,6 +9,7 @@
 import { PrismaClient } from '@prisma/client';
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import { generateContractPDFFromId } from '../lib/affiliate/contract-pdf';
 
 const prisma = new PrismaClient();
 
@@ -283,7 +284,6 @@ async function backupAffiliates() {
       // 계약서 PDF 생성 및 Contracts 폴더에 저장
       try {
         console.log(`  계약서 PDF 생성 중...`);
-        const { generateContractPDFFromId } = await import('../lib/affiliate/contract-pdf');
         const pdfBuffer = await generateContractPDFFromId(contract.id);
 
         // Contracts 폴더 생성
