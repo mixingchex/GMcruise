@@ -2030,6 +2030,16 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 </Link>
               )
             )}
+            {/* B2B 잠재고객 관리 (대리점장 전용) */}
+            {isBranchManager && (
+              <button
+                onClick={() => router.push(`${partnerBase}/b2b-prospects`)}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 text-center transition-all hover:from-cyan-100 hover:to-cyan-200 hover:shadow-md md:p-6"
+              >
+                <span className="text-2xl md:text-3xl">🏢</span>
+                <span className="text-xs font-semibold text-cyan-700 md:text-sm">B2B<br />잠재고객</span>
+              </button>
+            )}
             {subscriptionInfo ? (
               <button
                 onClick={() => {
