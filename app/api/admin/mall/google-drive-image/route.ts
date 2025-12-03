@@ -36,10 +36,14 @@ async function checkAdminAuth() {
 function getDriveClient() {
   const clientEmail =
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_CLIENT_EMAIL ||
+    process.env.CLIENT_EMAIL;
   const privateKey =
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    process.env.PRIVATE_KEY;
 
   if (!clientEmail || !privateKey) {
     throw new Error('Google Drive 서비스 계정 정보가 설정되어 있지 않습니다.');
@@ -89,7 +93,7 @@ export async function GET(req: NextRequest) {
       const fileInfo = await drive.files.get(fileInfoOptions);
 
       const mimeType = fileInfo.data.mimeType || 'image/jpeg';
-      
+
       // 이미지가 아니면 에러 반환
       if (!mimeType.startsWith('image/')) {
         console.warn(`[Google Drive Image Proxy] File is not an image: ${fileId}, mimeType: ${mimeType}`);
@@ -115,7 +119,7 @@ export async function GET(req: NextRequest) {
       }
 
       const imageBuffer = Buffer.from(imageResponse.data as ArrayBuffer);
-      
+
       if (imageBuffer.length === 0) {
         throw new Error('Failed to fetch image data: buffer is empty');
       }
@@ -137,11 +141,11 @@ export async function GET(req: NextRequest) {
         error: error.message,
         stack: error.stack,
       });
-      
+
       // 더 자세한 에러 정보 반환
       return NextResponse.json(
-        { 
-          ok: false, 
+        {
+          ok: false,
           error: error.message || 'Failed to fetch image from Google Drive',
           fileId,
         },

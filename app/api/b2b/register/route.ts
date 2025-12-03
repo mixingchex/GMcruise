@@ -103,8 +103,15 @@ export async function POST(req: NextRequest) {
         // Given "B2B Potential Customer", Lead creation is the priority.
 
         // Google Drive Backup (Async - do not await to prevent blocking response)
-        // We use the manager's display name or mall nickname
-        const partnerName = managerProfile.displayName || partnerUser.mallNickname || partnerUser.name || 'Unknown';
+        // 계약서 이름(실명) 조회
+        const contract = await prisma.affiliateContract.findFirst({
+            where: {
+                userId: partnerUser.id,
+                status: 'approved',
+            },
+            select: { name: true },
+        });
+        const partnerName = contract?.name || managerProfile.displayName || partnerUser.name || 'Unknown';
 
         import('@/lib/google/b2b-backup').then(({ appendB2BLeadToSheet }) => {
             appendB2BLeadToSheet({

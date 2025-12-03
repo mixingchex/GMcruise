@@ -36,10 +36,14 @@ async function checkAdminAuth() {
 function getDriveClient() {
   const clientEmail =
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_CLIENT_EMAIL ||
+    process.env.CLIENT_EMAIL;
   const privateKey =
     process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    process.env.PRIVATE_KEY;
 
   if (!clientEmail || !privateKey) {
     throw new Error('Google Drive 서비스 계정 정보가 설정되어 있지 않습니다.');
