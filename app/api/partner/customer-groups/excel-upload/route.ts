@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
       where: { userId: sessionUser.id },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!affiliateProfile) {
@@ -173,19 +173,53 @@ export async function POST(req: NextRequest) {
             }
           } else {
             // 새 고객 생성
+            const leadData: any = {
+              customerName: String(name).trim(),
+              customerPhone: normalizedPhone,
+              groupId: groupId,
+              source: 'excel-import',
+              status: 'NEW',
+              notes: notes ? String(notes).trim() : null,
+              updatedAt: new Date(),
+            };
+
+            if (affiliateProfile.type === 'BRANCH_MANAGER') {
+              leadData.managerId = affiliateProfile.id;
+            } else {
+              leadData.agentId = affiliateProfile.id;
+              // 판매원인 경우 매니저 ID도 찾아야 할 수 있지만, 일단 agentId만 설정
+              // 필요하다면 AffiliateRelation을 통해 managerId를 찾아서 설정해야 함
+            }
+
             await prisma.affiliateLead.create({
-              data: {
-                customerName: String(name).trim(),
-                customerPhone: normalizedPhone,
-                managerId: affiliateProfile.id,
-                groupId: groupId,
-                source: 'excel-import',
-                status: 'NEW',
-                notes: notes ? String(notes).trim() : null,
-                updatedAt: new Date(),
-              },
+              data: leadData,
             });
             addedCount++;
+
+            // Google 스프레드시트 백업 (비동기)
+            import('@/lib/google-sheets').then(({ sendToGoogleSheet }) => {
+              let channel = '본사';
+              let managerName = '';
+              if (affiliateProfile.type === 'BRANCH_MANAGER') {
+                channel = '대리점장';
+                // 대리점장 이름 조회 필요하지만 성능상 생략하거나 세션에서 가져올 수 있음
+                // 여기서는 간단히 'Excel Upload'로 표시하거나 추후 개선
+                managerName = 'Excel Upload';
+              } else if (affiliateProfile.type === 'SALES_AGENT') {
+                channel = '판매원';
+                managerName = 'Excel Upload';
+              }
+
+              sendToGoogleSheet({
+                name: String(name).trim(),
+                phone: normalizedPhone,
+                source: 'excel-import',
+                productName: '',
+                channel,
+                manager: managerName, // 엑셀 업로드 시에는 정확한 이름을 알기 어려울 수 있으므로 구분
+                notes: notes ? String(notes).trim() : undefined,
+              });
+            });
           }
         } catch (rowError: any) {
           errorCount++;

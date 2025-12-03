@@ -283,7 +283,8 @@ export default function NotificationBell() {
                         console.error('Partner ID not found in URL');
                       }
                     } else {
-                      router.push('/admin/team-dashboard-messages');
+                      // 관리자는 팀 성과 대시보드에서 팀 메시지 확인
+                      router.push('/admin/affiliate/team-dashboard');
                     }
                     setIsOpen(false);
                   }}

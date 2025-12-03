@@ -52,7 +52,7 @@ export default async function PartnerMallEditPage({ params }: { params: Promise<
       const targetProfile = await prisma.affiliateProfile.findFirst({
         where: { userId: targetUser.id },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               name: true,

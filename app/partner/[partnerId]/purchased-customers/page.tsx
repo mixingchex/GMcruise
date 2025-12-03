@@ -43,7 +43,7 @@ export default async function PurchasedCustomersPage({ params }: { params: Promi
       const targetProfile = await prisma.affiliateProfile.findFirst({
         where: { userId: targetUser.id },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               name: true,

@@ -10,7 +10,7 @@ const SESSION_COOKIE = 'cg.sid.v2';
 async function checkAdminAuth() {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid) {
       return null;
     }
@@ -73,8 +73,8 @@ export async function GET(
     }
 
     // 기본 URL (환경 변수 또는 기본값 사용)
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
       : 'http://localhost:3000');
 
     // 그룹에 연결된 랜딩페이지 찾기
@@ -100,6 +100,7 @@ export async function GET(
           groupId: groupId,
           isActive: true,
           isPublic: true,
+          updatedAt: new Date(),
         },
         select: { id: true, slug: true, title: true },
       });

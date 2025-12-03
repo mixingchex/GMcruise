@@ -5,6 +5,27 @@ import prisma from '@/lib/prisma';
 import { google } from 'googleapis';
 import { nanoid } from 'nanoid';
 
+/**
+ * 계약서 상태 업데이트 함수
+ * API route에서 사용되던 함수를 여기로 이동
+ */
+export async function updateContractStatus(
+  contractId: number,
+  status: string,
+  reviewerId?: number,
+  data: Record<string, any> = {},
+) {
+  return prisma.affiliateContract.update({
+    where: { id: contractId },
+    data: {
+      status,
+      reviewerId: reviewerId ?? null,
+      reviewedAt: new Date(),
+      ...data,
+    },
+  });
+}
+
 // 구글 문서 API 클라이언트 초기화
 function getGoogleDocsClient() {
   const auth = new google.auth.GoogleAuth({

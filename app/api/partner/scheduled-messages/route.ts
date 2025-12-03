@@ -180,7 +180,7 @@ export async function GET(req: NextRequest) {
           }
         })
         .filter((id): id is number => id !== null && typeof id === 'number');
-      
+
       if (partnerGroupIds.length > 0) {
         const partnerGroups = await prisma.partnerCustomerGroup.findMany({
           where: { id: { in: partnerGroupIds } },
@@ -201,7 +201,7 @@ export async function GET(req: NextRequest) {
     // 프론트엔드 형식에 맞게 변환
     const formattedMessages = messages.map((msg) => {
       let targetGroup = null;
-      
+
       try {
         if (msg.CustomerGroup) {
           // CustomerGroup이 있는 경우
@@ -224,7 +224,7 @@ export async function GET(req: NextRequest) {
           } catch (parseError) {
             console.warn('[Partner Scheduled Messages GET] metadata 파싱 실패:', parseError);
           }
-          
+
           if (metadataObj && metadataObj.partnerGroupId) {
             const partnerGroupId = metadataObj.partnerGroupId;
             const partnerGroup = partnerGroupMap.get(partnerGroupId);
@@ -242,14 +242,14 @@ export async function GET(req: NextRequest) {
       } catch (targetGroupError) {
         console.warn('[Partner Scheduled Messages GET] targetGroup 처리 실패:', targetGroupError);
       }
-      
+
       return {
         ...msg,
         stages: msg.ScheduledMessageStage || [],
         targetGroup,
       };
     });
-    
+
     console.log('[Partner Scheduled Messages GET] 응답 준비 완료:', { count: formattedMessages.length });
 
     return NextResponse.json({ ok: true, messages: formattedMessages });
@@ -263,8 +263,8 @@ export async function GET(req: NextRequest) {
       meta: error?.meta,
     });
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         error: error instanceof Error ? error.message : 'Failed to fetch scheduled messages',
         details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined,
       },
@@ -323,6 +323,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 대리점장/판매원은 SMS, 이메일만 사용 가능 (카카오톡, 크루즈가이드 제한)
+    if (sendMethod === 'kakao' || sendMethod === 'cruise-guide') {
+      return NextResponse.json(
+        { ok: false, error: '파트너는 SMS와 이메일 발송만 이용 가능합니다.' },
+        { status: 400 }
+      );
+    }
+
     if (!stages || stages.length === 0) {
       return NextResponse.json(
         { ok: false, error: '최소 1개의 메시지 단계가 필요합니다.' },
@@ -333,7 +341,7 @@ export async function POST(req: NextRequest) {
     // targetGroupId가 있으면 해당 그룹이 판매원/대리점장의 그룹인지 확인
     let finalTargetGroupId: number | null = null;
     let metadata: any = {};
-    
+
     if (targetGroupId) {
       // 먼저 PartnerCustomerGroup 확인 (대리점장용)
       const partnerGroup = await prisma.partnerCustomerGroup.findFirst({
@@ -397,6 +405,7 @@ export async function POST(req: NextRequest) {
             title: stage.title,
             content: stage.content,
             order: index,
+            updatedAt: new Date(), // Explicitly set updatedAt
           })),
         },
       },
@@ -463,8 +472,8 @@ export async function POST(req: NextRequest) {
       meta: error?.meta,
     });
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         error: error instanceof Error ? error.message : 'Failed to create scheduled message',
         details: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : String(error)) : undefined,
       },

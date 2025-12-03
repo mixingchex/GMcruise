@@ -76,6 +76,7 @@ export async function GET(
           groupId: groupId,
           isActive: true,
           isPublic: true,
+          updatedAt: new Date(),
         },
         select: { id: true, slug: true, title: true },
       });

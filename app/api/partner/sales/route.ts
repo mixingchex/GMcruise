@@ -62,14 +62,14 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        ManagerProfile: {
+        AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
           select: {
             id: true,
             displayName: true,
             branchLabel: true,
           },
         },
-        AgentProfile: {
+        AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
           select: {
             id: true,
             displayName: true,
@@ -81,12 +81,11 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        Lead: {
+        AffiliateLead: {
           select: {
             id: true,
             customerName: true,
             customerPhone: true,
-            customerEmail: true,
           },
         },
       },

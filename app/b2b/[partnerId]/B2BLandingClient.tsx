@@ -58,15 +58,115 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
         setCheckingCache(false);
     }, []);
 
-    // 전역 함수 등록 (HTML onclick 이벤트용)
+    // 전역 함수 및 스크립트 로직 등록
     useEffect(() => {
-        (window as any).openImage = (src: string) => {
+        // 1. 이미지 클릭 핸들러 (템플릿 호환성)
+        const handleImageClick = (src: string) => {
             setSelectedImage(src);
         };
+        (window as any).openImage = handleImageClick;
+        (window as any).showImage = handleImageClick; // 템플릿에서 사용하는 함수명
+
+        // 2. 카운트다운 타이머
+        let timerId: NodeJS.Timeout;
+        let initInterval: NodeJS.Timeout;
+
+        const startCountdown = () => {
+            const countdownElement = document.getElementById('countdown');
+            if (!countdownElement) {
+                return false;
+            }
+
+            const updateCountdown = () => {
+                const now = new Date();
+                const endOfDay = new Date();
+                endOfDay.setHours(23, 59, 59, 999);
+                const diff = endOfDay.getTime() - now.getTime();
+
+                if (diff > 0) {
+                    const h = String(Math.floor((diff / (1000 * 60 * 60)) % 24)).padStart(2, '0');
+                    const m = String(Math.floor((diff / (1000 * 60)) % 60)).padStart(2, '0');
+                    const s = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+                    countdownElement.textContent = `${h}:${m}:${s}`;
+                } else {
+                    countdownElement.textContent = "00:00:00";
+                }
+            };
+
+            updateCountdown();
+            timerId = setInterval(updateCountdown, 1000);
+            return true;
+        };
+
+        // 요소가 렌더링될 때까지 재시도 (최대 2초)
+        let attempts = 0;
+        initInterval = setInterval(() => {
+            if (startCountdown() || attempts > 20) {
+                clearInterval(initInterval);
+            }
+            attempts++;
+        }, 100);
+
+        // 3. 이탈 방지 모달 로직
+        (window as any).closeExitIntentModal = () => {
+            const modal = document.getElementById('exit-intent-modal');
+            if (modal) {
+                modal.classList.remove('active');
+                modal.style.opacity = '0';
+                modal.style.visibility = 'hidden';
+            }
+        };
+
+        const showExitIntent = () => {
+            const modal = document.getElementById('exit-intent-modal');
+            const hasShown = sessionStorage.getItem('exitIntentShown');
+            if (modal && !hasShown) {
+                modal.classList.add('active');
+                modal.style.opacity = '1';
+                modal.style.visibility = 'visible';
+                sessionStorage.setItem('exitIntentShown', 'true');
+            }
+        };
+
+        document.body.addEventListener('mouseleave', showExitIntent);
+
+        // 4. 소셜 프루프 팝업 (랜덤 알림)
+        const socialProofPopup = document.getElementById('social-proof-popup');
+        let popupInterval: NodeJS.Timeout;
+
+        if (socialProofPopup) {
+            const locations = ['서울', '부산', '인천', '대구', '경기', '경남', '제주'];
+            const showPopup = () => {
+                const loc = locations[Math.floor(Math.random() * locations.length)];
+                const time = Math.floor(Math.random() * 15) + 2;
+                socialProofPopup.innerHTML = `방금 ${loc}에서 컨설팅 신청 (${time}분 전)`;
+
+                // Tailwind classes for animation
+                socialProofPopup.classList.remove('opacity-0', 'translate-y-5');
+                socialProofPopup.classList.add('opacity-100', 'translate-y-0');
+
+                setTimeout(() => {
+                    socialProofPopup.classList.remove('opacity-100', 'translate-y-0');
+                    socialProofPopup.classList.add('opacity-0', 'translate-y-5');
+                }, 4000);
+            };
+
+            // 5초 후 시작, 8.5초마다 반복
+            setTimeout(() => {
+                showPopup();
+                popupInterval = setInterval(showPopup, 8500);
+            }, 5000);
+        }
+
         return () => {
             delete (window as any).openImage;
+            delete (window as any).showImage;
+            delete (window as any).closeExitIntentModal;
+            if (timerId) clearInterval(timerId);
+            if (popupInterval) clearInterval(popupInterval);
+            document.body.removeEventListener('mouseleave', showExitIntent);
         };
-    }, []);
+    }, [initialTemplate]);
 
     const handleSubmit = async (event: React.FormEvent, formLocation: string = 'main') => {
         event.preventDefault();

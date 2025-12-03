@@ -11,8 +11,23 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
     }
 
-    if (sessionUser.role !== 'admin') {
-      return NextResponse.json({ ok: false, message: '관리자 권한이 필요합니다.' }, { status: 403 });
+    // 관리자 또는 파트너 접근 허용
+    const dbUser = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
+      select: { role: true },
+    });
+    const isAdmin = dbUser?.role === 'admin';
+
+    // 파트너인 경우 파트너 프로필이 있는지 확인
+    if (!isAdmin) {
+      const partnerProfile = await prisma.affiliateProfile.findFirst({
+        where: { userId: sessionUser.id },
+        select: { id: true },
+      });
+
+      if (!partnerProfile) {
+        return NextResponse.json({ ok: false, message: '파트너 프로필이 필요합니다.' }, { status: 403 });
+      }
     }
 
     const { searchParams } = new URL(req.url);

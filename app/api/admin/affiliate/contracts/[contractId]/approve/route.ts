@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { updateContractStatus } from '@/app/api/affiliate/contracts/route';
+import { updateContractStatus } from '@/lib/affiliate/contract';
 import { profileInclude } from '@/app/api/admin/affiliate/profiles/shared';
 import { randomBytes } from 'crypto';
 

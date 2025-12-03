@@ -107,6 +107,18 @@ export default function SalesList() {
       if (json.summary) {
         setSummary(json.summary);
       }
+
+      // 판매 목록 자동 백업 (백그라운드에서 실행, 에러 무시)
+      if (json.sales && json.sales.length > 0) {
+        fetch('/api/partner/sales/backup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ month: month || null }),
+          credentials: 'include',
+        }).catch((err) => {
+          console.warn('[SalesList] Backup failed:', err);
+        });
+      }
     } catch (error: any) {
       console.error('[SalesList] Load sales error:', error);
       showError(error.message || '판매 목록을 불러오는 중 오류가 발생했습니다');

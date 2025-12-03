@@ -662,3 +662,79 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE: 리드 삭제 (관리자용)
+ */
+export async function DELETE(req: NextRequest) {
+  try {
+    // 인증 확인
+    let sessionUser: { id: number; role: string | null } | null = null;
+    try {
+      const sid = cookies().get('cg.sid.v2')?.value;
+      if (sid) {
+        const sess = await prisma.session.findUnique({
+          where: { id: sid },
+          select: { User: { select: { id: true, role: true } } },
+        });
+        if (sess?.User) {
+          sessionUser = { id: sess.User.id, role: sess.User.role };
+        }
+      }
+    } catch (authError: any) {
+      return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    if (!sessionUser || sessionUser.role !== 'admin') {
+      return NextResponse.json({ ok: false, message: '관리자 권한이 필요합니다.' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { ids } = body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json(
+        { ok: false, message: '삭제할 ID 목록이 필요합니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 트랜잭션으로 관련 데이터 삭제 후 리드 삭제
+    await prisma.$transaction(async (tx) => {
+      // 1. 관련 상호작용 삭제
+      await tx.affiliateInteraction.deleteMany({
+        where: { leadId: { in: ids } },
+      });
+
+      // 2. 관련 판매 기록 확인 (판매 기록이 있으면 삭제 불가 정책일 수 있음 - 여기서는 일단 진행하거나 에러 처리)
+      // 판매 기록이 있는 리드는 삭제하지 않도록 필터링할 수도 있음.
+      // 여기서는 판매 기록이 있으면 외래키 제약조건으로 에러가 날 수 있으므로 확인 필요.
+      // 하지만 요구사항이 "삭제 가능하게" 이므로 강제 삭제를 원할 수도 있음.
+      // 안전을 위해 판매 기록이 있는 리드는 제외하고 삭제하거나, 판매 기록도 같이 삭제(위험)해야 함.
+      // 일단 판매 기록이 있는 리드는 삭제 실패하도록 놔두거나, 미리 체크.
+
+      // 리드 삭제
+      await tx.affiliateLead.deleteMany({
+        where: { id: { in: ids } },
+      });
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: `${ids.length}개의 항목이 삭제되었습니다.`,
+    });
+  } catch (error: any) {
+    console.error('[admin/affiliate/leads][DELETE] Error:', error);
+    // 외래키 제약 조건 에러 처리 (P2003)
+    if (error.code === 'P2003') {
+      return NextResponse.json(
+        { ok: false, message: '판매 기록이 있는 고객은 삭제할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { ok: false, message: '삭제 중 오류가 발생했습니다.', error: error?.message || String(error) },
+      { status: 500 }
+    );
+  }
+}

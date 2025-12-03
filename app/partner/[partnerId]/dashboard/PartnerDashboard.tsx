@@ -2154,7 +2154,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
             )}
 
             {/* 서류관리 */}
-            {!canUseFeatureClient('document-management', subscriptionInfo) ? (
+            {!isBranchManager && !isSalesAgent && !canUseFeatureClient('document-management', subscriptionInfo) ? (
               <button
                 onClick={() => {
                   const message = getFeatureRestrictionMessageClient('document-management', subscriptionInfo);

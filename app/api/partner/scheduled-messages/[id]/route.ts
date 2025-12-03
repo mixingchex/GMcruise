@@ -34,11 +34,11 @@ export async function GET(
         ScheduledMessageStage: {
           orderBy: { order: 'asc' },
         },
-        targetGroup: {
+        CustomerGroup: {
           select: {
             id: true,
             name: true,
-            _count: { select: { members: true } },
+            _count: { select: { CustomerGroupMember: true } },
           },
         },
       },
@@ -48,10 +48,15 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Message not found' }, { status: 404 });
     }
 
-    // Transform ScheduledMessageStage to stages for frontend
+    // Transform for frontend
     const formattedMessage = {
       ...message,
       stages: message.ScheduledMessageStage || [],
+      targetGroup: message.CustomerGroup ? {
+        id: message.CustomerGroup.id,
+        name: message.CustomerGroup.name,
+        _count: { members: message.CustomerGroup._count.CustomerGroupMember },
+      } : null,
     };
 
     return NextResponse.json({ ok: true, message: formattedMessage });
@@ -118,6 +123,14 @@ export async function PUT(
       isActive,
     } = body;
 
+    // 대리점장/판매원은 SMS, 이메일만 사용 가능 (카카오톡, 크루즈가이드 제한)
+    if (sendMethod === 'kakao' || sendMethod === 'cruise-guide') {
+      return NextResponse.json(
+        { ok: false, error: '파트너는 SMS와 이메일 발송만 이용 가능합니다.' },
+        { status: 400 }
+      );
+    }
+
     // 메시지 소유권 확인
     const existingMessage = await prisma.scheduledMessage.findFirst({
       where: {
@@ -131,19 +144,38 @@ export async function PUT(
     }
 
     // targetGroupId가 있으면 해당 그룹이 판매원/대리점장의 그룹인지 확인
+    let finalTargetGroupId: number | null = null;
+    let metadata: any = {};
+
     if (targetGroupId) {
-      const group = await prisma.customerGroup.findFirst({
+      // 먼저 PartnerCustomerGroup 확인 (대리점장용)
+      const partnerGroup = await prisma.partnerCustomerGroup.findFirst({
         where: {
           id: targetGroupId,
-          affiliateProfileId: affiliateProfile.id,
+          profileId: affiliateProfile.id,
         },
       });
 
-      if (!group) {
-        return NextResponse.json(
-          { ok: false, error: '선택한 그룹을 찾을 수 없거나 권한이 없습니다.' },
-          { status: 403 }
-        );
+      if (partnerGroup) {
+        // PartnerCustomerGroup인 경우 metadata에 저장하고 targetGroupId는 null
+        metadata.partnerGroupId = targetGroupId;
+        finalTargetGroupId = null;
+      } else {
+        // CustomerGroup 확인 (관리자용, 판매원용)
+        const group = await prisma.customerGroup.findFirst({
+          where: {
+            id: targetGroupId,
+            affiliateProfileId: affiliateProfile.id,
+          },
+        });
+
+        if (!group) {
+          return NextResponse.json(
+            { ok: false, error: '선택한 그룹을 찾을 수 없거나 권한이 없습니다.' },
+            { status: 403 }
+          );
+        }
+        finalTargetGroupId = targetGroupId;
       }
     }
 
@@ -172,7 +204,8 @@ export async function PUT(
         startTime: startTime || null,
         maxDays: maxDays || (sendMethod === 'sms' ? 999999 : 99999),
         repeatInterval: repeatInterval || null,
-        targetGroupId: targetGroupId || null,
+        targetGroupId: finalTargetGroupId,
+        metadata: Object.keys(metadata).length > 0 ? metadata : null,
         isActive: isActive !== undefined ? isActive : true,
         ScheduledMessageStage: {
           create: stages.map((stage: any, index: number) => ({
@@ -189,20 +222,48 @@ export async function PUT(
         ScheduledMessageStage: {
           orderBy: { order: 'asc' },
         },
-        targetGroup: {
+        CustomerGroup: {
           select: {
             id: true,
             name: true,
-            _count: { select: { members: true } },
+            _count: { select: { CustomerGroupMember: true } },
           },
         },
       },
     });
 
-    // Transform ScheduledMessageStage to stages for frontend
+    // targetGroup 조회 (metadata에 partnerGroupId가 있는 경우)
+    let targetGroup = null;
+    if (updatedMessage.CustomerGroup) {
+      targetGroup = {
+        id: updatedMessage.CustomerGroup.id,
+        name: updatedMessage.CustomerGroup.name,
+        _count: { members: updatedMessage.CustomerGroup._count.CustomerGroupMember },
+      };
+    } else if (updatedMessage.metadata && typeof updatedMessage.metadata === 'object' && (updatedMessage.metadata as any).partnerGroupId) {
+      const partnerGroupId = (updatedMessage.metadata as any).partnerGroupId;
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: partnerGroupId },
+        select: {
+          id: true,
+          name: true,
+          _count: { select: { AffiliateLead: true } },
+        },
+      });
+      if (partnerGroup) {
+        targetGroup = {
+          id: partnerGroup.id,
+          name: partnerGroup.name,
+          _count: { members: partnerGroup._count.AffiliateLead },
+        };
+      }
+    }
+
+    // Transform for frontend
     const formattedMessage = {
       ...updatedMessage,
       stages: updatedMessage.ScheduledMessageStage || [],
+      targetGroup,
     };
 
     return NextResponse.json({ ok: true, message: formattedMessage });

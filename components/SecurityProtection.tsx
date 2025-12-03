@@ -14,8 +14,9 @@ import { usePathname } from 'next/navigation';
 export default function SecurityProtection() {
   const pathname = usePathname();
   const isAdminPage = pathname?.startsWith('/admin');
+  const isPartnerPage = pathname?.startsWith('/partner');
   // 테스트 페이지 목록 (개발자 도구 항상 허용)
-  const isTestPage = pathname?.startsWith('/login-test') || 
+  const isTestPage = pathname?.startsWith('/login-test') ||
                       pathname?.startsWith('/chat-test') ||
                       pathname?.startsWith('/chat-bot') ||
                       pathname?.startsWith('/checklist-test') ||
@@ -45,6 +46,12 @@ export default function SecurityProtection() {
     // 관리자 페이지에서는 보안 기능 비활성화 (개발자 도구 사용 가능)
     if (isAdminPage) {
       console.log('[SecurityProtection] 관리자 페이지 - 개발자 도구 사용 가능');
+      return;
+    }
+
+    // 파트너 페이지에서는 보안 기능 비활성화 (개발자 도구 사용 가능)
+    if (isPartnerPage) {
+      console.log('[SecurityProtection] 파트너 페이지 - 개발자 도구 사용 가능');
       return;
     }
 
@@ -293,7 +300,7 @@ export default function SecurityProtection() {
 
     // 클린업
     return () => {
-      if (!isDevelopment && !isAdminPage && !isTestPage && !allowDevTools) {
+      if (!isDevelopment && !isAdminPage && !isPartnerPage && !isTestPage && !allowDevTools) {
         document.removeEventListener('contextmenu', handleContextMenu);
         document.removeEventListener('selectstart', handleSelectStart);
         document.removeEventListener('dragstart', handleDragStart);

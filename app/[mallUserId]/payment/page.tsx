@@ -204,24 +204,24 @@ export default async function PersonalPaymentPage({
           </div>
         </section>
 
-        {/* 준비 중 안내 */}
+        {/* 정산 안내 */}
         <section className="rounded-3xl bg-white p-6 shadow-lg">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
             <div className="flex items-start gap-3">
-              <div className="text-2xl">⚠️</div>
+              <div className="text-2xl">ℹ️</div>
               <div className="flex-1">
-                <h3 className="font-semibold text-yellow-800 mb-2">결제 기능 준비 중</h3>
-                <p className="text-sm text-yellow-700 mb-4">
-                  고객 결제 처리 기능은 현재 개발 중입니다. 곧 이용하실 수 있습니다.
+                <h3 className="font-semibold text-blue-800 mb-2">정산 프로세스 안내</h3>
+                <p className="text-sm text-blue-700 mb-4">
+                  파트너 판매몰에서 발생한 매출이 이곳에 자동으로 표시됩니다.
                 </p>
-                <div className="space-y-2 text-sm text-yellow-700">
-                  <p className="font-semibold">예정된 기능:</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>고객 상품 결제 처리</li>
-                    <li>결제 내역 실시간 조회</li>
-                    <li>환불 처리 및 관리</li>
-                    <li>결제 통계 및 분석</li>
-                  </ul>
+                <div className="space-y-2 text-sm text-blue-700">
+                  <p className="font-semibold">정산 절차:</p>
+                  <ol className="list-decimal list-inside space-y-1 ml-2">
+                    <li>판매몰에서 고객 구매 발생</li>
+                    <li>판매 내역 자동 등록 (대기 상태)</li>
+                    <li>고객 상담 후 &apos;확정 요청&apos; 클릭</li>
+                    <li>관리자 승인 후 정산 진행</li>
+                  </ol>
                 </div>
               </div>
             </div>

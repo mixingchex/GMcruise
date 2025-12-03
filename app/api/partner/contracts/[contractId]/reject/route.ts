@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
-import { updateContractStatus } from '@/app/api/affiliate/contracts/route';
+import { updateContractStatus } from '@/lib/affiliate/contract';
 
 export async function POST(
   req: NextRequest,

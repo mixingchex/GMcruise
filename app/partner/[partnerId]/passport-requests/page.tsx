@@ -52,7 +52,7 @@ export default async function PartnerPassportRequestsPage({ params }: { params: 
       const targetProfile = await prisma.affiliateProfile.findFirst({
         where: { userId: targetUser.id },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               name: true,

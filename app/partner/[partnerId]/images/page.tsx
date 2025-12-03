@@ -37,5 +37,5 @@ export default async function PartnerImagesPage({ params }: { params: Promise<{ 
     const canManageFolders = isSuperAdmin || isBranchManager;
     const canDelete = isSuperAdmin || isBranchManager;
 
-    return <ImageLibrary canDelete={canDelete} canManageFolders={canManageFolders} />;
+    return <ImageLibrary canDelete={canDelete} canManageFolders={canManageFolders} backUrl={`/partner/${partnerId}/dashboard`} />;
 }

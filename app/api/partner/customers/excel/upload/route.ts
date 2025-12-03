@@ -235,6 +235,30 @@ export async function POST(req: NextRequest) {
         });
 
         results.success++;
+
+        // Google 스프레드시트 백업 (비동기)
+        import('@/lib/google-sheets').then(({ sendToGoogleSheet }) => {
+          let channel = '본사';
+          let managerName = '';
+          if (profile.type === 'BRANCH_MANAGER') {
+            channel = '대리점장';
+            managerName = 'Excel Upload';
+          } else if (profile.type === 'SALES_AGENT') {
+            channel = '판매원';
+            managerName = 'Excel Upload';
+          }
+
+          sendToGoogleSheet({
+            name: customerName ? String(customerName).trim() : '',
+            phone: normalizedPhone || '',
+            source: 'excel-import',
+            productName: '',
+            channel,
+            manager: managerName,
+            notes: undefined,
+            target: 'management', // 내 고객 관리용 시트로 전송
+          });
+        });
       } catch (error: any) {
         results.failed++;
         const errorMsg = error?.message || '처리 오류';

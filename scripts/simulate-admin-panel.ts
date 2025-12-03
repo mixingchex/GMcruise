@@ -590,7 +590,6 @@ async function checkDuplicates() {
       'app/admin/messages',
       'app/admin/scheduled-messages',
       'app/admin/broadcast',
-      'app/admin/team-dashboard-messages',
     ];
     const existing = [];
     for (const page of messagePages) {

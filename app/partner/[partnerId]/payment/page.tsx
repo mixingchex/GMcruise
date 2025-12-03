@@ -57,7 +57,7 @@ export default async function PartnerPaymentPage({ params }: { params: Promise<{
       const targetProfile = await prisma.affiliateProfile.findFirst({
         where: { userId: targetUser.id },
         include: {
-          user: {
+          User: {
             select: {
               id: true,
               name: true,
@@ -88,13 +88,13 @@ export default async function PartnerPaymentPage({ params }: { params: Promise<{
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <Link
-                    href={partnerBase + '/dashboard'}
+                    href={`/partner/${targetUser.mallUserId}/dashboard`}
                     className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-3 py-2 text-sm font-semibold text-white hover:bg-white/30 transition-colors"
                   >
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
-                    이전으로 돌아가기
+                    대시보드로 돌아가기
                   </Link>
                 </div>
                 <p className="text-xs uppercase tracking-[0.35em] text-white/80">Payment & Settlement</p>
@@ -170,43 +170,23 @@ export default async function PartnerPaymentPage({ params }: { params: Promise<{
               </div>
             </Link>
 
-            {/* 수당 조정 신청 */}
-            <Link
-              href={`${partnerBase}/adjustments`}
-              className="group rounded-3xl bg-white p-6 shadow-lg transition-all hover:shadow-xl hover:scale-[1.02]"
-            >
-              <div className="mb-4 flex items-center gap-4">
-                <div className="rounded-2xl bg-green-100 p-4">
-                  <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-green-600">수당 조정 신청</h3>
-                  <p className="text-sm text-slate-500">수당 조정이 필요한 경우 신청하세요</p>
-                </div>
-                <svg className="h-6 w-6 text-slate-400 group-hover:text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </Link>
           </div>
 
           {/* 내 판매 목록 */}
           <SalesList />
 
-          {/* 결제 기능 준비 중 안내 */}
-          <div className="rounded-3xl bg-amber-50 border border-amber-200 p-6">
+          {/* 정산 안내 */}
+          <div className="rounded-3xl bg-blue-50 border border-blue-200 p-6">
             <div className="flex items-start gap-4">
-              <div className="rounded-full bg-amber-100 p-3">
-                <svg className="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="rounded-full bg-blue-100 p-3">
+                <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-amber-900 mb-2">결제 기능 준비 중</h3>
-                <p className="text-sm text-amber-700">
-                  온라인 결제 기능은 현재 준비 중입니다. 정산 관련 문의는 관리자에게 연락해주세요.
+                <h3 className="text-lg font-bold text-blue-900 mb-2">정산 안내</h3>
+                <p className="text-sm text-blue-700">
+                  위 판매 목록에서 &apos;확정 요청&apos; 버튼을 클릭하여 고객 상담 기록과 함께 승인을 요청하세요. 관리자 승인 후 정산이 진행됩니다.
                 </p>
               </div>
             </div>

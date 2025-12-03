@@ -370,6 +370,9 @@ export default function PartnerCustomerGroupsPage() {
         payload.nextActionAt = nextActionDate.toISOString();
       }
 
+      // 백업 컨텍스트 추가 (고객 그룹)
+      payload.backupContext = 'group';
+
       const res = await fetch('/api/partner/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -386,32 +389,7 @@ export default function PartnerCustomerGroupsPage() {
 
       // 생성된 고객의 userId 확인 (API 응답에서)
       const createdCustomer = json.customer;
-      console.log('[Customer Groups] Created customer:', createdCustomer);
-      console.log('[Customer Groups] UserId:', createdCustomer?.userId);
-
-      let userIdToAdd = createdCustomer?.userId;
-
-      // userId가 없으면 잠시 대기 후 고객 목록에서 다시 조회
-      if (!userIdToAdd) {
-        console.log('[Customer Groups] UserId not found in response, waiting and retrying...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        await loadAvailableCustomers();
-
-        const updatedCustomers = await fetch(`/api/partner/customers?limit=1000`, {
-          credentials: 'include',
-        }).then(r => r.json());
-
-        if (updatedCustomers.ok && updatedCustomers.customers) {
-          const customerPhone = newCustomerForm.customerPhone.replace(/[^0-9]/g, '');
-          const foundCustomer = updatedCustomers.customers.find((c: any) => {
-            const cPhone = c.customerPhone?.replace(/[^0-9]/g, '') || c.phone?.replace(/[^0-9]/g, '');
-            return cPhone === customerPhone && c.userId;
-          });
-
-          console.log('[Customer Groups] Found customer in list:', foundCustomer);
-          userIdToAdd = foundCustomer?.userId;
-        }
-      }
+      const userIdToAdd = createdCustomer?.userId;
 
       if (userIdToAdd) {
         console.log('[Customer Groups] Adding to group:', selectedGroup.id, 'userId:', userIdToAdd);
@@ -437,6 +415,7 @@ export default function PartnerCustomerGroupsPage() {
             nextActionAt: '',
             createdAt: new Date().toISOString().split('T')[0],
           });
+          // UI 갱신을 위해 목록 다시 불러오기
           await loadAvailableCustomers();
           loadGroups();
         } else {
@@ -445,7 +424,7 @@ export default function PartnerCustomerGroupsPage() {
           await loadAvailableCustomers();
         }
       } else {
-        console.error('[Customer Groups] UserId not found after retry');
+        console.error('[Customer Groups] UserId not found in response');
         showWarning('고객은 생성되었지만 User 정보를 찾을 수 없어 그룹에 추가하지 못했습니다. 고객 목록에서 수동으로 추가해주세요.');
         await loadAvailableCustomers();
       }

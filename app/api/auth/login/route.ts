@@ -68,29 +68,16 @@ export async function POST(req: Request) {
       const identifierLower = identifier.toLowerCase();
       const digitsOnly = identifier.replace(/[^0-9]/g, '');
 
-      console.log('[Partner Login] 로그인 시도:', { identifier, identifierLower, password, mode });
+      console.log('[Partner Login] 로그인 시도:', { identifier, identifierLower, password: '***', mode });
 
-      // 파트너 로그인: 'boss1', 'user1' 같은 짧은 ID도 지원
-      // SQLite는 기본적으로 대소문자를 구분하지 않지만, 안전하게 소문자로 변환하여 검색
-      console.log('[Partner Login] 사용자 검색 시작:', { identifier, identifierLower, digitsOnly });
-
+      // 파트너 로그인: 속도 최적화 - 정확한 일치 먼저 시도, 없으면 확장 검색
+      // AffiliateProfile도 함께 조회하여 추가 쿼리 제거
       let affiliateUser = await prisma.user.findFirst({
         where: {
           OR: [
-            // 정확히 일치 (원본 및 소문자 변환 버전)
-            { mallUserId: identifier },
-            { phone: identifier },
             { mallUserId: identifierLower },
             { phone: identifierLower },
-            // 대문자 버전도 시도
-            { mallUserId: identifier.toUpperCase() },
-            { phone: identifier.toUpperCase() },
-            // startsWith는 SQLite에서 LIKE로 변환됨
-            { mallUserId: { startsWith: identifierLower } },
-            { phone: { startsWith: identifierLower } },
-            { mallUserId: { startsWith: identifier.toUpperCase() } },
-            { phone: { startsWith: identifier.toUpperCase() } },
-            ...(digitsOnly ? [{ phone: digitsOnly }] : []),
+            ...(digitsOnly && digitsOnly !== identifierLower ? [{ phone: digitsOnly }] : []),
           ],
         },
         select: {
@@ -101,6 +88,9 @@ export async function POST(req: Request) {
           password: true,
           loginCount: true,
           role: true,
+          AffiliateProfile: {
+            select: { id: true, type: true, status: true },
+          },
         },
       });
 
@@ -141,6 +131,10 @@ export async function POST(req: Request) {
               phone: true,
               password: true,
               loginCount: true,
+              role: true,
+              AffiliateProfile: {
+                select: { id: true, type: true, status: true },
+              },
             },
           });
           console.log('[Partner Login] 파트너 계정 생성 완료:', { userId: affiliateUser.id, mallUserId: affiliateUser.mallUserId });
@@ -162,6 +156,10 @@ export async function POST(req: Request) {
                 phone: true,
                 password: true,
                 loginCount: true,
+                role: true,
+                AffiliateProfile: {
+                  select: { id: true, type: true, status: true },
+                },
               },
             });
             console.log('[Partner Login] 중복 계정 발견, 재조회 완료:', { userId: affiliateUser?.id, mallUserId: affiliateUser?.mallUserId });
@@ -220,10 +218,14 @@ export async function POST(req: Request) {
         affiliateUser.mallUserId = identifier.toLowerCase();
       }
 
-      let affiliateProfile = await prisma.affiliateProfile.findFirst({
-        where: { userId: affiliateUser.id, status: 'ACTIVE' },
-        select: { id: true },
-      });
+      // 이미 사용자 조회 시 AffiliateProfile을 함께 가져왔으므로 추가 쿼리 불필요
+      // 1:1 관계이므로 배열이 아닌 객체로 접근
+      let affiliateProfile = affiliateUser.AffiliateProfile;
+
+      // status가 ACTIVE인 경우만 유효한 프로필로 간주
+      if (affiliateProfile && affiliateProfile.status !== 'ACTIVE') {
+        affiliateProfile = null;
+      }
 
       if (!affiliateProfile) {
         // phone 필드가 boss로 시작하면 대리점장, gest로 시작하면 정액제 판매원
@@ -453,20 +455,27 @@ export async function POST(req: Request) {
         maxAge: 60 * 60 * 24 * 30,
       });
 
-      await prisma.user.update({
-        where: { id: affiliateUser.id },
-        data: {
-          loginCount: { increment: 1 },
-          lastActiveAt: new Date(),
-        },
-      });
-
-      authLogger.loginSuccess(affiliateUser.id, clientIp);
-      await reactivateUser(affiliateUser.id);
-      await updateLastActive(affiliateUser.id);
-
+      // 로그인 성공 후 후속 작업들을 병렬로 실행 (속도 개선)
+      // 응답은 즉시 반환하고, 후속 작업은 백그라운드에서 실행
       const redirectPath = `/partner/${affiliateUser.mallUserId || identifierLower}/dashboard`;
       console.log('[Partner Login] 로그인 성공, 리다이렉트:', { redirectPath, mallUserId: affiliateUser.mallUserId });
+
+      // 후속 작업들을 백그라운드에서 병렬 실행 (Promise.allSettled로 에러 무시)
+      Promise.allSettled([
+        prisma.user.update({
+          where: { id: affiliateUser.id },
+          data: {
+            loginCount: { increment: 1 },
+            lastActiveAt: new Date(),
+          },
+        }),
+        reactivateUser(affiliateUser.id),
+        updateLastActive(affiliateUser.id),
+      ]).then(() => {
+        authLogger.loginSuccess(affiliateUser.id, clientIp);
+      }).catch((err) => {
+        console.warn('[Partner Login] 후속 작업 중 오류 (무시됨):', err);
+      });
 
       return NextResponse.json({
         ok: true,
@@ -507,7 +516,7 @@ export async function POST(req: Request) {
           const isPrivileged = testUser.role === 'admin' ||
             testUser.role === 'manager' ||
             testUser.role === 'community' || // 커뮤니티(파트너) 역할
-            (testUser.AffiliateProfile && testUser.AffiliateProfile.length > 0);
+            (testUser.AffiliateProfile);
 
           if (isPrivileged) {
             console.log('[Login] 테스트 모드 로그인 차단: 이미 존재하는 파트너/관리자 계정입니다.', { userId: testUser.id, role: testUser.role });
@@ -1433,84 +1442,52 @@ export async function POST(req: Request) {
           console.warn('[Admin Login] customerSource 조회 실패 (무시):', sourceError);
         }
 
-        // 로그인 횟수 증가 및 customerSource 설정
-        try {
-          await prisma.user.update({
-            where: { id: userId },
-            data: {
-              loginCount: { increment: 1 },
-              ...(customerSourceValue === null && { customerSource: 'admin' }), // customerSource가 없으면 설정
-            },
-          });
-        } catch (updateError) {
-          console.error('[Admin Login] 사용자 업데이트 실패:', updateError);
-          // 업데이트 실패해도 로그인은 계속 진행
-        }
-
-        // 기존 세션 정리 (동시 로그인 방지 및 세션 테이블 정리)
-        try {
-          const deletedSessions = await prisma.session.deleteMany({
-            where: { userId },
-          });
-          console.log('[Admin Login] 기존 세션 정리 완료:', { deletedCount: deletedSessions.count, userId });
-        } catch (cleanupError) {
-          console.warn('[Admin Login] 기존 세션 정리 실패 (무시하고 계속):', cleanupError);
-        }
-
         // 세션 ID 생성 (32바이트 랜덤 값을 hex 문자열로)
         const sessionId = randomBytes(32).toString('hex');
-
-        // CSRF 토큰 생성
         const csrfToken = generateCsrfToken();
-
-        // 세션 만료 시간 설정 (30일)
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
 
-        // 세션 생성
-        let session;
-        try {
-          session = await prisma.session.create({
+        // 세션 생성과 기존 세션 정리를 병렬로 실행 (속도 개선)
+        const [session] = await Promise.all([
+          prisma.session.create({
             data: {
-              id: sessionId,  // ✅ 세션 ID 필수
+              id: sessionId,
               userId,
               csrfToken,
               expiresAt,
             },
             select: { id: true, csrfToken: true },
-          });
-        } catch (sessionError) {
-          console.error('[Admin Login] 세션 생성 실패:', sessionError);
-          throw new Error(`세션 생성 실패: ${sessionError instanceof Error ? sessionError.message : String(sessionError)}`);
-        }
+          }),
+          // 기존 세션 정리 (새 세션 ID 제외)
+          prisma.session.deleteMany({
+            where: { userId, id: { not: sessionId } },
+          }).catch(() => { }), // 에러 무시
+        ]);
 
-        // 쿠키 심기
-        try {
-          cookies().set(SESSION_COOKIE, session.id, {
-            httpOnly: true,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 60 * 60 * 24 * 30, // 30일
-          });
-        } catch (cookieError) {
-          console.error('[Admin Login] 쿠키 설정 실패:', cookieError);
-          // 쿠키 설정 실패해도 로그인은 계속 진행
-        }
+        // 쿠키 설정
+        cookies().set(SESSION_COOKIE, session.id, {
+          httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 30,
+        });
 
-        // 로그인 성공 로그
-        try {
+        // 후속 작업들은 백그라운드에서 병렬 실행 (응답 속도 개선)
+        Promise.allSettled([
+          prisma.user.update({
+            where: { id: userId },
+            data: {
+              loginCount: { increment: 1 },
+              lastActiveAt: new Date(),
+              ...(customerSourceValue === null && { customerSource: 'admin' }),
+            },
+          }),
+          reactivateUser(userId),
+          updateLastActive(userId),
+        ]).then(() => {
           authLogger.loginSuccess(userId, clientIp);
-        } catch (logError) {
-          console.warn('[Admin Login] 로그 기록 실패 (무시):', logError);
-        }
-
-        // 생애주기 관리: 재활성화 및 활동 시각 업데이트
-        try {
-          await reactivateUser(userId);
-          await updateLastActive(userId);
-        } catch (lifecycleError) {
-          console.warn('[Admin Login] 생애주기 관리 실패 (무시):', lifecycleError);
-        }
+        }).catch(() => { });
 
         return NextResponse.json({
           ok: true,

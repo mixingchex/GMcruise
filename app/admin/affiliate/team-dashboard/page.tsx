@@ -15,6 +15,11 @@ import {
   FiX,
   FiSend,
   FiTrash2,
+  FiFilter,
+  FiCornerUpLeft,
+  FiCheckSquare,
+  FiSquare,
+  FiCheck,
 } from 'react-icons/fi';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -224,6 +229,25 @@ export default function AffiliateTeamDashboardPage() {
     isRead: boolean;
   }>>([]);
 
+  // 새 기능: 검색, 정렬, 필터, 선택 삭제, 답장
+  const [messageSearchQuery, setMessageSearchQuery] = useState('');
+  const [messageSortBy, setMessageSortBy] = useState<'newest' | 'oldest' | 'unread'>('newest');
+  const [messageFilterBy, setMessageFilterBy] = useState<'all' | 'unread' | 'read'>('all');
+  const [showMessageFilterMenu, setShowMessageFilterMenu] = useState(false);
+  const [messageSelectionMode, setMessageSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState<number[]>([]);
+  const [deletingMessages, setDeletingMessages] = useState(false);
+  const [recipientSearchQuery, setRecipientSearchQuery] = useState('');
+
+  // 고객 기록 업데이트 (Activities)
+  const [messageModalTab, setMessageModalTab] = useState<'messages' | 'activities'>('messages');
+  const [activities, setActivities] = useState<any[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(false);
+  const [activitiesPagination, setActivitiesPagination] = useState<any>(null);
+  const [activitySelectionMode, setActivitySelectionMode] = useState(false);
+  const [selectedActivityIds, setSelectedActivityIds] = useState<number[]>([]);
+  const [deletingActivities, setDeletingActivities] = useState(false);
+
   useEffect(() => {
     loadMetrics();
     loadPhoneInquiries();
@@ -413,8 +437,9 @@ export default function AffiliateTeamDashboardPage() {
         body: JSON.stringify({ messageId }),
       });
       if (res.ok) {
-        // 읽음 처리 후 전체 메시지 다시 로드 (읽음 상태 반영)
-        loadTeamMessages(true);
+        // 읽음 처리 후 로컬 상태 즉시 업데이트
+        setTeamMessages(prev => prev.map(m => m.id === messageId ? { ...m, isRead: true } : m));
+        setUnreadMessageCount(prev => Math.max(0, prev - 1));
       } else {
         const json = await res.json();
         console.error('Failed to mark as read:', json.error);
@@ -423,6 +448,248 @@ export default function AffiliateTeamDashboardPage() {
       console.error('Failed to mark as read:', error);
     }
   };
+
+  // 모두 읽음 처리
+  const handleMarkAllAsRead = async () => {
+    const unreadMessages = teamMessages.filter(m => !m.isRead);
+    if (unreadMessages.length === 0) return;
+
+    try {
+      await Promise.all(unreadMessages.map(m =>
+        fetch('/api/admin/affiliate/my-messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ messageId: m.id }),
+        })
+      ));
+      setTeamMessages(prev => prev.map(m => ({ ...m, isRead: true })));
+      setUnreadMessageCount(0);
+    } catch (error) {
+      console.error('Failed to mark all as read:', error);
+    }
+  };
+
+  // 답장
+  const handleReplyMessage = (message: any) => {
+    const senderId = message.sender?.id || message.admin?.id;
+    if (senderId) {
+      setSelectedRecipient(senderId);
+    }
+    setMessageTitle(message.title?.startsWith('Re: ') ? message.title : `Re: ${message.title}`);
+    setMessageContent(`\n\n--- 원본 메시지 ---\n보낸 사람: ${(message.sender || message.admin)?.name}\n날짜: ${new Date(message.createdAt).toLocaleString('ko-KR')}\n\n${message.content}`);
+    setShowSendMessageModal(true);
+    loadRecipients();
+  };
+
+  // 선택 삭제
+  const toggleMessageSelection = (id: number) => {
+    setSelectedMessageIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllMessages = () => {
+    const currentMessages = messageTab === 'received' ? processedReceivedMessages : processedSentMessages;
+    if (selectedMessageIds.length === currentMessages.length) {
+      setSelectedMessageIds([]);
+    } else {
+      setSelectedMessageIds(currentMessages.map(m => m.id));
+    }
+  };
+
+  const handleBulkDeleteMessages = async () => {
+    if (selectedMessageIds.length === 0) return;
+
+    const confirmMsg = selectedMessageIds.length === 1
+      ? '선택한 메시지를 삭제하시겠습니까?'
+      : `선택한 ${selectedMessageIds.length}개의 메시지를 삭제하시겠습니까?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setDeletingMessages(true);
+    try {
+      await Promise.all(selectedMessageIds.map(id =>
+        fetch(`/api/admin/affiliate/messages/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+      ));
+
+      setSelectedMessageIds([]);
+      setMessageSelectionMode(false);
+      loadTeamMessages(true);
+    } catch (error) {
+      showError('일부 메시지 삭제에 실패했습니다.');
+    } finally {
+      setDeletingMessages(false);
+    }
+  };
+
+  const cancelMessageSelectionMode = () => {
+    setMessageSelectionMode(false);
+    setSelectedMessageIds([]);
+  };
+
+  // 고객 기록 (Activities) 관련 함수들
+  const loadActivities = async (page = 1, append = false) => {
+    setActivitiesLoading(true);
+    try {
+      const res = await fetch(`/api/admin/affiliate/messages/activities?page=${page}&limit=50`, {
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (json.ok) {
+        if (append) {
+          setActivities(prev => [...prev, ...json.activities]);
+        } else {
+          setActivities(json.activities);
+        }
+        setActivitiesPagination(json.pagination);
+      }
+    } catch (error) {
+      console.error('Failed to fetch activities', error);
+    } finally {
+      setActivitiesLoading(false);
+    }
+  };
+
+  const toggleActivitySelection = (id: number) => {
+    setSelectedActivityIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllActivities = () => {
+    if (selectedActivityIds.length === activities.length) {
+      setSelectedActivityIds([]);
+    } else {
+      setSelectedActivityIds(activities.map(a => a.id));
+    }
+  };
+
+  const handleBulkDeleteActivities = async () => {
+    if (selectedActivityIds.length === 0) return;
+
+    const confirmMsg = selectedActivityIds.length === 1
+      ? '선택한 기록을 삭제하시겠습니까?'
+      : `선택한 ${selectedActivityIds.length}개의 기록을 삭제하시겠습니까?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setDeletingActivities(true);
+    try {
+      const results = await Promise.all(selectedActivityIds.map(id =>
+        fetch(`/api/admin/affiliate/messages/activities/${id}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        })
+      ));
+
+      const failedCount = results.filter(r => !r.ok).length;
+      if (failedCount > 0) {
+        showError(`${selectedActivityIds.length - failedCount}개 삭제됨, ${failedCount}개 실패`);
+      }
+
+      setSelectedActivityIds([]);
+      setActivitySelectionMode(false);
+      loadActivities(1);
+    } catch (error) {
+      showError('일부 기록 삭제에 실패했습니다.');
+    } finally {
+      setDeletingActivities(false);
+    }
+  };
+
+  const cancelActivitySelectionMode = () => {
+    setActivitySelectionMode(false);
+    setSelectedActivityIds([]);
+  };
+
+  // 상호작용 타입 한글 매핑
+  const interactionTypeLabels: Record<string, string> = {
+    'call': '전화',
+    'sms': 'SMS',
+    'email': '이메일',
+    'visit': '방문',
+    'meeting': '미팅',
+    'kakao': '카카오톡',
+    'other': '기타',
+  };
+
+  // 필터링 및 정렬된 받은 메시지
+  const processedReceivedMessages = useMemo(() => {
+    let result = [...teamMessages];
+
+    // 검색
+    if (messageSearchQuery.trim()) {
+      const query = messageSearchQuery.toLowerCase();
+      result = result.filter(m =>
+        m.title?.toLowerCase().includes(query) ||
+        m.content?.toLowerCase().includes(query) ||
+        (m.sender || m.admin)?.name?.toLowerCase().includes(query)
+      );
+    }
+
+    // 필터
+    if (messageFilterBy === 'unread') {
+      result = result.filter(m => !m.isRead);
+    } else if (messageFilterBy === 'read') {
+      result = result.filter(m => m.isRead);
+    }
+
+    // 정렬
+    if (messageSortBy === 'newest') {
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (messageSortBy === 'oldest') {
+      result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    } else if (messageSortBy === 'unread') {
+      result.sort((a, b) => {
+        if (a.isRead === b.isRead) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        return a.isRead ? 1 : -1;
+      });
+    }
+
+    return result;
+  }, [teamMessages, messageSearchQuery, messageFilterBy, messageSortBy]);
+
+  // 필터링 및 정렬된 보낸 메시지
+  const processedSentMessages = useMemo(() => {
+    let result = [...sentMessages];
+
+    // 검색
+    if (messageSearchQuery.trim()) {
+      const query = messageSearchQuery.toLowerCase();
+      result = result.filter(m =>
+        m.title?.toLowerCase().includes(query) ||
+        m.content?.toLowerCase().includes(query) ||
+        m.recipient?.name?.toLowerCase().includes(query)
+      );
+    }
+
+    // 정렬
+    if (messageSortBy === 'newest') {
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (messageSortBy === 'oldest') {
+      result.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    }
+
+    return result;
+  }, [sentMessages, messageSearchQuery, messageSortBy]);
+
+  // 수신자 검색 필터
+  const filteredRecipients = useMemo(() => {
+    if (!recipientSearchQuery.trim()) return recipients;
+    const query = recipientSearchQuery.toLowerCase();
+    return recipients.filter(r =>
+      r.name?.toLowerCase().includes(query) ||
+      r.role?.toLowerCase().includes(query) ||
+      (r.role === 'manager' && '대리점장'.includes(query)) ||
+      (r.role === 'agent' && '판매원'.includes(query))
+    );
+  }, [recipients, recipientSearchQuery]);
 
   const overviewCards = useMemo(() => {
     if (!totals) return [];
@@ -487,12 +754,12 @@ export default function AffiliateTeamDashboardPage() {
           <p className="mt-1 text-sm text-slate-600">대리점장별 판매/리드/커미션 현황과 판매원 실적을 한눈에 확인할 수 있습니다.</p>
         </div>
         <div className="flex items-center gap-3">
-          {/* 팀 대시보드 메시지 빠른 메뉴 */}
+          {/* 팀 메시지 모달 */}
           <button
             type="button"
             onClick={() => {
               setShowMessagesModal(true);
-              loadTeamMessages(true); // 모달 열 때는 전체 메시지 로드
+              loadTeamMessages(true);
             }}
             className="relative flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100"
           >
@@ -794,191 +1061,593 @@ export default function AffiliateTeamDashboardPage() {
         )}
       </section>
 
-      {/* 팀 대시보드 메시지 모달 */}
+      {/* 팀 대시보드 메시지 모달 - 업그레이드 버전 */}
       {showMessagesModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowMessagesModal(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* 헤더 */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold">메시지</h2>
-                {messageTab === 'received' && unreadMessageCount > 0 && (
+                <h2 className="text-xl font-bold">팀 커뮤니케이션</h2>
+                {messageModalTab === 'messages' && messageTab === 'received' && unreadMessageCount > 0 && (
                   <span className="px-2 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
                     {unreadMessageCount}개 미읽음
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setShowSendMessageModal(true);
-                    loadRecipients();
-                  }}
-                  className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm flex items-center gap-1"
-                >
-                  <FiSend className="w-4 h-4" />
-                  보내기
-                </button>
+                {messageModalTab === 'messages' && (
+                  <button
+                    onClick={() => {
+                      setShowSendMessageModal(true);
+                      setRecipientSearchQuery('');
+                      loadRecipients();
+                    }}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm flex items-center gap-1"
+                  >
+                    <FiSend className="w-4 h-4" />
+                    새 메시지
+                  </button>
+                )}
                 <button
                   onClick={() => setShowMessagesModal(false)}
-                  className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded"
+                  className="text-gray-500 hover:text-gray-700 p-1.5 hover:bg-gray-100 rounded-lg"
                 >
                   <FiX className="text-xl" />
                 </button>
               </div>
             </div>
 
-            {/* 탭 */}
-            <div className="flex gap-2 mb-4 border-b">
+            {/* 상위 탭: 메시지 / 고객 기록 */}
+            <div className="flex gap-4 mb-4 border-b">
               <button
-                onClick={() => setMessageTab('received')}
-                className={`px-4 py-2 font-medium ${
-                  messageTab === 'received'
+                onClick={() => { setMessageModalTab('messages'); cancelActivitySelectionMode(); }}
+                className={`px-4 py-2 font-medium flex items-center gap-2 ${
+                  messageModalTab === 'messages'
                     ? 'border-b-2 border-blue-600 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                받은 메시지 ({teamMessages.length})
+                <FiMessageSquare className="w-4 h-4" />
+                메시지
+                {unreadMessageCount > 0 && (
+                  <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">{unreadMessageCount}</span>
+                )}
               </button>
               <button
-                onClick={() => setMessageTab('sent')}
-                className={`px-4 py-2 font-medium ${
-                  messageTab === 'sent'
+                onClick={() => { setMessageModalTab('activities'); cancelMessageSelectionMode(); loadActivities(1); }}
+                className={`px-4 py-2 font-medium flex items-center gap-2 ${
+                  messageModalTab === 'activities'
                     ? 'border-b-2 border-blue-600 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                보낸 메시지 ({sentMessages.length})
+                <FiUsers className="w-4 h-4" />
+                고객 기록 업데이트
               </button>
             </div>
 
-            {messageTab === 'received' ? (
-              teamMessages.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FiMessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                  <p>받은 메시지가 없습니다.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {teamMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`p-4 rounded-lg border-2 ${
-                        message.isRead 
-                          ? 'bg-gray-50 border-gray-200' 
-                          : 'bg-teal-50 border-teal-300'
-                      }`}
+            {messageModalTab === 'messages' ? (
+              <>
+                {/* 하위 탭: 받은/보낸 메시지 */}
+                <div className="flex gap-2 mb-4 border-b">
+                  <button
+                    onClick={() => { setMessageTab('received'); cancelMessageSelectionMode(); }}
+                    className={`px-4 py-2 font-medium ${
+                      messageTab === 'received'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    받은 메시지 ({processedReceivedMessages.length})
+                  </button>
+                  <button
+                    onClick={() => { setMessageTab('sent'); cancelMessageSelectionMode(); }}
+                    className={`px-4 py-2 font-medium ${
+                      messageTab === 'sent'
+                        ? 'border-b-2 border-blue-600 text-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    보낸 메시지 ({processedSentMessages.length})
+              </button>
+            </div>
+
+            {/* 검색 및 필터 바 */}
+            <div className="mb-4 space-y-2">
+              {/* 검색 */}
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={messageSearchQuery}
+                  onChange={(e) => setMessageSearchQuery(e.target.value)}
+                  placeholder="제목, 내용, 발신자 검색..."
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                />
+                {messageSearchQuery && (
+                  <button
+                    onClick={() => setMessageSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <FiX className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* 필터/정렬 및 선택 모드 */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {messageSelectionMode ? (
+                  <>
+                    <button
+                      onClick={toggleSelectAllMessages}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            {!message.isRead && (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-100 text-teal-800">
-                                <FiUsers className="w-3 h-3 mr-1" />
-                                팀 대시보드
-                              </span>
-                            )}
-                            <h3 className="font-semibold text-gray-900">{message.title}</h3>
-                          </div>
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{message.content}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>발신: {(message.sender || message.admin)?.name || '알 수 없음'}</span>
-                            {message.messageType && message.messageType !== 'team-dashboard' && (
-                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
-                                {message.messageType === 'agent-manager' ? '판매원→대리점장' :
-                                 message.messageType === 'manager-agent' ? '대리점장→판매원' :
-                                 message.messageType === 'manager-manager' ? '대리점장→대리점장' :
-                                 message.messageType === 'agent-admin' ? '판매원→관리자' :
-                                 message.messageType === 'manager-admin' ? '대리점장→관리자' : message.messageType}
-                              </span>
-                            )}
-                            <span>
-                              {new Date(message.createdAt).toLocaleString('ko-KR', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                          </div>
+                      {selectedMessageIds.length === (messageTab === 'received' ? processedReceivedMessages.length : processedSentMessages.length) ? (
+                        <><FiCheckSquare className="w-4 h-4" /> 전체해제</>
+                      ) : (
+                        <><FiSquare className="w-4 h-4" /> 전체선택</>
+                      )}
+                    </button>
+                    <span className="text-sm text-gray-500">{selectedMessageIds.length}개 선택됨</span>
+                    <button
+                      onClick={handleBulkDeleteMessages}
+                      disabled={selectedMessageIds.length === 0 || deletingMessages}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                      {deletingMessages ? '삭제 중...' : '삭제'}
+                    </button>
+                    <button
+                      onClick={cancelMessageSelectionMode}
+                      className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                    >
+                      취소
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* 필터 드롭다운 */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowMessageFilterMenu(!showMessageFilterMenu)}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        <FiFilter className="w-4 h-4" />
+                        {messageFilterBy === 'all' ? '전체' : messageFilterBy === 'unread' ? '안읽음만' : '읽음만'}
+                        {' / '}
+                        {messageSortBy === 'newest' ? '최신순' : messageSortBy === 'oldest' ? '오래된순' : '안읽음 우선'}
+                      </button>
+                      {showMessageFilterMenu && (
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-2 min-w-[160px]">
+                          <p className="text-xs font-medium text-gray-500 mb-1 px-2">필터</p>
+                          {[
+                            { value: 'all', label: '전체 보기' },
+                            { value: 'unread', label: '안읽음만' },
+                            { value: 'read', label: '읽음만' },
+                          ].map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => { setMessageFilterBy(opt.value as any); setShowMessageFilterMenu(false); }}
+                              className={`w-full text-left px-2 py-1 text-sm rounded ${messageFilterBy === opt.value ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                          <hr className="my-2" />
+                          <p className="text-xs font-medium text-gray-500 mb-1 px-2">정렬</p>
+                          {[
+                            { value: 'newest', label: '최신순' },
+                            { value: 'oldest', label: '오래된순' },
+                            { value: 'unread', label: '안읽음 우선' },
+                          ].map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => { setMessageSortBy(opt.value as any); setShowMessageFilterMenu(false); }}
+                              className={`w-full text-left px-2 py-1 text-sm rounded ${messageSortBy === opt.value ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
                         </div>
-                        {!message.isRead && (
-                          <button
-                            onClick={() => handleMarkAsRead(message.id)}
-                            className="ml-4 px-3 py-1 bg-teal-600 text-white rounded hover:bg-teal-700 text-sm"
-                          >
-                            읽음 처리
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              )
+
+                    {/* 모두 읽음 처리 (받은 메시지 탭에서만) */}
+                    {messageTab === 'received' && unreadMessageCount > 0 && (
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                      >
+                        <FiCheck className="w-4 h-4" />
+                        모두 읽음
+                      </button>
+                    )}
+
+                    {/* 선택 모드 */}
+                    {((messageTab === 'received' && processedReceivedMessages.length > 0) ||
+                      (messageTab === 'sent' && processedSentMessages.length > 0)) && (
+                      <button
+                        onClick={() => setMessageSelectionMode(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                      >
+                        <FiCheckSquare className="w-4 h-4" />
+                        선택
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* 메시지 목록 */}
+            <div className="flex-1 overflow-y-auto">
+              {messageTab === 'received' ? (
+                processedReceivedMessages.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <FiMessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>{messageSearchQuery || messageFilterBy !== 'all' ? '검색 결과가 없습니다.' : '받은 메시지가 없습니다.'}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {processedReceivedMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        onClick={() => messageSelectionMode && toggleMessageSelection(message.id)}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                          messageSelectionMode && selectedMessageIds.includes(message.id)
+                            ? 'bg-blue-50 border-blue-300'
+                            : message.isRead
+                              ? 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                              : 'bg-teal-50 border-teal-300 hover:bg-teal-100'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* 체크박스 또는 읽음 표시 */}
+                          {messageSelectionMode ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedMessageIds.includes(message.id)}
+                              onChange={() => toggleMessageSelection(message.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1 w-4 h-4 text-blue-600 rounded"
+                            />
+                          ) : (
+                            <div className="mt-1.5">
+                              {message.isRead ? (
+                                <div className="w-2 h-2 bg-gray-300 rounded-full" />
+                              ) : (
+                                <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h3 className={`font-semibold ${message.isRead ? 'text-gray-600' : 'text-gray-900'}`}>
+                                {message.title}
+                              </h3>
+                              {message.messageType && message.messageType !== 'team-dashboard' && (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                                  {message.messageType === 'agent-manager' ? '판매원→대리점장' :
+                                   message.messageType === 'manager-agent' ? '대리점장→판매원' :
+                                   message.messageType === 'manager-manager' ? '대리점장→대리점장' :
+                                   message.messageType === 'agent-admin' ? '판매원→관리자' :
+                                   message.messageType === 'manager-admin' ? '대리점장→관리자' : message.messageType}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2 line-clamp-2">{message.content}</p>
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span>발신: {(message.sender || message.admin)?.name || '알 수 없음'}</span>
+                              <span>
+                                {new Date(message.createdAt).toLocaleString('ko-KR', {
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 액션 버튼 */}
+                          {!messageSelectionMode && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleReplyMessage(message); }}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                                title="답장"
+                              >
+                                <FiCornerUpLeft className="w-4 h-4" />
+                              </button>
+                              {!message.isRead && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleMarkAsRead(message.id); }}
+                                  className="p-2 text-teal-600 hover:bg-teal-50 rounded-lg"
+                                  title="읽음 처리"
+                                >
+                                  <FiCheck className="w-4 h-4" />
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteMessage(message.id); }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                title="삭제"
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                processedSentMessages.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <FiMessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>{messageSearchQuery ? '검색 결과가 없습니다.' : '보낸 메시지가 없습니다.'}</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {processedSentMessages.map((message) => (
+                      <div
+                        key={message.id}
+                        onClick={() => messageSelectionMode && toggleMessageSelection(message.id)}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                          messageSelectionMode && selectedMessageIds.includes(message.id)
+                            ? 'bg-blue-100 border-blue-400'
+                            : 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {messageSelectionMode && (
+                            <input
+                              type="checkbox"
+                              checked={selectedMessageIds.includes(message.id)}
+                              onChange={() => toggleMessageSelection(message.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="mt-1 w-4 h-4 text-blue-600 rounded"
+                            />
+                          )}
+
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 mb-1">{message.title}</h3>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2 line-clamp-2">{message.content}</p>
+                            <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <span>수신: {message.recipient?.name || '알 수 없음'}</span>
+                              <span>
+                                {new Date(message.createdAt).toLocaleString('ko-KR', {
+                                  month: '2-digit',
+                                  day: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                              {message.isRead && (
+                                <span className="text-green-600 flex items-center gap-1">
+                                  <FiCheck className="w-3 h-3" /> 읽음
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {!messageSelectionMode && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteMessage(message.id); }}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                              title="삭제"
+                            >
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </div>
+              </>
             ) : (
-              sentMessages.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FiMessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                  <p>보낸 메시지가 없습니다.</p>
+              /* 고객 기록 업데이트 탭 */
+              <div className="flex-1 overflow-hidden flex flex-col">
+                {/* 선택 모드 바 */}
+                <div className="flex items-center gap-2 mb-4 flex-wrap">
+                  {activitySelectionMode ? (
+                    <>
+                      <button
+                        onClick={toggleSelectAllActivities}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
+                      >
+                        {selectedActivityIds.length === activities.length ? (
+                          <><FiCheckSquare className="w-4 h-4" /> 전체해제</>
+                        ) : (
+                          <><FiSquare className="w-4 h-4" /> 전체선택</>
+                        )}
+                      </button>
+                      <span className="text-sm text-gray-500">{selectedActivityIds.length}개 선택됨</span>
+                      <button
+                        onClick={handleBulkDeleteActivities}
+                        disabled={selectedActivityIds.length === 0 || deletingActivities}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
+                      >
+                        <FiTrash2 className="w-4 h-4" />
+                        {deletingActivities ? '삭제 중...' : '삭제'}
+                      </button>
+                      <button
+                        onClick={cancelActivitySelectionMode}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                      >
+                        취소
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm text-gray-600">
+                        최근 30일간의 팀 고객 기록 ({activities.length}건)
+                      </div>
+                      {activities.length > 0 && (
+                        <button
+                          onClick={() => setActivitySelectionMode(true)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                        >
+                          <FiCheckSquare className="w-4 h-4" />
+                          선택
+                        </button>
+                      )}
+                      <button
+                        onClick={() => loadActivities(1)}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
+                      >
+                        <FiRefreshCw className={`w-4 h-4 ${activitiesLoading ? 'animate-spin' : ''}`} />
+                        새로고침
+                      </button>
+                    </>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {sentMessages.map((message) => (
-                    <div
-                      key={message.id}
-                      className="p-4 rounded-lg border-2 bg-blue-50 border-blue-200"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 mb-1">{message.title}</h3>
-                          <p className="text-sm text-gray-700 whitespace-pre-wrap mb-2">{message.content}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <span>수신: {message.recipient?.name || '알 수 없음'}</span>
-                            <span>
-                              {new Date(message.createdAt).toLocaleString('ko-KR', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                            {message.isRead && (
-                              <span className="text-green-600">읽음</span>
+
+                {/* 기록 목록 */}
+                <div className="flex-1 overflow-y-auto">
+                  {activitiesLoading && activities.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <FiRefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin text-gray-300" />
+                      <p>로딩 중...</p>
+                    </div>
+                  ) : activities.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                      <FiUsers className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                      <p>최근 30일간 기록이 없습니다.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {activities.map((activity) => (
+                        <div
+                          key={activity.id}
+                          onClick={() => activitySelectionMode && toggleActivitySelection(activity.id)}
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                            activitySelectionMode && selectedActivityIds.includes(activity.id)
+                              ? 'bg-blue-50 border-blue-300'
+                              : 'bg-white border-gray-200 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            {activitySelectionMode && (
+                              <input
+                                type="checkbox"
+                                checked={selectedActivityIds.includes(activity.id)}
+                                onChange={() => toggleActivitySelection(activity.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="mt-1 w-4 h-4 text-blue-600 rounded"
+                              />
+                            )}
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                  activity.interactionType === 'call' ? 'bg-blue-100 text-blue-700' :
+                                  activity.interactionType === 'sms' ? 'bg-green-100 text-green-700' :
+                                  activity.interactionType === 'email' ? 'bg-purple-100 text-purple-700' :
+                                  activity.interactionType === 'visit' ? 'bg-orange-100 text-orange-700' :
+                                  activity.interactionType === 'kakao' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {interactionTypeLabels[activity.interactionType] || activity.interactionType}
+                                </span>
+                                {activity.lead && (
+                                  <span className="text-sm font-medium text-gray-900">
+                                    {activity.lead.customerName || '이름없음'}
+                                    {activity.lead.customerPhone && (
+                                      <span className="text-gray-500 ml-1">({activity.lead.customerPhone})</span>
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+
+                              {activity.note && (
+                                <p className="text-sm text-gray-700 mb-2 line-clamp-2">{activity.note}</p>
+                              )}
+
+                              <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+                                {activity.profile && (
+                                  <span className="flex items-center gap-1">
+                                    <FiUsers className="w-3 h-3" />
+                                    {activity.profile.displayName}
+                                    <span className={`px-1.5 py-0.5 rounded text-xs ${
+                                      activity.profile.type === 'BRANCH_MANAGER' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                                    }`}>
+                                      {activity.profile.type === 'BRANCH_MANAGER' ? '대리점장' : '판매원'}
+                                    </span>
+                                  </span>
+                                )}
+                                <span>
+                                  {new Date(activity.occurredAt).toLocaleString('ko-KR', {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </span>
+                              </div>
+                            </div>
+
+                            {!activitySelectionMode && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('이 기록을 삭제하시겠습니까?')) {
+                                    fetch(`/api/admin/affiliate/messages/activities/${activity.id}`, {
+                                      method: 'DELETE',
+                                      credentials: 'include',
+                                    }).then(() => loadActivities(1));
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                                title="삭제"
+                              >
+                                <FiTrash2 className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
                         </div>
+                      ))}
+
+                      {/* 더 보기 버튼 */}
+                      {activitiesPagination?.hasMore && (
                         <button
-                          onClick={() => handleDeleteMessage(message.id)}
-                          className="ml-4 px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center gap-1"
+                          onClick={() => loadActivities(activitiesPagination.page + 1, true)}
+                          disabled={activitiesLoading}
+                          className="w-full py-3 text-center text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 mt-2"
                         >
-                          <FiTrash2 className="w-4 h-4" />
-                          삭제
+                          {activitiesLoading ? '로딩 중...' : '더 보기'}
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )
+              </div>
             )}
           </div>
         </div>
       )}
 
-      {/* 메시지 보내기 모달 */}
+      {/* 메시지 보내기 모달 - 업그레이드 버전 */}
       {showSendMessageModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowSendMessageModal(false)}>
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">메시지 보내기</h2>
+              <h2 className="text-xl font-bold">{messageTitle.startsWith('Re: ') ? '답장 보내기' : '새 메시지 보내기'}</h2>
               <button
                 onClick={() => {
                   setShowSendMessageModal(false);
                   setMessageTitle('');
                   setMessageContent('');
                   setSelectedRecipient(null);
+                  setRecipientSearchQuery('');
                 }}
-                className="text-gray-500 hover:text-gray-700 p-1 hover:bg-gray-100 rounded"
+                className="text-gray-500 hover:text-gray-700 p-1.5 hover:bg-gray-100 rounded-lg"
               >
                 <FiX className="text-xl" />
               </button>
@@ -986,24 +1655,74 @@ export default function AffiliateTeamDashboardPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   수신자 <span className="text-red-500">*</span>
                 </label>
+
+                {/* 수신자 검색 */}
+                <div className="relative mb-3">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={recipientSearchQuery}
+                    onChange={(e) => setRecipientSearchQuery(e.target.value)}
+                    placeholder="이름 또는 역할로 검색..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                  />
+                  {recipientSearchQuery && (
+                    <button
+                      onClick={() => setRecipientSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <FiX className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
                 {loadingRecipients ? (
-                  <div className="text-sm text-gray-500">로딩 중...</div>
+                  <div className="text-sm text-gray-500 py-4 text-center">로딩 중...</div>
                 ) : (
-                  <select
-                    value={selectedRecipient || ''}
-                    onChange={(e) => setSelectedRecipient(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">수신자를 선택하세요</option>
-                    {recipients.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.name || '이름 없음'} ({r.phone || '연락처 없음'}) - {r.role === 'manager' ? '대리점장' : r.role === 'admin' ? '관리자' : '판매원'}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+                    {filteredRecipients.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500 text-sm">
+                        {recipientSearchQuery ? '검색 결과가 없습니다.' : '수신자가 없습니다.'}
+                      </div>
+                    ) : (
+                      filteredRecipients.map((r) => (
+                        <label
+                          key={r.id}
+                          className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${
+                            selectedRecipient === r.id ? 'bg-blue-50' : ''
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="recipient"
+                            checked={selectedRecipient === r.id}
+                            onChange={() => setSelectedRecipient(r.id)}
+                            className="w-4 h-4 text-blue-600"
+                          />
+                          <div className="flex-1">
+                            <span className="font-medium text-gray-900">{r.name || '이름 없음'}</span>
+                            {r.phone && <span className="text-gray-500 text-sm ml-2">({r.phone})</span>}
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            r.role === 'manager' ? 'bg-blue-100 text-blue-700' :
+                            r.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                            'bg-green-100 text-green-700'
+                          }`}>
+                            {r.role === 'manager' ? '대리점장' : r.role === 'admin' ? '관리자' : '판매원'}
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {selectedRecipient && (
+                  <div className="mt-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                    선택됨: <span className="font-medium">{recipients.find(r => r.id === selectedRecipient)?.name || '알 수 없음'}</span>
+                  </div>
                 )}
               </div>
 
@@ -1029,17 +1748,18 @@ export default function AffiliateTeamDashboardPage() {
                   onChange={(e) => setMessageContent(e.target.value)}
                   placeholder="메시지 내용을 입력하세요"
                   rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                 />
               </div>
 
-              <div className="flex gap-2 justify-end">
+              <div className="flex gap-2 justify-end pt-2">
                 <button
                   onClick={() => {
                     setShowSendMessageModal(false);
                     setMessageTitle('');
                     setMessageContent('');
                     setSelectedRecipient(null);
+                    setRecipientSearchQuery('');
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
@@ -1051,7 +1771,7 @@ export default function AffiliateTeamDashboardPage() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   <FiSend className="w-4 h-4" />
-                  {sendingMessage ? '전송 중...' : '보내기'}
+                  {sendingMessage ? '전송 중...' : messageTitle.startsWith('Re: ') ? '답장 보내기' : '보내기'}
                 </button>
               </div>
             </div>

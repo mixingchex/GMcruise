@@ -16,7 +16,6 @@ const menuItems = [
   '/admin/dashboard',
   '/admin/pwa-stats',
   '/admin/messages',
-  '/admin/team-dashboard-messages',
   '/admin/scheduled-messages',
   '/admin/customer-groups',
   '/admin/manual-passport-request',

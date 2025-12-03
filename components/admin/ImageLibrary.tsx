@@ -1,5 +1,7 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 import { useState, useEffect, useRef } from 'react';
 import { FiUpload, FiCopy, FiCheck, FiFolder, FiFolderPlus, FiTrash2, FiSearch, FiImage, FiCode, FiX, FiArrowLeft, FiDownload, FiEdit2 } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
@@ -47,13 +49,16 @@ interface ImageLibraryProps {
     initialFolderId?: string;
     canDelete?: boolean;
     canManageFolders?: boolean;
+    backUrl?: string;
 }
 
 export default function ImageLibrary({
     initialFolderId,
     canDelete = true,
-    canManageFolders = true
+    canManageFolders = true,
+    backUrl
 }: ImageLibraryProps) {
+    const router = useRouter();
     const [activeTab, setActiveTab] = useState<'library' | 'cruise'>('library');
 
     // 이미지 라이브러리 상태
@@ -620,13 +625,24 @@ export default function ImageLibrary({
                 {/* 헤더 */}
                 <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
                     <div className="flex items-center justify-between mb-4">
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-800 mb-2">이미지 라이브러리</h1>
-                            <p className="text-gray-600">
-                                {activeTab === 'library'
-                                    ? '이미지를 업로드하고 관리하세요. 자동으로 WebP 변환됩니다.'
-                                    : '크루즈정보사진에서 이미지를 선택하고 HTML 소스 코드를 생성하세요.'}
-                            </p>
+                        <div className="flex items-center gap-4">
+                            {backUrl && (
+                                <button
+                                    onClick={() => router.push(backUrl)}
+                                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                                    title="이전으로 돌아가기"
+                                >
+                                    <FiArrowLeft className="w-6 h-6 text-gray-600" />
+                                </button>
+                            )}
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-800 mb-2">이미지 라이브러리</h1>
+                                <p className="text-gray-600">
+                                    {activeTab === 'library'
+                                        ? '이미지를 업로드하고 관리하세요. 자동으로 WebP 변환됩니다.'
+                                        : '크루즈정보사진에서 이미지를 선택하고 HTML 소스 코드를 생성하세요.'}
+                                </p>
+                            </div>
                         </div>
                         <div className="flex gap-2">
                             {activeTab === 'library' && (

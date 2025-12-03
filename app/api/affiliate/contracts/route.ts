@@ -24,7 +24,9 @@ function maskResidentId(front: string, back: string) {
   return `${f}-${b}`;
 }
 
-export async function updateContractStatus(
+// Note: This function was moved to be internal (not exported from API route)
+// If needed externally, move to a shared utility file like lib/affiliate/contracts.ts
+async function updateContractStatus(
   contractId: number,
   status: string,
   reviewerId?: number,

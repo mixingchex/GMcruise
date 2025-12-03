@@ -36,8 +36,9 @@ import {
 } from 'react-icons/fi';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { showError, showSuccess } from '@/components/ui/Toast';
+import { showError, showSuccess, showWarning } from '@/components/ui/Toast';
 import SymbolPicker from '@/components/ui/SymbolPicker';
+import SmsConfigModal from '@/components/partner/SmsConfigModal';
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 import CustomerNoteModal from '@/components/admin/CustomerNoteModal';
 import ProductInquiryCustomerTable from '@/components/admin/ProductInquiryCustomerTable';
@@ -576,6 +577,7 @@ export default function PartnerCustomersClient({
   const [showAligoGuide, setShowAligoGuide] = useState(false);
   const [uploadingExcel, setUploadingExcel] = useState(false);
   const [excelAgentProfileId, setExcelAgentProfileId] = useState<string>('');
+  const [showSmsConfigModal, setShowSmsConfigModal] = useState(false);
 
   const statusSelectOptions = useMemo(
     () => [
@@ -1509,6 +1511,9 @@ export default function PartnerCustomersClient({
         payload.agentProfileId = Number(addForm.agentProfileId);
       }
 
+      // 백업 컨텍스트 추가 (내 고객 관리)
+      payload.backupContext = 'management';
+
       const res = await fetch('/api/partner/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1787,7 +1792,8 @@ export default function PartnerCustomersClient({
     if (smsMethod === 'aligo') {
       // 알리고 API로 직접 발송
       if (!aligoConfig.apiKey || !aligoConfig.userId || !aligoConfig.senderPhone) {
-        showError('알리고 API 설정을 모두 입력해주세요.');
+        showWarning('SMS 발송을 위해 API 설정이 필요합니다. 설정 창을 열어드릴게요!');
+        setShowSmsConfigModal(true);
         return;
       }
 
@@ -5510,6 +5516,15 @@ export default function PartnerCustomersClient({
           }}
         />
       )}
+
+      {/* SMS 설정 모달 */}
+      <SmsConfigModal
+        isOpen={showSmsConfigModal}
+        onClose={() => setShowSmsConfigModal(false)}
+        onSuccess={() => {
+          loadAligoConfig();
+        }}
+      />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { FiFileText } from 'react-icons/fi';
+import { FiFileText, FiTrash2 } from 'react-icons/fi';
 import CustomerNoteModal from '@/components/admin/CustomerNoteModal';
 import LeadNoteModal from '@/components/admin/LeadNoteModal';
+import { showError, showSuccess } from '@/components/ui/Toast';
 
 type AffiliateOwnership = {
   ownerType: 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT';
@@ -36,6 +37,10 @@ export default function ProductInquiryCustomerTable({ customers, onRefresh }: Pr
   const [selectedCustomerForNote, setSelectedCustomerForNote] = useState<{ id: number; name: string | null; phone: string | null; cruiseName: string | null } | null>(null);
   const [selectedLeadForNote, setSelectedLeadForNote] = useState<{ id: number; name: string | null; phone: string | null; cruiseName: string | null } | null>(null);
 
+  // 선택된 항목 관리
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // 담당자 이름 표시 함수 (간소화)
   const renderOwnerName = (ownership?: AffiliateOwnership | null) => {
     if (!ownership) {
@@ -44,8 +49,8 @@ export default function ProductInquiryCustomerTable({ customers, onRefresh }: Pr
 
     const name = ownership.ownerNickname || ownership.ownerName || '미지정';
     const role = ownership.ownerType === 'BRANCH_MANAGER' ? '대리점장' :
-                 ownership.ownerType === 'SALES_AGENT' ? '판매원' :
-                 '본사';
+      ownership.ownerType === 'SALES_AGENT' ? '판매원' :
+        '본사';
 
     return (
       <span className="text-sm text-gray-900">
@@ -143,12 +148,95 @@ export default function ProductInquiryCustomerTable({ customers, onRefresh }: Pr
     }
   };
 
+  // 체크박스 전체 선택/해제
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      // leadId가 있는 항목만 선택 가능 (삭제 API가 leadId 기준이므로)
+      const allIds = customers
+        .filter(c => c.leadId)
+        .map(c => c.leadId as number);
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  // 개별 체크박스 선택/해제
+  const handleSelectOne = (leadId: number, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, leadId]);
+    } else {
+      setSelectedIds(prev => prev.filter(id => id !== leadId));
+    }
+  };
+
+  // 선택 삭제 핸들러
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (!confirm(`${selectedIds.length}명의 고객을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      setIsDeleting(true);
+      const res = await fetch('/api/admin/affiliate/leads', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.message || '삭제에 실패했습니다.');
+      }
+
+      showSuccess(json.message || '삭제되었습니다.');
+      setSelectedIds([]);
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (error: any) {
+      showError(error.message || '삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-lg overflow-hidden">
+      {/* 툴바 (선택 시 표시) */}
+      {selectedIds.length > 0 && (
+        <div className="bg-blue-50 px-6 py-3 flex items-center justify-between border-b border-blue-100">
+          <span className="text-sm font-medium text-blue-800">
+            {selectedIds.length}명 선택됨
+          </span>
+          <button
+            onClick={handleDeleteSelected}
+            disabled={isDeleting}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          >
+            <FiTrash2 size={16} />
+            {isDeleting ? '삭제 중...' : '선택 삭제'}
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <tr>
+              <th className="px-6 py-4 w-12 text-center">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={customers.length > 0 && selectedIds.length === customers.filter(c => c.leadId).length}
+                  onChange={handleSelectAll}
+                />
+              </th>
               <th className="px-6 py-4 text-left font-semibold">신청 날짜</th>
               <th className="px-6 py-4 text-left font-semibold">관심 상품</th>
               <th className="px-6 py-4 text-left font-semibold">고객 이름</th>
@@ -160,13 +248,23 @@ export default function ProductInquiryCustomerTable({ customers, onRefresh }: Pr
           <tbody className="text-brand-neutral">
             {customers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-gray-500">
+                <td colSpan={7} className="px-6 py-10 text-center text-gray-500">
                   전화상담 고객이 없습니다.
                 </td>
               </tr>
             ) : (
               customers.map((customer) => (
-                <tr key={customer.id} className="border-b border-gray-200 hover:bg-gray-50">
+                <tr key={customer.id} className={`border-b border-gray-200 hover:bg-gray-50 ${selectedIds.includes(customer.leadId || 0) ? 'bg-blue-50' : ''}`}>
+                  <td className="px-6 py-4 text-center">
+                    {customer.leadId && (
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        checked={selectedIds.includes(customer.leadId)}
+                        onChange={(e) => handleSelectOne(customer.leadId!, e.target.checked)}
+                      />
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-sm">
                     {formatDate(customer.createdAt)}
                   </td>

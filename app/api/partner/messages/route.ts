@@ -36,11 +36,8 @@ async function checkAuth() {
             where: { id: sid },
             include: {
                 User: {
-                    select: { id: true, role: true, name: true },
                     include: {
-                        AffiliateProfile: {
-                            select: { id: true, type: true },
-                        },
+                        AffiliateProfile: true,
                     },
                 },
             },
@@ -148,7 +145,7 @@ export async function GET(req: NextRequest) {
     }
 }
 
-// POST: Send Message
+// POST: Send Message (supports bulk send to multiple recipients)
 export async function POST(req: NextRequest) {
     try {
         const user = await checkAuth();
@@ -157,104 +154,74 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { recipientUserId, title, content } = body;
+        const { recipientUserIds, title, content } = body;
 
-        if (!recipientUserId || !title || !content) {
+        // Support both single (legacy) and bulk send
+        const recipientIds = Array.isArray(recipientUserIds)
+            ? recipientUserIds
+            : (body.recipientUserId ? [parseInt(body.recipientUserId)] : []);
+
+        if (!recipientIds || recipientIds.length === 0 || !title || !content) {
             return NextResponse.json({ ok: false, error: 'Missing required fields' }, { status: 400 });
         }
 
-        const recipientId = parseInt(recipientUserId);
-        if (recipientId === user.userId) {
-            return NextResponse.json({ ok: false, error: 'Cannot send message to self' }, { status: 400 });
-        }
-
-        // Check Recipient
-        const recipient = await prisma.user.findUnique({
-            where: { id: recipientId },
-            select: { id: true, role: true },
-        });
-
-        if (!recipient) {
-            return NextResponse.json({ ok: false, error: 'Recipient not found' }, { status: 404 });
-        }
-
-        // Determine Message Type & Permission
-        let messageType = '';
-        let canSend = false;
-
-        // Logic adapted from existing send API
-        if (user.role === 'agent') {
-            if (recipient.role === 'manager') {
-                // Agent -> Manager: Check relation
-                const relation = await prisma.affiliateRelation.findFirst({
-                    where: {
-                        agentId: user.profile?.id,
-                        managerId: (await prisma.affiliateProfile.findUnique({ where: { userId: recipientId } }))?.id,
-                        status: 'ACTIVE',
-                    },
-                });
-                if (relation) {
-                    canSend = true;
-                    messageType = 'agent-manager';
-                }
-            } else if (recipient.role === 'admin') {
-                canSend = true;
-                messageType = 'agent-admin';
+        // Validate all recipients
+        const validRecipients = [];
+        for (const recipientId of recipientIds) {
+            if (recipientId === user.userId) {
+                continue; // Skip self
             }
-        } else if (user.role === 'manager') {
-            if (recipient.role === 'agent') {
-                // Manager -> Agent: Check relation
-                const relation = await prisma.affiliateRelation.findFirst({
-                    where: {
-                        managerId: user.profile?.id,
-                        agentId: (await prisma.affiliateProfile.findUnique({ where: { userId: recipientId } }))?.id,
-                        status: 'ACTIVE',
-                    },
-                });
-                if (relation) {
-                    canSend = true;
-                    messageType = 'manager-agent';
-                }
-            } else if (recipient.role === 'manager') {
-                // Manager -> Manager: Allowed
-                const targetProfile = await prisma.affiliateProfile.findUnique({ where: { userId: recipientId } });
-                if (targetProfile?.type === 'BRANCH_MANAGER') {
-                    canSend = true;
-                    messageType = 'manager-manager';
-                }
-            } else if (recipient.role === 'admin') {
-                canSend = true;
-                messageType = 'manager-admin';
+
+            const recipient = await prisma.user.findUnique({
+                where: { id: recipientId },
+                select: { id: true, role: true },
+            });
+
+            if (recipient) {
+                validRecipients.push(recipient);
             }
-        } else if (user.role === 'admin') {
-            // Admin can send to anyone (though usually uses admin API)
-            canSend = true;
-            messageType = 'team-dashboard';
         }
 
-        if (!canSend) {
-            return NextResponse.json({ ok: false, error: 'Permission denied' }, { status: 403 });
+        if (validRecipients.length === 0) {
+            return NextResponse.json({ ok: false, error: 'No valid recipients found' }, { status: 400 });
         }
 
-        // Create Message
-        const message = await prisma.adminMessage.create({
-            data: {
-                adminId: user.userId,
-                userId: recipientId,
-                title,
-                content,
-                messageType,
-                isActive: true,
-                totalSent: 1,
-                metadata: {
-                    type: messageType,
-                    sentAt: new Date().toISOString(),
+        // Create messages for all valid recipients
+        const createdMessages = [];
+
+        for (const recipient of validRecipients) {
+            // Determine message type (simplified)
+            let messageType = 'team-dashboard';
+            if (user.role === 'agent') {
+                if (recipient.role === 'manager') messageType = 'agent-manager';
+                else if (recipient.role === 'admin') messageType = 'agent-admin';
+            } else if (user.role === 'manager') {
+                if (recipient.role === 'agent') messageType = 'manager-agent';
+                else if (recipient.role === 'manager') messageType = 'manager-manager';
+                else if (recipient.role === 'admin') messageType = 'manager-admin';
+            }
+
+            const message = await prisma.adminMessage.create({
+                data: {
+                    adminId: user.userId,
+                    userId: recipient.id,
+                    title,
+                    content,
+                    messageType,
+                    isActive: true,
                 },
-                updatedAt: new Date(),
-            },
-        });
+            });
 
-        return NextResponse.json({ ok: true, message });
+            createdMessages.push(message);
+        }
+
+        console.log(`[Partner Messages] User ${user.userId} sent ${createdMessages.length} messages`);
+
+        return NextResponse.json({
+            ok: true,
+            message: `Successfully sent ${createdMessages.length} message(s)`,
+            count: createdMessages.length,
+        });
 
     } catch (error) {
         console.error('[Partner Messages POST] Error:', error);

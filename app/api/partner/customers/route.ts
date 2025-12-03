@@ -903,50 +903,32 @@ export async function POST(req: NextRequest) {
     }
 
     // Google 스프레드시트에 고객 데이터 전송 (고객관리 시트)
-    try {
-      const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMnRse8lBCmU20IziTTFvLoLjnNUCy1vtE_y-X-niR67Xs63Bf5qBE4Zb5txQZ_R9-/exec';
-      const timestamp = new Date().toLocaleString('ko-KR');
+    // 담당자 정보 결정
+    let channel = '본사';
+    let manager = '';
+    if (profile.type === 'BRANCH_MANAGER') {
+      channel = '대리점장';
+      manager = profile.displayName || sessionUser.name || '';
+    } else if (profile.type === 'SALES_AGENT') {
+      channel = '판매원';
+      manager = profile.displayName || sessionUser.name || '';
+    }
 
-      // 담당자 정보 결정
-      let channel = '본사';
-      let manager = '';
-      if (profile.type === 'BRANCH_MANAGER') {
-        channel = '대리점장';
-        manager = profile.displayName || sessionUser.name || '';
-      } else if (profile.type === 'SALES_AGENT') {
-        channel = '판매원';
-        manager = profile.displayName || sessionUser.name || '';
-      }
+    // 비동기로 실행 (응답 대기 안 함)
+    const backupContext = payload.backupContext as 'group' | 'management' | undefined;
 
-      const formData = new URLSearchParams();
-      formData.append('action', 'addRow');
-      formData.append('timestamp', timestamp);
-      formData.append('name', customerName || '');
-      formData.append('phone', customerPhone || '');
-      formData.append('source', source === 'partner-manual' ? '수동입력' : source);
-      formData.append('productName', '');
-      formData.append('channel', channel);
-      formData.append('manager', manager);
-
-      console.log('[POST /api/partner/customers] Google 스프레드시트 전송 시작:', {
-        name: customerName,
-        phone: customerPhone,
+    import('@/lib/google-sheets').then(({ sendToGoogleSheet }) => {
+      sendToGoogleSheet({
+        name: customerName || '',
+        phone: customerPhone || '',
+        source: source === 'partner-manual' ? '수동입력' : source,
+        productName: '',
         channel,
         manager,
+        notes: notes || undefined,
+        target: backupContext || 'group',
       });
-
-      const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formData.toString(),
-      });
-
-      const googleResult = await googleResponse.text();
-      console.log('[POST /api/partner/customers] Google 스프레드시트 응답:', googleResult);
-    } catch (googleError) {
-      console.error('[POST /api/partner/customers] Google 스프레드시트 전송 실패:', googleError);
-      // 스프레드시트 전송 실패해도 고객 추가는 성공으로 처리
-    }
+    });
 
     return NextResponse.json({
       ok: true,

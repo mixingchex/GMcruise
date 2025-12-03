@@ -6,6 +6,7 @@ import { FiPlus, FiEdit, FiTrash2, FiClock, FiX, FiArrowLeft, FiLoader } from 'r
 import Link from 'next/link';
 import { showSuccess, showError, showWarning } from '@/components/ui/Toast';
 import SymbolPicker from '@/components/ui/SymbolPicker';
+import SmsConfigModal from '@/components/partner/SmsConfigModal';
 
 type ScheduledMessage = {
   id: number;
@@ -57,6 +58,13 @@ export default function PartnerScheduledMessagesPage() {
   const [editingMessage, setEditingMessage] = useState<ScheduledMessage | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [customerGroups, setCustomerGroups] = useState<Array<{ id: number; name: string; _count: { members: number } }>>([]);
+  const [smsConfigStatus, setSmsConfigStatus] = useState<{
+    isConnected: boolean;
+    provider?: string;
+    senderPhone?: string;
+    profileType?: string;
+  } | null>(null);
+  const [showSmsConfigModal, setShowSmsConfigModal] = useState(false);
 
   // 폼 데이터
   const [formData, setFormData] = useState({
@@ -64,7 +72,7 @@ export default function PartnerScheduledMessagesPage() {
     category: '예약메시지',
     groupName: '',
     description: '',
-    sendMethod: 'sms' as 'email' | 'sms' | 'kakao' | 'cruise-guide',
+    sendMethod: 'sms' as 'email' | 'sms',
     senderName: '크루즈닷',
     senderPhone: '',
     senderEmail: '',
@@ -130,10 +138,31 @@ export default function PartnerScheduledMessagesPage() {
     }
   }, []);
 
+  // SMS API 연결 상태 로드
+  const loadSmsConfigStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/partner/sms-config/status', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok) {
+        setSmsConfigStatus({
+          isConnected: data.isConnected,
+          provider: data.config?.provider,
+          senderPhone: data.config?.senderPhone,
+          profileType: data.profileType,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load SMS config status:', error);
+    }
+  }, []);
+
   useEffect(() => {
     loadMessages();
     loadCustomerGroups();
-  }, [loadMessages, loadCustomerGroups]);
+    loadSmsConfigStatus();
+  }, [loadMessages, loadCustomerGroups, loadSmsConfigStatus]);
 
   // 새 메시지 작성 모달 열기
   const openCreateModal = () => {
@@ -290,6 +319,57 @@ export default function PartnerScheduledMessagesPage() {
         </button>
       </div>
 
+      {/* SMS API 연결 상태 배너 */}
+      {smsConfigStatus && (
+        <div className={`mb-6 p-4 rounded-xl border-2 ${smsConfigStatus.isConnected
+          ? 'bg-green-50 border-green-200'
+          : 'bg-yellow-50 border-yellow-200'
+          }`}>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl">
+                  {smsConfigStatus.isConnected ? '✅' : '⚠️'}
+                </span>
+                <h3 className={`font-bold text-lg ${smsConfigStatus.isConnected ? 'text-green-900' : 'text-yellow-900'
+                  }`}>
+                  {smsConfigStatus.isConnected ? 'SMS API 연결됨' : 'SMS API 미연결'}
+                </h3>
+              </div>
+              {smsConfigStatus.isConnected ? (
+                <div className="text-sm text-green-800">
+                  <p><strong>발신번호:</strong> {smsConfigStatus.senderPhone}</p>
+                  <p><strong>서비스:</strong> {smsConfigStatus.provider === 'aligo' ? '알리고' : smsConfigStatus.provider}</p>
+                  <p className="mt-1 text-xs text-green-700">
+                    SMS 자동 발송 기능을 사용할 수 있습니다.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-sm text-yellow-800">
+                  <p className="mb-2">
+                    예약 메시지 자동 발송을 위해 SMS API 연결이 필요합니다. 아래 버튼을 클릭하여 설정하세요.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowSmsConfigModal(true)}
+                      className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
+                    >
+                      ⚡ 빠른 설정
+                    </button>
+                    <button
+                      onClick={() => alert('관리자에게 SMS API 연결 요청을 보냈습니다. (개발 중)')}
+                      className="px-4 py-2 bg-white border-2 border-yellow-600 text-yellow-900 rounded-lg hover:bg-yellow-100 transition-colors text-sm font-medium"
+                    >
+                      관리자에게 요청하기
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 검색 */}
       <div className="bg-white p-4 rounded-xl shadow-md mb-6">
         <input
@@ -325,11 +405,11 @@ export default function PartnerScheduledMessagesPage() {
                     <h3 className="text-xl font-bold text-gray-900">{message.title}</h3>
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-semibold">
-                        {message.sendMethod === 'sms' ? 'SMS' : message.sendMethod === 'email' ? '이메일' : message.sendMethod === 'kakao' ? '카카오톡' : '크루즈가이드'}
+                        {message.sendMethod === 'sms' ? 'SMS' : message.sendMethod === 'email' ? '이메일' : message.sendMethod}
                       </span>
                       {message.targetGroup && (
                         <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded text-sm font-semibold">
-                          👥 {message.targetGroup.name} ({message.targetGroup._count.members}명)
+                          👥 {message.targetGroup.name} ({message.targetGroup._count?.members || 0}명)
                         </span>
                       )}
                       {message.isActive ? (
@@ -465,7 +545,7 @@ export default function PartnerScheduledMessagesPage() {
                     <option value="">전체 고객 (그룹 미지정)</option>
                     {customerGroups.map((group) => (
                       <option key={group.id} value={group.id}>
-                        {group.name} ({group._count.members}명)
+                        {group.name} ({group._count?.members || 0}명)
                       </option>
                     ))}
                   </select>
@@ -495,7 +575,7 @@ export default function PartnerScheduledMessagesPage() {
                   <select
                     value={formData.sendMethod}
                     onChange={(e) => {
-                      const method = e.target.value as any;
+                      const method = e.target.value as 'sms' | 'email';
                       setFormData((prev) => ({
                         ...prev,
                         sendMethod: method,
@@ -505,8 +585,6 @@ export default function PartnerScheduledMessagesPage() {
                   >
                     <option value="sms">SMS</option>
                     <option value="email">이메일</option>
-                    <option value="kakao">카카오톡</option>
-                    <option value="cruise-guide">크루즈가이드</option>
                   </select>
                 </div>
                 <div>
@@ -716,6 +794,15 @@ export default function PartnerScheduledMessagesPage() {
           </div>
         </div>
       )}
+
+      {/* SMS 설정 모달 */}
+      <SmsConfigModal
+        isOpen={showSmsConfigModal}
+        onClose={() => setShowSmsConfigModal(false)}
+        onSuccess={() => {
+          loadSmsConfigStatus();
+        }}
+      />
     </div>
   );
 }

@@ -155,7 +155,6 @@ function AdminLayoutContent({
     { href: '/admin/pwa-stats', label: 'PWA 설치 통계', icon: '📲' },
     // { href: '/admin/video-meetings', label: '화상 회의', icon: '📹' }, // 화상회의 기능 비활성화
     { href: '/admin/messages', label: '고객 메시지', icon: '💬', section: 'marketing' },
-    { href: '/admin/team-dashboard-messages', label: '팀 대시보드 메시지함', icon: '📨', section: 'marketing' },
     { href: '/admin/scheduled-messages', label: '예약 메시지', icon: '📅', section: 'marketing' },
     { href: '/admin/customer-groups', label: '고객 그룹 관리', icon: '👥', section: 'marketing' },
     { href: '/admin/manual-passport-request', label: '수동 여권 요청', icon: '🛂' },
@@ -180,7 +179,6 @@ function AdminLayoutContent({
 
     { href: '/admin/b2b-landing/editor', label: 'B2B 랜딩페이지 편집', icon: '✏️', section: 'affiliate' },
     { href: '/admin/affiliate/sales-confirmation/pending', label: '판매 확정 승인', icon: '✅', section: 'affiliate' },
-    { href: '/admin/affiliate/adjustments', label: '수당 조정 승인', icon: '💰', section: 'affiliate' },
     { href: '/admin/affiliate/documents', label: '문서 관리', icon: '📄', section: 'affiliate' },
     { href: '/admin/affiliate/statements', label: '지급명세서 관리', icon: '📋', section: 'affiliate' },
     { href: '/admin/affiliate/refunds', label: '환불 처리 관리', icon: '↩️', section: 'affiliate' },

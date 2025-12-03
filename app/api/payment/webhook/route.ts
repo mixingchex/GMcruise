@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
           },
         });
       }
-      
+
       // 방법 2: affiliateMallUserId로 찾기 (mallUserId로 찾기)
       if (!affiliateProfile && affiliateMallUserId) {
         // User를 mallUserId로 찾기
@@ -303,7 +303,7 @@ export async function POST(req: NextRequest) {
       // Lead가 없지만 고객 정보와 어필리에이트 정보가 있으면 새로 생성
       const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
       const normalizedPhone = normalizePhone(customerPhone);
-      
+
       if (normalizedPhone.length >= 10) {
         // 기존 Lead 확인
         const existingLead = await prisma.affiliateLead.findFirst({
@@ -360,7 +360,7 @@ export async function POST(req: NextRequest) {
     if (customerPhone) {
       const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
       const normalizedPhone = normalizePhone(customerPhone);
-      
+
       if (normalizedPhone.length >= 10) {
         // 전화번호로 User 찾기
         const user = await prisma.user.findFirst({
@@ -418,6 +418,97 @@ export async function POST(req: NextRequest) {
         console.error('[Payment Webhook] 구매확인서 발송 실패:', confirmationError);
         // 구매확인서 발송 실패해도 결제 처리는 성공으로 처리
       }
+
+      // Google 스프레드시트 백업 (구매고객관리)
+      // 비동기로 실행
+      import('@/lib/google-sheets').then(async ({ sendToGoogleSheet }) => {
+        try {
+          // 담당자 정보 조회 (이름 등)
+          let managerName = '';
+          let channel = '본사';
+
+          if (managerId) {
+            const mProfile = await prisma.affiliateProfile.findUnique({
+              where: { id: managerId },
+              select: { displayName: true, nickname: true }
+            });
+            managerName = mProfile?.displayName || mProfile?.nickname || '';
+            channel = '대리점장';
+          }
+
+          if (agentId) {
+            const aProfile = await prisma.affiliateProfile.findUnique({
+              where: { id: agentId },
+              select: { displayName: true, nickname: true }
+            });
+            managerName = aProfile?.displayName || aProfile?.nickname || '';
+            channel = '판매원';
+          }
+
+          // 상품 정보 및 출발일 조회
+          let productName = productCode || '';
+          let departureDate = '';
+
+          if (productCode) {
+            const product = await prisma.cruiseProduct.findUnique({
+              where: { productCode },
+              select: { packageName: true, cruiseLine: true, shipName: true }
+            });
+            if (product) {
+              productName = product.packageName || `${product.cruiseLine} ${product.shipName}`;
+            }
+
+            // 출발일 조회 (Trip 또는 AffiliateProduct)
+            // 1. Trip에서 조회 (이미 생성된 경우)
+            const trip = await prisma.trip.findFirst({
+              where: { productCode },
+              select: { departureDate: true }
+            });
+
+            if (trip?.departureDate) {
+              departureDate = trip.departureDate.toISOString().split('T')[0];
+            } else {
+              // 2. AffiliateProduct에서 조회
+              const affProduct = await prisma.affiliateProduct.findFirst({
+                where: { productCode },
+                select: { effectiveFrom: true }
+              });
+              if (affProduct?.effectiveFrom) {
+                departureDate = affProduct.effectiveFrom.toISOString().split('T')[0];
+              }
+            }
+          }
+
+          const now = new Date();
+          const kstDate = now.toLocaleString('ko-KR');
+          const isoDate = now.toISOString().split('T')[0];
+
+          sendToGoogleSheet({
+            // 기본 정보
+            name: customerName ? String(customerName).trim() : '', // I: 성명
+            phone: customerPhone ? String(customerPhone).replace(/[^0-9]/g, '') : '', // P: 고객연락처
+            source: 'purchase',
+            productName: productName, // D: 상품명
+            channel,
+            manager: managerName, // U: 연결담당자
+            notes: undefined,
+            target: 'purchased',
+
+            // APIS 추가 정보
+            reservationDate: isoDate, // B: 예약일 (결제일 기준)
+            reservationNo: merchant_uid, // C: 예약번호
+            departureDate: departureDate, // E: 출발일
+            cabinType: cabinType || '', // F: 객실 종류
+            paymentDate: isoDate, // R: 결제일
+            paymentMethod: '카드', // S: 결제방법 (PG사는 대부분 카드, 필요시 로직 추가)
+            amount: amount, // T: 결제금액
+            lastEditor: 'System', // V: 최종수정자
+            lastEditTime: kstDate, // W: 최종수정일시
+          });
+        } catch (sheetError) {
+          console.error('[Payment Webhook] Google Sheet Backup Error:', sheetError);
+        }
+      });
     }
 
     return NextResponse.json({
