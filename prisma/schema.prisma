@@ -2093,6 +2093,7 @@ model Traveler {
   passportImage  String?
   userId         Int?
   nationality    String?
+  notes          String?     // 비고 (뒤늦게 일행 신청 등 메모)
   Reservation    Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   User           User?       @relation(fields: [userId], references: [id])
 

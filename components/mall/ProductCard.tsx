@@ -135,7 +135,20 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         {product.thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={product.thumbnail}
+            src={(() => {
+              const url = product.thumbnail;
+              if (!url) return '';
+              // admin proxy URL을 public proxy URL로 변환
+              if (url.includes('/api/admin/mall/google-drive-image')) {
+                return url.replace('/api/admin/mall/google-drive-image', '/api/public/image-proxy');
+              }
+              // Google Drive URL인 경우 public proxy 사용
+              if (url.includes('drive.google.com')) {
+                const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
+                if (match) return `/api/public/image-proxy?fileId=${match[1]}`;
+              }
+              return url;
+            })()}
             alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 이미지`}
             className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
           />

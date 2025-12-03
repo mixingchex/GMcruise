@@ -5,15 +5,7 @@ import Link from 'next/link';
 import { FiArrowLeft, FiSave, FiUser, FiLink, FiPlus, FiX, FiImage, FiChevronLeft, FiChevronRight, FiPlay, FiExternalLink, FiShoppingBag, FiUpload, FiCheck, FiCopy } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
-// Google Drive 이미지 프록시 URL 변환 헬퍼
-const getProxyImageUrl = (url: string | null | undefined) => {
-  if (!url) return '';
-  if (url.includes('drive.google.com')) {
-    const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
-    if (match) return `/api/admin/mall/google-drive-image?fileId=${match[1]}`;
-  }
-  return url;
-};
+import { getProxyImageUrl } from '@/lib/utils';
 
 type SnsProfileClientProps = {
   user: {
@@ -1366,7 +1358,7 @@ function MobilePreview({ profile }: {
                           className="w-full h-full cursor-pointer block relative"
                         >
                           <img
-                            src={profile.featuredImages[featuredIndex]}
+                            src={getProxyImageUrl(profile.featuredImages[featuredIndex])}
                             alt={`Featured ${featuredIndex + 1}`}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -1414,7 +1406,7 @@ function MobilePreview({ profile }: {
                     <div className="relative inline-block mb-4">
                       {profile.profileImage ? (
                         <img
-                          src={profile.profileImage}
+                          src={getProxyImageUrl(profile.profileImage)}
                           alt={profile.displayName}
                           className="w-24 h-24 rounded-full object-cover border-4 border-purple-200"
                           onError={(e) => {

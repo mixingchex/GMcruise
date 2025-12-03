@@ -170,7 +170,7 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
 
   const handleOpenChatbotModal = async (reservation: Reservation) => {
     setSelectedReservation(reservation);
-    
+
     // 여권 챗봇 플로우 확인 및 생성
     try {
       // 먼저 기존 플로우 확인
@@ -178,7 +178,7 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
         credentials: 'include',
       });
       const checkData = await checkResponse.json();
-      
+
       let passportFlow = null;
       if (checkData.ok && Array.isArray(checkData.flows)) {
         passportFlow = checkData.flows.find((f: any) => f.name === '여권 등록 챗봇');
@@ -191,7 +191,7 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
           credentials: 'include',
         });
         const createData = await createResponse.json();
-        
+
         if (createData.ok && createData.shareToken) {
           passportFlow = { shareToken: createData.shareToken };
         } else {
@@ -203,7 +203,7 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
       // 챗봇 링크 생성
       const chatbotUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/chat-bot/share/${passportFlow.shareToken || passportFlow.shareToken}`;
       setChatbotLink(chatbotUrl);
-      
+
       const customerName = reservation.user?.name || '고객';
       const defaultMessage = `안녕하세요 ${customerName}님. 여권 등록을 도와드리는 챗봇입니다. 아래 링크를 클릭하여 여권 이미지를 업로드해주세요.\n\n${chatbotUrl}`;
       setChatbotMessage(defaultMessage);
@@ -522,7 +522,7 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                           {previewDevice === 'iphone' && (
                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[30px] bg-black rounded-b-[1.5rem] z-10"></div>
                           )}
-                          
+
                           {/* 화면 */}
                           <div className={`bg-white ${previewDevice === 'iphone' ? 'rounded-[2.5rem]' : 'rounded-[2rem]'} overflow-hidden`}>
                             {/* 상태바 */}
@@ -690,7 +690,7 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                           {previewDevice === 'iphone' && (
                             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[30px] bg-black rounded-b-[1.5rem] z-10"></div>
                           )}
-                          
+
                           {/* 화면 */}
                           <div className={`bg-white ${previewDevice === 'iphone' ? 'rounded-[2.5rem]' : 'rounded-[2rem]'} overflow-hidden`}>
                             {/* 상태바 */}
@@ -865,8 +865,14 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                                 </div>
                                 <div>
                                   <p className="text-sm font-medium text-gray-500">여권번호</p>
-                                  <p className="text-base text-gray-900">{traveler.passportNo || '미입력'}</p>
-                                  {traveler.passportImage && (
+                                  <p className="text-base text-gray-900">
+                                    {/* 본사(HQ)만 여권번호 전체 표시, 판매원/대리점장은 마스킹 처리 */}
+                                    {partner.type === 'HQ'
+                                      ? (traveler.passportNo || '미입력')
+                                      : (traveler.passportNo ? traveler.passportNo.replace(/.(?=.{4})/g, '*') : '미입력')}
+                                  </p>
+                                  {/* 본사(HQ)만 여권 이미지 확인 가능 */}
+                                  {traveler.passportImage && partner.type === 'HQ' && (
                                     <div className="mt-2 flex gap-2">
                                       <button
                                         onClick={() => {
@@ -919,6 +925,28 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   닫기
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm('PNR 데이터를 전송하시겠습니까?')) return;
+                    try {
+                      const res = await fetch(`/api/partner/reservations/${reservationDetail.id}/sync-apis`, {
+                        method: 'POST',
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        alert('PNR 데이터 전송이 요청되었습니다.');
+                      } else {
+                        alert(data.error || '전송 실패');
+                      }
+                    } catch (e) {
+                      alert('전송 중 오류가 발생했습니다.');
+                    }
+                  }}
+                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+                >
+                  PNR 전송
                 </button>
               </div>
             </div>

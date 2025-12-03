@@ -288,7 +288,7 @@ export default function CustomerPassportPage() {
     fileInput.click();
   };
 
-  // 이미지 압축 함수 (속도 향상)
+  // 이미지 압축 함수 (큰 파일도 자동 압축 - 5MB 이상도 처리 가능)
   const compressImage = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -296,21 +296,37 @@ export default function CustomerPassportPage() {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          // 더 작은 크기로 압축 (800x800으로 변경, 속도 향상)
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
+
+          // 파일 크기에 따라 압축률 조절
+          // - 10MB 이상: 1200px, 품질 0.6
+          // - 5MB 이상: 1400px, 품질 0.7
+          // - 5MB 미만: 1600px, 품질 0.8
+          let MAX_SIZE = 1600;
+          let quality = 0.8;
+
+          if (file.size > 10 * 1024 * 1024) {
+            // 10MB 이상
+            MAX_SIZE = 1200;
+            quality = 0.6;
+          } else if (file.size > 5 * 1024 * 1024) {
+            // 5MB 이상
+            MAX_SIZE = 1400;
+            quality = 0.7;
+          }
+
           let width = img.width;
           let height = img.height;
 
+          // 가장 긴 변을 기준으로 비율 유지하며 리사이즈
           if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
+            if (width > MAX_SIZE) {
+              height = Math.round((height * MAX_SIZE) / width);
+              width = MAX_SIZE;
             }
           } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
+            if (height > MAX_SIZE) {
+              width = Math.round((width * MAX_SIZE) / height);
+              height = MAX_SIZE;
             }
           }
 
@@ -322,21 +338,22 @@ export default function CustomerPassportPage() {
           ctx!.imageSmoothingQuality = 'high';
           ctx?.drawImage(img, 0, 0, width, height);
 
-          // 품질을 0.7로 낮춰서 파일 크기 감소 (속도 향상)
+          // 압축된 이미지 생성
           canvas.toBlob(
             (blob) => {
               if (blob) {
-                const compressedFile = new File([blob], file.name, {
+                const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), {
                   type: 'image/jpeg',
                   lastModified: Date.now(),
                 });
+                console.log(`[Image Compress] 원본: ${(file.size / 1024 / 1024).toFixed(2)}MB -> 압축: ${(blob.size / 1024 / 1024).toFixed(2)}MB`);
                 resolve(compressedFile);
               } else {
                 reject(new Error('이미지 압축 실패'));
               }
             },
             'image/jpeg',
-            0.7 // 0.85 -> 0.7로 낮춤 (속도 향상)
+            quality
           );
         };
         img.onerror = () => reject(new Error('이미지 로드 실패'));
@@ -359,9 +376,10 @@ export default function CustomerPassportPage() {
       return;
     }
 
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    // 20MB까지 허용 (클라이언트에서 자동 압축하므로 큰 파일도 OK)
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
     if (file.size > MAX_FILE_SIZE) {
-      alert('파일 크기는 10MB를 초과할 수 없습니다.');
+      alert('파일 크기는 20MB를 초과할 수 없습니다. 더 작은 파일을 선택해주세요.');
       return;
     }
 

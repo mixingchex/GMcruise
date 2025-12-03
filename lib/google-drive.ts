@@ -245,12 +245,13 @@ export async function listFilesInFolder(
 
 /**
  * Google Drive 파일 ID를 직접 다운로드 URL로 변환 (CDN 최적화)
- * 이미지의 경우 미리보기 링크 사용, 다른 파일은 다운로드 링크 사용
+ * 이미지의 경우 lh3.googleusercontent.com 사용 (브라우저에서 직접 렌더링 가능)
+ * 다른 파일은 다운로드 링크 사용
  */
 export function getDriveFileUrl(fileId: string, isImage: boolean = false): string {
   if (isImage) {
-    // 이미지는 미리보기 링크 사용 (최적화된 크기)
-    return `https://drive.google.com/uc?export=view&id=${fileId}`;
+    // 이미지는 lh3.googleusercontent.com 사용 (리다이렉트 없이 직접 이미지 반환)
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
   }
   // 다른 파일은 다운로드 링크 사용
   return `https://drive.google.com/uc?export=download&id=${fileId}`;

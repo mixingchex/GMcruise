@@ -108,13 +108,135 @@ interface SyncResult {
   rowCount?: number;
 }
 
+import { google } from 'googleapis';
+import prisma from '@/lib/prisma';
+import { getGoogleAuth } from '@/lib/google-drive';
+import { getDriveFolderId } from '@/lib/config/drive-config';
+
+// ... existing imports ...
+
+// ... existing code ...
+
 /**
- * @deprecated This function is no longer actively used.
- * Stub implementation to prevent build errors.
+ * Syncs APIS data to a Google Sheet for a specific trip.
+ * Creates a new sheet from template if it doesn't exist.
  */
 export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
-  console.warn(`[Google Sheets] syncApisSpreadsheet is deprecated. Called with tripId=${tripId}`);
-  return { ok: true, error: 'Function deprecated - no operation performed' };
+  try {
+    // 1. Get Trip Info with Travelers
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: {
+        Reservation: {
+          include: {
+            Traveler: true,
+          },
+        },
+      },
+    });
+
+    if (!trip) {
+      return { ok: false, error: 'Trip not found' };
+    }
+
+    const auth = getGoogleAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+    const drive = google.drive({ version: 'v3', auth });
+
+    let spreadsheetId = trip.spreadsheetId;
+
+    // 2. Create Spreadsheet if not exists
+    if (!spreadsheetId) {
+      const templateId = await getDriveFolderId('APIS_TEMPLATE_ID');
+      const apisMainFolderId = await getDriveFolderId('APIS_MAIN');
+
+      const copyRes = await drive.files.copy({
+        fileId: templateId,
+        requestBody: {
+          name: `[APIS] ${trip.shipName} (${new Date(trip.departureDate).toISOString().split('T')[0]})`,
+          parents: apisMainFolderId ? [apisMainFolderId] : undefined,
+        },
+        fields: 'id, webViewLink',
+        supportsAllDrives: true,
+      });
+
+      spreadsheetId = copyRes.data.id;
+      if (!spreadsheetId) throw new Error('Failed to copy spreadsheet template');
+
+      await prisma.trip.update({
+        where: { id: tripId },
+        data: { spreadsheetId },
+      });
+    }
+
+    // 3. Prepare Data
+    // Filter out canceled reservations if necessary, but usually we keep all linked travelers
+    // Flatten travelers
+    const travelers = trip.Reservation.flatMap(r => r.Traveler);
+
+    // Sort by Room Number
+    travelers.sort((a, b) => (a.roomNumber || 0) - (b.roomNumber || 0));
+
+    // Map to Rows (Adjust columns based on template)
+    // A: No, B: Room, C: KorName, D: EngSurname, E: EngGivenName, F: PassportNo, G: Nationality, H: DOB, I: Expiry, J: Gender
+    const rows = travelers.map((t, index) => [
+      index + 1,
+      t.roomNumber,
+      t.korName || '',
+      t.engSurname || '',
+      t.engGivenName || '',
+      t.passportNo || '',
+      t.nationality || '',
+      t.birthDate || '',
+      t.expiryDate || '',
+      t.gender || '',
+      t.issueDate || '',
+    ]);
+
+    // 4. Clear & Write Data
+    // Get the first sheet name dynamically
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId,
+      fields: 'sheets.properties.title',
+    });
+
+    const sheetTitle = meta.data.sheets?.[0]?.properties?.title;
+    if (!sheetTitle) {
+      throw new Error('Could not find any sheet in the spreadsheet');
+    }
+
+    // We assume the data starts at A3 (Row 1-2 are headers)
+    // First, clear existing data to avoid leftovers
+    // Use single quotes for sheet name to handle spaces or special chars
+    const range = `'${sheetTitle}'!A3:Z1000`;
+
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range,
+    });
+
+    if (rows.length > 0) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${sheetTitle}'!A3`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: rows,
+        },
+      });
+    }
+
+    return {
+      ok: true,
+      spreadsheetId,
+      spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
+      rowCount: rows.length
+    };
+
+  } catch (error: any) {
+    console.error('[Google Sheets] syncApisSpreadsheet Error:', error);
+    return { ok: false, error: error.message || 'Failed to sync APIS spreadsheet' };
+  }
 }
 
 /**

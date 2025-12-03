@@ -61,6 +61,21 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null); // 모달에 표시할 이미지 URL
   const [modalVideoUrl, setModalVideoUrl] = useState<string | null>(null); // 모달에 표시할 동영상 URL
 
+  // Google Drive 이미지 URL을 public proxy URL로 변환하는 헬퍼 함수
+  const getProxyImageUrl = (url: string | null | undefined): string => {
+    if (!url) return '';
+    // admin proxy URL을 public proxy URL로 변환
+    if (url.includes('/api/admin/mall/google-drive-image')) {
+      return url.replace('/api/admin/mall/google-drive-image', '/api/public/image-proxy');
+    }
+    // Google Drive URL인 경우 public proxy 사용
+    if (url.includes('drive.google.com')) {
+      const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
+      if (match) return `/api/public/image-proxy?fileId=${match[1]}`;
+    }
+    return url;
+  };
+
   // 한국어 이름 가져오기
   const koreanCruiseLine = getKoreanCruiseLineName(product.cruiseLine);
   const koreanShipName = getKoreanShipName(product.cruiseLine, product.shipName);
@@ -682,7 +697,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 {mallContent?.thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={mallContent.thumbnail}
+                    src={getProxyImageUrl(mallContent.thumbnail)}
                     alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 썸네일`}
                     className="w-full h-full object-cover"
                   />
@@ -696,7 +711,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 ) : images.length > 0 && selectedImageIndex < images.length ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={images[selectedImageIndex]}
+                    src={getProxyImageUrl(images[selectedImageIndex])}
                     alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 썸네일`}
                     className="w-full h-full object-cover"
                   />
@@ -740,7 +755,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={image}
+                        src={getProxyImageUrl(image)}
                         alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상세 이미지 ${index + 1}`}
                         className="w-full h-full object-cover"
                       />
@@ -1346,11 +1361,11 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                       <div key={block.id || index} className="bg-white rounded-xl overflow-hidden shadow-md">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={block.url}
+                          src={getProxyImageUrl(block.url)}
                           alt={block.alt || `${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 이미지 ${index + 1}`}
                           className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
                           onClick={() => {
-                            setModalImageUrl(block.url);
+                            setModalImageUrl(getProxyImageUrl(block.url));
                             setShowImageModal(true);
                           }}
                         />
@@ -1797,11 +1812,11 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                                     <div key={block.id || blockIdx} className="rounded-lg overflow-hidden shadow-md">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
-                                        src={block.url}
+                                        src={getProxyImageUrl(block.url)}
                                         alt={block.alt || `${product.packageName} ${day.day}일차 크루즈 여행 일정 이미지 ${blockIdx + 1}`}
                                         className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
                                         onClick={() => {
-                                          setModalImageUrl(block.url);
+                                          setModalImageUrl(getProxyImageUrl(block.url));
                                           setShowImageModal(true);
                                         }}
                                       />

@@ -190,7 +190,7 @@ export async function GET(req: NextRequest) {
         }
 
         // 프록시 URL 생성 (공유 설정과 무관하게 작동)
-        const proxyUrl = `/api/admin/mall/google-drive-image?id=${file.id}`;
+        const proxyUrl = `/api/public/image-proxy?fileId=${file.id}`;
 
         console.log(`[Google Drive Products API] Image URL generated:`, {
           id: file.id,

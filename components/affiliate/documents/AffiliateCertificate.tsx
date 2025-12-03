@@ -8,6 +8,7 @@ import { showSuccess, showError } from '@/components/ui/Toast';
 
 interface AffiliateCertificateProps {
   type: 'purchase' | 'refund';
+  searchApiUrl?: string;
 }
 
 interface CertificateData {
@@ -54,16 +55,16 @@ interface ProductDetails {
   hasTravelInsurance?: boolean;
 }
 
-export default function AffiliateCertificate({ type }: AffiliateCertificateProps) {
+export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCertificateProps) {
   console.log('[AffiliateCertificate] Rendering with type:', type);
-  
+
   const certificateRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isCreatingSample, setIsCreatingSample] = useState(false);
   const [customerEmail, setCustomerEmail] = useState('');
-  
+
   const [data, setData] = useState<CertificateData>({
     customerName: '',
     birthDate: '',
@@ -129,8 +130,9 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
 
     try {
       setIsLoadingCustomerInfo(true);
-      // 판매원의 고객만 검색하는 API 사용
-      const response = await fetch(`/api/affiliate/customers/search?q=${encodeURIComponent(query)}&limit=10`, {
+      // 판매원의 고객만 검색하는 API 사용 (또는 전달받은 API)
+      const apiUrl = searchApiUrl || '/api/affiliate/customers/search';
+      const response = await fetch(`${apiUrl}?q=${encodeURIComponent(query)}&limit=10&hasPurchase=true`, {
         credentials: 'include',
       });
 
@@ -204,7 +206,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
               ...prev,
               productName: product.packageName || product.productName || '',
               paymentAmount: result.payment?.amount || product.basePrice || 0,
-              paymentDate: result.payment?.date 
+              paymentDate: result.payment?.date
                 ? new Date(result.payment.date).toISOString().split('T')[0]
                 : '',
             }));
@@ -245,7 +247,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
     setSelectedCustomerId(customer.id);
     setShowSuggestions(false);
     setCustomerSuggestions([]);
-    
+
     // 고객 정보 로드
     await loadCustomerInfo(customer.id);
 
@@ -383,10 +385,10 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
 
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      const fileName = type === 'purchase' 
+      const fileName = type === 'purchase'
         ? `구매확인증서_${data.customerName}_${new Date().toISOString().split('T')[0]}.png`
         : `환불인증서_${data.customerName}_${new Date().toISOString().split('T')[0]}.png`;
-      
+
       link.download = fileName;
       link.href = dataUrl;
       document.body.appendChild(link);
@@ -435,7 +437,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
 
     try {
       setIsSendingEmail(true);
-      
+
       // html2canvas로 문서 영역 캡처
       const canvas = await html2canvas(certificateRef.current, {
         backgroundColor: '#ffffff',
@@ -475,7 +477,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
         showError('전송 실패. 다시 시도해주세요.');
         console.error('[Send Email] API Error:', result.error);
       }
-      
+
     } catch (error: any) {
       console.error('[Send Email] Error:', error);
       showError('전송 실패. 다시 시도해주세요.');
@@ -568,17 +570,16 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
       <button
         onClick={handleRequestApproval}
         disabled={isRequesting || !data.customerName || !selectedCustomerId}
-        className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors flex items-center justify-center gap-2 ${
-          type === 'purchase'
+        className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors flex items-center justify-center gap-2 ${type === 'purchase'
             ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
             : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
-        }`}
+          }`}
       >
         <Send className="w-5 h-5" />
-        {isRequesting 
-          ? '요청 중...' 
-          : type === 'purchase' 
-            ? '구매확인 승인 요청' 
+        {isRequesting
+          ? '요청 중...'
+          : type === 'purchase'
+            ? '구매확인 승인 요청'
             : '환불인증 승인 요청'}
       </button>
     );
@@ -599,7 +600,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
       {/* 입력 폼 */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">고객 정보 입력</h2>
-        
+
         <div className="grid md:grid-cols-2 gap-6">
           <div className="relative">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -737,7 +738,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              생년월일 <span className="text-red-500">*</span>
+              생년월일 <span className="text-gray-400 font-normal">(선택)</span>
               {data.birthDate && (
                 <span className="ml-2 text-xs text-green-600">(여권 정보에서 자동 입력됨)</span>
               )}
@@ -750,7 +751,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
             />
             {!data.birthDate && (
-              <p className="mt-1 text-xs text-gray-500">여권 제출이 완료되지 않은 경우 수동으로 입력해주세요.</p>
+              <p className="mt-1 text-xs text-gray-500">입력하지 않아도 됩니다.</p>
             )}
           </div>
 
@@ -877,8 +878,8 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
                     onChange={(e) => {
                       const value = e.target.value;
                       const numValue = value === '' ? 0 : parseInt(value) || 0;
-                      setData(prev => ({ 
-                        ...prev, 
+                      setData(prev => ({
+                        ...prev,
                         refundAmount: numValue
                       }));
                     }}
@@ -977,8 +978,8 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
       {/* 인증서 미리보기 - 승인 완료 후에만 표시 */}
       {approvalRequest?.status === 'approved' && (
         <div className="bg-gray-100 rounded-lg shadow-md p-6 overflow-auto">
-          <div 
-            ref={certificateRef} 
+          <div
+            ref={certificateRef}
             className="bg-white mx-auto shadow-lg"
             style={{
               width: '210mm',
@@ -1003,9 +1004,9 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
 
             {/* 제목 */}
             <div className="text-center mb-4 flex-shrink-0">
-              <h1 
+              <h1
                 className="text-2xl font-bold text-gray-900 mb-1"
-                style={{ 
+                style={{
                   fontFamily: 'serif, "Times New Roman", "Malgun Gothic", sans-serif',
                   letterSpacing: '0.03em',
                 }}
@@ -1113,7 +1114,7 @@ export default function AffiliateCertificate({ type }: AffiliateCertificateProps
                 <div className="text-right">
                   <div className="relative inline-block pr-6 pt-6">
                     {/* 도장 이미지 */}
-                    <div 
+                    <div
                       className="absolute -top-1 -left-1 opacity-75"
                       style={{ zIndex: 1 }}
                     >

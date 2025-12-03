@@ -213,6 +213,9 @@ interface CruiseProduct {
     ports: Array<{ name: string; country: string }>;
     guideService: string;
     additionalServices: string;
+    headcount?: number;
+    cabinType?: string;
+    notes?: string;
 }
 
 interface CruiseProductFromAPI {
@@ -271,6 +274,9 @@ export default function ComparativeQuote() {
         ports: [{ name: '', country: '' }],
         guideService: '',
         additionalServices: '',
+        headcount: undefined,
+        cabinType: '',
+        notes: '',
     });
 
     const [competitor, setCompetitor] = useState<CompetitorProduct>({
@@ -659,6 +665,30 @@ export default function ComparativeQuote() {
                         <p className="mt-1 text-sm text-gray-500">숫자만 입력하면 자동으로 포맷팅됩니다</p>
                     </div>
 
+                    {/* 인원수 및 객실타입 */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-base font-bold text-gray-700 mb-3">인원수</label>
+                            <input
+                                type="number"
+                                value={cruiseProduct.headcount || ''}
+                                onChange={(e) => setCruiseProduct(prev => ({ ...prev, headcount: e.target.value ? parseInt(e.target.value) : undefined }))}
+                                placeholder="예: 2"
+                                className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-base font-bold text-gray-700 mb-3">객실타입</label>
+                            <input
+                                type="text"
+                                value={cruiseProduct.cabinType || ''}
+                                onChange={(e) => setCruiseProduct(prev => ({ ...prev, cabinType: e.target.value }))}
+                                placeholder="예: 발코니"
+                                className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                            />
+                        </div>
+                    </div>
+
                     {/* 일정 */}
                     <div>
                         <label className="block text-base font-bold text-gray-700 mb-3">일정 <span className="text-red-500">*</span></label>
@@ -798,6 +828,171 @@ export default function ComparativeQuote() {
                             </button>
                         </div>
                     </div>
+
+                    {/* 불포함사항 */}
+                    <div className="md:col-span-2">
+                        <label className="block text-base font-bold text-gray-700 mb-3">
+                            불포함사항 <span className="text-sm font-normal text-gray-500">(키워드 선택 또는 직접 입력, 클릭하여 수정 가능)</span>
+                        </label>
+                        <div className="space-y-3">
+                            {cruiseProduct.excluded.map((item, idx) => (
+                                <div key={idx} className="flex gap-3 items-center">
+                                    <div className="flex-1 relative">
+                                        <input
+                                            type="text"
+                                            list={`cruise-excluded-keywords-${idx}`}
+                                            value={item}
+                                            onChange={(e) => {
+                                                const newExcluded = [...cruiseProduct.excluded];
+                                                newExcluded[idx] = e.target.value;
+                                                setCruiseProduct(prev => ({ ...prev, excluded: newExcluded }));
+                                            }}
+                                            placeholder="키워드 선택 또는 직접 입력 (클릭하여 수정 가능)"
+                                            className="w-full rounded-lg border-2 border-gray-300 px-4 py-2 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 pr-10 cursor-text"
+                                        />
+                                        <datalist id={`cruise-excluded-keywords-${idx}`}>
+                                            {EXCLUDED_KEYWORDS.map((keyword) => (
+                                                <option key={keyword} value={keyword} />
+                                            ))}
+                                        </datalist>
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    {cruiseProduct.excluded.length > 1 && (
+                                        <button
+                                            onClick={() => {
+                                                const newExcluded = cruiseProduct.excluded.filter((_, i) => i !== idx);
+                                                setCruiseProduct(prev => ({ ...prev, excluded: newExcluded.length ? newExcluded : [''] }));
+                                            }}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => setCruiseProduct(prev => ({ ...prev, excluded: [...prev.excluded, ''] }))}
+                                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-semibold"
+                            >
+                                <Plus className="w-5 h-5" />
+                                불포함사항 추가
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 기항지 */}
+                    <div className="md:col-span-2">
+                        <label className="block text-base font-bold text-gray-700 mb-3">기항지</label>
+                        <div className="space-y-3">
+                            {cruiseProduct.ports.map((port, idx) => (
+                                <div key={idx} className="grid md:grid-cols-2 gap-3 items-center">
+                                    <select
+                                        value={port.country}
+                                        onChange={(e) => {
+                                            const newPorts = [...cruiseProduct.ports];
+                                            newPorts[idx] = { ...newPorts[idx], country: e.target.value, name: '' };
+                                            setCruiseProduct(prev => ({ ...prev, ports: newPorts }));
+                                        }}
+                                        className="rounded-lg border-2 border-gray-300 px-4 py-2 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                    >
+                                        <option value="">국가 선택</option>
+                                        {Object.keys(COUNTRIES_CITIES).map((country) => (
+                                            <option key={country} value={country}>
+                                                {country}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="flex gap-3">
+                                        <div className="flex-1 relative">
+                                            <input
+                                                type="text"
+                                                list={`cruise-port-cities-${idx}`}
+                                                value={port.name}
+                                                onChange={(e) => {
+                                                    const newPorts = [...cruiseProduct.ports];
+                                                    newPorts[idx] = { ...newPorts[idx], name: e.target.value };
+                                                    setCruiseProduct(prev => ({ ...prev, ports: newPorts }));
+                                                }}
+                                                placeholder="도시 선택 또는 직접 입력"
+                                                disabled={!port.country}
+                                                className="w-full rounded-lg border-2 border-gray-300 px-4 py-2 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 pr-10 disabled:bg-gray-100"
+                                            />
+                                            {port.country && (
+                                                <datalist id={`cruise-port-cities-${idx}`}>
+                                                    {getCitiesByCountry(port.country).map((city) => (
+                                                        <option key={city} value={city} />
+                                                    ))}
+                                                </datalist>
+                                            )}
+                                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+                                        </div>
+                                        {cruiseProduct.ports.length > 1 && (
+                                            <button
+                                                onClick={() => {
+                                                    const newPorts = cruiseProduct.ports.filter((_, i) => i !== idx);
+                                                    setCruiseProduct(prev => ({ ...prev, ports: newPorts.length ? newPorts : [{ name: '', country: '' }] }));
+                                                }}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                            <button
+                                onClick={() => setCruiseProduct(prev => ({ ...prev, ports: [...prev.ports, { name: '', country: '' }] }))}
+                                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 font-semibold"
+                            >
+                                <Plus className="w-5 h-5" />
+                                기항지 추가
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 가이드 서비스 */}
+                    <div className="md:col-span-2">
+                        <label className="block text-base font-bold text-gray-700 mb-3">가이드 서비스</label>
+                        <input
+                            type="text"
+                            value={cruiseProduct.guideService}
+                            onChange={(e) => setCruiseProduct(prev => ({ ...prev, guideService: e.target.value }))}
+                            placeholder="예: 가이드 없음 또는 전문 한국어 가이드 상시 동행"
+                            className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                        />
+                    </div>
+
+                    {/* 추가 서비스 */}
+                    <div className="md:col-span-2">
+                        <label className="block text-base font-bold text-gray-700 mb-3">추가 서비스</label>
+                        <textarea
+                            value={cruiseProduct.additionalServices}
+                            onChange={(e) => setCruiseProduct(prev => ({ ...prev, additionalServices: e.target.value }))}
+                            placeholder="예: 공항 픽업/드롭오프, 입국 서비스 지원"
+                            rows={3}
+                            className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none"
+                        />
+                    </div>
+
+                    {/* 비고 */}
+                    <div className="md:col-span-2">
+                        <label className="block text-base font-bold text-gray-700 mb-3">비고</label>
+                        <textarea
+                            value={cruiseProduct.notes || ''}
+                            onChange={(e) => setCruiseProduct(prev => ({ ...prev, notes: e.target.value }))}
+                            placeholder="상품에 대한 추가 설명이나 조건 등을 입력하세요"
+                            rows={3}
+                            className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 resize-none"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -817,6 +1012,8 @@ export default function ComparativeQuote() {
                             className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-100"
                         />
                     </div>
+
+
 
                     {/* 가격 */}
                     <div>
@@ -1237,10 +1434,22 @@ export default function ComparativeQuote() {
                                             </span>
                                         )}
                                     </div>
+                                    {cruiseProduct.notes && (
+                                        <div className="mt-3 p-2.5 bg-indigo-50 border border-indigo-200 rounded-lg">
+                                            <div className="text-xs font-semibold text-indigo-800 mb-1">비고</div>
+                                            <div className="text-xs text-indigo-700">{cruiseProduct.notes}</div>
+                                        </div>
+                                    )}
                                     <div className="text-base text-gray-700 space-y-1.5">
                                         <div className="font-semibold">일정: {cruiseProduct.nights}박 {cruiseProduct.days}일</div>
                                         {cruiseProduct.departure && (
                                             <div className="font-semibold">출발일: {formatDate(cruiseProduct.departure)}</div>
+                                        )}
+                                        {cruiseProduct.headcount && (
+                                            <div className="font-semibold">인원: {cruiseProduct.headcount}명</div>
+                                        )}
+                                        {cruiseProduct.cabinType && (
+                                            <div className="font-semibold">객실: {cruiseProduct.cabinType}</div>
                                         )}
                                     </div>
                                 </div>
@@ -1470,6 +1679,14 @@ export default function ComparativeQuote() {
                                 />
                             </div>
                             <div className="flex gap-4">
+                                <button
+                                    onClick={handleOpenPreview}
+                                    disabled={isDownloading}
+                                    className="inline-flex items-center gap-2 rounded-lg bg-gray-600 px-8 py-4 text-base font-bold text-white hover:bg-gray-700 disabled:bg-gray-300 transition-colors"
+                                >
+                                    <Eye className="w-5 h-5" />
+                                    미리보기
+                                </button>
                                 <button
                                     onClick={handleDownloadImage}
                                     disabled={isDownloading}

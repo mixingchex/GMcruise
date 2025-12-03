@@ -150,6 +150,7 @@ function AdminLayoutContent({
 
   const menuItems = [
     { href: '/admin/affiliate/customers?source=mall', label: '문의고객', icon: '📞', section: 'inquiries' },
+    { href: '/admin/purchased-customers', label: '구매 고객관리', icon: '🛒' },
     { href: '/admin/apis', label: 'APIS 확인하기', icon: '📋' },
     { href: '/admin/dashboard', label: '대시보드', icon: '📊' },
     { href: '/admin/pwa-stats', label: 'PWA 설치 통계', icon: '📲' },

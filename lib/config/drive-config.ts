@@ -36,7 +36,7 @@ export type DriveConfigKey = keyof typeof DRIVE_CONFIG_KEYS;
 // Default Fallbacks (from existing code or user provided)
 export const DEFAULTS: Record<DriveConfigKey, string> = {
     SIGNATURES: '1PcdSnWQ3iCdd87Y-UI_63HSjlYqcFGyX', // 계약서 싸인 이미지
-    PASSPORTS: '1Nen5t7rE8WaT9e4xWswSiUNJIcgMiDRF', // 여권 이미지
+    PASSPORTS: '1OcqlLCumcXA84yOnH1YrDHQI7vHN-R8u', // 여권 이미지
     ID_CARDS: '1DFWpAiS-edjiBym5Y5AonDOl2wXyuDV0', // 신분증
     BANKBOOKS: '1IjNSTTTBjU9NZE6fm6DeAAHBx4puWCRl', // 통장사본
     B2B_BACKUP: '1_svzM0e22cLbgABfRHa9__Xtgi46q2nZ', // Backups/B2B_Leads

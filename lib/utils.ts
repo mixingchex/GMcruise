@@ -46,3 +46,34 @@ export function getAffiliateTerm(pathname?: string): string {
   return '공유';
 }
 
+
+/**
+ * Google Drive 이미지 URL이나 관리자 프록시 URL을 공용 이미지 프록시 URL로 변환합니다.
+ * @param url - 원본 이미지 URL
+ * @returns 변환된 공용 프록시 URL
+ */
+export const getProxyImageUrl = (url: string | null | undefined) => {
+  if (!url) return '';
+
+  // 이미 공용 프록시 URL이거나 로컬 경로인 경우 그대로 반환
+  if (url.startsWith('/api/public/image-proxy') || url.startsWith('/')) return url;
+
+  // Google Drive URL인 경우 ID 추출하여 프록시 URL로 변환
+  if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+    const fileIdMatch = url.match(/[-\w]{25,}/);
+    if (fileIdMatch) {
+      return `/api/public/image-proxy?fileId=${fileIdMatch[0]}`;
+    }
+  }
+
+  // 관리자 프록시 URL인 경우 공용 프록시로 변환
+  if (url.includes('/api/admin/mall/google-drive-image')) {
+    // URL 객체 사용 대신 정규식이나 문자열 파싱으로 fileId 추출 (SSR 안전성 확보)
+    const match = url.match(/[?&]fileId=([^&]+)/);
+    if (match && match[1]) {
+      return `/api/public/image-proxy?fileId=${match[1]}`;
+    }
+  }
+
+  return url;
+};

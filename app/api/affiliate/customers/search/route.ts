@@ -11,15 +11,16 @@ export async function GET(req: NextRequest) {
 
     // 판매원 또는 대리점장만 접근 가능
     if (profile.type !== 'SALES_AGENT' && profile.type !== 'BRANCH_MANAGER') {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '판매원 또는 대리점장만 접근 가능합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '판매원 또는 대리점장만 접근 가능합니다.'
       }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit') || '10');
+    const hasPurchase = searchParams.get('hasPurchase') === 'true';
 
     if (!query || query.trim().length < 1) {
       return NextResponse.json({ ok: true, customers: [] });
@@ -27,13 +28,22 @@ export async function GET(req: NextRequest) {
 
     // AffiliateLead를 통해 고객 찾기
     // 검색 조건
-    const searchCondition = {
+    const searchCondition: any = {
       OR: [
         { customerName: { contains: query } },
         { customerPhone: { contains: query } },
         { customerEmail: { contains: query } },
       ],
     };
+
+    // 구매 이력 필터
+    if (hasPurchase) {
+      searchCondition.AffiliateSale = {
+        some: {
+          status: { in: ['CONFIRMED', 'PAID'] }
+        }
+      };
+    }
 
     // 소유권 조건
     let ownershipCondition: any;
@@ -97,8 +107,8 @@ export async function GET(req: NextRequest) {
 
     const customers = Array.from(customerMap.values());
 
-    return NextResponse.json({ 
-      ok: true, 
+    return NextResponse.json({
+      ok: true,
       customers: customers.map(c => ({
         id: c.id,
         name: c.name || '',

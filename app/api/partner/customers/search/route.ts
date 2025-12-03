@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const query = searchParams.get('q') || '';
         const limit = parseInt(searchParams.get('limit') || '10');
+        const hasPurchase = searchParams.get('hasPurchase') === 'true';
 
         if (!query || query.trim().length < 1) {
             return NextResponse.json({ ok: true, customers: [] });
@@ -38,6 +39,15 @@ export async function GET(req: NextRequest) {
                 { customerPhone: { contains: query } },
             ],
         };
+
+        // 구매 이력 필터
+        if (hasPurchase) {
+            whereClause.AffiliateSale = {
+                some: {
+                    status: { in: ['CONFIRMED', 'PAID'] }
+                }
+            };
+        }
 
         if (profile.type === 'BRANCH_MANAGER') {
             // 대리점장: 본인 또는 팀원의 리드

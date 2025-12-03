@@ -124,7 +124,7 @@ export default function Certificate({ type }: CertificateProps) {
         try {
             setIsLoadingCustomerInfo(true);
             // Partner API 호출
-            const response = await fetch(`/api/partner/customers/search?q=${encodeURIComponent(query)}&limit=10`);
+            const response = await fetch(`/api/partner/customers/search?q=${encodeURIComponent(query)}&limit=10&hasPurchase=true`);
 
             if (response.ok) {
                 const result = await response.json();
@@ -252,10 +252,9 @@ export default function Certificate({ type }: CertificateProps) {
         };
     }, []);
 
-    // 승인 요청 처리
     const handleRequestApproval = async () => {
-        if (!data.customerName || !data.birthDate) {
-            showError('고객명과 생년월일을 입력해주세요.');
+        if (!data.customerName) {
+            showError('고객명을 입력해주세요.');
             return;
         }
 
@@ -550,7 +549,7 @@ export default function Certificate({ type }: CertificateProps) {
 
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
-                            생년월일 <span className="text-red-500">*</span>
+                            생년월일 <span className="text-gray-400 font-normal">(선택)</span>
                             {data.birthDate && (
                                 <span className="ml-2 text-xs text-green-600">(여권 정보에서 자동 입력됨)</span>
                             )}
@@ -563,7 +562,7 @@ export default function Certificate({ type }: CertificateProps) {
                             className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                         />
                         {!data.birthDate && (
-                            <p className="mt-1 text-xs text-gray-500">여권 제출이 완료되지 않은 경우 수동으로 입력해주세요.</p>
+                            <p className="mt-1 text-xs text-gray-500">입력하지 않아도 됩니다.</p>
                         )}
                     </div>
 
@@ -572,10 +571,10 @@ export default function Certificate({ type }: CertificateProps) {
                         {requestStatus === 'idle' ? (
                             <button
                                 onClick={handleRequestApproval}
-                                disabled={isRequesting || !data.customerName || !data.birthDate || !selectedCustomerId}
+                                disabled={isRequesting || !data.customerName || !selectedCustomerId}
                                 className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors ${type === 'purchase'
-                                        ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
-                                        : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
+                                    ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
+                                    : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
                                     }`}
                             >
                                 {isRequesting
@@ -586,10 +585,10 @@ export default function Certificate({ type }: CertificateProps) {
                             </button>
                         ) : (
                             <div className={`w-full py-3 px-6 rounded-lg font-bold text-white text-center ${requestStatus === 'approved'
-                                    ? 'bg-green-600'
-                                    : requestStatus === 'pending'
-                                        ? 'bg-yellow-500'
-                                        : 'bg-red-600'
+                                ? 'bg-green-600'
+                                : requestStatus === 'pending'
+                                    ? 'bg-yellow-500'
+                                    : 'bg-red-600'
                                 }`}>
                                 {requestStatus === 'approved'
                                     ? '✓ 승인 완료'

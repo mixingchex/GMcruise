@@ -762,7 +762,7 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
                         const url = idCardDoc.filePath;
                         if (url.includes('drive.google.com')) {
                           const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
-                          if (match) return `/api/admin/mall/google-drive-image?fileId=${match[1]}`;
+                          if (match) return `/api/public/image-proxy?fileId=${match[1]}`;
                         }
                         return url;
                       })()}
@@ -850,7 +850,7 @@ function DocumentUploadSection({ profile }: { profile: AffiliateProfile }) {
                         const url = bankbookDoc.filePath;
                         if (url.includes('drive.google.com')) {
                           const match = url.match(/id=([^&]+)/) || url.match(/\/d\/([^/]+)/);
-                          if (match) return `/api/admin/mall/google-drive-image?fileId=${match[1]}`;
+                          if (match) return `/api/public/image-proxy?fileId=${match[1]}`;
                         }
                         return url;
                       })()}

@@ -36,7 +36,7 @@ import {
 import { showError, showSuccess } from '@/components/ui/Toast';
 import SalesConfirmationModal from '@/components/affiliate/SalesConfirmationModal';
 import { leadStatusOptions } from '@/app/api/partner/constants';
-import { getAffiliateTerm } from '@/lib/utils';
+import { getAffiliateTerm, getProxyImageUrl } from '@/lib/utils';
 import NotificationBell from '@/components/admin/NotificationBell';
 import { canUseFeatureClient, getFeatureRestrictionMessageClient } from '@/lib/subscription-limits-client';
 
@@ -572,18 +572,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   // 이미지 URL 추출 헬퍼 함수
   const extractImageUrl = (image: any): string | null => {
     if (!image) return null;
-    if (typeof image === 'string') return image;
-    if (typeof image === 'object') {
+    let url = '';
+    if (typeof image === 'string') url = image;
+    else if (typeof image === 'object') {
       // 객체인 경우 url 필드나 id 필드 확인
-      if (image.url) return String(image.url);
-      if (image.id) {
+      if (image.url) url = String(image.url);
+      else if (image.id) {
         // Google Drive ID인 경우 URL 생성
-        return `https://drive.google.com/uc?export=view&id=${String(image.id)}`;
+        url = `https://drive.google.com/uc?export=view&id=${String(image.id)}`;
       }
-      // 다른 형태의 객체는 null 반환
-      return null;
     }
-    return null;
+
+    // getProxyImageUrl을 사용하여 공용 프록시 URL로 변환
+    return getProxyImageUrl(url);
   };
 
   // 완전히 직렬화 가능한 객체로 변환
@@ -2002,33 +2003,15 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 </span>
               </Link>
             )}
-            {(isBranchManager || subscriptionInfo) && (
-              subscriptionInfo ? (
-                <button
-                  onClick={() => {
-                    if (canUseFeatureClient('purchased-customers', subscriptionInfo)) {
-                      router.push(`${partnerBase}/purchased-customers`);
-                    } else {
-                      const message = getFeatureRestrictionMessageClient('purchased-customers', subscriptionInfo);
-                      setRestrictionMessage(message);
-                      setShowFeatureRestrictionModal(true);
-                    }
-                  }}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6 ${canUseFeatureClient('purchased-customers', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
-                    }`}
-                >
-                  <FiUsers className="text-2xl text-orange-600 md:text-3xl" />
-                  <span className="text-xs font-semibold text-orange-700 md:text-sm">구매고객<br />관리</span>
-                </button>
-              ) : (
-                <Link
-                  href={`${partnerBase}/purchased-customers`}
-                  className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
-                >
-                  <FiUsers className="text-2xl text-orange-600 md:text-3xl" />
-                  <span className="text-xs font-semibold text-orange-700 md:text-sm">구매고객<br />관리</span>
-                </Link>
-              )
+            {/* 구매고객관리 (대리점장/판매원 모두) */}
+            {(isBranchManager || isSalesAgent) && (
+              <Link
+                href={`${partnerBase}/purchased-customers`}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
+              >
+                <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-orange-700 md:text-sm">구매고객관리</span>
+              </Link>
             )}
             {/* B2B 잠재고객 관리 (대리점장 전용) */}
             {isBranchManager && (

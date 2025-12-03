@@ -99,6 +99,16 @@ export default async function LittlyPage({ params }: LittlyPageProps) {
         galleryImages,
         featuredImages,
         youtubeVideoId: getYoutubeVideoId(profile.youtubeVideoUrl),
+        youtubeVideoUrl: profile.youtubeVideoUrl,
+        youtubeVideoUrls: (() => {
+          if (!profile.youtubeVideoUrl) return [];
+          try {
+            const parsed = JSON.parse(profile.youtubeVideoUrl);
+            return Array.isArray(parsed) ? parsed : [profile.youtubeVideoUrl];
+          } catch {
+            return [profile.youtubeVideoUrl];
+          }
+        })(),
       }}
     />
   );

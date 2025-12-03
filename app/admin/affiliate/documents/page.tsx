@@ -112,6 +112,85 @@ export default function AdminDocumentsPage() {
     fareCategory: '',
   });
 
+  // 고객 검색 관련 (비교견적서용)
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [customerSuggestions, setCustomerSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoadingCustomerSearch, setIsLoadingCustomerSearch] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // 외부 클릭 시 제안 목록 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // 고객 검색 함수
+  const searchCustomers = useCallback(async (query: string) => {
+    if (!query || query.trim().length < 1) {
+      setCustomerSuggestions([]);
+      setIsLoadingCustomerSearch(false);
+      return;
+    }
+
+    try {
+      setIsLoadingCustomerSearch(true);
+      const response = await fetch(`/api/admin/affiliate/customers/search?q=${encodeURIComponent(query)}&limit=10`);
+      if (response.ok) {
+        const result = await response.json();
+        if (result.ok) {
+          setCustomerSuggestions(result.customers || []);
+        }
+      }
+    } catch (error) {
+      console.error('Customer search error:', error);
+    } finally {
+      setIsLoadingCustomerSearch(false);
+    }
+  }, []);
+
+  // 고객 검색 입력 핸들러
+  const handleCustomerSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setCustomerSearchQuery(value);
+    setComparisonQuoteData(prev => ({ ...prev, customerName: value }));
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (value.trim().length >= 1) {
+      setShowSuggestions(true);
+      searchTimeoutRef.current = setTimeout(() => {
+        searchCustomers(value);
+      }, 200);
+    } else {
+      setCustomerSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  // 고객 선택 핸들러
+  const handleCustomerSelect = (customer: any) => {
+    setCustomerSearchQuery(customer.displayName || customer.name);
+    setComparisonQuoteData(prev => ({
+      ...prev,
+      customerName: customer.name,
+      customerPhone: customer.phone || prev.customerPhone,
+      customerEmail: customer.email || prev.customerEmail,
+    }));
+    setShowSuggestions(false);
+    setCustomerSuggestions([]);
+  };
+
   const loadSales = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -160,6 +239,8 @@ export default function AdminDocumentsPage() {
         cabinType: '',
         fareCategory: '',
       });
+      setCustomerSearchQuery(sale.lead?.customerName || '');
+      setCustomerSearchQuery(sale.lead?.customerName || '');
 
       // 상품 코드가 있으면 상품 정보 자동 불러오기
       if (sale.productCode) {
@@ -175,7 +256,7 @@ export default function AdminDocumentsPage() {
       setIsLoadingProduct(true);
       const res = await fetch(`/api/admin/affiliate/documents/product-info?productCode=${encodeURIComponent(productCode)}`);
       const json = await res.json();
-      
+
       if (res.ok && json.ok && json.product) {
         setComparisonQuoteData((prev) => ({
           ...prev,
@@ -209,7 +290,7 @@ export default function AdminDocumentsPage() {
 
     try {
       setIsDownloadingImage(true);
-      
+
       // html2canvas로 이미지 생성
       const canvas = await html2canvas(quoteImageRef.current, {
         backgroundColor: '#ffffff',
@@ -415,41 +496,37 @@ export default function AdminDocumentsPage() {
           <nav className="flex gap-1 px-4" aria-label="문서 탭">
             <button
               onClick={() => setActiveTab('comparison')}
-              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                activeTab === 'comparison'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${activeTab === 'comparison'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
             >
               비교견적서
             </button>
             <button
               onClick={() => setActiveTab('purchase')}
-              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                activeTab === 'purchase'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${activeTab === 'purchase'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
             >
               구매확인증서
             </button>
             <button
               onClick={() => setActiveTab('refund')}
-              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                activeTab === 'refund'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${activeTab === 'refund'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
             >
               환불인증서
             </button>
             <button
               onClick={() => setActiveTab('approvals')}
-              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                activeTab === 'approvals'
-                  ? 'bg-orange-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
+              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${activeTab === 'approvals'
+                ? 'bg-orange-600 text-white shadow-md'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
             >
               승인 관리
             </button>
@@ -490,134 +567,134 @@ export default function AdminDocumentsPage() {
 
             {/* 판매 목록 */}
             <section className="rounded-3xl bg-white shadow-lg">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">주문 정보</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">고객 정보</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">판매 금액</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">상태</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">판매일</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">문서 생성</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {isLoading && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-500">
-                      판매 목록을 불러오는 중입니다...
-                    </td>
-                  </tr>
-                )}
-                {!isLoading && sales.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">
-                      조건에 해당하는 판매 내역이 없습니다.
-                    </td>
-                  </tr>
-                )}
-                {!isLoading &&
-                  sales.map((sale) => (
-                    <tr key={sale.id} className="hover:bg-blue-50/40">
-                      <td className="px-4 py-4">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {sale.externalOrderCode || `#${sale.id}`}
-                        </div>
-                        {sale.productCode && (
-                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                            <FiPackage className="text-xs" />
-                            {sale.productCode}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        {sale.lead ? (
-                          <button
-                            onClick={() => router.push(`/admin/affiliate/customers/${sale.lead!.id}`)}
-                            className="text-left hover:bg-blue-50 rounded-lg p-2 -m-2 transition-colors group"
-                          >
-                            <div className="text-sm font-medium text-blue-600 group-hover:text-blue-800 flex items-center gap-1">
-                              {sale.lead.customerName || '이름 없음'}
-                              <FiExternalLink className="text-xs opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">주문 정보</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">고객 정보</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">판매 금액</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">상태</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">판매일</th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">문서 생성</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {isLoading && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-6 text-center text-sm text-gray-500">
+                          판매 목록을 불러오는 중입니다...
+                        </td>
+                      </tr>
+                    )}
+                    {!isLoading && sales.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-500">
+                          조건에 해당하는 판매 내역이 없습니다.
+                        </td>
+                      </tr>
+                    )}
+                    {!isLoading &&
+                      sales.map((sale) => (
+                        <tr key={sale.id} className="hover:bg-blue-50/40">
+                          <td className="px-4 py-4">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {sale.externalOrderCode || `#${sale.id}`}
                             </div>
-                            {sale.lead.customerPhone && (
+                            {sale.productCode && (
                               <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
-                                <FiUser className="text-xs" />
-                                {sale.lead.customerPhone}
+                                <FiPackage className="text-xs" />
+                                {sale.productCode}
                               </div>
                             )}
-                          </button>
-                        ) : (
-                          <span className="text-sm text-gray-400">고객 정보 없음</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="text-sm font-semibold text-gray-900">
-                          {sale.saleAmount.toLocaleString()}원
-                        </div>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span
-                          className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(sale.status)}`}
-                        >
-                          {getStatusLabel(sale.status)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-600">
-                        {sale.saleDate ? new Date(sale.saleDate).toLocaleDateString('ko-KR') : '-'}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          {canGenerateDocument(sale, 'COMPARISON_QUOTE') && (
-                            <button
-                              onClick={() => handleOpenModal(sale, 'COMPARISON_QUOTE')}
-                              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
-                              title="타사 비교 견적서"
+                          </td>
+                          <td className="px-4 py-4">
+                            {sale.lead ? (
+                              <button
+                                onClick={() => router.push(`/admin/affiliate/customers/${sale.lead!.id}`)}
+                                className="text-left hover:bg-blue-50 rounded-lg p-2 -m-2 transition-colors group"
+                              >
+                                <div className="text-sm font-medium text-blue-600 group-hover:text-blue-800 flex items-center gap-1">
+                                  {sale.lead.customerName || '이름 없음'}
+                                  <FiExternalLink className="text-xs opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                                {sale.lead.customerPhone && (
+                                  <div className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                                    <FiUser className="text-xs" />
+                                    {sale.lead.customerPhone}
+                                  </div>
+                                )}
+                              </button>
+                            ) : (
+                              <span className="text-sm text-gray-400">고객 정보 없음</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {sale.saleAmount.toLocaleString()}원
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(sale.status)}`}
                             >
-                              <FiFileText className="text-xs" />
-                              견적서
-                            </button>
-                          )}
-                          {canGenerateDocument(sale, 'PURCHASE_CONFIRMATION') && (
-                            <button
-                              onClick={() => handleOpenModal(sale, 'PURCHASE_CONFIRMATION')}
-                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
-                              title="구매확인서"
-                            >
-                              <FiCheckCircle className="text-xs" />
-                              구매확인
-                            </button>
-                          )}
-                          {canGenerateDocument(sale, 'REFUND_CERTIFICATE') && (
-                            <button
-                              onClick={() => handleOpenModal(sale, 'REFUND_CERTIFICATE')}
-                              className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
-                              title="환불완료증서"
-                            >
-                              <FiDollarSign className="text-xs" />
-                              환불증서
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+                              {getStatusLabel(sale.status)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4 text-sm text-gray-600">
+                            {sale.saleDate ? new Date(sale.saleDate).toLocaleDateString('ko-KR') : '-'}
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              {canGenerateDocument(sale, 'COMPARISON_QUOTE') && (
+                                <button
+                                  onClick={() => handleOpenModal(sale, 'COMPARISON_QUOTE')}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700"
+                                  title="타사 비교 견적서"
+                                >
+                                  <FiFileText className="text-xs" />
+                                  견적서
+                                </button>
+                              )}
+                              {canGenerateDocument(sale, 'PURCHASE_CONFIRMATION') && (
+                                <button
+                                  onClick={() => handleOpenModal(sale, 'PURCHASE_CONFIRMATION')}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                                  title="구매확인서"
+                                >
+                                  <FiCheckCircle className="text-xs" />
+                                  구매확인
+                                </button>
+                              )}
+                              {canGenerateDocument(sale, 'REFUND_CERTIFICATE') && (
+                                <button
+                                  onClick={() => handleOpenModal(sale, 'REFUND_CERTIFICATE')}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1 text-xs font-semibold text-white hover:bg-red-700"
+                                  title="환불완료증서"
+                                >
+                                  <FiDollarSign className="text-xs" />
+                                  환불증서
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </>
         )}
 
         {/* 구매확인증서 탭 */}
         {activeTab === 'purchase' && (
-          <AffiliateCertificate key="purchase" type="purchase" />
+          <AffiliateCertificate key="purchase" type="purchase" searchApiUrl="/api/admin/affiliate/customers/search" />
         )}
 
         {/* 환불인증서 탭 */}
         {activeTab === 'refund' && (
-          <AffiliateCertificate key="refund" type="refund" />
+          <AffiliateCertificate key="refund" type="refund" searchApiUrl="/api/admin/affiliate/customers/search" />
         )}
 
         {/* 승인 관리 탭 */}
@@ -662,18 +739,60 @@ export default function AdminDocumentsPage() {
                       </dl>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        고객명 <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={comparisonQuoteData.customerName}
-                        onChange={(e) =>
-                          setComparisonQuoteData((prev) => ({ ...prev, customerName: e.target.value }))
-                        }
-                        className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                      />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="relative">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          고객명 <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={customerSearchQuery}
+                            onChange={handleCustomerSearchChange}
+                            onFocus={() => {
+                              if (customerSuggestions.length > 0) setShowSuggestions(true);
+                            }}
+                            placeholder="고객명 검색..."
+                            className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                          />
+                          {isLoadingCustomerSearch && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                              <FiLoader className="animate-spin text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        {showSuggestions && customerSuggestions.length > 0 && (
+                          <div
+                            ref={suggestionsRef}
+                            className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                          >
+                            {customerSuggestions.map((customer) => (
+                              <div
+                                key={customer.id}
+                                onClick={() => handleCustomerSelect(customer)}
+                                className="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="font-medium text-gray-900">{customer.name}</div>
+                                <div className="text-xs text-gray-500">
+                                  {customer.phone && <span>{customer.phone}</span>}
+                                  {customer.email && <span className="ml-2">{customer.email}</span>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">고객 이메일</label>
+                        <input
+                          type="email"
+                          value={comparisonQuoteData.customerEmail}
+                          onChange={(e) =>
+                            setComparisonQuoteData((prev) => ({ ...prev, customerEmail: e.target.value }))
+                          }
+                          className="w-full rounded-xl border border-gray-300 px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -897,35 +1016,35 @@ export default function AdminDocumentsPage() {
 
                 {(selectedDocumentType === 'PURCHASE_CONFIRMATION' ||
                   selectedDocumentType === 'REFUND_CERTIFICATE') && (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                    <h3 className="mb-2 text-base font-semibold text-gray-800">판매 정보</h3>
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-600">
-                      <div>
-                        <dt className="font-semibold text-gray-500">주문번호</dt>
-                        <dd>{selectedSale.externalOrderCode || `#${selectedSale.id}`}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-semibold text-gray-500">상품코드</dt>
-                        <dd>{selectedSale.productCode || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-semibold text-gray-500">고객명</dt>
-                        <dd>{selectedSale.lead?.customerName || '-'}</dd>
-                      </div>
-                      <div>
-                        <dt className="font-semibold text-gray-500">판매 금액</dt>
-                        <dd className="font-semibold text-gray-900">
-                          {selectedSale.saleAmount.toLocaleString()}원
-                        </dd>
-                      </div>
-                    </dl>
-                    <p className="mt-4 text-sm text-gray-600">
-                      {selectedDocumentType === 'PURCHASE_CONFIRMATION'
-                        ? '구매확인서가 고객에게 자동으로 발송됩니다.'
-                        : '환불완료증서가 생성됩니다.'}
-                    </p>
-                  </div>
-                )}
+                    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                      <h3 className="mb-2 text-base font-semibold text-gray-800">판매 정보</h3>
+                      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-600">
+                        <div>
+                          <dt className="font-semibold text-gray-500">주문번호</dt>
+                          <dd>{selectedSale.externalOrderCode || `#${selectedSale.id}`}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold text-gray-500">상품코드</dt>
+                          <dd>{selectedSale.productCode || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold text-gray-500">고객명</dt>
+                          <dd>{selectedSale.lead?.customerName || '-'}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-semibold text-gray-500">판매 금액</dt>
+                          <dd className="font-semibold text-gray-900">
+                            {selectedSale.saleAmount.toLocaleString()}원
+                          </dd>
+                        </div>
+                      </dl>
+                      <p className="mt-4 text-sm text-gray-600">
+                        {selectedDocumentType === 'PURCHASE_CONFIRMATION'
+                          ? '구매확인서가 고객에게 자동으로 발송됩니다.'
+                          : '환불완료증서가 생성됩니다.'}
+                      </p>
+                    </div>
+                  )}
               </div>
 
               <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4 sticky bottom-0 bg-white">
