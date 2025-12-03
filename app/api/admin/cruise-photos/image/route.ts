@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { google } from 'googleapis';
+import { getDriveClient } from '@/lib/google-drive';
 import sharp from 'sharp';
 
 export const dynamic = 'force-dynamic';
@@ -35,45 +35,7 @@ async function requireAdminOrPartner() {
   return { user, isAdmin: user?.role === 'admin' };
 }
 
-function getDriveClient() {
-  const clientEmail =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const privateKey =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
 
-  if (!clientEmail || !privateKey) {
-    throw new Error('Google Drive 서비스 계정 정보가 설정되어 있지 않습니다.');
-  }
-
-  // Private key 처리: 환경 변수에서 오는 다양한 형식 처리
-  let processedKey = privateKey;
-  
-  // 따옴표 제거 (환경 변수가 따옴표로 감싸져 있는 경우)
-  if ((processedKey.startsWith('"') && processedKey.endsWith('"')) ||
-      (processedKey.startsWith("'") && processedKey.endsWith("'"))) {
-    processedKey = processedKey.slice(1, -1);
-  }
-  
-  // 줄바꿈 문자 처리
-  if (processedKey.includes('\\n')) {
-    processedKey = processedKey.replace(/\\n/g, '\n');
-  }
-  
-  // Windows/Mac 줄바꿈 정규화
-  processedKey = processedKey.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: clientEmail,
-      private_key: processedKey,
-    },
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-  });
-
-  return google.drive({ version: 'v3', auth });
-}
 
 // GET: 구글 드라이브 이미지 가져오기 (WebP 변환 및 다운로드 지원)
 export async function GET(req: NextRequest) {
@@ -183,9 +145,10 @@ export async function GET(req: NextRequest) {
           const watermarkWidth = Math.floor(imageWidth * 0.5);
           const watermarkHeight = Math.floor((watermarkMetadata.height || 1) * (watermarkWidth / (watermarkMetadata.width || 1)));
 
-          // 워터마크 리사이즈
+          // 워터마크 리사이즈 및 흑백 변환
           const resizedWatermark = await watermarkImage
             .resize(watermarkWidth, watermarkHeight, { fit: 'inside' })
+            .grayscale() // 흑백 변환
             .ensureAlpha()
             .png()
             .toBuffer();

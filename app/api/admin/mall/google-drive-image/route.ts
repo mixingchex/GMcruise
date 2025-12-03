@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
-import { google } from 'googleapis';
+import { getDriveClient } from '@/lib/google-drive';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -33,42 +33,7 @@ async function checkAdminAuth() {
   return null;
 }
 
-function getDriveClient() {
-  const clientEmail =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_CLIENT_EMAIL ||
-    process.env.CLIENT_EMAIL;
-  const privateKey =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_PRIVATE_KEY ||
-    process.env.PRIVATE_KEY;
 
-  if (!clientEmail || !privateKey) {
-    const envStatus = {
-      GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL,
-      GOOGLE_SERVICE_ACCOUNT_EMAIL: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
-      CLIENT_EMAIL: !!process.env.CLIENT_EMAIL,
-      GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY,
-      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-      GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
-      PRIVATE_KEY: !!process.env.PRIVATE_KEY,
-    };
-    throw new Error(`Google Drive 서비스 계정 정보가 설정되어 있지 않습니다. (Email: ${Object.entries(envStatus).filter(([k, v]) => k.includes('EMAIL') && v).map(([k]) => k).join(',') || 'NONE'}, Key: ${Object.entries(envStatus).filter(([k, v]) => k.includes('KEY') && v).map(([k]) => k).join(',') || 'NONE'})`);
-  }
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: clientEmail,
-      private_key: privateKey.replace(/\\n/g, '\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-  });
-
-  return google.drive({ version: 'v3', auth });
-}
 
 // GET: 구글 드라이브 이미지 프록시
 export async function GET(req: NextRequest) {

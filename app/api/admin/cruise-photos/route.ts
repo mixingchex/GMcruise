@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
-import { google } from 'googleapis';
+import { getDriveClient } from '@/lib/google-drive';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -32,79 +32,6 @@ async function requireAdminOrPartner() {
   }
 
   return { user, isAdmin: user?.role === 'admin' };
-}
-
-function getDriveClient() {
-  const clientEmail =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_CLIENT_EMAIL ||
-    process.env.CLIENT_EMAIL;
-  const privateKey =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_PRIVATE_KEY ||
-    process.env.PRIVATE_KEY;
-
-  if (!clientEmail || !privateKey) {
-    const envStatus = {
-      GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL,
-      GOOGLE_SERVICE_ACCOUNT_EMAIL: !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      GOOGLE_CLIENT_EMAIL: !!process.env.GOOGLE_CLIENT_EMAIL,
-      CLIENT_EMAIL: !!process.env.CLIENT_EMAIL,
-      GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY: !!process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY,
-      GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: !!process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY,
-      GOOGLE_PRIVATE_KEY: !!process.env.GOOGLE_PRIVATE_KEY,
-      PRIVATE_KEY: !!process.env.PRIVATE_KEY,
-    };
-    console.error('[Cruise Photos] Missing credentials:', {
-      hasEmail: !!clientEmail,
-      hasKey: !!privateKey,
-      envStatus
-    });
-    throw new Error(`Google Drive 서비스 계정 정보가 설정되어 있지 않습니다. (Email: ${Object.entries(envStatus).filter(([k, v]) => k.includes('EMAIL') && v).map(([k]) => k).join(',') || 'NONE'}, Key: ${Object.entries(envStatus).filter(([k, v]) => k.includes('KEY') && v).map(([k]) => k).join(',') || 'NONE'})`);
-  }
-
-  try {
-    // Private key 처리: 환경 변수에서 오는 다양한 형식 처리
-    let processedKey = privateKey;
-
-    // 따옴표 제거 (환경 변수가 따옴표로 감싸져 있는 경우)
-    if ((processedKey.startsWith('"') && processedKey.endsWith('"')) ||
-      (processedKey.startsWith("'") && processedKey.endsWith("'"))) {
-      processedKey = processedKey.slice(1, -1);
-    }
-
-    // 줄바꿈 문자 처리 (여러 형식 지원)
-    // 환경 변수에서 \n이 문자열로 들어오는 경우 처리
-    if (processedKey.includes('\\n')) {
-      processedKey = processedKey.replace(/\\n/g, '\n');
-    }
-
-    // Windows/Mac 줄바꿈 정규화
-    processedKey = processedKey.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-    const auth = new google.auth.GoogleAuth({
-      credentials: {
-        client_email: clientEmail,
-        private_key: processedKey,
-      },
-      scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-    });
-
-    return google.drive({ version: 'v3', auth });
-  } catch (error: any) {
-    console.error('[Cruise Photos] Failed to create Drive client:', error);
-    console.error('[Cruise Photos] Auth error details:', {
-      message: error.message,
-      code: error.code,
-      hasClientEmail: !!clientEmail,
-      hasPrivateKey: !!privateKey,
-      privateKeyLength: privateKey?.length,
-      privateKeyStart: privateKey?.substring(0, 50),
-    });
-    throw error;
-  }
 }
 
 // 구글 드라이브 폴더 ID 찾기 (경로 기반)
