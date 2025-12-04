@@ -34,23 +34,36 @@ function PaymentCheckoutContent() {
   const [paymentUrl, setPaymentUrl] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('CARD');
   const [selectedEasyPay, setSelectedEasyPay] = useState<EasyPayCode[]>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  // 클라이언트 마운트 확인
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // 모바일 감지
   useEffect(() => {
+    if (!isClient) return;
     const checkMobile = () => {
       const userAgent = navigator.userAgent.toLowerCase();
       const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile', 'webos', 'blackberry'];
       return mobileKeywords.some(keyword => userAgent.includes(keyword));
     };
     setIsMobile(checkMobile());
-  }, []);
+  }, [isClient]);
 
   // 결제 데이터 로드
   useEffect(() => {
+    // 클라이언트 마운트 전에는 실행하지 않음
+    if (!isClient) return;
+
     const loadPaymentData = async () => {
       try {
         const orderId = searchParams.get('orderId');
+        console.log('[Checkout] Loading payment data for orderId:', orderId);
+
         if (!orderId) {
+          console.error('[Checkout] No orderId in searchParams');
           setError('주문 정보가 없습니다.');
           setIsLoading(false);
           return;
@@ -59,8 +72,10 @@ function PaymentCheckoutContent() {
         // 결제 정보 API 호출
         const response = await fetch(`/api/payment/prepare?orderId=${orderId}`);
         const data = await response.json();
+        console.log('[Checkout] API response:', data);
 
         if (!data.ok) {
+          console.error('[Checkout] API error:', data.error);
           setError(data.error || '결제 정보를 불러올 수 없습니다.');
           setIsLoading(false);
           return;
@@ -71,14 +86,14 @@ function PaymentCheckoutContent() {
         setPaymentUrl(data.paymentUrl);
         setIsLoading(false);
       } catch (err) {
-        console.error('Payment data load error:', err);
+        console.error('[Checkout] Payment data load error:', err);
         setError('결제 정보를 불러오는 중 오류가 발생했습니다.');
         setIsLoading(false);
       }
     };
 
     loadPaymentData();
-  }, [searchParams]);
+  }, [isClient, searchParams]);
 
   // 결제 수단 선택
   const handleMethodSelect = (method: PaymentMethod) => {
