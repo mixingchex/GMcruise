@@ -67,6 +67,7 @@ function PaymentCheckoutContent() {
   }, [isClient]);
 
   // PC 전용: INIStdPay.js 스크립트 로드 (운영 환경 URL 하드코딩)
+  // ⚠️ 핵심: 이 스크립트 로드가 실패해도 페이지는 계속 동작해야 함
   useEffect(() => {
     if (!isClient || isMobile === null || isMobile) {
       // Mobile은 스크립트 불필요
@@ -74,60 +75,79 @@ function PaymentCheckoutContent() {
       return;
     }
 
-    console.log('[Checkout] PC: Loading INIStdPay.js...');
+    // 스크립트 로드를 try-catch로 감싸서 절대 에러 전파 안함
+    const loadScript = () => {
+      try {
+        console.log('[Checkout] PC: Loading INIStdPay.js...');
 
-    // 이미 로드된 경우
-    if (window.INIStdPay) {
-      console.log('[Checkout] INIStdPay already exists');
-      setScriptStatus('loaded');
-      return;
-    }
-
-    // 운영 환경 URL 하드코딩 (매뉴얼 정석 - 절대 변경 금지)
-    const SCRIPT_URL = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
-
-    // 기존 스크립트 제거 후 재로드
-    const existingScript = document.querySelector(`script[src="${SCRIPT_URL}"]`);
-    if (existingScript) {
-      existingScript.remove();
-    }
-
-    const script = document.createElement('script');
-    script.src = SCRIPT_URL;
-    script.async = false; // 동기 로드로 확실하게
-    script.crossOrigin = 'anonymous';
-
-    script.onload = () => {
-      console.log('[Checkout] INIStdPay.js script loaded');
-      // 약간의 딜레이 후 객체 확인
-      setTimeout(() => {
+        // 이미 로드된 경우
         if (window.INIStdPay && typeof window.INIStdPay.pay === 'function') {
-          console.log('[Checkout] INIStdPay.pay function confirmed');
+          console.log('[Checkout] INIStdPay already exists');
           setScriptStatus('loaded');
-        } else {
-          console.warn('[Checkout] INIStdPay object not ready, retrying...');
-          // 재시도
+          return;
+        }
+
+        // 운영 환경 URL 하드코딩 (매뉴얼 정석 - 절대 변경 금지)
+        const SCRIPT_URL = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
+
+        // 기존 스크립트 제거 후 재로드
+        const existingScript = document.querySelector(`script[src="${SCRIPT_URL}"]`);
+        if (existingScript) {
+          existingScript.remove();
+        }
+
+        const script = document.createElement('script');
+        script.src = SCRIPT_URL;
+        script.async = false; // 동기 로드로 확실하게
+
+        script.onload = () => {
+          console.log('[Checkout] INIStdPay.js script loaded');
+          // 약간의 딜레이 후 객체 확인
           setTimeout(() => {
-            if (window.INIStdPay) {
-              setScriptStatus('loaded');
-            } else {
-              console.error('[Checkout] INIStdPay failed to initialize');
+            try {
+              if (window.INIStdPay && typeof window.INIStdPay.pay === 'function') {
+                console.log('[Checkout] INIStdPay.pay function confirmed');
+                setScriptStatus('loaded');
+              } else {
+                console.warn('[Checkout] INIStdPay object not ready, retrying...');
+                // 재시도 (최대 3회)
+                let retryCount = 0;
+                const retryInterval = setInterval(() => {
+                  retryCount++;
+                  if (window.INIStdPay && typeof window.INIStdPay.pay === 'function') {
+                    clearInterval(retryInterval);
+                    setScriptStatus('loaded');
+                  } else if (retryCount >= 3) {
+                    clearInterval(retryInterval);
+                    console.error('[Checkout] INIStdPay failed after retries');
+                    setScriptStatus('error');
+                  }
+                }, 500);
+              }
+            } catch (e) {
+              console.warn('[Checkout] Script init check error:', e);
               setScriptStatus('error');
             }
-          }, 500);
-        }
-      }, 200);
+          }, 300);
+        };
+
+        script.onerror = (e) => {
+          console.error('[Checkout] INIStdPay.js load error:', e);
+          setScriptStatus('error');
+        };
+
+        document.head.appendChild(script);
+      } catch (e) {
+        console.error('[Checkout] Script loading exception:', e);
+        setScriptStatus('error');
+      }
     };
 
-    script.onerror = (e) => {
-      console.error('[Checkout] INIStdPay.js load error:', e);
-      setScriptStatus('error');
-    };
-
-    document.head.appendChild(script);
+    loadScript();
   }, [isClient, isMobile]);
 
   // 결제 데이터 로드
+  // ⚠️ 핵심: 결제 데이터 로드는 반드시 성공해야 함. 어필리에이트 조회 실패는 무시
   useEffect(() => {
     if (!isClient || isMobile === null) return;
 
@@ -142,7 +162,17 @@ function PaymentCheckoutContent() {
           return;
         }
 
+        // 결제 정보 API 호출
         const response = await fetch(`/api/payment/prepare?orderId=${orderId}&isMobile=${isMobile}`);
+
+        // 응답 상태 체크
+        if (!response.ok) {
+          console.error('[Checkout] API response not ok:', response.status);
+          setError('결제 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
+          setIsLoading(false);
+          return;
+        }
+
         const data = await response.json();
 
         if (!data.ok) {
@@ -161,12 +191,18 @@ function PaymentCheckoutContent() {
         setIsLoading(false);
       } catch (err) {
         console.error('[Checkout] Load error:', err);
-        setError('결제 정보를 불러오는 중 오류가 발생했습니다.');
+        // 네트워크 에러 등의 경우 사용자 친화적 메시지
+        setError('결제 정보를 불러오는 중 오류가 발생했습니다.\n페이지를 새로고침해주세요.');
         setIsLoading(false);
       }
     };
 
-    loadPaymentData();
+    // 안전하게 호출 (전역 에러 방지)
+    loadPaymentData().catch((e) => {
+      console.error('[Checkout] Unhandled loadPaymentData error:', e);
+      setError('예기치 않은 오류가 발생했습니다.');
+      setIsLoading(false);
+    });
   }, [isClient, isMobile, searchParams]);
 
   // 결제 수단 선택
@@ -182,8 +218,14 @@ function PaymentCheckoutContent() {
   };
 
   // 결제 실행 - 버튼 클릭 시 무조건 실행
+  // ⚠️ 대원칙: 어떤 에러가 발생해도 결제창은 띄워야 함
   const handlePayment = useCallback(async () => {
-    if (!paymentData || isPaymentProcessing) return;
+    // 기본 validation만 체크
+    if (!paymentData) {
+      alert('결제 정보가 없습니다. 페이지를 새로고침해주세요.');
+      return;
+    }
+    if (isPaymentProcessing) return;
 
     console.log('[Checkout] Payment button clicked, isMobile:', isMobile);
 
@@ -194,14 +236,22 @@ function PaymentCheckoutContent() {
         alert('결제 모듈을 불러오는 중입니다.\n잠시 후 다시 시도해주세요.\n\n계속 안 되면 페이지를 새로고침(F5) 해주세요.');
         // 스크립트 재로드 시도
         setScriptStatus('loading');
-        const script = document.createElement('script');
-        script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
-        script.onload = () => {
-          setTimeout(() => {
-            if (window.INIStdPay) setScriptStatus('loaded');
-          }, 200);
-        };
-        document.head.appendChild(script);
+        try {
+          const script = document.createElement('script');
+          script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
+          script.onload = () => {
+            setTimeout(() => {
+              if (window.INIStdPay) setScriptStatus('loaded');
+            }, 300);
+          };
+          script.onerror = () => {
+            console.error('[Checkout] Script reload failed');
+            setScriptStatus('error');
+          };
+          document.head.appendChild(script);
+        } catch (e) {
+          console.error('[Checkout] Script reload exception:', e);
+        }
         return;
       }
     }
@@ -220,6 +270,14 @@ function PaymentCheckoutContent() {
           isMobile,
         }),
       });
+
+      // 응답 체크
+      if (!response.ok) {
+        console.error('[Checkout] Prepare API failed:', response.status);
+        alert('결제 준비 중 오류가 발생했습니다. 다시 시도해주세요.');
+        setIsPaymentProcessing(false);
+        return;
+      }
 
       const data = await response.json();
       console.log('[Checkout] Prepare response:', data.ok);
@@ -259,12 +317,22 @@ function PaymentCheckoutContent() {
           existingForm.remove();
         }
 
-        // 새 폼 생성 (action 없음, method 없음 - 페이지 이동 완전 차단)
+        // 새 폼 생성 (action/method 완전 제거 - 페이지 이동 원천 차단)
         const form = document.createElement('form');
         form.id = 'SendPayForm_id';
         form.name = 'SendPayForm_id';
         form.style.display = 'none';
-        // action, method 속성 없음 - 폼이 직접 전송되는 것을 원천 차단
+
+        // ⚠️ 핵심: action/method 속성 없음 = 폼이 직접 전송되어도 페이지 이동 없음
+        // INIStdPay.pay()가 이 폼을 읽어서 자체적으로 Overlay 결제창을 띄움
+
+        // 추가 방어: submit 이벤트 자체를 막음 (만일을 위해)
+        form.onsubmit = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[Checkout] Form submit blocked - INIStdPay handles payment');
+          return false;
+        };
 
         Object.entries(data.formData).forEach(([key, value]) => {
           const input = document.createElement('input');
@@ -275,6 +343,9 @@ function PaymentCheckoutContent() {
         });
 
         document.body.appendChild(form);
+
+        // 방어: 폼에 action 속성이 없는지 최종 확인 (디버그용)
+        console.log('[Checkout] Form action attr:', form.getAttribute('action')); // null이어야 함
 
         // INIStdPay.pay() 호출 (Overlay Popup)
         console.log('[Checkout] PC: Calling INIStdPay.pay("SendPayForm_id")');

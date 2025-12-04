@@ -410,7 +410,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
       // 대리점장 여부 확인
       if (data.ok && data.user) {
         try {
-          const profileResponse = await fetch('/api/affiliate/profile', { credentials: 'include' });
+          const profileResponse = await fetch('/api/affiliate/me/profile', { credentials: 'include' });
           const profileData = await profileResponse.json();
           if (profileData.ok && profileData.profile && profileData.profile.type === 'BRANCH_MANAGER') {
             setIsBranchManager(true);
