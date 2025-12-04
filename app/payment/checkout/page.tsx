@@ -51,6 +51,25 @@ function PaymentCheckoutContent() {
   // 클라이언트 마운트 확인
   useEffect(() => {
     setIsClient(true);
+
+    // ⚠️ 전역 폼 전송 차단 (페이지 이동 원천 봉쇄)
+    // 어떤 폼이든 submit 이벤트가 발생하면 차단
+    const blockFormSubmit = (e: Event) => {
+      const form = e.target as HTMLFormElement;
+      // 결제 폼인 경우에만 차단 (다른 폼은 정상 동작)
+      if (form.id === 'SendPayForm_id' || form.name === 'SendPayForm_id') {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('[Checkout] Global form submit blocked for:', form.id);
+        return false;
+      }
+    };
+
+    document.addEventListener('submit', blockFormSubmit, true);
+
+    return () => {
+      document.removeEventListener('submit', blockFormSubmit, true);
+    };
   }, []);
 
   // 모바일 감지
@@ -134,12 +153,16 @@ function PaymentCheckoutContent() {
         script.onerror = (e) => {
           console.error('[Checkout] INIStdPay.js load error:', e);
           setScriptStatus('error');
+          // ⚠️ 페이지 이동 없이 alert만 표시
+          alert('결제 모듈을 불러오는데 실패했습니다.\n페이지를 새로고침(F5) 해주세요.');
         };
 
         document.head.appendChild(script);
       } catch (e) {
         console.error('[Checkout] Script loading exception:', e);
         setScriptStatus('error');
+        // ⚠️ 페이지 이동 없이 alert만 표시
+        alert('결제 모듈 로드 중 오류가 발생했습니다.\n페이지를 새로고침(F5) 해주세요.');
       }
     };
 
