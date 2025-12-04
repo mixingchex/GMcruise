@@ -102,17 +102,20 @@ export async function POST(req: NextRequest) {
     // 결과 페이지로 리다이렉트
     if (isSuccess) {
       return NextResponse.redirect(
-        new URL(`/payment/success?orderId=${orderId}`, BASE_URL)
+        new URL(`/payment/success?orderId=${orderId}`, BASE_URL),
+        303
       );
     } else {
       return NextResponse.redirect(
-        new URL(`/payment/failed?orderId=${orderId}&error=${encodeURIComponent(resultMsg || '결제 실패')}`, BASE_URL)
+        new URL(`/payment/failed?orderId=${orderId}&error=${encodeURIComponent(resultMsg || '결제 실패')}`, BASE_URL),
+        303
       );
     }
   } catch (error) {
     console.error('[Payment Return] Error:', error);
     return NextResponse.redirect(
-      new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL)
+      new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL),
+      303
     );
   }
 }

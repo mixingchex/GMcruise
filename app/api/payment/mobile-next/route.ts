@@ -55,9 +55,10 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // 실패 페이지로 리다이렉트
+      // 실패 페이지로 리다이렉트 (303으로 POST->GET 변환)
       return NextResponse.redirect(
-        new URL(`/payment/failed?orderId=${P_OID}&error=${encodeURIComponent(P_RMESG1 || '인증 실패')}`, BASE_URL)
+        new URL(`/payment/failed?orderId=${P_OID}&error=${encodeURIComponent(P_RMESG1 || '인증 실패')}`, BASE_URL),
+        303
       );
     }
 
@@ -65,7 +66,8 @@ export async function POST(req: NextRequest) {
     if (!P_REQ_URL) {
       console.error('[Mobile Next] P_REQ_URL 없음');
       return NextResponse.redirect(
-        new URL(`/payment/failed?orderId=${P_OID}&error=${encodeURIComponent('승인 URL이 없습니다.')}`, BASE_URL)
+        new URL(`/payment/failed?orderId=${P_OID}&error=${encodeURIComponent('승인 URL이 없습니다.')}`, BASE_URL),
+        303
       );
     }
 
@@ -112,7 +114,8 @@ export async function POST(req: NextRequest) {
       });
 
       return NextResponse.redirect(
-        new URL(`/payment/failed?orderId=${P_OID}&error=${encodeURIComponent(resultMsg || '승인 실패')}`, BASE_URL)
+        new URL(`/payment/failed?orderId=${P_OID}&error=${encodeURIComponent(resultMsg || '승인 실패')}`, BASE_URL),
+        303
       );
     }
 
@@ -170,14 +173,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 성공 페이지로 리다이렉트
+    // 성공 페이지로 리다이렉트 (303으로 POST->GET 변환)
     return NextResponse.redirect(
-      new URL(`/payment/success?orderId=${P_OID}`, BASE_URL)
+      new URL(`/payment/success?orderId=${P_OID}`, BASE_URL),
+      303
     );
   } catch (error) {
     console.error('[Mobile Next] Error:', error);
     return NextResponse.redirect(
-      new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL)
+      new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL),
+      303
     );
   }
 }

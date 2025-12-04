@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       failUrl.searchParams.set('error', P_RMESG1 || '결제 실패');
 
       console.log('[Callback POST] 실패 리다이렉트:', failUrl.toString());
-      return NextResponse.redirect(failUrl);
+      return NextResponse.redirect(failUrl, 303);
     }
 
     // 결제 인증 성공 - 승인 요청 필요
@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
           const failUrl = new URL('/payment/failed', BASE_URL);
           failUrl.searchParams.set('orderId', P_OID || '');
           failUrl.searchParams.set('error', resultMsg || '승인 실패');
-          return NextResponse.redirect(failUrl);
+          return NextResponse.redirect(failUrl, 303);
         }
 
         // 승인 성공 - DB 업데이트
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
         const failUrl = new URL('/payment/failed', BASE_URL);
         failUrl.searchParams.set('orderId', P_OID || '');
         failUrl.searchParams.set('error', '승인 요청 중 오류 발생');
-        return NextResponse.redirect(failUrl);
+        return NextResponse.redirect(failUrl, 303);
       }
     } else {
       // P_REQ_URL이 없는 경우 (직접 승인 완료)
@@ -229,14 +229,14 @@ export async function POST(req: NextRequest) {
     successUrl.searchParams.set('orderId', P_OID || '');
 
     console.log('[Callback POST] 성공 리다이렉트:', successUrl.toString());
-    return NextResponse.redirect(successUrl);
+    return NextResponse.redirect(successUrl, 303);
 
   } catch (error) {
     console.error('[Callback POST] Error:', error);
 
     const failUrl = new URL('/payment/failed', BASE_URL);
     failUrl.searchParams.set('error', '결제 처리 중 오류가 발생했습니다.');
-    return NextResponse.redirect(failUrl);
+    return NextResponse.redirect(failUrl, 303);
   }
 }
 
