@@ -443,7 +443,7 @@ function PaymentCheckoutContent() {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
             <h1 className="text-xl font-bold text-white">
-              결제하기 <span className="text-xs font-normal text-blue-200">(v4.0)</span>
+              결제하기 <span className="text-xs font-normal text-blue-200">(v4.1)</span>
             </h1>
             <p className="text-blue-100 text-sm mt-1">
               {isMobile ? '모바일 결제' : 'PC 결제'}
