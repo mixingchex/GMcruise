@@ -9,10 +9,16 @@ import Link from 'next/link';
 
 function PaymentSuccessPageContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
+
+  // 다양한 파라미터에서 주문번호 추출
+  const orderId = searchParams.get('orderId') || searchParams.get('oid') || searchParams.get('P_OID');
+  const tid = searchParams.get('tid') || searchParams.get('P_TID');
   const sessionId = searchParams.get('sessionId');
   const productCode = searchParams.get('productCode');
   const [isLoading, setIsLoading] = useState(true);
+
+  // 표시할 주문번호 결정 (orderId 우선, 없으면 tid)
+  const displayOrderId = orderId || tid || 'N/A';
 
   useEffect(() => {
     setIsLoading(false);
@@ -49,7 +55,7 @@ function PaymentSuccessPageContent() {
         const orderRes = await fetch(`/api/payment/order/${orderId}`, {
           credentials: 'include',
         });
-        
+
         if (orderRes.ok) {
           const orderData = await orderRes.json();
           if (orderData.ok && orderData.order) {
@@ -107,7 +113,7 @@ function PaymentSuccessPageContent() {
               <FiCheckCircle className="text-green-600" size={48} />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">결제가 완료되었습니다!</h1>
-            <p className="text-gray-600">주문번호: {orderId || 'N/A'}</p>
+            <p className="text-gray-600">주문번호: {displayOrderId}</p>
           </div>
 
           <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6 mb-6">
@@ -117,12 +123,16 @@ function PaymentSuccessPageContent() {
             <p className="text-sm text-green-700 mt-2">
               결제 내역은 이메일로 발송되었습니다.
             </p>
+            <p className="text-xs text-green-600 mt-1">
+              (이메일을 기재하지 않은 고객님은 본사 매니저님께 요청해 주시면 구매확인서를 보내드립니다.)
+            </p>
           </div>
 
           <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold text-yellow-900 mb-2">🛂 여권 정보 등록 안내</h3>
             <p className="text-sm text-yellow-800 mb-4">
-              출항 전까지 여권 정보를 등록해주세요. 담당자가 곧 연락드려 등록 링크를 전송해드립니다.
+              매니저님께 바로 여권 정보를 등록해주세요.<br />
+              곧 연락 드려 등록 링크를 전송해드립니다.
             </p>
           </div>
 
