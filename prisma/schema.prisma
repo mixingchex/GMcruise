@@ -43,6 +43,27 @@ model AdminMessage {
   @@index([userId, isActive, createdAt])
 }
 
+model AdminNotification {
+  id                Int       @id @default(autoincrement())
+  userId            Int?
+  notificationType  String
+  title             String
+  content           String
+  relatedCustomerId Int?
+  relatedNoteId     Int?
+  relatedMessageId  Int?
+  isRead            Boolean   @default(false)
+  readAt            DateTime?
+  priority          String    @default("normal")
+  metadata          Json?
+  createdAt         DateTime  @default(now())
+  User              User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([notificationType, createdAt])
+  @@index([relatedCustomerId, createdAt])
+  @@index([userId, isRead, createdAt])
+}
+
 model AdminSmsConfig {
   id             Int      @id @default(autoincrement())
   adminId        Int      @unique
@@ -223,19 +244,42 @@ model AffiliateLead {
   AffiliateSale                                                      AffiliateSale[]
   DocumentApproval                                                   DocumentApproval[]
 
-  @@index([agentId, status])
-  @@index([customerPhone])
-  @@index([groupId])
-  @@index([managerId, status])
-  @@index([status])
   @@index([agentId, createdAt])
+  @@index([agentId, status])
   @@index([createdAt])
+  @@index([customerPhone])
   @@index([customerPhone, status, createdAt])
+  @@index([groupId])
   @@index([lastContactedAt])
   @@index([managerId, agentId, status])
   @@index([managerId, createdAt])
+  @@index([managerId, status])
   @@index([nextActionAt])
+  @@index([status])
   @@index([updatedAt])
+}
+
+model AffiliateLedger {
+  id                Int              @id @default(autoincrement())
+  saleId            Int
+  profileId         Int
+  type              String
+  amount            Int
+  withholdingAmount Int              @default(0)
+  netAmount         Int
+  isSettled         Boolean          @default(false)
+  settledAt         DateTime?
+  description       String?
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime
+  AffiliateProfile  AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  AffiliateSale     AffiliateSale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([isSettled])
+  @@index([profileId, createdAt])
+  @@index([saleId])
+  @@index([type])
 }
 
 model AffiliateLink {
@@ -310,6 +354,33 @@ model AffiliateMedia {
   @@index([interactionId])
 }
 
+model AffiliatePayslip {
+  id               Int              @id @default(autoincrement())
+  profileId        Int
+  period           String
+  type             String
+  totalSales       Int              @default(0)
+  totalCommission  Int              @default(0)
+  totalWithholding Int              @default(0)
+  netPayment       Int              @default(0)
+  status           String           @default("PENDING")
+  approvedAt       DateTime?
+  approvedBy       Int?
+  sentAt           DateTime?
+  pdfUrl           String?
+  details          Json?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  User             User?            @relation(fields: [approvedBy], references: [id])
+  AffiliateProfile AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, period])
+  @@index([approvedAt])
+  @@index([profileId, period])
+  @@index([status, period])
+}
+
 model AffiliateProduct {
   id                      Int                       @id @default(autoincrement())
   productCode             String
@@ -326,7 +397,7 @@ model AffiliateProduct {
   effectiveFrom           DateTime
   effectiveTo             DateTime?
   createdAt               DateTime                  @default(now())
-  updatedAt               DateTime                  @updatedAt
+  updatedAt               DateTime
   AffiliateCommissionTier AffiliateCommissionTier[]
   AffiliateLink           AffiliateLink[]
   CruiseProduct           CruiseProduct?            @relation(fields: [cruiseProductId], references: [id])
@@ -381,6 +452,7 @@ model AffiliateProfile {
   metadata                                                        Json?
   createdAt                                                       DateTime               @default(now())
   updatedAt                                                       DateTime
+  schedules                                                       Json?
   AffiliateAuditLog                                               AffiliateAuditLog[]
   AffiliateContract                                               AffiliateContract[]
   AffiliateDocument                                               AffiliateDocument[]
@@ -474,24 +546,24 @@ model AffiliateSale {
   AffiliateLink                                              AffiliateLink?      @relation(fields: [linkId], references: [id])
   AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile AffiliateProfile?   @relation("AffiliateSale_managerIdToAffiliateProfile", fields: [managerId], references: [id])
   CommissionLedger                                           CommissionLedger[]
+  DocumentApproval                                           DocumentApproval[]
   Payment                                                    Payment?
   Reservation                                                Reservation[]
-  DocumentApproval                                           DocumentApproval[]
 
-  @@index([agentId])
-  @@index([managerId])
-  @@index([saleDate])
-  @@index([status])
-  @@index([managerId, status, saleDate])
-  @@index([agentId, status, saleDate])
-  @@index([managerId, saleDate])
-  @@index([agentId, saleDate])
   @@index([agentId, createdAt])
+  @@index([agentId])
+  @@index([agentId, saleDate])
+  @@index([agentId, status, saleDate])
   @@index([createdAt])
   @@index([leadId, status])
   @@index([managerId, createdAt])
+  @@index([managerId])
+  @@index([managerId, saleDate])
+  @@index([managerId, status, saleDate])
+  @@index([saleDate])
   @@index([saleDate, status, createdAt])
   @@index([status, createdAt])
+  @@index([status])
 }
 
 model AffiliateSmsConfig {
@@ -510,6 +582,52 @@ model AffiliateSmsConfig {
   AffiliateProfile AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
   @@index([profileId, isActive])
+}
+
+model ApisSyncQueue {
+  id          Int       @id @default(autoincrement())
+  targetType  String
+  targetId    Int
+  status      String    @default("PENDING")
+  attempts    Int       @default(0)
+  lastError   String?
+  scheduledAt DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status, scheduledAt])
+}
+
+model CertificateApproval {
+  id                                         Int       @id @default(autoincrement())
+  certificateType                            String
+  requesterId                                Int
+  requesterType                              String
+  customerId                                 Int
+  customerName                               String
+  customerEmail                              String?
+  birthDate                                  String?
+  productName                                String
+  paymentAmount                              Int
+  paymentDate                                String
+  refundAmount                               Int?
+  refundDate                                 String?
+  status                                     String    @default("pending")
+  approvedBy                                 Int?
+  approvedByType                             String?
+  approvedAt                                 DateTime?
+  rejectedReason                             String?
+  metadata                                   Json?
+  createdAt                                  DateTime  @default(now())
+  updatedAt                                  DateTime
+  User_CertificateApproval_approvedByToUser  User?     @relation("CertificateApproval_approvedByToUser", fields: [approvedBy], references: [id])
+  User_CertificateApproval_customerIdToUser  User      @relation("CertificateApproval_customerIdToUser", fields: [customerId], references: [id])
+  User_CertificateApproval_requesterIdToUser User      @relation("CertificateApproval_requesterIdToUser", fields: [requesterId], references: [id])
+
+  @@index([approvedBy, createdAt])
+  @@index([customerId, certificateType])
+  @@index([requesterId, status, createdAt])
+  @@index([status, createdAt])
 }
 
 model ChatBotFlow {
@@ -643,7 +761,7 @@ model ChecklistItem {
   completed  Boolean   @default(false)
   order      Int       @default(0)
   createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  updatedAt  DateTime
   userTripId Int?
   Trip       Trip?     @relation(fields: [tripId], references: [id], onDelete: Cascade)
   UserTrip   UserTrip? @relation(fields: [userTripId], references: [id])
@@ -700,9 +818,9 @@ model CommissionLedger {
   MonthlySettlement    MonthlySettlement?     @relation(fields: [settlementId], references: [id])
 
   @@unique([saleId, profileId, entryType])
+  @@index([isSettled, createdAt])
   @@index([profileId, isSettled])
   @@index([saleId])
-  @@index([isSettled, createdAt])
 }
 
 model CommunityComment {
@@ -713,7 +831,7 @@ model CommunityComment {
   authorName             String?
   parentCommentId        Int?
   createdAt              DateTime           @default(now())
-  updatedAt              DateTime           @updatedAt
+  updatedAt              DateTime
   CommunityComment       CommunityComment?  @relation("CommunityCommentToCommunityComment", fields: [parentCommentId], references: [id], onDelete: Cascade)
   other_CommunityComment CommunityComment[] @relation("CommunityCommentToCommunityComment")
   CommunityPost          CommunityPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -738,7 +856,7 @@ model CommunityPost {
   isDeleted        Boolean            @default(false)
   deletedAt        DateTime?
   createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  updatedAt        DateTime
   CommunityComment CommunityComment[]
   User             User?              @relation(fields: [userId], references: [id])
 
@@ -836,7 +954,7 @@ model CustomerGroup {
   autoMoveEnabled     Boolean               @default(false)
   autoMoveSettings    Json?
   createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  updatedAt           DateTime
   User                User                  @relation(fields: [adminId], references: [id], onDelete: Cascade)
   AffiliateProfile    AffiliateProfile?     @relation(fields: [affiliateProfileId], references: [id])
   CustomerGroup       CustomerGroup?        @relation("CustomerGroupToCustomerGroup", fields: [parentGroupId], references: [id])
@@ -881,50 +999,85 @@ model CustomerJourney {
   createdAt          DateTime @default(now())
   User               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, createdAt])
   @@index([toGroup, createdAt])
   @@index([triggerType, createdAt])
+  @@index([userId, createdAt])
 }
 
 model CustomerNote {
-  id            Int      @id @default(autoincrement())
-  customerId    Int
-  createdBy     Int
-  createdByType String
-  createdByName String?
-  content       String
-  isInternal    Boolean  @default(false)
-  notifyTargets Json?
-  metadata      Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  CreatedByUser User     @relation("CustomerNote_createdByToUser", fields: [createdBy], references: [id])
-  User          User     @relation("CustomerNote_customerIdToUser", fields: [customerId], references: [id], onDelete: Cascade)
+  id                                 Int      @id @default(autoincrement())
+  customerId                         Int
+  createdBy                          Int
+  createdByType                      String
+  createdByName                      String?
+  content                            String
+  isInternal                         Boolean  @default(false)
+  notifyTargets                      Json?
+  metadata                           Json?
+  createdAt                          DateTime @default(now())
+  updatedAt                          DateTime
+  User_CustomerNote_createdByToUser  User     @relation("CustomerNote_createdByToUser", fields: [createdBy], references: [id])
+  User_CustomerNote_customerIdToUser User     @relation("CustomerNote_customerIdToUser", fields: [customerId], references: [id], onDelete: Cascade)
 
-  @@index([customerId, createdAt])
-  @@index([createdBy, createdAt])
   @@index([createdByType, createdAt])
+  @@index([createdBy, createdAt])
+  @@index([customerId, createdAt])
 }
 
-model AdminNotification {
-  id                Int       @id @default(autoincrement())
-  userId            Int?
-  notificationType  String
-  title             String
-  content           String
-  relatedCustomerId Int?
-  relatedNoteId     Int?
-  relatedMessageId  Int?
-  isRead            Boolean   @default(false)
-  readAt            DateTime?
-  priority          String    @default("normal")
-  metadata          Json?
-  createdAt         DateTime  @default(now())
-  User              User?     @relation("AdminNotification_userIdToUser", fields: [userId], references: [id], onDelete: Cascade)
+model DashboardStats {
+  id                        Int      @id @default(autoincrement())
+  date                      DateTime @unique @default(now())
+  totalUsers                Int      @default(0)
+  activeUsers               Int      @default(0)
+  hibernatedUsers           Int      @default(0)
+  genieUsers                Int      @default(0)
+  mallUsers                 Int      @default(0)
+  totalTrips                Int      @default(0)
+  upcomingTrips             Int      @default(0)
+  inProgressTrips           Int      @default(0)
+  completedTrips            Int      @default(0)
+  avgSatisfaction           Float    @default(0)
+  reviewCount               Int      @default(0)
+  totalNotifications        Int      @default(0)
+  totalProducts             Int      @default(0)
+  pwaGenieInstalled         Int      @default(0)
+  pwaMallInstalled          Int      @default(0)
+  pwaBothInstalled          Int      @default(0)
+  totalBranchManagers       Int      @default(0)
+  totalSalesAgents          Int      @default(0)
+  totalAffiliateLeads       Int      @default(0)
+  totalAffiliateSales       Int      @default(0)
+  totalAffiliateSalesAmount Int      @default(0)
+  totalCommissionPending    Int      @default(0)
+  totalCommissionSettled    Int      @default(0)
+  trends                    Json?
+  productViews              Json?
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime
 
-  @@index([userId, isRead, createdAt])
-  @@index([notificationType, createdAt])
-  @@index([relatedCustomerId, createdAt])
+  @@index([date])
+}
+
+model DocumentApproval {
+  id                                      Int            @id @default(autoincrement())
+  type                                    String
+  requesterId                             Int
+  saleId                                  Int
+  leadId                                  Int?
+  status                                  String         @default("PENDING")
+  requestData                             Json?
+  adminNotes                              String?
+  approvedBy                              Int?
+  createdAt                               DateTime       @default(now())
+  processedAt                             DateTime?
+  User_DocumentApproval_approvedByToUser  User?          @relation("DocumentApproval_approvedByToUser", fields: [approvedBy], references: [id])
+  AffiliateLead                           AffiliateLead? @relation(fields: [leadId], references: [id])
+  User_DocumentApproval_requesterIdToUser User           @relation("DocumentApproval_requesterIdToUser", fields: [requesterId], references: [id])
+  AffiliateSale                           AffiliateSale  @relation(fields: [saleId], references: [id])
+
+  @@index([requesterId, status])
+  @@index([saleId])
+  @@index([status, createdAt])
 }
 
 model EmailAddressBook {
@@ -1868,7 +2021,11 @@ model Reservation {
   remarks           String?
   passportGroupLink String?
   passportStatus    String         @default("PENDING")
+  status            String         @default("CONFIRMED")
+  pnrStatus         String         @default("PENDING")
   affiliateSaleId   Int?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @default(now()) @updatedAt
   AffiliateSale     AffiliateSale? @relation(fields: [affiliateSaleId], references: [id])
   User              User           @relation(fields: [mainUserId], references: [id])
   Trip              Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
@@ -1877,6 +2034,8 @@ model Reservation {
   @@index([mainUserId])
   @@index([passportStatus])
   @@index([tripId])
+  @@index([status])
+  @@index([pnrStatus])
 }
 
 model ScheduledMessage {
@@ -2057,6 +2216,23 @@ model SystemConfig {
   @@index([configKey])
 }
 
+model SystemConsultation {
+  id        Int      @id @default(autoincrement())
+  name      String
+  phone     String
+  message   String?
+  status    String   @default("NEW")
+  managerId Int?
+  agentId   Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  metadata  Json?
+
+  @@index([agentId])
+  @@index([createdAt])
+  @@index([managerId])
+}
+
 model TravelDiaryEntry {
   id          Int      @id @default(autoincrement())
   userId      Int
@@ -2093,7 +2269,7 @@ model Traveler {
   passportImage  String?
   userId         Int?
   nationality    String?
-  notes          String?     // 비고 (뒤늦게 일행 신청 등 메모)
+  notes          String?
   Reservation    Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   User           User?       @relation(fields: [userId], references: [id])
 
@@ -2112,7 +2288,7 @@ model Trip {
   status           String            @default("Upcoming")
   endDate          DateTime?
   createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @default(now()) @updatedAt
+  updatedAt        DateTime          @default(now())
   ChecklistItem    ChecklistItem[]
   Reservation      Reservation[]
   UserTripFeedback UserTripFeedback?
@@ -2161,7 +2337,7 @@ model User {
   AdminActionLog                                                AdminActionLog[]
   AdminMessage_AdminMessage_adminIdToUser                       AdminMessage[]            @relation("AdminMessage_adminIdToUser")
   AdminMessage_AdminMessage_userIdToUser                        AdminMessage[]            @relation("AdminMessage_userIdToUser")
-  AdminNotification_userIdToUser                                AdminNotification[]       @relation("AdminNotification_userIdToUser")
+  AdminNotification                                             AdminNotification[]
   AdminSmsConfig                                                AdminSmsConfig?
   AffiliateAuditLog                                             AffiliateAuditLog[]
   AffiliateContract_AffiliateContract_reviewerIdToUser          AffiliateContract[]       @relation("AffiliateContract_reviewerIdToUser")
@@ -2172,11 +2348,11 @@ model User {
   AffiliateLink                                                 AffiliateLink[]
   AffiliateLinkEvent                                            AffiliateLinkEvent[]
   AffiliateMedia                                                AffiliateMedia[]
-  AffiliatePayslip                                              AffiliatePayslip[]        @relation("PayslipApprovedBy")
+  AffiliatePayslip                                              AffiliatePayslip[]
   AffiliateProfile                                              AffiliateProfile?
-  CertificateApproval_Approver                                  CertificateApproval[]     @relation("CertificateApprovalApprover")
-  CertificateApproval_Customer                                  CertificateApproval[]     @relation("CertificateApprovalCustomer")
-  CertificateApproval_Requester                                 CertificateApproval[]     @relation("CertificateApprovalRequester")
+  CertificateApproval_CertificateApproval_approvedByToUser      CertificateApproval[]     @relation("CertificateApproval_approvedByToUser")
+  CertificateApproval_CertificateApproval_customerIdToUser      CertificateApproval[]     @relation("CertificateApproval_customerIdToUser")
+  CertificateApproval_CertificateApproval_requesterIdToUser     CertificateApproval[]     @relation("CertificateApproval_requesterIdToUser")
   ChatBotSession                                                ChatBotSession[]
   ChatHistory                                                   ChatHistory[]
   CommissionAdjustment_CommissionAdjustment_approvedByIdToUser  CommissionAdjustment[]    @relation("CommissionAdjustment_approvedByIdToUser")
@@ -2188,8 +2364,10 @@ model User {
   CustomerGroupMember_CustomerGroupMember_addedByToUser         CustomerGroupMember[]     @relation("CustomerGroupMember_addedByToUser")
   CustomerGroupMember_CustomerGroupMember_userIdToUser          CustomerGroupMember[]     @relation("CustomerGroupMember_userIdToUser")
   CustomerJourney                                               CustomerJourney[]
-  CustomerNote_createdByToUser                                  CustomerNote[]            @relation("CustomerNote_createdByToUser")
-  CustomerNote_customerIdToUser                                 CustomerNote[]            @relation("CustomerNote_customerIdToUser")
+  CustomerNote_CustomerNote_createdByToUser                     CustomerNote[]            @relation("CustomerNote_createdByToUser")
+  CustomerNote_CustomerNote_customerIdToUser                    CustomerNote[]            @relation("CustomerNote_customerIdToUser")
+  DocumentApproval_DocumentApproval_approvedByToUser            DocumentApproval[]        @relation("DocumentApproval_approvedByToUser")
+  DocumentApproval_DocumentApproval_requesterIdToUser           DocumentApproval[]        @relation("DocumentApproval_requesterIdToUser")
   EmailAddressBook                                              EmailAddressBook[]
   FeatureUsage                                                  FeatureUsage[]
   FunnelMessage                                                 FunnelMessage[]
@@ -2225,25 +2403,23 @@ model User {
   UserSchedule                                                  UserSchedule[]
   UserTrip                                                      UserTrip[]
   VisitedCountry                                                VisitedCountry[]
-  DocumentApproval_Requester                                    DocumentApproval[] @relation("DocumentRequester")
-  DocumentApproval_Approver                                     DocumentApproval[] @relation("DocumentApprover")
 
   @@index([createdAt])
+  @@index([customerSource])
+  @@index([customerStatus, createdAt])
   @@index([customerStatus])
   @@index([isHibernated, lastActiveAt])
   @@index([lastActiveAt])
+  @@index([mallUserId])
+  @@index([phone])
+  @@index([role, createdAt])
+  @@index([role, customerSource])
   @@index([role, customerStatus])
+  @@index([role, customerStatus, updatedAt])
   @@index([role])
   @@index([role, isHibernated, customerStatus])
   @@index([role, updatedAt])
-  @@index([role, customerStatus, updatedAt])
-  @@index([role, createdAt])
-  @@index([customerSource])
-  @@index([role, customerSource])
-  @@index([mallUserId])
   @@index([testModeStartedAt])
-  @@index([customerStatus, createdAt])
-  @@index([phone])
   @@index([customerStatus, customerSource, createdAt], map: "idx_user_customer_status_source_created")
 }
 
@@ -2272,38 +2448,6 @@ model UserMessageRead {
   @@index([userId, readAt])
 }
 
-model CertificateApproval {
-  id              Int       @id @default(autoincrement())
-  certificateType String
-  requesterId     Int
-  requesterType   String
-  customerId      Int
-  customerName    String
-  customerEmail   String?
-  birthDate       String?
-  productName     String
-  paymentAmount   Int
-  paymentDate     String
-  refundAmount    Int?
-  refundDate      String?
-  status          String    @default("pending")
-  approvedBy      Int?
-  approvedByType  String?
-  approvedAt      DateTime?
-  rejectedReason  String?
-  metadata        Json?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  Approver        User?     @relation("CertificateApprovalApprover", fields: [approvedBy], references: [id])
-  Customer        User      @relation("CertificateApprovalCustomer", fields: [customerId], references: [id])
-  Requester       User      @relation("CertificateApprovalRequester", fields: [requesterId], references: [id])
-
-  @@index([requesterId, status, createdAt])
-  @@index([customerId, certificateType])
-  @@index([status, createdAt])
-  @@index([approvedBy, createdAt])
-}
-
 model UserSchedule {
   id        Int      @id @default(autoincrement())
   userId    Int
@@ -2313,7 +2457,7 @@ model UserSchedule {
   alarm     Boolean  @default(false)
   alarmTime String?
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime
   User      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([date])
@@ -2351,8 +2495,8 @@ model UserTrip {
 
   @@index([createdAt])
   @@index([startDate])
-  @@index([userId, status])
   @@index([status, startDate])
+  @@index([userId, status])
 }
 
 model UserTripFeedback {
@@ -2407,142 +2551,4 @@ model VisitedCountry {
 
   @@unique([userId, countryCode])
   @@index([userId])
-}
-
-model AffiliatePayslip {
-  id               Int              @id @default(autoincrement())
-  profileId        Int
-  period           String
-  type             String
-  totalSales       Int              @default(0)
-  totalCommission  Int              @default(0)
-  totalWithholding Int              @default(0)
-  netPayment       Int              @default(0)
-  status           String           @default("PENDING")
-  approvedAt       DateTime?
-  approvedBy       Int?
-  sentAt           DateTime?
-  pdfUrl           String?
-  details          Json?
-  metadata         Json?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime
-  ApprovedBy       User?            @relation("PayslipApprovedBy", fields: [approvedBy], references: [id])
-  AffiliateProfile AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  @@unique([profileId, period])
-  @@index([profileId, period])
-  @@index([status, period])
-  @@index([approvedAt])
-}
-
-model AffiliateLedger {
-  id                Int              @id @default(autoincrement())
-  saleId            Int
-  profileId         Int
-  type              String
-  amount            Int
-  withholdingAmount Int              @default(0)
-  netAmount         Int
-  isSettled         Boolean          @default(false)
-  settledAt         DateTime?
-  description       String?
-  metadata          Json?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime
-  AffiliateProfile  AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  AffiliateSale     AffiliateSale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
-
-  @@index([saleId])
-  @@index([profileId, createdAt])
-  @@index([isSettled])
-  @@index([type])
-}
-
-model DashboardStats {
-  id                        Int      @id @default(autoincrement())
-  date                      DateTime @unique @default(now())
-  totalUsers                Int      @default(0)
-  activeUsers               Int      @default(0)
-  hibernatedUsers           Int      @default(0)
-  genieUsers                Int      @default(0)
-  mallUsers                 Int      @default(0)
-  totalTrips                Int      @default(0)
-  upcomingTrips             Int      @default(0)
-  inProgressTrips           Int      @default(0)
-  completedTrips            Int      @default(0)
-  avgSatisfaction           Float    @default(0)
-  reviewCount               Int      @default(0)
-  totalNotifications        Int      @default(0)
-  totalProducts             Int      @default(0)
-  pwaGenieInstalled         Int      @default(0)
-  pwaMallInstalled          Int      @default(0)
-  pwaBothInstalled          Int      @default(0)
-  totalBranchManagers       Int      @default(0)
-  totalSalesAgents          Int      @default(0)
-  totalAffiliateLeads       Int      @default(0)
-  totalAffiliateSales       Int      @default(0)
-  totalAffiliateSalesAmount Int      @default(0)
-  totalCommissionPending    Int      @default(0)
-  totalCommissionSettled    Int      @default(0)
-  trends                    Json?
-  productViews              Json?
-  createdAt                 DateTime @default(now())
-  updatedAt                 DateTime
-
-  @@index([date])
-}
-
-model ApisSyncQueue {
-  id          Int      @id @default(autoincrement())
-  targetType  String   // "MASTER_SHEET", "TRIP_SHEET"
-  targetId    Int      // userId (for Master) or tripId (for Trip)
-  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
-  attempts    Int      @default(0)
-  lastError   String?
-  scheduledAt DateTime @default(now()) // 언제 실행할지 (기본값: 즉시)
-  createdAt   DateTime @default(now())
-  processedAt DateTime?
-
-  @@index([status, scheduledAt])
-}
-
-model SystemConsultation {
-  id        Int      @id @default(autoincrement())
-  name      String
-  phone     String
-  message   String?
-  status    String   @default("NEW")
-  managerId Int?
-  agentId   Int?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  metadata  Json?
-
-  @@index([managerId])
-  @@index([agentId])
-  @@index([createdAt])
-}
-
-model DocumentApproval {
-  id              Int       @id @default(autoincrement())
-  type            String    // 'PURCHASE_CONFIRMATION' | 'REFUND_CERTIFICATE'
-  requesterId     Int       // User.id of requester
-  saleId          Int       // AffiliateSale.id
-  leadId          Int?      // AffiliateLead.id (optional)
-  status          String    @default("PENDING") // 'PENDING' | 'APPROVED' | 'REJECTED'
-  requestData     Json?     // Document generation data
-  adminNotes      String?   // Admin's approval/rejection reason
-  approvedBy      Int?      // User.id of admin who approved/rejected
-  createdAt       DateTime  @default(now())
-  processedAt     DateTime? // When approved/rejected
-  
-  requester       User            @relation("DocumentRequester", fields: [requesterId], references: [id])
-  approver        User?           @relation("DocumentApprover", fields: [approvedBy], references: [id])
-  sale            AffiliateSale   @relation(fields: [saleId], references: [id])
-  lead            AffiliateLead?  @relation(fields: [leadId], references: [id])
-
-  @@index([requesterId, status])
-  @@index([status, createdAt])
-  @@index([saleId])
 }

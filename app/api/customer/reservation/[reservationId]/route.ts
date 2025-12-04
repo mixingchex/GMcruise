@@ -73,6 +73,7 @@ export async function GET(
         id: reservation.id,
         totalPeople: reservation.totalPeople,
         passportStatus: reservation.passportStatus,
+        cabinType: reservation.cabinType, // 객실 타입 (발코니, 오션뷰 등)
         trip: reservation.Trip || null,
         user: reservation.User,
         travelers: reservation.Traveler.map((t) => ({

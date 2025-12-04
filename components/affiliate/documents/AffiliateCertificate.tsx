@@ -55,6 +55,28 @@ interface ProductDetails {
   hasTravelInsurance?: boolean;
 }
 
+interface ActiveProduct {
+  id: number;
+  productCode: string;
+  packageName: string;
+  cruiseLine: string;
+  shipName: string;
+  nights: number;
+  days: number;
+  basePrice: number;
+  tags?: string[];
+  visitedCountries?: string[];
+  destinations?: string[];
+  included?: string[];
+  excluded?: string[];
+  refundPolicy?: string;
+  flightInfo?: any;
+  hasGuide?: boolean;
+  hasEscort?: boolean;
+  hasCruiseDotStaff?: boolean;
+  hasTravelInsurance?: boolean;
+}
+
 export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCertificateProps) {
   console.log('[AffiliateCertificate] Rendering with type:', type);
 
@@ -89,6 +111,12 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
   const customerInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
+  // 상품 검색 관련
+  const [activeProducts, setActiveProducts] = useState<ActiveProduct[]>([]);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const productInputRef = useRef<HTMLInputElement>(null);
+  const productSuggestionsRef = useRef<HTMLDivElement>(null);
+
   // 승인 요청 관련
   const [approvalRequest, setApprovalRequest] = useState<ApprovalRequest | null>(null);
 
@@ -118,7 +146,26 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
     setApprovalRequest(null);
     setCustomerEmail('');
     setProductDetails(null);
+    setShowProductDropdown(false);
   }, [type]);
+
+  // 활성 상품 목록 로드
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const res = await fetch('/api/partner/products/active');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.ok) {
+            setActiveProducts(json.products || []);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load active products:', error);
+      }
+    };
+    loadProducts();
+  }, []);
 
   // 고객 검색 (판매원의 고객만)
   const searchCustomers = useCallback(async (query: string) => {
@@ -266,6 +313,15 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
       ) {
         setShowSuggestions(false);
       }
+
+      if (
+        productSuggestionsRef.current &&
+        !productSuggestionsRef.current.contains(event.target as Node) &&
+        productInputRef.current &&
+        !productInputRef.current.contains(event.target as Node)
+      ) {
+        setShowProductDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -273,6 +329,33 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // 상품 선택 핸들러
+  const handleProductSelect = (product: ActiveProduct) => {
+    setData(prev => ({
+      ...prev,
+      productName: product.packageName,
+      paymentAmount: product.basePrice || 0,
+    }));
+    setProductDetails({
+      tags: product.tags,
+      visitedCountries: product.visitedCountries,
+      destinations: product.destinations,
+      nights: product.nights,
+      days: product.days,
+      cruiseLine: product.cruiseLine,
+      shipName: product.shipName,
+      included: product.included,
+      excluded: product.excluded,
+      refundPolicy: product.refundPolicy,
+      flightInfo: product.flightInfo,
+      hasGuide: product.hasGuide,
+      hasEscort: product.hasEscort,
+      hasCruiseDotStaff: product.hasCruiseDotStaff,
+      hasTravelInsurance: product.hasTravelInsurance,
+    });
+    setShowProductDropdown(false);
+  };
 
   // 기존 승인 요청 확인
   const checkExistingApproval = async (customerId: number) => {
@@ -571,8 +654,8 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
         onClick={handleRequestApproval}
         disabled={isRequesting || !data.customerName || !selectedCustomerId}
         className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors flex items-center justify-center gap-2 ${type === 'purchase'
-            ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
-            : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
+          ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
+          : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
           }`}
       >
         <Send className="w-5 h-5" />
@@ -759,13 +842,47 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               상품명 <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={data.productName}
-              onChange={(e) => setData(prev => ({ ...prev, productName: e.target.value }))}
-              placeholder="지중해 7박 8일 크루즈 (고객 선택 시 자동으로 불러옵니다)"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-            />
+            <div className="relative">
+              <input
+                ref={productInputRef}
+                type="text"
+                value={data.productName}
+                onChange={(e) => {
+                  setData(prev => ({ ...prev, productName: e.target.value }));
+                  setShowProductDropdown(true);
+                }}
+                onFocus={() => setShowProductDropdown(true)}
+                placeholder="지중해 7박 8일 크루즈 (상품명 검색)"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+              {showProductDropdown && (
+                <div
+                  ref={productSuggestionsRef}
+                  className="absolute z-50 w-full mt-2 bg-white border-2 border-indigo-200 rounded-lg shadow-xl max-h-64 overflow-y-auto"
+                >
+                  {activeProducts.filter(p =>
+                    p.packageName.toLowerCase().includes(data.productName.toLowerCase())
+                  ).length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500">검색 결과가 없습니다.</div>
+                  ) : (
+                    activeProducts
+                      .filter(p => p.packageName.toLowerCase().includes(data.productName.toLowerCase()))
+                      .map((product) => (
+                        <div
+                          key={product.id}
+                          onClick={() => handleProductSelect(product)}
+                          className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="font-semibold text-gray-900 text-sm">{product.packageName}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {product.cruiseLine} | {product.shipName} | {product.nights}박 {product.days}일
+                          </div>
+                        </div>
+                      ))
+                  )}
+                </div>
+              )}
+            </div>
             {productDetails && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="font-semibold text-gray-900 mb-3">상품 상세 정보</h4>

@@ -2,8 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FiArrowLeft, FiSave, FiUser, FiLink, FiPlus, FiX, FiImage, FiChevronLeft, FiChevronRight, FiPlay, FiExternalLink, FiShoppingBag, FiUpload, FiCheck, FiCopy } from 'react-icons/fi';
+import { FiArrowLeft, FiSave, FiUser, FiLink, FiPlus, FiX, FiImage, FiChevronLeft, FiChevronRight, FiPlay, FiExternalLink, FiShoppingBag, FiUpload, FiCheck, FiCopy, FiCalendar, FiTrash2, FiClock } from 'react-icons/fi';
+import { DayPicker } from 'react-day-picker';
+import { ko } from 'react-day-picker/locale';
+import { format } from 'date-fns';
+import 'react-day-picker/dist/style.css';
 import { showError, showSuccess } from '@/components/ui/Toast';
+import ImageLibraryModal from '@/components/partner/ImageLibraryModal';
 
 import { getProxyImageUrl } from '@/lib/utils';
 
@@ -23,6 +28,13 @@ interface CustomLink {
   label: string;
   url: string;
   isActive: boolean;
+}
+
+interface Schedule {
+  date: string;
+  title: string;
+  type: 'cruise' | 'live' | 'other';
+  description?: string;
 }
 
 export default function SnsProfileClient({ user, profile }: SnsProfileClientProps) {
@@ -123,6 +135,26 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
     return [];
   };
 
+  const parseSchedules = (): Schedule[] => {
+    if (!profile?.schedules) return [];
+    try {
+      const parsed = typeof profile.schedules === 'string'
+        ? JSON.parse(profile.schedules)
+        : profile.schedules;
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: any) => ({
+          date: item.date || '',
+          title: item.title || '',
+          type: item.type || 'other',
+          description: item.description || '',
+        })).filter(item => item.date && item.title);
+      }
+    } catch (e) {
+      console.error('[parseSchedules] error:', e);
+    }
+    return [];
+  };
+
   const [formData, setFormData] = useState({
     displayName: profile?.displayName || user.name || '',
     bio: profile?.bio || '',
@@ -179,7 +211,43 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
       }
       return [''];
     })(),
+    schedules: parseSchedules(),
   });
+
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [scheduleForm, setScheduleForm] = useState<{ title: string; type: 'cruise' | 'live' | 'other'; description: string }>({
+    title: '',
+    type: 'cruise',
+    description: '',
+  });
+  const [imageLibraryModal, setImageLibraryModal] = useState<{ open: boolean; target: 'featured' | 'gallery' | 'profile' }>({ open: false, target: 'featured' });
+
+  const handleScheduleAdd = () => {
+    if (!selectedDate || !scheduleForm.title.trim()) return;
+
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const newSchedule: Schedule = {
+      date: dateStr,
+      title: scheduleForm.title,
+      type: scheduleForm.type,
+      description: scheduleForm.description,
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      schedules: [...prev.schedules, newSchedule],
+    }));
+
+    setScheduleForm({ title: '', type: 'cruise', description: '' });
+    showSuccess('일정이 추가되었습니다.');
+  };
+
+  const handleScheduleRemove = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      schedules: prev.schedules.filter((_, i) => i !== index),
+    }));
+  };
 
   const profileImageUrl = formData.profileImage || null;
   const partnerId = user.mallUserId;
@@ -207,6 +275,35 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
     }
   }, [profile?.youtubeVideoUrl]);
 
+  const handleImageSelect = (imageUrl: string) => {
+    if (imageLibraryModal.target === 'featured') {
+      setFormData(prev => {
+        const newFeaturedImages = [...prev.featuredImages];
+        const firstEmptyIndex = newFeaturedImages.findIndex(img => !img);
+        if (firstEmptyIndex !== -1) {
+          newFeaturedImages[firstEmptyIndex] = imageUrl;
+        } else if (newFeaturedImages.length < 3) { // Max 3 featured images
+          newFeaturedImages.push(imageUrl);
+        }
+        return { ...prev, featuredImages: newFeaturedImages };
+      });
+    } else if (imageLibraryModal.target === 'gallery') {
+      setFormData(prev => {
+        const newGalleryImages = [...prev.galleryImages];
+        const firstEmptyIndex = newGalleryImages.findIndex(img => !img);
+        if (firstEmptyIndex !== -1) {
+          newGalleryImages[firstEmptyIndex] = imageUrl;
+        } else if (newGalleryImages.length < 9) { // Max 9 gallery images
+          newGalleryImages.push(imageUrl);
+        }
+        return { ...prev, galleryImages: newGalleryImages };
+      });
+    } else if (imageLibraryModal.target === 'profile') {
+      setFormData(prev => ({ ...prev, profileImage: imageUrl }));
+    }
+    setImageLibraryModal({ ...imageLibraryModal, open: false });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -231,6 +328,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
           youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0
             ? (filteredYoutubeVideoUrls.length === 1 ? filteredYoutubeVideoUrls[0] : JSON.stringify(filteredYoutubeVideoUrls))
             : null,
+          schedules: formData.schedules.length > 0 ? formData.schedules : null,
         }),
       });
 
@@ -249,7 +347,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'profile' | 'gallery' | 'featured' | null = null, index: number | null = null) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -276,12 +374,40 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
         throw new Error('이미지 URL이 올바르지 않습니다.');
       }
 
-      setFormData((prev) => ({
-        ...prev,
-        profileImage: imageUrl,
-      }));
+      const trimmedUrl = imageUrl.trim();
 
-      showSuccess('프로필 이미지가 업로드되었습니다!');
+      if (target === 'profile') {
+        setFormData((prev) => ({
+          ...prev,
+          profileImage: trimmedUrl,
+        }));
+      } else if (target === 'gallery' && index !== null) {
+        setFormData((prev) => {
+          const newGalleryImages = [...prev.galleryImages];
+          newGalleryImages[index] = trimmedUrl;
+          return { ...prev, galleryImages: newGalleryImages };
+        });
+      } else if (target === 'featured' && index !== null) {
+        setFormData((prev) => {
+          const newFeaturedImages = [...prev.featuredImages];
+          newFeaturedImages[index] = trimmedUrl;
+          return { ...prev, featuredImages: newFeaturedImages };
+        });
+      } else if (target === 'featured' && index === null) { // For multiple file upload from a single input
+        setFormData((prev) => {
+          const newFeaturedImages = [...prev.featuredImages];
+          const firstEmptyIndex = newFeaturedImages.findIndex(img => !img);
+          if (firstEmptyIndex !== -1) {
+            newFeaturedImages[firstEmptyIndex] = trimmedUrl;
+          } else if (newFeaturedImages.length < 3) {
+            newFeaturedImages.push(trimmedUrl);
+          }
+          return { ...prev, featuredImages: newFeaturedImages };
+        });
+      }
+
+
+      showSuccess('이미지가 업로드되었습니다!');
     } catch (error: any) {
       console.error('[SnsProfileClient] Image upload error:', error);
       showError(error.message || '이미지 업로드 중 오류가 발생했습니다.');
@@ -499,11 +625,19 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                             <input
                               type="file"
                               accept="image/jpeg,image/png,image/gif,image/webp"
-                              onChange={handleImageUpload}
+                              onChange={(e) => handleImageUpload(e, 'profile')}
                               disabled={imageUploading}
                               className="hidden"
                             />
                           </label>
+                          <button
+                            type="button"
+                            onClick={() => setImageLibraryModal({ open: true, target: 'profile' })}
+                            className="ml-2 inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                          >
+                            <FiImage className="w-4 h-4" />
+                            라이브러리에서 선택
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -692,6 +826,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                     onUpload={handleGalleryImageUpload}
                     onRemove={removeGalleryImage}
                     uploading={imageUploading}
+                    onOpenImageLibrary={() => setImageLibraryModal({ open: true, target: 'gallery' })}
                   />
                 </div>
 
@@ -711,6 +846,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                     onUpload={handleFeaturedImageUpload}
                     onRemove={removeFeaturedImage}
                     uploading={imageUploading}
+                    onOpenImageLibrary={() => setImageLibraryModal({ open: true, target: 'featured' })}
                   />
                 </div>
 
@@ -774,6 +910,116 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                   </div>
                 </div>
 
+                {/* 일정 및 알림 관리 */}
+                <div>
+                  <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
+                    <FiCalendar className="text-purple-600" />
+                    일정 및 알림 관리
+                  </h3>
+                  <div className="mb-4 rounded-xl bg-purple-50 border border-purple-200 p-4">
+                    <p className="text-sm text-purple-700">
+                      크루즈 출발 일정이나 라이브 방송 일정을 달력에 표시하여 고객에게 알릴 수 있습니다.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-8">
+                    <div className="flex-1">
+                      <div className="bg-white border rounded-xl p-4 shadow-sm flex justify-center">
+                        <DayPicker
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          locale={ko}
+                          modifiers={{
+                            hasSchedule: (date) => formData.schedules.some(s => s.date === format(date, 'yyyy-MM-dd')),
+                          }}
+                          modifiersClassNames={{
+                            hasSchedule: 'font-bold text-purple-600',
+                            selected: 'bg-purple-600 text-white',
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex-1 space-y-4">
+                      <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
+                          <FiPlus className="text-purple-600" />
+                          {selectedDate ? format(selectedDate, 'yyyy년 M월 d일') : '날짜 선택'} 일정 추가
+                        </h4>
+                        <div className="space-y-3">
+                          <input
+                            type="text"
+                            placeholder="일정 제목 (예: 지중해 크루즈 출발)"
+                            value={scheduleForm.title}
+                            onChange={(e) => setScheduleForm({ ...scheduleForm, title: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          />
+                          <select
+                            value={scheduleForm.type}
+                            onChange={(e) => setScheduleForm({ ...scheduleForm, type: e.target.value as any })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                          >
+                            <option value="cruise">🚢 크루즈 출발</option>
+                            <option value="live">📺 라이브 방송</option>
+                            <option value="other">📅 기타 일정</option>
+                          </select>
+                          <textarea
+                            placeholder="상세 내용 (선택 사항)"
+                            value={scheduleForm.description}
+                            onChange={(e) => setScheduleForm({ ...scheduleForm, description: e.target.value })}
+                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                            rows={2}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleScheduleAdd}
+                            disabled={!selectedDate || !scheduleForm.title.trim()}
+                            className="w-full bg-purple-600 text-white rounded-lg py-2 text-sm font-bold hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                          >
+                            일정 추가하기
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h4 className="font-bold text-gray-900 text-sm">등록된 일정 목록</h4>
+                        {formData.schedules.length === 0 ? (
+                          <p className="text-sm text-gray-500 text-center py-4">등록된 일정이 없습니다.</p>
+                        ) : (
+                          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                            {formData.schedules
+                              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                              .map((schedule, index) => (
+                                <div key={index} className="flex items-start justify-between bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-xs font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                        {schedule.date}
+                                      </span>
+                                      <span className="text-xs px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
+                                        {schedule.type === 'cruise' ? '🚢 크루즈' : schedule.type === 'live' ? '📺 라이브' : '📅 기타'}
+                                      </span>
+                                    </div>
+                                    <p className="font-bold text-sm text-gray-900">{schedule.title}</p>
+                                    {schedule.description && <p className="text-xs text-gray-600 mt-1">{schedule.description}</p>}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleScheduleRemove(index)}
+                                    className="text-red-500 hover:text-red-700 p-1"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </div>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* 스마트폰 미리보기 */}
                 <div>
                   <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-slate-900">
@@ -806,6 +1052,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                       })(),
                       youtubeVideoUrls: formData.youtubeVideoUrls.filter((url: string) => url && url.trim()),
                       mallUserId: user.mallUserId,
+                      schedules: formData.schedules,
                     }}
                   />
                 </div>
@@ -844,6 +1091,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                           youtubeVideoUrl: filteredYoutubeVideoUrls.length > 0
                             ? (filteredYoutubeVideoUrls.length === 1 ? filteredYoutubeVideoUrls[0] : JSON.stringify(filteredYoutubeVideoUrls))
                             : null,
+                          schedules: formData.schedules.length > 0 ? formData.schedules : null,
                         }),
                       });
 
@@ -887,6 +1135,14 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
           </div>
         </form>
       </div>
+
+      {imageLibraryModal.open && (
+        <ImageLibraryModal
+          isOpen={imageLibraryModal.open}
+          onClose={() => setImageLibraryModal({ ...imageLibraryModal, open: false })}
+          onSelect={handleImageSelect}
+        />
+      )}
     </div>
   );
 }
@@ -897,11 +1153,13 @@ function GalleryImageManager({
   onUpload,
   onRemove,
   uploading,
+  onOpenImageLibrary,
 }: {
   images: string[];
   onUpload: (index: number, file: File) => void;
   onRemove: (index: number) => void;
   uploading: boolean;
+  onOpenImageLibrary: () => void;
 }) {
   const slots = Array(9).fill(null).map((_, i) => {
     const img = images[i];
@@ -957,23 +1215,30 @@ function GalleryImageManager({
               </button>
             </>
           ) : (
-            <label className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) onUpload(index, file);
-                  e.target.value = '';
-                }}
-                disabled={uploading}
-                className="hidden"
-              />
-              <div className="text-center">
-                <FiUpload className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                <span className="text-xs text-gray-500">업로드</span>
-              </div>
-            </label>
+            <div className="w-full h-full flex flex-col items-center justify-center">
+              <label className="cursor-pointer p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors mb-1" title="이미지 업로드">
+                <FiUpload className="w-5 h-5 text-gray-600" />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onUpload(index, file);
+                    e.target.value = '';
+                  }}
+                  disabled={uploading}
+                  className="hidden"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={onOpenImageLibrary}
+                className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                title="라이브러리에서 선택"
+              >
+                <FiImage className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
           )}
         </div>
       ))}
@@ -987,11 +1252,13 @@ function FeaturedImageManager({
   onUpload,
   onRemove,
   uploading,
+  onOpenImageLibrary,
 }: {
   images: string[];
   onUpload: (index: number, file: File) => void;
   onRemove: (index: number) => void;
   uploading: boolean;
+  onOpenImageLibrary: () => void;
 }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const slots = Array(3).fill(null).map((_, i) => {
@@ -1113,23 +1380,30 @@ function FeaturedImageManager({
                 </button>
               </>
             ) : (
-              <label className="w-full h-full flex items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) onUpload(index, file);
-                    e.target.value = '';
-                  }}
-                  disabled={uploading}
-                  className="hidden"
-                />
-                <div className="text-center">
-                  <FiUpload className="w-6 h-6 text-gray-400 mx-auto mb-1" />
-                  <span className="text-xs text-gray-500">업로드</span>
-                </div>
-              </label>
+              <div className="w-full h-full flex flex-col items-center justify-center">
+                <label className="cursor-pointer p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors mb-1" title="이미지 업로드">
+                  <FiUpload className="w-5 h-5 text-gray-600" />
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) onUpload(index, file);
+                      e.target.value = '';
+                    }}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={onOpenImageLibrary}
+                  className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                  title="라이브러리에서 선택"
+                >
+                  <FiImage className="w-5 h-5 text-gray-600" />
+                </button>
+              </div>
             )}
           </div>
         ))}
@@ -1180,6 +1454,7 @@ function MobilePreview({ profile }: {
     youtubeVideoUrl: string | null;
     youtubeVideoUrls?: string[];
     mallUserId?: string;
+    schedules?: Schedule[];
   }
 }) {
   const [deviceType, setDeviceType] = useState<'iphone' | 'samsung'>('iphone');
@@ -1189,6 +1464,19 @@ function MobilePreview({ profile }: {
   const [featuredModal, setFeaturedModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
   const [products, setProducts] = useState<any[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [scheduleModal, setScheduleModal] = useState<{ open: boolean; date: string; schedules: Schedule[] }>({ open: false, date: '', schedules: [] });
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) return;
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const daySchedules = profile.schedules?.filter(s => s.date === dateStr) || [];
+
+    if (daySchedules.length > 0) {
+      setScheduleModal({ open: true, date: dateStr, schedules: daySchedules });
+    }
+    setSelectedDate(date);
+  };
 
   const getInstagramUrl = (handle: string) => {
     if (handle.startsWith('http')) return handle;
@@ -1519,6 +1807,35 @@ function MobilePreview({ profile }: {
                     </div>
                   )}
 
+                  {/* 일정 및 알림 (캘린더) */}
+                  {profile.schedules && profile.schedules.length > 0 && (
+                    <div className="bg-white rounded-3xl shadow-xl p-4 mb-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FiCalendar className="w-4 h-4 text-purple-600" />
+                        <h2 className="text-lg font-bold text-gray-900">일정 및 알림</h2>
+                      </div>
+                      <div className="flex justify-center">
+                        <DayPicker
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={handleDateSelect}
+                          locale={ko}
+                          modifiers={{
+                            hasSchedule: (date) => profile.schedules?.some(s => s.date === format(date, 'yyyy-MM-dd')) || false,
+                          }}
+                          modifiersClassNames={{
+                            hasSchedule: 'font-bold text-purple-600 after:content-["•"] after:block after:text-purple-600 after:text-xs after:-mt-1',
+                            selected: 'bg-purple-600 text-white',
+                          }}
+                          styles={{
+                            caption: { color: '#4b5563' },
+                            head_cell: { color: '#6b7280' },
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   {/* 판매몰 상품 */}
                   {profile.mallUserId && (
                     <div className="bg-white rounded-3xl shadow-xl p-4 mb-6">
@@ -1641,98 +1958,147 @@ function MobilePreview({ profile }: {
       </div>
 
       {/* 갤러리 모달 */}
-      {galleryModal.open && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setGalleryModal({ open: false, index: 0 })}
-        >
-          <button
+      {
+        galleryModal.open && (
+          <div
+            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
             onClick={() => setGalleryModal({ open: false, index: 0 })}
-            className="absolute top-4 right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
           >
-            <FiX className="w-5 h-5" />
-          </button>
-          {profile.galleryImages.length > 1 && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGalleryModal({
-                    open: true,
-                    index: (galleryModal.index - 1 + profile.galleryImages.length) % profile.galleryImages.length,
-                  });
-                }}
-                className="absolute left-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
-              >
-                <FiChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGalleryModal({
-                    open: true,
-                    index: (galleryModal.index + 1) % profile.galleryImages.length,
-                  });
-                }}
-                className="absolute right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
-              >
-                <FiChevronRight className="w-5 h-5" />
-              </button>
-            </>
-          )}
-          <img
-            src={profile.galleryImages[galleryModal.index]}
-            alt={`Gallery ${galleryModal.index + 1}`}
-            className="max-w-full max-h-full object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+            <button
+              onClick={() => setGalleryModal({ open: false, index: 0 })}
+              className="absolute top-4 right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+            {profile.galleryImages.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setGalleryModal({
+                      open: true,
+                      index: (galleryModal.index - 1 + profile.galleryImages.length) % profile.galleryImages.length,
+                    });
+                  }}
+                  className="absolute left-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
+                >
+                  <FiChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setGalleryModal({
+                      open: true,
+                      index: (galleryModal.index + 1) % profile.galleryImages.length,
+                    });
+                  }}
+                  className="absolute right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
+                >
+                  <FiChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+            <img
+              src={profile.galleryImages[galleryModal.index]}
+              alt={`Gallery ${galleryModal.index + 1}`}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )
+      }
 
       {/* 대표 이미지 모달 */}
-      {featuredModal.open && (
-        <div
-          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
-          onClick={() => setFeaturedModal({ open: false, index: 0 })}
-        >
-          <button
+      {
+        featuredModal.open && (
+          <div
+            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
             onClick={() => setFeaturedModal({ open: false, index: 0 })}
-            className="absolute top-4 right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
           >
-            <FiX className="w-5 h-5" />
-          </button>
-          {profile.featuredImages.length > 1 && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const newIndex = (featuredModal.index - 1 + profile.featuredImages.length) % profile.featuredImages.length;
-                  setFeaturedModal({ open: true, index: newIndex });
-                  setFeaturedIndex(newIndex);
-                }}
-                className="absolute left-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
-              >
-                <FiChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const newIndex = (featuredModal.index + 1) % profile.featuredImages.length;
-                  setFeaturedModal({ open: true, index: newIndex });
-                  setFeaturedIndex(newIndex);
-                }}
-                className="absolute right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
-              >
-                <FiChevronRight className="w-5 h-5" />
-              </button>
-            </>
-          )}
-          <img
-            src={profile.featuredImages[featuredModal.index]}
-            alt={`Featured ${featuredModal.index + 1}`}
-            className="max-w-full max-h-full object-contain"
+            <button
+              onClick={() => setFeaturedModal({ open: false, index: 0 })}
+              className="absolute top-4 right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
+            >
+              <FiX className="w-5 h-5" />
+            </button>
+            {profile.featuredImages.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newIndex = (featuredModal.index - 1 + profile.featuredImages.length) % profile.featuredImages.length;
+                    setFeaturedModal({ open: true, index: newIndex });
+                    setFeaturedIndex(newIndex);
+                  }}
+                  className="absolute left-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
+                >
+                  <FiChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newIndex = (featuredModal.index + 1) % profile.featuredImages.length;
+                    setFeaturedModal({ open: true, index: newIndex });
+                    setFeaturedIndex(newIndex);
+                  }}
+                  className="absolute right-4 p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors z-10"
+                >
+                  <FiChevronRight className="w-5 h-5" />
+                </button>
+              </>
+            )}
+            <img
+              src={profile.featuredImages[featuredModal.index]}
+              alt={`Featured ${featuredModal.index + 1}`}
+              className="max-w-full max-h-full object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )
+      }
+      {/* 일정 상세 모달 */}
+      {scheduleModal.open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setScheduleModal({ ...scheduleModal, open: false })}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200"
             onClick={(e) => e.stopPropagation()}
-          />
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-gray-900">
+                {format(new Date(scheduleModal.date), 'M월 d일')} 일정
+              </h3>
+              <button
+                onClick={() => setScheduleModal({ ...scheduleModal, open: false })}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {scheduleModal.schedules.map((schedule, idx) => (
+                <div key={idx} className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs px-2 py-1 rounded-full bg-white text-purple-600 font-bold border border-purple-200 shadow-sm">
+                      {schedule.type === 'cruise' ? '🚢 크루즈' : schedule.type === 'live' ? '📺 라이브' : '📅 기타'}
+                    </span>
+                  </div>
+                  <h4 className="font-bold text-gray-900 mb-1">{schedule.title}</h4>
+                  {schedule.description && (
+                    <p className="text-sm text-gray-600">{schedule.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setScheduleModal({ ...scheduleModal, open: false })}
+              className="w-full mt-4 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              닫기
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -39,14 +39,12 @@ export async function GET(
           },
         },
         Trip: {
-          include: {
-            Product: {
-              select: {
-                cruiseLine: true,
-                shipName: true,
-                packageName: true,
-              },
-            },
+          select: {
+            id: true,
+            shipName: true,
+            departureDate: true,
+            productCode: true,
+            spreadsheetId: true,
           },
         },
         Traveler: {
@@ -65,10 +63,14 @@ export async function GET(
           },
           orderBy: { roomNumber: 'asc' },
         },
-        affiliate: {
-          select: {
-            displayName: true,
-            type: true,
+        AffiliateSale: {
+          include: {
+            AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
+              select: {
+                displayName: true,
+                type: true,
+              },
+            },
           },
         },
       },
@@ -93,11 +95,13 @@ export async function GET(
         id: reservation.Trip.id,
         departureDate: reservation.Trip.departureDate?.toISOString(),
         spreadsheetId: reservation.Trip.spreadsheetId,
-        product: reservation.Trip.Product ? {
-          cruiseLine: reservation.Trip.Product.cruiseLine,
-          shipName: reservation.Trip.Product.shipName,
-          packageName: reservation.Trip.Product.packageName,
-        } : null,
+        shipName: reservation.Trip.shipName,
+        productCode: reservation.Trip.productCode,
+        product: {
+          cruiseLine: null,
+          shipName: reservation.Trip.shipName,
+          packageName: reservation.Trip.productCode,
+        },
       } : null,
       travelers: reservation.Traveler.map((t) => ({
         id: t.id,
@@ -112,9 +116,9 @@ export async function GET(
         roomNumber: t.roomNumber,
         passportImage: t.passportImage,
       })),
-      affiliate: reservation.affiliate ? {
-        displayName: reservation.affiliate.displayName,
-        type: reservation.affiliate.type,
+      affiliate: reservation.AffiliateSale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile ? {
+        displayName: reservation.AffiliateSale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile.displayName,
+        type: reservation.AffiliateSale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile.type,
       } : null,
     };
 

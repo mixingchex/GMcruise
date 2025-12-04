@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiLink, FiExternalLink, FiShoppingBag, FiCalendar, FiBell, FiChevronLeft, FiChevronRight, FiX, FiPlay, FiImage } from 'react-icons/fi';
+import { FiLink, FiExternalLink, FiShoppingBag, FiCalendar, FiBell, FiChevronLeft, FiChevronRight, FiX, FiPlay, FiImage, FiClock } from 'react-icons/fi';
+import { DayPicker } from 'react-day-picker';
+import { ko } from 'react-day-picker/locale';
+import { format } from 'date-fns';
+import 'react-day-picker/dist/style.css';
 import { getProxyImageUrl } from '@/lib/utils';
 
 interface Profile {
@@ -21,6 +25,14 @@ interface Profile {
   youtubeVideoId: string | null;
   youtubeVideoUrl: string | null; // Added to match MobilePreview
   youtubeVideoUrls?: string[]; // Added to match MobilePreview
+  schedules?: Schedule[];
+}
+
+interface Schedule {
+  date: string;
+  title: string;
+  type: 'cruise' | 'live' | 'other';
+  description?: string;
 }
 
 interface Product {
@@ -84,6 +96,19 @@ export default function LittlyLandingPage({ profile }: LittlyLandingPageProps) {
   const [youtubeIndex, setYoutubeIndex] = useState(0);
   const [galleryModal, setGalleryModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
   const [featuredModal, setFeaturedModal] = useState<{ open: boolean; index: number }>({ open: false, index: 0 });
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [scheduleModal, setScheduleModal] = useState<{ open: boolean; date: string; schedules: Schedule[] }>({ open: false, date: '', schedules: [] });
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) return;
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const daySchedules = profile.schedules?.filter(s => s.date === dateStr) || [];
+
+    if (daySchedules.length > 0) {
+      setScheduleModal({ open: true, date: dateStr, schedules: daySchedules });
+    }
+    setSelectedDate(date);
+  };
 
   // SNS 링크 URL 생성
   const getInstagramUrl = (handle: string) => {
@@ -439,7 +464,7 @@ export default function LittlyLandingPage({ profile }: LittlyLandingPageProps) {
                   return (
                     <a
                       key={product.id}
-                      href={`/${profile.mallUserId}/shop/products/${product.productCode}`}
+                      href={`/products/${product.productCode}?partner=${profile.mallUserId}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-sm transition-all"
@@ -491,15 +516,34 @@ export default function LittlyLandingPage({ profile }: LittlyLandingPageProps) {
         )}
 
         {/* 일정 및 알림 섹션 */}
-        <div className="bg-white rounded-3xl shadow-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <FiCalendar className="w-4 h-4 text-purple-600" />
-            <h2 className="text-lg font-bold text-gray-900">일정 및 알림</h2>
+        {/* 일정 및 알림 섹션 */}
+        {profile.schedules && profile.schedules.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <FiCalendar className="w-4 h-4 text-purple-600" />
+              <h2 className="text-lg font-bold text-gray-900">일정 및 알림</h2>
+            </div>
+            <div className="flex justify-center">
+              <DayPicker
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                locale={ko}
+                modifiers={{
+                  hasSchedule: (date) => profile.schedules?.some(s => s.date === format(date, 'yyyy-MM-dd')) || false,
+                }}
+                modifiersClassNames={{
+                  hasSchedule: 'font-bold text-purple-600 after:content-["•"] after:block after:text-purple-600 after:text-xs after:-mt-1',
+                  selected: 'bg-purple-600 text-white',
+                }}
+                styles={{
+                  caption: { color: '#4b5563' },
+                  head_cell: { color: '#6b7280' },
+                }}
+              />
+            </div>
           </div>
-          <p className="text-gray-500 text-xs text-center py-4">
-            일정 및 알림 기능은 곧 추가될 예정입니다.
-          </p>
-        </div>
+        )}
       </div>
 
       {/* 갤러리 모달 */}
@@ -597,6 +641,54 @@ export default function LittlyLandingPage({ profile }: LittlyLandingPageProps) {
           />
         </div>
       )}
-    </div>
+
+      {/* 일정 상세 모달 */}
+      {
+        scheduleModal.open && (
+          <div
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setScheduleModal({ ...scheduleModal, open: false })}
+          >
+            <div
+              className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-in fade-in zoom-in duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">
+                  {format(new Date(scheduleModal.date), 'M월 d일')} 일정
+                </h3>
+                <button
+                  onClick={() => setScheduleModal({ ...scheduleModal, open: false })}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {scheduleModal.schedules.map((schedule, idx) => (
+                  <div key={idx} className="bg-purple-50 rounded-xl p-4 border border-purple-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs px-2 py-1 rounded-full bg-white text-purple-600 font-bold border border-purple-200 shadow-sm">
+                        {schedule.type === 'cruise' ? '🚢 크루즈' : schedule.type === 'live' ? '📺 라이브' : '📅 기타'}
+                      </span>
+                    </div>
+                    <h4 className="font-bold text-gray-900 mb-1">{schedule.title}</h4>
+                    {schedule.description && (
+                      <p className="text-sm text-gray-600">{schedule.description}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setScheduleModal({ ...scheduleModal, open: false })}
+                className="w-full mt-4 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        )
+      }
+    </div >
   );
 }

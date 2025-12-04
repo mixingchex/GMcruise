@@ -121,15 +121,37 @@ import { getDriveFolderId } from '@/lib/config/drive-config';
  * Syncs APIS data to a Google Sheet for a specific trip.
  * Creates a new sheet from template if it doesn't exist.
  */
+/**
+ * APIS 스프레드시트 동기화 (누적 방식 - 그룹별 행 삽입)
+ *
+ * - 기존 데이터를 덮어쓰지 않고, 성명+연락처로 찾아서 업데이트하거나 새 행 추가
+ * - 같은 카테고리(객실) 그룹 바로 아래에 새 행 삽입 (그룹 유지)
+ *
+ * 구매자APIS 시트 열 구조:
+ *   F열: 카테고리 (발코니1, 발코니2 등 - 같은 방 쓰는 사람끼리 그룹)
+ *   I열: 성명 (한글)
+ *   P열: 고객 연락처
+ *   + 영문성, 영문이름, 주민번호, 성별, 생년월일, 여권번호, 여권생성일, 여권만료일 등
+ *
+ * 예시:
+ *   발코니1  홍길동  010-1234-5678
+ *   발코니1  둘리    010-1234-5678
+ *   발코니2  마이콜  010-9999-8888
+ *
+ * 홍길동 그룹에 "고길동" 추가 시 → 발코니1 그룹 바로 아래에 삽입
+ */
 export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
   try {
-    // 1. Get Trip Info with Travelers
+    // 1. Get Trip Info with Travelers and User (for phone number)
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
       include: {
         Reservation: {
           include: {
             Traveler: true,
+            User: {
+              select: { phone: true, name: true }
+            },
           },
         },
       },
@@ -169,68 +191,199 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
       });
     }
 
-    // 3. Prepare Data
-    // Filter out canceled reservations if necessary, but usually we keep all linked travelers
-    // Flatten travelers
-    const travelers = trip.Reservation.flatMap(r => r.Traveler);
-
-    // Sort by Room Number
-    travelers.sort((a, b) => (a.roomNumber || 0) - (b.roomNumber || 0));
-
-    // Map to Rows (Adjust columns based on template)
-    // A: No, B: Room, C: KorName, D: EngSurname, E: EngGivenName, F: PassportNo, G: Nationality, H: DOB, I: Expiry, J: Gender
-    const rows = travelers.map((t, index) => [
-      index + 1,
-      t.roomNumber,
-      t.korName || '',
-      t.engSurname || '',
-      t.engGivenName || '',
-      t.passportNo || '',
-      t.nationality || '',
-      t.birthDate || '',
-      t.expiryDate || '',
-      t.gender || '',
-      t.issueDate || '',
-    ]);
-
-    // 4. Clear & Write Data
-    // Get the first sheet name dynamically
+    // Get spreadsheet metadata (sheet title and sheetId for insert)
     const meta = await sheets.spreadsheets.get({
       spreadsheetId,
-      fields: 'sheets.properties.title',
+      fields: 'sheets.properties',
     });
 
-    const sheetTitle = meta.data.sheets?.[0]?.properties?.title;
-    if (!sheetTitle) {
+    const sheetProps = meta.data.sheets?.[0]?.properties;
+    const sheetTitle = sheetProps?.title;
+    const sheetId = sheetProps?.sheetId;
+
+    if (!sheetTitle || sheetId === undefined) {
       throw new Error('Could not find any sheet in the spreadsheet');
     }
 
-    // We assume the data starts at A3 (Row 1-2 are headers)
-    // First, clear existing data to avoid leftovers
-    // Use single quotes for sheet name to handle spaces or special chars
-    const range = `'${sheetTitle}'!A3:Z1000`;
-
-    await sheets.spreadsheets.values.clear({
+    // 3. 기존 데이터 읽기 (A3:Z1000) - 누적을 위해
+    const existingDataResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range,
+      range: `'${sheetTitle}'!A3:Z1000`,
+    });
+    const existingRows = existingDataResponse.data.values || [];
+
+    // 기존 데이터 맵 생성
+    // - personKey: I열(성명) + P열(고객연락처) → 개인 식별
+    // - categoryKey: F열(카테고리) → 그룹 식별
+    // F열 = index 5, I열 = index 8, P열 = index 15 (0-based)
+    const existingPersonMap = new Map<string, { rowIndex: number; data: any[] }>();
+    const categoryLastRowMap = new Map<string, number>(); // 카테고리별 마지막 행 번호
+
+    existingRows.forEach((row, index) => {
+      const actualRowNum = index + 3; // 실제 스프레드시트 행 번호 (데이터는 3행부터)
+      const category = (row[5] || '').toString().trim(); // F열: 카테고리
+      const name = (row[8] || '').toString().trim(); // I열: 성명
+      const phone = (row[15] || '').toString().trim(); // P열: 고객연락처
+
+      if (name || phone) {
+        const personKey = `${name}|${phone}`;
+        existingPersonMap.set(personKey, { rowIndex: actualRowNum, data: row });
+      }
+
+      if (category) {
+        // 해당 카테고리의 마지막 행 업데이트
+        categoryLastRowMap.set(category, actualRowNum);
+      }
     });
 
-    if (rows.length > 0) {
-      await sheets.spreadsheets.values.update({
+    // 4. Prepare Data - 예약별로 처리
+    // 먼저 cabinType별로 그룹 번호 부여 (발코니1, 발코니2, ...)
+    // 같은 cabinType을 가진 예약들을 순서대로 번호 매김
+    const cabinTypeCountMap = new Map<string, number>(); // cabinType별 현재 그룹 번호
+    const reservationCategoryMap = new Map<number, string>(); // reservationId → 카테고리 (발코니1 등)
+
+    for (const reservation of trip.Reservation) {
+      const cabinType = reservation.cabinType || '기타';
+      const currentCount = cabinTypeCountMap.get(cabinType) || 0;
+      const groupNumber = currentCount + 1;
+      cabinTypeCountMap.set(cabinType, groupNumber);
+
+      // 카테고리: "발코니1", "오션뷰2" 등
+      const category = `${cabinType}${groupNumber}`;
+      reservationCategoryMap.set(reservation.id, category);
+    }
+
+    interface RowUpdate {
+      type: 'update' | 'insert';
+      rowIndex: number;  // update: 기존 행 번호, insert: 삽입할 위치 (해당 행 바로 아래)
+      category: string;
+      data: any[];
+    }
+    const operations: RowUpdate[] = [];
+    let updatedCount = 0;
+    let addedCount = 0;
+
+    for (const reservation of trip.Reservation) {
+      const userPhone = reservation.User?.phone || '';
+      // 카테고리: "발코니1", "오션뷰2" 등 (같은 객실종류 내에서 그룹 번호 부여)
+      const category = reservationCategoryMap.get(reservation.id) || '';
+
+      for (const traveler of reservation.Traveler) {
+        const travelerName = traveler.korName || '';
+        const personKey = `${travelerName}|${userPhone}`;
+
+        // 행 데이터 생성 (구매자APIS 시트 열 구조에 맞게)
+        const rowData = [
+          '', // A: No (빈칸 - 기존 유지 또는 수동 입력)
+          '', // B:
+          '', // C:
+          '', // D:
+          '', // E:
+          category, // F: 카테고리 (예약 시 선택한 객실 타입 - 발코니, 오션뷰 등)
+          '', // G:
+          '', // H:
+          traveler.korName || '', // I: 성명
+          traveler.engSurname || '', // J: 영문 성
+          traveler.engGivenName || '', // K: 영문 이름
+          traveler.residentNum || '', // L: 주민번호
+          traveler.gender || '', // M: 성별
+          traveler.birthDate || '', // N: 생년월일
+          traveler.passportNo || '', // O: 여권번호
+          userPhone, // P: 고객연락처
+          traveler.nationality || '', // Q: 국적
+          traveler.issueDate || '', // R: 여권생성일
+          traveler.expiryDate || '', // S: 여권만료일
+          traveler.notes || '', // T: 비고
+        ];
+
+        const existingPerson = existingPersonMap.get(personKey);
+        if (existingPerson) {
+          // 기존 행 업데이트 - 데이터가 있는 열만 업데이트 (빈 값은 기존 유지)
+          const mergedData = existingPerson.data.map((existingVal, colIndex) => {
+            const newVal = rowData[colIndex];
+            return newVal !== '' && newVal !== null && newVal !== undefined ? newVal : existingVal;
+          });
+          while (mergedData.length < rowData.length) {
+            mergedData.push(rowData[mergedData.length]);
+          }
+
+          operations.push({
+            type: 'update',
+            rowIndex: existingPerson.rowIndex,
+            category,
+            data: mergedData,
+          });
+          updatedCount++;
+        } else {
+          // 새 행 추가 - 같은 카테고리 그룹 바로 아래에 삽입
+          const lastRowOfCategory = categoryLastRowMap.get(category);
+          const insertAfterRow = lastRowOfCategory || (existingRows.length + 2); // 없으면 맨 아래
+
+          operations.push({
+            type: 'insert',
+            rowIndex: insertAfterRow,
+            category,
+            data: rowData,
+          });
+
+          // 카테고리 마지막 행 업데이트 (다음 삽입을 위해)
+          categoryLastRowMap.set(category, insertAfterRow + 1);
+          addedCount++;
+        }
+      }
+    }
+
+    // 5. 업데이트 실행
+    // 먼저 삽입 작업을 행 번호 역순으로 정렬 (아래에서 위로 삽입해야 행 번호가 밀리지 않음)
+    const insertOps = operations.filter(op => op.type === 'insert').sort((a, b) => b.rowIndex - a.rowIndex);
+    const updateOps = operations.filter(op => op.type === 'update');
+
+    // 행 삽입 및 데이터 쓰기
+    for (const op of insertOps) {
+      // 행 삽입 (해당 행 바로 아래에)
+      await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
-        range: `'${sheetTitle}'!A3`,
-        valueInputOption: 'RAW',
         requestBody: {
-          values: rows,
+          requests: [{
+            insertDimension: {
+              range: {
+                sheetId,
+                dimension: 'ROWS',
+                startIndex: op.rowIndex, // 0-based index
+                endIndex: op.rowIndex + 1,
+              },
+              inheritFromBefore: true, // 위 행의 서식 상속 (색깔 등)
+            },
+          }],
         },
       });
+
+      // 데이터 쓰기
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${sheetTitle}'!A${op.rowIndex + 1}`, // 1-based row number
+        valueInputOption: 'RAW',
+        requestBody: { values: [op.data] },
+      });
     }
+
+    // 기존 행 업데이트
+    for (const op of updateOps) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `'${sheetTitle}'!A${op.rowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [op.data] },
+      });
+    }
+
+    console.log(`[Google Sheets] syncApisSpreadsheet: tripId=${tripId}, updated=${updatedCount}, added=${addedCount}`);
 
     return {
       ok: true,
       spreadsheetId,
       spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}`,
-      rowCount: rows.length
+      rowCount: updatedCount + addedCount,
     };
 
   } catch (error: any) {

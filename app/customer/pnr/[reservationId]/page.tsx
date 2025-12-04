@@ -16,6 +16,7 @@ interface Traveler {
 interface Reservation {
   id: number;
   totalPeople: number;
+  cabinType: string | null; // 객실 타입 (발코니, 오션뷰 등)
   trip: {
     id: number;
     shipName: string | null;
@@ -310,6 +311,12 @@ export default function CustomerPnrPage() {
     return groups;
   };
 
+  // 객실 타입 + 번호로 그룹 이름 생성 (발코니1, 발코니2 등)
+  const getRoomLabel = (roomNumber: number) => {
+    const cabinType = reservation?.cabinType || '객실';
+    return `${cabinType}${roomNumber}`;
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -452,6 +459,9 @@ export default function CustomerPnrPage() {
             {/* 방 배정 현황 미리보기 */}
             <div className="rounded-lg bg-white p-4 shadow-md">
               <h3 className="mb-3 font-semibold text-gray-900">🏠 방 배정 현황</h3>
+              <p className="mb-3 text-sm text-gray-600">
+                같은 색깔 = 같은 방을 사용하는 분들입니다. 방을 함께 쓸 분들끼리 같은 번호를 선택해주세요.
+              </p>
               <div className="flex flex-wrap gap-2">
                 {Object.entries(roomGroups).map(([roomNum, members]) => {
                   const colorIndex = (parseInt(roomNum) - 1) % ROOM_COLORS.length;
@@ -462,7 +472,7 @@ export default function CustomerPnrPage() {
                       className={`rounded-lg px-3 py-2 ${color.bg} ${color.border} border-2`}
                     >
                       <span className={`font-semibold ${color.text}`}>
-                        {roomNum}호실: {members.length}명
+                        {getRoomLabel(parseInt(roomNum))}: {members.length}명
                       </span>
                       <div className="text-xs text-gray-600">
                         {members.map((m: any) => m.korName || '미입력').join(', ')}
@@ -490,7 +500,7 @@ export default function CustomerPnrPage() {
                         <div
                           className={`rounded-full px-3 py-1 text-sm font-semibold ${color.bg} ${color.text}`}
                         >
-                          {traveler.roomNumber}호실
+                          {getRoomLabel(traveler.roomNumber)}
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900">
                           {index === 0 ? '👤 대표자' : `👥 동행자 ${index}`}
@@ -561,19 +571,22 @@ export default function CustomerPnrPage() {
 
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-700">
-                          객실 번호 <span className="text-red-500">*</span>
+                          객실 그룹 <span className="text-red-500">*</span>
                         </label>
                         <select
                           value={traveler.roomNumber}
                           onChange={(e) => updateTraveler(index, 'roomNumber', parseInt(e.target.value))}
                           className={`w-full rounded-lg border-2 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-200 ${color.border} ${color.bg}`}
                         >
-                          {ROOM_COLORS.map((_, i) => (
+                          {ROOM_COLORS.map((c, i) => (
                             <option key={i + 1} value={i + 1}>
-                              {i + 1}호실 ({ROOM_COLORS[i].name})
+                              {getRoomLabel(i + 1)} ({c.name})
                             </option>
                           ))}
                         </select>
+                        <p className="mt-1 text-xs text-gray-500">
+                          같은 방을 쓸 분들은 같은 그룹을 선택하세요
+                        </p>
                       </div>
                     </div>
                   </div>

@@ -10,7 +10,7 @@ export const runtime = 'nodejs';
 export async function GET(req: NextRequest) {
   try {
     const { profile } = await requirePartnerContext();
-    
+
     // 프론트엔드 형식에 맞게 변환
     const formattedProfile = {
       ...profile,
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('[GET /api/partner/profile] error:', error);
-    
+
     // PartnerApiError인 경우 상태 코드와 메시지 그대로 반환
     if (error.name === 'PartnerApiError') {
       return NextResponse.json(
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         { status: error.status || 403 }
       );
     }
-    
+
     return NextResponse.json(
       { ok: false, message: error.message || '프로필 조회에 실패했습니다.' },
       { status: 500 }
@@ -43,7 +43,7 @@ export async function PUT(req: NextRequest) {
   try {
     const { profile } = await requirePartnerContext();
     const body = await req.json();
-    
+
     console.log('[PUT /api/partner/profile] Updating profile:', profile.id, body);
 
     const {
@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest) {
       galleryImages,
       featuredImages,
       youtubeVideoUrl,
+      schedules,
     } = body;
 
     // AffiliateProfile 업데이트
@@ -87,6 +88,7 @@ export async function PUT(req: NextRequest) {
         ...(galleryImages !== undefined && { galleryImages: galleryImages ? JSON.stringify(galleryImages) : null }),
         ...(featuredImages !== undefined && { featuredImages: featuredImages ? JSON.stringify(featuredImages) : null }),
         ...(youtubeVideoUrl !== undefined && { youtubeVideoUrl }),
+        ...(schedules !== undefined && { schedules: schedules ? JSON.stringify(schedules) : null }),
       },
       include: {
         User: {
@@ -115,7 +117,7 @@ export async function PUT(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('[PUT /api/partner/profile] error:', error);
-    
+
     // PartnerApiError인 경우 상태 코드와 메시지 그대로 반환
     if (error.name === 'PartnerApiError') {
       return NextResponse.json(
@@ -123,7 +125,7 @@ export async function PUT(req: NextRequest) {
         { status: error.status || 403 }
       );
     }
-    
+
     return NextResponse.json(
       { ok: false, message: error.message || '프로필 업데이트에 실패했습니다.' },
       { status: 500 }

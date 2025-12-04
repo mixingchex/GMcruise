@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FiUpload, FiCopy, FiCheck, FiFolder, FiFolderPlus, FiTrash2, FiSearch, FiImage, FiCode, FiX, FiArrowLeft, FiDownload, FiEdit2 } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
 import Image from 'next/image';
+import { getProxyImageUrl } from '@/lib/utils';
 
 interface ImageItem {
     id: string;
@@ -954,7 +955,7 @@ export default function ImageLibrary({
                                                 >
                                                     <div className="aspect-square relative bg-gray-100">
                                                         <Image
-                                                            src={image.webpUrl || image.url}
+                                                            src={getProxyImageUrl(image.webpUrl || image.url)}
                                                             alt={image.name}
                                                             fill
                                                             className="object-cover"
@@ -1061,7 +1062,7 @@ export default function ImageLibrary({
                                         >
                                             <div className="aspect-square relative bg-gray-100">
                                                 <Image
-                                                    src={image.url}
+                                                    src={getProxyImageUrl(image.url)}
                                                     alt={image.name}
                                                     fill
                                                     className="object-cover"
@@ -1100,7 +1101,7 @@ export default function ImageLibrary({
                                             <div className="mb-6">
                                                 <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
                                                     <Image
-                                                        src={selectedCruiseImage.webpUrl || selectedCruiseImage.url}
+                                                        src={getProxyImageUrl(selectedCruiseImage.webpUrl || selectedCruiseImage.url)}
                                                         alt={selectedCruiseImage.name}
                                                         fill
                                                         className="object-contain"
@@ -1280,7 +1281,7 @@ export default function ImageLibrary({
                                     <div className="mb-6">
                                         <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
                                             <Image
-                                                src={selectedImage.webpUrl || selectedImage.url}
+                                                src={getProxyImageUrl(selectedImage.webpUrl || selectedImage.url)}
                                                 alt={selectedImage.name}
                                                 fill
                                                 className="object-contain"

@@ -16,6 +16,8 @@ import {
   FiMail,
   FiCalendar,
   FiFilter,
+  FiCopy,
+  FiMessageSquare,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
@@ -87,6 +89,14 @@ export default function AdminPurchasedCustomersPage() {
   const [travelerForm, setTravelerForm] = useState<Partial<Traveler>>({});
   const [savingTraveler, setSavingTraveler] = useState(false);
 
+  // PNR 전송 모달
+  const [showPnrModal, setShowPnrModal] = useState(false);
+  const [pnrReservation, setPnrReservation] = useState<Reservation | null>(null);
+  const [pnrLink, setPnrLink] = useState<string>('');
+  const [pnrMessage, setPnrMessage] = useState<string>('');
+  const [loadingPnr, setLoadingPnr] = useState(false);
+  const [sendingPnr, setSendingPnr] = useState(false);
+
   // 월별 필터링
   const [selectedMonth, setSelectedMonth] = useState<string>(''); // 형식: "2025-01"
   const [filterType, setFilterType] = useState<'departure' | 'created'>('departure'); // 출발일 or 예약일 기준
@@ -134,6 +144,88 @@ export default function AdminPurchasedCustomersPage() {
       showError('예약 상세 정보를 불러오는데 실패했습니다.');
     } finally {
       setLoadingDetail(false);
+    }
+  };
+
+  // PNR 전송 모달 열기
+  const handleOpenPnrModal = async (reservation: Reservation) => {
+    try {
+      setLoadingPnr(true);
+      setPnrReservation(reservation);
+      setShowPnrModal(true);
+
+      // PNR 링크 및 메시지 가져오기
+      const response = await fetch(`/api/admin/pnr-request/send?reservationId=${reservation.id}`, {
+        credentials: 'include',
+      });
+      const data = await response.json();
+
+      if (data.ok) {
+        setPnrLink(data.link);
+        setPnrMessage(data.message);
+      } else {
+        showError(data.message || 'PNR 정보를 불러오는데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('PNR 정보 로드 실패:', error);
+      showError('PNR 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoadingPnr(false);
+    }
+  };
+
+  // PNR 링크 복사
+  const handleCopyPnrLink = async () => {
+    try {
+      await navigator.clipboard.writeText(pnrLink);
+      showSuccess('PNR 링크가 클립보드에 복사되었습니다.');
+    } catch (error) {
+      showError('링크 복사에 실패했습니다.');
+    }
+  };
+
+  // PNR 메시지 전체 복사
+  const handleCopyPnrMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(pnrMessage);
+      showSuccess('PNR 메시지가 클립보드에 복사되었습니다.');
+    } catch (error) {
+      showError('메시지 복사에 실패했습니다.');
+    }
+  };
+
+  // PNR 문자 발송
+  const handleSendPnrSms = async () => {
+    if (!pnrReservation) return;
+
+    if (!confirm(`${pnrReservation.user?.name || '고객'}님에게 PNR 입력 요청 문자를 발송하시겠습니까?`)) return;
+
+    try {
+      setSendingPnr(true);
+      const response = await fetch('/api/admin/pnr-request/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          reservationId: pnrReservation.id,
+          messageBody: pnrMessage,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.ok) {
+        showSuccess('PNR 요청 문자가 발송되었습니다.');
+        setShowPnrModal(false);
+        loadReservations();
+      } else {
+        showError(data.result?.error || data.message || 'PNR 문자 발송에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('PNR 문자 발송 실패:', error);
+      showError('PNR 문자 발송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingPnr(false);
     }
   };
 
@@ -585,16 +677,11 @@ export default function AdminPurchasedCustomersPage() {
                           {/* PNR 먼저, 그 다음 여권 요청 (순서 중요) */}
                           {reservation.trip && (
                             <button
-                              onClick={() => handleSyncApis(reservation.id)}
-                              disabled={syncingApis === reservation.id}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                              onClick={() => handleOpenPnrModal(reservation)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-600 text-white text-xs font-medium hover:bg-green-700 transition-colors"
                               title="1. PNR 전송 (먼저 실행)"
                             >
-                              {syncingApis === reservation.id ? (
-                                <FiRefreshCw className="animate-spin text-xs" />
-                              ) : (
-                                <FiSend className="text-xs" />
-                              )}
+                              <FiSend className="text-xs" />
                               1.PNR
                             </button>
                           )}
@@ -1015,15 +1102,13 @@ export default function AdminPurchasedCustomersPage() {
               {/* 1. PNR 전송 먼저 */}
               {selectedReservation.trip && (
                 <button
-                  onClick={() => handleSyncApis(selectedReservation.id)}
-                  disabled={syncingApis === selectedReservation.id}
-                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    handleOpenPnrModal(selectedReservation);
+                  }}
+                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors inline-flex items-center gap-2"
                 >
-                  {syncingApis === selectedReservation.id ? (
-                    <FiRefreshCw className="animate-spin" />
-                  ) : (
-                    <FiSend />
-                  )}
+                  <FiSend />
                   1. PNR 전송
                 </button>
               )}
@@ -1040,6 +1125,142 @@ export default function AdminPurchasedCustomersPage() {
                 )}
                 2. 여권 요청 보내기
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PNR 전송 모달 */}
+      {showPnrModal && pnrReservation && (
+        <div
+          className="fixed inset-0 z-[1001] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowPnrModal(false);
+              setPnrReservation(null);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-green-50 px-6 py-4">
+              <div>
+                <h3 className="text-xl font-bold text-green-800">PNR 정보 입력 요청</h3>
+                <p className="text-sm text-green-600 mt-1">
+                  {pnrReservation.user?.name || '고객'}님에게 PNR 입력 링크를 전송합니다
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPnrModal(false);
+                  setPnrReservation(null);
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* 내용 */}
+            <div className="px-6 py-6">
+              {loadingPnr ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-green-600 border-r-transparent"></div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* 고객 정보 */}
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <h4 className="mb-3 text-lg font-semibold text-gray-900">고객 정보</h4>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">이름</p>
+                        <p className="text-base text-gray-900">{pnrReservation.user?.name || '미입력'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-500">전화번호</p>
+                        <p className="text-base text-gray-900">{pnrReservation.user?.phone || '미입력'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* PNR 링크 */}
+                  <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-lg font-semibold text-green-800">PNR 입력 링크</h4>
+                      <button
+                        onClick={handleCopyPnrLink}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
+                      >
+                        <FiCopy className="text-sm" />
+                        링크 복사
+                      </button>
+                    </div>
+                    <div className="bg-white rounded-lg p-3 border border-green-200">
+                      <p className="text-sm text-gray-700 break-all font-mono">{pnrLink}</p>
+                    </div>
+                  </div>
+
+                  {/* 메시지 내용 */}
+                  <div className="rounded-lg border border-gray-200 bg-white p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-lg font-semibold text-gray-900">발송 메시지</h4>
+                      <button
+                        onClick={handleCopyPnrMessage}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-gray-600 text-white text-sm font-medium hover:bg-gray-700 transition-colors"
+                      >
+                        <FiCopy className="text-sm" />
+                        메시지 복사
+                      </button>
+                    </div>
+                    <textarea
+                      value={pnrMessage}
+                      onChange={(e) => setPnrMessage(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-green-500 focus:outline-none"
+                      rows={10}
+                    />
+                    <p className="mt-2 text-xs text-gray-500">
+                      메시지 내용을 수정할 수 있습니다. 수정 후 문자 발송 버튼을 눌러주세요.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-white px-6 py-4">
+              <div className="text-sm text-gray-500">
+                <span className="inline-flex items-center gap-1">
+                  <FiMessageSquare className="text-blue-500" />
+                  알리고 SMS로 발송됩니다
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setShowPnrModal(false);
+                    setPnrReservation(null);
+                  }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleSendPnrSms}
+                  disabled={sendingPnr || !pnrLink}
+                  className="rounded-lg bg-green-600 px-6 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+                >
+                  {sendingPnr ? (
+                    <FiRefreshCw className="animate-spin" />
+                  ) : (
+                    <FiSend />
+                  )}
+                  문자 발송
+                </button>
+              </div>
             </div>
           </div>
         </div>

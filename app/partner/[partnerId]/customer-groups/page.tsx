@@ -146,11 +146,12 @@ export default function PartnerCustomerGroupsPage() {
       if (!selectedGroup) return;
 
       setIsLoadingCustomerList(true);
-      setAvailableCustomers([]);
+      // setAvailableCustomers([]); // 기존 목록 유지하며 로딩 (깜빡임 방지)
 
       // 이미 그룹에 속한 고객은 제외하고 나머지 고객만 표시
+      // 성능을 위해 limit를 50으로 제한하고 검색 기능을 활용하도록 유도
       const searchParam = customerSearch ? `&search=${encodeURIComponent(customerSearch)}` : '';
-      const response = await fetch(`/api/partner/customer-groups/customers?limit=1000&groupId=${selectedGroup.id}${searchParam}`, {
+      const response = await fetch(`/api/partner/customer-groups/customers?limit=50&groupId=${selectedGroup.id}${searchParam}`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -174,6 +175,17 @@ export default function PartnerCustomerGroupsPage() {
       setIsLoadingCustomerList(false);
     }
   };
+
+  // 고객 검색어 변경 시 자동 검색 (debounce)
+  useEffect(() => {
+    if (!showAddMembersModal || !selectedGroup) return;
+
+    const timer = setTimeout(() => {
+      loadAvailableCustomers();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [customerSearch]);
 
   // 그룹 생성/수정
   const handleSubmit = async (e: React.FormEvent) => {
@@ -387,18 +399,18 @@ export default function PartnerCustomerGroupsPage() {
 
       console.log('[Customer Groups] Created customer response:', json);
 
-      // 생성된 고객의 userId 확인 (API 응답에서)
+      // 생성된 고객의 leadId 확인 (API 응답에서)
       const createdCustomer = json.customer;
-      const userIdToAdd = createdCustomer?.userId;
+      const leadIdToAdd = createdCustomer?.leadId;
 
-      if (userIdToAdd) {
-        console.log('[Customer Groups] Adding to group:', selectedGroup.id, 'userId:', userIdToAdd);
+      if (leadIdToAdd) {
+        console.log('[Customer Groups] Adding to group:', selectedGroup.id, 'leadId:', leadIdToAdd);
         // 그룹에 추가
         const addResponse = await fetch(`/api/partner/customer-groups/${selectedGroup.id}/members`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ userIds: [userIdToAdd] }),
+          body: JSON.stringify({ leadIds: [leadIdToAdd] }),
         });
 
         const addData = await addResponse.json();
@@ -424,8 +436,8 @@ export default function PartnerCustomerGroupsPage() {
           await loadAvailableCustomers();
         }
       } else {
-        console.error('[Customer Groups] UserId not found in response');
-        showWarning('고객은 생성되었지만 User 정보를 찾을 수 없어 그룹에 추가하지 못했습니다. 고객 목록에서 수동으로 추가해주세요.');
+        console.error('[Customer Groups] LeadId not found in response');
+        showWarning('고객은 생성되었지만 Lead 정보를 찾을 수 없어 그룹에 추가하지 못했습니다. 고객 목록에서 수동으로 추가해주세요.');
         await loadAvailableCustomers();
       }
     } catch (error) {

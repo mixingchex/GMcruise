@@ -35,14 +35,12 @@ export async function GET(req: NextRequest) {
           },
         },
         Trip: {
-          include: {
-            Product: {
-              select: {
-                cruiseLine: true,
-                shipName: true,
-                packageName: true,
-              },
-            },
+          select: {
+            id: true,
+            shipName: true,
+            departureDate: true,
+            spreadsheetId: true,
+            productCode: true,
           },
         },
         Traveler: {
@@ -63,10 +61,14 @@ export async function GET(req: NextRequest) {
             notes: true,        // 비고
           },
         },
-        affiliate: {
-          select: {
-            displayName: true,
-            type: true,
+        AffiliateSale: {
+          include: {
+            AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
+              select: {
+                displayName: true,
+                type: true,
+              },
+            },
           },
         },
       },
@@ -89,11 +91,13 @@ export async function GET(req: NextRequest) {
         id: r.Trip.id,
         departureDate: r.Trip.departureDate?.toISOString(),
         spreadsheetId: r.Trip.spreadsheetId,
-        product: r.Trip.Product ? {
-          cruiseLine: r.Trip.Product.cruiseLine,
-          shipName: r.Trip.Product.shipName,
-          packageName: r.Trip.Product.packageName,
-        } : null,
+        shipName: r.Trip.shipName,
+        productCode: r.Trip.productCode,
+        product: {
+          cruiseLine: null,
+          shipName: r.Trip.shipName,
+          packageName: r.Trip.productCode,
+        },
       } : null,
       travelers: r.Traveler.map((t) => ({
         id: t.id,
@@ -111,9 +115,9 @@ export async function GET(req: NextRequest) {
         passportImage: t.passportImage,
         notes: t.notes,              // 비고
       })),
-      affiliate: r.affiliate ? {
-        displayName: r.affiliate.displayName,
-        type: r.affiliate.type,
+      affiliate: r.AffiliateSale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile ? {
+        displayName: r.AffiliateSale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile.displayName,
+        type: r.AffiliateSale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile.type,
       } : null,
     }));
 
