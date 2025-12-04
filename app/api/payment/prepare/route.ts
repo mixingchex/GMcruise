@@ -100,19 +100,14 @@ export async function GET(req: NextRequest) {
     let formData: Record<string, string>;
     let paymentUrl: string;
 
-    if (isMobile) {
-      // Mobile용 폼 데이터 (EUC-KR, Form Submit 방식)
-      formData = createMobilePaymentForm(config, paymentParams) as unknown as Record<string, string>;
-      paymentUrl = getMobilePaymentUrl(config, 'CARD');
-      console.log('[Payment Prepare GET] Mobile form data generated');
-      console.log('[Payment Prepare GET] P_NEXT_URL:', formData.P_NEXT_URL);
-      console.log('[Payment Prepare GET] Payment URL:', paymentUrl);
-    } else {
-      // PC용 폼 데이터 (INIStdPay.js 호출 방식)
-      formData = createPCPaymentForm(config, paymentParams) as unknown as Record<string, string>;
-      paymentUrl = getPCPaymentUrl(config);
-      console.log('[Payment Prepare GET] PC form data generated, URL:', paymentUrl);
-    }
+    // PC/Mobile 모두 동일한 Mobile Form Submit 방식 사용
+    // PC도 팝업/스크립트 없이 순수 페이지 리다이렉트로 결제
+    formData = createMobilePaymentForm(config, paymentParams) as unknown as Record<string, string>;
+    paymentUrl = getMobilePaymentUrl(config, 'CARD');
+    console.log('[Payment Prepare GET] Form data generated (unified)');
+    console.log('[Payment Prepare GET] P_NEXT_URL:', formData.P_NEXT_URL);
+    console.log('[Payment Prepare GET] Payment URL:', paymentUrl);
+    console.log('[Payment Prepare GET] isMobile:', isMobile);
 
     return NextResponse.json({
       ok: true,
@@ -225,18 +220,14 @@ export async function POST(req: NextRequest) {
     let formData: Record<string, string>;
     let paymentUrl: string;
 
-    if (isMobile) {
-      // Mobile용 폼 데이터 (EUC-KR, Form Submit 방식)
-      formData = createMobilePaymentForm(config, params) as unknown as Record<string, string>;
-      paymentUrl = getMobilePaymentUrl(config, payMethod as PaymentMethod);
-      console.log('[Payment Prepare POST] Mobile form data generated');
-      console.log('[Payment Prepare POST] P_NEXT_URL:', formData.P_NEXT_URL);
-    } else {
-      // PC용 폼 데이터 (INIStdPay.js 호출 방식)
-      formData = createPCPaymentForm(config, params) as unknown as Record<string, string>;
-      paymentUrl = getPCPaymentUrl(config);
-      console.log('[Payment Prepare POST] PC form data generated, URL:', paymentUrl);
-    }
+    // PC/Mobile 모두 동일한 Mobile Form Submit 방식 사용
+    // PC도 팝업/스크립트 없이 순수 페이지 리다이렉트로 결제
+    formData = createMobilePaymentForm(config, params) as unknown as Record<string, string>;
+    paymentUrl = getMobilePaymentUrl(config, payMethod as PaymentMethod);
+    console.log('[Payment Prepare POST] Form data generated (unified)');
+    console.log('[Payment Prepare POST] P_NEXT_URL:', formData.P_NEXT_URL);
+    console.log('[Payment Prepare POST] Payment URL:', paymentUrl);
+    console.log('[Payment Prepare POST] isMobile:', isMobile);
 
     return NextResponse.json({
       ok: true,
