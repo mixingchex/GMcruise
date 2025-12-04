@@ -10,7 +10,9 @@ import crypto from 'crypto';
 // 테스트/운영 환경 URL
 export const WELCOMEPAY_CONFIG = {
   // PC Web - INIStdPay.js를 통한 결제 (Form Submit이 아님!)
-  PC_SCRIPT_URL: 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js',
+  // 테스트: tstdpay, 운영: stdpay
+  PC_SCRIPT_TEST_URL: 'https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js',
+  PC_SCRIPT_PROD_URL: 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js',
   PC_TEST_URL: 'https://tpay.paywelcome.co.kr/smart/wPayStd.jsp',
   PC_PROD_URL: 'https://pay.paywelcome.co.kr/smart/wPayStd.jsp',
 
@@ -26,6 +28,15 @@ export const WELCOMEPAY_CONFIG = {
     MOBILE: '/smart/mobile/',   // 휴대폰결제
   },
 };
+
+/**
+ * PC 결제 스크립트 URL 반환 (테스트/운영 환경 분기)
+ */
+export function getPCScriptUrl(isProduction: boolean): string {
+  return isProduction
+    ? WELCOMEPAY_CONFIG.PC_SCRIPT_PROD_URL
+    : WELCOMEPAY_CONFIG.PC_SCRIPT_TEST_URL;
+}
 
 // ==========================================
 // 타입 정의
