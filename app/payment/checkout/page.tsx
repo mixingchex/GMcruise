@@ -340,27 +340,36 @@ function PaymentCheckoutContent() {
           existingForm.remove();
         }
 
-        // 새 폼 생성 (action/method 완전 제거 - 페이지 이동 원천 차단)
+        // ⚠️⚠️⚠️ [긴급 수정 v2] PC 결제 폼 - 페이지 이동 완전 차단 ⚠️⚠️⚠️
+        // 문제: action 속성이 있으면 "사이트 연결할 수 없음" 발생
+        // 해결: action/method 속성을 절대 설정하지 않음
         const form = document.createElement('form');
         form.id = 'SendPayForm_id';
         form.name = 'SendPayForm_id';
         form.style.display = 'none';
 
-        // ⚠️ [Ver Final_Fix] action을 명시적으로 빈 문자열로 설정하여 브라우저 기본 동작 차단
-        form.action = '';  // 빈 문자열 = 현재 페이지로 이동하지만 onsubmit에서 차단됨
-        form.removeAttribute('action');  // 아예 속성 자체를 제거
-        form.removeAttribute('method');  // method도 제거
+        // ⚠️ [핵심] action/method 속성을 절대 설정하지 않음!
+        // createElement로 만든 form은 기본적으로 action이 없음
+        // INIStdPay.pay()가 이 폼 데이터를 읽어서 자체 Overlay로 결제창을 띄움
 
-        // ⚠️ 핵심: action/method 속성 없음 = 폼이 직접 전송되어도 페이지 이동 없음
-        // INIStdPay.pay()가 이 폼을 읽어서 자체적으로 Overlay 결제창을 띄움
-
-        // 추가 방어: submit 이벤트 자체를 막음 (만일을 위해)
+        // 🛡️ 3중 방어: submit 이벤트 완전 차단
         form.onsubmit = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('[Checkout] Form submit blocked - INIStdPay handles payment');
+          if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+          }
+          console.log('[Checkout] ⛔ Form submit BLOCKED - INIStdPay handles payment');
           return false;
         };
+
+        // 🛡️ addEventListener로도 추가 방어
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('[Checkout] ⛔ Form submit event BLOCKED');
+          return false;
+        }, true);
 
         Object.entries(data.formData).forEach(([key, value]) => {
           const input = document.createElement('input');
@@ -438,7 +447,7 @@ function PaymentCheckoutContent() {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
             <h1 className="text-xl font-bold text-white">
-              결제하기 <span className="text-xs font-normal text-blue-200">(Ver Final_Fix)</span>
+              결제하기 <span className="text-xs font-normal text-blue-200">(v2.0)</span>
             </h1>
             <p className="text-blue-100 text-sm mt-1">
               {isMobile ? '모바일 결제' : 'PC 결제'}
