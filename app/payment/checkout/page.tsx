@@ -332,94 +332,64 @@ function PaymentCheckoutContent() {
         form.submit();
       } else {
         // === PC: INIStdPay Overlay ===
-        console.log('[Checkout] PC: Setting up form data...');
+        // ⚠️⚠️⚠️ [v4.0] 완전히 새로 작성 - 매뉴얼 정석 방식 ⚠️⚠️⚠️
+        console.log('[Checkout] PC: Setting up form for INIStdPay.pay()...');
 
-        // 기존 폼 제거
+        // 1. 기존 폼 제거
         const existingForm = document.getElementById('SendPayForm_id');
         if (existingForm) {
+          console.log('[Checkout] Removing existing form');
           existingForm.remove();
         }
 
-        // ⚠️⚠️⚠️ [긴급 수정 v2] PC 결제 폼 - 페이지 이동 완전 차단 ⚠️⚠️⚠️
-        // 문제: action 속성이 있으면 "사이트 연결할 수 없음" 발생
-        // 해결: action/method 속성을 절대 설정하지 않음
+        // 2. 새 폼 생성 - ID는 반드시 'SendPayForm_id' (매뉴얼 필수)
         const form = document.createElement('form');
-        form.id = 'SendPayForm_id';
-        form.name = 'SendPayForm_id';
-        form.style.display = 'none';
+        form.setAttribute('id', 'SendPayForm_id');
+        form.setAttribute('name', 'SendPayForm_id');
+        // ⚠️ action/method 속성은 설정하지 않음 (INIStdPay.js가 overlay로 처리)
 
-        // ⚠️ [핵심] action/method 속성을 절대 설정하지 않음!
-        // createElement로 만든 form은 기본적으로 action이 없음
-        // INIStdPay.pay()가 이 폼 데이터를 읽어서 자체 Overlay로 결제창을 띄움
-
-        // 🛡️ 3중 방어: submit 이벤트 완전 차단
-        form.onsubmit = (e) => {
-          if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-          }
-          console.log('[Checkout] ⛔ Form submit BLOCKED - INIStdPay handles payment');
-          return false;
-        };
-
-        // 🛡️ addEventListener로도 추가 방어
-        form.addEventListener('submit', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          console.log('[Checkout] ⛔ Form submit event BLOCKED');
-          return false;
-        }, true);
-
+        // 3. 폼 데이터를 hidden input으로 추가
+        console.log('[Checkout] Adding form fields:', Object.keys(data.formData));
         Object.entries(data.formData).forEach(([key, value]) => {
           const input = document.createElement('input');
           input.type = 'hidden';
           input.name = key;
-          input.value = value as string;
+          input.value = String(value);
           form.appendChild(input);
         });
 
+        // 4. 폼을 body에 추가
         document.body.appendChild(form);
 
-        // 🛡️ [v3 핵심 방어] INIStdPay.js가 폼 action을 변경하지 못하도록 방어
-        // Object.defineProperty로 action 속성을 읽기 전용으로 만듦
-        try {
-          Object.defineProperty(form, 'action', {
-            get: () => '',
-            set: () => {
-              console.log('[Checkout] ⛔ Blocked attempt to set form action');
-            },
-            configurable: false
-          });
-        } catch (e) {
-          console.warn('[Checkout] Could not lock form action:', e);
+        // 5. 폼이 제대로 생성됐는지 확인
+        const createdForm = document.getElementById('SendPayForm_id');
+        if (!createdForm) {
+          console.error('[Checkout] ❌ Form was not created!');
+          alert('결제 폼 생성에 실패했습니다. 페이지를 새로고침해주세요.');
+          setIsPaymentProcessing(false);
+          return;
+        }
+        console.log('[Checkout] ✅ Form created successfully, ID:', createdForm.id);
+        console.log('[Checkout] Form has payViewType:', data.formData.payViewType);
+
+        // 6. INIStdPay 객체 최종 확인
+        if (!window.INIStdPay || typeof window.INIStdPay.pay !== 'function') {
+          console.error('[Checkout] ❌ INIStdPay not available!');
+          alert('결제 모듈이 로딩되지 않았습니다.\n페이지를 새로고침(F5) 후 다시 시도해주세요.');
+          setIsPaymentProcessing(false);
+          return;
         }
 
-        // 방어: 폼에 action 속성이 없는지 최종 확인 (디버그용)
-        console.log('[Checkout] Form action attr:', form.getAttribute('action')); // null이어야 함
-        console.log('[Checkout] Form action prop:', form.action); // 빈 문자열이어야 함
-
-        // INIStdPay.pay() 호출 (Overlay Popup)
-        console.log('[Checkout] PC: Calling INIStdPay.pay("SendPayForm_id")');
-        console.log('[Checkout] payViewType in form:', data.formData.payViewType); // 'overlay'여야 함
-
+        // 7. INIStdPay.pay() 호출 - Overlay 방식으로 결제창 표시
+        console.log('[Checkout] 🚀 Calling INIStdPay.pay("SendPayForm_id")');
         try {
-          window.INIStdPay!.pay('SendPayForm_id');
+          window.INIStdPay.pay('SendPayForm_id');
+          console.log('[Checkout] ✅ INIStdPay.pay() called successfully');
         } catch (payError) {
-          console.error('[Checkout] INIStdPay.pay error:', payError);
+          console.error('[Checkout] ❌ INIStdPay.pay() error:', payError);
           alert('결제창을 여는 중 오류가 발생했습니다.\n페이지를 새로고침 후 다시 시도해주세요.');
           setIsPaymentProcessing(false);
         }
-
-        // 🛡️ 추가 방어: INIStdPay.pay() 호출 후에도 폼 action 모니터링
-        setTimeout(() => {
-          const checkForm = document.getElementById('SendPayForm_id') as HTMLFormElement;
-          if (checkForm && checkForm.getAttribute('action')) {
-            console.error('[Checkout] ⚠️ Form action was set to:', checkForm.getAttribute('action'));
-            // action이 설정되었으면 제거
-            checkForm.removeAttribute('action');
-          }
-        }, 100);
       }
 
     } catch (err) {
@@ -473,7 +443,7 @@ function PaymentCheckoutContent() {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
             <h1 className="text-xl font-bold text-white">
-              결제하기 <span className="text-xs font-normal text-blue-200">(v3.0)</span>
+              결제하기 <span className="text-xs font-normal text-blue-200">(v4.0)</span>
             </h1>
             <p className="text-blue-100 text-sm mt-1">
               {isMobile ? '모바일 결제' : 'PC 결제'}
