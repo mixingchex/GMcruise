@@ -389,8 +389,8 @@ export default function ImageLibrary({
             if (data.ok) {
                 showSuccess('이미지가 삭제되었습니다.');
                 setSelectedImage(null);
-                setSelectedImage(null);
-                loadImages(true);
+                // Optimistic update
+                setImages(prev => prev.filter(img => img.id !== image.id));
             } else {
                 showError(data.message || '이미지 삭제에 실패했습니다.');
             }
@@ -412,6 +412,7 @@ export default function ImageLibrary({
 
         let successCount = 0;
         let failCount = 0;
+        const deletedImageIds: string[] = [];
 
         for (const image of selectedImages) {
             try {
@@ -431,6 +432,7 @@ export default function ImageLibrary({
                 const data = await response.json();
                 if (data.ok) {
                     successCount++;
+                    deletedImageIds.push(image.id);
                 } else {
                     failCount++;
                 }
@@ -441,14 +443,15 @@ export default function ImageLibrary({
 
         if (successCount > 0) {
             showSuccess(`${successCount}개 이미지가 삭제되었습니다.${failCount > 0 ? ` (${failCount}개 실패)` : ''}`);
+
+            // Optimistic update
+            setImages(prev => prev.filter(img => !deletedImageIds.includes(img.id)));
         } else {
             showError('이미지 삭제에 실패했습니다.');
         }
 
         setSelectedImages([]);
         setIsSelectMode(false);
-        setIsSelectMode(false);
-        loadImages(true);
     };
 
     // 이동 모달 열기
@@ -512,11 +515,26 @@ export default function ImageLibrary({
             }
         });
 
-        await Promise.all(uploadPromises);
+        const results = await Promise.all(uploadPromises);
+
+        // Optimistic update
+        const newImages: ImageItem[] = results
+            .filter(result => result && result.ok && result.image)
+            .map(result => ({
+                id: result.image.original.fileId,
+                name: result.image.original.name,
+                url: result.image.original.url,
+                webpUrl: result.image.webp?.url || null,
+                size: result.image.original.size,
+                modified: new Date(),
+                code: result.code
+            }));
+
+        if (newImages.length > 0) {
+            setImages(prev => [...newImages, ...prev]);
+        }
+
         setIsUploading(false);
-        await Promise.all(uploadPromises);
-        setIsUploading(false);
-        loadImages(true); // 목록 새로고침 (강제)
     };
 
     const copyToClipboard = async (text: string, type: string) => {
@@ -609,8 +627,8 @@ export default function ImageLibrary({
                 if (selectedImage?.url === image.url) {
                     setSelectedImage(null);
                 }
-                // 목록 새로고침
-                loadImages(true);
+                // Optimistic update
+                setImages(prev => prev.filter(img => img.id !== image.id));
             } else {
                 showError(data.message || '이미지 삭제에 실패했습니다.');
             }
