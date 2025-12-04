@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 
     // 결제 파라미터 공통
     // URL 생성 (모든 콜백 URL은 HTTPS 필수)
-    const nextUrl = `${BASE_URL}/api/payment/mobile-next`;
+    const nextUrl = `${BASE_URL}/api/payment/callback`;
     const returnUrl = `${BASE_URL}/api/payment/return`;
     const notiUrl = `${BASE_URL}/api/payment/notify`;
 
@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
     const config = getWelcomePayConfig();
 
     // URL 생성 (모든 콜백 URL은 HTTPS 필수)
-    const nextUrl = `${BASE_URL}/api/payment/mobile-next`;
+    const nextUrl = `${BASE_URL}/api/payment/callback`;
     const returnUrl = `${BASE_URL}/api/payment/return`;
     const notiUrl = `${BASE_URL}/api/payment/notify`;
 
