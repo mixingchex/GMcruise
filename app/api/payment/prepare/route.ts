@@ -11,11 +11,13 @@ import {
   createPCPaymentForm,
   getMobilePaymentUrl,
   getPCPaymentUrl,
+  ensureHttps,
   type PaymentMethod,
   type EasyPayCode,
 } from '@/lib/welcomepay';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+// BASE_URL은 반드시 HTTPS여야 함 (P_NEXT_URL 매뉴얼 1.21 주의사항)
+const BASE_URL = ensureHttps(process.env.NEXT_PUBLIC_BASE_URL || 'https://localhost:3000');
 
 /**
  * GET: 기존 결제 정보 조회
@@ -70,6 +72,18 @@ export async function GET(req: NextRequest) {
     const config = getWelcomePayConfig();
 
     // 결제 파라미터 공통
+    // URL 생성 (모든 콜백 URL은 HTTPS 필수)
+    const nextUrl = `${BASE_URL}/api/payment/mobile-next`;
+    const returnUrl = `${BASE_URL}/api/payment/return`;
+    const notiUrl = `${BASE_URL}/api/payment/notify`;
+
+    console.log('[Payment Prepare GET] Callback URLs:', {
+      BASE_URL,
+      nextUrl,
+      returnUrl,
+      notiUrl,
+    });
+
     const paymentParams = {
       orderId: payment.orderId,
       amount: payment.amount,
@@ -77,9 +91,9 @@ export async function GET(req: NextRequest) {
       buyerName: payment.buyerName || '',
       buyerTel: payment.buyerTel || '',
       buyerEmail: payment.buyerEmail || undefined,
-      returnUrl: `${BASE_URL}/api/payment/return`,
-      nextUrl: `${BASE_URL}/api/payment/mobile-next`,  // Mobile용
-      notiUrl: `${BASE_URL}/api/payment/notify`,
+      returnUrl,
+      nextUrl,  // Mobile용 P_NEXT_URL
+      notiUrl,
       metadata: payment.metadata as any,
     };
 
@@ -90,7 +104,9 @@ export async function GET(req: NextRequest) {
       // Mobile용 폼 데이터 (EUC-KR, Form Submit 방식)
       formData = createMobilePaymentForm(config, paymentParams) as unknown as Record<string, string>;
       paymentUrl = getMobilePaymentUrl(config, 'CARD');
-      console.log('[Payment Prepare GET] Mobile form data generated, URL:', paymentUrl);
+      console.log('[Payment Prepare GET] Mobile form data generated');
+      console.log('[Payment Prepare GET] P_NEXT_URL:', formData.P_NEXT_URL);
+      console.log('[Payment Prepare GET] Payment URL:', paymentUrl);
     } else {
       // PC용 폼 데이터 (INIStdPay.js 호출 방식)
       formData = createPCPaymentForm(config, paymentParams) as unknown as Record<string, string>;
@@ -179,6 +195,17 @@ export async function POST(req: NextRequest) {
     // 웰컴페이먼츠 설정
     const config = getWelcomePayConfig();
 
+    // URL 생성 (모든 콜백 URL은 HTTPS 필수)
+    const nextUrl = `${BASE_URL}/api/payment/mobile-next`;
+    const returnUrl = `${BASE_URL}/api/payment/return`;
+    const notiUrl = `${BASE_URL}/api/payment/notify`;
+
+    console.log('[Payment Prepare POST] Callback URLs:', {
+      BASE_URL,
+      nextUrl,
+      isMobile,
+    });
+
     // 결제 파라미터
     const params = {
       orderId: payment.orderId,
@@ -187,9 +214,9 @@ export async function POST(req: NextRequest) {
       buyerName: payment.buyerName || '',
       buyerTel: payment.buyerTel || '',
       buyerEmail: payment.buyerEmail || undefined,
-      returnUrl: `${BASE_URL}/api/payment/return`,
-      nextUrl: `${BASE_URL}/api/payment/mobile-next`, // 모바일용
-      notiUrl: `${BASE_URL}/api/payment/notify`,
+      returnUrl,
+      nextUrl,  // Mobile용 P_NEXT_URL
+      notiUrl,
       payMethod: payMethod as PaymentMethod,
       easyPayCodes: easyPayCodes as EasyPayCode[],
       metadata: payment.metadata as any,
@@ -202,7 +229,8 @@ export async function POST(req: NextRequest) {
       // Mobile용 폼 데이터 (EUC-KR, Form Submit 방식)
       formData = createMobilePaymentForm(config, params) as unknown as Record<string, string>;
       paymentUrl = getMobilePaymentUrl(config, payMethod as PaymentMethod);
-      console.log('[Payment Prepare POST] Mobile form data generated, URL:', paymentUrl);
+      console.log('[Payment Prepare POST] Mobile form data generated');
+      console.log('[Payment Prepare POST] P_NEXT_URL:', formData.P_NEXT_URL);
     } else {
       // PC용 폼 데이터 (INIStdPay.js 호출 방식)
       formData = createPCPaymentForm(config, params) as unknown as Record<string, string>;

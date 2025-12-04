@@ -15,6 +15,7 @@ export default function SecurityProtection() {
   const pathname = usePathname();
   const isAdminPage = pathname?.startsWith('/admin');
   const isPartnerPage = pathname?.startsWith('/partner');
+  const isPaymentPage = pathname?.startsWith('/payment'); // 결제 페이지 (디버깅 허용)
   // 테스트 페이지 목록 (개발자 도구 항상 허용)
   const isTestPage = pathname?.startsWith('/login-test') ||
                       pathname?.startsWith('/chat-test') ||
@@ -52,6 +53,12 @@ export default function SecurityProtection() {
     // 파트너 페이지에서는 보안 기능 비활성화 (개발자 도구 사용 가능)
     if (isPartnerPage) {
       console.log('[SecurityProtection] 파트너 페이지 - 개발자 도구 사용 가능');
+      return;
+    }
+
+    // 결제 페이지에서는 보안 기능 비활성화 (디버깅 허용)
+    if (isPaymentPage) {
+      console.log('[SecurityProtection] 결제 페이지 - 개발자 도구 사용 가능');
       return;
     }
 
@@ -300,7 +307,7 @@ export default function SecurityProtection() {
 
     // 클린업
     return () => {
-      if (!isDevelopment && !isAdminPage && !isPartnerPage && !isTestPage && !allowDevTools) {
+      if (!isDevelopment && !isAdminPage && !isPartnerPage && !isPaymentPage && !isTestPage && !allowDevTools) {
         document.removeEventListener('contextmenu', handleContextMenu);
         document.removeEventListener('selectstart', handleSelectStart);
         document.removeEventListener('dragstart', handleDragStart);
