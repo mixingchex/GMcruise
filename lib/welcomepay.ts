@@ -93,6 +93,7 @@ export interface MobilePaymentForm {
   P_NOTI_URL: string;
   P_TIMESTAMP: string;
   P_SIGNATURE: string;
+  P_MKEY: string;
   P_CHARSET?: string;
   P_TAX?: string;
   P_TAXFREE?: string;
@@ -114,9 +115,11 @@ export interface PCPaymentForm {
   buyeremail: string;
   returnUrl: string;
   closeUrl: string;
+  notiurl: string;
   timestamp: string;
   signature: string;
   mKey: string;
+  charset: string;
   gopaymethod?: string;
   offerPeriod?: string;
   acceptmethod?: string;
@@ -284,6 +287,7 @@ export function createMobilePaymentForm(
     P_NOTI_URL: params.notiUrl || '',
     P_TIMESTAMP: timestamp,
     P_SIGNATURE: signature,
+    P_MKEY: mkey,
     P_CHARSET: 'utf8',
     P_RESERVED: reservedOptions.join('&') + '&',
   };
@@ -370,9 +374,11 @@ export function createPCPaymentForm(
     buyeremail: params.buyerEmail || '',
     returnUrl: params.returnUrl || '',
     closeUrl: params.returnUrl || '', // 닫기 버튼 클릭시 URL
+    notiurl: params.notiUrl || '',    // 결제 완료 노티 URL
     timestamp,
     signature,
     mKey: mkey,
+    charset: 'UTF-8',                 // 인코딩 방식
   };
 
   // 선택 옵션 추가

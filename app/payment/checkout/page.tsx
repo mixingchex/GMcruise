@@ -153,8 +153,8 @@ function PaymentCheckoutContent() {
     }
   };
 
-  // 로딩 중
-  if (isLoading) {
+  // 로딩 중 (클라이언트 마운트 전이거나 데이터 로딩 중)
+  if (!isClient || isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -347,7 +347,7 @@ function PaymentCheckoutContent() {
           ref={formRef}
           action={paymentUrl}
           method="POST"
-          acceptCharset={isMobile ? 'utf-8' : 'euc-kr'}
+          acceptCharset="utf-8"
           style={{ display: 'none' }}
         >
           {Object.entries(formData).map(([key, value]) => (
