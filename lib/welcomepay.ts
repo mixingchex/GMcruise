@@ -561,13 +561,16 @@ export const BANK_CODES: Record<string, string> = {
 // ==========================================
 
 export function getWelcomePayConfig(): WelcomePayConfig {
-  // 우선순위: WELCOMEPAY_MID > PG_MID_AUTH > 테스트 MID
-  const mid = process.env.WELCOMEPAY_MID || process.env.PG_MID_AUTH || 'welcometst';
-  // 우선순위: WELCOMEPAY_SIGNKEY > PG_SIGNKEY > 테스트 SignKey
-  const signKey = process.env.WELCOMEPAY_SIGNKEY || process.env.PG_SIGNKEY || 'QjZXWDZDRmxYUXJPYnMvelEvSjJ5QT09';
-  // 운영환경: WELCOMEPAY_PRODUCTION=true 일 때만 운영 URL 사용
-  // (테스트 MID인 welcometst나 wpcrdot200 등은 항상 테스트 URL 사용)
-  const isProduction = process.env.WELCOMEPAY_PRODUCTION === 'true';
+  // 운영 MID 고정 (wpcrdot200)
+  const mid = process.env.WELCOMEPAY_MID || process.env.PG_MID_AUTH || 'wpcrdot200';
+  // SignKey는 환경변수에서 가져오거나 기본값 사용
+  const signKey = process.env.WELCOMEPAY_SIGNKEY || process.env.PG_SIGNKEY || '';
+
+  // ⚠️ 운영 모드 고정 - 항상 운영 URL 사용
+  // 테스트 모드가 필요하면 환경변수 WELCOMEPAY_PRODUCTION=false 설정
+  const isProduction = process.env.WELCOMEPAY_PRODUCTION !== 'false';
+
+  console.log('[WelcomePay Config] MID:', mid, 'isProduction:', isProduction);
 
   return {
     mid,
