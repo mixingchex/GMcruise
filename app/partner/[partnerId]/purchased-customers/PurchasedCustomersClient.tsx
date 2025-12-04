@@ -13,6 +13,11 @@ import {
   FiUser,
   FiCalendar,
   FiPhone,
+  FiEdit,
+  FiSave,
+  FiPlus,
+  FiTrash2,
+  FiCopy,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
@@ -88,6 +93,19 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [reservationDetail, setReservationDetail] = useState<any>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
+
+  // 여행자 수정 관련 상태
+  const [editingTraveler, setEditingTraveler] = useState<number | null>(null);
+  const [travelerForm, setTravelerForm] = useState<any>({});
+  const [savingTraveler, setSavingTraveler] = useState(false);
+  const [addingTraveler, setAddingTraveler] = useState(false);
+  const [deletingTraveler, setDeletingTraveler] = useState<number | null>(null);
+
+  // PNR 발송 모달
+  const [showPnrModal, setShowPnrModal] = useState(false);
+  const [pnrMessage, setPnrMessage] = useState('');
+  const [pnrPhone, setPnrPhone] = useState('');
+  const [sendingPnr, setSendingPnr] = useState(false);
 
   useEffect(() => {
     loadReservations();
@@ -279,6 +297,166 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
     }
   };
 
+  // 여행자 수정 시작
+  const handleEditTraveler = (traveler: any) => {
+    setEditingTraveler(traveler.id);
+    setTravelerForm({
+      korName: traveler.korName || '',
+      engSurname: traveler.engSurname || '',
+      engGivenName: traveler.engGivenName || '',
+      passportNo: traveler.passportNo || '',
+      nationality: traveler.nationality || '',
+      birthDate: traveler.birthDate || traveler.dateOfBirth || '',
+      issueDate: traveler.issueDate || '',
+      expiryDate: traveler.expiryDate || traveler.passportExpiryDate || '',
+      gender: traveler.gender || '',
+      residentNum: traveler.residentNum || '',
+      roomNumber: traveler.roomNumber || null,
+      notes: traveler.notes || '',
+    });
+  };
+
+  // 여행자 저장
+  const handleSaveTraveler = async (travelerId: number) => {
+    try {
+      setSavingTraveler(true);
+      const response = await fetch(`/api/partner/travelers/${travelerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(travelerForm),
+      });
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('여행자 정보가 저장되었습니다.');
+        setEditingTraveler(null);
+        // 상세 모달 새로고침
+        if (selectedReservation) {
+          handleOpenDetailModal(selectedReservation);
+        }
+      } else {
+        showError(data.error || '저장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('여행자 정보 저장 실패:', error);
+      showError('저장 중 오류가 발생했습니다.');
+    } finally {
+      setSavingTraveler(false);
+    }
+  };
+
+  // 여행자 추가
+  const handleAddTraveler = async () => {
+    if (!reservationDetail) return;
+    try {
+      setAddingTraveler(true);
+      const response = await fetch(`/api/partner/travelers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          reservationId: reservationDetail.id,
+          korName: '',
+          roomNumber: 1,
+        }),
+      });
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('여행자가 추가되었습니다.');
+        if (selectedReservation) {
+          handleOpenDetailModal(selectedReservation);
+        }
+      } else {
+        showError(data.error || '여행자 추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('여행자 추가 실패:', error);
+      showError('여행자 추가 중 오류가 발생했습니다.');
+    } finally {
+      setAddingTraveler(false);
+    }
+  };
+
+  // 여행자 삭제
+  const handleDeleteTraveler = async (travelerId: number) => {
+    if (!confirm('정말 이 여행자를 삭제하시겠습니까?')) return;
+    try {
+      setDeletingTraveler(travelerId);
+      const response = await fetch(`/api/partner/travelers/${travelerId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('여행자가 삭제되었습니다.');
+        if (selectedReservation) {
+          handleOpenDetailModal(selectedReservation);
+        }
+      } else {
+        showError(data.error || '여행자 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('여행자 삭제 실패:', error);
+      showError('여행자 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingTraveler(null);
+    }
+  };
+
+  // PNR 발송 모달 열기
+  const handleOpenPnrModal = (reservation: Reservation) => {
+    setSelectedReservation(reservation);
+    const pnrUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/customer/pnr/${reservation.id}`;
+    const customerName = reservation.user?.name || '고객';
+    const defaultMessage = `안녕하세요 ${customerName}님. 탑승자 정보(PNR)를 등록해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n${pnrUrl}`;
+    setPnrMessage(defaultMessage);
+    setPnrPhone(reservation.user?.phone || '');
+    setShowPnrModal(true);
+  };
+
+  // PNR 문자 발송
+  const handleSendPnrMessage = async () => {
+    if (!pnrPhone || !pnrMessage.trim() || !selectedReservation) {
+      showError('전화번호와 메시지를 입력해주세요.');
+      return;
+    }
+    try {
+      setSendingPnr(true);
+      const response = await fetch('/api/partner/customers/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          phone: pnrPhone.replace(/[^0-9]/g, ''),
+          message: pnrMessage,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || 'PNR 문자 발송에 실패했습니다.');
+      }
+      showSuccess('PNR 등록 링크가 발송되었습니다.');
+      setShowPnrModal(false);
+    } catch (error: any) {
+      console.error('PNR 메시지 발송 오류:', error);
+      showError(error.message || '문자 발송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingPnr(false);
+    }
+  };
+
+  // PNR 링크 복사
+  const handleCopyPnrLink = async () => {
+    if (!selectedReservation) return;
+    const pnrUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/customer/pnr/${selectedReservation.id}`;
+    try {
+      await navigator.clipboard.writeText(pnrUrl);
+      showSuccess('PNR 링크가 복사되었습니다.');
+    } catch (error) {
+      showError('링크 복사에 실패했습니다.');
+    }
+  };
+
   const filteredReservations = reservations.filter((reservation) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
@@ -385,11 +563,18 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                       <span>상세정보 (APIS)</span>
                     </button>
                     <button
+                      onClick={() => handleOpenPnrModal(reservation)}
+                      className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+                    >
+                      <FiSend />
+                      <span>1. PNR 보내기</span>
+                    </button>
+                    <button
                       onClick={() => handleOpenPassportModal(reservation)}
                       className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
                     >
                       <FiSend />
-                      <span>여권 보내기</span>
+                      <span>2. 여권 보내기</span>
                     </button>
                   </div>
                 </div>
@@ -833,14 +1018,24 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                       </div>
                     )}
 
-                    {/* 여행자 정보 (APIS) */}
+                    {/* 여행자 정보 (APIS) - 수정 가능 */}
                     <div className="rounded-lg border border-gray-200 bg-white p-4">
-                      <h4 className="mb-3 text-lg font-semibold text-gray-900">여행자 정보 (APIS)</h4>
+                      <div className="mb-3 flex items-center justify-between">
+                        <h4 className="text-lg font-semibold text-gray-900">여행자 정보 (APIS)</h4>
+                        <button
+                          onClick={handleAddTraveler}
+                          disabled={addingTraveler}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                        >
+                          {addingTraveler ? <FiRefreshCw className="animate-spin" /> : <FiPlus />}
+                          여행자 추가
+                        </button>
+                      </div>
                       {reservationDetail.travelers && reservationDetail.travelers.length > 0 ? (
                         <div className="space-y-4">
                           {reservationDetail.travelers.map((traveler: any, index: number) => (
                             <div key={traveler.id || index} className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                              <div className="mb-2 flex items-center justify-between">
+                              <div className="mb-3 flex items-center justify-between">
                                 <h5 className="font-semibold text-gray-900">
                                   {index === 0 ? '대표자' : `동행자 ${index}`}
                                   {traveler.roomNumber && (
@@ -849,60 +1044,222 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                                     </span>
                                   )}
                                 </h5>
+                                {editingTraveler === traveler.id ? (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleSaveTraveler(traveler.id)}
+                                      disabled={savingTraveler}
+                                      className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                                    >
+                                      {savingTraveler ? <FiRefreshCw className="animate-spin" /> : <FiSave />}
+                                      저장
+                                    </button>
+                                    <button
+                                      onClick={() => setEditingTraveler(null)}
+                                      className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-gray-500 text-white text-sm font-medium hover:bg-gray-600"
+                                    >
+                                      취소
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleEditTraveler(traveler)}
+                                      className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                                    >
+                                      <FiEdit />
+                                      수정
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteTraveler(traveler.id)}
+                                      disabled={deletingTraveler === traveler.id}
+                                      className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                                    >
+                                      {deletingTraveler === traveler.id ? <FiRefreshCw className="animate-spin" /> : <FiTrash2 />}
+                                      삭제
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                              <div className="grid gap-3 md:grid-cols-2">
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">한글 성명</p>
-                                  <p className="text-base text-gray-900">{traveler.korName || '미입력'}</p>
+
+                              {editingTraveler === traveler.id ? (
+                                <div className="grid gap-3 md:grid-cols-4">
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">한글 성명</label>
+                                    <input
+                                      type="text"
+                                      value={travelerForm.korName || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, korName: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">영문 성 (Surname)</label>
+                                    <input
+                                      type="text"
+                                      value={travelerForm.engSurname || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, engSurname: e.target.value.toUpperCase() })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      placeholder="HONG"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">영문 이름 (Given Name)</label>
+                                    <input
+                                      type="text"
+                                      value={travelerForm.engGivenName || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, engGivenName: e.target.value.toUpperCase() })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      placeholder="GILDONG"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">주민번호</label>
+                                    <input
+                                      type="text"
+                                      value={travelerForm.residentNum || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, residentNum: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      placeholder="000000-0000000"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">성별</label>
+                                    <select
+                                      value={travelerForm.gender || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, gender: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    >
+                                      <option value="">선택</option>
+                                      <option value="M">남성 (M)</option>
+                                      <option value="F">여성 (F)</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">생년월일</label>
+                                    <input
+                                      type="date"
+                                      value={travelerForm.birthDate || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, birthDate: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">여권번호</label>
+                                    <input
+                                      type="text"
+                                      value={travelerForm.passportNo || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, passportNo: e.target.value.toUpperCase() })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      placeholder="M12345678"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">국적</label>
+                                    <input
+                                      type="text"
+                                      value={travelerForm.nationality || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, nationality: e.target.value.toUpperCase() })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      placeholder="KOR"
+                                      maxLength={3}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">여권 생성일</label>
+                                    <input
+                                      type="date"
+                                      value={travelerForm.issueDate || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, issueDate: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">여권 만료일</label>
+                                    <input
+                                      type="date"
+                                      value={travelerForm.expiryDate || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, expiryDate: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-sm font-medium text-gray-500">객실 번호</label>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      value={travelerForm.roomNumber || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, roomNumber: parseInt(e.target.value) || null })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      placeholder="1"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-4">
+                                    <label className="text-sm font-medium text-gray-500">비고</label>
+                                    <textarea
+                                      value={travelerForm.notes || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, notes: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      rows={2}
+                                      placeholder="메모 사항"
+                                    />
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">영문 이름</p>
-                                  <p className="text-base text-gray-900">
-                                    {traveler.engSurname && traveler.engGivenName
-                                      ? `${traveler.engSurname} ${traveler.engGivenName}`
-                                      : '미입력'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">여권번호</p>
-                                  <p className="text-base text-gray-900">
-                                    {/* 본사(HQ)만 여권번호 전체 표시, 판매원/대리점장은 마스킹 처리 */}
-                                    {partner.type === 'HQ'
-                                      ? (traveler.passportNo || '미입력')
-                                      : (traveler.passportNo ? traveler.passportNo.replace(/.(?=.{4})/g, '*') : '미입력')}
-                                  </p>
-                                  {/* 본사(HQ)만 여권 이미지 확인 가능 */}
-                                  {traveler.passportImage && partner.type === 'HQ' && (
-                                    <div className="mt-2 flex gap-2">
-                                      <button
-                                        onClick={() => {
-                                          const img = new Image();
-                                          img.src = traveler.passportImage;
-                                          const w = window.open();
-                                          if (w) {
-                                            w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
-                                          }
-                                        }}
-                                        className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                                      >
-                                        이미지 보기
-                                      </button>
+                              ) : (
+                                <div className="grid gap-3 md:grid-cols-4">
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">한글 성명</p>
+                                    <p className="text-base text-gray-900">{traveler.korName || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">영문 성</p>
+                                    <p className="text-base text-gray-900">{traveler.engSurname || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">영문 이름</p>
+                                    <p className="text-base text-gray-900">{traveler.engGivenName || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">주민번호</p>
+                                    <p className="text-base text-gray-900">{traveler.residentNum || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">성별</p>
+                                    <p className="text-base text-gray-900">
+                                      {traveler.gender === 'M' ? '남성' : traveler.gender === 'F' ? '여성' : <span className="text-red-500">미입력</span>}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">생년월일</p>
+                                    <p className="text-base text-gray-900">{traveler.birthDate || traveler.dateOfBirth || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">여권번호</p>
+                                    <p className="text-base text-gray-900">
+                                      {partner.type === 'HQ'
+                                        ? (traveler.passportNo || <span className="text-red-500">미입력</span>)
+                                        : (traveler.passportNo ? traveler.passportNo.replace(/.(?=.{4})/g, '*') : <span className="text-red-500">미입력</span>)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">국적</p>
+                                    <p className="text-base text-gray-900">{traveler.nationality || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">여권 생성일</p>
+                                    <p className="text-base text-gray-900">{traveler.issueDate || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">여권 만료일</p>
+                                    <p className="text-base text-gray-900">{traveler.expiryDate || traveler.passportExpiryDate || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  {traveler.notes && (
+                                    <div className="md:col-span-4 rounded-lg bg-yellow-50 border border-yellow-200 p-2">
+                                      <p className="text-sm font-medium text-yellow-800">비고: {traveler.notes}</p>
                                     </div>
                                   )}
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">생년월일</p>
-                                  <p className="text-base text-gray-900">{traveler.dateOfBirth || '미입력'}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">여권 만료일</p>
-                                  <p className="text-base text-gray-900">{traveler.passportExpiryDate || '미입력'}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-500">국적</p>
-                                  <p className="text-base text-gray-900">{traveler.nationality || '미입력'}</p>
-                                </div>
-                              </div>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -948,6 +1305,126 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                 >
                   PNR 전송
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PNR 보내기 모달 */}
+        {showPnrModal && selectedReservation && (
+          <div
+            className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowPnrModal(false);
+              }
+            }}
+          >
+            <div
+              className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 헤더 */}
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-green-50 px-6 py-4">
+                <div>
+                  <h3 className="text-xl font-bold text-green-800">PNR 정보 입력 요청</h3>
+                  <p className="text-sm text-green-600 mt-1">
+                    {selectedReservation.user?.name || '고객'}님에게 PNR 입력 링크를 전송합니다
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPnrModal(false)}
+                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                >
+                  <FiX className="text-xl" />
+                </button>
+              </div>
+
+              {/* 내용 */}
+              <div className="px-6 py-6 space-y-4">
+                {/* 고객 정보 */}
+                <div className="rounded-xl bg-green-50 p-4 border border-green-200">
+                  <p className="text-sm font-semibold text-green-900 mb-1">고객 정보</p>
+                  <p className="text-sm text-green-800">{selectedReservation.user?.name || '이름 없음'}</p>
+                  <p className="text-sm text-green-800">{selectedReservation.user?.phone || '전화번호 없음'}</p>
+                </div>
+
+                {/* PNR 링크 */}
+                <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-lg font-semibold text-green-800">PNR 입력 링크</h4>
+                    <button
+                      onClick={handleCopyPnrLink}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
+                    >
+                      <FiCopy className="text-sm" />
+                      링크 복사
+                    </button>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <p className="text-sm text-gray-700 break-all font-mono">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/customer/pnr/${selectedReservation.id}` : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 전화번호 */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    전화번호 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={pnrPhone}
+                    onChange={(e) => setPnrPhone(e.target.value)}
+                    placeholder="010-1234-5678"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+                  />
+                </div>
+
+                {/* 메시지 내용 */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    메시지 내용 <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={pnrMessage}
+                    onChange={(e) => setPnrMessage(e.target.value)}
+                    rows={8}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-200"
+                    placeholder="PNR 등록 링크가 포함된 메시지를 입력하세요."
+                  />
+                </div>
+
+                {/* 버튼 */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowPnrModal(false)}
+                    className="flex-1 rounded-lg border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSendPnrMessage}
+                    disabled={sendingPnr || !pnrPhone || !pnrMessage.trim()}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {sendingPnr ? (
+                      <>
+                        <FiRefreshCw className="animate-spin" />
+                        <span>발송 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FiSend />
+                        <span>문자 보내기</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

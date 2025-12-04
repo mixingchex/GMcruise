@@ -291,6 +291,142 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // 🎯 Reservation 생성 (PNR/여권 정보 입력을 위해 필요)
+    let reservationId: number | null = null;
+    try {
+      // 1. 총 인원 수 계산
+      const totalGuests = metadata?.totalGuests || roomSelections.reduce((sum: number, sel: any) => {
+        return sum + (sel.adult || 0) + (sel.adult3rd || 0) + (sel.child2to11 || 0) + (sel.infantUnder2 || 0);
+      }, 0) || 1;
+
+      // 2. User 찾기 또는 생성 (customerPhone 기준)
+      const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
+      const normalizedPhone = customerPhone ? normalizePhone(customerPhone) : '';
+
+      let userId: number;
+
+      if (normalizedPhone.length >= 10) {
+        // 기존 User 찾기
+        let existingUser = await prisma.user.findFirst({
+          where: { phone: normalizedPhone },
+          select: { id: true },
+        });
+
+        if (existingUser) {
+          userId = existingUser.id;
+          // 이름 업데이트 (있는 경우)
+          if (customerName) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { name: customerName.trim() },
+            });
+          }
+        } else {
+          // 새 User 생성
+          const newUser = await prisma.user.create({
+            data: {
+              name: customerName?.trim() || '고객',
+              phone: normalizedPhone,
+              password: normalizedPhone.slice(-4), // 전화번호 뒤 4자리
+              role: 'user',
+              onboarded: false,
+            },
+          });
+          userId = newUser.id;
+        }
+      } else {
+        // 전화번호가 없으면 임시 User 생성
+        const tempUser = await prisma.user.create({
+          data: {
+            name: customerName?.trim() || '고객',
+            phone: `temp_${Date.now()}`,
+            password: '0000',
+            role: 'user',
+            onboarded: false,
+          },
+        });
+        userId = tempUser.id;
+      }
+
+      // 3. Trip 찾기 또는 생성 (productCode 기준)
+      let trip = await prisma.trip.findFirst({
+        where: { productCode },
+        select: { id: true },
+      });
+
+      if (!trip) {
+        // 상품 정보 조회
+        const product = await prisma.cruiseProduct.findUnique({
+          where: { productCode },
+          select: { shipName: true, packageName: true },
+        });
+
+        // AffiliateProduct에서 출발일 조회
+        const affProduct = await prisma.affiliateProduct.findFirst({
+          where: { productCode },
+          select: { effectiveFrom: true, effectiveTo: true },
+        });
+
+        // Trip 생성
+        trip = await prisma.trip.create({
+          data: {
+            productCode,
+            shipName: product?.shipName || product?.packageName || productCode,
+            departureDate: affProduct?.effectiveFrom || new Date(),
+            endDate: affProduct?.effectiveTo || null,
+            status: 'Upcoming',
+          },
+          select: { id: true },
+        });
+      }
+
+      // 4. Reservation 생성
+      const reservation = await prisma.reservation.create({
+        data: {
+          tripId: trip.id,
+          mainUserId: userId,
+          totalPeople: totalGuests,
+          cabinType: determinedCabinType || null,
+          paymentDate: new Date(),
+          paymentMethod: 'card',
+          paymentAmount: amount,
+          passportStatus: 'PENDING',
+          pnrStatus: 'PENDING',
+          status: 'CONFIRMED',
+          affiliateSaleId: sale.id,
+          remarks: `주문번호: ${merchant_uid}`,
+        },
+      });
+      reservationId = reservation.id;
+
+      // 5. 빈 Traveler 레코드 생성 (총 인원 수만큼)
+      const travelerData = [];
+      for (let i = 0; i < totalGuests; i++) {
+        travelerData.push({
+          reservationId: reservation.id,
+          roomNumber: 1, // 기본값, PNR 입력 시 변경
+          korName: i === 0 ? (customerName?.trim() || '') : '',
+        });
+      }
+
+      if (travelerData.length > 0) {
+        await prisma.traveler.createMany({
+          data: travelerData,
+        });
+      }
+
+      console.log('[Payment Webhook] Reservation 생성 완료:', {
+        reservationId: reservation.id,
+        tripId: trip.id,
+        userId,
+        totalGuests,
+      });
+    } catch (reservationError) {
+      console.error('[Payment Webhook] Reservation 생성 실패:', reservationError);
+      // Reservation 생성 실패해도 결제 처리는 성공으로 처리
+      // 나중에 관리자가 수동으로 생성 가능
+    }
+
     // Lead 상태 업데이트 또는 생성
     let updatedLeadId: number | null = null;
     if (leadId) {
@@ -514,6 +650,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       saleId: sale.id,
+      reservationId: reservationId,
       message: '결제 완료 및 어필리에이트 판매가 기록되었습니다.',
     });
   } catch (error) {

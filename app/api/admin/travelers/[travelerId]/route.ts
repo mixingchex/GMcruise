@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { syncApisSpreadsheet } from '@/lib/google-sheets';
 
 export async function PATCH(
   req: NextRequest,
@@ -39,6 +40,7 @@ export async function PATCH(
       expiryDate,
       gender,
       residentNum,  // 주민번호
+      roomNumber,   // 객실 번호
       notes,        // 비고
     } = body;
 
@@ -63,13 +65,31 @@ export async function PATCH(
     if (expiryDate !== undefined) updateData.expiryDate = expiryDate || null;
     if (gender !== undefined) updateData.gender = gender || null;
     if (residentNum !== undefined) updateData.residentNum = residentNum || null;  // 주민번호
+    if (roomNumber !== undefined) updateData.roomNumber = roomNumber || null;    // 객실 번호
     if (notes !== undefined) updateData.notes = notes || null;                    // 비고
 
     // 여행자 정보 업데이트
     const updatedTraveler = await prisma.traveler.update({
       where: { id: travelerId },
       data: updateData,
+      include: {
+        Reservation: {
+          select: {
+            Trip: {
+              select: { id: true }
+            }
+          }
+        }
+      }
     });
+
+    // APIS 스프레드시트 자동 동기화 (비동기, 에러 무시)
+    const tripId = updatedTraveler.Reservation?.Trip?.id;
+    if (tripId) {
+      syncApisSpreadsheet(tripId).catch(err => {
+        console.error('[Admin Travelers Update] APIS sync failed:', err);
+      });
+    }
 
     return NextResponse.json({
       ok: true,
@@ -159,6 +179,88 @@ export async function GET(
     console.error('[Admin Travelers Get] Error:', error);
     return NextResponse.json(
       { ok: false, error: error.message || 'Failed to fetch traveler' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { travelerId: string } }
+) {
+  try {
+    const session = await getSession();
+    if (!session?.userId) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // 관리자 권한 체크
+    const user = await prisma.user.findUnique({
+      where: { id: Number(session.userId) },
+      select: { role: true },
+    });
+
+    if (!user || !['admin', 'superadmin'].includes(user.role || '')) {
+      return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+    }
+
+    const travelerId = parseInt(params.travelerId);
+    if (isNaN(travelerId)) {
+      return NextResponse.json({ ok: false, error: 'Invalid traveler ID' }, { status: 400 });
+    }
+
+    // 여행자 존재 여부 확인 및 tripId 가져오기
+    const existingTraveler = await prisma.traveler.findUnique({
+      where: { id: travelerId },
+      include: {
+        Reservation: {
+          select: {
+            id: true,
+            Trip: { select: { id: true } }
+          }
+        }
+      }
+    });
+
+    if (!existingTraveler) {
+      return NextResponse.json({ ok: false, error: 'Traveler not found' }, { status: 404 });
+    }
+
+    const reservationId = existingTraveler.reservationId;
+    const tripId = existingTraveler.Reservation?.Trip?.id;
+
+    // 여행자 삭제
+    await prisma.traveler.delete({
+      where: { id: travelerId },
+    });
+
+    // 예약의 총 인원 수 업데이트
+    if (reservationId) {
+      const travelerCount = await prisma.traveler.count({
+        where: { reservationId },
+      });
+
+      await prisma.reservation.update({
+        where: { id: reservationId },
+        data: { totalPeople: travelerCount },
+      });
+    }
+
+    // APIS 동기화 (비동기)
+    if (tripId) {
+      syncApisSpreadsheet(tripId).catch(err => {
+        console.error('[Admin Travelers Delete] APIS sync failed:', err);
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: 'Traveler deleted successfully',
+    });
+  } catch (error: any) {
+    console.error('[Admin Travelers Delete] Error:', error);
+    return NextResponse.json(
+      { ok: false, error: error.message || 'Failed to delete traveler' },
       { status: 500 }
     );
   }

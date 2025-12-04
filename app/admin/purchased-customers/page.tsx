@@ -304,8 +304,71 @@ export default function AdminPurchasedCustomersPage() {
       expiryDate: traveler.expiryDate || '',
       gender: traveler.gender || '',
       residentNum: traveler.residentNum || '', // 주민번호
+      roomNumber: traveler.roomNumber || null, // 객실 번호
       notes: traveler.notes || '',             // 비고
     });
+  };
+
+  // 여행자 추가
+  const [addingTraveler, setAddingTraveler] = useState(false);
+  const handleAddTraveler = async () => {
+    if (!selectedReservation) return;
+
+    try {
+      setAddingTraveler(true);
+      const response = await fetch(`/api/admin/travelers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          reservationId: selectedReservation.id,
+          korName: '',
+          roomNumber: 1,
+        }),
+      });
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('여행자가 추가되었습니다.');
+        // 상세 모달 새로고침
+        handleOpenDetailModal(selectedReservation);
+      } else {
+        showError(data.error || '여행자 추가에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('여행자 추가 실패:', error);
+      showError('여행자 추가 중 오류가 발생했습니다.');
+    } finally {
+      setAddingTraveler(false);
+    }
+  };
+
+  // 여행자 삭제
+  const [deletingTraveler, setDeletingTraveler] = useState<number | null>(null);
+  const handleDeleteTraveler = async (travelerId: number) => {
+    if (!confirm('정말 이 여행자를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+
+    try {
+      setDeletingTraveler(travelerId);
+      const response = await fetch(`/api/admin/travelers/${travelerId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('여행자가 삭제되었습니다.');
+        // 상세 모달 새로고침
+        if (selectedReservation) {
+          handleOpenDetailModal(selectedReservation);
+        }
+      } else {
+        showError(data.error || '여행자 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('여행자 삭제 실패:', error);
+      showError('여행자 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingTraveler(null);
+    }
   };
 
   const handleSaveTraveler = async (travelerId: number) => {
@@ -847,7 +910,17 @@ export default function AdminPurchasedCustomersPage() {
 
                   {/* 여행자 정보 (APIS) - 수정 가능 */}
                   <div className="rounded-lg border border-gray-200 bg-white p-4">
-                    <h4 className="mb-3 text-lg font-semibold text-gray-900">여행자 정보 (APIS) - 클릭하여 수정</h4>
+                    <div className="mb-3 flex items-center justify-between">
+                      <h4 className="text-lg font-semibold text-gray-900">여행자 정보 (APIS) - 클릭하여 수정</h4>
+                      <button
+                        onClick={handleAddTraveler}
+                        disabled={addingTraveler}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {addingTraveler ? <FiRefreshCw className="animate-spin" /> : '+'}
+                        여행자 추가
+                      </button>
+                    </div>
                     {selectedReservation.travelers && selectedReservation.travelers.length > 0 ? (
                       <div className="space-y-4">
                         {selectedReservation.travelers.map((traveler, index) => (
@@ -879,13 +952,23 @@ export default function AdminPurchasedCustomersPage() {
                                   </button>
                                 </div>
                               ) : (
-                                <button
-                                  onClick={() => handleEditTraveler(traveler)}
-                                  className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-                                >
-                                  <FiEdit />
-                                  수정
-                                </button>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => handleEditTraveler(traveler)}
+                                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
+                                  >
+                                    <FiEdit />
+                                    수정
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteTraveler(traveler.id)}
+                                    disabled={deletingTraveler === traveler.id}
+                                    className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                                  >
+                                    {deletingTraveler === traveler.id ? <FiRefreshCw className="animate-spin" /> : <FiX />}
+                                    삭제
+                                  </button>
+                                </div>
                               )}
                             </div>
 
@@ -990,8 +1073,19 @@ export default function AdminPurchasedCustomersPage() {
                                     className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                                   />
                                 </div>
+                                <div>
+                                  <label className="text-sm font-medium text-gray-500">객실 번호</label>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={travelerForm.roomNumber || ''}
+                                    onChange={(e) => setTravelerForm({ ...travelerForm, roomNumber: parseInt(e.target.value) || null })}
+                                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                    placeholder="1"
+                                  />
+                                </div>
                                 {/* 비고 - 전체 너비 */}
-                                <div className="md:col-span-4">
+                                <div className="md:col-span-3">
                                   <label className="text-sm font-medium text-gray-500">비고 (뒤늦게 일행 신청 등 메모)</label>
                                   <textarea
                                     value={travelerForm.notes || ''}

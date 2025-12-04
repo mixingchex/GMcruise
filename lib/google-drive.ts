@@ -397,6 +397,12 @@ export async function deleteFileFromDrive(
           }
         }
       }
+    } else if (fileIdOrUrl.includes('lh3.googleusercontent.com')) {
+      // 형식 4: https://lh3.googleusercontent.com/d/xxx
+      const idPathMatch = fileIdOrUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (idPathMatch) {
+        fileId = idPathMatch[1];
+      }
     }
 
     console.log(`[GoogleDrive] Attempting to delete file: ${fileId}`);

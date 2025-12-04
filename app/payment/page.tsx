@@ -6,15 +6,12 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { FiCreditCard, FiUser, FiMail, FiPhone, FiLock } from 'react-icons/fi';
 
-interface PaymentPageProps {
-  productCode: string;
-  productName: string;
-  amount: number;
-}
-
-function PaymentPageContent({ productCode, productName, amount }: PaymentPageProps) {
+function PaymentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const productCode = searchParams.get('productCode') || '';
+  const productName = searchParams.get('productName') || '상품';
+  const amount = parseInt(searchParams.get('amount') || '0', 10);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [formData, setFormData] = useState({
@@ -261,10 +258,10 @@ function PaymentPageContent({ productCode, productName, amount }: PaymentPagePro
   );
 }
 
-export default function PaymentPage(props: PaymentPageProps) {
+export default function PaymentPage() {
   return (
     <Suspense fallback={<div className="flex min-h-screen items-center justify-center">로딩 중...</div>}>
-      <PaymentPageContent {...props} />
+      <PaymentPageContent />
     </Suspense>
   );
 }

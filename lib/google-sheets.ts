@@ -237,21 +237,9 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
     });
 
     // 4. Prepare Data - 예약별로 처리
-    // 먼저 cabinType별로 그룹 번호 부여 (발코니1, 발코니2, ...)
-    // 같은 cabinType을 가진 예약들을 순서대로 번호 매김
-    const cabinTypeCountMap = new Map<string, number>(); // cabinType별 현재 그룹 번호
-    const reservationCategoryMap = new Map<number, string>(); // reservationId → 카테고리 (발코니1 등)
-
-    for (const reservation of trip.Reservation) {
-      const cabinType = reservation.cabinType || '기타';
-      const currentCount = cabinTypeCountMap.get(cabinType) || 0;
-      const groupNumber = currentCount + 1;
-      cabinTypeCountMap.set(cabinType, groupNumber);
-
-      // 카테고리: "발코니1", "오션뷰2" 등
-      const category = `${cabinType}${groupNumber}`;
-      reservationCategoryMap.set(reservation.id, category);
-    }
+    // 카테고리 = cabinType + roomNumber (예: 발코니1, 발코니2, 오션뷰1)
+    // roomNumber는 Traveler에 있으므로, 같은 방 번호를 가진 여행자들이 같은 그룹
+    // 예약(Reservation)의 cabinType과 여행자(Traveler)의 roomNumber를 조합
 
     interface RowUpdate {
       type: 'update' | 'insert';
@@ -265,10 +253,13 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
 
     for (const reservation of trip.Reservation) {
       const userPhone = reservation.User?.phone || '';
-      // 카테고리: "발코니1", "오션뷰2" 등 (같은 객실종류 내에서 그룹 번호 부여)
-      const category = reservationCategoryMap.get(reservation.id) || '';
+      const cabinType = reservation.cabinType || '기타';
 
       for (const traveler of reservation.Traveler) {
+        // 카테고리 = cabinType + roomNumber (예: 발코니1, 오션뷰2)
+        // 같은 방(roomNumber)을 사용하는 여행자들은 같은 카테고리 그룹
+        const roomNum = traveler.roomNumber || 1;
+        const category = `${cabinType}${roomNum}`;
         const travelerName = traveler.korName || '';
         const personKey = `${travelerName}|${userPhone}`;
 

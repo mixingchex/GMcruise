@@ -12,6 +12,32 @@ import ImageLibraryModal from '@/components/partner/ImageLibraryModal';
 
 import { getProxyImageUrl } from '@/lib/utils';
 
+// 텍스트에서 URL을 찾아 클릭 가능한 링크로 변환하는 함수
+function renderTextWithLinks(text: string) {
+  // URL 패턴 매칭 (http, https, www로 시작하는 링크)
+  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  const parts = text.split(urlPattern);
+
+  return parts.map((part, index) => {
+    if (part.match(urlPattern)) {
+      const href = part.startsWith('www.') ? `https://${part}` : part;
+      return (
+        <a
+          key={index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 underline break-all"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
 type SnsProfileClientProps = {
   user: {
     id: number;
@@ -40,6 +66,59 @@ interface Schedule {
 export default function SnsProfileClient({ user, profile }: SnsProfileClientProps) {
   const [loading, setLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
+
+  // 이미지 압축 함수
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          // 최대 크기 설정 (1200px)
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error('이미지 압축 실패'));
+            }
+          }, 'image/jpeg', 0.8); // JPEG 품질 0.8
+        };
+        img.onerror = (error) => reject(error);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
 
   // JSON 필드 파싱 함수들
   const parseCustomLinks = (): CustomLink[] => {
@@ -353,8 +432,29 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
 
     setImageUploading(true);
     try {
+      // 이미지 압축 (프로필 이미지는 자동 압축)
+      let fileToUpload = file;
+      if (target === 'profile') {
+        try {
+          showSuccess('이미지 최적화 중...');
+          fileToUpload = await compressImage(file);
+        } catch (error) {
+          console.error('Image compression failed:', error);
+          // 압축 실패 시 원본 사용 (단, 용량 체크는 서버에서 처리됨)
+        }
+      } else {
+        // 갤러리/대표 이미지는 이미 라이브러리 선택으로 변경되었지만, 
+        // 혹시 모를 직접 업로드 시 용량 체크 유지
+        if (file.size > 4 * 1024 * 1024) {
+          showError('파일 크기는 4MB를 초과할 수 없습니다.');
+          setImageUploading(false);
+          e.target.value = '';
+          return;
+        }
+      }
+
       const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
+      uploadFormData.append('file', fileToUpload);
 
       const res = await fetch('/api/partner/profile/upload-image', {
         method: 'POST',
@@ -418,6 +518,12 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
   };
 
   const handleGalleryImageUpload = async (index: number, file: File) => {
+    // 파일 크기 체크 (4MB)
+    if (file.size > 4 * 1024 * 1024) {
+      showError('파일 크기는 4MB를 초과할 수 없습니다.');
+      return;
+    }
+
     setImageUploading(true);
     try {
       const uploadFormData = new FormData();
@@ -459,6 +565,12 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
   };
 
   const handleFeaturedImageUpload = async (index: number, file: File) => {
+    // 파일 크기 체크 (4MB)
+    if (file.size > 4 * 1024 * 1024) {
+      showError('파일 크기는 4MB를 초과할 수 없습니다.');
+      return;
+    }
+
     setImageUploading(true);
     try {
       const uploadFormData = new FormData();
@@ -1002,7 +1114,7 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                                       </span>
                                     </div>
                                     <p className="font-bold text-sm text-gray-900">{schedule.title}</p>
-                                    {schedule.description && <p className="text-xs text-gray-600 mt-1">{schedule.description}</p>}
+                                    {schedule.description && <p className="text-xs text-gray-600 mt-1">{renderTextWithLinks(schedule.description)}</p>}
                                   </div>
                                   <button
                                     type="button"
@@ -1215,34 +1327,20 @@ function GalleryImageManager({
               </button>
             </>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center">
-              <label className="cursor-pointer p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors mb-1" title="이미지 업로드">
-                <FiUpload className="w-5 h-5 text-gray-600" />
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/gif,image/webp"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) onUpload(index, file);
-                    e.target.value = '';
-                  }}
-                  disabled={uploading}
-                  className="hidden"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={onOpenImageLibrary}
-                className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-                title="라이브러리에서 선택"
-              >
-                <FiImage className="w-5 h-5 text-gray-600" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onOpenImageLibrary}
+              className="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title="라이브러리에서 선택"
+            >
+              <FiImage className="w-8 h-8 mb-2" />
+              <span className="text-xs">라이브러리 선택</span>
+            </button>
           )}
         </div>
-      ))}
-    </div>
+      ))
+      }
+    </div >
   );
 }
 
@@ -1380,35 +1478,20 @@ function FeaturedImageManager({
                 </button>
               </>
             ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center">
-                <label className="cursor-pointer p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors mb-1" title="이미지 업로드">
-                  <FiUpload className="w-5 h-5 text-gray-600" />
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) onUpload(index, file);
-                      e.target.value = '';
-                    }}
-                    disabled={uploading}
-                    className="hidden"
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={onOpenImageLibrary}
-                  className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-                  title="라이브러리에서 선택"
-                >
-                  <FiImage className="w-5 h-5 text-gray-600" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={onOpenImageLibrary}
+                className="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                title="라이브러리에서 선택"
+              >
+                <FiImage className="w-8 h-8 mb-2" />
+                <span className="text-xs">라이브러리 선택</span>
+              </button>
             )}
           </div>
         ))}
       </div>
-    </div>
+    </div >
   );
 }
 
@@ -1807,34 +1890,7 @@ function MobilePreview({ profile }: {
                     </div>
                   )}
 
-                  {/* 일정 및 알림 (캘린더) */}
-                  {profile.schedules && profile.schedules.length > 0 && (
-                    <div className="bg-white rounded-3xl shadow-xl p-4 mb-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <FiCalendar className="w-4 h-4 text-purple-600" />
-                        <h2 className="text-lg font-bold text-gray-900">일정 및 알림</h2>
-                      </div>
-                      <div className="flex justify-center">
-                        <DayPicker
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={handleDateSelect}
-                          locale={ko}
-                          modifiers={{
-                            hasSchedule: (date) => profile.schedules?.some(s => s.date === format(date, 'yyyy-MM-dd')) || false,
-                          }}
-                          modifiersClassNames={{
-                            hasSchedule: 'font-bold text-purple-600 after:content-["•"] after:block after:text-purple-600 after:text-xs after:-mt-1',
-                            selected: 'bg-purple-600 text-white',
-                          }}
-                          styles={{
-                            caption: { color: '#4b5563' },
-                            head_cell: { color: '#6b7280' },
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
+
 
                   {/* 판매몰 상품 */}
                   {profile.mallUserId && (
@@ -1948,6 +2004,35 @@ function MobilePreview({ profile }: {
                           등록된 상품이 없습니다.
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {/* 일정 및 알림 (캘린더) - 맨 하단으로 이동 */}
+                  {profile.schedules && profile.schedules.length > 0 && (
+                    <div className="bg-white rounded-3xl shadow-xl p-4 mb-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <FiCalendar className="w-4 h-4 text-purple-600" />
+                        <h2 className="text-lg font-bold text-gray-900">일정 및 알림</h2>
+                      </div>
+                      <div className="flex justify-center">
+                        <DayPicker
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={handleDateSelect}
+                          locale={ko}
+                          modifiers={{
+                            hasSchedule: (date) => profile.schedules?.some(s => s.date === format(date, 'yyyy-MM-dd')) || false,
+                          }}
+                          modifiersClassNames={{
+                            hasSchedule: 'font-bold text-purple-600 after:content-["•"] after:block after:text-purple-600 after:text-xs after:-mt-1',
+                            selected: 'bg-purple-600 text-white',
+                          }}
+                          styles={{
+                            caption: { color: '#4b5563' },
+                            head_cell: { color: '#6b7280' },
+                          }}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2087,7 +2172,7 @@ function MobilePreview({ profile }: {
                   </div>
                   <h4 className="font-bold text-gray-900 mb-1">{schedule.title}</h4>
                   {schedule.description && (
-                    <p className="text-sm text-gray-600">{schedule.description}</p>
+                    <p className="text-sm text-gray-600">{renderTextWithLinks(schedule.description)}</p>
                   )}
                 </div>
               ))}

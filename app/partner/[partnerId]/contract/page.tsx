@@ -44,3 +44,4 @@ export default async function PartnerContractPage({ params }: { params: Promise<
     redirect('/partner');
   }
 }
+

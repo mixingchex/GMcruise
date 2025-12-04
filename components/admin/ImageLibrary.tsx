@@ -106,12 +106,17 @@ export default function ImageLibrary({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentFolderId, activeTab, cruiseCurrentPath]);
 
-    const loadImages = async () => {
+    const loadImages = async (forceRefresh = false) => {
         try {
             setIsLoading(true);
-            const url = currentFolderId
+            let url = currentFolderId
                 ? `/api/admin/images?folderId=${encodeURIComponent(currentFolderId)}`
                 : '/api/admin/images';
+
+            if (forceRefresh) {
+                url += (url.includes('?') ? '&' : '?') + 'refresh=true';
+            }
+
             const response = await fetch(url);
             const data = await response.json();
 
@@ -183,7 +188,8 @@ export default function ImageLibrary({
                 showSuccess('폴더가 생성되었습니다.');
                 setNewFolderName('');
                 setShowNewFolderInput(false);
-                loadImages(); // 목록 새로고침
+                setShowNewFolderInput(false);
+                loadImages(true); // 목록 새로고침 (강제)
             } else {
                 showError(data.message || '폴더 생성에 실패했습니다.');
             }
@@ -225,7 +231,9 @@ export default function ImageLibrary({
                 showSuccess('폴더 이름이 수정되었습니다.');
                 setEditingFolder(null);
                 setEditFolderName('');
-                loadImages(); // 목록 새로고침
+                setEditingFolder(null);
+                setEditFolderName('');
+                loadImages(true); // 목록 새로고침 (강제)
             } else {
                 showError(data.message || '폴더 이름 수정에 실패했습니다.');
             }
@@ -272,7 +280,9 @@ export default function ImageLibrary({
                 showSuccess('파일이 이동되었습니다.');
                 setShowMoveModal(false);
                 setImageToMove(null);
-                loadImages(); // 목록 새로고침
+                setShowMoveModal(false);
+                setImageToMove(null);
+                loadImages(true); // 목록 새로고침 (강제)
             } else {
                 showError(data.message || '파일 이동에 실패했습니다.');
             }
@@ -326,7 +336,8 @@ export default function ImageLibrary({
         setSelectedImages([]);
         setIsSelectMode(false);
         setIsMovingFile(false);
-        loadImages();
+        setIsMovingFile(false);
+        loadImages(true);
     };
 
     // 이미지 선택 토글
@@ -378,7 +389,8 @@ export default function ImageLibrary({
             if (data.ok) {
                 showSuccess('이미지가 삭제되었습니다.');
                 setSelectedImage(null);
-                loadImages();
+                setSelectedImage(null);
+                loadImages(true);
             } else {
                 showError(data.message || '이미지 삭제에 실패했습니다.');
             }
@@ -435,7 +447,8 @@ export default function ImageLibrary({
 
         setSelectedImages([]);
         setIsSelectMode(false);
-        loadImages();
+        setIsSelectMode(false);
+        loadImages(true);
     };
 
     // 이동 모달 열기
@@ -501,7 +514,9 @@ export default function ImageLibrary({
 
         await Promise.all(uploadPromises);
         setIsUploading(false);
-        loadImages(); // 목록 새로고침
+        await Promise.all(uploadPromises);
+        setIsUploading(false);
+        loadImages(true); // 목록 새로고침 (강제)
     };
 
     const copyToClipboard = async (text: string, type: string) => {
@@ -595,7 +610,7 @@ export default function ImageLibrary({
                     setSelectedImage(null);
                 }
                 // 목록 새로고침
-                loadImages();
+                loadImages(true);
             } else {
                 showError(data.message || '이미지 삭제에 실패했습니다.');
             }

@@ -8,6 +8,32 @@ import { format } from 'date-fns';
 import 'react-day-picker/dist/style.css';
 import { getProxyImageUrl } from '@/lib/utils';
 
+// 텍스트에서 URL을 찾아 클릭 가능한 링크로 변환하는 함수
+function renderTextWithLinks(text: string) {
+  // URL 패턴 매칭 (http, https, www로 시작하는 링크)
+  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  const parts = text.split(urlPattern);
+
+  return parts.map((part, index) => {
+    if (part.match(urlPattern)) {
+      const href = part.startsWith('www.') ? `https://${part}` : part;
+      return (
+        <a
+          key={index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-600 hover:text-blue-800 underline break-all"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {part}
+        </a>
+      );
+    }
+    return <span key={index}>{part}</span>;
+  });
+}
+
 interface Profile {
   id: number;
   displayName: string;
@@ -674,7 +700,7 @@ export default function LittlyLandingPage({ profile }: LittlyLandingPageProps) {
                     </div>
                     <h4 className="font-bold text-gray-900 mb-1">{schedule.title}</h4>
                     {schedule.description && (
-                      <p className="text-sm text-gray-600">{schedule.description}</p>
+                      <p className="text-sm text-gray-600">{renderTextWithLinks(schedule.description)}</p>
                     )}
                   </div>
                 ))}
