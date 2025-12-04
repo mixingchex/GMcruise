@@ -84,19 +84,31 @@ export default function Certificate({ type }: CertificateProps) {
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   // 상품 검색 관련
-  const [productSuggestions, setProductSuggestions] = useState<{ id: string, title: string }[]>([]);
+  const [productSuggestions, setProductSuggestions] = useState<{ id: string, productCode: string, title: string, basePrice: number }[]>([]);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [isLoadingProductInfo, setIsLoadingProductInfo] = useState(false);
+  const productInputRef = useRef<HTMLInputElement>(null);
+  const productSuggestionsRef = useRef<HTMLDivElement>(null);
 
-  // 상품 목록 불러오기
+  // 상품 목록 불러오기 (판매 중인 상품)
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const response = await fetch('/api/products?status=visible');
+        const response = await fetch('/api/admin/products?status=visible&limit=100', {
+          credentials: 'include',
+        });
         if (response.ok) {
           const result = await response.json();
-          if (result.products) {
-            setProductSuggestions(result.products.map((p: any) => ({ id: p.id, title: p.title })));
+          if (result.ok && result.products) {
+            setProductSuggestions(result.products.map((p: any) => ({
+              id: p.id,
+              productCode: p.productCode,
+              title: p.packageName || p.title || p.productCode,
+              basePrice: p.basePrice || 0,
+            })));
+            console.log('[Certificate] Products loaded:', result.products.length);
           }
         }
       } catch (error) {
@@ -104,6 +116,95 @@ export default function Certificate({ type }: CertificateProps) {
       }
     };
     fetchProducts();
+  }, []);
+
+  // 상품 선택 시 상세 정보 불러오기
+  const loadProductDetails = useCallback(async (productCode: string) => {
+    setIsLoadingProductInfo(true);
+    try {
+      const response = await fetch(`/api/admin/products/${productCode}`, {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.ok && result.product) {
+          const product = result.product;
+          console.log('[Certificate] Product details loaded:', product);
+
+          // 결제금액 자동 설정
+          setData(prev => ({
+            ...prev,
+            paymentAmount: product.basePrice || 0,
+          }));
+
+          // 상품 상세 정보 설정
+          setProductDetails({
+            tags: product.tags || [],
+            visitedCountries: product.visitedCountries || [],
+            destinations: product.destinations || [],
+            nights: product.nights,
+            days: product.days,
+            cruiseLine: product.cruiseLine,
+            shipName: product.shipName,
+            included: product.included || [],
+            excluded: product.excluded || [],
+            refundPolicy: product.refundPolicy || '',
+            flightInfo: product.flightInfo,
+            hasGuide: product.hasGuide || false,
+            hasEscort: product.hasEscort || false,
+            hasCruiseDotStaff: product.hasCruiseDotStaff || false,
+            hasTravelInsurance: product.hasTravelInsurance || false,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[Certificate] Load product details error:', error);
+      showError('상품 정보를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoadingProductInfo(false);
+    }
+  }, []);
+
+  // 상품 선택 핸들러
+  const handleProductSelect = (product: { id: string, productCode: string, title: string, basePrice: number }) => {
+    setProductSearchQuery(product.title);
+    setData(prev => ({ ...prev, productName: product.title }));
+    setSelectedProductId(product.id);
+    setShowProductSuggestions(false);
+    loadProductDetails(product.productCode);
+  };
+
+  // 상품 검색 입력 핸들러
+  const handleProductSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setProductSearchQuery(value);
+    setData(prev => ({ ...prev, productName: value }));
+    setShowProductSuggestions(true);
+    // 수동 입력 시 상품 상세 정보 초기화
+    if (selectedProductId) {
+      setSelectedProductId(null);
+      setProductDetails(null);
+    }
+  };
+
+  // 상품 드롭다운 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        productSuggestionsRef.current &&
+        !productSuggestionsRef.current.contains(event.target as Node) &&
+        productInputRef.current &&
+        !productInputRef.current.contains(event.target as Node)
+      ) {
+        setShowProductSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   // 오늘 날짜 자동 생성 (202X년 X월 X일 형식)
@@ -135,6 +236,9 @@ export default function Certificate({ type }: CertificateProps) {
     setShowSuggestions(false);
     setSelectedCustomerId(null);
     setProductDetails(null);
+    setProductSearchQuery('');
+    setSelectedProductId(null);
+    setShowProductSuggestions(false);
     setIssueDate(getTodayDate());
     setIsCertified(false);
     setIsCertifying(false);
@@ -665,38 +769,83 @@ export default function Certificate({ type }: CertificateProps) {
           <div className="md:col-span-2 relative">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               상품명 <span className="text-red-500">*</span>
+              {selectedProductId && (
+                <span className="ml-2 text-xs text-green-600 font-semibold">✓ 선택됨</span>
+              )}
             </label>
             <div className="relative">
               <input
+                ref={productInputRef}
                 type="text"
-                value={data.productName}
-                onChange={(e) => {
-                  setData(prev => ({ ...prev, productName: e.target.value }));
-                  setShowProductSuggestions(true);
+                value={productSearchQuery || data.productName}
+                onChange={handleProductSearchChange}
+                onFocus={() => {
+                  if (productSuggestions.length > 0) {
+                    setShowProductSuggestions(true);
+                  }
                 }}
-                onFocus={() => setShowProductSuggestions(true)}
-                placeholder="상품명 검색 또는 직접 입력"
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                placeholder="상품명 검색 (클릭하여 선택)..."
+                className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 pr-24"
               />
-              {showProductSuggestions && productSuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                  {productSuggestions
-                    .filter(p => p.title.toLowerCase().includes(data.productName.toLowerCase()))
-                    .map((product) => (
-                      <div
-                        key={product.id}
-                        onClick={() => {
-                          setData(prev => ({ ...prev, productName: product.title }));
-                          setShowProductSuggestions(false);
-                        }}
-                        className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm text-gray-700"
-                      >
-                        {product.title}
-                      </div>
-                    ))}
+              {isLoadingProductInfo && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <div className="animate-spin h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+                  <span className="text-xs text-gray-500">로딩 중...</span>
                 </div>
               )}
             </div>
+            {showProductSuggestions && productSuggestions.length > 0 && (
+              <div
+                ref={productSuggestionsRef}
+                className="absolute z-50 w-full mt-2 bg-white border-2 border-indigo-200 rounded-lg shadow-xl max-h-64 overflow-y-auto"
+              >
+                <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-200 text-xs font-semibold text-indigo-700">
+                  {productSuggestions.filter(p =>
+                    !productSearchQuery || p.title.toLowerCase().includes(productSearchQuery.toLowerCase())
+                  ).length}개 상품 (클릭하여 선택)
+                </div>
+                {productSuggestions
+                  .filter(p => !productSearchQuery || p.title.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                  .map((product) => (
+                    <div
+                      key={product.id}
+                      onClick={() => handleProductSelect(product)}
+                      className="px-4 py-3 hover:bg-indigo-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900 text-sm">{product.title}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            기본가: {product.basePrice.toLocaleString()}원
+                          </div>
+                        </div>
+                        <div className="ml-2 text-indigo-600 font-medium text-sm">
+                          선택 →
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+            {selectedProductId && data.productName && (
+              <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-green-600 font-semibold text-sm">✓ 선택된 상품:</span>
+                  <span className="text-gray-900 font-medium">{data.productName}</span>
+                  <button
+                    onClick={() => {
+                      setProductSearchQuery('');
+                      setSelectedProductId(null);
+                      setData(prev => ({ ...prev, productName: '', paymentAmount: 0 }));
+                      setProductDetails(null);
+                    }}
+                    className="ml-auto text-xs text-red-600 hover:text-red-700 font-medium"
+                  >
+                    다시 선택
+                  </button>
+                </div>
+              </div>
+            )}
             {productDetails && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="font-semibold text-gray-900 mb-3">상품 상세 정보</h4>

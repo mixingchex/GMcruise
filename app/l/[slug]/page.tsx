@@ -12,10 +12,25 @@ export default async function LittlyPage({ params }: LittlyPageProps) {
   const resolvedParams = await params;
   const slug = resolvedParams.slug;
 
-  // 프로필 찾기
+  // 프로필 찾기 (schedules 필드 포함)
   const profile = await prisma.affiliateProfile.findFirst({
     where: { littlyLinkSlug: slug },
-    include: {
+    select: {
+      id: true,
+      displayName: true,
+      bio: true,
+      profileImage: true,
+      kakaoLink: true,
+      instagramHandle: true,
+      youtubeChannel: true,
+      blogLink: true,
+      threadLink: true,
+      customLinks: true,
+      galleryImages: true,
+      featuredImages: true,
+      youtubeVideoUrl: true,
+      littlyLinkSlug: true,
+      schedules: true,
       User: {
         select: {
           id: true,
@@ -82,6 +97,19 @@ export default async function LittlyPage({ params }: LittlyPageProps) {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
+  // 일정 데이터 파싱
+  let schedules: Array<{ date: string; title: string; type: 'cruise' | 'live' | 'other'; description?: string }> = [];
+  if (profile.schedules) {
+    try {
+      const parsed = typeof profile.schedules === 'string'
+        ? JSON.parse(profile.schedules)
+        : profile.schedules;
+      schedules = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      schedules = [];
+    }
+  }
+
   return (
     <LittlyLandingPage
       profile={{
@@ -109,6 +137,7 @@ export default async function LittlyPage({ params }: LittlyPageProps) {
             return [profile.youtubeVideoUrl];
           }
         })(),
+        schedules,
       }}
     />
   );

@@ -1,8 +1,8 @@
 'use client';
 
 // 결제 체크아웃 페이지
-// PC: INIStdPay.js를 이용한 Overlay Popup 방식 (매뉴얼 정석)
-// Mobile: 순수 Form Submit으로 PG 결제 페이지로 이동
+// PC/Mobile 모두 순수 Form Submit으로 PG 결제 페이지로 이동 (redirect 방식)
+// 팝업 차단 문제 없이 안정적으로 결제 페이지로 이동
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -22,15 +22,6 @@ interface PaymentData {
   metadata: any;
 }
 
-// INIStdPay 전역 타입 선언
-declare global {
-  interface Window {
-    INIStdPay?: {
-      pay: (formId: string) => void;
-    };
-  }
-}
-
 function PaymentCheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -43,8 +34,6 @@ function PaymentCheckoutContent() {
   const [selectedEasyPay, setSelectedEasyPay] = useState<EasyPayCode[]>([]);
   const [isClient, setIsClient] = useState(false);
   const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
-  const [isScriptLoaded, setIsScriptLoaded] = useState(false);
-  const [scriptError, setScriptError] = useState<string | null>(null);
 
   // 클라이언트 마운트 확인
   useEffect(() => {
@@ -63,53 +52,6 @@ function PaymentCheckoutContent() {
     setIsMobile(mobile);
     console.log('[Checkout] Device detected:', mobile ? 'Mobile' : 'PC');
   }, [isClient]);
-
-  // PC 전용: INIStdPay.js 스크립트 로드 (운영 환경 URL 고정)
-  useEffect(() => {
-    if (!isClient || isMobile === null || isMobile) return;
-
-    // PC 환경에서만 스크립트 로드
-    console.log('[Checkout] Loading INIStdPay.js for PC...');
-
-    // 이미 로드된 경우 체크
-    if (window.INIStdPay) {
-      console.log('[Checkout] INIStdPay already loaded');
-      setIsScriptLoaded(true);
-      return;
-    }
-
-    // 운영 환경 URL 하드코딩 (환경변수 조건문 제거)
-    const scriptUrl = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
-
-    const script = document.createElement('script');
-    script.src = scriptUrl;
-    script.async = true;
-
-    script.onload = () => {
-      console.log('[Checkout] INIStdPay.js loaded successfully');
-      // 스크립트 로드 후 실제 객체 확인
-      if (window.INIStdPay) {
-        setIsScriptLoaded(true);
-        setScriptError(null);
-      } else {
-        console.error('[Checkout] INIStdPay object not found after script load');
-        setScriptError('결제 모듈 초기화에 실패했습니다.');
-      }
-    };
-
-    script.onerror = () => {
-      console.error('[Checkout] INIStdPay.js load failed');
-      setScriptError('결제 모듈을 불러오지 못했습니다. 광고 차단 기능을 끄거나 페이지를 새로고침 해주세요.');
-      setIsScriptLoaded(false);
-    };
-
-    document.head.appendChild(script);
-
-    return () => {
-      // Cleanup: 스크립트 제거 (선택사항)
-      // document.head.removeChild(script);
-    };
-  }, [isClient, isMobile]);
 
   // 결제 데이터 로드
   useEffect(() => {
@@ -166,22 +108,14 @@ function PaymentCheckoutContent() {
     );
   };
 
-  // 결제 실행
+  // 결제 실행 - PC/Mobile 모두 Form Submit 방식 (redirect)
   const handlePayment = useCallback(async () => {
     if (!paymentData || isPaymentProcessing) return;
-
-    // PC 환경: INIStdPay 스크립트 로드 여부 확인 (매뉴얼 방어 코드)
-    if (!isMobile) {
-      if (typeof window.INIStdPay === 'undefined') {
-        alert('결제 모듈이 로딩되지 않았습니다. 페이지를 새로고침하거나 브라우저의 광고 차단 기능을 꺼주세요.');
-        return; // 함수 강제 종료 (Submit 방지)
-      }
-    }
 
     setIsPaymentProcessing(true);
 
     try {
-      // 결제 수단에 따른 폼 데이터 재요청
+      // 결제 수단에 따른 폼 데이터 요청
       const response = await fetch('/api/payment/prepare', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,67 +136,24 @@ function PaymentCheckoutContent() {
         return;
       }
 
-      // PC와 Mobile 처리 분기
-      if (isMobile) {
-        // Mobile: 새 폼 생성하여 제출 (Form Submit 방식)
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = data.paymentUrl;
-        form.acceptCharset = 'euc-kr';
-        form.style.display = 'none';
+      // PC/Mobile 모두 동일하게 Form Submit으로 결제 페이지 이동
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = data.paymentUrl;
+      form.acceptCharset = isMobile ? 'euc-kr' : 'UTF-8';
+      form.style.display = 'none';
 
-        Object.entries(data.formData).forEach(([key, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value as string;
-          form.appendChild(input);
-        });
+      Object.entries(data.formData).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value as string;
+        form.appendChild(input);
+      });
 
-        document.body.appendChild(form);
-        console.log('[Checkout] Mobile: Submitting form to:', data.paymentUrl);
-        form.submit();
-      } else {
-        // PC: INIStdPay.pay() 호출 (Overlay Popup 방식 - 매뉴얼 정석)
-        // 동적으로 폼 생성하여 직접 DOM에 추가 (React 상태 업데이트 대기 문제 해결)
-
-        // 기존 폼 제거
-        const existingForm = document.getElementById('SendPayForm_id');
-        if (existingForm) {
-          existingForm.remove();
-        }
-
-        // 새 폼 생성
-        const pcForm = document.createElement('form');
-        pcForm.id = 'SendPayForm_id';
-        pcForm.name = 'SendPayForm_id';
-        pcForm.method = 'POST';
-        pcForm.acceptCharset = 'UTF-8';
-        pcForm.style.display = 'none';
-        // action 속성 없음 (매뉴얼 정석 - 스크립트 로드 실패 시 Submit 방지)
-
-        // 폼 데이터 추가
-        Object.entries(data.formData).forEach(([key, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value as string;
-          pcForm.appendChild(input);
-        });
-
-        document.body.appendChild(pcForm);
-
-        console.log('[Checkout] PC: Form created with fields:', Object.keys(data.formData));
-
-        // 즉시 결제 호출 (DOM에 폼이 추가된 직후)
-        if (window.INIStdPay) {
-          console.log('[Checkout] PC: Calling INIStdPay.pay("SendPayForm_id")');
-          window.INIStdPay.pay('SendPayForm_id');
-        } else {
-          alert('결제 모듈이 로딩되지 않았습니다. 페이지를 새로고침 해주세요.');
-          setIsPaymentProcessing(false);
-        }
-      }
+      document.body.appendChild(form);
+      console.log('[Checkout] Submitting form to:', data.paymentUrl, 'isMobile:', isMobile);
+      form.submit();
 
     } catch (err) {
       console.error('[Checkout] Payment error:', err);
@@ -307,26 +198,12 @@ function PaymentCheckoutContent() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-lg mx-auto">
-        {/* PC 스크립트 로드 오류 경고 */}
-        {!isMobile && scriptError && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-            <p className="text-yellow-800 text-sm">{scriptError}</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="mt-2 text-yellow-600 underline text-sm"
-            >
-              페이지 새로고침
-            </button>
-          </div>
-        )}
-
         {/* 결제 정보 카드 */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
             <h1 className="text-xl font-bold text-white">결제하기</h1>
             <p className="text-blue-100 text-sm mt-1">
               {isMobile ? '모바일 결제' : 'PC 결제'}
-              {!isMobile && isScriptLoaded && ' (결제 모듈 로드됨)'}
             </p>
           </div>
 
@@ -464,25 +341,17 @@ function PaymentCheckoutContent() {
               </div>
             )}
 
-            {/* PC 전용 폼은 handlePayment에서 동적으로 생성됨 (React 렌더링 대기 문제 해결) */}
-            {/* 매뉴얼 18p: Form ID는 반드시 SendPayForm_id, action 속성 없음 */}
-
-            {/* 결제 버튼 - type="button"으로 폼 자동 제출 방지 */}
+            {/* 결제 버튼 */}
             <button
               type="button"
               onClick={handlePayment}
-              disabled={isPaymentProcessing || (!isMobile && !isScriptLoaded && !scriptError)}
+              disabled={isPaymentProcessing}
               className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isPaymentProcessing ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                  {isMobile ? '결제 페이지로 이동 중...' : '결제창 로딩 중...'}
-                </span>
-              ) : !isMobile && !isScriptLoaded && !scriptError ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                  결제 모듈 로딩 중...
+                  결제 페이지로 이동 중...
                 </span>
               ) : (
                 `${paymentData.amount.toLocaleString()}원 결제하기`
@@ -490,9 +359,7 @@ function PaymentCheckoutContent() {
             </button>
 
             <p className="text-xs text-gray-500 text-center mt-4">
-              {isMobile
-                ? '결제 버튼 클릭 시 웰컴페이먼츠 결제 페이지로 이동합니다.'
-                : '결제 버튼 클릭 시 결제창이 열립니다.'}
+              결제 버튼 클릭 시 웰컴페이먼츠 결제 페이지로 이동합니다.
             </p>
           </div>
         </div>
