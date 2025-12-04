@@ -35,20 +35,12 @@ declare global {
 }
 
 // ==========================================
-// 웰컴페이먼츠 스크립트 URL (하드코딩 - 환경변수 의존 제거)
+// 웰컴페이먼츠 운영 환경 고정 설정
 // PC_Web_manual 17페이지 참조
 // ==========================================
-// 운영(Production): https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js
-// 테스트(Test):     https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js
+// 환경변수/테스트 분기 없음 - 무조건 운영(Production) 모드
 // ==========================================
-const PC_SCRIPT_URL_PROD = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
-const PC_SCRIPT_URL_TEST = 'https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
-
-// isProduction 판단 (환경변수가 명시적으로 'true'일 때만 운영)
-const IS_PRODUCTION = process.env.NEXT_PUBLIC_WELCOMEPAY_PRODUCTION === 'true';
-
-// 최종 스크립트 URL (절대 환경변수 URL을 사용하지 않음)
-const PC_SCRIPT_URL = IS_PRODUCTION ? PC_SCRIPT_URL_PROD : PC_SCRIPT_URL_TEST;
+const SCRIPT_URL = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
 
 function PaymentCheckoutContent() {
   const searchParams = useSearchParams();
@@ -87,17 +79,14 @@ function PaymentCheckoutContent() {
   }, [isClient]);
 
   // PC용 INIStdPay.js 스크립트 로드 (매뉴얼 Standard 방식: document.createElement)
+  // 운영 환경 고정 - 환경변수 분기 없음
   useEffect(() => {
     if (!isClient || isMobile === null || isMobile) return;
 
-    // 디버깅: 스크립트 URL 확인 (환경변수 미사용 확인)
+    // 디버깅: 스크립트 URL 확인
     console.log('='.repeat(50));
-    console.log('[Checkout] PC Script Loading Debug:');
-    console.log('[Checkout] IS_PRODUCTION:', IS_PRODUCTION);
-    console.log('[Checkout] PC_SCRIPT_URL:', PC_SCRIPT_URL);
-    console.log('[Checkout] Expected URL:', IS_PRODUCTION
-      ? 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js'
-      : 'https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js');
+    console.log('[Checkout] PC Script Loading - 운영모드 고정');
+    console.log('[Checkout] SCRIPT_URL:', SCRIPT_URL);
     console.log('='.repeat(50));
 
     // 이미 로드된 스크립트가 있는지 확인
@@ -115,7 +104,7 @@ function PaymentCheckoutContent() {
     const script = document.createElement('script');
     script.id = 'INIStdPay_script';
     script.type = 'text/javascript';
-    script.src = PC_SCRIPT_URL;
+    script.src = SCRIPT_URL;
     script.charset = 'UTF-8';
 
     script.onload = () => {
@@ -141,8 +130,8 @@ function PaymentCheckoutContent() {
 
     script.onerror = (e) => {
       console.error('[Checkout] Script load error:', e);
-      console.error('[Checkout] Failed URL:', PC_SCRIPT_URL);
-      setScriptError(`결제 스크립트 로드 실패 (URL: ${PC_SCRIPT_URL}). 네트워크 연결을 확인해주세요.`);
+      console.error('[Checkout] Failed URL:', SCRIPT_URL);
+      setScriptError(`결제 스크립트 로드 실패. 브라우저의 광고 차단 기능을 확인해주세요. (URL: ${SCRIPT_URL})`);
       setIsScriptLoaded(false);
     };
 
@@ -180,6 +169,15 @@ function PaymentCheckoutContent() {
         setFormData(data.formData);
         setPaymentUrl(data.paymentUrl);
         setIsLoading(false);
+
+        // MID 값 확인 로그 (운영 MID: wpcrdot200)
+        const mid = data.formData?.mid || data.formData?.P_MID;
+        console.log('='.repeat(50));
+        console.log('[Checkout] MID 확인:');
+        console.log('[Checkout] 현재 MID:', mid);
+        console.log('[Checkout] 운영 MID 일치 여부:', mid === 'wpcrdot200' ? '✅ 정상' : '❌ 불일치');
+        console.log('[Checkout] Form Data:', data.formData);
+        console.log('='.repeat(50));
       } catch (err) {
         console.error('[Checkout] Payment data load error:', err);
         setError('결제 정보를 불러오는 중 오류가 발생했습니다.');
@@ -192,6 +190,22 @@ function PaymentCheckoutContent() {
 
   // 결제 준비 완료 상태
   const isPaymentReady = paymentData && Object.keys(formData).length > 0 && (isMobile || isScriptLoaded);
+
+  // Form 렌더링 및 MID 무결성 확인
+  useEffect(() => {
+    if (!isClient || !formData || Object.keys(formData).length === 0) return;
+
+    const mid = formData.mid || formData.P_MID;
+    const formElement = document.getElementById('SendPayForm_id');
+
+    console.log('='.repeat(50));
+    console.log('[Checkout] Form 무결성 검증:');
+    console.log('[Checkout] Form 존재 여부:', formElement ? '✅ 존재' : '❌ 없음');
+    console.log('[Checkout] MID 값:', mid);
+    console.log('[Checkout] MID 검증:', mid === 'wpcrdot200' ? '✅ 운영 MID 정상' : `❌ 불일치 (기대: wpcrdot200, 실제: ${mid})`);
+    console.log('[Checkout] Form Data 전체:', formData);
+    console.log('='.repeat(50));
+  }, [isClient, formData]);
 
   // 결제 수단 선택
   const handleMethodSelect = (method: PaymentMethod) => {
@@ -314,14 +328,16 @@ function PaymentCheckoutContent() {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-lg mx-auto">
-        {/* 디버그 정보 */}
+        {/* 디버그 정보 (운영모드 고정) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-xs">
+            <p><strong>Mode:</strong> 운영(Production) 고정</p>
             <p><strong>Device:</strong> {isMobile ? 'Mobile' : 'PC'}</p>
-            <p><strong>Script URL:</strong> {PC_SCRIPT_URL}</p>
+            <p><strong>Script URL:</strong> {SCRIPT_URL}</p>
             <p><strong>Script Loaded:</strong> {isScriptLoaded ? 'Yes' : 'No'}</p>
             <p><strong>Script Error:</strong> {scriptError || 'None'}</p>
             <p><strong>Payment Ready:</strong> {isPaymentReady ? 'Yes' : 'No'}</p>
+            <p><strong>MID:</strong> {formData?.mid || formData?.P_MID || 'N/A'}</p>
           </div>
         )}
 
