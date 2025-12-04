@@ -9,15 +9,16 @@ import crypto from 'crypto';
 
 // 테스트/운영 환경 URL
 export const WELCOMEPAY_CONFIG = {
-  // PC Web
+  // PC Web - INIStdPay.js를 통한 결제 (Form Submit이 아님!)
+  PC_SCRIPT_URL: 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js',
   PC_TEST_URL: 'https://tpay.paywelcome.co.kr/smart/wPayStd.jsp',
   PC_PROD_URL: 'https://pay.paywelcome.co.kr/smart/wPayStd.jsp',
 
-  // Mobile Web
+  // Mobile Web - 순수 HTML Form Submit (Action URL로 직접 이동)
   MOBILE_TEST_URL: 'https://tmobile.paywelcome.co.kr',
   MOBILE_PROD_URL: 'https://mobile.paywelcome.co.kr',
 
-  // 결제 수단별 경로
+  // 결제 수단별 경로 (Mobile용)
   MOBILE_PATHS: {
     CARD: '/smart/wcard/',      // 신용카드 (ISP/안심클릭)
     BANK: '/smart/bank/',       // 계좌이체
@@ -110,6 +111,7 @@ export interface PCPaymentForm {
   oid: string;
   goodname: string;
   price: string;
+  currency: string;  // 통화 (WON)
   buyername: string;
   buyertel: string;
   buyeremail: string;
@@ -120,6 +122,7 @@ export interface PCPaymentForm {
   signature: string;
   mKey: string;
   charset: string;
+  payViewType: string;  // 결제창 표시 방식: overlay (팝업 차단 방지)
   gopaymethod?: string;
   offerPeriod?: string;
   acceptmethod?: string;
@@ -188,12 +191,32 @@ export function sha256Hash(data: string): string {
 }
 
 /**
- * Signature 생성 (웰컴페이먼츠 방식)
+ * URL을 HTTPS로 강제 변환
+ * 매뉴얼 1.21 주의사항: P_NEXT_URL은 반드시 https:// 프로토콜이어야 함
+ */
+export function ensureHttps(url: string): string {
+  if (!url) return url;
+  // http://로 시작하면 https://로 변환
+  if (url.startsWith('http://')) {
+    return url.replace('http://', 'https://');
+  }
+  // 프로토콜이 없으면 https:// 추가
+  if (!url.startsWith('https://') && !url.startsWith('http://')) {
+    return `https://${url}`;
+  }
+  return url;
+}
+
+/**
+ * Mobile용 Signature 생성 (웰컴페이먼츠 방식)
  *
+ * 순서: mkey, P_AMT, P_OID, P_TIMESTAMP (순서 중요!)
  * signature = SHA-256("mkey={mkey}&P_AMT={금액}&P_OID={주문번호}&P_TIMESTAMP={타임스탬프}")
  * mkey = SHA-256(signKey)
+ *
+ * 주의: 마지막에 &를 붙이지 않음
  */
-export function generateSignature(
+export function generateMobileSignature(
   signKey: string,
   amount: number,
   orderId: string,
@@ -202,7 +225,7 @@ export function generateSignature(
   // 1. mkey 생성 (signKey를 SHA-256 해시)
   const mkey = sha256Hash(signKey);
 
-  // 2. signature 생성을 위한 문자열 (key=value 형식, 알파벳 순서)
+  // 2. signature 생성을 위한 문자열 (Mobile용: mkey, P_AMT, P_OID, P_TIMESTAMP 순서)
   const signString = `mkey=${mkey}&P_AMT=${amount}&P_OID=${orderId}&P_TIMESTAMP=${timestamp}`;
 
   // 3. 최종 signature (SHA-256)
@@ -217,7 +240,23 @@ export function generateSignature(
 }
 
 /**
+ * @deprecated Use generateMobileSignature instead
+ */
+export function generateSignature(
+  signKey: string,
+  amount: number,
+  orderId: string,
+  timestamp: string
+): SignatureData {
+  return generateMobileSignature(signKey, amount, orderId, timestamp);
+}
+
+/**
  * PC Web Signature 생성
+ *
+ * 순서: mKey, oid, price, timestamp (순서 중요!)
+ * signature = SHA-256("mKey={mkey}&oid={주문번호}&price={금액}&timestamp={타임스탬프}")
+ * mKey = SHA-256(signKey)
  */
 export function generatePCSignature(
   signKey: string,
@@ -227,8 +266,8 @@ export function generatePCSignature(
 ): SignatureData {
   const mkey = sha256Hash(signKey);
 
-  // PC용 signature 문자열 (소문자)
-  const signString = `mkey=${mkey}&oid=${orderId}&price=${amount}&timestamp=${timestamp}`;
+  // PC용 signature 문자열: mKey, oid, price, timestamp 순서
+  const signString = `mKey=${mkey}&oid=${orderId}&price=${amount}&timestamp=${timestamp}`;
   const signature = sha256Hash(signString);
 
   return {
@@ -251,12 +290,15 @@ export function createMobilePaymentForm(
   params: PaymentRequestParams
 ): MobilePaymentForm {
   const timestamp = getTimestamp();
-  const { signature, mkey } = generateSignature(
+  // 중요: signature 생성에 사용된 timestamp와 폼의 P_TIMESTAMP가 반드시 동일해야 함
+  const signatureData = generateMobileSignature(
     config.signKey,
     params.amount,
     params.orderId,
     timestamp
   );
+  const { signature, mkey } = signatureData;
+  // signatureData.timestamp === timestamp 임을 보장 (동일 변수 사용)
 
   // P_RESERVED 옵션 구성
   const reservedOptions: string[] = [
@@ -282,12 +324,16 @@ export function createMobilePaymentForm(
     P_GOODS: params.productName,
     P_MOBILE: params.buyerTel,
     P_EMAIL: params.buyerEmail || '',
-    P_NEXT_URL: params.nextUrl || '',
+    // 매뉴얼 1.21 주의사항: P_NEXT_URL은 반드시 https:// 프로토콜이어야 함
+    P_NEXT_URL: ensureHttps(params.nextUrl || ''),
     P_RETURN_URL: params.returnUrl || '',
-    P_NOTI_URL: params.notiUrl || '',
+    P_NOTI_URL: ensureHttps(params.notiUrl || ''),
     P_TIMESTAMP: timestamp,
     P_SIGNATURE: signature,
     P_MKEY: mkey,
+    // 중요 (매뉴얼 1.13 주의사항):
+    // - 요청(Request): 반드시 EUC-KR 인코딩으로 전송 (Form acceptCharset="euc-kr")
+    // - P_CHARSET: 응답(Response) 수신 시 인코딩 설정 (utf8 = UTF-8로 응답 수신)
     P_CHARSET: 'utf8',
     P_RESERVED: reservedOptions.join('&') + '&',
   };
@@ -323,12 +369,15 @@ export function createPCPaymentForm(
   params: PaymentRequestParams
 ): PCPaymentForm {
   const timestamp = getTimestamp();
-  const { signature, mkey } = generatePCSignature(
+  // 중요: signature 생성에 사용된 timestamp와 폼의 timestamp가 반드시 동일해야 함
+  const signatureData = generatePCSignature(
     config.signKey,
     params.amount,
     params.orderId,
     timestamp
   );
+  const { signature, mkey } = signatureData;
+  // signatureData.timestamp === timestamp 임을 보장 (동일 변수 사용)
 
   // 결제수단 설정
   let gopaymethod = '';
@@ -369,6 +418,7 @@ export function createPCPaymentForm(
     oid: params.orderId,
     goodname: params.productName,
     price: params.amount.toString(),
+    currency: 'WON',                  // 통화 (필수)
     buyername: params.buyerName,
     buyertel: params.buyerTel,
     buyeremail: params.buyerEmail || '',
@@ -379,6 +429,7 @@ export function createPCPaymentForm(
     signature,
     mKey: mkey,
     charset: 'UTF-8',                 // 인코딩 방식
+    payViewType: 'overlay',           // 결제창 표시 방식: overlay (팝업 차단 방지)
   };
 
   // 선택 옵션 추가

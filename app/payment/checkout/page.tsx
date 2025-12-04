@@ -2,8 +2,10 @@
 
 // 결제 체크아웃 페이지 (PC/Mobile 자동 감지)
 // 웰컴페이먼츠 PG 연동
+// - PC: INIStdPay.js 스크립트 로드 후 INIStdPay.pay('form_id') 호출
+// - Mobile: EUC-KR charset Form Submit (Action URL로 직접 이동)
 
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FiCreditCard, FiSmartphone, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
 
@@ -21,12 +23,22 @@ interface PaymentData {
   metadata: any;
 }
 
+// INIStdPay 글로벌 타입 선언
+declare global {
+  interface Window {
+    INIStdPay?: {
+      pay: (formId: string) => void;
+    };
+  }
+}
+
 function PaymentCheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement>(null);
+  const pcFormRef = useRef<HTMLFormElement>(null);
+  const mobileFormRef = useRef<HTMLFormElement>(null);
 
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
@@ -35,6 +47,8 @@ function PaymentCheckoutContent() {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod>('CARD');
   const [selectedEasyPay, setSelectedEasyPay] = useState<EasyPayCode[]>([]);
   const [isClient, setIsClient] = useState(false);
+  const [pcScriptLoaded, setPcScriptLoaded] = useState(false);
+  const [isPaymentReady, setIsPaymentReady] = useState(false);
 
   // 클라이언트 마운트 확인
   useEffect(() => {
@@ -49,18 +63,53 @@ function PaymentCheckoutContent() {
       const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile', 'webos', 'blackberry'];
       return mobileKeywords.some(keyword => userAgent.includes(keyword));
     };
-    setIsMobile(checkMobile());
+    const mobile = checkMobile();
+    setIsMobile(mobile);
+    console.log('[Checkout] Device detected:', mobile ? 'Mobile' : 'PC');
   }, [isClient]);
+
+  // PC용 INIStdPay.js 스크립트 로드
+  useEffect(() => {
+    if (!isClient || isMobile === null || isMobile) return;
+
+    // PC 환경에서만 스크립트 로드
+    const scriptId = 'inistdpay-script';
+    if (document.getElementById(scriptId)) {
+      setPcScriptLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = scriptId;
+    script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
+    script.charset = 'UTF-8';
+    script.async = true;
+
+    script.onload = () => {
+      console.log('[Checkout] INIStdPay.js loaded successfully');
+      setPcScriptLoaded(true);
+    };
+
+    script.onerror = () => {
+      console.error('[Checkout] Failed to load INIStdPay.js');
+      setError('결제 스크립트를 불러오는데 실패했습니다. 페이지를 새로고침해주세요.');
+    };
+
+    document.head.appendChild(script);
+
+    return () => {
+      // cleanup은 하지 않음 (스크립트가 한 번 로드되면 유지)
+    };
+  }, [isClient, isMobile]);
 
   // 결제 데이터 로드
   useEffect(() => {
-    // 클라이언트 마운트 전에는 실행하지 않음
-    if (!isClient) return;
+    if (!isClient || isMobile === null) return;
 
     const loadPaymentData = async () => {
       try {
         const orderId = searchParams.get('orderId');
-        console.log('[Checkout] Loading payment data for orderId:', orderId);
+        console.log('[Checkout] Loading payment data for orderId:', orderId, 'isMobile:', isMobile);
 
         if (!orderId) {
           console.error('[Checkout] No orderId in searchParams');
@@ -69,8 +118,8 @@ function PaymentCheckoutContent() {
           return;
         }
 
-        // 결제 정보 API 호출
-        const response = await fetch(`/api/payment/prepare?orderId=${orderId}`);
+        // 결제 정보 API 호출 (isMobile 정보 포함)
+        const response = await fetch(`/api/payment/prepare?orderId=${orderId}&isMobile=${isMobile}`);
         const data = await response.json();
         console.log('[Checkout] API response:', data);
 
@@ -93,7 +142,23 @@ function PaymentCheckoutContent() {
     };
 
     loadPaymentData();
-  }, [isClient, searchParams]);
+  }, [isClient, isMobile, searchParams]);
+
+  // 결제 준비 완료 상태 체크
+  useEffect(() => {
+    if (!paymentData || !formData || Object.keys(formData).length === 0) {
+      setIsPaymentReady(false);
+      return;
+    }
+
+    if (isMobile) {
+      // 모바일은 폼 데이터만 있으면 준비 완료
+      setIsPaymentReady(true);
+    } else {
+      // PC는 스크립트까지 로드되어야 준비 완료
+      setIsPaymentReady(pcScriptLoaded);
+    }
+  }, [paymentData, formData, isMobile, pcScriptLoaded]);
 
   // 결제 수단 선택
   const handleMethodSelect = (method: PaymentMethod) => {
@@ -110,7 +175,7 @@ function PaymentCheckoutContent() {
   };
 
   // 결제 시작
-  const handlePayment = async () => {
+  const handlePayment = useCallback(async () => {
     if (!paymentData) return;
 
     setIsLoading(true);
@@ -129,6 +194,7 @@ function PaymentCheckoutContent() {
       });
 
       const data = await response.json();
+      console.log('[Checkout] Payment prepare response:', data);
 
       if (!data.ok) {
         setError(data.error || '결제 준비 중 오류가 발생했습니다.');
@@ -140,10 +206,25 @@ function PaymentCheckoutContent() {
       setFormData(data.formData);
       setPaymentUrl(data.paymentUrl);
 
-      // 잠시 후 폼 제출
+      // 잠시 후 결제 실행
       setTimeout(() => {
-        if (formRef.current) {
-          formRef.current.submit();
+        if (isMobile) {
+          // Mobile: Form Submit
+          if (mobileFormRef.current) {
+            console.log('[Checkout] Mobile form submit to:', data.paymentUrl);
+            mobileFormRef.current.action = data.paymentUrl;
+            mobileFormRef.current.submit();
+          }
+        } else {
+          // PC: INIStdPay.pay() 호출
+          if (window.INIStdPay) {
+            console.log('[Checkout] Calling INIStdPay.pay("pc_payment_form")');
+            window.INIStdPay.pay('pc_payment_form');
+          } else {
+            console.error('[Checkout] INIStdPay not loaded');
+            setError('결제 스크립트가 로드되지 않았습니다. 페이지를 새로고침해주세요.');
+            setIsLoading(false);
+          }
         }
       }, 100);
     } catch (err) {
@@ -151,12 +232,14 @@ function PaymentCheckoutContent() {
       setError('결제 준비 중 오류가 발생했습니다.');
       setIsLoading(false);
     }
-  };
+  }, [paymentData, selectedMethod, selectedEasyPay, isMobile]);
 
   // 로딩 중 (클라이언트 마운트 전이거나 데이터 로딩 중)
-  if (!isClient || isLoading) {
+  // SSR과 CSR 결과가 동일하도록 클라이언트 마운트 전까지 로딩 화면 표시
+  // 이렇게 하면 Hydration Mismatch 방지됨 (SSR/CSR 모두 동일한 로딩 UI)
+  if (!isClient || isMobile === null || isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" suppressHydrationWarning>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">결제 정보를 불러오는 중...</p>
@@ -186,13 +269,27 @@ function PaymentCheckoutContent() {
 
   if (!paymentData) return null;
 
+  // 이 시점에서는 isClient=true, isMobile이 결정됨 (Hydration 완료 후)
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4" suppressHydrationWarning>
       <div className="max-w-lg mx-auto">
+        {/* 디버그 정보 (개발용) */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-xs" suppressHydrationWarning>
+            <p><strong>Device:</strong> {isMobile ? 'Mobile' : 'PC'}</p>
+            <p><strong>Script Loaded:</strong> {pcScriptLoaded ? 'Yes' : 'No'}</p>
+            <p><strong>Payment Ready:</strong> {isPaymentReady ? 'Yes' : 'No'}</p>
+            <p><strong>Payment URL:</strong> {paymentUrl}</p>
+          </div>
+        )}
+
         {/* 결제 정보 카드 */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
             <h1 className="text-xl font-bold text-white">결제하기</h1>
+            <p className="text-blue-100 text-sm mt-1">
+              {isMobile ? '모바일 결제' : 'PC 결제'}
+            </p>
           </div>
 
           <div className="p-6">
@@ -327,11 +424,18 @@ function PaymentCheckoutContent() {
               </div>
             )}
 
+            {/* PC 스크립트 로딩 상태 표시 */}
+            {!isMobile && !pcScriptLoaded && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-sm text-yellow-700">
+                결제 모듈을 불러오는 중입니다...
+              </div>
+            )}
+
             {/* 결제 버튼 */}
             <button
               onClick={handlePayment}
-              disabled={isLoading}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50"
+              disabled={!isPaymentReady}
+              className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {paymentData.amount.toLocaleString()}원 결제하기
             </button>
@@ -342,18 +446,42 @@ function PaymentCheckoutContent() {
           </div>
         </div>
 
-        {/* 숨겨진 결제 폼 */}
-        <form
-          ref={formRef}
-          action={paymentUrl}
-          method="POST"
-          acceptCharset="utf-8"
-          style={{ display: 'none' }}
-        >
-          {Object.entries(formData).map(([key, value]) => (
-            <input key={key} type="hidden" name={key} value={value} />
-          ))}
-        </form>
+        {/* PC용 결제 폼 (INIStdPay.pay() 호출용) */}
+        {!isMobile && (
+          <form
+            id="pc_payment_form"
+            ref={pcFormRef}
+            method="POST"
+            acceptCharset="UTF-8"
+            style={{ display: 'none' }}
+          >
+            {Object.entries(formData).map(([key, value]) => (
+              <input key={key} type="hidden" name={key} value={value} />
+            ))}
+          </form>
+        )}
+
+        {/* Mobile용 결제 폼 (Form Submit용) */}
+        {/*
+          중요 (매뉴얼 1.13 주의사항):
+          - 요청(Request): 반드시 EUC-KR 인코딩으로 전송해야 함
+          - P_CHARSET=utf8: 응답(Response) 수신 시 인코딩 설정
+          - acceptCharset="euc-kr"로 설정하여 한글 데이터가 깨지지 않도록 함
+        */}
+        {isMobile && (
+          <form
+            id="mobile_payment_form"
+            ref={mobileFormRef}
+            action={paymentUrl}
+            method="POST"
+            acceptCharset="euc-kr"
+            style={{ display: 'none' }}
+          >
+            {Object.entries(formData).map(([key, value]) => (
+              <input key={key} type="hidden" name={key} value={value} />
+            ))}
+          </form>
+        )}
       </div>
     </div>
   );
