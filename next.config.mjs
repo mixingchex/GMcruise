@@ -31,9 +31,10 @@ const prodCsp = [
   // Next.js 정상 작동을 위해 unsafe-inline 허용 (hydration에 필요)
   // 웰컴페이먼츠 결제 스크립트 도메인 추가
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://developers.kakao.com https://t1.kakaocdn.net https://stdpay.paywelcome.co.kr https://mobile.paywelcome.co.kr https://*.paywelcome.co.kr",
-  "style-src 'self' 'unsafe-inline'",
+  // 웰컴페이먼츠 CSS 스타일시트 허용
+  "style-src 'self' 'unsafe-inline' https://stdpay.paywelcome.co.kr https://*.paywelcome.co.kr",
   "img-src 'self' data: https:",
-  "font-src 'self' data:",
+  "font-src 'self' data: https://*.paywelcome.co.kr",
   // 웰컴페이먼츠 API 연결 허용
   "connect-src 'self' https: https://developers.kakao.com https://t1.kakaocdn.net https://*.paywelcome.co.kr",
   "media-src 'self' data:",
