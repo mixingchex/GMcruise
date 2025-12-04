@@ -346,6 +346,11 @@ function PaymentCheckoutContent() {
         form.name = 'SendPayForm_id';
         form.style.display = 'none';
 
+        // ⚠️ [Ver Final_Fix] action을 명시적으로 빈 문자열로 설정하여 브라우저 기본 동작 차단
+        form.action = '';  // 빈 문자열 = 현재 페이지로 이동하지만 onsubmit에서 차단됨
+        form.removeAttribute('action');  // 아예 속성 자체를 제거
+        form.removeAttribute('method');  // method도 제거
+
         // ⚠️ 핵심: action/method 속성 없음 = 폼이 직접 전송되어도 페이지 이동 없음
         // INIStdPay.pay()가 이 폼을 읽어서 자체적으로 Overlay 결제창을 띄움
 
@@ -432,7 +437,9 @@ function PaymentCheckoutContent() {
         {/* 결제 정보 카드 */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
-            <h1 className="text-xl font-bold text-white">결제하기</h1>
+            <h1 className="text-xl font-bold text-white">
+              결제하기 <span className="text-xs font-normal text-blue-200">(Ver Final_Fix)</span>
+            </h1>
             <p className="text-blue-100 text-sm mt-1">
               {isMobile ? '모바일 결제' : 'PC 결제'}
             </p>

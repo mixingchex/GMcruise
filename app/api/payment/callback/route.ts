@@ -108,13 +108,22 @@ export async function POST(request: NextRequest) {
     // 6. 승인 성공! DB 업데이트 및 Webhook 호출
     console.log('[Payment Callback] Approval success:', { finalOid, finalTid, finalAmt });
 
-    // 결제 정보 조회
+    // ⚠️ [핵심] DB에서 원본 주문 정보 조회 - 여기서 affiliateCode를 가져와야 실적이 잡힘!
     const payment = await prisma.payment.findUnique({
       where: { orderId: finalOid },
     });
 
+    // 🔍 [검증 로그] DB에서 찾은 파트너 정보 확인
+    console.log('[Payment Callback] DB Lookup Result:', {
+      orderId: finalOid,
+      found: !!payment,
+      affiliateCode: payment?.affiliateCode || 'N/A',
+      affiliateMallUserId: payment?.affiliateMallUserId || 'N/A',
+      productCode: payment?.productCode || 'N/A',
+    });
+
     if (!payment) {
-      console.error('[Payment Callback] Payment not found:', finalOid);
+      console.error('[Payment Callback] ⚠️ Payment not found in DB:', finalOid);
       // 결제 정보가 없어도 성공 페이지로 이동 (PG 승인은 됐으므로)
       return NextResponse.redirect(
         new URL(`/payment/success?orderId=${finalOid}&tid=${finalTid}`, request.url),
@@ -151,30 +160,48 @@ export async function POST(request: NextRequest) {
     });
 
     // 7. Webhook 호출 (어필리에이트 처리, 이메일, Google Drive 자동화)
+    // ⚠️ [핵심] DB에서 조회한 affiliateCode를 반드시 전달해야 실적이 잡힘!
+    const webhookPayload = {
+      imp_uid: finalTid,
+      merchant_uid: finalOid,
+      status: 'paid',
+      amount: parseInt(finalAmt) || payment.amount,
+      productCode: payment.productCode,
+      customerName: payment.buyerName,
+      customerPhone: payment.buyerTel,
+      customerEmail: payment.buyerEmail || '',
+      metadata: payment.metadata || {},
+      // ⚠️ [중요] DB에서 조회한 파트너 정보 - 이게 있어야 실적이 잡힘!
+      affiliateCode: payment.affiliateCode,
+      affiliateMallUserId: payment.affiliateMallUserId,
+    };
+
+    // 🔍 [검증 로그] Webhook에 전달할 파트너 정보
+    console.log('[Payment Callback] Webhook payload - Partner Info:', {
+      affiliateCode: webhookPayload.affiliateCode || 'NONE',
+      affiliateMallUserId: webhookPayload.affiliateMallUserId || 'NONE',
+      orderId: finalOid,
+    });
+
     try {
       const webhookResponse = await fetch(`${BASE_URL}/api/payment/webhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          imp_uid: finalTid,
-          merchant_uid: finalOid,
-          status: 'paid',
-          amount: parseInt(finalAmt) || payment.amount,
-          productCode: payment.productCode,
-          customerName: payment.buyerName,
-          customerPhone: payment.buyerTel,
-          customerEmail: payment.buyerEmail || '',
-          metadata: payment.metadata || {},
-          affiliateCode: payment.affiliateCode,
-          affiliateMallUserId: payment.affiliateMallUserId,
-        }),
+        body: JSON.stringify(webhookPayload),
       });
 
       const webhookResult = await webhookResponse.json();
-      console.log('[Payment Callback] Webhook result:', webhookResult);
+
+      // 🔍 [검증 로그] Webhook 결과 - AffiliateSale, CommissionLedger 생성 여부 확인
+      console.log('[Payment Callback] Webhook result:', {
+        ok: webhookResult.ok,
+        affiliateSaleCreated: webhookResult.affiliateSaleCreated || false,
+        commissionCreated: webhookResult.commissionCreated || false,
+        error: webhookResult.error || null,
+      });
     } catch (webhookError) {
       // Webhook 실패해도 결제는 성공으로 처리 (나중에 수동 처리 가능)
-      console.error('[Payment Callback] Webhook error:', webhookError);
+      console.error('[Payment Callback] ⚠️ Webhook error:', webhookError);
     }
 
     console.log('[Payment Callback] Payment completed successfully:', finalOid);
