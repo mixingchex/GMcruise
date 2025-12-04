@@ -49,7 +49,7 @@ interface ProductDetails {
 export default function Certificate({ type }: CertificateProps) {
   // 디버깅: type prop 확인
   console.log('[Certificate] Rendering with type:', type);
-  
+
   const certificateRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -57,7 +57,7 @@ export default function Certificate({ type }: CertificateProps) {
   const [isCertified, setIsCertified] = useState(false); // 인증 완료 여부
   const [isCertifying, setIsCertifying] = useState(false); // 인증 처리 중
   const [hasBeenSent, setHasBeenSent] = useState(false); // 한번 발송 여부
-  
+
   const [data, setData] = useState<CertificateData>({
     customerName: '',
     birthDate: '',
@@ -82,6 +82,29 @@ export default function Certificate({ type }: CertificateProps) {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  // 상품 검색 관련
+  const [productSuggestions, setProductSuggestions] = useState<{ id: string, title: string }[]>([]);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  // 상품 목록 불러오기
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products?status=visible');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.products) {
+            setProductSuggestions(result.products.map((p: any) => ({ id: p.id, title: p.title })));
+          }
+        }
+      } catch (error) {
+        console.error('[Certificate] Failed to fetch products:', error);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   // 오늘 날짜 자동 생성 (202X년 X월 X일 형식)
   const getTodayDate = () => {
@@ -208,7 +231,7 @@ export default function Certificate({ type }: CertificateProps) {
               ...prev,
               productName: product.packageName || '',
               paymentAmount: result.payment?.amount || product.basePrice || 0,
-              paymentDate: result.payment?.date 
+              paymentDate: result.payment?.date
                 ? new Date(result.payment.date).toISOString().split('T')[0]
                 : '',
             }));
@@ -273,8 +296,8 @@ export default function Certificate({ type }: CertificateProps) {
 
   // 인증 처리 (구매확인인증 / 환불인증완료)
   const handleCertify = async () => {
-    if (!data.customerName || !data.birthDate) {
-      showError('고객명과 생년월일을 입력해주세요.');
+    if (!data.customerName) {
+      showError('고객명을 입력해주세요.');
       return;
     }
 
@@ -282,6 +305,7 @@ export default function Certificate({ type }: CertificateProps) {
       showError('고객을 선택해주세요.');
       return;
     }
+    // 생년월일은 선택 사항 (필수 아님)
 
     // 환불인증완료인 경우 환불금액과 환불일자 확인
     if (type === 'refund') {
@@ -359,8 +383,8 @@ export default function Certificate({ type }: CertificateProps) {
   // 이미지 저장 (PNG)
   const handleDownloadImage = async () => {
     if (!isCertified && !hasBeenSent) {
-      showError(type === 'purchase' 
-        ? '구매확인인증을 먼저 완료해주세요.' 
+      showError(type === 'purchase'
+        ? '구매확인인증을 먼저 완료해주세요.'
         : '환불인증완료를 먼저 처리해주세요.');
       return;
     }
@@ -377,7 +401,7 @@ export default function Certificate({ type }: CertificateProps) {
 
     try {
       setIsDownloading(true);
-      
+
       const canvas = await html2canvas(certificateRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
@@ -406,8 +430,8 @@ export default function Certificate({ type }: CertificateProps) {
   // 이메일 발송
   const handleSendEmail = async () => {
     if (!isCertified && !hasBeenSent) {
-      showError(type === 'purchase' 
-        ? '구매확인인증을 먼저 완료해주세요.' 
+      showError(type === 'purchase'
+        ? '구매확인인증을 먼저 완료해주세요.'
         : '환불인증완료를 먼저 처리해주세요.');
       return;
     }
@@ -438,7 +462,7 @@ export default function Certificate({ type }: CertificateProps) {
 
     try {
       setIsSendingEmail(true);
-      
+
       // html2canvas로 문서 영역 캡처
       const canvas = await html2canvas(certificateRef.current, {
         backgroundColor: '#ffffff',
@@ -479,7 +503,7 @@ export default function Certificate({ type }: CertificateProps) {
         showError('전송 실패. 다시 시도해주세요.');
         console.error('[Send Email] API Error:', result.error);
       }
-      
+
     } catch (error: any) {
       console.error('[Send Email] Error:', error);
       showError('전송 실패. 다시 시도해주세요.');
@@ -493,7 +517,7 @@ export default function Certificate({ type }: CertificateProps) {
       {/* 입력 폼 */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">고객 정보 입력</h2>
-        
+
         <div className="grid md:grid-cols-2 gap-6">
           <div className="relative">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -594,7 +618,7 @@ export default function Certificate({ type }: CertificateProps) {
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              생년월일 <span className="text-red-500">*</span>
+              생년월일 <span className="text-gray-400 text-xs">(선택)</span>
               {data.birthDate && (
                 <span className="ml-2 text-xs text-green-600">(여권 정보에서 자동 입력됨)</span>
               )}
@@ -616,41 +640,63 @@ export default function Certificate({ type }: CertificateProps) {
             {!isCertified ? (
               <button
                 onClick={handleCertify}
-                disabled={isCertifying || !data.customerName || !data.birthDate || !selectedCustomerId}
-                className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors ${
-                  type === 'purchase'
-                    ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
-                    : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
-                }`}
+                disabled={isCertifying || !data.customerName || !selectedCustomerId}
+                className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors ${type === 'purchase'
+                  ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
+                  : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
+                  }`}
               >
-                {isCertifying 
-                  ? '처리 중...' 
-                  : type === 'purchase' 
-                    ? '구매확인인증' 
+                {isCertifying
+                  ? '처리 중...'
+                  : type === 'purchase'
+                    ? '구매확인인증'
                     : '환불인증완료'}
               </button>
             ) : (
-              <div className={`w-full py-3 px-6 rounded-lg font-bold text-white text-center ${
-                type === 'purchase'
-                  ? 'bg-green-600'
-                  : 'bg-red-600'
-              }`}>
+              <div className={`w-full py-3 px-6 rounded-lg font-bold text-white text-center ${type === 'purchase'
+                ? 'bg-green-600'
+                : 'bg-red-600'
+                }`}>
                 {type === 'purchase' ? '✓ 구매확인인증 완료' : '✓ 환불인증완료 처리됨'}
               </div>
             )}
           </div>
 
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 relative">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               상품명 <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={data.productName}
-              onChange={(e) => setData(prev => ({ ...prev, productName: e.target.value }))}
-              placeholder="지중해 7박 8일 크루즈"
-              className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={data.productName}
+                onChange={(e) => {
+                  setData(prev => ({ ...prev, productName: e.target.value }));
+                  setShowProductSuggestions(true);
+                }}
+                onFocus={() => setShowProductSuggestions(true)}
+                placeholder="상품명 검색 또는 직접 입력"
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              />
+              {showProductSuggestions && productSuggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                  {productSuggestions
+                    .filter(p => p.title.toLowerCase().includes(data.productName.toLowerCase()))
+                    .map((product) => (
+                      <div
+                        key={product.id}
+                        onClick={() => {
+                          setData(prev => ({ ...prev, productName: product.title }));
+                          setShowProductSuggestions(false);
+                        }}
+                        className="px-4 py-2 hover:bg-indigo-50 cursor-pointer text-sm text-gray-700"
+                      >
+                        {product.title}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
             {productDetails && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h4 className="font-semibold text-gray-900 mb-3">상품 상세 정보</h4>
@@ -816,8 +862,8 @@ export default function Certificate({ type }: CertificateProps) {
                       const value = e.target.value;
                       const numValue = value === '' ? 0 : parseInt(value) || 0;
                       console.log('[Certificate] 환불금액 입력:', value, '->', numValue);
-                      setData(prev => ({ 
-                        ...prev, 
+                      setData(prev => ({
+                        ...prev,
                         refundAmount: numValue
                       }));
                     }}
@@ -916,8 +962,8 @@ export default function Certificate({ type }: CertificateProps) {
 
       {/* 인증서 미리보기 */}
       <div className="bg-gray-100 rounded-lg shadow-md p-6 overflow-auto">
-        <div 
-          ref={certificateRef} 
+        <div
+          ref={certificateRef}
           className="bg-white mx-auto shadow-lg"
           style={{
             width: '210mm',
@@ -942,9 +988,9 @@ export default function Certificate({ type }: CertificateProps) {
 
           {/* 제목 */}
           <div className="text-center mb-4 flex-shrink-0">
-            <h1 
+            <h1
               className="text-2xl font-bold text-gray-900 mb-1"
-              style={{ 
+              style={{
                 fontFamily: 'serif, "Times New Roman", "Malgun Gothic", sans-serif',
                 letterSpacing: '0.03em',
               }}
@@ -1148,7 +1194,7 @@ export default function Certificate({ type }: CertificateProps) {
               <div className="text-right">
                 <div className="relative inline-block pr-6 pt-6">
                   {/* 도장 이미지 (position: absolute로 겹침) */}
-                  <div 
+                  <div
                     className="absolute -top-1 -left-1 opacity-75"
                     style={{ zIndex: 1 }}
                   >

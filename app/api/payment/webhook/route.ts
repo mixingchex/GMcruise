@@ -6,7 +6,6 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { generateLedgerEntries, calculateCommissionBreakdown } from '@/lib/affiliate/commission';
-import { sendPurchaseConfirmation } from '@/lib/affiliate/purchase-confirmation';
 
 /**
  * POST: 결제 완료 웹훅
@@ -545,21 +544,22 @@ export async function POST(req: NextRequest) {
       breakdown: breakdown,
     });
 
-    // 구매확인서 자동 발송 (담당자가 있는 경우)
+    // Google 스프레드시트 백업 및 자동화 + 구매확인서 발송 (비동기 실행)
+    // 담당자가 있는 경우에만 실행
     if (managerId || agentId) {
-      try {
-        await sendPurchaseConfirmation(sale.id);
-        console.log('[Payment Webhook] 구매확인서 발송 완료');
-      } catch (confirmationError) {
-        console.error('[Payment Webhook] 구매확인서 발송 실패:', confirmationError);
-        // 구매확인서 발송 실패해도 결제 처리는 성공으로 처리
-      }
-
-      // Google 스프레드시트 백업 (구매고객관리)
-      // 비동기로 실행
-      import('@/lib/google-sheets').then(async ({ sendToGoogleSheet }) => {
+      // Google 스프레드시트 백업 및 자동화 (비동기 실행)
+      // 1. 기존 구매고객관리 시트 백업
+      // 2. Drive 폴더 생성 및 APIS 시트 생성
+      // 3. 구매확인서 PNG 생성 및 발송
+      (async () => {
         try {
-          // 담당자 정보 조회 (이름 등)
+          // 동적 import로 순환 참조 방지 및 성능 최적화
+          const { sendToGoogleSheet } = await import('@/lib/google-sheets');
+          const { ensureTripFolder, ensureApisSheet, recordPaymentToPurchasedList, initApisSheetRows, uploadCertificateToDrive } = await import('@/lib/google-automation');
+          const { generateCertificatePng } = await import('@/lib/certificate-generator');
+          const { sendPurchaseConfirmation } = await import('@/lib/affiliate/purchase-confirmation');
+
+          // 담당자 정보 조회
           let managerName = '';
           let channel = '본사';
 
@@ -594,8 +594,7 @@ export async function POST(req: NextRequest) {
               productName = product.packageName || `${product.cruiseLine} ${product.shipName}`;
             }
 
-            // 출발일 조회 (Trip 또는 AffiliateProduct)
-            // 1. Trip에서 조회 (이미 생성된 경우)
+            // 출발일 조회
             const trip = await prisma.trip.findFirst({
               where: { productCode },
               select: { departureDate: true }
@@ -604,7 +603,6 @@ export async function POST(req: NextRequest) {
             if (trip?.departureDate) {
               departureDate = trip.departureDate.toISOString().split('T')[0];
             } else {
-              // 2. AffiliateProduct에서 조회
               const affProduct = await prisma.affiliateProduct.findFirst({
                 where: { productCode },
                 select: { effectiveFrom: true }
@@ -619,32 +617,133 @@ export async function POST(req: NextRequest) {
           const kstDate = now.toLocaleString('ko-KR');
           const isoDate = now.toISOString().split('T')[0];
 
+          // 1. 기존 Google Sheet 백업 (하위 호환성 유지)
           sendToGoogleSheet({
-            // 기본 정보
-            name: customerName ? String(customerName).trim() : '', // I: 성명
-            phone: customerPhone ? String(customerPhone).replace(/[^0-9]/g, '') : '', // P: 고객연락처
+            name: customerName ? String(customerName).trim() : '',
+            phone: customerPhone ? String(customerPhone).replace(/[^0-9]/g, '') : '',
             source: 'purchase',
-            productName: productName, // D: 상품명
+            productName: productName,
             channel,
-            manager: managerName, // U: 연결담당자
-            notes: undefined,
+            manager: managerName,
             target: 'purchased',
+            reservationDate: isoDate,
+            reservationNo: merchant_uid,
+            departureDate: departureDate,
+            cabinType: cabinType || '',
+            paymentDate: isoDate,
+            paymentMethod: '카드',
+            amount: amount,
+            lastEditor: 'System',
+            lastEditTime: kstDate,
+          }).catch(err => console.error('[Automation] Legacy Sheet Backup Error:', err));
 
-            // APIS 추가 정보
-            reservationDate: isoDate, // B: 예약일 (결제일 기준)
-            reservationNo: merchant_uid, // C: 예약번호
-            departureDate: departureDate, // E: 출발일
-            cabinType: cabinType || '', // F: 객실 종류
-            paymentDate: isoDate, // R: 결제일
-            paymentMethod: '카드', // S: 결제방법 (PG사는 대부분 카드, 필요시 로직 추가)
-            amount: amount, // T: 결제금액
-            lastEditor: 'System', // V: 최종수정자
-            lastEditTime: kstDate, // W: 최종수정일시
-          });
-        } catch (sheetError) {
-          console.error('[Payment Webhook] Google Sheet Backup Error:', sheetError);
+          // 2. 새로운 자동화: Drive 폴더 및 APIS 시트 생성
+          if (productName && departureDate) {
+            try {
+              // 폴더 생성/확인
+              const folderId = await ensureTripFolder(productName, departureDate);
+
+              // APIS 시트 생성/확인
+              const sheetId = await ensureApisSheet(folderId, productName, departureDate);
+
+              // 결제 목록 시트에 기록 (월별 시트)
+              await recordPaymentToPurchasedList({
+                customerName: customerName || '고객',
+                customerPhone: customerPhone || '',
+                productName,
+                departureDate,
+                amount,
+                headcount: headcount || 1,
+                orderId: merchant_uid,
+                managerName,
+                channel
+              });
+
+              // APIS 시트에 초기 행 추가
+              await initApisSheetRows(sheetId, {
+                customerName: customerName || '고객',
+                customerPhone: customerPhone || '',
+                productName,
+                departureDate,
+                amount,
+                headcount: headcount || 1,
+                orderId: merchant_uid
+              });
+
+              console.log('[Automation] Drive & Sheet setup completed');
+            } catch (driveError) {
+              console.error('[Automation] Drive/Sheet Error:', driveError);
+            }
+          }
+
+          // 3. 구매확인서 PNG 생성 및 발송
+          try {
+            // PNG 생성
+            const pngBuffer = await generateCertificatePng({
+              customerName: customerName || '고객',
+              birthDate: '', // 생년월일은 결제 시점에 모를 수 있음 (빈칸)
+              productName,
+              paymentAmount: amount,
+              paymentDate: isoDate,
+              orderId: merchant_uid,
+              managerName
+            });
+
+            // Drive에 PNG 업로드 (비동기, 실패해도 진행)
+            const pngFilename = `구매확인증서_${customerName || '고객'}_${isoDate}.png`;
+            uploadCertificateToDrive(pngBuffer, pngFilename)
+              .then(fileId => console.log(`[Automation] Certificate uploaded to Drive: ${fileId}`))
+              .catch(err => console.error('[Automation] Certificate upload failed:', err));
+
+            // 승인 요청 생성 (자동 승인 상태로)
+            // User 찾기 (customerPhone 기준)
+            let customerUserId = null;
+            if (customerPhone) {
+              const u = await prisma.user.findFirst({ where: { phone: customerPhone.replace(/\D/g, '') } });
+              if (u) customerUserId = u.id;
+            }
+
+            // 요청자(담당자) ID
+            const requesterId = agentId ?
+              (await prisma.affiliateProfile.findUnique({ where: { id: agentId } }))?.userId :
+              (managerId ? (await prisma.affiliateProfile.findUnique({ where: { id: managerId } }))?.userId : null);
+
+            if (customerUserId && requesterId) {
+              await prisma.certificateApproval.create({
+                data: {
+                  certificateType: 'purchase',
+                  requesterId: requesterId,
+                  requesterType: agentId ? 'SALES_AGENT' : 'BRANCH_MANAGER',
+                  customerId: customerUserId,
+                  customerName: customerName || '고객',
+                  productName,
+                  paymentAmount: amount,
+                  paymentDate: isoDate,
+                  status: 'approved', // 자동 승인
+                  approvedBy: requesterId, // 본인 전결 처리 (또는 시스템 계정)
+                  approvedAt: new Date(),
+                  updatedAt: new Date(),
+                }
+              });
+            }
+
+            // 이메일 발송 (PNG 첨부)
+            if (managerId || agentId) {
+              await sendPurchaseConfirmation(sale.id, pngBuffer);
+              console.log('[Automation] Purchase Confirmation with PNG sent');
+            }
+          } catch (certError) {
+            console.error('[Automation] Certificate Generation/Send Error:', certError);
+            // PNG 생성 실패시 기존 텍스트 이메일이라도 보내도록 fallback (sendPurchaseConfirmation 내부에서 처리)
+            if (managerId || agentId) {
+              await sendPurchaseConfirmation(sale.id);
+            }
+          }
+
+        } catch (error) {
+          console.error('[Automation] Async Task Error:', error);
         }
-      });
+      })();
     }
 
     return NextResponse.json({

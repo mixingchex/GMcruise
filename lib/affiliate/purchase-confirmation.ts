@@ -77,11 +77,12 @@ async function sendEmail(
   subject: string,
   html: string,
   fromEmail?: string,
-  fromName?: string
+  fromName?: string,
+  attachments?: any[]
 ) {
   try {
     const nodemailer = await import('nodemailer');
-    
+
     const transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
@@ -97,6 +98,7 @@ async function sendEmail(
       to,
       subject,
       html,
+      attachments,
     });
 
     return { success: true };
@@ -217,7 +219,7 @@ ${data.cabinType ? `🛏️ 객실타입: ${data.cabinType}` : ''}
 }
 
 // 구매확인서 자동 발송 함수
-export async function sendPurchaseConfirmation(saleId: number) {
+export async function sendPurchaseConfirmation(saleId: number, pngBuffer?: Buffer) {
   try {
     // 판매 정보 조회
     const sale = await prisma.affiliateSale.findUnique({
@@ -367,12 +369,20 @@ export async function sendPurchaseConfirmation(saleId: number) {
       const fromEmail = responsibleProfile.User?.email || process.env.SMTP_USER;
       const fromName = responsibleName;
 
+      // 첨부파일 설정
+      const attachments = pngBuffer ? [{
+        filename: `구매확인증서_${customerName}_${new Date().toISOString().split('T')[0]}.png`,
+        content: pngBuffer,
+        contentType: 'image/png'
+      }] : undefined;
+
       const emailResult = await sendEmail(
         customerEmail,
         `[구매확인서] ${sale.AffiliateProduct?.title || sale.productCode} 구매 완료`,
         templates.email,
         fromEmail,
-        fromName
+        fromName,
+        attachments
       );
 
       if (emailResult.success) {

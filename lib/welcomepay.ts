@@ -441,7 +441,7 @@ export function createPCPaymentForm(
     signature,
     mKey: mkey,
     charset: 'UTF-8',                 // 인코딩 방식
-    payViewType: 'overlay',           // 결제창 표시 방식: overlay (팝업 차단 방지)
+    payViewType: 'overlay',           // 결제창 표시 방식: overlay (Iframe 팝업 - 매뉴얼 정석)
   };
 
   // 선택 옵션 추가

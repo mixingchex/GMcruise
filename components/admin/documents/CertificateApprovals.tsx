@@ -153,7 +153,7 @@ export default function CertificateApprovals() {
         return (
           <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
             <CheckCircle className="w-3 h-3" />
-            승인 완료
+            구매확인증서완료
           </span>
         );
       case 'rejected':
@@ -204,8 +204,8 @@ export default function CertificateApprovals() {
               <button
                 onClick={() => setStatusFilter('all')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'all'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 전체
@@ -213,8 +213,8 @@ export default function CertificateApprovals() {
               <button
                 onClick={() => setStatusFilter('pending')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'pending'
-                    ? 'bg-yellow-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-yellow-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 대기중
@@ -222,8 +222,8 @@ export default function CertificateApprovals() {
               <button
                 onClick={() => setStatusFilter('approved')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'approved'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 승인됨
@@ -231,8 +231,8 @@ export default function CertificateApprovals() {
               <button
                 onClick={() => setStatusFilter('rejected')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === 'rejected'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 거부됨
@@ -246,8 +246,8 @@ export default function CertificateApprovals() {
               <button
                 onClick={() => setTypeFilter('all')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'all'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 전체
@@ -255,8 +255,8 @@ export default function CertificateApprovals() {
               <button
                 onClick={() => setTypeFilter('purchase')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'purchase'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 구매확인
@@ -264,8 +264,8 @@ export default function CertificateApprovals() {
               <button
                 onClick={() => setTypeFilter('refund')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${typeFilter === 'refund'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 환불인증
