@@ -34,11 +34,21 @@ declare global {
   }
 }
 
-// 환경 설정 (테스트/운영 분기)
+// ==========================================
+// 웰컴페이먼츠 스크립트 URL (하드코딩 - 환경변수 의존 제거)
+// PC_Web_manual 17페이지 참조
+// ==========================================
+// 운영(Production): https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js
+// 테스트(Test):     https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js
+// ==========================================
+const PC_SCRIPT_URL_PROD = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
+const PC_SCRIPT_URL_TEST = 'https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
+
+// isProduction 판단 (환경변수가 명시적으로 'true'일 때만 운영)
 const IS_PRODUCTION = process.env.NEXT_PUBLIC_WELCOMEPAY_PRODUCTION === 'true';
-const PC_SCRIPT_URL = IS_PRODUCTION
-  ? 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js'
-  : 'https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
+
+// 최종 스크립트 URL (절대 환경변수 URL을 사용하지 않음)
+const PC_SCRIPT_URL = IS_PRODUCTION ? PC_SCRIPT_URL_PROD : PC_SCRIPT_URL_TEST;
 
 function PaymentCheckoutContent() {
   const searchParams = useSearchParams();
@@ -80,7 +90,15 @@ function PaymentCheckoutContent() {
   useEffect(() => {
     if (!isClient || isMobile === null || isMobile) return;
 
-    console.log('[Checkout] Loading PC script:', PC_SCRIPT_URL);
+    // 디버깅: 스크립트 URL 확인 (환경변수 미사용 확인)
+    console.log('='.repeat(50));
+    console.log('[Checkout] PC Script Loading Debug:');
+    console.log('[Checkout] IS_PRODUCTION:', IS_PRODUCTION);
+    console.log('[Checkout] PC_SCRIPT_URL:', PC_SCRIPT_URL);
+    console.log('[Checkout] Expected URL:', IS_PRODUCTION
+      ? 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js'
+      : 'https://tstdpay.paywelcome.co.kr/stdjs/INIStdPay.js');
+    console.log('='.repeat(50));
 
     // 이미 로드된 스크립트가 있는지 확인
     const existingScript = document.getElementById('INIStdPay_script');
@@ -123,7 +141,8 @@ function PaymentCheckoutContent() {
 
     script.onerror = (e) => {
       console.error('[Checkout] Script load error:', e);
-      setScriptError('결제 스크립트 로드 실패. 네트워크 연결을 확인해주세요.');
+      console.error('[Checkout] Failed URL:', PC_SCRIPT_URL);
+      setScriptError(`결제 스크립트 로드 실패 (URL: ${PC_SCRIPT_URL}). 네트워크 연결을 확인해주세요.`);
       setIsScriptLoaded(false);
     };
 
