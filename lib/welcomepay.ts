@@ -336,9 +336,10 @@ export function createMobilePaymentForm(
     P_MOBILE: params.buyerTel,
     P_EMAIL: params.buyerEmail || '',
     // 매뉴얼 1.21 주의사항: P_NEXT_URL은 반드시 https:// 프로토콜이어야 함
-    P_NEXT_URL: ensureHttps(params.nextUrl || ''),
-    P_RETURN_URL: params.returnUrl || '',
-    P_NOTI_URL: ensureHttps(params.notiUrl || ''),
+    // 모바일 결제 콜백 URL 하드코딩
+    P_NEXT_URL: 'https://www.cruisedot.co.kr/api/payment/callback',
+    P_RETURN_URL: 'https://www.cruisedot.co.kr/api/payment/return',
+    P_NOTI_URL: 'https://www.cruisedot.co.kr/api/payment/notify',
     P_TIMESTAMP: timestamp,
     P_SIGNATURE: signature,
     P_MKEY: mkey,
