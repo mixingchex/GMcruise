@@ -381,11 +381,27 @@ function PaymentCheckoutContent() {
 
         document.body.appendChild(form);
 
+        // 🛡️ [v3 핵심 방어] INIStdPay.js가 폼 action을 변경하지 못하도록 방어
+        // Object.defineProperty로 action 속성을 읽기 전용으로 만듦
+        try {
+          Object.defineProperty(form, 'action', {
+            get: () => '',
+            set: () => {
+              console.log('[Checkout] ⛔ Blocked attempt to set form action');
+            },
+            configurable: false
+          });
+        } catch (e) {
+          console.warn('[Checkout] Could not lock form action:', e);
+        }
+
         // 방어: 폼에 action 속성이 없는지 최종 확인 (디버그용)
         console.log('[Checkout] Form action attr:', form.getAttribute('action')); // null이어야 함
+        console.log('[Checkout] Form action prop:', form.action); // 빈 문자열이어야 함
 
         // INIStdPay.pay() 호출 (Overlay Popup)
         console.log('[Checkout] PC: Calling INIStdPay.pay("SendPayForm_id")');
+        console.log('[Checkout] payViewType in form:', data.formData.payViewType); // 'overlay'여야 함
 
         try {
           window.INIStdPay!.pay('SendPayForm_id');
@@ -394,6 +410,16 @@ function PaymentCheckoutContent() {
           alert('결제창을 여는 중 오류가 발생했습니다.\n페이지를 새로고침 후 다시 시도해주세요.');
           setIsPaymentProcessing(false);
         }
+
+        // 🛡️ 추가 방어: INIStdPay.pay() 호출 후에도 폼 action 모니터링
+        setTimeout(() => {
+          const checkForm = document.getElementById('SendPayForm_id') as HTMLFormElement;
+          if (checkForm && checkForm.getAttribute('action')) {
+            console.error('[Checkout] ⚠️ Form action was set to:', checkForm.getAttribute('action'));
+            // action이 설정되었으면 제거
+            checkForm.removeAttribute('action');
+          }
+        }, 100);
       }
 
     } catch (err) {
@@ -447,7 +473,7 @@ function PaymentCheckoutContent() {
         <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
           <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-4">
             <h1 className="text-xl font-bold text-white">
-              결제하기 <span className="text-xs font-normal text-blue-200">(v2.0)</span>
+              결제하기 <span className="text-xs font-normal text-blue-200">(v3.0)</span>
             </h1>
             <p className="text-blue-100 text-sm mt-1">
               {isMobile ? '모바일 결제' : 'PC 결제'}
