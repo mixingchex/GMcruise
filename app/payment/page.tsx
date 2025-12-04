@@ -80,42 +80,13 @@ function PaymentPageContent() {
       const data = await response.json();
 
       if (data.ok) {
-        // 웰컴페이먼츠 결제 페이지로 POST form submit
-        if (data.paymentData) {
-          // POST 방식으로 form을 생성하여 제출
-          const form = document.createElement('form');
-          form.method = 'POST';
-          form.action = process.env.NEXT_PUBLIC_WELCOME_PAY_URL || 'https://stdpay.paywelcome.co.kr/smart/wPayStd.jsp';
-
-          // 모든 결제 데이터를 hidden input으로 추가
-          Object.entries(data.paymentData).forEach(([key, value]) => {
-            if (value !== null && value !== undefined && key !== 'metadata') {
-              const input = document.createElement('input');
-              input.type = 'hidden';
-              input.name = key;
-              input.value = typeof value === 'object' ? JSON.stringify(value) : String(value);
-              form.appendChild(input);
-            }
-          });
-
-          // metadata는 별도로 처리
-          if (data.paymentData.metadata) {
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'metadata';
-            input.value = JSON.stringify(data.paymentData.metadata);
-            form.appendChild(input);
-          }
-
-          // 디버깅: 전송할 데이터 확인
-          console.log('[Payment] Form action:', form.action);
-          console.log('[Payment] Payment data:', data.paymentData);
-
-          document.body.appendChild(form);
-          form.submit();
+        // 결제 체크아웃 페이지로 리다이렉트
+        if (data.checkoutUrl) {
+          console.log('[Payment] Redirecting to checkout:', data.checkoutUrl);
+          router.push(data.checkoutUrl);
         } else {
           alert('결제 정보를 받을 수 없습니다. 다시 시도해주세요.');
-          console.error('[Payment] No payment data received:', data);
+          console.error('[Payment] No checkout URL received:', data);
         }
       } else {
         const errorMessage = data.error || 'Unknown error';

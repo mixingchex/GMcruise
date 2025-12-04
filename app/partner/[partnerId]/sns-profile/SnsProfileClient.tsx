@@ -1154,8 +1154,8 @@ export default function SnsProfileClient({ user, profile }: SnsProfileClientProp
                       blogLink: formData.blogLink || null,
                       threadLink: formData.threadLink || null,
                       customLinks: formData.customLinks.filter(link => link.label.trim() && link.url.trim()),
-                      galleryImages: formData.galleryImages.filter((img: string) => img.trim()),
-                      featuredImages: formData.featuredImages.filter((img: string) => img.trim()),
+                      galleryImages: formData.galleryImages.filter((img: string) => img && typeof img === 'string' && img.trim()),
+                      featuredImages: formData.featuredImages.filter((img: string) => img && typeof img === 'string' && img.trim()),
                       youtubeVideoUrl: (() => {
                         const filtered = formData.youtubeVideoUrls.filter((url: string) => url && url.trim());
                         return filtered.length > 0
@@ -1951,7 +1951,7 @@ function MobilePreview({ profile }: {
                             return (
                               <a
                                 key={product.id || product.productCode}
-                                href={`/${profile.mallUserId}/shop/products/${product.productCode}`}
+                                href={`/products/${product.productCode}?partner=${profile.mallUserId}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="block p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:shadow-sm transition-all"

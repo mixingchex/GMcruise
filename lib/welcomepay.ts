@@ -1,0 +1,524 @@
+// lib/welcomepay.ts
+// 웰컴페이먼츠 PG 연동 라이브러리
+
+import crypto from 'crypto';
+
+// ==========================================
+// 환경 설정
+// ==========================================
+
+// 테스트/운영 환경 URL
+export const WELCOMEPAY_CONFIG = {
+  // PC Web
+  PC_TEST_URL: 'https://tpay.paywelcome.co.kr/smart/wPayStd.jsp',
+  PC_PROD_URL: 'https://pay.paywelcome.co.kr/smart/wPayStd.jsp',
+
+  // Mobile Web
+  MOBILE_TEST_URL: 'https://tmobile.paywelcome.co.kr',
+  MOBILE_PROD_URL: 'https://mobile.paywelcome.co.kr',
+
+  // 결제 수단별 경로
+  MOBILE_PATHS: {
+    CARD: '/smart/wcard/',      // 신용카드 (ISP/안심클릭)
+    BANK: '/smart/bank/',       // 계좌이체
+    VBANK: '/smart/vbank/',     // 가상계좌
+    MOBILE: '/smart/mobile/',   // 휴대폰결제
+  },
+};
+
+// ==========================================
+// 타입 정의
+// ==========================================
+
+export type PaymentMethod = 'CARD' | 'BANK' | 'VBANK' | 'MOBILE' | 'ALL';
+export type EasyPayCode = 'KAKAOPAY' | 'TOSSPAY' | 'PAYCO' | 'LPAY' | 'NAVERPAY';
+
+export interface WelcomePayConfig {
+  mid: string;           // 가맹점 ID
+  signKey: string;       // 서명키
+  isProduction: boolean; // 운영환경 여부
+}
+
+export interface PaymentRequestParams {
+  // 필수 항목
+  orderId: string;       // 주문번호 (가맹점에서 생성)
+  amount: number;        // 결제금액
+  productName: string;   // 상품명
+  buyerName: string;     // 구매자명
+  buyerTel: string;      // 구매자 연락처
+
+  // 선택 항목
+  buyerEmail?: string;   // 구매자 이메일
+  returnUrl?: string;    // 결제 완료 후 리턴 URL
+  nextUrl?: string;      // 모바일 인증 후 URL (Mobile Only)
+  notiUrl?: string;      // 노티 URL (서버 to 서버)
+
+  // 결제 옵션
+  payMethod?: PaymentMethod;      // 결제 수단
+  easyPayCodes?: EasyPayCode[];   // 간편결제 코드 (복수 선택 가능)
+  quotaBase?: string;             // 할부 개월 (예: "01:02:03:06:12")
+
+  // 세금 관련
+  taxAmount?: number;    // 과세금액
+  taxFreeAmount?: number; // 비과세금액
+  vatAmount?: number;    // 부가세
+
+  // 가상계좌 옵션
+  vbankExpireDate?: string; // 입금기한 (YYYYMMDD)
+  vbankExpireTime?: string; // 입금기한 시간 (HHMM)
+
+  // 메타데이터 (가맹점 정의 데이터)
+  metadata?: Record<string, any>;
+}
+
+export interface SignatureData {
+  mkey: string;        // SHA-256(signKey)
+  timestamp: string;   // 타임스탬프
+  signature: string;   // 최종 서명값
+  oid: string;         // 주문번호
+}
+
+export interface MobilePaymentForm {
+  P_MID: string;
+  P_OID: string;
+  P_AMT: string;
+  P_UNAME: string;
+  P_MNAME: string;
+  P_NOTI: string;
+  P_GOODS: string;
+  P_MOBILE: string;
+  P_EMAIL: string;
+  P_NEXT_URL: string;
+  P_RETURN_URL: string;
+  P_NOTI_URL: string;
+  P_TIMESTAMP: string;
+  P_SIGNATURE: string;
+  P_CHARSET?: string;
+  P_TAX?: string;
+  P_TAXFREE?: string;
+  P_RESERVED?: string;
+  P_CARD_OPTION?: string;
+  P_ONLY_EASYPAYCODE?: string;
+  P_QUOTABASE?: string;
+  P_VBANK_DT?: string;
+  P_VBANK_TM?: string;
+}
+
+export interface PCPaymentForm {
+  mid: string;
+  oid: string;
+  goodname: string;
+  price: string;
+  buyername: string;
+  buyertel: string;
+  buyeremail: string;
+  returnUrl: string;
+  closeUrl: string;
+  timestamp: string;
+  signature: string;
+  mKey: string;
+  gopaymethod?: string;
+  offerPeriod?: string;
+  acceptmethod?: string;
+  quotabase?: string;
+  nointerest?: string;
+  cardcode?: string;
+  only_easypay?: string;
+}
+
+export interface PaymentResult {
+  // 공통 응답
+  P_STATUS: string;      // 결과코드 (00: 성공)
+  P_RMESG1: string;      // 결과메시지
+  P_TID: string;         // 거래번호
+  P_TYPE: string;        // 결제수단 (CARD, BANK, VBANK, MOBILE)
+  P_AUTH_DT: string;     // 승인일시
+  P_MID: string;         // 가맹점 ID
+  P_OID: string;         // 주문번호
+  P_AMT: string;         // 결제금액
+  P_UNAME: string;       // 구매자명
+  P_MNAME: string;       // 가맹점명
+  P_NOTI: string;        // 가맹점 데이터
+
+  // 카드 결제 추가 정보
+  P_CARD_ISSUER_CODE?: string;  // 카드 발급사 코드
+  P_CARD_MEMBER_NUM?: string;   // 카드번호 (마스킹)
+  P_CARD_PURCHASE_CODE?: string; // 매입사 코드
+  P_CARD_INTEREST?: string;     // 무이자 여부
+  P_CARD_CHECKFLAG?: string;    // 체크카드 여부
+  P_AUTH_NO?: string;           // 승인번호
+  P_FN_CD1?: string;            // 카드사 코드
+  P_FN_NM?: string;             // 카드사명
+  P_RMESG2?: string;            // 추가 메시지
+
+  // 가상계좌 추가 정보
+  P_VACT_NUM?: string;          // 가상계좌 번호
+  P_VACT_DATE?: string;         // 입금기한 날짜
+  P_VACT_TIME?: string;         // 입금기한 시간
+  P_VACT_NAME?: string;         // 예금주명
+  P_VACT_BANK_CODE?: string;    // 은행코드
+
+  // 계좌이체 추가 정보
+  // (P_FN_CD1, P_FN_NM 사용)
+
+  // 휴대폰 결제 추가 정보
+  P_HPP_CORP?: string;          // 통신사
+  P_HPP_NUM?: string;           // 휴대폰번호 (마스킹)
+}
+
+// ==========================================
+// 유틸리티 함수
+// ==========================================
+
+/**
+ * 타임스탬프 생성 (밀리초)
+ */
+export function getTimestamp(): string {
+  return Date.now().toString();
+}
+
+/**
+ * SHA-256 해시 생성
+ */
+export function sha256Hash(data: string): string {
+  return crypto.createHash('sha256').update(data, 'utf8').digest('hex');
+}
+
+/**
+ * Signature 생성 (웰컴페이먼츠 방식)
+ *
+ * signature = SHA-256("mkey={mkey}&P_AMT={금액}&P_OID={주문번호}&P_TIMESTAMP={타임스탬프}")
+ * mkey = SHA-256(signKey)
+ */
+export function generateSignature(
+  signKey: string,
+  amount: number,
+  orderId: string,
+  timestamp: string
+): SignatureData {
+  // 1. mkey 생성 (signKey를 SHA-256 해시)
+  const mkey = sha256Hash(signKey);
+
+  // 2. signature 생성을 위한 문자열 (key=value 형식, 알파벳 순서)
+  const signString = `mkey=${mkey}&P_AMT=${amount}&P_OID=${orderId}&P_TIMESTAMP=${timestamp}`;
+
+  // 3. 최종 signature (SHA-256)
+  const signature = sha256Hash(signString);
+
+  return {
+    mkey,
+    timestamp,
+    signature,
+    oid: orderId,
+  };
+}
+
+/**
+ * PC Web Signature 생성
+ */
+export function generatePCSignature(
+  signKey: string,
+  amount: number,
+  orderId: string,
+  timestamp: string
+): SignatureData {
+  const mkey = sha256Hash(signKey);
+
+  // PC용 signature 문자열 (소문자)
+  const signString = `mkey=${mkey}&oid=${orderId}&price=${amount}&timestamp=${timestamp}`;
+  const signature = sha256Hash(signString);
+
+  return {
+    mkey,
+    timestamp,
+    signature,
+    oid: orderId,
+  };
+}
+
+// ==========================================
+// 결제 폼 데이터 생성
+// ==========================================
+
+/**
+ * 모바일 결제 폼 데이터 생성
+ */
+export function createMobilePaymentForm(
+  config: WelcomePayConfig,
+  params: PaymentRequestParams
+): MobilePaymentForm {
+  const timestamp = getTimestamp();
+  const { signature, mkey } = generateSignature(
+    config.signKey,
+    params.amount,
+    params.orderId,
+    timestamp
+  );
+
+  // P_RESERVED 옵션 구성
+  const reservedOptions: string[] = [
+    'twotrs_isp=Y',      // ISP 2트랜잭션
+    'block_isp=Y',       // ISP 팝업 차단 방지
+    'twotrs_isp_noti=N', // ISP 노티 미발송
+    'apprun_check=Y',    // 앱 설치 체크
+  ];
+
+  // 간편결제 코드 설정
+  let easyPayOption = '';
+  if (params.easyPayCodes && params.easyPayCodes.length > 0) {
+    easyPayOption = params.easyPayCodes.join(':');
+  }
+
+  const form: MobilePaymentForm = {
+    P_MID: config.mid,
+    P_OID: params.orderId,
+    P_AMT: params.amount.toString(),
+    P_UNAME: params.buyerName,
+    P_MNAME: '크루즈가이드',
+    P_NOTI: params.metadata ? JSON.stringify(params.metadata) : '',
+    P_GOODS: params.productName,
+    P_MOBILE: params.buyerTel,
+    P_EMAIL: params.buyerEmail || '',
+    P_NEXT_URL: params.nextUrl || '',
+    P_RETURN_URL: params.returnUrl || '',
+    P_NOTI_URL: params.notiUrl || '',
+    P_TIMESTAMP: timestamp,
+    P_SIGNATURE: signature,
+    P_CHARSET: 'utf8',
+    P_RESERVED: reservedOptions.join('&') + '&',
+  };
+
+  // 선택 옵션 추가
+  if (params.taxAmount !== undefined) {
+    form.P_TAX = params.taxAmount.toString();
+  }
+  if (params.taxFreeAmount !== undefined) {
+    form.P_TAXFREE = params.taxFreeAmount.toString();
+  }
+  if (easyPayOption) {
+    form.P_ONLY_EASYPAYCODE = easyPayOption;
+  }
+  if (params.quotaBase) {
+    form.P_QUOTABASE = params.quotaBase;
+  }
+  if (params.vbankExpireDate) {
+    form.P_VBANK_DT = params.vbankExpireDate;
+  }
+  if (params.vbankExpireTime) {
+    form.P_VBANK_TM = params.vbankExpireTime;
+  }
+
+  return form;
+}
+
+/**
+ * PC 결제 폼 데이터 생성
+ */
+export function createPCPaymentForm(
+  config: WelcomePayConfig,
+  params: PaymentRequestParams
+): PCPaymentForm {
+  const timestamp = getTimestamp();
+  const { signature, mkey } = generatePCSignature(
+    config.signKey,
+    params.amount,
+    params.orderId,
+    timestamp
+  );
+
+  // 결제수단 설정
+  let gopaymethod = '';
+  if (params.payMethod) {
+    switch (params.payMethod) {
+      case 'CARD':
+        gopaymethod = 'Card';
+        break;
+      case 'BANK':
+        gopaymethod = 'DirectBank';
+        break;
+      case 'VBANK':
+        gopaymethod = 'VBank';
+        break;
+      case 'MOBILE':
+        gopaymethod = 'HPP';
+        break;
+      case 'ALL':
+      default:
+        gopaymethod = '';
+    }
+  }
+
+  // acceptmethod 구성 (PC용 옵션)
+  const acceptOptions: string[] = [
+    'below1000',         // 1000원 미만 결제 허용
+    'HPP(2)',           // 휴대폰 결제 옵션
+  ];
+
+  // 간편결제 설정
+  let onlyEasypay = '';
+  if (params.easyPayCodes && params.easyPayCodes.length > 0) {
+    onlyEasypay = params.easyPayCodes.join(':');
+  }
+
+  const form: PCPaymentForm = {
+    mid: config.mid,
+    oid: params.orderId,
+    goodname: params.productName,
+    price: params.amount.toString(),
+    buyername: params.buyerName,
+    buyertel: params.buyerTel,
+    buyeremail: params.buyerEmail || '',
+    returnUrl: params.returnUrl || '',
+    closeUrl: params.returnUrl || '', // 닫기 버튼 클릭시 URL
+    timestamp,
+    signature,
+    mKey: mkey,
+  };
+
+  // 선택 옵션 추가
+  if (gopaymethod) {
+    form.gopaymethod = gopaymethod;
+  }
+  if (acceptOptions.length > 0) {
+    form.acceptmethod = acceptOptions.join(':');
+  }
+  if (params.quotaBase) {
+    form.quotabase = params.quotaBase;
+  }
+  if (onlyEasypay) {
+    form.only_easypay = onlyEasypay;
+  }
+
+  return form;
+}
+
+// ==========================================
+// URL 생성
+// ==========================================
+
+/**
+ * 모바일 결제 URL 생성
+ */
+export function getMobilePaymentUrl(
+  config: WelcomePayConfig,
+  payMethod: PaymentMethod = 'CARD'
+): string {
+  const baseUrl = config.isProduction
+    ? WELCOMEPAY_CONFIG.MOBILE_PROD_URL
+    : WELCOMEPAY_CONFIG.MOBILE_TEST_URL;
+
+  const path = WELCOMEPAY_CONFIG.MOBILE_PATHS[payMethod] || WELCOMEPAY_CONFIG.MOBILE_PATHS.CARD;
+
+  return baseUrl + path;
+}
+
+/**
+ * PC 결제 URL 생성
+ */
+export function getPCPaymentUrl(config: WelcomePayConfig): string {
+  return config.isProduction
+    ? WELCOMEPAY_CONFIG.PC_PROD_URL
+    : WELCOMEPAY_CONFIG.PC_TEST_URL;
+}
+
+// ==========================================
+// 결과 검증
+// ==========================================
+
+/**
+ * 결제 결과 성공 여부 확인
+ */
+export function isPaymentSuccess(status: string): boolean {
+  return status === '00' || status === '0000';
+}
+
+/**
+ * 가상계좌 입금대기 여부 확인
+ */
+export function isVBankWaiting(result: PaymentResult): boolean {
+  return result.P_TYPE === 'VBANK' && isPaymentSuccess(result.P_STATUS);
+}
+
+// ==========================================
+// 카드사 코드 매핑
+// ==========================================
+
+export const CARD_CODES: Record<string, string> = {
+  '01': '외환카드',
+  '03': '롯데카드',
+  '04': '현대카드',
+  '06': '국민카드',
+  '11': 'BC카드',
+  '12': '삼성카드',
+  '14': '신한카드',
+  '15': '한미카드',
+  '16': 'NH카드',
+  '17': '하나SK카드',
+  '21': '해외비자',
+  '22': '해외마스터',
+  '23': 'JCB',
+  '24': '해외아멕스',
+  '25': '해외다이너스',
+};
+
+export const BANK_CODES: Record<string, string> = {
+  '02': '산업은행',
+  '03': '기업은행',
+  '04': '국민은행',
+  '05': '외환은행',
+  '07': '수협은행',
+  '11': '농협은행',
+  '20': '우리은행',
+  '23': 'SC은행',
+  '27': '한국씨티은행',
+  '31': '대구은행',
+  '32': '부산은행',
+  '34': '광주은행',
+  '35': '제주은행',
+  '37': '전북은행',
+  '39': '경남은행',
+  '45': '새마을금고',
+  '48': '신협',
+  '71': '우체국',
+  '81': '하나은행',
+  '88': '신한은행',
+  '89': '케이뱅크',
+  '90': '카카오뱅크',
+  '92': '토스뱅크',
+};
+
+// ==========================================
+// 환경 변수에서 설정 로드
+// ==========================================
+
+export function getWelcomePayConfig(): WelcomePayConfig {
+  // 우선순위: WELCOMEPAY_MID > PG_MID_AUTH > 테스트 MID
+  const mid = process.env.WELCOMEPAY_MID || process.env.PG_MID_AUTH || 'welcometst';
+  // 우선순위: WELCOMEPAY_SIGNKEY > PG_SIGNKEY > 테스트 SignKey
+  const signKey = process.env.WELCOMEPAY_SIGNKEY || process.env.PG_SIGNKEY || 'QjZXWDZDRmxYUXJPYnMvelEvSjJ5QT09';
+  // 운영환경: WELCOMEPAY_PRODUCTION=true 일 때만 운영 URL 사용
+  // (테스트 MID인 welcometst나 wpcrdot200 등은 항상 테스트 URL 사용)
+  const isProduction = process.env.WELCOMEPAY_PRODUCTION === 'true';
+
+  return {
+    mid,
+    signKey,
+    isProduction,
+  };
+}
+
+/**
+ * 비인증(키인) 결제용 설정
+ */
+export function getWelcomePayNonAuthConfig(): WelcomePayConfig {
+  const mid = process.env.WELCOMEPAY_MID_NON_AUTH || process.env.PG_MID_NON_AUTH || 'welcometst';
+  const signKey = process.env.WELCOMEPAY_SIGNKEY_NON_AUTH || process.env.PG_SIGNKEY_NON_AUTH || 'QjZXWDZDRmxYUXJPYnMvelEvSjJ5QT09';
+  // 운영환경: WELCOMEPAY_PRODUCTION=true 일 때만 운영 URL 사용
+  const isProduction = process.env.WELCOMEPAY_PRODUCTION === 'true';
+
+  return {
+    mid,
+    signKey,
+    isProduction,
+  };
+}

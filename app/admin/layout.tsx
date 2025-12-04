@@ -185,6 +185,7 @@ function AdminLayoutContent({
     { href: '/admin/affiliate/refunds', label: '환불 처리 관리', icon: '↩️', section: 'affiliate' },
     { href: '/admin/system/status', label: '시스템 상태', icon: '🛡️', section: 'system' },
     { href: '/admin/system/google-drive', label: 'Google Drive 설정', icon: '☁️', section: 'system' },
+    { href: '/admin/test-dashboard', label: '백업/명세서/문서동기화', icon: '🔧', section: 'system' },
     { href: '/admin/seo', label: 'SEO 관리', icon: '🔍', section: 'system' },
     { href: '/admin/affiliate/links', label: '링크 관리', icon: '🔗', section: 'affiliate' },
     // { href: '/admin/affiliate/links/cleanup', label: '링크 정리', icon: '🧹', section: 'affiliate' }, // 사용하지 않는 기능 (주석 처리)

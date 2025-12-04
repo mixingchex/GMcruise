@@ -1124,6 +1124,16 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                                     />
                                   </div>
                                   <div>
+                                    <label className="text-sm font-medium text-gray-500">연락처</label>
+                                    <input
+                                      type="tel"
+                                      value={travelerForm.phone || ''}
+                                      onChange={(e) => setTravelerForm({ ...travelerForm, phone: e.target.value })}
+                                      className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                                      placeholder="010-0000-0000"
+                                    />
+                                  </div>
+                                  <div>
                                     <label className="text-sm font-medium text-gray-500">성별</label>
                                     <select
                                       value={travelerForm.gender || ''}
@@ -1222,6 +1232,10 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">주민번호</p>
                                     <p className="text-base text-gray-900">{traveler.residentNum || <span className="text-red-500">미입력</span>}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-500">연락처</p>
+                                    <p className="text-base text-gray-900">{traveler.phone || <span className="text-red-500">미입력</span>}</p>
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">성별</p>

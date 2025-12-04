@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
@@ -79,6 +81,7 @@ export async function PATCH(
       expiryDate,
       gender,
       residentNum,
+      phone,
       roomNumber,
       notes,
     } = body;
@@ -104,6 +107,7 @@ export async function PATCH(
     if (expiryDate !== undefined) updateData.expiryDate = expiryDate || null;
     if (gender !== undefined) updateData.gender = gender || null;
     if (residentNum !== undefined) updateData.residentNum = residentNum || null;
+    if (phone !== undefined) updateData.phone = phone || null;
     if (roomNumber !== undefined) updateData.roomNumber = roomNumber || null;
     if (notes !== undefined) updateData.notes = notes || null;
 
@@ -142,6 +146,7 @@ export async function PATCH(
         expiryDate: updatedTraveler.expiryDate,
         gender: updatedTraveler.gender,
         residentNum: updatedTraveler.residentNum,
+        phone: updatedTraveler.phone,
         roomNumber: updatedTraveler.roomNumber,
         notes: updatedTraveler.notes,
       },

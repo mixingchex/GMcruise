@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 const SESSION_COOKIE = 'cg.sid.v2';
 
 /**
- * GET /api/admin/purchase-customers/[userId]/trip-info
+ * GET /api/admin/purchased-customers/[id]/trip-info
  * 구매 고객의 Reservation과 Trip 정보 조회
  */
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
@@ -31,11 +31,11 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid || !(await checkAdminAuth(sid))) {
       return NextResponse.json(
         { ok: false, error: 'Unauthorized' },
@@ -43,7 +43,7 @@ export async function GET(
       );
     }
 
-    const { userId: userIdStr } = await params; const userId = parseInt(userIdStr);
+    const { id: userIdStr } = await params; const userId = parseInt(userIdStr);
     if (isNaN(userId)) {
       return NextResponse.json(
         { ok: false, error: 'Invalid user ID' },

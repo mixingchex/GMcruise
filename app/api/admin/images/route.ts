@@ -335,8 +335,10 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '이미지 URL이 필요합니다.' }, { status: 400 });
     }
 
-    // Google Drive URL인지 확인
-    if (imageUrl.includes('drive.google.com')) {
+    console.log('[Image Delete] Received URL:', imageUrl);
+
+    // Google Drive URL인지 확인 (다양한 형식 지원)
+    if (imageUrl.includes('drive.google.com') || imageUrl.includes('lh3.googleusercontent.com') || imageUrl.includes('id=')) {
       // Google Drive에서 삭제
       const deleteResult = await deleteFileFromDrive(imageUrl);
       if (!deleteResult.ok) {

@@ -264,6 +264,8 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
         const personKey = `${travelerName}|${userPhone}`;
 
         // 행 데이터 생성 (구매자APIS 시트 열 구조에 맞게)
+        // 연락처: Traveler.phone이 있으면 사용, 없으면 User.phone 사용
+        const travelerPhone = (traveler as any).phone || userPhone;
         const rowData = [
           '', // A: No (빈칸 - 기존 유지 또는 수동 입력)
           '', // B:
@@ -280,7 +282,7 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
           traveler.gender || '', // M: 성별
           traveler.birthDate || '', // N: 생년월일
           traveler.passportNo || '', // O: 여권번호
-          userPhone, // P: 고객연락처
+          travelerPhone, // P: 고객연락처 (Traveler.phone 또는 User.phone)
           traveler.nationality || '', // Q: 국적
           traveler.issueDate || '', // R: 여권생성일
           traveler.expiryDate || '', // S: 여권만료일

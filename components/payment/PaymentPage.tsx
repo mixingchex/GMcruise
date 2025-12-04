@@ -250,8 +250,12 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
       const data = await response.json();
 
       if (data.ok) {
-        // 웰컴페이먼츠 결제 - Form POST 방식으로 결제창 호출
-        if (data.paymentData) {
+        // 결제 체크아웃 페이지로 이동 (checkoutUrl 사용)
+        if (data.checkoutUrl) {
+          console.log('[Payment] Redirecting to checkout:', data.checkoutUrl);
+          router.push(data.checkoutUrl);
+        } else if (data.paymentData) {
+          // 레거시: 직접 폼 생성 방식 (deprecated)
           const pd = data.paymentData;
 
           // 숨겨진 폼 생성 및 POST 제출
@@ -289,7 +293,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
           // fallback: URL 리다이렉트
           window.location.href = data.paymentUrl;
         } else {
-          console.error('[Payment] paymentData/paymentUrl not provided:', data);
+          console.error('[Payment] No valid payment response:', data);
           alert('결제 정보를 생성할 수 없습니다. 관리자에게 문의해주세요.');
         }
       } else {

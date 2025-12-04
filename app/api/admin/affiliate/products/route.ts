@@ -259,59 +259,24 @@ export async function POST(request: Request) {
       include: productInclude,
     });
 
-    // 어필리에이트 상품 생성 시 기본 어필리에이트 링크 자동 생성
-    // 주의: 랜딩페이지는 별도로 생성해야 하며, 여기서는 productCode만 연결
+    // 어필리에이트 상품 생성 시 모든 활성 파트너에게 개인 링크 자동 생성
     if (session?.userId) {
       try {
-        // 고유한 링크 코드 생성
-        const generateLinkCode = async (): Promise<string> => {
-          const timestamp = Date.now().toString(36);
-          const random = Math.random().toString(36).substring(2, 8);
-          let code = `LINK-${timestamp}-${random}`.toUpperCase();
-          
-          // 중복 확인
-          let exists = await prisma.affiliateLink.findUnique({
-            where: { code },
+        const { generateLinksForProduct } = await import('@/lib/affiliate/auto-link-generator');
+
+        // 비동기로 모든 활성 파트너에게 링크 생성 (백그라운드에서 실행)
+        generateLinksForProduct(product.productCode, product.id, session.userId)
+          .then((result) => {
+            console.log(`[Admin Affiliate Products] 자동 링크 생성 완료 - 상품: ${product.productCode}, 생성: ${result.created}, 스킵: ${result.skipped}, 에러: ${result.errors.length}`);
+          })
+          .catch((error) => {
+            console.error('[Admin Affiliate Products] 자동 링크 생성 실패:', error);
           });
-          
-          let attempts = 0;
-          while (exists && attempts < 10) {
-            const random2 = Math.random().toString(36).substring(2, 8);
-            code = `LINK-${timestamp}-${random2}`.toUpperCase();
-            exists = await prisma.affiliateLink.findUnique({
-              where: { code },
-            });
-            attempts++;
-          }
-          
-          if (exists) {
-            throw new Error('링크 코드 생성에 실패했습니다.');
-          }
-          
-          return code;
-        };
 
-        const linkCode = await generateLinkCode();
-        const now = new Date();
-
-        // 기본 어필리에이트 링크 생성 (공통 링크, managerId/agentId 없음)
-        await prisma.affiliateLink.create({
-          data: {
-            code: linkCode,
-            title: `${product.title} - 기본 링크`,
-            productCode: product.productCode,
-            affiliateProductId: product.id,
-            issuedById: session.userId,
-            status: 'ACTIVE',
-            updatedAt: now,
-            // landingPageId는 나중에 어필리에이트 링크 수정 시 추가 가능
-          },
-        });
-
-        console.log(`[Admin Affiliate Products] 기본 링크 자동 생성: ${linkCode} (productCode: ${product.productCode})`);
+        console.log(`[Admin Affiliate Products] 자동 링크 생성 시작 (productCode: ${product.productCode})`);
       } catch (linkError: any) {
         // 링크 생성 실패해도 상품 생성은 성공으로 처리
-        console.error('[Admin Affiliate Products] 기본 링크 생성 실패 (상품은 생성됨):', linkError);
+        console.error('[Admin Affiliate Products] 자동 링크 생성 시작 실패 (상품은 생성됨):', linkError);
       }
     }
 

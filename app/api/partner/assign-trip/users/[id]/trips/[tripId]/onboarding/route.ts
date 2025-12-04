@@ -12,12 +12,13 @@ import { logger } from '@/lib/logger';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { userId: string; tripId: string } }
+  { params }: { params: Promise<{ id: string; tripId: string }> }
 ) {
   try {
     const { profile } = await requirePartnerContext();
-    const userId = parseInt(params.userId, 10);
-    const tripId = parseInt(params.tripId, 10);
+    const { id, tripId: tripIdStr } = await params;
+    const userId = parseInt(id, 10);
+    const tripId = parseInt(tripIdStr, 10);
 
     if (Number.isNaN(userId)) {
       return NextResponse.json({ ok: false, error: 'Invalid user ID' }, { status: 400 });

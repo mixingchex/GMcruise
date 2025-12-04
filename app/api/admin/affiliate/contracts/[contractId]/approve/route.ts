@@ -474,6 +474,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
       });
     });
 
+    // 새로 승인된 파트너에게 모든 활성 상품에 대한 개인 링크 자동 생성 (비동기)
+    if (partnerType === 'BRANCH_MANAGER' || partnerType === 'SALES_AGENT') {
+      import('@/lib/affiliate/auto-link-generator').then(({ generateLinksForPartner }) => {
+        generateLinksForPartner(profile.id, partnerType as 'BRANCH_MANAGER' | 'SALES_AGENT', sessionUser.id)
+          .then((result) => {
+            console.log(`[Approve Contract] 자동 링크 생성 완료 - 파트너: ${contract.name}, 생성: ${result.created}, 스킵: ${result.skipped}, 에러: ${result.errors.length}`);
+          })
+          .catch((error) => {
+            console.error('[Approve Contract] 자동 링크 생성 실패:', error);
+          });
+      }).catch((importError) => {
+        console.error('[Approve Contract] 자동 링크 생성 모듈 로드 실패:', importError);
+      });
+    }
+
     return NextResponse.json({ ok: true, profile, profileId: profile.id });
   } catch (error: any) {
     const errorContractId = resolvedParams ? resolvedParams.contractId : 'unknown';

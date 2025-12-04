@@ -1,6 +1,8 @@
 // app/api/cron/excel-backup/route.ts
 // 월별 엑셀 자동 백업 크론잡
 
+export const dynamic = 'force-dynamic';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadAllExcels } from '@/lib/affiliate/excel-backup';
 

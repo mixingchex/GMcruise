@@ -6,11 +6,11 @@ import { logger } from '@/lib/logger';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ userId: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { profile } = await requirePartnerContext();
-    const { userId: userIdStr } = await params;
+    const { id: userIdStr } = await params;
     const userId = parseInt(userIdStr, 10);
     if (Number.isNaN(userId)) {
       return NextResponse.json({ ok: false, error: 'Invalid user ID' }, { status: 400 });

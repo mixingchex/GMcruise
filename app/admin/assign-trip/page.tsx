@@ -330,7 +330,7 @@ export default function AssignTripPage() {
 
     // 구매 고객 선택 시 여행 상품 정보 자동 로드
     try {
-      const response = await fetch(`/api/admin/purchase-customers/${customer.id}/trip-info`, {
+      const response = await fetch(`/api/admin/purchased-customers/${customer.id}/trip-info`, {
         credentials: 'include',
       });
       const data = await response.json();

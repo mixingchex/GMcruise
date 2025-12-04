@@ -2,6 +2,7 @@
 // 공개 상품 목록 조회 API (로그인 불필요)
 
 // 성능 최적화: 10분 캐싱 (상품 목록은 자주 변경되지 않음)
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';  // Edge Runtime 금지 (Prisma 사용)
 export const revalidate = 600;    // 10분 캐싱 - 동시 1000명 접속 시 DB 부하 90% 감소
 

@@ -1354,7 +1354,7 @@ export function createAdminAssignTripApi(): AssignTripApi {
       return [];
     },
     async fetchPurchaseCustomerTripInfo(userId: number) {
-      const response = await fetch(`/api/admin/purchase-customers/${userId}/trip-info`, {
+      const response = await fetch(`/api/admin/purchased-customers/${userId}/trip-info`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -1449,7 +1449,7 @@ export function createPartnerAssignTripApi(): AssignTripApi {
       if (query) {
         params.append('search', query);
       }
-      const response = await fetch(`/api/partner/assign-trip/purchase-customers?${params.toString()}`, {
+      const response = await fetch(`/api/partner/assign-trip/purchased-customers?${params.toString()}`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -1459,7 +1459,7 @@ export function createPartnerAssignTripApi(): AssignTripApi {
       return [];
     },
     async fetchPurchaseCustomerTripInfo(userId: number) {
-      const response = await fetch(`/api/partner/assign-trip/purchase-customers/${userId}/trip-info`, {
+      const response = await fetch(`/api/partner/assign-trip/purchased-customers/${userId}/trip-info`, {
         credentials: 'include',
       });
       const data = await response.json();

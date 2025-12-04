@@ -1038,18 +1038,7 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
                                       )}
                                     </button>
                                   )}
-                                  <button
-                                    onClick={() => handleDelete(contract.id)}
-                                    disabled={!!deletingContractId}
-                                    className="text-gray-400 hover:text-red-600 disabled:opacity-50"
-                                    title="삭제"
-                                  >
-                                    {deletingContractId === contract.id ? (
-                                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
-                                    ) : (
-                                      <FiTrash2 className="w-4 h-4" />
-                                    )}
-                                  </button>
+                                  {/* 대리점장은 판매원 계약서 삭제 불가 - 확인만 가능 */}
                                 </div>
                               </td>
                             </tr>
@@ -1211,19 +1200,7 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
                     >
                       닫기
                     </button>
-                    <button
-                      onClick={() => {
-                        if (selectedContract) {
-                          handleDelete(selectedContract.id);
-                          setShowContractDetail(false);
-                          setSelectedContract(null);
-                        }
-                      }}
-                      disabled={deletingContractId === selectedContract?.id}
-                      className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
-                    >
-                      {deletingContractId === selectedContract?.id ? '삭제 중...' : '삭제'}
-                    </button>
+                    {/* 대리점장은 판매원 계약서 삭제 불가 - 확인만 가능 */}
                   </div>
                 </div>
               </div>
