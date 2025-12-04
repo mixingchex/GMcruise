@@ -3,7 +3,7 @@
 // 결제 체크아웃 페이지 (PC/Mobile 자동 감지)
 // 웰컴페이먼츠 PG 연동
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { FiCreditCard, FiSmartphone, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
 
@@ -21,7 +21,7 @@ interface PaymentData {
   metadata: any;
 }
 
-export default function PaymentCheckoutPage() {
+function PaymentCheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -341,5 +341,26 @@ export default function PaymentCheckoutPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// 로딩 컴포넌트
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <p className="mt-4 text-gray-600">결제 페이지를 불러오는 중...</p>
+      </div>
+    </div>
+  );
+}
+
+// Suspense로 감싼 메인 컴포넌트
+export default function PaymentCheckoutPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <PaymentCheckoutContent />
+    </Suspense>
   );
 }
