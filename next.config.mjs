@@ -29,14 +29,16 @@ const devCsp = [
 const prodCsp = [
   "default-src 'self'",
   // Next.js 정상 작동을 위해 unsafe-inline 허용 (hydration에 필요)
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://developers.kakao.com https://t1.kakaocdn.net",
+  // 웰컴페이먼츠 결제 스크립트 도메인 추가
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://developers.kakao.com https://t1.kakaocdn.net https://stdpay.paywelcome.co.kr https://mobile.paywelcome.co.kr https://*.paywelcome.co.kr",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https: https://developers.kakao.com https://t1.kakaocdn.net",
+  // 웰컴페이먼츠 API 연결 허용
+  "connect-src 'self' https: https://developers.kakao.com https://t1.kakaocdn.net https://*.paywelcome.co.kr",
   "media-src 'self' data:",
-  // YouTube iframe 허용
-  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com",
+  // YouTube iframe 및 결제 팝업 허용
+  "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.paywelcome.co.kr",
   "object-src 'none'",
   "base-uri 'self'",
   "frame-ancestors 'self'",
