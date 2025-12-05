@@ -290,6 +290,11 @@ interface ProductInfo {
   destination?: string[];
   startDate?: string | null;
   endDate?: string | null;
+  contactOptions?: {
+    payment?: boolean;
+    phoneCall?: boolean;
+    aiChatbot?: boolean;
+  };
 }
 
 interface ChatBotPageContentProps {
@@ -607,6 +612,10 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           
           const productResult = await productResponse.json();
           if (productResult.ok && productResult.product) {
+            // layout에서 contactOptions 추출
+            const layout = productResult.product.MallProductContent?.layout || {};
+            const contactOptions = layout.contactOptions || {};
+
             productData = {
               productCode: productResult.product.productCode,
               packageName: productResult.product.packageName,
@@ -617,6 +626,11 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
               basePrice: productResult.product.basePrice,
               startDate: productResult.product.startDate,
               endDate: productResult.product.endDate,
+              contactOptions: {
+                payment: contactOptions.payment || contactOptions.priceInquiry || false,
+                phoneCall: contactOptions.phoneCall || false,
+                aiChatbot: contactOptions.aiChatbot !== false,
+              },
             };
             setProductInfo(productData);
           }
@@ -856,19 +870,29 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         
         // 최종 구매 페이지로 이동
         if (data.finalPageUrl) {
-          // 상품 코드가 있으면 결제 페이지로, 없으면 상담 신청 페이지로
+          const query = new URLSearchParams();
+          if (partnerId) {
+            query.set('partner', partnerId);
+          }
+          const queryString = query.toString() ? `?${query.toString()}` : '';
+
+          // 상품의 contactOptions 확인 - 결제하기 버튼이 없으면 전화상담으로
+          const hasPaymentButton = productInfo?.contactOptions?.payment !== false;
+          const hasPhoneCallButton = productInfo?.contactOptions?.phoneCall !== false;
+
           if (productCode && data.finalPageUrl.includes('payment')) {
-            const query = new URLSearchParams();
-            if (partnerId) {
-              query.set('partner', partnerId);
+            // 결제 페이지로 가려는데 결제 버튼이 없으면 전화상담으로 유도
+            if (hasPaymentButton) {
+              router.push(`/products/${productCode}/payment${queryString}`);
+            } else if (hasPhoneCallButton) {
+              // 결제 버튼 없고 전화상담 있으면 상담 페이지로
+              router.push(`/products/${productCode}/inquiry${queryString}`);
+            } else {
+              // 둘 다 없으면 상품 페이지로
+              router.push(`/products/${productCode}${queryString}`);
             }
-            router.push(`/products/${productCode}/payment${query.toString() ? `?${query.toString()}` : ''}`);
           } else if (data.finalPageUrl.includes('inquiry') && productCode) {
-            const query = new URLSearchParams();
-            if (partnerId) {
-              query.set('partner', partnerId);
-            }
-            router.push(`/products/${productCode}/inquiry${query.toString() ? `?${query.toString()}` : ''}`);
+            router.push(`/products/${productCode}/inquiry${queryString}`);
           } else {
             // 최종 페이지 URL에 partner 정보 추가
             const finalUrl = new URL(data.finalPageUrl, window.location.origin);

@@ -92,26 +92,40 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
 
         if (files.length === 1) {
             const file = files[0];
+            setStatusMessage('이미지 압축 중...');
             const compressedFile = await imageCompression(file, options);
             const url = URL.createObjectURL(compressedFile);
+            const originalSize = file.size;
+            const compressedSize = compressedFile.size;
+            const reduction = Math.round((1 - compressedSize / originalSize) * 100);
             setResultFile({
                 url,
                 name: `compressed_${file.name}`
             });
             setProgress(100);
             setStatusMessage('완료!');
+            showSuccess(`이미지 압축 완료! (${reduction}% 감소)`);
             return;
         }
 
         for (const file of files) {
             try {
+                setStatusMessage(`이미지 압축 중... (${processedCount + 1}/${files.length})`);
                 const compressedFile = await imageCompression(file, options);
-                zip.file(file.name, compressedFile);
+                // Blob을 ArrayBuffer로 변환하여 JSZip에 추가
+                const arrayBuffer = await compressedFile.arrayBuffer();
+                zip.file(file.name, arrayBuffer);
                 processedCount++;
                 setProgress(Math.round((processedCount / files.length) * 90));
             } catch (e) {
                 console.error(`Failed to compress ${file.name}`, e);
+                showError(`${file.name} 압축 실패`);
             }
+        }
+
+        if (processedCount === 0) {
+            showError('압축된 파일이 없습니다.');
+            return;
         }
 
         setStatusMessage('ZIP 파일 생성 중...');
@@ -124,6 +138,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         });
         setProgress(100);
         setStatusMessage('완료!');
+        showSuccess(`${processedCount}개 이미지 압축 완료!`);
     };
 
     // 3. PDF Compression (Client-side ZIP only for now)
@@ -144,9 +159,24 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         }
 
         const zip = new JSZip();
-        files.forEach(file => {
-            zip.file(file.name, file);
-        });
+        let processedCount = 0;
+
+        for (const file of files) {
+            try {
+                setStatusMessage(`PDF 처리 중... (${processedCount + 1}/${files.length})`);
+                const arrayBuffer = await file.arrayBuffer();
+                zip.file(file.name, arrayBuffer);
+                processedCount++;
+                setProgress(Math.round((processedCount / files.length) * 90));
+            } catch (e) {
+                console.error(`Failed to add ${file.name}`, e);
+            }
+        }
+
+        if (processedCount === 0) {
+            showError('처리된 파일이 없습니다.');
+            return;
+        }
 
         setStatusMessage('ZIP 파일 생성 중...');
         const content = await zip.generateAsync({ type: 'blob' });
@@ -158,6 +188,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         });
         setProgress(100);
         setStatusMessage('완료!');
+        showSuccess(`${processedCount}개 PDF 묶음 완료!`);
     };
 
     // 4. WebP Conversion (Client-side)
@@ -200,25 +231,39 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
 
         if (files.length === 1) {
             const file = files[0];
+            setStatusMessage('WebP 변환 중...');
             const webpBlob = await convertToWebP(file);
             const url = URL.createObjectURL(webpBlob);
             const name = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+            const originalSize = file.size;
+            const newSize = webpBlob.size;
+            const reduction = Math.round((1 - newSize / originalSize) * 100);
             setResultFile({ url, name });
             setProgress(100);
             setStatusMessage('완료!');
+            showSuccess(`WebP 변환 완료! (${reduction}% 감소)`);
             return;
         }
 
         for (const file of files) {
             try {
+                setStatusMessage(`WebP 변환 중... (${processedCount + 1}/${files.length})`);
                 const webpBlob = await convertToWebP(file);
                 const name = file.name.replace(/\.[^/.]+$/, "") + ".webp";
-                zip.file(name, webpBlob);
+                // Blob을 ArrayBuffer로 변환하여 JSZip에 추가
+                const arrayBuffer = await webpBlob.arrayBuffer();
+                zip.file(name, arrayBuffer);
                 processedCount++;
                 setProgress(Math.round((processedCount / files.length) * 90));
             } catch (e) {
                 console.error(`Failed to convert ${file.name}`, e);
+                showError(`${file.name} 변환 실패`);
             }
+        }
+
+        if (processedCount === 0) {
+            showError('변환된 파일이 없습니다.');
+            return;
         }
 
         setStatusMessage('ZIP 파일 생성 중...');
@@ -231,6 +276,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         });
         setProgress(100);
         setStatusMessage('완료!');
+        showSuccess(`${processedCount}개 WebP 변환 완료!`);
     };
 
     return (
