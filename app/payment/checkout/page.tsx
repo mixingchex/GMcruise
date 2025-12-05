@@ -16,34 +16,41 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const [isMobile, setIsMobile] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
-  const [autoLaunched, setAutoLaunched] = useState(false);
 
-  // 1. [데이터 수신] URL 파라미터 최우선 사용 (API 호출 X)
+  // [상태] 결제 수단 선택 (기본값: 카드)
+  // Card(신용카드), DirectBank(계좌이체), VBank(가상계좌), HPP(휴대폰)
+  const [payMethod, setPayMethod] = useState('Card');
+
+  // ============================================
+  // 1. 데이터 수신 (API 호출 X, URL 파라미터만 사용)
+  // ============================================
   const orderId = searchParams.get('orderId') || `ord_${Date.now()}`;
-  // 한글 깨짐 방지를 위해 decode 처리
   const goodname = searchParams.get('goodname') ? decodeURIComponent(searchParams.get('goodname')!) : '기본 상품';
   const price = searchParams.get('price') || '1000';
   const buyername = searchParams.get('buyername') ? decodeURIComponent(searchParams.get('buyername')!) : '방문자';
-  const buyertel = searchParams.get('buyertel') || '010-0000-0000';
-  const buyeremail = searchParams.get('buyeremail') || 'no-email@test.com';
+  const buyertel = searchParams.get('buyertel') || '01000000000';
+  const buyeremail = searchParams.get('buyeremail') || 'test@test.com';
 
-  // 어필리에이트 및 자동화 추적 키
+  // 추적 데이터 (파트너 실적용)
   const partnerId = searchParams.get('partnerId') || '';
   const productCode = searchParams.get('productCode') || '';
+  const merchantData = `partnerId=${partnerId}&productCode=${productCode}`;
 
-  // 2. [보안 데이터] (서버 연동 전 임시값 - 화면 띄우기용)
+  // 보안 데이터 (임시값)
   const timestamp = String(Date.now());
-  const mKey = ""; // 임시 빈값 (PG사 설정에 따라 필수일 수 있으나 일단 진행)
-  const signature = "";
+  const mKey = '';
+  const signature = '';
 
-  // 3. [모바일 감지 및 스크립트 로드]
+  // ============================================
+  // 2. 초기화 (PC: 스크립트 로드 / Mobile: 바로 준비)
+  // ============================================
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
     const mobile = /android|iphone|ipad|ipod/i.test(userAgent);
     setIsMobile(mobile);
 
     if (!mobile) {
-      // PC: 스크립트 로드
+      // PC: 웰컴페이먼츠 스크립트 로드
       const script = document.createElement('script');
       script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
       script.onload = () => setIsScriptLoaded(true);
@@ -54,21 +61,12 @@ function CheckoutContent() {
     }
   }, []);
 
-  // 4. [자동 실행] 5060 고객 편의 (Auto-Launch)
-  useEffect(() => {
-    if (isScriptLoaded && !autoLaunched) {
-      const timer = setTimeout(() => {
-        handlePayment();
-        setAutoLaunched(true);
-      }, 800); // 0.8초 후 자동 실행
-      return () => clearTimeout(timer);
-    }
-  }, [isScriptLoaded, autoLaunched]);
-
-  // 5. [결제 핸들러] PC/Mobile 분기
+  // ============================================
+  // 3. 결제 실행 핸들러 (PC/Mobile 분기)
+  // ============================================
   const handlePayment = () => {
     if (isMobile) {
-      // === Mobile: 동적 폼 생성 후 이동 ===
+      // === Mobile: 동적 폼 생성 후 POST 전송 ===
       const form = document.createElement('form');
       form.method = 'POST';
       form.acceptCharset = 'euc-kr';
@@ -77,18 +75,16 @@ function CheckoutContent() {
       const params: Record<string, string> = {
         P_MID: 'wpcrdot200',
         P_OID: orderId,
-        P_AMT: price,
+        P_AMT: price,                    // price -> P_AMT
         P_UNAME: buyername,
-        P_GOODS: goodname,
+        P_GOODS: goodname,               // goodname -> P_GOODS
         P_MOBILE: buyertel,
         P_EMAIL: buyeremail,
         P_NEXT_URL: 'https://www.cruisedot.co.kr/api/payment/callback',
         P_NOTI_URL: 'https://www.cruisedot.co.kr/api/payment/notify',
         P_HPP_METHOD: '1',
-        P_RESERVED: 'twotrs_isp=Y&block_isp=Y&twotrs_bank=Y&apprun_check=Y',
         P_CHARSET: 'utf8',
-        // [중요] 실적 추적용 데이터 숨기기
-        P_NOTI: `partnerId=${partnerId}&productCode=${productCode}`
+        P_NOTI: merchantData             // partnerId 포함
       };
 
       Object.entries(params).forEach(([key, value]) => {
@@ -103,10 +99,12 @@ function CheckoutContent() {
       form.submit();
 
     } else {
-      // === PC: Overlay 팝업 ===
-      if (typeof window.INIStdPay === 'undefined') return;
+      // === PC: Overlay 팝업 실행 ===
+      if (typeof window.INIStdPay === 'undefined') {
+        alert('결제 모듈 로딩 중... 잠시 후 다시 클릭해주세요.');
+        return;
+      }
 
-      // 폼 ID 확인 후 실행
       if (document.getElementById('SendPayForm_id')) {
         window.INIStdPay.pay('SendPayForm_id');
       }
@@ -114,22 +112,98 @@ function CheckoutContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
-        <h2 className="text-2xl font-bold text-blue-600 mb-4">결제 진행 중</h2>
-        <p className="text-gray-600 mb-8">
-          잠시만 기다려주세요.<br/>안전한 결제창을 불러오고 있습니다.
-        </p>
+    <div className="min-h-screen bg-gray-50 py-12 px-4">
+      <div className="max-w-lg mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        {/* 헤더 */}
+        <div className="bg-blue-600 px-6 py-4">
+          <h1 className="text-xl font-bold text-white">결제하기</h1>
+        </div>
 
-        {/* 수동 클릭 버튼 */}
-        <button
-          onClick={handlePayment}
-          className="w-full py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700"
-        >
-          결제창 열기
-        </button>
+        <div className="p-6 space-y-6">
+          {/* 주문 정보 요약 */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h2 className="font-bold text-gray-700 mb-2">주문 정보</h2>
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-gray-500">상품명</span>
+              <span className="font-medium truncate max-w-[200px]">{goodname}</span>
+            </div>
+            <div className="flex justify-between text-sm mb-1">
+              <span className="text-gray-500">구매자</span>
+              <span className="font-medium">{buyername}</span>
+            </div>
+            <div className="flex justify-between text-lg mt-3 pt-3 border-t">
+              <span className="font-bold text-gray-800">결제 금액</span>
+              <span className="font-bold text-blue-600">{parseInt(price).toLocaleString()}원</span>
+            </div>
+          </div>
 
-        {/* === PC용 표준 폼 (화면에 보이지 않음) === */}
+          {/* 결제 수단 선택 UI (4가지) */}
+          <div>
+            <h3 className="font-bold text-gray-700 mb-3">결제 수단 선택</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setPayMethod('Card')}
+                className={`p-4 border-2 rounded-lg font-medium transition-all ${
+                  payMethod === 'Card'
+                    ? 'border-blue-600 bg-blue-50 text-blue-600'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                신용카드
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayMethod('DirectBank')}
+                className={`p-4 border-2 rounded-lg font-medium transition-all ${
+                  payMethod === 'DirectBank'
+                    ? 'border-blue-600 bg-blue-50 text-blue-600'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                계좌이체
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayMethod('VBank')}
+                className={`p-4 border-2 rounded-lg font-medium transition-all ${
+                  payMethod === 'VBank'
+                    ? 'border-blue-600 bg-blue-50 text-blue-600'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                가상계좌
+              </button>
+              <button
+                type="button"
+                onClick={() => setPayMethod('HPP')}
+                className={`p-4 border-2 rounded-lg font-medium transition-all ${
+                  payMethod === 'HPP'
+                    ? 'border-blue-600 bg-blue-50 text-blue-600'
+                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                휴대폰
+              </button>
+            </div>
+          </div>
+
+          {/* 결제하기 버튼 */}
+          <button
+            onClick={handlePayment}
+            disabled={!isMobile && !isScriptLoaded}
+            className="w-full py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+          >
+            {parseInt(price).toLocaleString()}원 결제하기
+          </button>
+
+          {/* 안내 문구 */}
+          <p className="text-xs text-gray-400 text-center">
+            웰컴페이먼츠를 통한 안전한 결제
+          </p>
+        </div>
+
+        {/* === PC용 표준 폼 (Hidden) === */}
         {!isMobile && (
           <form id="SendPayForm_id" name="SendPayForm_id" style={{ display: 'none' }}>
             <input type="hidden" name="mid" value="wpcrdot200" />
@@ -142,16 +216,19 @@ function CheckoutContent() {
             <input type="hidden" name="timestamp" value={timestamp} />
             <input type="hidden" name="currency" value="WON" />
 
-            {/* [핵심] Overlay 설정 및 추적 데이터 */}
+            {/* 선택된 결제 수단 적용 */}
+            <input type="hidden" name="gopaymethod" value={payMethod} />
+
+            {/* payViewType: overlay 고정 */}
             <input type="hidden" name="payViewType" value="overlay" />
-            <input type="hidden" name="gopaymethod" value="Card" />
             <input type="hidden" name="charset" value="UTF-8" />
             <input type="hidden" name="acceptmethod" value="HPP(1):below1000" />
-            <input type="hidden" name="merchantData" value={`partnerId=${partnerId}&productCode=${productCode}`} />
+
+            {/* partnerId 포함 */}
+            <input type="hidden" name="merchantData" value={merchantData} />
 
             <input type="hidden" name="signature" value={signature} />
             <input type="hidden" name="mKey" value={mKey} />
-
             <input type="hidden" name="returnUrl" value="https://www.cruisedot.co.kr/api/payment/return" />
             <input type="hidden" name="closeUrl" value="https://www.cruisedot.co.kr/payment/close" />
           </form>

@@ -7,6 +7,79 @@ import { isPaymentSuccess } from '@/lib/welcomepay';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.cruisedot.co.kr';
 
 /**
+ * 자동화 실행 함수 (비동기)
+ * - AffiliateSale 실적 생성
+ * - Google Drive 폴더/시트 생성
+ * - 이메일 발송
+ */
+async function executeAutomation(params: {
+  orderId: string;
+  tid: string;
+  amount: number;
+  partnerId: string;
+  productCode: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  partnerSource: string;
+}) {
+  const { orderId, tid, amount, partnerId, productCode, customerName, customerPhone, customerEmail, partnerSource } = params;
+
+  try {
+    // [Step 1] Webhook 호출 → AffiliateSale 실적 생성
+    console.log('[Automation] ===== Webhook 호출 시작 =====');
+
+    // Payment에서 메타데이터 조회
+    const payment = await prisma.payment.findUnique({
+      where: { orderId },
+      select: { metadata: true, affiliateMallUserId: true, affiliateCode: true }
+    });
+
+    const webhookPayload = {
+      imp_uid: tid,
+      merchant_uid: orderId,
+      status: 'paid',
+      amount,
+      productCode,
+      customerName,
+      customerPhone,
+      customerEmail,
+      metadata: payment?.metadata || {},
+      affiliateCode: payment?.affiliateCode || '',
+      affiliateMallUserId: partnerId || payment?.affiliateMallUserId || '',
+      _partnerSource: partnerSource,
+    };
+
+    const webhookResponse = await fetch(`${BASE_URL}/api/payment/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(webhookPayload),
+    });
+
+    const webhookResult = await webhookResponse.json();
+
+    console.log('[Automation] Webhook 결과:', {
+      ok: webhookResult.ok,
+      saleId: webhookResult.saleId || null,
+      affiliateSaleCreated: webhookResult.affiliateSaleCreated || false,
+      commissionCreated: webhookResult.commissionCreated || false,
+    });
+
+    // Webhook이 Google Drive API + 이메일 발송을 내부에서 처리함
+    // (webhook/route.ts 참조: ensureTripFolder, ensureApisSheet, sendPurchaseConfirmation)
+
+    if (webhookResult.affiliateSaleCreated) {
+      console.log(`[Automation] ✅ 어필리에이트 실적 저장 완료! 파트너: ${partnerId}`);
+    }
+
+    return webhookResult;
+  } catch (error) {
+    console.error('[Automation] 실행 실패:', error);
+    return { ok: false, error: String(error) };
+  }
+}
+
+/**
  * 결제 콜백 API v12.0 - 데이터 복구 및 자동화 완성
  *
  * [핵심 로직] 파트너 정보 '3중 확인' (Data Recovery)
@@ -194,61 +267,33 @@ export async function POST(request: NextRequest) {
     console.log('[Callback v12.0] ✅ Payment 상태 업데이트 완료');
 
     // ============================================
-    // [Step 8] Webhook 호출 (어필리에이트 실적 + 자동화)
+    // [Step 8] 자동화 실행 (비동기)
+    // - AffiliateSale 실적 생성
+    // - Google Drive 폴더/시트 생성
+    // - 이메일 발송
     // ============================================
-    console.log('[Callback v12.0] ===== Webhook 호출 =====');
+    console.log('[Callback v12.0] ===== 자동화 실행 시작 =====');
 
-    const webhookPayload = {
-      imp_uid: finalTid,
-      merchant_uid: finalOid,
-      status: 'paid',
-      amount: parseInt(finalAmt) || payment.amount,
-      productCode: finalProductCode || payment.productCode,
-      customerName: payment.buyerName,
-      customerPhone: payment.buyerTel,
-      customerEmail: payment.buyerEmail || '',
-      metadata: payment.metadata || {},
-      // [v12.0 핵심] 3중 확인으로 복구된 파트너 정보
-      affiliateCode: payment.affiliateCode || '',
-      affiliateMallUserId: finalPartnerId,
-      _partnerSource: partnerSource,
-    };
-
-    console.log('[Callback v12.0] Webhook payload:', {
+    // 자동화를 비동기로 실행 (리다이렉트 지연 방지)
+    executeAutomation({
       orderId: finalOid,
-      amount: webhookPayload.amount,
-      affiliateMallUserId: webhookPayload.affiliateMallUserId || 'NONE ⚠️',
-      productCode: webhookPayload.productCode || 'NONE',
+      tid: finalTid,
+      amount: parseInt(finalAmt) || payment.amount,
+      partnerId: finalPartnerId,
+      productCode: finalProductCode || payment.productCode || '',
+      customerName: payment.buyerName || '',
+      customerPhone: payment.buyerTel || '',
+      customerEmail: payment.buyerEmail || '',
       partnerSource,
-    });
-
-    try {
-      const webhookResponse = await fetch(`${BASE_URL}/api/payment/webhook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(webhookPayload),
-      });
-
-      const webhookResult = await webhookResponse.json();
-
-      console.log('[Callback v12.0] Webhook 결과:', {
-        ok: webhookResult.ok,
-        affiliateSaleCreated: webhookResult.affiliateSaleCreated || false,
-        commissionCreated: webhookResult.commissionCreated || false,
-        saleId: webhookResult.saleId || null,
-        error: webhookResult.error || null,
-      });
-
-      if (webhookResult.affiliateSaleCreated) {
-        console.log(`[Callback v12.0] ✅ 어필리에이트 실적 저장 완료! 파트너: ${finalPartnerId}`);
+    }).then(result => {
+      if (result.affiliateSaleCreated) {
+        console.log(`[Callback v12.0] ✅ 자동화 완료! 파트너: ${finalPartnerId}, 실적ID: ${result.saleId}`);
       } else if (finalPartnerId) {
         console.log(`[Callback v12.0] ⚠️ 파트너(${finalPartnerId}) 있으나 실적 저장 실패`);
       }
-
-    } catch (webhookError) {
-      // Webhook 실패해도 결제는 성공으로 처리 (나중에 수동 처리 가능)
-      console.error('[Callback v12.0] ⚠️ Webhook 호출 실패:', webhookError);
-    }
+    }).catch(err => {
+      console.error('[Callback v12.0] ⚠️ 자동화 실행 실패:', err);
+    });
 
     // ============================================
     // [Step 9] 성공 페이지로 리다이렉트
