@@ -1,10 +1,10 @@
 'use client';
 
 // ============================================
-// 결제 체크아웃 페이지 v9.1 (API 호출 완전 차단)
+// 결제 체크아웃 페이지 v9.2 (자동 결제창 + API 차단)
 // ============================================
 // 핵심 1: URL에 goodname + price 있으면 API 호출 안함 (404 원천 차단)
-// 핵심 2: "이미 알고 있는 정보는 다시 묻지 않는다"
+// 핵심 2: 준비 완료 시 자동으로 결제창 실행 (Auto-Launch)
 // 핵심 3: Form ID는 반드시 'SendPayForm_id' (INIStdPay.js 표준)
 // 핵심 4: merchantData에 partnerId, productCode 포함
 // ============================================
@@ -121,6 +121,9 @@ function PaymentCheckoutContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 자동 실행 여부 (1회만 실행)
+  const [autoLaunched, setAutoLaunched] = useState(false);
+
   // API에서 가져온 결제 데이터 (보조용)
   const [apiPaymentData, setApiPaymentData] = useState<PaymentData | null>(null);
 
@@ -217,7 +220,7 @@ function PaymentCheckoutContent() {
     const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile'];
     const detected = mobileKeywords.some(keyword => userAgent.includes(keyword));
     setIsMobile(detected);
-    console.log('[Checkout v9.1] PC + Mobile 통합 모드, isMobile:', detected);
+    console.log('[Checkout v9.2] PC + Mobile 통합 모드, isMobile:', detected);
   }, []);
 
   // ============================================
@@ -232,8 +235,8 @@ function PaymentCheckoutContent() {
     // 404 에러 원천 차단
     // ============================================
     if (hasUrlData) {
-      console.log('[Checkout v9.1] ✅ URL 데이터 사용 (API Skip!)');
-      console.log('[Checkout v9.1] URL Data:', {
+      console.log('[Checkout v9.2] ✅ URL 데이터 사용 (API Skip!)');
+      console.log('[Checkout v9.2] URL Data:', {
         orderId: urlOrderId,
         goodname: urlGoodname,
         price: urlPrice,
@@ -248,7 +251,7 @@ function PaymentCheckoutContent() {
     }
 
     // URL에 데이터 없으면 Fallback 모드 (API 호출도 안함)
-    console.log('[Checkout v9.1] ⚠️ URL 데이터 없음 - Fallback 모드');
+    console.log('[Checkout v9.2] ⚠️ URL 데이터 없음 - Fallback 모드');
     setIsLoading(false);
 
     // 참고: API 호출 로직 완전 제거
@@ -276,9 +279,9 @@ function PaymentCheckoutContent() {
 
         setMKey(generatedMKey);
         setSignature(generatedSignature);
-        console.log('[Checkout v9.1] Signature 생성 완료');
+        console.log('[Checkout v9.2] Signature 생성 완료');
       } catch (err) {
-        console.error('[Checkout v9.1] Signature 생성 실패:', err);
+        console.error('[Checkout v9.2] Signature 생성 실패:', err);
         // 실패해도 빈값으로 폼에 들어감 (JS 오류 방지)
       }
     };
@@ -295,11 +298,11 @@ function PaymentCheckoutContent() {
     // 모바일은 스크립트 불필요 (Form Submit 방식)
     if (isMobile) {
       setScriptLoaded(true); // 모바일은 항상 ready
-      console.log('[Checkout v9.1] Mobile - 스크립트 로드 스킵');
+      console.log('[Checkout v9.2] Mobile - 스크립트 로드 스킵');
       return;
     }
 
-    console.log('[Checkout v9.1] PC - Loading INIStdPay.js...');
+    console.log('[Checkout v9.2] PC - Loading INIStdPay.js...');
 
     if (window.INIStdPay && typeof window.INIStdPay.pay === 'function') {
       setScriptLoaded(true);
@@ -315,17 +318,17 @@ function PaymentCheckoutContent() {
     script.async = false;
 
     script.onload = () => {
-      console.log('[Checkout v9.1] PC Script loaded');
+      console.log('[Checkout v9.2] PC Script loaded');
       setTimeout(() => {
         if (window.INIStdPay) {
           setScriptLoaded(true);
-          console.log('[Checkout v9.1] INIStdPay ready');
+          console.log('[Checkout v9.2] INIStdPay ready');
         }
       }, 500);
     };
 
     script.onerror = () => {
-      console.error('[Checkout v9.1] PC Script load failed');
+      console.error('[Checkout v9.2] PC Script load failed');
       // 실패해도 UI는 계속 표시
     };
 
@@ -339,8 +342,8 @@ function PaymentCheckoutContent() {
     if (isPaymentProcessing) return;
     setIsPaymentProcessing(true);
 
-    console.log('[Checkout v9.1] Payment clicked, isMobile:', isMobile);
-    console.log('[Checkout v9.1] Form data:', {
+    console.log('[Checkout v9.2] Payment clicked, isMobile:', isMobile);
+    console.log('[Checkout v9.2] Form data:', {
       oid: safeOid,
       goodname: safeGoodname,
       price: safePrice,
@@ -354,7 +357,7 @@ function PaymentCheckoutContent() {
     // [Mobile 결제] - Form Submit 방식
     // ============================================
     if (isMobile) {
-      console.log('[Checkout v9.1] Mobile 결제 시작...');
+      console.log('[Checkout v9.2] Mobile 결제 시작...');
 
       // 1. 동적 폼 생성 (모바일은 별도 폼 - SendPayForm_id와 충돌 방지)
       const mobileForm = document.createElement('form');
@@ -399,7 +402,7 @@ function PaymentCheckoutContent() {
       signInput.value = signature || '';
       mobileForm.appendChild(signInput);
 
-      console.log('[Checkout v9.1] Mobile Form Params:', mobileParams);
+      console.log('[Checkout v9.2] Mobile Form Params:', mobileParams);
       document.body.appendChild(mobileForm);
       mobileForm.submit();
       return;
@@ -408,7 +411,7 @@ function PaymentCheckoutContent() {
     // ============================================
     // [PC 결제] - INIStdPay.pay('SendPayForm_id') 호출
     // ============================================
-    console.log('[Checkout v9.1] PC 결제 시작...');
+    console.log('[Checkout v9.2] PC 결제 시작...');
 
     // 1. INIStdPay 스크립트 로드 확인
     if (!window.INIStdPay) {
@@ -420,19 +423,37 @@ function PaymentCheckoutContent() {
     // 2. [핵심] Form ID가 정확한지 확인하고 호출
     const pcForm = document.getElementById('SendPayForm_id');
     if (!pcForm) {
-      console.error('[Checkout v9.1] SendPayForm_id 폼을 찾을 수 없음!');
+      console.error('[Checkout v9.2] SendPayForm_id 폼을 찾을 수 없음!');
       alert('결제 폼 오류. 페이지를 새로고침 해주세요.');
       setIsPaymentProcessing(false);
       return;
     }
 
     // 3. INIStdPay.pay() 호출 - 폼 ID 정확히 전달
-    console.log('[Checkout v9.1] Calling INIStdPay.pay("SendPayForm_id")...');
+    console.log('[Checkout v9.2] Calling INIStdPay.pay("SendPayForm_id")...');
     window.INIStdPay.pay('SendPayForm_id');
   };
 
   // 폼 준비 완료 여부 (모바일은 항상 ready, PC는 스크립트 체크)
   const isFormReady = isMobile ? !isLoading : scriptLoaded;
+
+  // ============================================
+  // [v9.2] 자동 결제창 실행 (Auto-Launch)
+  // URL 데이터가 있고, 준비 완료되면 자동으로 결제창 띄움
+  // 50~60대 고객 편의를 위해 클릭 없이 바로 결제창!
+  // ============================================
+  useEffect(() => {
+    // 조건: URL 데이터 있음 + 준비 완료 + 아직 자동실행 안함 + 처리 중 아님
+    if (hasUrlData && isFormReady && !autoLaunched && !isPaymentProcessing && mKey && signature) {
+      console.log('[Checkout v9.2] ✅ 자동 결제창 실행 (Auto-Launch)');
+      setAutoLaunched(true);
+
+      // 약간의 딜레이 후 실행 (UI 렌더링 완료 보장)
+      setTimeout(() => {
+        handlePayment();
+      }, 500);
+    }
+  }, [hasUrlData, isFormReady, autoLaunched, isPaymentProcessing, mKey, signature]);
 
   // ============================================
   // 메인 렌더링
@@ -497,7 +518,7 @@ function PaymentCheckoutContent() {
               {isMobile && <FiSmartphone className="w-5 h-5" />}
               결제하기
               <span className="text-xs font-normal opacity-80">
-                {isMobile ? '(Mobile v9.1)' : '(PC v9.1)'}
+                {isMobile ? '(Mobile v9.2)' : '(PC v9.2)'}
               </span>
             </h1>
             <p className="text-white/80 text-sm mt-1">
@@ -617,7 +638,7 @@ function PaymentCheckoutContent() {
         {/* 디버그 정보 (개발용) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="bg-gray-800 text-green-400 rounded-lg p-4 text-xs font-mono overflow-auto">
-            <div className="mb-2 text-gray-400">// Debug Info (v9.1 - API 호출 완전 차단)</div>
+            <div className="mb-2 text-gray-400">// Debug Info (v9.2 - Auto-Launch)</div>
             <div className="text-cyan-400 font-bold">isMobile: {String(isMobile)}</div>
             <div className="text-pink-400 font-bold">hasUrlData: {String(hasUrlData)}</div>
             <div className="mt-2 text-gray-400">--- URL Params ---</div>

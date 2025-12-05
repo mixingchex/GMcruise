@@ -251,22 +251,44 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
 
       if (data.ok && data.orderId) {
         // ============================================
-        // [핵심 변경] Query String으로 결제 데이터 직접 전달
-        // API 404 에러가 나도 결제 페이지가 정상 동작하도록
+        // [v9.2] Query String으로 결제 데이터 직접 전달
+        // 특수문자 처리 + 모든 필드 확실히 전달
         // ============================================
+
+        // 상품명 정리 (특수문자 제거)
+        const cleanGoodname = (productName || '크루즈 여행 상품')
+          .replace(/[<>"'&]/g, '')
+          .substring(0, 80);
+
+        // 구매자명 정리
+        const cleanBuyername = formData.buyerName.trim();
+
+        // 최종 금액
+        const finalPrice = calculateTotal();
+
+        // URL 파라미터 구성
         const queryParams = new URLSearchParams({
           orderId: data.orderId,
-          goodname: productName || '크루즈 여행 상품',
-          price: String(calculateTotal()),
-          buyername: formData.buyerName,
-          buyertel: formData.buyerTel,
-          buyeremail: formData.buyerEmail || '',
+          goodname: cleanGoodname,
+          price: String(finalPrice),
+          buyername: cleanBuyername,
+          buyertel: formData.buyerTel.trim(),
+          buyeremail: formData.buyerEmail?.trim() || '',
           productCode: productCode || '',
           partnerId: partnerId || '',
         });
 
         const checkoutUrl = `/payment/checkout?${queryParams.toString()}`;
-        console.log('[Payment] Redirecting with QueryString:', checkoutUrl);
+
+        console.log('[Payment v9.2] 결제 페이지로 이동:', {
+          orderId: data.orderId,
+          goodname: cleanGoodname,
+          price: finalPrice,
+          buyername: cleanBuyername,
+          productCode,
+          partnerId,
+        });
+
         router.push(checkoutUrl);
       } else {
         alert('결제 요청 실패: ' + (data.error || 'Unknown error'));
