@@ -1,12 +1,12 @@
 'use client';
 
 // ============================================
-// 결제 체크아웃 페이지 v9.0 (Form ID 표준화 + URL 파라미터 우선)
+// 결제 체크아웃 페이지 v9.1 (API 호출 완전 차단)
 // ============================================
-// 핵심 1: URL 파라미터(searchParams)가 API보다 우선
-// 핵심 2: Form ID는 반드시 'SendPayForm_id' (INIStdPay.js 표준)
-// 핵심 3: action, method 속성 금지 (페이지 이동 방지)
-// 핵심 4: Mobile은 별도 동적 폼 생성
+// 핵심 1: URL에 goodname + price 있으면 API 호출 안함 (404 원천 차단)
+// 핵심 2: "이미 알고 있는 정보는 다시 묻지 않는다"
+// 핵심 3: Form ID는 반드시 'SendPayForm_id' (INIStdPay.js 표준)
+// 핵심 4: merchantData에 partnerId, productCode 포함
 // ============================================
 
 import { useEffect, useState, Suspense, useMemo, useRef } from 'react';
@@ -182,8 +182,11 @@ function PaymentCheckoutContent() {
   const safePartnerId = urlPartnerId || apiPaymentData?.partnerId || '';
   const safeAffiliateCode = apiPaymentData?.affiliateCode || '';
 
-  // URL에 필수 데이터가 있는지 확인
-  const hasUrlData = !!(urlOrderId && urlGoodname && urlPrice && urlBuyername && urlBuyertel);
+  // ============================================
+  // [핵심] URL에 결제 필수 데이터가 있는지 확인
+  // goodname + price만 있으면 충분! (나머지는 Fallback 사용)
+  // ============================================
+  const hasUrlData = !!(urlGoodname && urlPrice);
 
   // 타임스탬프 (로딩 중에도 값 유지)
   const safeTimestamp = timestamp || String(Date.now());
@@ -214,81 +217,43 @@ function PaymentCheckoutContent() {
     const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile'];
     const detected = mobileKeywords.some(keyword => userAgent.includes(keyword));
     setIsMobile(detected);
-    console.log('[Checkout v9.0] PC + Mobile 통합 모드, isMobile:', detected);
+    console.log('[Checkout v9.1] PC + Mobile 통합 모드, isMobile:', detected);
   }, []);
 
   // ============================================
-  // 2. 결제 데이터 로드 (URL 데이터 우선, API는 보조)
+  // 2. 결제 데이터 로드 (API 호출 완전 차단!)
+  // "이미 알고 있는 정보는 다시 묻지 않는다"
   // ============================================
   useEffect(() => {
     if (!isClient) return;
 
-    const loadPaymentData = async () => {
-      // [핵심] URL에 필수 데이터가 있으면 API 호출 불필요!
-      if (hasUrlData) {
-        console.log('[Checkout v9.0] URL에 데이터 있음 - API 호출 스킵');
-        console.log('[Checkout v9.0] URL Data:', {
-          orderId: urlOrderId,
-          goodname: urlGoodname,
-          price: urlPrice,
-          buyername: urlBuyername,
-          buyertel: urlBuyertel,
-          productCode: urlProductCode,
-          partnerId: urlPartnerId,
-        });
-        setIsLoading(false);
-        return;
-      }
+    // ============================================
+    // [핵심] URL에 goodname + price 있으면 API 호출 안함!
+    // 404 에러 원천 차단
+    // ============================================
+    if (hasUrlData) {
+      console.log('[Checkout v9.1] ✅ URL 데이터 사용 (API Skip!)');
+      console.log('[Checkout v9.1] URL Data:', {
+        orderId: urlOrderId,
+        goodname: urlGoodname,
+        price: urlPrice,
+        buyername: urlBuyername,
+        buyertel: urlBuyertel,
+        productCode: urlProductCode,
+        partnerId: urlPartnerId,
+      });
+      // API 호출 없이 즉시 로딩 해제!
+      setIsLoading(false);
+      return;
+    }
 
-      // URL에 데이터가 없고, orderId도 없으면 Fallback
-      if (!urlOrderId) {
-        console.log('[Checkout v9.0] orderId 없음 - Fallback 모드');
-        setIsLoading(false);
-        return;
-      }
+    // URL에 데이터 없으면 Fallback 모드 (API 호출도 안함)
+    console.log('[Checkout v9.1] ⚠️ URL 데이터 없음 - Fallback 모드');
+    setIsLoading(false);
 
-      // URL에 일부 데이터만 있는 경우, API로 보조 데이터 조회 시도
-      try {
-        console.log('[Checkout v9.0] API 보조 데이터 조회 시도:', urlOrderId);
-
-        const response = await fetch(`/api/payment/prepare?orderId=${urlOrderId}&isMobile=${isMobile}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        if (!response.ok) {
-          throw new Error(`API 응답 실패: ${response.status}`);
-        }
-
-        const result = await response.json();
-
-        if (result.ok && result.payment) {
-          console.log('[Checkout v9.0] API 보조 데이터 로드 성공');
-          const metadata = result.payment.metadata || {};
-
-          setApiPaymentData({
-            orderId: result.payment.orderId,
-            productName: result.payment.productName,
-            amount: result.payment.amount,
-            buyerName: result.payment.buyerName,
-            buyerTel: result.payment.buyerTel,
-            buyerEmail: result.payment.buyerEmail || '',
-            productCode: result.payment.productCode || metadata.productCode || '',
-            partnerId: metadata.partnerId || '',
-            affiliateCode: metadata.affiliateCode || '',
-          });
-        }
-      } catch (err) {
-        // API 실패해도 URL 데이터가 있으면 문제없음
-        console.warn('[Checkout v9.0] API 실패 (URL 데이터로 진행):', err);
-        setError(err instanceof Error ? err.message : 'API 로드 실패');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadPaymentData();
-  }, [isClient, urlOrderId, urlGoodname, urlPrice, urlBuyername, urlBuyertel, urlProductCode, urlPartnerId, hasUrlData, isMobile]);
+    // 참고: API 호출 로직 완전 제거
+    // 상세페이지에서 모든 데이터를 URL로 전달받으므로 API 불필요
+  }, [isClient, hasUrlData, urlOrderId, urlGoodname, urlPrice, urlBuyername, urlBuyertel, urlProductCode, urlPartnerId]);
 
   // ============================================
   // 3. mKey, signature 생성 (클라이언트 마운트 후)
@@ -311,9 +276,9 @@ function PaymentCheckoutContent() {
 
         setMKey(generatedMKey);
         setSignature(generatedSignature);
-        console.log('[Checkout v9.0] Signature 생성 완료');
+        console.log('[Checkout v9.1] Signature 생성 완료');
       } catch (err) {
-        console.error('[Checkout v9.0] Signature 생성 실패:', err);
+        console.error('[Checkout v9.1] Signature 생성 실패:', err);
         // 실패해도 빈값으로 폼에 들어감 (JS 오류 방지)
       }
     };
@@ -330,11 +295,11 @@ function PaymentCheckoutContent() {
     // 모바일은 스크립트 불필요 (Form Submit 방식)
     if (isMobile) {
       setScriptLoaded(true); // 모바일은 항상 ready
-      console.log('[Checkout v9.0] Mobile - 스크립트 로드 스킵');
+      console.log('[Checkout v9.1] Mobile - 스크립트 로드 스킵');
       return;
     }
 
-    console.log('[Checkout v9.0] PC - Loading INIStdPay.js...');
+    console.log('[Checkout v9.1] PC - Loading INIStdPay.js...');
 
     if (window.INIStdPay && typeof window.INIStdPay.pay === 'function') {
       setScriptLoaded(true);
@@ -350,17 +315,17 @@ function PaymentCheckoutContent() {
     script.async = false;
 
     script.onload = () => {
-      console.log('[Checkout v9.0] PC Script loaded');
+      console.log('[Checkout v9.1] PC Script loaded');
       setTimeout(() => {
         if (window.INIStdPay) {
           setScriptLoaded(true);
-          console.log('[Checkout v9.0] INIStdPay ready');
+          console.log('[Checkout v9.1] INIStdPay ready');
         }
       }, 500);
     };
 
     script.onerror = () => {
-      console.error('[Checkout v9.0] PC Script load failed');
+      console.error('[Checkout v9.1] PC Script load failed');
       // 실패해도 UI는 계속 표시
     };
 
@@ -374,8 +339,8 @@ function PaymentCheckoutContent() {
     if (isPaymentProcessing) return;
     setIsPaymentProcessing(true);
 
-    console.log('[Checkout v9.0] Payment clicked, isMobile:', isMobile);
-    console.log('[Checkout v9.0] Form data:', {
+    console.log('[Checkout v9.1] Payment clicked, isMobile:', isMobile);
+    console.log('[Checkout v9.1] Form data:', {
       oid: safeOid,
       goodname: safeGoodname,
       price: safePrice,
@@ -389,7 +354,7 @@ function PaymentCheckoutContent() {
     // [Mobile 결제] - Form Submit 방식
     // ============================================
     if (isMobile) {
-      console.log('[Checkout v9.0] Mobile 결제 시작...');
+      console.log('[Checkout v9.1] Mobile 결제 시작...');
 
       // 1. 동적 폼 생성 (모바일은 별도 폼 - SendPayForm_id와 충돌 방지)
       const mobileForm = document.createElement('form');
@@ -434,7 +399,7 @@ function PaymentCheckoutContent() {
       signInput.value = signature || '';
       mobileForm.appendChild(signInput);
 
-      console.log('[Checkout v9.0] Mobile Form Params:', mobileParams);
+      console.log('[Checkout v9.1] Mobile Form Params:', mobileParams);
       document.body.appendChild(mobileForm);
       mobileForm.submit();
       return;
@@ -443,7 +408,7 @@ function PaymentCheckoutContent() {
     // ============================================
     // [PC 결제] - INIStdPay.pay('SendPayForm_id') 호출
     // ============================================
-    console.log('[Checkout v9.0] PC 결제 시작...');
+    console.log('[Checkout v9.1] PC 결제 시작...');
 
     // 1. INIStdPay 스크립트 로드 확인
     if (!window.INIStdPay) {
@@ -455,14 +420,14 @@ function PaymentCheckoutContent() {
     // 2. [핵심] Form ID가 정확한지 확인하고 호출
     const pcForm = document.getElementById('SendPayForm_id');
     if (!pcForm) {
-      console.error('[Checkout v9.0] SendPayForm_id 폼을 찾을 수 없음!');
+      console.error('[Checkout v9.1] SendPayForm_id 폼을 찾을 수 없음!');
       alert('결제 폼 오류. 페이지를 새로고침 해주세요.');
       setIsPaymentProcessing(false);
       return;
     }
 
     // 3. INIStdPay.pay() 호출 - 폼 ID 정확히 전달
-    console.log('[Checkout v9.0] Calling INIStdPay.pay("SendPayForm_id")...');
+    console.log('[Checkout v9.1] Calling INIStdPay.pay("SendPayForm_id")...');
     window.INIStdPay.pay('SendPayForm_id');
   };
 
@@ -532,7 +497,7 @@ function PaymentCheckoutContent() {
               {isMobile && <FiSmartphone className="w-5 h-5" />}
               결제하기
               <span className="text-xs font-normal opacity-80">
-                {isMobile ? '(Mobile v9.0)' : '(PC v9.0)'}
+                {isMobile ? '(Mobile v9.1)' : '(PC v9.1)'}
               </span>
             </h1>
             <p className="text-white/80 text-sm mt-1">
@@ -652,7 +617,7 @@ function PaymentCheckoutContent() {
         {/* 디버그 정보 (개발용) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="bg-gray-800 text-green-400 rounded-lg p-4 text-xs font-mono overflow-auto">
-            <div className="mb-2 text-gray-400">// Debug Info (v9.0 - URL 파라미터 우선)</div>
+            <div className="mb-2 text-gray-400">// Debug Info (v9.1 - API 호출 완전 차단)</div>
             <div className="text-cyan-400 font-bold">isMobile: {String(isMobile)}</div>
             <div className="text-pink-400 font-bold">hasUrlData: {String(hasUrlData)}</div>
             <div className="mt-2 text-gray-400">--- URL Params ---</div>
