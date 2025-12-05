@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const {
-      imp_uid, // 아임포트 결제 고유 ID
+      imp_uid, // 아임포트 결제 고유 ID (또는 PG TID)
       merchant_uid, // 주문번호
       status, // 결제 상태 ('paid', 'ready', 'failed', 'cancelled')
       amount, // 결제 금액
@@ -27,7 +27,27 @@ export async function POST(req: NextRequest) {
       headcount,
       costAmount,
       metadata, // 추가 메타데이터 (leadId, partnerId 등)
+      // [v11.0] callback에서 직접 전달되는 파트너 정보
+      affiliateCode: directAffiliateCode,
+      affiliateMallUserId: directAffiliateUserId,
+      _partnerSource, // 디버그용 출처 정보
     } = body;
+
+    // [v11.0] 디버그 로그
+    console.log('[Payment Webhook v11.0] ===== 요청 수신 =====');
+    console.log('[Payment Webhook v11.0] 기본 정보:', {
+      imp_uid,
+      merchant_uid,
+      status,
+      amount,
+      productCode,
+      customerName,
+    });
+    console.log('[Payment Webhook v11.0] 파트너 정보 (직접 전달):', {
+      directAffiliateCode: directAffiliateCode || '(empty)',
+      directAffiliateUserId: directAffiliateUserId || '(empty)',
+      _partnerSource: _partnerSource || '(unknown)',
+    });
 
     // 결제 성공 여부 확인
     if (status !== 'paid') {
@@ -38,11 +58,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '필수 정보가 누락되었습니다.' }, { status: 400 });
     }
 
-    // 어필리에이트 코드 추적 (쿠키 또는 metadata에서 읽기)
+    // [v11.0] 어필리에이트 코드 추적 - 우선순위: 직접전달 > 쿠키 > metadata
     const cookies = req.cookies;
-    const affiliateCode = cookies.get('affiliate_code')?.value || metadata?.affiliateCode || null;
-    const affiliateMallUserId = cookies.get('affiliate_mall_user_id')?.value || metadata?.partnerId || null;
+    const affiliateCode = directAffiliateCode || cookies.get('affiliate_code')?.value || metadata?.affiliateCode || null;
+    const affiliateMallUserId = directAffiliateUserId || cookies.get('affiliate_mall_user_id')?.value || metadata?.partnerId || null;
     const leadId = metadata?.leadId || null;
+
+    console.log('[Payment Webhook v11.0] 최종 파트너 정보:', {
+      affiliateCode: affiliateCode || 'NONE',
+      affiliateMallUserId: affiliateMallUserId || 'NONE',
+      leadId: leadId || 'NONE',
+    });
 
     // 어필리에이트 프로필 찾기
     let managerId: number | null = null;
@@ -536,13 +562,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log('[Payment Webhook] AffiliateSale 생성 완료:', {
+    // [v11.0] 실적 생성 완료 로그
+    console.log('[Payment Webhook v11.0] ===== 실적 저장 완료 =====');
+    console.log('[Payment Webhook v11.0] AffiliateSale:', {
       saleId: sale.id,
-      managerId,
-      agentId,
+      managerId: managerId || 'NONE',
+      agentId: agentId || 'NONE',
       amount,
-      breakdown: breakdown,
+      status: 'CONFIRMED',
     });
+    console.log('[Payment Webhook v11.0] CommissionLedger:', {
+      entriesCreated: ledgerResult.ledgerEntries.length,
+      managerProfileId: managerId || 'NONE',
+      agentProfileId: agentId || 'NONE',
+    });
+
+    // 파트너 확인 로그
+    if (managerId || agentId) {
+      console.log(`[Payment Webhook v11.0] ✅ 파트너 실적 저장 성공! affiliateMallUserId: ${affiliateMallUserId}`);
+    } else {
+      console.log('[Payment Webhook v11.0] ⚠️ 파트너 없음 - 실적은 저장되었으나 수당 배정 없음');
+    }
 
     // Google 스프레드시트 백업 및 자동화 + 구매확인서 발송 (비동기 실행)
     // 담당자가 있는 경우에만 실행
@@ -746,10 +786,20 @@ export async function POST(req: NextRequest) {
       })();
     }
 
+    // [v11.0] 응답에 실적 저장 결과 포함
     return NextResponse.json({
       ok: true,
       saleId: sale.id,
       reservationId: reservationId,
+      // [v11.0] callback에서 확인할 수 있는 실적 정보
+      affiliateSaleCreated: true,
+      commissionCreated: ledgerResult.ledgerEntries.length > 0,
+      partnerInfo: {
+        managerId: managerId || null,
+        agentId: agentId || null,
+        affiliateMallUserId: affiliateMallUserId || null,
+        affiliateCode: affiliateCode || null,
+      },
       message: '결제 완료 및 어필리에이트 판매가 기록되었습니다.',
     });
   } catch (error) {
