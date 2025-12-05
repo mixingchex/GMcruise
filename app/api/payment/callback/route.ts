@@ -7,13 +7,17 @@ import { isPaymentSuccess } from '@/lib/welcomepay';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.cruisedot.co.kr';
 
 /**
- * 결제 콜백 API (모바일 결제용)
+ * 결제 콜백 API (모바일 결제용) v9.5
  *
  * 모바일 결제 흐름:
- * 1. PG사에서 인증 결과를 이 API로 전송 (P_STATUS, P_TID, P_REQ_URL)
+ * 1. PG사에서 인증 결과를 이 API로 전송 (P_STATUS, P_TID, P_REQ_URL, P_NOTI)
  * 2. 인증 성공 시, P_REQ_URL로 승인 요청
  * 3. 승인 성공 시, DB 업데이트 + Webhook 호출 (자동화 처리)
  * 4. 성공/실패 페이지로 리다이렉트
+ *
+ * [v9.5] P_NOTI 필드에서 파트너 정보 파싱:
+ * - P_NOTI 형식: "partnerId=xxx&productCode=yyy&affiliateCode=zzz"
+ * - DB에 파트너 정보가 없으면 P_NOTI에서 가져옴
  */
 export async function POST(request: NextRequest) {
   try {
@@ -27,13 +31,29 @@ export async function POST(request: NextRequest) {
     const P_AMT = formData.get('P_AMT')?.toString() || '';
     const P_TYPE = formData.get('P_TYPE')?.toString() || '';
 
-    console.log('[Payment Callback] Received:', {
+    // [v9.5] P_NOTI 필드에서 파트너 정보 추출 (모바일 결제 실적 추적용)
+    const P_NOTI = formData.get('P_NOTI')?.toString() || '';
+
+    console.log('[Payment Callback v9.5] Received:', {
       P_STATUS,
       P_TID,
       P_OID,
       P_AMT,
       P_TYPE,
-      P_REQ_URL: P_REQ_URL ? 'exists' : 'missing'
+      P_REQ_URL: P_REQ_URL ? 'exists' : 'missing',
+      P_NOTI: P_NOTI || '(empty)',
+    });
+
+    // [v9.5] P_NOTI 파싱: "partnerId=xxx&productCode=yyy&affiliateCode=zzz"
+    const notiParams = new URLSearchParams(P_NOTI);
+    const notiPartnerId = notiParams.get('partnerId') || '';
+    const notiProductCode = notiParams.get('productCode') || '';
+    const notiAffiliateCode = notiParams.get('affiliateCode') || '';
+
+    console.log('[Payment Callback v9.5] P_NOTI parsed:', {
+      partnerId: notiPartnerId || '(empty)',
+      productCode: notiProductCode || '(empty)',
+      affiliateCode: notiAffiliateCode || '(empty)',
     });
 
     // 2. 인증 실패 시 바로 실패 페이지로 이동
@@ -113,17 +133,32 @@ export async function POST(request: NextRequest) {
       where: { orderId: finalOid },
     });
 
-    // 🔍 [검증 로그] DB에서 찾은 파트너 정보 확인
-    console.log('[Payment Callback] DB Lookup Result:', {
+    // [v9.5] DB 정보 + P_NOTI 정보 병합 (DB 우선, 없으면 P_NOTI 사용)
+    // 모바일 결제에서 P_NOTI로 전달된 파트너 정보를 활용
+    const finalPartnerId = payment?.affiliateMallUserId || notiPartnerId || '';
+    const finalAffiliateCode = payment?.affiliateCode || notiAffiliateCode || '';
+    const finalProductCode = payment?.productCode || notiProductCode || '';
+
+    // 🔍 [검증 로그] DB + P_NOTI 병합 결과
+    console.log('[Payment Callback v9.5] DB + P_NOTI Merged:', {
       orderId: finalOid,
-      found: !!payment,
-      affiliateCode: payment?.affiliateCode || 'N/A',
-      affiliateMallUserId: payment?.affiliateMallUserId || 'N/A',
-      productCode: payment?.productCode || 'N/A',
+      dbFound: !!payment,
+      // DB 값
+      db_affiliateCode: payment?.affiliateCode || 'N/A',
+      db_affiliateMallUserId: payment?.affiliateMallUserId || 'N/A',
+      db_productCode: payment?.productCode || 'N/A',
+      // P_NOTI 값
+      noti_partnerId: notiPartnerId || 'N/A',
+      noti_productCode: notiProductCode || 'N/A',
+      noti_affiliateCode: notiAffiliateCode || 'N/A',
+      // 최종 사용 값 (DB 우선)
+      final_partnerId: finalPartnerId || 'NONE',
+      final_affiliateCode: finalAffiliateCode || 'NONE',
+      final_productCode: finalProductCode || 'NONE',
     });
 
     if (!payment) {
-      console.error('[Payment Callback] ⚠️ Payment not found in DB:', finalOid);
+      console.error('[Payment Callback v9.5] ⚠️ Payment not found in DB:', finalOid);
       // 결제 정보가 없어도 성공 페이지로 이동 (PG 승인은 됐으므로)
       return NextResponse.redirect(
         new URL(`/payment/success?orderId=${finalOid}&tid=${finalTid}`, request.url),
@@ -160,27 +195,30 @@ export async function POST(request: NextRequest) {
     });
 
     // 7. Webhook 호출 (어필리에이트 처리, 이메일, Google Drive 자동화)
-    // ⚠️ [핵심] DB에서 조회한 affiliateCode를 반드시 전달해야 실적이 잡힘!
+    // [v9.5] DB + P_NOTI 병합된 파트너 정보 사용
     const webhookPayload = {
       imp_uid: finalTid,
       merchant_uid: finalOid,
       status: 'paid',
       amount: parseInt(finalAmt) || payment.amount,
-      productCode: payment.productCode,
+      // [v9.5] 병합된 productCode 사용 (DB 우선, 없으면 P_NOTI)
+      productCode: finalProductCode || payment.productCode,
       customerName: payment.buyerName,
       customerPhone: payment.buyerTel,
       customerEmail: payment.buyerEmail || '',
       metadata: payment.metadata || {},
-      // ⚠️ [중요] DB에서 조회한 파트너 정보 - 이게 있어야 실적이 잡힘!
-      affiliateCode: payment.affiliateCode,
-      affiliateMallUserId: payment.affiliateMallUserId,
+      // [v9.5 핵심] 병합된 파트너 정보 - DB 우선, 없으면 P_NOTI 사용
+      affiliateCode: finalAffiliateCode,
+      affiliateMallUserId: finalPartnerId,
     };
 
-    // 🔍 [검증 로그] Webhook에 전달할 파트너 정보
-    console.log('[Payment Callback] Webhook payload - Partner Info:', {
+    // 🔍 [검증 로그] Webhook에 전달할 파트너 정보 (v9.5 병합 결과)
+    console.log('[Payment Callback v9.5] Webhook payload - Partner Info:', {
       affiliateCode: webhookPayload.affiliateCode || 'NONE',
       affiliateMallUserId: webhookPayload.affiliateMallUserId || 'NONE',
+      productCode: webhookPayload.productCode || 'NONE',
       orderId: finalOid,
+      source: payment?.affiliateCode ? 'DB' : (notiAffiliateCode ? 'P_NOTI' : 'NONE'),
     });
 
     try {
