@@ -34,6 +34,7 @@ import {
   FiImage,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
+import CompressorModal from '@/components/common/CompressorModal';
 import SalesConfirmationModal from '@/components/affiliate/SalesConfirmationModal';
 import { leadStatusOptions } from '@/app/api/partner/constants';
 import { getAffiliateTerm, getProxyImageUrl } from '@/lib/utils';
@@ -97,6 +98,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   const [mallFullUrl, setMallFullUrl] = useState<string>('');
   // 월별 필터링 상태 (YYYY-MM 형식)
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [showCompressorModal, setShowCompressorModal] = useState(false);
 
   useEffect(() => {
     const now = new Date();
@@ -1891,6 +1893,14 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
           <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl">빠른 메뉴</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {/* 만능 압축기 (공통) */}
+            <button
+              onClick={() => setShowCompressorModal(true)}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-4 text-center transition-all hover:shadow-md md:p-6 text-white"
+            >
+              <FiLayers className="text-2xl md:text-3xl" />
+              <span className="text-xs font-bold md:text-sm">만능 압축기</span>
+            </button>
             {/* B2B 유입 랜딩 (대리점장 전용) */}
             {isBranchManager && (
               <button
@@ -4753,6 +4763,11 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           </div>
         </div>
       )}
+      {/* 압축기 모달 */}
+      <CompressorModal
+        isOpen={showCompressorModal}
+        onClose={() => setShowCompressorModal(false)}
+      />
     </div>
   );
 }

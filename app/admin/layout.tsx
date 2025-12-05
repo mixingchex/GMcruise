@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'rea
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import NotificationBell from '@/components/admin/NotificationBell';
+import CompressorModal from '@/components/common/CompressorModal';
 
 // searchParams를 조건부로 사용하기 위한 래퍼 컴포넌트
 function AdminLayoutContent({
@@ -17,6 +18,7 @@ function AdminLayoutContent({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [customerGroupExpanded, setCustomerGroupExpanded] = useState(true); // 기본값: true (항상 펼침)
+  const [showCompressorModal, setShowCompressorModal] = useState(false);
 
   // 인증 상태를 세션 스토리지에 캐시하여 불필요한 API 호출 방지
   const authCheckRef = useRef(false);
@@ -327,6 +329,18 @@ function AdminLayoutContent({
 
               <li className="rounded-2xl border border-gray-100 bg-white/70 shadow-sm">
                 <button
+                  onClick={() => setShowCompressorModal(true)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 text-gray-700 hover:bg-gray-100"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🗜️</span>
+                    <span className="font-bold text-sm tracking-wide">만능 압축기</span>
+                  </div>
+                </button>
+              </li>
+
+              <li className="rounded-2xl border border-gray-100 bg-white/70 shadow-sm">
+                <button
                   onClick={() => setCustomerGroupExpanded(!customerGroupExpanded)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${customerGroupExpanded
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
@@ -372,6 +386,10 @@ function AdminLayoutContent({
 
         <main className="flex-1 p-6">{children}</main>
       </div>
+      <CompressorModal
+        isOpen={showCompressorModal}
+        onClose={() => setShowCompressorModal(false)}
+      />
     </div>
   );
 }
