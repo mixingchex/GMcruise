@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { FiX, FiVideo, FiImage, FiFileText, FiLayers, FiDownload, FiUploadCloud, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import { FiX, FiImage, FiFileText, FiLayers, FiDownload, FiUploadCloud, FiCheckCircle } from 'react-icons/fi';
 import JSZip from 'jszip';
 import imageCompression from 'browser-image-compression';
 import { showError, showSuccess } from '@/components/ui/Toast';
@@ -12,11 +12,11 @@ interface CompressorModalProps {
     onClose: () => void;
 }
 
-type TabType = 'video' | 'image' | 'pdf' | 'webp';
+type TabType = 'image' | 'pdf' | 'webp';
 type CompressionLevel = 'low' | 'medium' | 'high'; // low: 약하게(화질우선), medium: 보통, high: 강하게(용량우선)
 
 export default function CompressorModal({ isOpen, onClose }: CompressorModalProps) {
-    const [activeTab, setActiveTab] = useState<TabType>('video');
+    const [activeTab, setActiveTab] = useState<TabType>('image');
     const [compressionLevel, setCompressionLevel] = useState<CompressionLevel>('medium');
     const [isProcessing, setIsProcessing] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -48,9 +48,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         setIsProcessing(true);
 
         try {
-            if (activeTab === 'video') {
-                await processVideo(files[0]);
-            } else if (activeTab === 'image') {
+            if (activeTab === 'image') {
                 await processImages(Array.from(files));
             } else if (activeTab === 'pdf') {
                 await processPdfs(Array.from(files));
@@ -66,70 +64,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         }
     };
 
-    // 1. Video Compression (Server-side)
-    const processVideo = async (file: File) => {
-        setStatusMessage('서버로 전송 중...');
-        setProgress(10);
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('level', compressionLevel);
-
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/compress/video', true);
-
-        xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-                const percentComplete = (e.loaded / e.total) * 50; // Upload is first 50%
-                setProgress(Math.round(percentComplete));
-            }
-        };
-
-        xhr.onload = async () => {
-            if (xhr.status === 200) {
-                setProgress(100);
-                setStatusMessage('압축 완료! 다운로드 준비 중...');
-
-                // Blob response handling
-                const blob = xhr.response;
-                const url = window.URL.createObjectURL(blob);
-                setResultFile({
-                    url,
-                    name: `compressed_${file.name.replace(/\.[^/.]+$/, "")}.mp4`
-                });
-                showSuccess('동영상 압축이 완료되었습니다.');
-            } else {
-                setStatusMessage('서버 처리 실패');
-                showError('동영상 압축에 실패했습니다.');
-            }
-            setIsProcessing(false);
-        };
-
-        xhr.onerror = () => {
-            setStatusMessage('네트워크 오류');
-            showError('네트워크 오류가 발생했습니다.');
-            setIsProcessing(false);
-        };
-
-        xhr.responseType = 'blob';
-        xhr.send(formData);
-
-        // Fake progress for server processing part (50-90%)
-        let currentProgress = 50;
-        const interval = setInterval(() => {
-            if (xhr.readyState === 4) {
-                clearInterval(interval);
-                return;
-            }
-            if (currentProgress < 90) {
-                currentProgress += 1;
-                setProgress(currentProgress);
-                setStatusMessage('서버에서 압축 중...');
-            }
-        }, 500);
-    };
-
-    // 2. Image Compression (Client-side)
+    // 1. Image Compression (Client-side)
     const processImages = async (files: File[]) => {
         setStatusMessage('이미지 압축 중...');
         const zip = new JSZip();
@@ -315,13 +250,6 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                 {/* Tabs */}
                 <div className="flex border-b">
                     <button
-                        onClick={() => handleTabChange('video')}
-                        className={`flex-1 py-4 font-medium text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'video' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'
-                            }`}
-                    >
-                        <FiVideo className="w-5 h-5" /> 동영상 압축
-                    </button>
-                    <button
                         onClick={() => handleTabChange('image')}
                         className={`flex-1 py-4 font-medium text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'image' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'
                             }`}
@@ -392,13 +320,12 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                                 <FiUploadCloud className="w-10 h-10" />
                             </div>
                             <p className="text-lg font-bold text-gray-700 mb-2">
-                                {activeTab === 'video' && '동영상 파일을 선택하세요'}
                                 {activeTab === 'image' && '이미지 파일들을 선택하세요 (PNG, JPG, GIF)'}
                                 {activeTab === 'pdf' && 'PDF 파일들을 선택하세요'}
                                 {activeTab === 'webp' && '변환할 이미지를 선택하세요'}
                             </p>
                             <p className="text-sm text-gray-500">
-                                {activeTab === 'video' ? '단일 파일 (MP4, MOV 등)' : '여러 파일 선택 가능'}
+                                여러 파일 선택 가능
                             </p>
                             <button className="mt-6 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md">
                                 파일 불러오기
@@ -449,12 +376,8 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        multiple={activeTab !== 'video'}
-                        accept={
-                            activeTab === 'video' ? 'video/*' :
-                                activeTab === 'pdf' ? 'application/pdf' :
-                                    'image/*'
-                        }
+                        multiple
+                        accept={activeTab === 'pdf' ? 'application/pdf' : 'image/*'}
                         onChange={handleFileChange}
                     />
                 </div>
