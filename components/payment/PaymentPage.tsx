@@ -254,44 +254,50 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 1. 기본 유효성 검사
     if (!canProceed()) {
-      alert('모든 필수 정보를 입력하고 객실을 선택해주세요.');
+      alert('필수 정보(이름, 연락처)를 입력하고 객실을 최소 1개 선택해주세요.');
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      // ============================================
-      // [v11.0] 결제 안정성 최우선 - 명시적 인코딩
-      // ============================================
+      // 2. 데이터 정제 (Cleaning)
+      // PG사 연동 시 오류를 일으키는 특수문자 제거
+      const cleanProductName = (productName || "크루즈 여행 상품")
+        .replace(/[<>"'&]/g, "")
+        .substring(0, 80); // 길이 제한
+
+      // 금액 안전장치 (0원이면 1000원으로 강제 설정 - 테스트/비상용)
+      const finalPrice = totalAmount > 0 ? totalAmount : 1000;
+
+      // 3. 파트너 ID 확보 (URL 파라미터 우선)
+      // 현재 페이지 URL에서 'partner' 또는 'partnerId' 값을 확실하게 가져옴
+      const currentParams = new URLSearchParams(window.location.search);
+      const finalPartnerId = partnerId || currentParams.get('partner') || currentParams.get('partnerId') || '';
+
+      // 4. 쿼리 스트링 생성 (URLSearchParams가 자동 인코딩 처리함)
+      // 주의: 여기서 수동으로 encodeURIComponent를 쓰면 이중 인코딩 되므로 쓰지 않음
       const query = new URLSearchParams({
-        orderId: `ord_${Date.now()}`,
-        goodname: encodeURIComponent(productName || "상품명"), // 특수문자 처리
-        price: String(totalAmount || 1000),
-        buyername: encodeURIComponent(formData.buyerName),
-        buyertel: formData.buyerTel,
-        buyeremail: formData.buyerEmail || '',
-        partnerId: partnerId || '', // 파트너 ID
-        productCode: productCode || ''
+        orderId: `ord_${Date.now()}`,     // 주문번호 생성
+        goodname: cleanProductName,       // 정제된 상품명
+        price: String(finalPrice),        // 최종 금액
+        buyername: formData.buyerName.trim(), // 공백 제거
+        buyertel: formData.buyerTel.replace(/-/g, '').trim(), // 하이픈 제거
+        buyeremail: formData.buyerEmail || 'no-email@cruisedot.co.kr',
+        partnerId: finalPartnerId,        // 파트너 ID (가장 중요)
+        productCode: productCode || ''    // 상품 코드 (자동화 연결용)
       });
 
-      // 디버그 로그
-      console.log('========================================');
-      console.log('[Payment v11.0] 결제 페이지로 이동');
-      console.log('========================================');
-      console.log('orderId:', `ord_${Date.now()}`);
-      console.log('goodname:', productName);
-      console.log('price:', totalAmount);
-      console.log('buyername:', formData.buyerName);
-      console.log('productCode:', productCode);
-      console.log('partnerId:', partnerId);
-      console.log('========================================');
+      console.log('[PaymentPage] Checkout으로 이동:', query.toString());
 
+      // 5. 결제 페이지로 이동
       router.push(`/payment/checkout?${query.toString()}`);
+
     } catch (error) {
-      console.error('Payment error:', error);
-      alert('결제 페이지 이동 중 오류가 발생했습니다.');
+      console.error('Payment preparation error:', error);
+      alert('결제 페이지로 이동하는 중 문제가 발생했습니다. 다시 시도해주세요.');
       setIsProcessing(false);
     }
   };
