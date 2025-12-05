@@ -1,15 +1,17 @@
 'use client';
 
 // ============================================
-// 결제 체크아웃 페이지 v8.1 (Safe Data Transformation)
+// 결제 체크아웃 페이지 v8.3 (PC + Mobile 통합)
 // ============================================
-// 핵심: 폼은 조건부 렌더링 없이 항상 존재해야 함
-// API 로딩 중이라도 폼은 무조건 화면에 박혀있어야 함 (hidden)
+// 핵심 1: PC/Mobile 모두 동일한 Safe Data 사용
+// 핵심 2: Mobile은 P_AMT, P_GOODS 등 모바일 전용 파라미터 사용
+// 핵심 3: partnerId, productCode가 결제 후에도 유지 (DB 조회로 실적 연결)
+// 핵심 4: API 실패해도 Fallback으로 결제 가능
 // ============================================
 
 import { useEffect, useState, Suspense, useMemo, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { FiCreditCard, FiAlertTriangle } from 'react-icons/fi';
+import { FiCreditCard, FiAlertTriangle, FiSmartphone } from 'react-icons/fi';
 
 // INIStdPay 전역 타입 선언
 declare global {
@@ -25,6 +27,7 @@ declare global {
 // ============================================
 const FALLBACK = {
   productName: '크루즈 여행 상품 (기본)',
+  productCode: '',
   price: 1000,
   buyerName: '방문자',
   buyerTel: '010-0000-0000',
@@ -37,16 +40,17 @@ const FALLBACK = {
   charset: 'UTF-8',
 };
 
-// 초기 타임스탬프 (서버/클라이언트 hydration 일치용)
-const INITIAL_TIMESTAMP = '';
-const INITIAL_OID = '';
+// 모바일 결제 URL (하드코딩 - 안전장치)
+const MOBILE_PAYMENT_URL = 'https://mobile.paywelcome.co.kr/smart/wcard/';
 
-// 콜백 URL 설정
+// 콜백 URL 설정 (절대경로 필수)
+const BASE_URL = 'https://www.cruisedot.co.kr';
+
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') {
     return window.location.origin;
   }
-  return 'https://www.cruisedot.co.kr';
+  return BASE_URL;
 };
 
 // ============================================
@@ -86,7 +90,9 @@ interface PaymentData {
   buyerName: string;
   buyerTel: string;
   buyerEmail: string;
-  productCode?: string;
+  productCode: string;
+  partnerId: string; // 판매원 ID (affiliateMallUserId)
+  affiliateCode: string; // 어필리에이트 코드
 }
 
 function PaymentCheckoutContent() {
@@ -136,14 +142,30 @@ function PaymentCheckoutContent() {
   const safeBuyerTel = paymentData?.buyerTel?.trim() || FALLBACK.buyerTel;
   const safeBuyerEmail = paymentData?.buyerEmail?.trim() || FALLBACK.buyerEmail;
 
+  // [중요] 실적 추적용 데이터 - DB에 이미 저장되어 있음
+  const safeProductCode = paymentData?.productCode || FALLBACK.productCode;
+  const safePartnerId = paymentData?.partnerId || '';
+  const safeAffiliateCode = paymentData?.affiliateCode || '';
+
   // 타임스탬프 (로딩 중에도 값 유지)
   const safeTimestamp = timestamp || String(Date.now());
 
-  // 콜백 URL
+  // merchantData: 결제 후에도 파트너 정보 추적 가능하도록 (백업용)
+  const merchantData = useMemo(() => {
+    const data = [
+      `partnerId=${safePartnerId}`,
+      `productCode=${safeProductCode}`,
+      `affiliateCode=${safeAffiliateCode}`,
+    ].join('&');
+    return data;
+  }, [safePartnerId, safeProductCode, safeAffiliateCode]);
+
+  // 콜백 URL (절대경로 사용)
   const baseUrl = getBaseUrl();
   const returnUrl = `${baseUrl}/api/payment/return`;
   const closeUrl = `${baseUrl}/payment/failed?reason=closed`;
   const notiUrl = `${baseUrl}/api/payment/notify`;
+  const callbackUrl = `${baseUrl}/api/payment/callback`; // Mobile용
 
   // ============================================
   // 1. 클라이언트 마운트 + 모바일 감지
@@ -152,8 +174,9 @@ function PaymentCheckoutContent() {
     setIsClient(true);
     const userAgent = navigator.userAgent.toLowerCase();
     const mobileKeywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile'];
-    setIsMobile(mobileKeywords.some(keyword => userAgent.includes(keyword)));
-    console.log('[Checkout v8.1] Safe Data Transformation 모드');
+    const detected = mobileKeywords.some(keyword => userAgent.includes(keyword));
+    setIsMobile(detected);
+    console.log('[Checkout v8.3] PC + Mobile 통합 모드, isMobile:', detected);
   }, []);
 
   // ============================================
@@ -165,16 +188,16 @@ function PaymentCheckoutContent() {
     const loadPaymentData = async () => {
       // orderId가 없으면 즉시 Fallback 모드
       if (!orderId) {
-        console.log('[Checkout v8.1] orderId 없음 - Fallback 모드 활성화');
+        console.log('[Checkout v8.3] orderId 없음 - Fallback 모드 활성화');
         setUseFallback(true);
         setIsLoading(false);
         return;
       }
 
       try {
-        console.log('[Checkout v8.1] 결제 데이터 로드 시작:', orderId);
+        console.log('[Checkout v8.3] 결제 데이터 로드 시작:', orderId);
 
-        const response = await fetch(`/api/payment/prepare?orderId=${orderId}`, {
+        const response = await fetch(`/api/payment/prepare?orderId=${orderId}&isMobile=${isMobile}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -186,7 +209,11 @@ function PaymentCheckoutContent() {
         const result = await response.json();
 
         if (result.ok && result.payment) {
-          console.log('[Checkout v8.1] API 데이터 로드 성공:', result.payment);
+          console.log('[Checkout v8.3] API 데이터 로드 성공:', result.payment);
+
+          // metadata에서 partnerId 추출 (결제 요청 시 저장됨)
+          const metadata = result.payment.metadata || {};
+
           setPaymentData({
             orderId: result.payment.orderId,
             productName: result.payment.productName,
@@ -194,14 +221,24 @@ function PaymentCheckoutContent() {
             buyerName: result.payment.buyerName,
             buyerTel: result.payment.buyerTel,
             buyerEmail: result.payment.buyerEmail || '',
-            productCode: result.payment.productCode,
+            productCode: result.payment.productCode || metadata.productCode || '',
+            partnerId: metadata.partnerId || '', // URL partner 파라미터에서 저장됨
+            affiliateCode: metadata.affiliateCode || '',
           });
+
+          // 🔍 [검증 로그] 파트너 정보 확인
+          console.log('[Checkout v8.3] Partner Info:', {
+            productCode: result.payment.productCode || metadata.productCode,
+            partnerId: metadata.partnerId,
+            affiliateCode: metadata.affiliateCode,
+          });
+
           setUseFallback(false);
         } else {
           throw new Error(result.error || '결제 정보를 찾을 수 없습니다');
         }
       } catch (err) {
-        console.warn('[Checkout v8.1] API 로드 실패, Fallback 모드:', err);
+        console.warn('[Checkout v8.3] API 로드 실패, Fallback 모드:', err);
         setError(err instanceof Error ? err.message : '데이터 로드 실패');
         setUseFallback(true);
       } finally {
@@ -210,7 +247,7 @@ function PaymentCheckoutContent() {
     };
 
     loadPaymentData();
-  }, [isClient, orderId]);
+  }, [isClient, orderId, isMobile]);
 
   // ============================================
   // 3. mKey, signature 생성 (클라이언트 마운트 후)
@@ -233,9 +270,9 @@ function PaymentCheckoutContent() {
 
         setMKey(generatedMKey);
         setSignature(generatedSignature);
-        console.log('[Checkout v8.1] Signature 생성 완료');
+        console.log('[Checkout v8.3] Signature 생성 완료');
       } catch (err) {
-        console.error('[Checkout v8.1] Signature 생성 실패:', err);
+        console.error('[Checkout v8.3] Signature 생성 실패:', err);
         // 실패해도 빈값으로 폼에 들어감 (JS 오류 방지)
       }
     };
@@ -244,13 +281,19 @@ function PaymentCheckoutContent() {
   }, [isClient, safePrice, safeOid]);
 
   // ============================================
-  // 4. INIStdPay.js 스크립트 로드 (PC/Mobile 모두)
+  // 4. INIStdPay.js 스크립트 로드 (PC 전용)
   // ============================================
   useEffect(() => {
     if (!isClient) return;
 
-    // 모바일이어도 스크립트는 로드 (폼은 항상 존재하므로)
-    console.log('[Checkout v8.1] Loading INIStdPay.js...');
+    // 모바일은 스크립트 불필요 (Form Submit 방식)
+    if (isMobile) {
+      setScriptLoaded(true); // 모바일은 항상 ready
+      console.log('[Checkout v8.3] Mobile - 스크립트 로드 스킵');
+      return;
+    }
+
+    console.log('[Checkout v8.3] PC - Loading INIStdPay.js...');
 
     if (window.INIStdPay && typeof window.INIStdPay.pay === 'function') {
       setScriptLoaded(true);
@@ -266,58 +309,131 @@ function PaymentCheckoutContent() {
     script.async = false;
 
     script.onload = () => {
-      console.log('[Checkout v8.1] Script loaded');
+      console.log('[Checkout v8.3] PC Script loaded');
       setTimeout(() => {
         if (window.INIStdPay) {
           setScriptLoaded(true);
-          console.log('[Checkout v8.1] INIStdPay ready');
+          console.log('[Checkout v8.3] INIStdPay ready');
         }
       }, 500);
     };
 
     script.onerror = () => {
-      console.error('[Checkout v8.1] Script load failed');
+      console.error('[Checkout v8.3] PC Script load failed');
       // 실패해도 UI는 계속 표시
     };
 
     document.head.appendChild(script);
-  }, [isClient]);
+  }, [isClient, isMobile]);
 
   // ============================================
-  // [4단계: 결제 실행] - 무조건 실행 (mKey/signature 체크 제거)
+  // [4단계: 결제 실행] - PC/Mobile 분기
   // ============================================
   const handlePayment = () => {
     if (isPaymentProcessing) return;
+    setIsPaymentProcessing(true);
 
-    console.log('[Checkout v8.1] Payment clicked');
-    console.log('[Checkout v8.1] Form data:', {
+    console.log('[Checkout v8.3] Payment clicked, isMobile:', isMobile);
+    console.log('[Checkout v8.3] Form data:', {
       oid: safeOid,
       price: safePrice,
+      productCode: safeProductCode,
+      partnerId: safePartnerId,
+      merchantData,
       mKey: mKey ? '설정됨' : '미설정',
       signature: signature ? '설정됨' : '미설정',
-      timestamp: safeTimestamp,
     });
+
+    // ============================================
+    // [Mobile 결제] - Form Submit 방식
+    // ============================================
+    if (isMobile) {
+      console.log('[Checkout v8.3] Mobile 결제 시작...');
+
+      // 1. 동적 폼 생성
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.acceptCharset = 'euc-kr'; // 모바일 필수 인코딩
+      form.action = MOBILE_PAYMENT_URL; // URL 하드코딩 (안전장치)
+
+      // 2. [핵심] PC 변수명 -> Mobile 변수명 매핑 (매뉴얼 11p 기준)
+      const mobileParams: Record<string, string> = {
+        P_MID: FALLBACK.mid,           // 상점 ID
+        P_OID: safeOid,                // 주문번호
+        P_AMT: String(safePrice),      // 결제금액 (PC: price -> Mobile: P_AMT)
+        P_UNAME: safeBuyerName,        // 구매자명 (PC: buyername -> Mobile: P_UNAME)
+        P_GOODS: safeGoodname,         // 상품명 (PC: goodname -> Mobile: P_GOODS)
+        P_MOBILE: safeBuyerTel,        // 휴대전화
+        P_EMAIL: safeBuyerEmail,       // 이메일
+
+        // 3. 필수 URL 및 설정 (절대경로 필수!)
+        P_NEXT_URL: callbackUrl,       // 결과 수신 URL (절대경로)
+        P_NOTI_URL: notiUrl,           // 통보 URL
+        P_HPP_METHOD: '1',             // 휴대폰 결제 시 컨텐츠 구분 (필수)
+        P_RESERVED: 'twotrs_isp=Y&block_isp=Y&twotrs_bank=Y&apprun_check=Y', // 앱 연동 필수 옵션
+        P_CHARSET: 'utf8',             // 결과는 utf8로 받음
+      };
+
+      // 4. Input 태그 생성 및 폼에 추가
+      Object.entries(mobileParams).forEach(([key, value]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = value;
+        form.appendChild(input);
+      });
+
+      // 5. 보안 데이터 (mKey, Signature) 추가
+      // API가 죽어서 값이 없어도 빈 값으로라도 보내야 폼 전송이 됨
+      const mKeyInput = document.createElement('input');
+      mKeyInput.type = 'hidden';
+      mKeyInput.name = 'mkey'; // 모바일은 소문자 mkey 주의 (매뉴얼 10p)
+      mKeyInput.value = mKey || '';
+      form.appendChild(mKeyInput);
+
+      const signInput = document.createElement('input');
+      signInput.type = 'hidden';
+      signInput.name = 'P_SIGNATURE'; // 모바일은 P_SIGNATURE
+      signInput.value = signature || '';
+      form.appendChild(signInput);
+
+      // 6. 🔍 [디버그 로그] 모바일 폼 데이터 확인
+      console.log('[Checkout v8.3] Mobile Form Params:', mobileParams);
+      console.log('[Checkout v8.3] Mobile mKey:', mKey ? '설정됨' : '미설정');
+      console.log('[Checkout v8.3] Mobile P_NEXT_URL:', callbackUrl);
+
+      // 7. 제출 (페이지 이동)
+      document.body.appendChild(form);
+      form.submit();
+      return;
+    }
+
+    // ============================================
+    // [PC 결제] - INIStdPay.pay() 방식
+    // ============================================
+    console.log('[Checkout v8.3] PC 결제 시작...');
 
     // 스크립트 로드 체크
     if (typeof window.INIStdPay === 'undefined') {
       alert('결제 시스템을 불러오는 중입니다. 잠시 후 다시 클릭해주세요.');
+      setIsPaymentProcessing(false);
       return;
     }
 
     // 폼이 있는지 최종 확인 후 실행
     const form = document.getElementById('SendPayForm_id');
     if (form) {
-      setIsPaymentProcessing(true);
-      console.log('[Checkout v8.1] Calling INIStdPay.pay()...');
+      console.log('[Checkout v8.3] Calling INIStdPay.pay()...');
       window.INIStdPay.pay('SendPayForm_id'); // 무조건 실행
     } else {
       // 만약 폼이 없으면 강제로라도 다시 그림 (비상 복구)
       alert('결제 폼 생성 중입니다. 새로고침 해주세요.');
+      setIsPaymentProcessing(false);
     }
   };
 
-  // 폼 준비 완료 여부 (스크립트만 체크)
-  const isFormReady = scriptLoaded;
+  // 폼 준비 완료 여부 (모바일은 항상 ready, PC는 스크립트 체크)
+  const isFormReady = isMobile ? !isLoading : scriptLoaded;
 
   // ============================================
   // 메인 렌더링
@@ -327,7 +443,7 @@ function PaymentCheckoutContent() {
       <div className="max-w-lg mx-auto">
 
         {/* ============================================
-            [3단계: 폼 완성] - 조건부 렌더링 금지!
+            [PC 전용 폼] - 조건부 렌더링 금지!
             API 로딩 중이라도 이 폼은 무조건 화면에 박혀있어야 함
             주의: action, method 속성 절대 금지
             ============================================ */}
@@ -336,27 +452,30 @@ function PaymentCheckoutContent() {
           name="SendPayForm_id"
           onSubmit={(e) => e.preventDefault()}
         >
-          {/* 1. 고정 데이터 */}
-          <input type="hidden" name="mid" value={FALLBACK.mid} />
-          <input type="hidden" name="currency" value={FALLBACK.currency} />
-          <input type="hidden" name="payViewType" value={FALLBACK.payViewType} />
-          <input type="hidden" name="gopaymethod" value={FALLBACK.gopaymethod} />
-          <input type="hidden" name="charset" value="UTF-8" />
-
-          {/* 2. 변환된 안전 데이터 (Fallback 적용됨) */}
+          {/* 1. 결제 필수 정보 (변환된 Safe Data 사용) */}
           <input type="hidden" name="goodname" value={safeGoodname} />
           <input type="hidden" name="price" value={safePrice} />
           <input type="hidden" name="oid" value={safeOid} />
           <input type="hidden" name="buyername" value={safeBuyerName} />
           <input type="hidden" name="buyertel" value={safeBuyerTel} />
           <input type="hidden" name="buyeremail" value={safeBuyerEmail} />
-          <input type="hidden" name="timestamp" value={safeTimestamp} />
 
-          {/* 3. 보안 데이터 (서버 통신 실패 시 빈값이라도 넣어서 JS 오류 방지) */}
+          {/* 2. 시스템 고정 정보 */}
+          <input type="hidden" name="mid" value={FALLBACK.mid} />
+          <input type="hidden" name="currency" value={FALLBACK.currency} />
+          <input type="hidden" name="payViewType" value={FALLBACK.payViewType} />
+          <input type="hidden" name="gopaymethod" value={FALLBACK.gopaymethod} />
+          <input type="hidden" name="charset" value="UTF-8" />
+
+          {/* 3. 데이터 추적용 (중요: 실적 연결 고리) */}
+          <input type="hidden" name="merchantData" value={merchantData} />
+
+          {/* 4. 보안 데이터 (서버 통신 실패 시 빈값이라도 넣어서 JS 오류 방지) */}
+          <input type="hidden" name="timestamp" value={safeTimestamp} />
           <input type="hidden" name="signature" value={signature || ''} />
           <input type="hidden" name="mKey" value={mKey || ''} />
 
-          {/* 4. 콜백 URL */}
+          {/* 5. 콜백 URL */}
           <input type="hidden" name="returnUrl" value={returnUrl} />
           <input type="hidden" name="closeUrl" value={closeUrl} />
           <input type="hidden" name="notiurl" value={notiUrl} />
@@ -378,10 +497,11 @@ function PaymentCheckoutContent() {
             ? 'bg-gradient-to-r from-orange-500 to-red-500'
             : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}
           >
-            <h1 className="text-xl font-bold text-white">
+            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+              {isMobile && <FiSmartphone className="w-5 h-5" />}
               결제하기
-              <span className="text-xs font-normal opacity-80 ml-2">
-                {useFallback ? '(비상 모드)' : '(v8.1)'}
+              <span className="text-xs font-normal opacity-80">
+                {useFallback ? '(비상 모드)' : isMobile ? '(Mobile v8.3)' : '(PC v8.3)'}
               </span>
             </h1>
             <p className="text-white/80 text-sm mt-1">
@@ -426,6 +546,12 @@ function PaymentCheckoutContent() {
                   <span className="text-gray-500">구매자</span>
                   <span className="font-medium">{safeBuyerName}</span>
                 </div>
+                {safeProductCode && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">상품코드</span>
+                    <span className="font-mono text-xs text-gray-600">{safeProductCode}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -441,12 +567,23 @@ function PaymentCheckoutContent() {
 
             {/* 상태 표시 */}
             <div className="mb-4 space-y-1 text-sm">
-              <div className={scriptLoaded ? 'text-green-600' : 'text-orange-600'}>
-                {scriptLoaded ? '✅ 결제 모듈 준비 완료' : '⏳ 결제 모듈 로딩 중...'}
-              </div>
+              {isMobile ? (
+                <div className="text-green-600">
+                  ✅ 모바일 결제 준비 완료
+                </div>
+              ) : (
+                <div className={scriptLoaded ? 'text-green-600' : 'text-orange-600'}>
+                  {scriptLoaded ? '✅ 결제 모듈 준비 완료' : '⏳ 결제 모듈 로딩 중...'}
+                </div>
+              )}
               <div className={mKey && signature ? 'text-green-600' : 'text-orange-600'}>
                 {mKey && signature ? '✅ 보안 서명 생성 완료' : '⏳ 보안 서명 생성 중...'}
               </div>
+              {safePartnerId && (
+                <div className="text-blue-600">
+                  ✅ 판매원 연결됨
+                </div>
+              )}
             </div>
 
             {/* 결제 버튼 */}
@@ -459,7 +596,7 @@ function PaymentCheckoutContent() {
               {isPaymentProcessing ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                  결제창 여는 중...
+                  {isMobile ? '결제 페이지 이동 중...' : '결제창 여는 중...'}
                 </span>
               ) : !isFormReady ? (
                 <span className="flex items-center justify-center gap-2">
@@ -468,7 +605,7 @@ function PaymentCheckoutContent() {
                 </span>
               ) : (
                 <span className="flex items-center justify-center gap-2">
-                  <FiCreditCard className="w-5 h-5" />
+                  {isMobile ? <FiSmartphone className="w-5 h-5" /> : <FiCreditCard className="w-5 h-5" />}
                   {safePrice.toLocaleString()}원 결제하기
                 </span>
               )}
@@ -476,7 +613,9 @@ function PaymentCheckoutContent() {
 
             {/* 안내 문구 */}
             <p className="text-xs text-gray-500 text-center mt-4">
-              결제 버튼을 누르면 웰컴페이먼츠 결제창이 열립니다.
+              {isMobile
+                ? '결제 버튼을 누르면 모바일 결제 페이지로 이동합니다.'
+                : '결제 버튼을 누르면 웰컴페이먼츠 결제창이 열립니다.'}
             </p>
           </div>
         </div>
@@ -484,17 +623,29 @@ function PaymentCheckoutContent() {
         {/* 디버그 정보 (개발용) */}
         {process.env.NODE_ENV === 'development' && (
           <div className="bg-gray-800 text-green-400 rounded-lg p-4 text-xs font-mono overflow-auto">
-            <div className="mb-2 text-gray-400">// Debug Info (v8.1)</div>
+            <div className="mb-2 text-gray-400">// Debug Info (v8.3 PC + Mobile)</div>
+            <div className="text-cyan-400 font-bold">isMobile: {String(isMobile)}</div>
             <div>orderId: {orderId || 'null'}</div>
             <div>safeOid: {safeOid}</div>
             <div>safePrice: {safePrice}</div>
+            <div className="text-yellow-400">productCode: {safeProductCode || '(없음)'}</div>
+            <div className="text-yellow-400">partnerId: {safePartnerId || '(없음)'}</div>
+            <div className="text-yellow-400">affiliateCode: {safeAffiliateCode || '(없음)'}</div>
+            <div className="text-cyan-400">merchantData: {merchantData}</div>
             <div>useFallback: {String(useFallback)}</div>
             <div>isLoading: {String(isLoading)}</div>
             <div>scriptLoaded: {String(scriptLoaded)}</div>
+            <div>isFormReady: {String(isFormReady)}</div>
             <div>mKey: {mKey ? mKey.substring(0, 16) + '...' : '(empty)'}</div>
             <div>signature: {signature ? signature.substring(0, 16) + '...' : '(empty)'}</div>
             <div>timestamp: {safeTimestamp}</div>
-            <div>isMobile: {String(isMobile)}</div>
+            {isMobile && (
+              <>
+                <div className="text-pink-400 mt-2">--- Mobile Params ---</div>
+                <div>P_NEXT_URL: {callbackUrl}</div>
+                <div>P_NOTI_URL: {notiUrl}</div>
+              </>
+            )}
           </div>
         )}
       </div>
