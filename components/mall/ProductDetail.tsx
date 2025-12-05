@@ -5,10 +5,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
-import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3, FiMaximize2, FiChevronLeft } from 'react-icons/fi';
+import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3, FiMaximize2, FiChevronLeft, FiAlertCircle } from 'react-icons/fi';
 import { getKoreanCruiseLineName, getKoreanShipName, formatTravelPeriod } from '@/lib/utils/cruiseNames';
 import { PRODUCT_TAGS } from '@/components/admin/ProductTagsSelector';
 import DOMPurify from 'isomorphic-dompurify';
+import LiveViewerCount from '@/components/marketing/LiveViewerCount';
+import RemainingRooms from '@/components/marketing/RemainingRooms';
 
 interface ProductDetailProps {
   product: {
@@ -60,6 +62,58 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const [showReviewModal, setShowReviewModal] = useState(false); // 리뷰 미리보기 모달
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null); // 모달에 표시할 이미지 URL
   const [modalVideoUrl, setModalVideoUrl] = useState<string | null>(null); // 모달에 표시할 동영상 URL
+
+  // SOLD OUT 관련 상태
+  const [soldOutRooms, setSoldOutRooms] = useState<{ roomId: string; roomType: string; soldOutAt: string; soldOutBy: string }[]>([]);
+  const [togglingRoom, setTogglingRoom] = useState<string | null>(null); // SOLD OUT 토글 중인 객실
+
+  // SOLD OUT 상태 조회
+  useEffect(() => {
+    const fetchSoldOutStatus = async () => {
+      try {
+        const res = await fetch(`/api/admin/products/${product.productCode}/soldout`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.soldOutRooms) {
+            setSoldOutRooms(data.soldOutRooms);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch sold out status:', error);
+      }
+    };
+    fetchSoldOutStatus();
+  }, [product.productCode]);
+
+  // SOLD OUT 토글 함수 (관리자 전용)
+  const handleToggleSoldOut = async (roomId: string, roomType: string) => {
+    if (!isAdminUser && !isSuperAdmin) return;
+    setTogglingRoom(roomId);
+
+    try {
+      const res = await fetch(`/api/admin/products/${product.productCode}/soldout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId, roomType })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok) {
+          setSoldOutRooms(data.soldOutRooms);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to toggle sold out:', error);
+    } finally {
+      setTogglingRoom(null);
+    }
+  };
+
+  // 특정 객실이 SOLD OUT인지 확인
+  const isRoomSoldOut = (roomId: string) => {
+    return soldOutRooms.some(r => r.roomId === roomId);
+  };
 
   // Google Drive 이미지 URL을 public proxy URL로 변환하는 헬퍼 함수
   const getProxyImageUrl = (url: string | null | undefined): string => {
@@ -2026,6 +2080,11 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
             {/* 요금표 */}
             <div className="mb-6 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+              {/* 실시간 조회수 마케팅 */}
+              <div className="flex items-center justify-center mb-4 py-2 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg border border-red-100">
+                <LiveViewerCount />
+              </div>
+
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-[#051C2C]">요금표</h2>
                 {pricingRows && Array.isArray(pricingRows) && pricingRows.length > 0 && (
@@ -2067,28 +2126,63 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                       </tr>
                     </thead>
                     <tbody>
-                      {pricingRows.map((row: any, index: number) => (
-                        <tr
-                          key={row.id || index}
-                          className={`hover:bg-gray-50 ${index % 2 === 1 ? 'bg-gray-50/50' : ''}`}
-                        >
-                          <td className="px-4 py-3 font-semibold text-gray-800 border border-gray-300">
-                            {row.roomType || '객실 타입 미설정'}
-                          </td>
-                          <td className="px-4 py-3 text-center font-bold text-red-600 text-lg border border-gray-300">
-                            {formatPricingPrice(row.adult)}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-700 border border-gray-300">
-                            {formatPricingPrice(row.adult3rd)}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-700 border border-gray-300">
-                            {formatPricingPrice(row.child2to11)}
-                          </td>
-                          <td className="px-4 py-3 text-center text-gray-700 border border-gray-300">
-                            {formatPricingPrice(row.infantUnder2)}
-                          </td>
-                        </tr>
-                      ))}
+                      {pricingRows.map((row: any, index: number) => {
+                        const roomId = row.id || `room-${index}`;
+                        const isSoldOut = isRoomSoldOut(roomId);
+
+                        return (
+                          <tr
+                            key={roomId}
+                            className={`hover:bg-gray-50 ${index % 2 === 1 ? 'bg-gray-50/50' : ''} ${isSoldOut ? 'opacity-60 bg-gray-100' : ''}`}
+                          >
+                            <td className="px-4 py-3 font-semibold text-gray-800 border border-gray-300">
+                              <div className="flex flex-col gap-1">
+                                <span>{row.roomType || '객실 타입 미설정'}</span>
+                                {/* 남은 객실 수 (SOLD OUT이 아닌 경우만) */}
+                                {!isSoldOut && (
+                                  <RemainingRooms roomId={roomId} />
+                                )}
+                                {/* SOLD OUT 표시 */}
+                                {isSoldOut && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-bold text-white bg-red-600 rounded">
+                                    <FiAlertCircle size={12} />
+                                    SOLD OUT
+                                  </span>
+                                )}
+                                {/* 관리자 전용 SOLD OUT 토글 버튼 */}
+                                {(isAdminUser || isSuperAdmin) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleSoldOut(roomId, row.roomType);
+                                    }}
+                                    disabled={togglingRoom === roomId}
+                                    className={`mt-1 text-xs px-2 py-1 rounded font-medium transition-colors ${
+                                      isSoldOut
+                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                        : 'bg-red-100 text-red-700 hover:bg-red-200'
+                                    } ${togglingRoom === roomId ? 'opacity-50' : ''}`}
+                                  >
+                                    {togglingRoom === roomId ? '처리중...' : isSoldOut ? '판매 재개' : 'SOLD OUT 설정'}
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                            <td className={`px-4 py-3 text-center font-bold text-lg border border-gray-300 ${isSoldOut ? 'line-through text-gray-400' : 'text-red-600'}`}>
+                              {isSoldOut ? 'SOLD OUT' : formatPricingPrice(row.adult)}
+                            </td>
+                            <td className={`px-4 py-3 text-center border border-gray-300 ${isSoldOut ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                              {isSoldOut ? '-' : formatPricingPrice(row.adult3rd)}
+                            </td>
+                            <td className={`px-4 py-3 text-center border border-gray-300 ${isSoldOut ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                              {isSoldOut ? '-' : formatPricingPrice(row.child2to11)}
+                            </td>
+                            <td className={`px-4 py-3 text-center border border-gray-300 ${isSoldOut ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                              {isSoldOut ? '-' : formatPricingPrice(row.infantUnder2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

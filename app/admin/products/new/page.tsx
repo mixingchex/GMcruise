@@ -90,7 +90,21 @@ export default function NewProductPage() {
   const [rating, setRating] = useState<number>(4.4);
   const [reviewCount, setReviewCount] = useState<number>(0);
   const [previewProductCode, setPreviewProductCode] = useState<string | null>(null);
-  
+
+  // 상품코드 유효성 검사 상태
+  const [productCodeStatus, setProductCodeStatus] = useState<{
+    checking: boolean;
+    isDuplicate: boolean | null;
+    validationErrors: string[];
+    isValid: boolean | null;
+  }>({
+    checking: false,
+    isDuplicate: null,
+    validationErrors: [],
+    isValid: null
+  });
+  const [isManualProductCode, setIsManualProductCode] = useState(false); // 수동 입력 모드
+
   // 8. 문의 옵션 (결제하기, 전화상담, AI 지니 채팅봇) - 각각 활성화/비활성화 가능
   const [contactOptions, setContactOptions] = useState<{
     payment: boolean;
@@ -154,6 +168,59 @@ export default function NewProductPage() {
     // 모든 선박명을 한국어로 변환
     return getAllShipNames().map(ship => getKoreanShipName(formData.cruiseLine, ship));
   }, [formData.shipName, formData.cruiseLine]);
+
+  // 상품코드 중복 체크 함수 (debounced)
+  const productCodeCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const checkProductCodeDuplicate = useCallback(async (code: string) => {
+    if (!code || code.length < 3) {
+      setProductCodeStatus({
+        checking: false,
+        isDuplicate: null,
+        validationErrors: code && code.length < 3 ? ['상품코드는 최소 3자 이상이어야 합니다.'] : [],
+        isValid: null
+      });
+      return;
+    }
+
+    setProductCodeStatus(prev => ({ ...prev, checking: true }));
+
+    try {
+      const res = await fetch(`/api/admin/products/check-duplicate?productCode=${encodeURIComponent(code)}`);
+      const data = await res.json();
+
+      if (data.ok) {
+        setProductCodeStatus({
+          checking: false,
+          isDuplicate: data.isDuplicate,
+          validationErrors: data.validationErrors || [],
+          isValid: data.isValid
+        });
+      }
+    } catch (error) {
+      console.error('상품코드 체크 오류:', error);
+      setProductCodeStatus(prev => ({ ...prev, checking: false }));
+    }
+  }, []);
+
+  // 상품코드 변경 시 debounced 중복 체크
+  useEffect(() => {
+    if (!isManualProductCode) return; // 자동 생성 모드에서는 체크하지 않음
+
+    if (productCodeCheckTimeoutRef.current) {
+      clearTimeout(productCodeCheckTimeoutRef.current);
+    }
+
+    productCodeCheckTimeoutRef.current = setTimeout(() => {
+      checkProductCodeDuplicate(formData.productCode);
+    }, 500);
+
+    return () => {
+      if (productCodeCheckTimeoutRef.current) {
+        clearTimeout(productCodeCheckTimeoutRef.current);
+      }
+    };
+  }, [formData.productCode, isManualProductCode, checkProductCodeDuplicate]);
 
   // 외부 클릭 감지
   useEffect(() => {
@@ -506,6 +573,18 @@ export default function NewProductPage() {
       return;
     }
 
+    // 수동 모드에서 상품코드 유효성 검사
+    if (isManualProductCode && !productCodeStatus.isValid) {
+      if (productCodeStatus.isDuplicate) {
+        showError('이미 사용 중인 상품코드입니다. 다른 코드를 입력해주세요.');
+        return;
+      }
+      if (productCodeStatus.validationErrors.length > 0) {
+        showError(`상품코드 오류: ${productCodeStatus.validationErrors[0]}`);
+        return;
+      }
+    }
+
     if (!formData.packageName) {
       showError('제목을 입력해주세요.');
       return;
@@ -515,6 +594,34 @@ export default function NewProductPage() {
     if (!formData.startDate || !formData.endDate) {
       showError('여행 시작일과 종료일을 모두 입력해주세요. (온보딩 연결에 필수입니다)');
       return;
+    }
+
+    // 기본 가격 유효성 검사
+    if (formData.basePrice && parseInt(formData.basePrice) <= 0) {
+      showError('기본 가격은 0원보다 커야 합니다.');
+      return;
+    }
+
+    // 요금표(pricingRows) 가격 유효성 검사
+    for (const row of pricingRows) {
+      if (!row.roomType) {
+        showError('요금표에 객실 타입을 입력해주세요.');
+        return;
+      }
+      // 최소 하나의 가격은 입력되어야 함
+      const hasAnyPrice = row.adult || row.adult3rd || row.child2to11 || row.infantUnder2;
+      if (!hasAnyPrice) {
+        showError(`요금표 "${row.roomType}"에 최소 하나의 가격을 입력해주세요.`);
+        return;
+      }
+      // 입력된 가격은 0보다 커야 함 (0은 무료로 허용, 음수만 차단)
+      if ((row.adult !== undefined && row.adult < 0) ||
+          (row.adult3rd !== undefined && row.adult3rd < 0) ||
+          (row.child2to11 !== undefined && row.child2to11 < 0) ||
+          (row.infantUnder2 !== undefined && row.infantUnder2 < 0)) {
+        showError(`요금표 "${row.roomType}"에 음수 가격이 있습니다. 가격은 0 이상이어야 합니다.`);
+        return;
+      }
     }
 
     try {
@@ -816,22 +923,94 @@ export default function NewProductPage() {
           <h2 className="text-xl font-bold text-gray-800 mb-4">1. 기본 정보</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 상품 코드 (자동 생성, 읽기 전용) */}
+            {/* 상품 코드 (자동/수동 모드 선택 가능) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                상품 코드 * (자동 생성)
-              </label>
-              <input
-                type="text"
-                required
-                readOnly
-                value={formData.productCode || ''}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 cursor-not-allowed"
-                placeholder="자동 생성 중..."
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                상품 코드는 자동으로 생성됩니다. 카테고리나 인기/추천 설정에 따라 자동으로 업데이트됩니다.
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  상품 코드 *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsManualProductCode(!isManualProductCode);
+                    if (!isManualProductCode) {
+                      // 수동 모드로 전환 시 기존 코드 유지
+                      setProductCodeStatus({
+                        checking: false,
+                        isDuplicate: null,
+                        validationErrors: [],
+                        isValid: null
+                      });
+                    }
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  {isManualProductCode ? '자동 생성으로 전환' : '수동 입력으로 전환'}
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  readOnly={!isManualProductCode}
+                  value={formData.productCode || ''}
+                  onChange={(e) => {
+                    if (isManualProductCode) {
+                      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+                      setFormData(prev => ({ ...prev, productCode: value }));
+                    }
+                  }}
+                  className={`w-full px-3 py-2 border rounded-lg pr-10 ${
+                    isManualProductCode
+                      ? productCodeStatus.isValid === true
+                        ? 'border-green-500 bg-green-50'
+                        : productCodeStatus.isValid === false
+                        ? 'border-red-500 bg-red-50'
+                        : 'border-gray-300 focus:ring-2 focus:ring-blue-500'
+                      : 'border-gray-300 bg-gray-50 cursor-not-allowed'
+                  }`}
+                  placeholder={isManualProductCode ? '예: CRUISE_2025_001' : '자동 생성 중...'}
+                />
+                {/* 상태 아이콘 */}
+                {isManualProductCode && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {productCodeStatus.checking ? (
+                      <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                    ) : productCodeStatus.isValid === true ? (
+                      <span className="text-green-600 text-lg">✓</span>
+                    ) : productCodeStatus.isValid === false ? (
+                      <span className="text-red-600 text-lg">✗</span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              {/* 유효성 검사 피드백 */}
+              {isManualProductCode ? (
+                <div className="mt-1">
+                  {productCodeStatus.isDuplicate && (
+                    <p className="text-xs text-red-600">
+                      ⚠️ 이미 사용 중인 상품코드입니다.
+                    </p>
+                  )}
+                  {productCodeStatus.validationErrors.map((error, i) => (
+                    <p key={i} className="text-xs text-red-600">
+                      ⚠️ {error}
+                    </p>
+                  ))}
+                  {productCodeStatus.isValid && (
+                    <p className="text-xs text-green-600">
+                      ✓ 사용 가능한 상품코드입니다.
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500">
+                    영문 대문자, 숫자, 언더스코어(_), 하이픈(-)만 사용 가능
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">
+                  상품 코드는 자동으로 생성됩니다. 카테고리나 인기/추천 설정에 따라 자동으로 업데이트됩니다.
+                </p>
+              )}
             </div>
 
             {/* 제목 */}
@@ -1637,6 +1816,7 @@ export default function NewProductPage() {
             rows={pricingRows}
             onChange={setPricingRows}
             departureDate={departureDate || undefined}
+            nights={formData.nights || 0}
           />
         </div>
 

@@ -23,6 +23,13 @@ interface RoomSelection {
   infantUnder2: number; // 만 2세 미만 수
 }
 
+interface SoldOutRoom {
+  roomId: string;
+  roomType: string;
+  soldOutAt: string;
+  soldOutBy: string;
+}
+
 interface PaymentPageProps {
   productCode: string;
   productName: string;
@@ -68,6 +75,32 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
   const [productDetail, setProductDetail] = useState<PublicProductDetail | null>(null);
   const [isProductDetailLoading, setIsProductDetailLoading] = useState(false);
   const [productDetailError, setProductDetailError] = useState<string | null>(null);
+
+  // SOLD OUT 상태
+  const [soldOutRooms, setSoldOutRooms] = useState<SoldOutRoom[]>([]);
+
+  // SOLD OUT 상태 조회
+  useEffect(() => {
+    const fetchSoldOutStatus = async () => {
+      try {
+        const res = await fetch(`/api/admin/products/${productCode}/soldout`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.soldOutRooms) {
+            setSoldOutRooms(data.soldOutRooms);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch sold out status:', error);
+      }
+    };
+    fetchSoldOutStatus();
+  }, [productCode]);
+
+  // 특정 객실이 SOLD OUT인지 확인
+  const isRoomSoldOut = (roomId: string) => {
+    return soldOutRooms.some(r => r.roomId === roomId);
+  };
 
   const [formData, setFormData] = useState({
     buyerName: '',
@@ -226,81 +259,59 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
       return;
     }
 
+    setIsProcessing(true);
+
     try {
-      setIsProcessing(true);
+      // ============================================
+      // [v10.0] API 호출 없이 바로 checkout으로 이동!
+      // 클라이언트에서 orderId 생성 + URL로 데이터 전달
+      // ============================================
 
-      // 결제 요청 API 호출
-      // URL의 partner 파라미터를 최우선으로 사용 (정확한 판매원 추적)
-      const response = await fetch('/api/payment/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          productCode,
-          amount: calculateTotal(),
-          buyerName: formData.buyerName,
-          buyerEmail: formData.buyerEmail,
-          buyerTel: formData.buyerTel,
-          roomSelections, // 방 선택 정보 포함
-          chatSessionId,
-          partnerId: partnerId || undefined, // URL의 partner 파라미터를 최우선으로 사용
-        }),
-      });
+      // 1. 주문번호 클라이언트 생성 (나중에 DB에서 조회/생성)
+      const orderId = `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      const data = await response.json();
+      // 2. 상품명 정리 (특수문자 제거, 80자 제한)
+      const cleanGoodname = (productName || '크루즈 여행 상품')
+        .replace(/[<>"'&%]/g, '')
+        .trim()
+        .substring(0, 80);
 
-      if (data.ok && data.orderId) {
-        // ============================================
-        // [v9.4] Query String으로 결제 데이터 직접 전달
-        // 특수문자 제거 + encodeURIComponent 자동 적용
-        // ============================================
+      // 3. 구매자명 정리
+      const cleanBuyername = formData.buyerName.replace(/[<>"'&]/g, '').trim();
 
-        // 상품명 정리 (특수문자 제거, 80자 제한)
-        const cleanGoodname = (productName || '크루즈 여행 상품')
-          .replace(/[<>"'&%]/g, '')
-          .trim()
-          .substring(0, 80);
+      // 4. 최종 금액 (숫자만, 최소 1000원)
+      const finalPrice = Math.max(calculateTotal(), 1000);
 
-        // 구매자명 정리
-        const cleanBuyername = formData.buyerName.replace(/[<>"'&]/g, '').trim();
+      // 5. URL 파라미터 구성 (URLSearchParams가 자동으로 인코딩)
+      const queryParams = new URLSearchParams();
+      queryParams.set('orderId', orderId);
+      queryParams.set('goodname', cleanGoodname);
+      queryParams.set('price', String(finalPrice));
+      queryParams.set('buyername', cleanBuyername);
+      queryParams.set('buyertel', formData.buyerTel.replace(/[^0-9-]/g, '').trim());
+      queryParams.set('buyeremail', formData.buyerEmail?.trim() || '');
+      queryParams.set('productCode', productCode || '');
+      queryParams.set('partnerId', partnerId || '');
 
-        // 최종 금액 (숫자만)
-        const finalPrice = calculateTotal();
+      const checkoutUrl = `/payment/checkout?${queryParams.toString()}`;
 
-        // URL 파라미터 구성 (URLSearchParams가 자동으로 인코딩)
-        const queryParams = new URLSearchParams();
-        queryParams.set('orderId', data.orderId);
-        queryParams.set('goodname', cleanGoodname);
-        queryParams.set('price', String(finalPrice));
-        queryParams.set('buyername', cleanBuyername);
-        queryParams.set('buyertel', formData.buyerTel.replace(/[^0-9-]/g, '').trim());
-        queryParams.set('buyeremail', formData.buyerEmail?.trim() || '');
-        queryParams.set('productCode', productCode || '');
-        queryParams.set('partnerId', partnerId || '');
+      // 디버그 로그 (콘솔에서 확인 가능)
+      console.log('========================================');
+      console.log('[Payment v10.0] 결제 페이지로 이동 (API 스킵)');
+      console.log('========================================');
+      console.log('orderId:', orderId);
+      console.log('goodname:', cleanGoodname);
+      console.log('price:', finalPrice);
+      console.log('buyername:', cleanBuyername);
+      console.log('productCode:', productCode);
+      console.log('partnerId:', partnerId);
+      console.log('checkoutUrl:', checkoutUrl);
+      console.log('========================================');
 
-        const checkoutUrl = `/payment/checkout?${queryParams.toString()}`;
-
-        // 디버그 로그 (콘솔에서 확인 가능)
-        console.log('========================================');
-        console.log('[Payment v9.4] 결제 페이지로 이동');
-        console.log('========================================');
-        console.log('orderId:', data.orderId);
-        console.log('goodname:', cleanGoodname);
-        console.log('price:', finalPrice);
-        console.log('buyername:', cleanBuyername);
-        console.log('productCode:', productCode);
-        console.log('partnerId:', partnerId);
-        console.log('checkoutUrl:', checkoutUrl);
-        console.log('========================================');
-
-        router.push(checkoutUrl);
-      } else {
-        alert('결제 요청 실패: ' + (data.error || 'Unknown error'));
-      }
+      router.push(checkoutUrl);
     } catch (error) {
-      console.error('Payment request error:', error);
-      alert('결제 요청 중 오류가 발생했습니다.');
-    } finally {
+      console.error('Payment error:', error);
+      alert('결제 페이지 이동 중 오류가 발생했습니다.');
       setIsProcessing(false);
     }
   };
@@ -371,14 +382,33 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
                     const selection = roomSelections[index];
                     if (!selection) return null;
 
+                    const roomId = row.id || `room-${index}`;
+                    const isSoldOut = isRoomSoldOut(roomId);
+
                     const roomTotal =
                       (selection.adult * (row.adult || 0)) +
                       (selection.adult3rd * (row.adult3rd || 0)) +
                       (selection.child2to11 * (row.child2to11 || 0)) +
                       (selection.infantUnder2 * (row.infantUnder2 || 0));
 
+                    // SOLD OUT 객실인 경우 별도 UI 표시
+                    if (isSoldOut) {
+                      return (
+                        <div key={roomId} className="border-2 border-gray-300 rounded-lg p-6 bg-gray-100 opacity-70">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-xl font-bold text-gray-500 line-through">{row.roomType}</h3>
+                            <span className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-bold rounded-lg">
+                              <FiAlertCircle size={20} />
+                              SOLD OUT
+                            </span>
+                          </div>
+                          <p className="mt-4 text-gray-500 text-center">이 객실은 현재 예약이 마감되었습니다.</p>
+                        </div>
+                      );
+                    }
+
                     return (
-                      <div key={row.id || index} className="border-2 border-gray-200 rounded-lg p-6 hover:border-blue-400 transition-colors">
+                      <div key={roomId} className="border-2 border-gray-200 rounded-lg p-6 hover:border-blue-400 transition-colors">
                         <h3 className="text-xl font-bold text-gray-900 mb-4">{row.roomType}</h3>
 
                         <div className="space-y-4">

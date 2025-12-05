@@ -3432,6 +3432,7 @@ export default function ProductsManagementPage() {
                         rows={pricingRows}
                         onChange={setPricingRows}
                         departureDate={departureDate || undefined}
+                        nights={formData.nights || 0}
                       />
                     </div>
 

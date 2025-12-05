@@ -1956,6 +1956,7 @@ export default function ProductEditPage() {
             rows={pricingRows}
             onChange={setPricingRows}
             departureDate={departureDate || undefined}
+            nights={formData.nights || 0}
           />
         </div>
 

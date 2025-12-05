@@ -1,5 +1,5 @@
 // components/admin/PricingTableEditor.tsx
-// 요금표 에디터 (출발일 기준 자동 계산)
+// 요금표 에디터 (도착일 기준 자동 계산)
 
 'use client';
 
@@ -21,26 +21,32 @@ interface PricingTableEditorProps {
   rows: PricingRow[];
   onChange: (rows: PricingRow[]) => void;
   departureDate?: string; // 출발일 (YYYY-MM-DD 형식)
+  nights?: number; // 박 수 (도착일 계산용)
 }
 
 export default function PricingTableEditor({
   rows,
   onChange,
-  departureDate
+  departureDate,
+  nights = 0
 }: PricingTableEditorProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [editingRowInModal, setEditingRowInModal] = useState<PricingRow | null>(null);
   const [modalRowData, setModalRowData] = useState<PricingRow | null>(null);
 
-  // 출발일 기준 만나이 계산 및 범위 표시
+  // 도착일 기준 만나이 계산 및 범위 표시
   const calculateAgeRange = (minAge: number, maxAge: number | null) => {
     if (!departureDate) return null;
 
     try {
+      // 도착일 계산: 출발일 + nights
       const departure = new Date(departureDate + 'T00:00:00');
-      const departureYear = departure.getFullYear();
-      const departureMonth = departure.getMonth();
-      const departureDay = departure.getDate();
+      const arrival = new Date(departure);
+      arrival.setDate(arrival.getDate() + nights);
+
+      const arrivalYear = arrival.getFullYear();
+      const arrivalMonth = arrival.getMonth();
+      const arrivalDay = arrival.getDate();
 
       const formatDate = (date: Date) => {
         const year = date.getFullYear();
@@ -51,23 +57,23 @@ export default function PricingTableEditor({
 
       if (maxAge !== null) {
         // 만 minAge세 이상 만 maxAge세 이하
-        // 출발일 기준으로 만 maxAge세가 되는 마지막 날짜 (생년월일의 최대값)
-        const maxBirthYear = departureYear - maxAge;
-        const maxBirthDate = new Date(maxBirthYear, departureMonth, departureDay);
-        
-        // 출발일 기준으로 만 minAge세가 되는 첫 날짜 (생년월일의 최소값)
-        // 만 minAge세가 되려면 출발일 기준으로 minAge년 전에 태어나야 함
-        const minBirthYear = departureYear - minAge - 1;
-        const minBirthDate = new Date(minBirthYear, departureMonth, departureDay);
+        // 도착일 기준으로 만 maxAge세가 되는 마지막 날짜 (생년월일의 최대값)
+        const maxBirthYear = arrivalYear - maxAge;
+        const maxBirthDate = new Date(maxBirthYear, arrivalMonth, arrivalDay);
+
+        // 도착일 기준으로 만 minAge세가 되는 첫 날짜 (생년월일의 최소값)
+        // 만 minAge세가 되려면 도착일 기준으로 minAge년 전에 태어나야 함
+        const minBirthYear = arrivalYear - minAge - 1;
+        const minBirthDate = new Date(minBirthYear, arrivalMonth, arrivalDay);
         minBirthDate.setDate(minBirthDate.getDate() + 1); // 다음날부터 만 minAge세
 
         return `${formatDate(minBirthDate)} ~ ${formatDate(maxBirthDate)}`;
       } else {
         // 만 minAge세 미만 (만2세 미만의 경우)
-        // 출발일 기준으로 만 2세가 되는 첫 날짜 이전에 태어난 사람
-        const minBirthYear = departureYear - 2;
-        const maxBirthDate = new Date(minBirthYear, departureMonth, departureDay);
-        
+        // 도착일 기준으로 만 2세가 되는 첫 날짜 이전에 태어난 사람
+        const minBirthYear = arrivalYear - 2;
+        const maxBirthDate = new Date(minBirthYear, arrivalMonth, arrivalDay);
+
         // 최소값은 없음 (과거로 무한대)
         return `${formatDate(maxBirthDate)} 이전`;
       }
@@ -178,14 +184,22 @@ export default function PricingTableEditor({
           <h3 className="text-lg font-bold text-gray-900">요금표</h3>
           {departureDate && (
             <p className="text-sm text-gray-600 mt-1">
-              출발일: {new Date(departureDate).toLocaleDateString('ko-KR')}
+              도착일 기준: {(() => {
+                const departure = new Date(departureDate + 'T00:00:00');
+                const arrival = new Date(departure);
+                arrival.setDate(arrival.getDate() + nights);
+                return arrival.toLocaleDateString('ko-KR');
+              })()}
+              <span className="text-gray-400 ml-2">
+                (출발 {new Date(departureDate).toLocaleDateString('ko-KR')} + {nights}박)
+              </span>
             </p>
           )}
         </div>
         <div className="flex gap-2">
           {!departureDate && (
             <div className="text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
-              ⚠️ 출발일을 설정하면 연령 범위가 자동 계산됩니다
+              ⚠️ 출발일을 설정하면 연령 범위가 도착일 기준으로 자동 계산됩니다
             </div>
           )}
           <button
@@ -454,9 +468,9 @@ export default function PricingTableEditor({
       {/* 안내 */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          💡 <strong>사용 방법:</strong> 행 추가 버튼을 클릭하여 객실 타입을 추가하고, 모달 편집 버튼을 클릭하여 각 연령대별 요금을 입력하세요. 
+          💡 <strong>사용 방법:</strong> 행 추가 버튼을 클릭하여 객실 타입을 추가하고, 모달 편집 버튼을 클릭하여 각 연령대별 요금을 입력하세요.
           금액은 원 단위로 입력하세요 (예: 550000원 또는 1000원). 천원 단위와 만원 단위 모두 입력 가능합니다.
-          출발일을 설정하면 연령 범위가 자동으로 계산되어 표시됩니다.
+          출발일을 설정하면 연령 범위가 <strong>도착일 기준</strong>으로 자동 계산되어 표시됩니다.
         </p>
       </div>
 
