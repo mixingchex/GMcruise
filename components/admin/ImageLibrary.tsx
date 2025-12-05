@@ -726,14 +726,17 @@ export default function ImageLibrary({
                                                 <FiFolder className="w-5 h-5" />
                                                 선택 모드
                                             </button>
-                                            <button
-                                                onClick={() => fileInputRef.current?.click()}
-                                                disabled={isUploading}
-                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-                                            >
-                                                <FiUpload className="w-5 h-5" />
-                                                {isUploading ? '업로드 중...' : '이미지 업로드'}
-                                            </button>
+                                            <div className="flex flex-col items-end">
+                                                <button
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                    disabled={isUploading}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                                                >
+                                                    <FiUpload className="w-5 h-5" />
+                                                    {isUploading ? '업로드 중...' : '이미지 업로드'}
+                                                </button>
+                                                <p className="text-xs text-gray-500 mt-1">최대 4.5MB (초과 시 압축기 사용)</p>
+                                            </div>
                                         </>
                                     )}
                                     <input

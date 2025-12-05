@@ -142,21 +142,13 @@ const nextConfig = {
     },
   },
 
-  // ⚠️ serverExternalPackages는 Next.js 14에서 deprecated되었습니다.
-  // 대신 outputFileTracingExcludes에서 해당 패키지들을 제외하도록 설정했습니다.
-  // 큰 패키지들은 런타임에 node_modules에서 직접 로드되므로 별도 설정 불필요.
-  // serverExternalPackages: [
-  //   '@prisma/client',
-  //   '@node-rs/argon2',
-  //   'sharp',
-  //   'canvas',
-  //   'googleapis',
-  //   'google-auth-library',
-  //   'gaxios',
-  //   'puppeteer',
-  //   'pdf-lib',
-  //   'bcryptjs',
-  // ],
+  // Vercel에서 네이티브 바이너리 패키지 정상 작동을 위해 필요
+  serverExternalPackages: [
+    'sharp',
+    '@prisma/client',
+    'googleapis',
+    'google-auth-library',
+  ],
 
   // 라이브러리 임포트 최적화
   modularizeImports: {

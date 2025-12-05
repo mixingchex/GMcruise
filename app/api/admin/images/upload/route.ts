@@ -11,6 +11,9 @@ import sharp from 'sharp';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Vercel 파일 업로드 크기 제한 (50MB)
+export const maxDuration = 60; // 60초 타임아웃
+
 // 관리자 또는 판매원 권한 확인
 async function requireAdminOrPartner() {
   const sessionUser = await getSessionUser();
