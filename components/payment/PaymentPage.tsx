@@ -263,52 +263,32 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
 
     try {
       // ============================================
-      // [v10.0] API 호출 없이 바로 checkout으로 이동!
-      // 클라이언트에서 orderId 생성 + URL로 데이터 전달
+      // [v11.0] 결제 안정성 최우선 - 명시적 인코딩
       // ============================================
+      const query = new URLSearchParams({
+        orderId: `ord_${Date.now()}`,
+        goodname: encodeURIComponent(productName || "상품명"), // 특수문자 처리
+        price: String(totalAmount || 1000),
+        buyername: encodeURIComponent(formData.buyerName),
+        buyertel: formData.buyerTel,
+        buyeremail: formData.buyerEmail || '',
+        partnerId: partnerId || '', // 파트너 ID
+        productCode: productCode || ''
+      });
 
-      // 1. 주문번호 클라이언트 생성 (나중에 DB에서 조회/생성)
-      const orderId = `ORD_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-      // 2. 상품명 정리 (특수문자 제거, 80자 제한)
-      const cleanGoodname = (productName || '크루즈 여행 상품')
-        .replace(/[<>"'&%]/g, '')
-        .trim()
-        .substring(0, 80);
-
-      // 3. 구매자명 정리
-      const cleanBuyername = formData.buyerName.replace(/[<>"'&]/g, '').trim();
-
-      // 4. 최종 금액 (숫자만, 최소 1000원)
-      const finalPrice = Math.max(calculateTotal(), 1000);
-
-      // 5. URL 파라미터 구성 (URLSearchParams가 자동으로 인코딩)
-      const queryParams = new URLSearchParams();
-      queryParams.set('orderId', orderId);
-      queryParams.set('goodname', cleanGoodname);
-      queryParams.set('price', String(finalPrice));
-      queryParams.set('buyername', cleanBuyername);
-      queryParams.set('buyertel', formData.buyerTel.replace(/[^0-9-]/g, '').trim());
-      queryParams.set('buyeremail', formData.buyerEmail?.trim() || '');
-      queryParams.set('productCode', productCode || '');
-      queryParams.set('partnerId', partnerId || '');
-
-      const checkoutUrl = `/payment/checkout?${queryParams.toString()}`;
-
-      // 디버그 로그 (콘솔에서 확인 가능)
+      // 디버그 로그
       console.log('========================================');
-      console.log('[Payment v10.0] 결제 페이지로 이동 (API 스킵)');
+      console.log('[Payment v11.0] 결제 페이지로 이동');
       console.log('========================================');
-      console.log('orderId:', orderId);
-      console.log('goodname:', cleanGoodname);
-      console.log('price:', finalPrice);
-      console.log('buyername:', cleanBuyername);
+      console.log('orderId:', `ord_${Date.now()}`);
+      console.log('goodname:', productName);
+      console.log('price:', totalAmount);
+      console.log('buyername:', formData.buyerName);
       console.log('productCode:', productCode);
       console.log('partnerId:', partnerId);
-      console.log('checkoutUrl:', checkoutUrl);
       console.log('========================================');
 
-      router.push(checkoutUrl);
+      router.push(`/payment/checkout?${query.toString()}`);
     } catch (error) {
       console.error('Payment error:', error);
       alert('결제 페이지 이동 중 오류가 발생했습니다.');
