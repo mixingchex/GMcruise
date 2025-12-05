@@ -251,43 +251,47 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
 
       if (data.ok && data.orderId) {
         // ============================================
-        // [v9.2] Query String으로 결제 데이터 직접 전달
-        // 특수문자 처리 + 모든 필드 확실히 전달
+        // [v9.4] Query String으로 결제 데이터 직접 전달
+        // 특수문자 제거 + encodeURIComponent 자동 적용
         // ============================================
 
-        // 상품명 정리 (특수문자 제거)
+        // 상품명 정리 (특수문자 제거, 80자 제한)
         const cleanGoodname = (productName || '크루즈 여행 상품')
-          .replace(/[<>"'&]/g, '')
+          .replace(/[<>"'&%]/g, '')
+          .trim()
           .substring(0, 80);
 
         // 구매자명 정리
-        const cleanBuyername = formData.buyerName.trim();
+        const cleanBuyername = formData.buyerName.replace(/[<>"'&]/g, '').trim();
 
-        // 최종 금액
+        // 최종 금액 (숫자만)
         const finalPrice = calculateTotal();
 
-        // URL 파라미터 구성
-        const queryParams = new URLSearchParams({
-          orderId: data.orderId,
-          goodname: cleanGoodname,
-          price: String(finalPrice),
-          buyername: cleanBuyername,
-          buyertel: formData.buyerTel.trim(),
-          buyeremail: formData.buyerEmail?.trim() || '',
-          productCode: productCode || '',
-          partnerId: partnerId || '',
-        });
+        // URL 파라미터 구성 (URLSearchParams가 자동으로 인코딩)
+        const queryParams = new URLSearchParams();
+        queryParams.set('orderId', data.orderId);
+        queryParams.set('goodname', cleanGoodname);
+        queryParams.set('price', String(finalPrice));
+        queryParams.set('buyername', cleanBuyername);
+        queryParams.set('buyertel', formData.buyerTel.replace(/[^0-9-]/g, '').trim());
+        queryParams.set('buyeremail', formData.buyerEmail?.trim() || '');
+        queryParams.set('productCode', productCode || '');
+        queryParams.set('partnerId', partnerId || '');
 
         const checkoutUrl = `/payment/checkout?${queryParams.toString()}`;
 
-        console.log('[Payment v9.2] 결제 페이지로 이동:', {
-          orderId: data.orderId,
-          goodname: cleanGoodname,
-          price: finalPrice,
-          buyername: cleanBuyername,
-          productCode,
-          partnerId,
-        });
+        // 디버그 로그 (콘솔에서 확인 가능)
+        console.log('========================================');
+        console.log('[Payment v9.4] 결제 페이지로 이동');
+        console.log('========================================');
+        console.log('orderId:', data.orderId);
+        console.log('goodname:', cleanGoodname);
+        console.log('price:', finalPrice);
+        console.log('buyername:', cleanBuyername);
+        console.log('productCode:', productCode);
+        console.log('partnerId:', partnerId);
+        console.log('checkoutUrl:', checkoutUrl);
+        console.log('========================================');
 
         router.push(checkoutUrl);
       } else {
