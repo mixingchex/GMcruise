@@ -14,6 +14,7 @@ declare global {
 
 function CheckoutContent() {
   const searchParams = useSearchParams();
+  const [isMounted, setIsMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [isSignatureLoaded, setIsSignatureLoaded] = useState(false);
@@ -46,40 +47,65 @@ function CheckoutContent() {
   // 2. 초기화 (PC: 스크립트 로드 + 서명 생성 / Mobile: 바로 준비)
   // ============================================
   useEffect(() => {
+    console.log('[Checkout] Component mounted');
+    setIsMounted(true);
+
     const userAgent = navigator.userAgent.toLowerCase();
     const mobile = /android|iphone|ipad|ipod/i.test(userAgent);
+    console.log('[Checkout] Device detection:', { userAgent: userAgent.substring(0, 50), mobile });
     setIsMobile(mobile);
 
     if (!mobile) {
       // PC: 웰컴페이먼츠 스크립트 로드
-      const script = document.createElement('script');
-      script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
-      script.onload = () => setIsScriptLoaded(true);
-      document.head.appendChild(script);
+      console.log('[Checkout] Loading INIStdPay script...');
+      const existingScript = document.querySelector('script[src*="INIStdPay"]');
+      if (existingScript) {
+        console.log('[Checkout] Script already exists');
+        setIsScriptLoaded(true);
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
+        script.onload = () => {
+          console.log('[Checkout] INIStdPay script loaded successfully');
+          setIsScriptLoaded(true);
+        };
+        script.onerror = (e) => {
+          console.error('[Checkout] INIStdPay script load error:', e);
+        };
+        document.head.appendChild(script);
+      }
 
       // PC: 서명 생성 API 호출
+      console.log('[Checkout] Fetching signature...', { orderId, price });
       fetch('/api/payment/signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId, price }),
       })
-        .then((res) => res.json())
+        .then((res) => {
+          console.log('[Checkout] Signature API response status:', res.status);
+          return res.json();
+        })
         .then((data) => {
+          console.log('[Checkout] Signature API response:', { ok: data.ok, hasTimestamp: !!data.timestamp, hasMKey: !!data.mKey, hasSignature: !!data.signature });
           if (data.ok) {
             setTimestamp(data.timestamp);
             setMKey(data.mKey);
             setSignature(data.signature);
             setIsSignatureLoaded(true);
-            console.log('[Checkout] Signature loaded:', { orderId, price });
+            console.log('[Checkout] Signature loaded successfully');
           } else {
             console.error('[Checkout] Signature error:', data.error);
+            alert('결제 서명 생성 실패: ' + (data.error || '알 수 없는 오류'));
           }
         })
         .catch((err) => {
           console.error('[Checkout] Signature fetch error:', err);
+          alert('결제 서명 요청 실패: ' + err.message);
         });
     } else {
       // Mobile: 스크립트/서명 불필요
+      console.log('[Checkout] Mobile detected, skipping script/signature');
       setIsScriptLoaded(true);
       setIsSignatureLoaded(true);
     }
@@ -265,36 +291,34 @@ function CheckoutContent() {
           </p>
         </div>
 
-        {/* === PC용 표준 폼 (Hidden) === */}
-        {!isMobile && (
-          <form id="SendPayForm_id" name="SendPayForm_id" style={{ display: 'none' }}>
-            <input type="hidden" name="mid" value="wpcrdot200" />
-            <input type="hidden" name="oid" value={orderId} />
-            <input type="hidden" name="goodname" value={goodname} />
-            <input type="hidden" name="price" value={price} />
-            <input type="hidden" name="buyername" value={buyername} />
-            <input type="hidden" name="buyertel" value={buyertel} />
-            <input type="hidden" name="buyeremail" value={buyeremail} />
-            <input type="hidden" name="timestamp" value={timestamp} />
-            <input type="hidden" name="currency" value="WON" />
+        {/* === PC용 표준 폼 (Hidden) - 항상 렌더링 === */}
+        <form id="SendPayForm_id" name="SendPayForm_id" style={{ display: 'none' }}>
+          <input type="hidden" name="mid" value="wpcrdot200" />
+          <input type="hidden" name="oid" value={orderId} />
+          <input type="hidden" name="goodname" value={goodname} />
+          <input type="hidden" name="price" value={price} />
+          <input type="hidden" name="buyername" value={buyername} />
+          <input type="hidden" name="buyertel" value={buyertel} />
+          <input type="hidden" name="buyeremail" value={buyeremail} />
+          <input type="hidden" name="timestamp" value={timestamp} />
+          <input type="hidden" name="currency" value="WON" />
 
-            {/* 선택된 결제 수단 적용 */}
-            <input type="hidden" name="gopaymethod" value={payMethod} />
+          {/* 선택된 결제 수단 적용 */}
+          <input type="hidden" name="gopaymethod" value={payMethod} />
 
-            {/* payViewType: overlay 고정 */}
-            <input type="hidden" name="payViewType" value="overlay" />
-            <input type="hidden" name="charset" value="UTF-8" />
-            <input type="hidden" name="acceptmethod" value="HPP(1):below1000" />
+          {/* payViewType: overlay 고정 */}
+          <input type="hidden" name="payViewType" value="overlay" />
+          <input type="hidden" name="charset" value="UTF-8" />
+          <input type="hidden" name="acceptmethod" value="HPP(1):below1000" />
 
-            {/* partnerId 포함 */}
-            <input type="hidden" name="merchantData" value={merchantData} />
+          {/* partnerId 포함 */}
+          <input type="hidden" name="merchantData" value={merchantData} />
 
-            <input type="hidden" name="signature" value={signature} />
-            <input type="hidden" name="mKey" value={mKey} />
-            <input type="hidden" name="returnUrl" value="https://www.cruisedot.co.kr/api/payment/return" />
-            <input type="hidden" name="closeUrl" value="https://www.cruisedot.co.kr/payment/close" />
-          </form>
-        )}
+          <input type="hidden" name="signature" value={signature} />
+          <input type="hidden" name="mKey" value={mKey} />
+          <input type="hidden" name="returnUrl" value="https://www.cruisedot.co.kr/api/payment/return" />
+          <input type="hidden" name="closeUrl" value="https://www.cruisedot.co.kr/payment/close" />
+        </form>
       </div>
     </div>
   );
