@@ -263,11 +263,13 @@ export function generateSignature(
 }
 
 /**
- * PC Web Signature 생성
+ * PC Web Signature 생성 (이니시스/웰컴페이먼츠 표준)
  *
- * 순서: mKey, oid, price, timestamp (순서 중요!)
- * signature = SHA-256("mKey={mkey}&oid={주문번호}&price={금액}&timestamp={타임스탬프}")
- * mKey = SHA-256(signKey)
+ * 순서: oid, price, timestamp (순서 중요! - mKey는 포함하지 않음)
+ * signature = SHA-256("oid={주문번호}&price={금액}&timestamp={타임스탬프}")
+ * mKey = SHA-256(signKey) - 별도로 폼에 전달
+ *
+ * 참고: https://manual.inicis.com/pay/stdpay_pc.html
  */
 export function generatePCSignature(
   signKey: string,
@@ -277,9 +279,12 @@ export function generatePCSignature(
 ): SignatureData {
   const mkey = sha256Hash(signKey);
 
-  // PC용 signature 문자열: mKey, oid, price, timestamp 순서
-  const signString = `mKey=${mkey}&oid=${orderId}&price=${amount}&timestamp=${timestamp}`;
+  // PC용 signature 문자열: oid, price, timestamp 순서 (mKey 제외!)
+  const signString = `oid=${orderId}&price=${amount}&timestamp=${timestamp}`;
   const signature = sha256Hash(signString);
+
+  console.log('[generatePCSignature] signString:', signString);
+  console.log('[generatePCSignature] signature:', signature.substring(0, 20) + '...');
 
   return {
     mkey,
