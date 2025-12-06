@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 // INIStdPay 전역 타입 선언
@@ -27,14 +27,31 @@ function CheckoutContent() {
   const [timestamp, setTimestamp] = useState('');
   const [mKey, setMKey] = useState('');
   const [signature, setSignature] = useState('');
+  // signature 생성 시 사용된 orderId (일관성 보장)
+  const [signedOrderId, setSignedOrderId] = useState('');
 
   // ============================================
   // 1. 데이터 수신 (API 호출 X, URL 파라미터만 사용)
+  // useMemo로 안정적인 값 유지
   // ============================================
-  const orderId = searchParams.get('orderId') || `ord_${Date.now()}`;
-  const goodname = searchParams.get('goodname') ? decodeURIComponent(searchParams.get('goodname')!) : '기본 상품';
-  const price = searchParams.get('price') || '1000';
-  const buyername = searchParams.get('buyername') ? decodeURIComponent(searchParams.get('buyername')!) : '방문자';
+  const orderId = useMemo(() => {
+    return searchParams.get('orderId') || `ord_${Date.now()}`;
+  }, [searchParams]);
+
+  const goodname = useMemo(() => {
+    const raw = searchParams.get('goodname');
+    return raw ? decodeURIComponent(raw) : '기본 상품';
+  }, [searchParams]);
+
+  const price = useMemo(() => {
+    return searchParams.get('price') || '1000';
+  }, [searchParams]);
+
+  const buyername = useMemo(() => {
+    const raw = searchParams.get('buyername');
+    return raw ? decodeURIComponent(raw) : '방문자';
+  }, [searchParams]);
+
   const buyertel = searchParams.get('buyertel') || '01000000000';
   const buyeremail = searchParams.get('buyeremail') || 'test@test.com';
 
@@ -76,24 +93,37 @@ function CheckoutContent() {
       }
 
       // PC: 서명 생성 API 호출
-      console.log('[Checkout] Fetching signature...', { orderId, price });
+      // orderId를 로컬 변수로 캡처해서 일관성 보장
+      const currentOrderId = orderId;
+      const currentPrice = price;
+      console.log('[Checkout] Fetching signature...', { orderId: currentOrderId, price: currentPrice });
+
       fetch('/api/payment/signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, price }),
+        body: JSON.stringify({ orderId: currentOrderId, price: currentPrice }),
       })
         .then((res) => {
           console.log('[Checkout] Signature API response status:', res.status);
           return res.json();
         })
         .then((data) => {
-          console.log('[Checkout] Signature API response:', { ok: data.ok, hasTimestamp: !!data.timestamp, hasMKey: !!data.mKey, hasSignature: !!data.signature });
+          console.log('[Checkout] Signature API response:', {
+            ok: data.ok,
+            hasTimestamp: !!data.timestamp,
+            hasMKey: !!data.mKey,
+            hasSignature: !!data.signature,
+            timestamp: data.timestamp,
+            mKeyPreview: data.mKey ? data.mKey.substring(0, 10) + '...' : 'none',
+            signaturePreview: data.signature ? data.signature.substring(0, 10) + '...' : 'none'
+          });
           if (data.ok) {
             setTimestamp(data.timestamp);
             setMKey(data.mKey);
             setSignature(data.signature);
+            setSignedOrderId(currentOrderId); // signature 생성에 사용된 orderId 저장
             setIsSignatureLoaded(true);
-            console.log('[Checkout] Signature loaded successfully');
+            console.log('[Checkout] Signature loaded successfully for orderId:', currentOrderId);
           } else {
             console.error('[Checkout] Signature error:', data.error);
             alert('결제 서명 생성 실패: ' + (data.error || '알 수 없는 오류'));
@@ -189,8 +219,25 @@ function CheckoutContent() {
           }
         });
 
+        // 폼 필드 값 직접 확인
+        const formElements = form.elements;
+        console.log('[Checkout] Form elements count:', formElements.length);
+        console.log('[Checkout] Critical values:', {
+          mid: (formElements.namedItem('mid') as HTMLInputElement)?.value,
+          oid: (formElements.namedItem('oid') as HTMLInputElement)?.value,
+          price: (formElements.namedItem('price') as HTMLInputElement)?.value,
+          timestamp: (formElements.namedItem('timestamp') as HTMLInputElement)?.value,
+          signatureExists: !!(formElements.namedItem('signature') as HTMLInputElement)?.value,
+          mKeyExists: !!(formElements.namedItem('mKey') as HTMLInputElement)?.value,
+        });
+
         console.log('[Checkout] Calling INIStdPay.pay()...');
-        window.INIStdPay.pay('SendPayForm_id');
+        try {
+          window.INIStdPay.pay('SendPayForm_id');
+          console.log('[Checkout] INIStdPay.pay() called successfully');
+        } catch (payError) {
+          console.error('[Checkout] INIStdPay.pay() error:', payError);
+        }
       } else {
         console.error('[Checkout] Form not found: SendPayForm_id');
       }
@@ -292,9 +339,10 @@ function CheckoutContent() {
         </div>
 
         {/* === PC용 표준 폼 (Hidden) - 항상 렌더링 === */}
+        {/* 중요: oid는 signature 생성 시 사용된 signedOrderId를 사용해야 함 */}
         <form id="SendPayForm_id" name="SendPayForm_id" style={{ display: 'none' }}>
           <input type="hidden" name="mid" value="wpcrdot200" />
-          <input type="hidden" name="oid" value={orderId} />
+          <input type="hidden" name="oid" value={signedOrderId || orderId} />
           <input type="hidden" name="goodname" value={goodname} />
           <input type="hidden" name="price" value={price} />
           <input type="hidden" name="buyername" value={buyername} />
