@@ -54,14 +54,36 @@ function LoginPageContent() {
 
     console.log('[LOGIN] Submitting...', { phone: trimmedPhone, password: '***', name: trimmedName });
 
+    // 재시도 로직 함수
+    const attemptLogin = async (retryCount = 0): Promise<Response> => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30초 타임아웃
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ phone: trimmedPhone, password: trimmedPassword, name: trimmedName, mode: 'user' }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response;
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        // 타임아웃이나 네트워크 오류 시 재시도 (최대 2회)
+        if (retryCount < 2 && (err.name === 'AbortError' || err.name === 'TypeError')) {
+          console.log(`[LOGIN] Retrying... (${retryCount + 1}/2)`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
+          return attemptLogin(retryCount + 1);
+        }
+        throw err;
+      }
+    };
+
     try {
-      const r = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ phone: trimmedPhone, password: trimmedPassword, name: trimmedName, mode: 'user' }),
-      });
-      
+      const r = await attemptLogin();
+
       console.log('[LOGIN] Response status:', r.status);
       
       const data = await r.json().catch((err) => {
@@ -133,9 +155,21 @@ function LoginPageContent() {
       
       console.log('[LOGIN] Redirecting to:', next);
       router.push(next);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[LOGIN] Network error:', error);
-      setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+
+      // 에러 유형에 따른 상세 메시지
+      let errorMessage = '네트워크 오류가 발생했습니다.';
+
+      if (error.name === 'AbortError') {
+        errorMessage = '서버 응답 시간이 초과되었습니다. 인터넷 연결을 확인하고 다시 시도해주세요.';
+      } else if (error.name === 'TypeError' && error.message?.includes('fetch')) {
+        errorMessage = '서버에 연결할 수 없습니다. 인터넷 연결을 확인해주세요.';
+      } else if (!navigator.onLine) {
+        errorMessage = '인터넷 연결이 끊어졌습니다. 연결을 확인하고 다시 시도해주세요.';
+      }
+
+      setError(errorMessage);
     }
   }
 

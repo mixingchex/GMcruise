@@ -1,13 +1,17 @@
 // lib/affiliate/contract-pdf.ts
 // 계약서 PDF 생성 유틸리티
 
-import puppeteer from 'puppeteer';
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 import { join } from 'path';
 import { writeFile, mkdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import prisma from '@/lib/prisma';
 import { CONTRACT_SECTIONS, REQUIRED_CONSENTS, REFUND_CONSENTS } from './contract-sections';
 import { EDUCATION_CONTRACT_SECTIONS } from './education-contract-sections';
+
+// 환경 감지 - Vercel 서버리스 환경인지 확인
+const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 interface ContractPDFData {
   contractId: number;
@@ -36,32 +40,70 @@ interface ContractPDFData {
 export async function generateContractPDF(data: ContractPDFData): Promise<Buffer> {
   let browser;
   try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--single-process',
-        '--disable-gpu',
-      ],
-    });
+    console.log('[Contract PDF] Starting browser launch...', { isVercel });
+
+    if (isVercel) {
+      // Vercel 서버리스 환경: @sparticuz/chromium 사용
+      const executablePath = await chromium.executablePath();
+      console.log('[Contract PDF] Using chromium executable:', executablePath);
+
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: { width: 1280, height: 720 },
+        executablePath,
+        headless: true,
+      });
+    } else {
+      // 로컬 개발 환경: 시스템 Chrome 사용
+      const possiblePaths = [
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        process.env.CHROME_PATH,
+      ].filter(Boolean);
+
+      let executablePath: string | undefined;
+      for (const path of possiblePaths) {
+        if (path && existsSync(path)) {
+          executablePath = path;
+          break;
+        }
+      }
+
+      if (!executablePath) {
+        throw new Error('Chrome/Chromium 브라우저를 찾을 수 없습니다. 로컬 환경에서 Chrome을 설치해주세요.');
+      }
+
+      console.log('[Contract PDF] Using local Chrome:', executablePath);
+
+      browser = await puppeteerCore.launch({
+        headless: true,
+        executablePath,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu',
+        ],
+      });
+    }
+
+    console.log('[Contract PDF] Browser launched successfully');
   } catch (error: any) {
     const errorMessage = error?.message || '알 수 없는 오류';
+    console.error('[Contract PDF] Browser launch failed:', errorMessage);
+
     if (errorMessage.includes('libnspr4.so') || errorMessage.includes('shared libraries')) {
       throw new Error(
-        'PDF 생성을 위해 필요한 시스템 라이브러리가 설치되지 않았습니다.\n' +
-        '다음 명령어를 실행하여 필요한 라이브러리를 설치해주세요:\n\n' +
-        'sudo apt-get update && sudo apt-get install -y \\\n' +
-        '  libnspr4 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \\\n' +
-        '  libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \\\n' +
-        '  libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2'
+        'PDF 생성을 위해 필요한 시스템 라이브러리가 설치되지 않았습니다. 서버 관리자에게 문의해주세요.'
       );
     }
-    throw error;
+    throw new Error(`PDF 생성 브라우저 실행 실패: ${errorMessage}`);
   }
 
   try {

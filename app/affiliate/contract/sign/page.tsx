@@ -39,6 +39,7 @@ function ContractSignPageContent() {
   const [uploadingSignature, setUploadingSignature] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showEducationContractModal, setShowEducationContractModal] = useState(false);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null); // 서명 미리보기
   
   // 필수 동의 체크박스 상태
   const [consentPrivacy, setConsentPrivacy] = useState(false);
@@ -79,9 +80,17 @@ function ContractSignPageContent() {
 
     const pad = new SignaturePad(canvas, {
       backgroundColor: '#ffffff',
-      penColor: '#2563eb',
-      minWidth: 1.5,
-      maxWidth: 3,
+      penColor: '#1e40af', // 더 진한 파란색
+      minWidth: 2.5, // 더 굵은 선
+      maxWidth: 5, // 더 굵은 선
+      velocityFilterWeight: 0.7, // 더 부드러운 곡선
+    });
+
+    // 서명할 때마다 미리보기 업데이트
+    pad.addEventListener('endStroke', () => {
+      if (!pad.isEmpty()) {
+        setSignaturePreview(pad.toDataURL('image/png'));
+      }
     });
 
     setSignaturePad(pad);
@@ -130,6 +139,7 @@ function ContractSignPageContent() {
   const handleClearSignature = () => {
     if (signaturePad) {
       signaturePad.clear();
+      setSignaturePreview(null);
     }
   };
 
@@ -451,25 +461,62 @@ function ContractSignPageContent() {
             />
           </div>
 
-          {/* 서명 영역 */}
+          {/* 서명 영역 - 개선된 UI */}
           <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-lg font-bold text-gray-900 mb-3">
               서명 <span className="text-red-500">*</span>
             </label>
-            <div className="border-2 border-gray-300 rounded-xl overflow-hidden bg-white">
+
+            {/* 서명 안내 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <p className="text-blue-800 font-medium text-base">
+                📝 아래 흰색 영역에 손가락 또는 마우스로 서명해주세요
+              </p>
+              <p className="text-blue-600 text-sm mt-1">
+                굵고 진하게 서명하시면 더 잘 보입니다. 서명 후 아래에서 미리보기를 확인하세요.
+              </p>
+            </div>
+
+            {/* 서명 캔버스 - 더 큰 영역 */}
+            <div className="border-4 border-blue-400 rounded-2xl overflow-hidden bg-white shadow-lg">
               <canvas
                 ref={signatureCanvasRef}
                 className="w-full cursor-crosshair"
-                style={{ height: '300px', touchAction: 'none' }}
+                style={{ height: '350px', touchAction: 'none' }}
               />
             </div>
-            <button
-              type="button"
-              onClick={handleClearSignature}
-              className="mt-2 text-sm text-gray-600 hover:text-gray-800"
-            >
-              서명 지우기
-            </button>
+
+            {/* 서명 지우기 버튼 */}
+            <div className="flex items-center justify-between mt-3">
+              <button
+                type="button"
+                onClick={handleClearSignature}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                <FiXCircle className="text-lg" />
+                서명 지우기
+              </button>
+              {signaturePreview && (
+                <span className="text-green-600 font-medium flex items-center gap-1">
+                  <FiCheckCircle />
+                  서명 완료
+                </span>
+              )}
+            </div>
+
+            {/* 서명 미리보기 - 실제 이미지 표시 */}
+            {signaturePreview && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
+                <p className="text-sm font-semibold text-gray-700 mb-3">📋 서명 미리보기 (저장될 이미지)</p>
+                <div className="bg-white rounded-lg border border-gray-300 p-3 inline-block">
+                  <img
+                    src={signaturePreview}
+                    alt="서명 미리보기"
+                    className="max-h-32 w-auto"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 안내 메시지 */}

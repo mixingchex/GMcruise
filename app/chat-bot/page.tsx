@@ -1256,24 +1256,24 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col">
-      {/* 헤더 */}
+      {/* 헤더 - 모바일 가독성 개선 */}
       <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🤖</span>
+        <div className="container mx-auto px-4 py-5">
+          <div className="flex items-center gap-4">
+            <span className="text-4xl md:text-5xl">🤖</span>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">AI 지니 채팅봇</h1>
-              <p className="text-sm text-gray-600">크루즈 여행 상담을 도와드립니다</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI 지니 채팅봇</h1>
+              <p className="text-base md:text-lg text-gray-700">크루즈 여행 상담을 도와드립니다</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 채팅 영역 */}
-      <div className="flex-1 container mx-auto px-4 py-6 max-w-4xl">
-        <div className="bg-white rounded-lg shadow-lg h-full flex flex-col">
-          {/* 메시지 영역 */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+      {/* 채팅 영역 - 모바일 패딩 조정 */}
+      <div className="flex-1 container mx-auto px-3 md:px-6 py-4 md:py-6 max-w-4xl">
+        <div className="bg-white rounded-xl md:rounded-2xl shadow-lg h-full flex flex-col">
+          {/* 메시지 영역 - 모바일 패딩 및 간격 조정 */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 md:space-y-6">
             {messages.length === 0 && !isLoading && (
               <div className="text-center text-gray-500 py-8">
                 채팅을 시작합니다...
@@ -1286,28 +1286,28 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-4 ${
+                  className={`max-w-[90%] md:max-w-[85%] rounded-xl md:rounded-2xl p-4 md:p-5 ${
                     message.type === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-800'
+                      ? 'bg-blue-600 text-white text-lg md:text-xl'
+                      : 'bg-gray-50 text-gray-900'
                   }`}
                 >
                   {message.type === 'bot' && (
-                    <div className="flex items-start gap-2 mb-2">
-                      <span className="text-2xl">🤖</span>
+                    <div className="flex items-start gap-3 mb-3">
+                      <span className="text-3xl md:text-4xl">🤖</span>
                     </div>
                   )}
                   {/* 일반 텍스트 메시지는 표시하지 않음 - 파란색 박스만 표시 */}
                   
-                  {/* 리뷰 표시 - 생생한 경험담과 이미지 함께 표시 */}
+                  {/* 리뷰 표시 - 모바일 가독성 개선 */}
                   {message.type === 'bot' && message.reviews && message.reviews.length > 0 && (
-                    <div className="mt-4 space-y-6">
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-4">
-                        <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-                          <span className="text-2xl">💬</span>
+                    <div className="mt-5 space-y-6 md:space-y-8">
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 md:p-6 mb-5">
+                        <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                          <span className="text-3xl md:text-4xl">💬</span>
                           실제 고객 후기
                         </h3>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-base md:text-lg text-gray-700">
                           실제로 다녀오신 분들의 생생한 경험담을 확인해보세요!
                         </p>
                       </div>
@@ -1324,22 +1324,22 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                             key={review.id}
                             type="button"
                             onClick={() => openReviewModal(message.reviews ?? [], reviewIndex)}
-                            className="w-full text-left bg-white border-2 border-blue-300 rounded-xl p-5 shadow-lg hover:shadow-2xl transition-transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400"
+                            className="w-full text-left bg-white border-2 border-blue-300 rounded-xl md:rounded-2xl p-5 md:p-6 shadow-lg hover:shadow-2xl transition-transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400"
                           >
-                            <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
+                            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-gray-200">
                             {/* 작성자 정보 및 평점 */}
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md">
+                              <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md">
                                 {review.authorName.charAt(0)}
                               </div>
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-bold text-lg text-gray-800">{review.authorName}님</span>
-                                  <div className="flex text-yellow-400 text-lg">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className="font-bold text-xl md:text-2xl text-gray-900">{review.authorName}님</span>
+                                  <div className="flex text-yellow-400 text-xl md:text-2xl">
                                     {'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}
                                   </div>
                                 </div>
                                 {review.cruiseLine && (
-                                  <div className="text-sm text-gray-600">
+                                  <div className="text-base md:text-lg text-gray-600">
                                     {review.cruiseLine} {review.shipName && `· ${review.shipName}`}
                                   </div>
                                 )}
@@ -1421,22 +1421,22 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                               </div>
                             )}
                             
-                            {/* 제목과 내용 */}
-                            <div className="space-y-3">
+                            {/* 제목과 내용 - 모바일 가독성 개선 */}
+                            <div className="space-y-4">
                               {review.title && (
-                                <h4 className="font-bold text-xl text-gray-800 leading-tight">
+                                <h4 className="font-bold text-xl md:text-2xl text-gray-900 leading-snug">
                                   {review.title}
                                 </h4>
                               )}
-                              <p className="text-base text-gray-700 leading-relaxed whitespace-pre-wrap">
+                              <p className="text-lg md:text-xl text-gray-800 leading-relaxed whitespace-pre-wrap">
                                 {review.content}
                               </p>
                             </div>
-                            
+
                             {/* 여행 날짜 (있는 경우) */}
                             {review.travelDate && (
-                              <div className="mt-4 pt-4 border-t border-gray-100">
-                                <span className="text-sm text-gray-500">
+                              <div className="mt-5 pt-5 border-t border-gray-200">
+                                <span className="text-base md:text-lg text-gray-600">
                                   📅 여행일: {new Date(review.travelDate).toLocaleDateString('ko-KR')}
                                 </span>
                               </div>
@@ -1449,11 +1449,11 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                     </div>
                   )}
                   
-                  {/* 정보 박스 (파란색 배경) - 모든 봇 메시지는 여기서 표시 */}
+                  {/* 정보 박스 (파란색 배경) - 모바일 가독성 대폭 개선 */}
                   {message.type === 'bot' && message.content && (
-                    <div className="mt-3 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-                      <div 
-                        className="text-xl text-blue-900 whitespace-pre-wrap leading-relaxed"
+                    <div className="mt-4 p-5 md:p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl">
+                      <div
+                        className="text-lg md:text-xl text-blue-900 whitespace-pre-wrap leading-loose md:leading-relaxed font-medium"
                         dangerouslySetInnerHTML={{ 
                           __html: (() => {
                             let processed = message.content;
@@ -1673,7 +1673,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                     </div>
                   )}
                   
-                  {/* 선택지 버튼 - message.options만 사용 (중복 방지) */}
+                  {/* 선택지 버튼 - 모바일 가독성 대폭 개선 */}
                   {(() => {
                     logger.log('[Render] Checking options for message:', {
                       messageId: message.questionId,
@@ -1682,7 +1682,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                       options: message.options,
                     });
                     return message.options && message.options.length > 0 ? (
-                      <div className="mt-4 space-y-3">
+                      <div className="mt-5 md:mt-6 space-y-4">
                         {message.options.map((option, optIndex) => {
                           // "실제 고객 후기 보기" 버튼은 특별한 스타일 적용
                           const isReviewButton = option.label.includes('실제 고객 후기');
@@ -1691,13 +1691,13 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                               key={`${message.questionId}-${optIndex}`}
                               onClick={() => handleOptionClick(option)}
                               disabled={isLoading}
-                              className={`w-full text-left px-6 py-4 rounded-lg transition-colors font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-sm hover:shadow-md ${
+                              className={`w-full text-left px-5 md:px-6 py-4 md:py-5 rounded-xl md:rounded-2xl transition-all font-bold text-lg md:text-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-[0.98] ${
                                 isReviewButton
-                                  ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white border-2 border-yellow-500 hover:from-yellow-500 hover:to-orange-500 font-bold text-xl'
-                                  : 'bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50'
+                                  ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white border-2 border-yellow-500 hover:from-yellow-500 hover:to-orange-500 text-xl md:text-2xl'
+                                  : 'bg-white border-3 border-blue-600 text-blue-700 hover:bg-blue-50 active:bg-blue-100'
                               }`}
                             >
-                              {isReviewButton && <span className="mr-2">💬</span>}
+                              {isReviewButton && <span className="mr-2 text-2xl">💬</span>}
                               {option.label}
                             </button>
                           );

@@ -127,8 +127,8 @@ export async function GET(req: NextRequest) {
             .png()
             .toBuffer();
 
-          // 투명도 적용 (불투명도 25%)
-          const opacity = 0.25;
+          // 투명도 적용 (불투명도 40% - 더 잘 보이도록)
+          const opacity = 0.40;
           const watermarkData = await sharp(resizedWatermark)
             .raw()
             .ensureAlpha()

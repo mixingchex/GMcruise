@@ -495,12 +495,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     console.error(`POST /api/admin/affiliate/contracts/${errorContractId}/approve error:`, error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
-    console.error('[Approve Contract] Error details:', { errorMessage, errorStack });
+    const errorCode = error?.code; // Prisma 에러 코드
+    const errorMeta = error?.meta; // Prisma 에러 메타데이터
+    console.error('[Approve Contract] Error details:', { errorMessage, errorStack, errorCode, errorMeta });
+
+    // Prisma 에러 종류에 따른 친절한 메시지
+    let userMessage = '계약 승인 중 오류가 발생했습니다.';
+    if (errorCode === 'P2002') {
+      userMessage = '중복된 데이터가 있습니다. 이미 등록된 사용자일 수 있습니다.';
+    } else if (errorCode === 'P2025') {
+      userMessage = '데이터를 찾을 수 없습니다. 페이지를 새로고침 후 다시 시도해주세요.';
+    } else if (errorCode === 'P2003') {
+      userMessage = '참조 데이터가 없습니다. 관련 데이터가 삭제되었을 수 있습니다.';
+    }
+
     return NextResponse.json(
       {
         ok: false,
-        message: `계약 승인 중 오류가 발생했습니다: ${errorMessage}`,
-        error: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+        message: userMessage,
+        error: errorMessage,
+        code: errorCode,
+        details: process.env.NODE_ENV === 'development' ? { meta: errorMeta, stack: errorStack } : undefined,
       },
       { status: 500 }
     );
