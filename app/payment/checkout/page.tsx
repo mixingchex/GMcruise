@@ -89,6 +89,19 @@ function CheckoutContent() {
   // 3. 결제 실행 핸들러 (PC/Mobile 분기)
   // ============================================
   const handlePayment = () => {
+    // 디버깅: 현재 상태 확인
+    console.log('[Checkout] Payment clicked:', {
+      isMobile,
+      isScriptLoaded,
+      isSignatureLoaded,
+      timestamp,
+      mKey: mKey ? `${mKey.substring(0, 10)}...` : 'empty',
+      signature: signature ? `${signature.substring(0, 10)}...` : 'empty',
+      orderId,
+      price,
+      payMethod,
+    });
+
     if (isMobile) {
       // === Mobile: 동적 폼 생성 후 POST 전송 ===
       const form = document.createElement('form');
@@ -125,12 +138,35 @@ function CheckoutContent() {
     } else {
       // === PC: Overlay 팝업 실행 ===
       if (typeof window.INIStdPay === 'undefined') {
+        console.error('[Checkout] INIStdPay not loaded');
         alert('결제 모듈 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
       }
 
-      if (document.getElementById('SendPayForm_id')) {
+      // 서명 데이터 확인
+      if (!signature || !mKey || !timestamp) {
+        console.error('[Checkout] Missing signature data:', { signature: !!signature, mKey: !!mKey, timestamp: !!timestamp });
+        alert('결제 서명 데이터 로딩 중... 잠시 후 다시 클릭해주세요.');
+        return;
+      }
+
+      const form = document.getElementById('SendPayForm_id') as HTMLFormElement;
+      if (form) {
+        // 폼 데이터 디버깅
+        const formData = new FormData(form);
+        console.log('[Checkout] Form data before payment:');
+        formData.forEach((value, key) => {
+          if (key === 'mKey' || key === 'signature') {
+            console.log(`  ${key}: ${String(value).substring(0, 20)}...`);
+          } else {
+            console.log(`  ${key}: ${value}`);
+          }
+        });
+
+        console.log('[Checkout] Calling INIStdPay.pay()...');
         window.INIStdPay.pay('SendPayForm_id');
+      } else {
+        console.error('[Checkout] Form not found: SendPayForm_id');
       }
     }
   };
