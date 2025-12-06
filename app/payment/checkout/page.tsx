@@ -16,10 +16,16 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const [isMobile, setIsMobile] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
+  const [isSignatureLoaded, setIsSignatureLoaded] = useState(false);
 
   // [상태] 결제 수단 선택 (기본값: 카드)
   // Card(신용카드), DirectBank(계좌이체), VBank(가상계좌), HPP(휴대폰)
   const [payMethod, setPayMethod] = useState('Card');
+
+  // 보안 데이터 (서버에서 받아옴)
+  const [timestamp, setTimestamp] = useState('');
+  const [mKey, setMKey] = useState('');
+  const [signature, setSignature] = useState('');
 
   // ============================================
   // 1. 데이터 수신 (API 호출 X, URL 파라미터만 사용)
@@ -36,13 +42,8 @@ function CheckoutContent() {
   const productCode = searchParams.get('productCode') || '';
   const merchantData = `partnerId=${partnerId}&productCode=${productCode}`;
 
-  // 보안 데이터 (임시값)
-  const timestamp = String(Date.now());
-  const mKey = '';
-  const signature = '';
-
   // ============================================
-  // 2. 초기화 (PC: 스크립트 로드 / Mobile: 바로 준비)
+  // 2. 초기화 (PC: 스크립트 로드 + 서명 생성 / Mobile: 바로 준비)
   // ============================================
   useEffect(() => {
     const userAgent = navigator.userAgent.toLowerCase();
@@ -55,11 +56,34 @@ function CheckoutContent() {
       script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
       script.onload = () => setIsScriptLoaded(true);
       document.head.appendChild(script);
+
+      // PC: 서명 생성 API 호출
+      fetch('/api/payment/signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, price }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok) {
+            setTimestamp(data.timestamp);
+            setMKey(data.mKey);
+            setSignature(data.signature);
+            setIsSignatureLoaded(true);
+            console.log('[Checkout] Signature loaded:', { orderId, price });
+          } else {
+            console.error('[Checkout] Signature error:', data.error);
+          }
+        })
+        .catch((err) => {
+          console.error('[Checkout] Signature fetch error:', err);
+        });
     } else {
-      // Mobile: 스크립트 불필요
+      // Mobile: 스크립트/서명 불필요
       setIsScriptLoaded(true);
+      setIsSignatureLoaded(true);
     }
-  }, []);
+  }, [orderId, price]);
 
   // ============================================
   // 3. 결제 실행 핸들러 (PC/Mobile 분기)
@@ -191,10 +215,12 @@ function CheckoutContent() {
           {/* 결제하기 버튼 */}
           <button
             onClick={handlePayment}
-            disabled={!isMobile && !isScriptLoaded}
+            disabled={!isMobile && (!isScriptLoaded || !isSignatureLoaded)}
             className="w-full py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
           >
-            {parseInt(price).toLocaleString()}원 결제하기
+            {!isMobile && (!isScriptLoaded || !isSignatureLoaded)
+              ? '결제 준비 중...'
+              : `${parseInt(price).toLocaleString()}원 결제하기`}
           </button>
 
           {/* 안내 문구 */}
