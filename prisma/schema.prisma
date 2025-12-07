@@ -1310,6 +1310,7 @@ model LandingPage {
   LandingPageRegistration LandingPageRegistration[]
   LandingPageView         LandingPageView[]
   SharedLandingPage       SharedLandingPage[]
+  PayAppPayment           PayAppPayment[]
 
   @@index([adminId])
   @@index([category])
@@ -1895,6 +1896,40 @@ model Payment {
   @@index([orderId])
   @@index([pgTransactionId])
   @@index([status, createdAt])
+}
+
+model PayAppPayment {
+  id              Int          @id @default(autoincrement())
+  orderId         String       @unique
+  mulNo           String?      @unique // PayApp 결제요청번호
+  landingPageId   Int
+  productName     String
+  amount          Int
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  status          String       @default("pending") // pending, requested, paid, cancelled, refunded, partial_refunded
+  payType         String?      // 1:신용카드, 2:휴대전화, 6:계좌이체, 7:가상계좌 등
+  payUrl          String?      // 결제 페이지 URL
+  cstUrl          String?      // 매출전표 URL
+  cardName        String?      // 카드사명
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  refundedAt      DateTime?
+  refundAmount    Int?         // 환불 금액 (부분환불 시)
+  refundReason    String?
+  var1            String?      // 임의변수1
+  var2            String?      // 임의변수2
+  metadata        Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  LandingPage     LandingPage  @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+
+  @@index([landingPageId])
+  @@index([mulNo])
+  @@index([customerPhone])
+  @@index([status, createdAt])
+  @@index([paidAt])
 }
 
 model ProductInquiry {
