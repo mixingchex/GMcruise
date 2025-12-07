@@ -22,11 +22,23 @@ export interface LandingAdditionalQuestion {
   required?: boolean;
 }
 
+// 고객 정보 (결제 버튼과 공유)
+export interface CustomerInfo {
+  name: string;
+  phone: string;
+}
+
 interface LandingRegistrationFormProps {
   slug: string;
   buttonLabel: string;
   fields: LandingRegistrationField[];
   additionalQuestions?: LandingAdditionalQuestion[];
+  // 고객 정보 변경 시 호출 (결제 버튼과 연동용)
+  onCustomerInfoChange?: (info: Partial<CustomerInfo>) => void;
+  // 결제 모드 관련 props
+  isPaymentMode?: boolean;
+  isPaymentProcessing?: boolean;
+  onPaymentRequest?: (customerName: string, customerPhone: string) => Promise<void>;
 }
 
 const PHONE_REGEX = /^01([0|1|6|7|8|9]?)-?([0-9]{3,4})-?([0-9]{4})$/;
@@ -36,6 +48,10 @@ export function LandingRegistrationForm({
   buttonLabel,
   fields,
   additionalQuestions = [],
+  onCustomerInfoChange,
+  isPaymentMode = false,
+  isPaymentProcessing = false,
+  onPaymentRequest,
 }: LandingRegistrationFormProps) {
   const getInitialFormState = () => {
     const initialState: Record<string, string> = {};
@@ -67,6 +83,11 @@ export function LandingRegistrationForm({
       ...prev,
       [fieldName]: value,
     }));
+
+    // 이름 또는 연락처가 변경되면 결제 버튼에 전달
+    if (onCustomerInfoChange && (fieldName === 'name' || fieldName === 'phone')) {
+      onCustomerInfoChange({ [fieldName]: value });
+    }
   };
 
   const validateRequiredFields = () => {
@@ -114,6 +135,22 @@ export function LandingRegistrationForm({
         return;
       }
 
+      // 결제 모드일 때는 onPaymentRequest 호출
+      if (isPaymentMode && onPaymentRequest) {
+        const customerName = formData.name?.trim() || '';
+        const customerPhone = formData.phone?.replace(/[^0-9]/g, '') || '';
+
+        if (!customerName || !customerPhone || customerPhone.length < 10) {
+          setError('결제를 위해 이름과 연락처를 정확히 입력해주세요.');
+          return;
+        }
+
+        await onPaymentRequest(customerName, customerPhone);
+        // 결제 페이지로 리다이렉트되므로 이후 코드는 실행되지 않음
+        return;
+      }
+
+      // 일반 신청 모드
       const response = await fetch(`/api/public/landing-pages/${slug}/register`, {
         method: 'POST',
         headers: {
@@ -248,11 +285,17 @@ export function LandingRegistrationForm({
         </div>
       )}
 
-      <button type="submit" className="lp-primary-button" disabled={isSubmitting}>
-        {isSubmitting ? '처리 중...' : buttonLabel}
+      <button
+        type="submit"
+        className="lp-primary-button"
+        disabled={isSubmitting || isPaymentProcessing}
+      >
+        {isSubmitting || isPaymentProcessing ? '처리 중...' : buttonLabel}
       </button>
       <p className="lp-helper-text">
-        제출 버튼을 누르면 상담 요청이 접수되며, 작업자가 순차적으로 연락을 드립니다.
+        {isPaymentMode
+          ? '결제하기 버튼을 누르면 결제 페이지로 이동합니다.'
+          : '제출 버튼을 누르면 상담 요청이 접수되며, 작업자가 순차적으로 연락을 드립니다.'}
       </p>
     </form>
   );
