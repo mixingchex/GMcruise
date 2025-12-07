@@ -3,10 +3,9 @@ import type { Metadata } from 'next';
 import prisma from '@/lib/prisma';
 import { generateMetadata as generateSeoMetadata } from '@/lib/seo/metadata';
 import { normalizeLandingHtmlContent } from '@/lib/landing-html';
-import { LandingRegistrationForm } from '@/components/landing/LandingRegistrationForm';
 import { LandingCommentsSection } from '@/components/landing/LandingCommentsSection';
-import { LandingPaymentButton } from '@/components/landing/LandingPaymentButton';
 import { LandingPushNotificationPrompt } from '@/components/landing/LandingPushNotificationPrompt';
+import { LandingClientWrapper } from '@/components/landing/LandingClientWrapper';
 import { getSessionUser } from '@/lib/auth';
 
 type DataFieldKey = 'phone' | 'name' | 'gender' | 'birthDate' | 'email' | 'address' | 'marketingConsent';
@@ -582,70 +581,27 @@ export default async function LandingPage({ params }: LandingPageProps) {
               </section>
             )}
 
-            {showProductSection && productPurchase && (
-              <section className="lp-card" aria-labelledby="lp-product-title">
-                <div className="lp-section-label">상품 구매</div>
-                <h2 id="lp-product-title" className="lp-section-title">
-                  {productPurchase.productName || '구매하기'}
-                </h2>
-                <div className="lp-product-card">
-                  {formatPrice(productPurchase.sellingPrice as number | undefined) && (
-                    <div className="lp-product-price">
-                      {formatPrice(productPurchase.sellingPrice as number | undefined)}
-                    </div>
-                  )}
-                  <dl className="lp-product-meta">
-                    <div>
-                      <dt>결제 제공업체</dt>
-                      <dd>{PAYMENT_PROVIDER_LABEL[`${productPurchase.paymentProvider}`] || productPurchase.paymentProvider || '미정'}</dd>
-                    </div>
-                    <div>
-                      <dt>결제 타입</dt>
-                      <dd>{PAYMENT_TYPE_LABEL[`${productPurchase.paymentType}`] || productPurchase.paymentType || '온라인 결제'}</dd>
-                    </div>
-                    {productPurchase.useQuantity && productPurchase.purchaseQuantity !== undefined && (
-                      <div>
-                        <dt>기본 수량</dt>
-                        <dd>{Number(productPurchase.purchaseQuantity) || 1}개</dd>
-                      </div>
-                    )}
-                  </dl>
-                  <LandingPaymentButton
-                    productPurchase={productPurchase}
-                    landingPageId={landingPage.id}
-                    landingPageSlug={slugOrId}
-                  />
-                </div>
-              </section>
-            )}
-
-            {showFormSection && (
-              <section className="lp-card" aria-labelledby="lp-form-title">
-                <div className="lp-section-label">상담/신청</div>
-                <h2 id="lp-form-title" className="lp-section-title">
-                  신청하기
-                </h2>
-                <p className="lp-section-description">
-                  필요한 정보를 입력해 주시면 담당자가 확인 후 빠르게 연락드립니다.
-                </p>
-                <LandingRegistrationForm
-                  slug={slugOrId}
-                  buttonLabel={buttonLabel}
-                  fields={enabledFields.map(({ key, required }) => {
-                    const definition = FIELD_DEFINITIONS[key];
-                    return {
-                      key,
-                      label: definition.label,
-                      placeholder: definition.placeholder,
-                      inputType: definition.inputType,
-                      options: definition.options,
-                      required,
-                    };
-                  })}
-                  additionalQuestions={additionalQuestions}
-                />
-              </section>
-            )}
+            {/* 상품 구매 + 등록 폼 섹션 (고객 정보 공유를 위해 래퍼 컴포넌트 사용) */}
+            <LandingClientWrapper
+              slug={slugOrId}
+              landingPageId={landingPage.id}
+              showFormSection={showFormSection}
+              buttonLabel={buttonLabel}
+              fields={enabledFields.map(({ key, required }) => {
+                const definition = FIELD_DEFINITIONS[key];
+                return {
+                  key,
+                  label: definition.label,
+                  placeholder: definition.placeholder,
+                  inputType: definition.inputType,
+                  options: definition.options,
+                  required,
+                };
+              })}
+              additionalQuestions={additionalQuestions}
+              showProductSection={showProductSection}
+              productPurchase={productPurchase}
+            />
 
             {landingPage.commentEnabled && (
               <LandingCommentsSection
