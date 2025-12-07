@@ -271,24 +271,46 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
       const currentParams = new URLSearchParams(window.location.search);
       const finalPartnerId = partnerId || currentParams.get('partner') || '';
 
-      // 4. 데이터 패킹 (Query String)
+      // 4. /api/payment/request 호출하여 DB에 Payment 레코드 생성
+      const response = await fetch('/api/payment/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productCode: productCode || '',
+          productName: cleanProductName,
+          amount: finalPrice,
+          buyerName: formData.buyerName,
+          buyerEmail: formData.buyerEmail || '',
+          buyerTel: formData.buyerTel.replace(/-/g, ''),
+          roomSelections: roomSelections.filter(s => s.adult > 0 || s.adult3rd > 0 || s.child2to11 > 0 || s.infantUnder2 > 0),
+          chatSessionId: chatSessionId || null,
+          partnerId: finalPartnerId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.ok) {
+        throw new Error(data.error || '결제 요청 생성 실패');
+      }
+
+      // 5. checkout 페이지로 이동 (DB에 저장된 orderId 사용)
       const query = new URLSearchParams({
-        orderId: `ord_${Date.now()}`,
+        orderId: data.orderId,
         goodname: encodeURIComponent(cleanProductName),
         price: String(finalPrice),
         buyername: encodeURIComponent(formData.buyerName),
         buyertel: formData.buyerTel.replace(/-/g, ''),
         buyeremail: formData.buyerEmail || 'no-email@cruisedot.co.kr',
-        partnerId: finalPartnerId,      // [중요] 실적 추적용
-        productCode: productCode || ''  // [중요] 자동화용
+        partnerId: finalPartnerId,
+        productCode: productCode || ''
       });
 
-      // 5. 이동
       router.push(`/payment/checkout?${query.toString()}`);
 
     } catch (error) {
       console.error('Error:', error);
-      alert('결제 페이지 이동 실패');
+      alert(error instanceof Error ? error.message : '결제 페이지 이동 실패');
       setIsProcessing(false);
     }
   };
