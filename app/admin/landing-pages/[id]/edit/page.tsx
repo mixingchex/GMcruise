@@ -476,58 +476,69 @@ export default function EditLandingPagePage() {
 
   // Quill 인스턴스를 가져오는 헬퍼 함수
   const getQuillInstance = (): any => {
-    // 1. ref에 저장된 인스턴스 확인
+    // 먼저 ref에서 확인
     if (quillInstanceRef.current) {
-      return quillInstanceRef.current;
-    }
-
-    // 2. ReactQuill 컴포넌트 ref 확인
-    if (reactQuillComponentRef.current) {
       try {
-        const quill = reactQuillComponentRef.current.getEditor();
-        if (quill) {
-          quillInstanceRef.current = quill;
-          return quill;
+        // Quill 인스턴스가 유효한지 확인
+        if (quillInstanceRef.current.getLength && typeof quillInstanceRef.current.getLength === 'function') {
+          return quillInstanceRef.current;
         }
       } catch (e) {
-        console.warn('[getQuillInstance] ReactQuill ref access failed:', e);
+        // 유효하지 않으면 ref 초기화
+        quillInstanceRef.current = null;
       }
     }
 
-    // 3. DOM에서 직접 검색 (가장 확실한 방법)
+    // DOM에서 직접 찾기 (여러 방법 시도)
     const container = document.getElementById('quill-editor-container');
     if (container) {
-      const quillElement = container.querySelector('.quill');
-      if (quillElement) {
-        // Quill 인스턴스는 DOM 요소의 __quill 속성이나 quill 속성에 저장됨
-        const quill = (quillElement as any).__quill || (quillElement as any).quill;
-        if (quill) {
-          quillInstanceRef.current = quill;
-          quillRef.current = quillElement;
-          return quill;
-        }
+      // 방법 1: .quill 클래스로 찾기
+      let quillElement = container.querySelector('.quill') as HTMLElement;
 
-        // 전역 Quill 객체를 통해 검색
-        if ((window as any).Quill) {
+      // 방법 2: .ql-container의 부모 찾기
+      if (!quillElement) {
+        const qlContainer = container.querySelector('.ql-container');
+        if (qlContainer) {
+          quillElement = qlContainer.closest('.quill') as HTMLElement;
+        }
+      }
+
+      // 방법 3: .ql-editor의 부모 찾기
+      if (!quillElement) {
+        const qlEditor = container.querySelector('.ql-editor');
+        if (qlEditor) {
+          quillElement = qlEditor.closest('.quill') as HTMLElement;
+        }
+      }
+
+      if (quillElement) {
+        // Quill 인스턴스 찾기 (여러 방법 시도)
+        let quill = (quillElement as any).__quill || (quillElement as any).quill;
+
+        // 방법 2: Quill 전역 객체에서 찾기
+        if (!quill && (window as any).Quill) {
           const Quill = (window as any).Quill;
-          // find 메서드가 있는지 확인
-          if (Quill.find) {
-            const q = Quill.find(quillElement);
-            if (q) {
-              quillInstanceRef.current = q;
-              quillRef.current = quillElement;
-              return q;
-            }
+          const editors = Quill.find && Quill.find(quillElement);
+          if (editors && editors.length > 0) {
+            quill = editors[0];
           }
         }
-      } else {
-        console.warn('[getQuillInstance] .quill element not found in container');
+
+        if (quill) {
+          // Quill 인스턴스가 유효한지 확인
+          try {
+            if (quill.getLength && typeof quill.getLength === 'function') {
+              quillInstanceRef.current = quill;
+              quillRef.current = quillElement;
+              return quill;
+            }
+          } catch (e) {
+            console.warn('[getQuillInstance] Invalid Quill instance:', e);
+          }
+        }
       }
-    } else {
-      console.warn('[getQuillInstance] #quill-editor-container not found');
     }
 
-    console.error('[getQuillInstance] Quill instance not found via any method');
     return null;
   };
 
@@ -2182,13 +2193,12 @@ export default function EditLandingPagePage() {
                     >
                       <style dangerouslySetInnerHTML={{
                         __html: `
-                        #quill-editor-container:not(.hidden) {
+                        #quill-editor-container {
                           display: flex !important;
                           visibility: visible !important;
                           opacity: 1 !important;
                           position: relative !important;
                           z-index: 1 !important;
-                          flex-direction: column !important;
                         }
                         #quill-editor-container .quill {
                           display: flex !important;
@@ -2200,9 +2210,6 @@ export default function EditLandingPagePage() {
                           position: relative !important;
                         }
                         /* 툴바를 하단으로 이동 */
-                        #quill-editor-container .quill {
-                          flex-direction: column !important;
-                        }
                         #quill-editor-container .ql-container {
                           order: 1 !important;
                           flex: 1 !important;
@@ -2358,29 +2365,10 @@ export default function EditLandingPagePage() {
                           margin: 0 !important;
                         }
                       `}} />
-                      <ErrorBoundary
-                        fallback={
-                          <div className="p-4 bg-red-50 border border-red-200 rounded">
-                            <p className="text-red-600 mb-2">에디터 로드 중 오류가 발생했습니다.</p>
-                            <button
-                              onClick={() => {
-                                // 에디터만 다시 표시
-                                const container = document.getElementById('quill-editor-container');
-                                if (container) {
-                                  container.style.display = 'flex';
-                                  container.style.visibility = 'visible';
-                                  container.style.opacity = '1';
-                                  setQuillValue(formData.htmlContent || '');
-                                }
-                              }}
-                              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                            >
-                              에디터 재시도
-                            </button>
-                          </div>
-                        }
-                      >
-                        {editorMode === 'editor' && (
+                      {/* ErrorBoundary는 전역 Providers에서 처리하므로 제거 */}
+                      {/* HTML 탭일 때는 ReactQuill을 절대 렌더링하지 않음 */}
+                      {editorMode === 'editor' ? (
+                        <>
                           <ReactQuill
                             key="editor-fixed"
                             theme="snow"
@@ -2419,93 +2407,6 @@ export default function EditLandingPagePage() {
                                 }
                               }
                             }}
-                            onFocus={() => {
-                              // 포커스 시 에디터가 준비되었는지 확인 및 표시 강제
-                              try {
-                                const container = document.getElementById('quill-editor-container');
-                                if (container) {
-                                  container.style.setProperty('display', 'flex', 'important');
-                                  container.style.setProperty('visibility', 'visible', 'important');
-                                  container.style.setProperty('opacity', '1', 'important');
-                                  container.classList.remove('hidden');
-                                }
-
-                                // Quill 인스턴스 확인 (약간의 지연 후)
-                                setTimeout(() => {
-                                  try {
-                                    if (reactQuillComponentRef.current) {
-                                      const quill = reactQuillComponentRef.current.getEditor();
-                                      if (quill) {
-                                        // addRange() 에러 방지: Quill의 Selection 클래스의 setNativeRange 메서드 래핑
-                                        if (!quill._selectionWrapped) {
-                                          try {
-                                            const selection = quill.selection;
-                                            if (selection && selection.constructor) {
-                                              const SelectionClass = selection.constructor;
-                                              const prototype = SelectionClass.prototype;
-
-                                              if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
-                                                const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
-                                                prototype.setNativeRange = function (range: any, force?: boolean) {
-                                                  try {
-                                                    if (!range) {
-                                                      return originalSetNativeRange(null, force);
-                                                    }
-
-                                                    const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
-                                                    if (editor) {
-                                                      const length = editor.textContent?.length || 0;
-                                                      const safeIndex = Math.max(0, Math.min(range.index || 0, length));
-                                                      const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
-
-                                                      const safeRange = {
-                                                        index: safeIndex,
-                                                        length: safeLength
-                                                      };
-                                                      return originalSetNativeRange(safeRange, force);
-                                                    }
-
-                                                    return originalSetNativeRange(range, force);
-                                                  } catch (error) {
-                                                    return null;
-                                                  }
-                                                };
-                                                prototype._setNativeRangeWrapped = true;
-                                              }
-                                            }
-
-                                            const originalSetSelection = quill.setSelection.bind(quill);
-                                            quill.setSelection = (index: number, source?: string, force?: boolean) => {
-                                              try {
-                                                const length = quill.getLength();
-                                                const safeIndex = Math.max(0, Math.min(index, length - 1));
-                                                return originalSetSelection(safeIndex, source, force);
-                                              } catch (error) {
-                                                return null;
-                                              }
-                                            };
-
-                                            quill._selectionWrapped = true;
-                                          } catch (error) {
-                                            // 래핑 실패해도 계속 진행
-                                          }
-                                        }
-
-                                        quillInstanceRef.current = quill;
-                                        const editorElement = quill.root;
-                                        quillRef.current = editorElement;
-                                        reactQuillRef.current = editorElement;
-                                        setIsQuillReady(true);
-                                      }
-                                    }
-                                  } catch (error) {
-                                    // 무시
-                                  }
-                                }, 100);
-                              } catch (error) {
-                                // 무시
-                              }
-                            }}
                             onBlur={() => {
                               // blur 시에도 에디터가 표시되도록 유지
                               requestAnimationFrame(() => {
@@ -2517,25 +2418,103 @@ export default function EditLandingPagePage() {
                                 }
                               });
                             }}
+                            onFocus={() => {
+                              // 포커스 시 에디터가 준비되었는지 확인
+                              try {
+                                const container = document.getElementById('quill-editor-container');
+                                if (container) {
+                                  container.style.setProperty('display', 'flex', 'important');
+                                  container.style.setProperty('visibility', 'visible', 'important');
+                                  container.style.setProperty('opacity', '1', 'important');
+                                  container.classList.remove('hidden');
+                                }
+
+                                const quillElement = container?.querySelector('.ql-container')?.closest('.quill');
+                                if (quillElement) {
+                                  const quill = (quillElement as any).__quill || (quillElement as any).quill;
+                                  if (quill) {
+                                    // addRange() 에러 방지: Quill의 Selection 클래스의 setNativeRange 메서드 래핑
+                                    if (!quill._selectionWrapped) {
+                                      try {
+                                        const selection = quill.selection;
+                                        if (selection && selection.constructor) {
+                                          const SelectionClass = selection.constructor;
+                                          const prototype = SelectionClass.prototype;
+
+                                          if (prototype && prototype.setNativeRange && !prototype._setNativeRangeWrapped) {
+                                            const originalSetNativeRange = prototype.setNativeRange.bind(prototype);
+                                            prototype.setNativeRange = function (range: any, force?: boolean) {
+                                              try {
+                                                if (!range) {
+                                                  return originalSetNativeRange(null, force);
+                                                }
+
+                                                const editor = this?.scroll?.domNode || this?.container?.querySelector('.ql-editor');
+                                                if (editor) {
+                                                  const length = editor.textContent?.length || 0;
+                                                  const safeIndex = Math.max(0, Math.min(range.index || 0, length));
+                                                  const safeLength = Math.max(0, Math.min(range.length || 0, length - safeIndex));
+
+                                                  const safeRange = {
+                                                    index: safeIndex,
+                                                    length: safeLength
+                                                  };
+                                                  return originalSetNativeRange(safeRange, force);
+                                                }
+
+                                                return originalSetNativeRange(range, force);
+                                              } catch (error) {
+                                                return null;
+                                              }
+                                            };
+                                            prototype._setNativeRangeWrapped = true;
+                                          }
+                                        }
+
+                                        const originalSetSelection = quill.setSelection.bind(quill);
+                                        quill.setSelection = (index: number, source?: string, force?: boolean) => {
+                                          try {
+                                            const length = quill.getLength();
+                                            const safeIndex = Math.max(0, Math.min(index, length - 1));
+                                            return originalSetSelection(safeIndex, source, force);
+                                          } catch (error) {
+                                            return null;
+                                          }
+                                        };
+
+                                        quill._selectionWrapped = true;
+                                      } catch (error) {
+                                        // 래핑 실패해도 계속 진행
+                                      }
+                                    }
+
+                                    quillInstanceRef.current = quill;
+                                    quillRef.current = quillElement;
+                                    setIsQuillReady(true);
+                                  }
+                                }
+                              } catch (error) {
+                                // 에러 무시
+                              }
+                            }}
                             bounds="#quill-editor-container"
                             preserveWhitespace={true}
-                            placeholder="내용을 입력하세요..."
                             modules={{
-                              toolbar: false, // 기본 툴바 숨김
+                              toolbar: [], // 빈 툴바 생성 후 CSS로 숨김
                             }}
                             formats={[
                               'header', 'size',
                               'bold', 'italic', 'underline', 'strike',
-                              'list',
+                              'list', 'bullet',
                               'color', 'background',
                               'align',
                               'link', 'image'
                             ]}
-                            style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                            className="bg-white quill-wrapper"
+                            style={{ height: '650px' }}
+                            className="bg-white"
                           />
-                        )}
-                      </ErrorBoundary>
+                        </>
+                      ) : null}
 
                       {/* 커스텀 하단 고정 툴바 */}
                       {editorMode === 'editor' && (
@@ -2555,12 +2534,25 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-medium bg-white hover:bg-gray-50 cursor-pointer"
                               onChange={(e) => {
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const value = e.target.value;
-                                if (value === '') {
-                                  quill.format('header', false);
-                                } else {
-                                  quill.format('header', value);
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    const value = e.target.value;
+                                    if (value === '') {
+                                      quill.format('header', false);
+                                    } else {
+                                      quill.format('header', value);
+                                    }
+                                  }, 10);
                                 }
                               }}
                             >
@@ -2575,12 +2567,25 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-medium bg-white hover:bg-gray-50 cursor-pointer"
                               onChange={(e) => {
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const value = e.target.value;
-                                if (value === '') {
-                                  quill.format('size', false);
-                                } else {
-                                  quill.format('size', value);
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    const value = e.target.value;
+                                    if (value === '') {
+                                      quill.format('size', false);
+                                    } else {
+                                      quill.format('size', value);
+                                    }
+                                  }, 10);
                                 }
                               }}
                             >
@@ -2598,10 +2603,36 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-bold bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const currentFormat = quill.getFormat();
-                                quill.format('bold', !currentFormat.bold);
+                                if (quill) {
+                                  try {
+                                    const editorElement = quillRef.current;
+                                    if (editorElement) {
+                                      editorElement.focus();
+                                    }
+                                    setTimeout(() => {
+                                      try {
+                                        quill.focus();
+                                        const range = quill.getSelection(true);
+                                        if (!range) {
+                                          const length = quill.getLength();
+                                          if (length > 1) {
+                                            quill.setSelection(length - 1, 0);
+                                          }
+                                        }
+                                        const format = quill.getFormat();
+                                        quill.format('bold', !format.bold);
+                                      } catch (err) {
+                                        console.error('[Bold] Error:', err);
+                                      }
+                                    }, 10);
+                                  } catch (err) {
+                                    console.error('[Bold] Error getting instance:', err);
+                                  }
+                                } else {
+                                  console.warn('[Bold] Quill instance not found');
+                                }
                               }}
                               title="Bold"
                             >
@@ -2612,10 +2643,36 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm italic bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const currentFormat = quill.getFormat();
-                                quill.format('italic', !currentFormat.italic);
+                                if (quill) {
+                                  try {
+                                    const editorElement = quillRef.current;
+                                    if (editorElement) {
+                                      editorElement.focus();
+                                    }
+                                    setTimeout(() => {
+                                      try {
+                                        quill.focus();
+                                        const range = quill.getSelection(true);
+                                        if (!range) {
+                                          const length = quill.getLength();
+                                          if (length > 1) {
+                                            quill.setSelection(length - 1, 0);
+                                          }
+                                        }
+                                        const format = quill.getFormat();
+                                        quill.format('italic', !format.italic);
+                                      } catch (err) {
+                                        console.error('[Italic] Error:', err);
+                                      }
+                                    }, 10);
+                                  } catch (err) {
+                                    console.error('[Italic] Error getting instance:', err);
+                                  }
+                                } else {
+                                  console.warn('[Italic] Quill instance not found');
+                                }
                               }}
                               title="Italic"
                             >
@@ -2626,10 +2683,36 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm underline bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const currentFormat = quill.getFormat();
-                                quill.format('underline', !currentFormat.underline);
+                                if (quill) {
+                                  try {
+                                    const editorElement = quillRef.current;
+                                    if (editorElement) {
+                                      editorElement.focus();
+                                    }
+                                    setTimeout(() => {
+                                      try {
+                                        quill.focus();
+                                        const range = quill.getSelection(true);
+                                        if (!range) {
+                                          const length = quill.getLength();
+                                          if (length > 1) {
+                                            quill.setSelection(length - 1, 0);
+                                          }
+                                        }
+                                        const format = quill.getFormat();
+                                        quill.format('underline', !format.underline);
+                                      } catch (err) {
+                                        console.error('[Underline] Error:', err);
+                                      }
+                                    }, 10);
+                                  } catch (err) {
+                                    console.error('[Underline] Error getting instance:', err);
+                                  }
+                                } else {
+                                  console.warn('[Underline] Quill instance not found');
+                                }
                               }}
                               title="Underline"
                             >
@@ -2640,10 +2723,36 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm line-through bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
+                                e.stopPropagation();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const currentFormat = quill.getFormat();
-                                quill.format('strike', !currentFormat.strike);
+                                if (quill) {
+                                  try {
+                                    const editorElement = quillRef.current;
+                                    if (editorElement) {
+                                      editorElement.focus();
+                                    }
+                                    setTimeout(() => {
+                                      try {
+                                        quill.focus();
+                                        const range = quill.getSelection(true);
+                                        if (!range) {
+                                          const length = quill.getLength();
+                                          if (length > 1) {
+                                            quill.setSelection(length - 1, 0);
+                                          }
+                                        }
+                                        const format = quill.getFormat();
+                                        quill.format('strike', !format.strike);
+                                      } catch (err) {
+                                        console.error('[Strike] Error:', err);
+                                      }
+                                    }, 10);
+                                  } catch (err) {
+                                    console.error('[Strike] Error getting instance:', err);
+                                  }
+                                } else {
+                                  console.warn('[Strike] Quill instance not found');
+                                }
                               }}
                               title="Strike"
                             >
@@ -2659,8 +2768,21 @@ export default function EditLandingPagePage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                quill.format('list', 'ordered');
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    quill.format('list', 'ordered');
+                                  }, 10);
+                                }
                               }}
                               title="Ordered List"
                             >
@@ -2672,8 +2794,21 @@ export default function EditLandingPagePage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                quill.format('list', 'bullet');
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    quill.format('list', 'bullet');
+                                  }, 10);
+                                }
                               }}
                               title="Bullet List"
                             >
@@ -2689,23 +2824,19 @@ export default function EditLandingPagePage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const range = quill.getSelection(true);
-                                if (range && range.length > 0) {
-                                  const url = prompt('링크 URL을 입력하세요:');
-                                  if (url) {
-                                    quill.formatText(range.index, range.length, 'link', url);
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
                                   }
-                                } else {
-                                  // 선택된 텍스트가 없으면 링크 삽입
-                                  const url = prompt('링크 URL을 입력하세요:');
-                                  if (url) {
-                                    const text = prompt('링크 텍스트를 입력하세요:', url);
-                                    if (text) {
-                                      const range = quill.getSelection(true);
-                                      const index = range ? range.index : quill.getLength();
-                                      quill.insertText(index, text, 'link', url);
+                                  const range = quill.getSelection(true);
+                                  if (range && range.length > 0) {
+                                    const url = prompt('링크 URL을 입력하세요:');
+                                    if (url) {
+                                      quill.formatText(range.index, range.length, 'link', url);
                                     }
+                                  } else {
+                                    alert('링크를 적용할 텍스트를 먼저 선택해주세요.');
                                   }
                                 }
                               }}
@@ -2736,8 +2867,21 @@ export default function EditLandingPagePage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                quill.format('align', false); // left is default (false)
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    quill.format('align', 'left');
+                                  }, 10);
+                                }
                               }}
                               title="Align Left"
                             >
@@ -2749,8 +2893,21 @@ export default function EditLandingPagePage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                quill.format('align', 'center');
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    quill.format('align', 'center');
+                                  }, 10);
+                                }
                               }}
                               title="Align Center"
                             >
@@ -2762,8 +2919,21 @@ export default function EditLandingPagePage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                quill.format('align', 'right');
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    quill.format('align', 'right');
+                                  }, 10);
+                                }
                               }}
                               title="Align Right"
                             >
@@ -2778,8 +2948,21 @@ export default function EditLandingPagePage() {
                               className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
                               onChange={(e) => {
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                quill.format('color', e.target.value);
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    quill.format('color', e.target.value);
+                                  }, 10);
+                                }
                               }}
                               title="Text Color"
                             />
@@ -2788,8 +2971,21 @@ export default function EditLandingPagePage() {
                               className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
                               onChange={(e) => {
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                quill.format('background', e.target.value);
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
+                                  }
+                                  setTimeout(() => {
+                                    quill.focus();
+                                    const range = quill.getSelection(true);
+                                    if (!range) {
+                                      const length = quill.getLength();
+                                      quill.setSelection(length - 1, 0);
+                                    }
+                                    quill.format('background', e.target.value);
+                                  }, 10);
+                                }
                               }}
                               title="Background Color"
                             />
@@ -2803,19 +2999,27 @@ export default function EditLandingPagePage() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 const quill = getQuillInstance();
-                                if (!quill) return;
-                                const range = quill.getSelection(true);
-                                if (range) {
-                                  quill.removeFormat(range.index, range.length);
-                                } else {
-                                  // 선택이 없으면 현재 블록의 포맷 제거
-                                  const length = quill.getLength();
-                                  if (length > 1) {
-                                    const lineRange = quill.getLine(Math.max(0, length - 2));
-                                    if (lineRange) {
-                                      quill.removeFormat(lineRange[0].offset(), lineRange[0].length());
-                                    }
+                                if (quill) {
+                                  const editorElement = quillRef.current;
+                                  if (editorElement) {
+                                    editorElement.focus();
                                   }
+                                  // 포커스 후 잠시 대기하여 커서 위치 확보
+                                  setTimeout(() => {
+                                    const range = quill.getSelection(true);
+                                    if (range) {
+                                      quill.removeFormat(range.index, range.length);
+                                    } else {
+                                      // 선택이 없으면 현재 블록의 포맷 제거
+                                      const length = quill.getLength();
+                                      if (length > 1) {
+                                        const lineRange = quill.getLine(Math.max(0, length - 2));
+                                        if (lineRange) {
+                                          quill.removeFormat(lineRange[0].offset(), lineRange[0].length());
+                                        }
+                                      }
+                                    }
+                                  }, 10);
                                 }
                               }}
                               title="Clear Formatting"
@@ -2950,17 +3154,6 @@ export default function EditLandingPagePage() {
                                   className="w-5 h-5"
                                 />
                                 <span>페이앱</span>
-                              </label>
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="paymentProvider"
-                                  value="welcomepay"
-                                  checked={productPurchase.paymentProvider === 'welcomepay'}
-                                  onChange={(e) => setProductPurchase({ ...productPurchase, paymentProvider: 'welcomepay' })}
-                                  className="w-5 h-5"
-                                />
-                                <span>웰컴페이먼츠</span>
                               </label>
                             </div>
                           </div>

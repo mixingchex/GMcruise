@@ -3068,17 +3068,6 @@ export default function NewLandingPagePage() {
                               />
                               <span>페이앱</span>
                             </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                              <input
-                                type="radio"
-                                name="paymentProvider"
-                                value="welcomepay"
-                                checked={productPurchase.paymentProvider === 'welcomepay'}
-                                onChange={(e) => setProductPurchase({ ...productPurchase, paymentProvider: 'welcomepay' })}
-                                className="w-5 h-5"
-                              />
-                              <span>웰컴페이먼츠</span>
-                            </label>
                           </div>
                         </div>
 
