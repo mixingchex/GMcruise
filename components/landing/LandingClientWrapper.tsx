@@ -67,6 +67,42 @@ export function LandingClientWrapper({
   // 상품구매 활성화 여부
   const isPaymentMode = showProductSection && productPurchase && productPurchase.enabled;
 
+  // 결제 모드일 때 기본 필드 (이름, 연락처는 필수)
+  const defaultPaymentFields: LandingRegistrationField[] = [
+    { key: 'name', label: '이름', placeholder: '이름을 입력하세요', inputType: 'text', required: true },
+    { key: 'phone', label: '연락처', placeholder: '010-1234-5678', inputType: 'tel', required: true },
+  ];
+
+  // 결제 모드일 때 필드 처리
+  const getFinalFields = (): LandingRegistrationField[] => {
+    if (!isPaymentMode) {
+      return fields;
+    }
+
+    // 결제 모드일 때는 이름과 연락처가 반드시 필요
+    if (fields.length === 0) {
+      return defaultPaymentFields;
+    }
+
+    // 기존 필드에 이름/연락처가 없으면 추가
+    const hasName = fields.some(f => f.key === 'name');
+    const hasPhone = fields.some(f => f.key === 'phone');
+
+    const result = [...fields];
+    if (!hasName) {
+      result.unshift({ key: 'name', label: '이름', placeholder: '이름을 입력하세요', inputType: 'text', required: true });
+    }
+    if (!hasPhone) {
+      // 이름 다음에 연락처 추가
+      const nameIndex = result.findIndex(f => f.key === 'name');
+      result.splice(nameIndex + 1, 0, { key: 'phone', label: '연락처', placeholder: '010-1234-5678', inputType: 'tel', required: true });
+    }
+
+    return result;
+  };
+
+  const finalFields = getFinalFields();
+
   // 결제 금액
   const paymentAmount = productPurchase?.sellingPrice
     ? parseInt(String(productPurchase.sellingPrice))
@@ -114,10 +150,13 @@ export function LandingClientWrapper({
     }
   };
 
+  // 폼 표시 여부: 정보수집이 활성화되었거나 결제 모드일 때 표시
+  const shouldShowForm = showFormSection || isPaymentMode;
+
   return (
     <>
       {/* 신청/결제 폼 섹션 */}
-      {showFormSection && (
+      {shouldShowForm && (
         <section className="lp-card" aria-labelledby="lp-form-title">
           <div className="lp-section-label">
             {isPaymentMode ? '결제 신청' : '상담/신청'}
@@ -126,10 +165,27 @@ export function LandingClientWrapper({
             {isPaymentMode ? (productPurchase?.productName || '결제하기') : '신청하기'}
           </h2>
 
-          {/* 결제 모드일 때 가격 표시 */}
-          {isPaymentMode && paymentAmount > 0 && (
-            <div className="lp-product-price" style={{ marginBottom: '16px' }}>
-              {formatPrice(paymentAmount)}
+          {/* 결제 모드일 때 상품 정보 표시 */}
+          {isPaymentMode && (
+            <div className="lp-product-info" style={{
+              marginBottom: '24px',
+              padding: '20px',
+              background: '#f8fafc',
+              borderRadius: '12px',
+              border: '1px solid #e2e8f0'
+            }}>
+              {/* 판매금액 */}
+              {paymentAmount > 0 && (
+                <div className="lp-product-price" style={{ marginBottom: '12px' }}>
+                  {formatPrice(paymentAmount)}
+                </div>
+              )}
+              {/* 구매수량 */}
+              {productPurchase?.useQuantity && productPurchase?.purchaseQuantity && (
+                <p style={{ fontSize: '15px', color: '#475569' }}>
+                  구매수량: {productPurchase.purchaseQuantity}개
+                </p>
+              )}
             </div>
           )}
 
@@ -142,7 +198,7 @@ export function LandingClientWrapper({
           <LandingRegistrationForm
             slug={slug}
             buttonLabel={finalButtonLabel}
-            fields={fields}
+            fields={finalFields}
             additionalQuestions={additionalQuestions}
             isPaymentMode={isPaymentMode || false}
             isPaymentProcessing={isPaymentProcessing}
