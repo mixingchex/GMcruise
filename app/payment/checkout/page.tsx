@@ -146,10 +146,44 @@ function CheckoutContent() {
           alert('결제 서명 요청 실패: ' + err.message);
         });
     } else {
-      // Mobile: 스크립트/서명 불필요
-      console.log('[Checkout] Mobile detected, skipping script/signature');
-      setIsScriptLoaded(true);
-      setIsSignatureLoaded(true);
+      // Mobile: 스크립트는 불필요하지만 서명은 필요!
+      console.log('[Checkout] Mobile detected, fetching signature...');
+      setIsScriptLoaded(true); // 모바일은 스크립트 불필요
+
+      // 모바일도 signature API 호출 (P_TIMESTAMP, P_SIGNATURE 필요)
+      // 중요: 모바일용 signature는 PC와 다른 형식이므로 isMobile: true 전달
+      const currentOrderId = orderId;
+      const currentPrice = price;
+      console.log('[Checkout Mobile] Fetching signature...', { orderId: currentOrderId, price: currentPrice });
+
+      fetch('/api/payment/signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: currentOrderId, price: currentPrice, isMobile: true }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          console.log('[Checkout Mobile] Signature API response:', {
+            ok: data.ok,
+            hasTimestamp: !!data.timestamp,
+            hasSignature: !!data.signature,
+          });
+          if (data.ok) {
+            setTimestamp(data.timestamp);
+            setMKey(data.mKey);
+            setSignature(data.signature);
+            setSignedOrderId(currentOrderId);
+            setIsSignatureLoaded(true);
+            console.log('[Checkout Mobile] Signature loaded successfully');
+          } else {
+            console.error('[Checkout Mobile] Signature error:', data.error);
+            alert('결제 서명 생성 실패: ' + (data.error || '알 수 없는 오류'));
+          }
+        })
+        .catch((err) => {
+          console.error('[Checkout Mobile] Signature fetch error:', err);
+          alert('결제 서명 요청 실패: ' + err.message);
+        });
     }
   }, [orderId, price]);
 
@@ -172,6 +206,13 @@ function CheckoutContent() {
 
     if (isMobile) {
       // === Mobile: 동적 폼 생성 후 POST 전송 ===
+      // 서명 데이터 확인 (필수!)
+      if (!signature || !timestamp) {
+        console.error('[Checkout Mobile] Missing signature data:', { signature: !!signature, timestamp: !!timestamp });
+        alert('결제 서명 데이터 로딩 중... 잠시 후 다시 클릭해주세요.');
+        return;
+      }
+
       const form = document.createElement('form');
       form.method = 'POST';
       form.acceptCharset = 'euc-kr';
@@ -179,18 +220,29 @@ function CheckoutContent() {
 
       const params: Record<string, string> = {
         P_MID: 'wpcrdot200',
-        P_OID: orderId,
-        P_AMT: price,                    // price -> P_AMT
+        P_OID: signedOrderId || orderId,
+        P_AMT: price,
         P_UNAME: buyername,
-        P_GOODS: goodname,               // goodname -> P_GOODS
+        P_GOODS: goodname,
         P_MOBILE: buyertel,
         P_EMAIL: buyeremail,
         P_NEXT_URL: 'https://www.cruisedot.co.kr/api/payment/callback',
         P_NOTI_URL: 'https://www.cruisedot.co.kr/api/payment/notify',
         P_HPP_METHOD: '1',
         P_CHARSET: 'utf8',
-        P_NOTI: merchantData             // partnerId 포함
+        P_NOTI: merchantData,
+        // 보안 필드 (필수!) - 웰컴페이먼츠 매뉴얼 v1.10.6 Page 13
+        P_TIMESTAMP: timestamp,
+        P_SIGNATURE: signature,
       };
+
+      console.log('[Checkout Mobile] Form params:', {
+        P_MID: params.P_MID,
+        P_OID: params.P_OID,
+        P_AMT: params.P_AMT,
+        P_TIMESTAMP: params.P_TIMESTAMP,
+        P_SIGNATURE: params.P_SIGNATURE ? `${params.P_SIGNATURE.substring(0, 10)}...` : 'MISSING',
+      });
 
       Object.entries(params).forEach(([key, value]) => {
         const input = document.createElement('input');

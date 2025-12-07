@@ -1,13 +1,13 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { generatePCSignature, getWelcomePayConfig, getTimestamp } from '@/lib/welcomepay';
+import { generatePCSignature, generateMobileSignature, getWelcomePayConfig, getTimestamp } from '@/lib/welcomepay';
 
-// PC 결제용 서명 생성 API
+// PC/Mobile 결제용 서명 생성 API
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { orderId, price } = body;
+    const { orderId, price, isMobile } = body;
 
     if (!orderId || !price) {
       return NextResponse.json(
@@ -25,17 +25,29 @@ export async function POST(req: NextRequest) {
     }
 
     const timestamp = getTimestamp();
-    const signatureData = generatePCSignature(
-      config.signKey,
-      parseInt(String(price)),
-      orderId,
-      timestamp
-    );
+
+    // PC와 Mobile은 signature 생성 방식이 다름
+    // PC: mKey=${mkey}&oid=${orderId}&price=${amount}&timestamp=${timestamp}
+    // Mobile: mkey=${mkey}&P_AMT=${amount}&P_OID=${orderId}&P_TIMESTAMP=${timestamp}
+    const signatureData = isMobile
+      ? generateMobileSignature(
+          config.signKey,
+          parseInt(String(price)),
+          orderId,
+          timestamp
+        )
+      : generatePCSignature(
+          config.signKey,
+          parseInt(String(price)),
+          orderId,
+          timestamp
+        );
 
     console.log('[Payment Signature] Generated:', {
       orderId,
       price,
       timestamp,
+      isMobile: !!isMobile,
       mKeyLength: signatureData.mkey.length,
       signatureLength: signatureData.signature.length,
     });
