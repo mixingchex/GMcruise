@@ -294,6 +294,32 @@ export function generatePCSignature(
   };
 }
 
+/**
+ * PC 결제 승인요청용 Signature 생성 (웰컴페이먼츠 매뉴얼 Page 26)
+ *
+ * 승인요청 시 signature 생성 대상(Target):
+ * - authToken (인증 결과 수신 후 생성된 토큰 값)
+ * - timestamp (타임스탬프)
+ *
+ * 형식: authToken={토큰값}&timestamp={타임스탬프}
+ * signature = SHA-256(위 문자열)
+ *
+ * 주의: 결제요청 signature와 다름! (결제요청은 mKey, oid, price, timestamp 사용)
+ */
+export function generateApprovalSignature(
+  authToken: string,
+  timestamp: string
+): string {
+  // 승인요청용 signature 문자열: authToken, timestamp 순서
+  const signString = `authToken=${authToken}&timestamp=${timestamp}`;
+  const signature = sha256Hash(signString);
+
+  console.log('[generateApprovalSignature] signString length:', signString.length);
+  console.log('[generateApprovalSignature] signature:', signature.substring(0, 20) + '...');
+
+  return signature;
+}
+
 // ==========================================
 // 결제 폼 데이터 생성
 // ==========================================

@@ -1,101 +1,184 @@
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from 'next/server';
-
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 
-import { getSession } from '@/lib/session'; // 올바른 세션 경로
+const SESSION_COOKIE = 'cg.sid.v2';
 
-
-
-export async function GET(req: Request) {
-
+async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
+  if (!sid) {
+    return false;
+  }
   try {
-
-    // 1. 관리자 권한 확인
-
-    const session = await getSession();
-
-    if (!session?.userId) {
-
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-    }
-
-
-
-    // userId를 숫자로 변환
-
-    const userId = parseInt(String(session.userId), 10);
-
-    
-
-    const user = await prisma.user.findUnique({
-
-      where: { id: userId },
-
-      select: { role: true }
-
+    const session = await prisma.session.findUnique({
+      where: { id: sid },
+      include: { User: true },
     });
 
-
-
-    if (user?.role !== 'admin') {
-
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
+    if (!session || !session.User) {
+      return false;
     }
 
+    return session.User.role === 'admin';
+  } catch (error) {
+    console.error('[Admin Landing Pages] Auth check error:', error);
+    return false;
+  }
+}
 
+export async function GET(req: NextRequest) {
+  try {
+    const sid = cookies().get(SESSION_COOKIE)?.value;
+    if (!sid) {
+      return NextResponse.json({ ok: false, error: '인증이 필요합니다' }, { status: 401 });
+    }
 
-    // 2. 랜딩페이지 목록 조회 (없는 필드 제거, 표준 필드만 조회)
+    const isAdmin = await checkAdminAuth(sid);
+    if (!isAdmin) {
+      return NextResponse.json({ ok: false, error: '관리자 권한이 필요합니다' }, { status: 403 });
+    }
 
     const landingPages = await prisma.landingPage.findMany({
-
       orderBy: { createdAt: 'desc' },
-
       include: {
-
-        // 작성자 정보 포함 (관계 필드명이 user인지 User인지 확인 필요, 보통 소문자 user 권장)
-
-        // 안전하게 관계 필드 없이 조회하거나, 스키마에 맞게 user: true로 시도
-
-        // 여기서는 에러 방지를 위해 기본 필드만 조회하고 필요시 관계 추가
-
-      }
-
+        CustomerGroup: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
-    
-
-    // 3. 데이터 가공 (필요한 경우)
-
-    // DB에 pushNotificationEnabled가 없다면 smsNotification 등을 사용하거나 제외
-
-
-
-    return NextResponse.json({ 
-
-      ok: true, 
-
-      landingPages 
-
+    return NextResponse.json({
+      ok: true,
+      landingPages,
     });
-
-
-
-  } catch (error) {
-
-    console.error('[Admin LandingPage API] Error:', error);
-
-    return NextResponse.json({ 
-
-      error: 'Internal Server Error', 
-
-      details: String(error) 
-
-    }, { status: 500 });
-
+  } catch (error: any) {
+    console.error('[Admin Landing Pages] GET error:', error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: '랜딩페이지 목록을 불러오는 중 오류가 발생했습니다.',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
+      { status: 500 }
+    );
   }
+}
 
+export async function POST(req: NextRequest) {
+  try {
+    const sid = cookies().get(SESSION_COOKIE)?.value;
+    if (!sid) {
+      return NextResponse.json({ ok: false, error: '인증이 필요합니다' }, { status: 401 });
+    }
+
+    const isAdmin = await checkAdminAuth(sid);
+    if (!isAdmin) {
+      return NextResponse.json({ ok: false, error: '관리자 권한이 필요합니다' }, { status: 403 });
+    }
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (parseError: any) {
+      console.error('[Admin Landing Pages] JSON parse error:', parseError);
+      return NextResponse.json(
+        { ok: false, error: '요청 데이터를 파싱할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+
+    const {
+      title,
+      exposureTitle,
+      category,
+      pageGroup,
+      description,
+      htmlContent,
+      headerScript,
+      businessInfo,
+      exposureImage,
+      attachmentFile,
+      groupId,
+      additionalGroupId,
+      checkDuplicateGroup,
+      inputLimit,
+      completionPageUrl,
+      buttonTitle,
+      commentEnabled,
+      infoCollection,
+      scheduledMessageId,
+      isPublic,
+      marketingAccountId,
+      marketingFunnelId,
+      funnelOrder,
+    } = body;
+
+    if (!title || !htmlContent) {
+      return NextResponse.json(
+        { ok: false, error: '제목과 HTML 내용은 필수입니다' },
+        { status: 400 }
+      );
+    }
+
+    // businessInfo를 JSON으로 변환
+    let businessInfoJson = null;
+    if (businessInfo) {
+      if (typeof businessInfo === 'string') {
+        try {
+          businessInfoJson = JSON.parse(businessInfo);
+        } catch {
+          businessInfoJson = businessInfo;
+        }
+      } else {
+        businessInfoJson = businessInfo;
+      }
+    }
+
+    const newPage = await prisma.landingPage.create({
+      data: {
+        title,
+        exposureTitle: exposureTitle || null,
+        category: category || null,
+        pageGroup: pageGroup || null,
+        description: description || null,
+        htmlContent,
+        headerScript: headerScript || null,
+        businessInfo: businessInfoJson,
+        exposureImage: exposureImage || null,
+        attachmentFile: attachmentFile || null,
+        groupId: groupId ? parseInt(String(groupId)) : null,
+        additionalGroupId: additionalGroupId ? parseInt(String(additionalGroupId)) : null,
+        checkDuplicateGroup: checkDuplicateGroup || false,
+        inputLimit: inputLimit || '무제한 허용',
+        completionPageUrl: completionPageUrl || null,
+        buttonTitle: buttonTitle || '신청하기',
+        commentEnabled: commentEnabled || false,
+        infoCollection: infoCollection || false,
+        scheduledMessageId: scheduledMessageId ? parseInt(String(scheduledMessageId)) : null,
+        isPublic: isPublic !== undefined ? isPublic : true,
+        marketingAccountId: marketingAccountId ? parseInt(String(marketingAccountId)) : null,
+        marketingFunnelId: marketingFunnelId ? parseInt(String(marketingFunnelId)) : null,
+        funnelOrder: funnelOrder ? parseInt(String(funnelOrder)) : null,
+      },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      landingPage: newPage,
+    });
+  } catch (error: any) {
+    console.error('[Admin Landing Pages] POST error:', error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: '랜딩페이지 생성 중 오류가 발생했습니다.',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
+      },
+      { status: 500 }
+    );
+  }
 }

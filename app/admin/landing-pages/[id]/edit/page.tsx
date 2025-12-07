@@ -474,6 +474,63 @@ export default function EditLandingPagePage() {
     };
   }, [isQuillReady, editorMode]);
 
+  // Quill 인스턴스를 가져오는 헬퍼 함수
+  const getQuillInstance = (): any => {
+    // 1. ref에 저장된 인스턴스 확인
+    if (quillInstanceRef.current) {
+      return quillInstanceRef.current;
+    }
+
+    // 2. ReactQuill 컴포넌트 ref 확인
+    if (reactQuillComponentRef.current) {
+      try {
+        const quill = reactQuillComponentRef.current.getEditor();
+        if (quill) {
+          quillInstanceRef.current = quill;
+          return quill;
+        }
+      } catch (e) {
+        console.warn('[getQuillInstance] ReactQuill ref access failed:', e);
+      }
+    }
+
+    // 3. DOM에서 직접 검색 (가장 확실한 방법)
+    const container = document.getElementById('quill-editor-container');
+    if (container) {
+      const quillElement = container.querySelector('.quill');
+      if (quillElement) {
+        // Quill 인스턴스는 DOM 요소의 __quill 속성이나 quill 속성에 저장됨
+        const quill = (quillElement as any).__quill || (quillElement as any).quill;
+        if (quill) {
+          quillInstanceRef.current = quill;
+          quillRef.current = quillElement;
+          return quill;
+        }
+
+        // 전역 Quill 객체를 통해 검색
+        if ((window as any).Quill) {
+          const Quill = (window as any).Quill;
+          // find 메서드가 있는지 확인
+          if (Quill.find) {
+            const q = Quill.find(quillElement);
+            if (q) {
+              quillInstanceRef.current = q;
+              quillRef.current = quillElement;
+              return q;
+            }
+          }
+        }
+      } else {
+        console.warn('[getQuillInstance] .quill element not found in container');
+      }
+    } else {
+      console.warn('[getQuillInstance] #quill-editor-container not found');
+    }
+
+    console.error('[getQuillInstance] Quill instance not found via any method');
+    return null;
+  };
+
   // [수술용 코드 1] Quill 초기화 및 재시도 로직 복구
   useEffect(() => {
     if (editorMode !== 'editor') return;
@@ -1195,55 +1252,130 @@ export default function EditLandingPagePage() {
       } else {
         // HTML 문서의 일부만 있는 경우 body에 삽입 (정규화 없이)
         finalHtml = `
-              <!DOCTYPE html>
-              <html>
-                <head>
-                  <meta charset="UTF-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  ${formData.headerScript || ''}
-                </head>
-                <body>
-                  ${htmlContent}
-                  ${formData.infoCollection ? `
-                    <div class="form-section">
-                      <h2 style="margin-bottom: 20px; font-size: 24px;">신청하기</h2>
-                      <form>
-                        ${formFields.join('')}
-                      </form>
-                    </div>
-                  ` : ''}
-                  ${formData.commentEnabled && previewComments.length > 0 ? `
-                    <div class="comments-section" style="margin-top: 40px; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                      <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 600;">댓글 (${previewComments.length})</h2>
-                      <div class="comments-list">
-                        ${previewComments.map((comment, idx) => `
-                          <div class="comment-item" style="padding: 16px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; ${idx === previewComments.length - 1 ? 'border-bottom: none;' : ''}">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                              <span style="font-weight: 600; color: #1f2937; font-size: 14px;">${comment.authorName || '익명'}</span>
-                              <span style="font-size: 12px; color: #6b7280;">${new Date(comment.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
-                            </div>
-                            <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0;">${comment.content || ''}</p>
-                          </div>
-                        `).join('')}
-                      </div>
-                    </div>
-                  ` : ''}
-              ${(businessInfoFields.siteName || businessInfoFields.companyName || businessInfoFields.businessNumber || businessInfoFields.businessPhone || businessInfoFields.privacyOfficer || businessInfoFields.address) ? `
-                <div class="business-info-section" style="margin-top: 40px; padding: 20px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
-                  <h3 style="margin-bottom: 16px; font-size: 18px; font-weight: 600; color: #1f2937;">사업자 정보</h3>
-                  <div style="font-size: 13px; color: #4b5563; line-height: 1.8;">
-                    ${businessInfoFields.siteName ? `<div><strong>사이트명:</strong> ${businessInfoFields.siteName}</div>` : ''}
-                    ${businessInfoFields.companyName ? `<div><strong>회사명:</strong> ${businessInfoFields.companyName}</div>` : ''}
-                    ${businessInfoFields.businessNumber ? `<div><strong>사업자번호:</strong> ${businessInfoFields.businessNumber}</div>` : ''}
-                    ${businessInfoFields.businessPhone ? `<div><strong>대표연락처:</strong> ${businessInfoFields.businessPhone}</div>` : ''}
-                    ${businessInfoFields.privacyOfficer ? `<div><strong>개인정보담당:</strong> ${businessInfoFields.privacyOfficer}</div>` : ''}
-                    ${businessInfoFields.address ? `<div><strong>주소:</strong> ${businessInfoFields.address}</div>` : ''}
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                  * { margin: 0; padding: 0; box-sizing: border-box; }
+                  body { 
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+                    padding: 20px; 
+                    line-height: 1.6; 
+                    background: #f5f5f5;
+                  }
+                  img { max-width: 100%; height: auto; }
+                  .form-section {
+                    margin-top: 40px;
+                    padding: 20px;
+                    background: white;
+                    border-radius: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                  }
+                  .form-field {
+                    margin-bottom: 20px;
+                  }
+                  .form-field label {
+                    display: block;
+                    margin-bottom: 8px;
+                    font-weight: 600;
+                    color: #333;
+                  }
+                  .form-field input,
+                  .form-field select {
+                    width: 100%;
+                    padding: 12px;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 8px;
+                    font-size: 16px;
+                  }
+                  .form-field input:focus,
+                  .form-field select:focus {
+                    outline: none;
+                    border-color: #3b82f6;
+                  }
+                  .checkbox-field label {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    cursor: pointer;
+                  }
+                  .checkbox-field input[type="checkbox"] {
+                    width: 20px;
+                    height: 20px;
+                  }
+                  .required {
+                    color: #ef4444;
+                  }
+                  .submit-btn {
+                    width: 100%;
+                    padding: 16px;
+                    background: #3b82f6;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    font-size: 18px;
+                    font-weight: 600;
+                    cursor: pointer;
+                  }
+                  .submit-btn:hover {
+                    background: #2563eb;
+                  }
+                  .product-purchase {
+                    padding: 20px;
+                    background: #f0f9ff;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                  }
+                  .product-purchase h3 {
+                    margin-bottom: 10px;
+                  }
+                </style>
+                ${formData.headerScript || ''}
+              </head>
+              <body>
+                ${htmlContent}
+                ${formData.infoCollection ? `
+                  <div class="form-section">
+                    <h2 style="margin-bottom: 20px; font-size: 24px;">신청하기</h2>
+                    <form>
+                      ${formFields.join('')}
+                    </form>
                   </div>
-                </div>
-              ` : ''}
-                </body>
-              </html>
-            `;
+                ` : ''}
+                ${formData.commentEnabled && previewComments.length > 0 ? `
+                  <div class="comments-section" style="margin-top: 40px; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h2 style="margin-bottom: 20px; font-size: 24px; font-weight: 600;">댓글 (${previewComments.length})</h2>
+                    <div class="comments-list">
+                      ${previewComments.map((comment, idx) => `
+                        <div class="comment-item" style="padding: 16px; margin-bottom: 16px; border-bottom: 1px solid #e5e7eb; ${idx === previewComments.length - 1 ? 'border-bottom: none;' : ''}">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 600; color: #1f2937; font-size: 14px;">${comment.authorName || '익명'}</span>
+                            <span style="font-size: 12px; color: #6b7280;">${new Date(comment.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })}</span>
+                          </div>
+                          <p style="color: #374151; font-size: 14px; line-height: 1.6; margin: 0;">${comment.content || ''}</p>
+                        </div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+                ${(businessInfoFields.siteName || businessInfoFields.companyName || businessInfoFields.businessNumber || businessInfoFields.businessPhone || businessInfoFields.privacyOfficer || businessInfoFields.address) ? `
+                  <div class="business-info-section" style="margin-top: 40px; padding: 20px; background: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+                    <h3 style="margin-bottom: 16px; font-size: 18px; font-weight: 600; color: #1f2937;">사업자 정보</h3>
+                    <div style="font-size: 13px; color: #4b5563; line-height: 1.8;">
+                      ${businessInfoFields.siteName ? `<div><strong>사이트명:</strong> ${businessInfoFields.siteName}</div>` : ''}
+                      ${businessInfoFields.companyName ? `<div><strong>회사명:</strong> ${businessInfoFields.companyName}</div>` : ''}
+                      ${businessInfoFields.businessNumber ? `<div><strong>사업자번호:</strong> ${businessInfoFields.businessNumber}</div>` : ''}
+                      ${businessInfoFields.businessPhone ? `<div><strong>대표연락처:</strong> ${businessInfoFields.businessPhone}</div>` : ''}
+                      ${businessInfoFields.privacyOfficer ? `<div><strong>개인정보담당:</strong> ${businessInfoFields.privacyOfficer}</div>` : ''}
+                      ${businessInfoFields.address ? `<div><strong>주소:</strong> ${businessInfoFields.address}</div>` : ''}
+                    </div>
+                  </div>
+                ` : ''}
+              </body>
+            </html>
+          `;
       }
     } else {
       // Editor 탭: 정규화된 HTML 사용
@@ -2394,7 +2526,7 @@ export default function EditLandingPagePage() {
                             formats={[
                               'header', 'size',
                               'bold', 'italic', 'underline', 'strike',
-                              'list', 'bullet',
+                              'list',
                               'color', 'background',
                               'align',
                               'link', 'image'
@@ -2422,7 +2554,7 @@ export default function EditLandingPagePage() {
                             <select
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-medium bg-white hover:bg-gray-50 cursor-pointer"
                               onChange={(e) => {
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const value = e.target.value;
                                 if (value === '') {
@@ -2442,7 +2574,7 @@ export default function EditLandingPagePage() {
                             <select
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-medium bg-white hover:bg-gray-50 cursor-pointer"
                               onChange={(e) => {
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const value = e.target.value;
                                 if (value === '') {
@@ -2466,7 +2598,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm font-bold bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const currentFormat = quill.getFormat();
                                 quill.format('bold', !currentFormat.bold);
@@ -2480,7 +2612,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm italic bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const currentFormat = quill.getFormat();
                                 quill.format('italic', !currentFormat.italic);
@@ -2494,7 +2626,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm underline bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const currentFormat = quill.getFormat();
                                 quill.format('underline', !currentFormat.underline);
@@ -2508,7 +2640,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm line-through bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const currentFormat = quill.getFormat();
                                 quill.format('strike', !currentFormat.strike);
@@ -2526,7 +2658,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 quill.format('list', 'ordered');
                               }}
@@ -2539,7 +2671,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 quill.format('list', 'bullet');
                               }}
@@ -2556,7 +2688,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const range = quill.getSelection(true);
                                 if (range && range.length > 0) {
@@ -2565,7 +2697,16 @@ export default function EditLandingPagePage() {
                                     quill.formatText(range.index, range.length, 'link', url);
                                   }
                                 } else {
-                                  alert('링크를 적용할 텍스트를 먼저 선택해주세요.');
+                                  // 선택된 텍스트가 없으면 링크 삽입
+                                  const url = prompt('링크 URL을 입력하세요:');
+                                  if (url) {
+                                    const text = prompt('링크 텍스트를 입력하세요:', url);
+                                    if (text) {
+                                      const range = quill.getSelection(true);
+                                      const index = range ? range.index : quill.getLength();
+                                      quill.insertText(index, text, 'link', url);
+                                    }
+                                  }
                                 }
                               }}
                               title="Link"
@@ -2594,9 +2735,9 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
-                                quill.format('align', 'left');
+                                quill.format('align', false); // left is default (false)
                               }}
                               title="Align Left"
                             >
@@ -2607,7 +2748,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 quill.format('align', 'center');
                               }}
@@ -2620,7 +2761,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 quill.format('align', 'right');
                               }}
@@ -2636,7 +2777,7 @@ export default function EditLandingPagePage() {
                               type="color"
                               className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
                               onChange={(e) => {
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 quill.format('color', e.target.value);
                               }}
@@ -2646,7 +2787,7 @@ export default function EditLandingPagePage() {
                               type="color"
                               className="w-10 h-10 border border-gray-300 rounded cursor-pointer"
                               onChange={(e) => {
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 quill.format('background', e.target.value);
                               }}
@@ -2661,7 +2802,7 @@ export default function EditLandingPagePage() {
                               className="px-3 py-2 border border-gray-300 rounded text-sm bg-white hover:bg-gray-50"
                               onClick={(e) => {
                                 e.preventDefault();
-                                const quill = reactQuillComponentRef.current?.getEditor();
+                                const quill = getQuillInstance();
                                 if (!quill) return;
                                 const range = quill.getSelection(true);
                                 if (range) {

@@ -9,6 +9,9 @@ declare global {
     INIStdPay?: {
       pay: (formId: string) => void;
     };
+    // 웰컴페이먼츠 결제 결과 콜백 (매뉴얼 참조)
+    INIStdPayClose?: () => void;
+    INIStdPayFail?: (data: any) => void;
   }
 }
 
@@ -66,6 +69,15 @@ function CheckoutContent() {
   useEffect(() => {
     console.log('[Checkout] Component mounted');
     setIsMounted(true);
+
+    // 웰컴페이먼츠 결제 콜백 함수 등록 (결제창 닫힘/실패 시 호출)
+    window.INIStdPayClose = () => {
+      console.log('[Checkout] INIStdPayClose called - 결제창 닫힘');
+    };
+    window.INIStdPayFail = (data: any) => {
+      console.error('[Checkout] INIStdPayFail called - 결제 실패:', data);
+      alert('결제 오류: ' + JSON.stringify(data));
+    };
 
     const userAgent = navigator.userAgent.toLowerCase();
     const mobile = /android|iphone|ipad|ipod/i.test(userAgent);
@@ -232,11 +244,45 @@ function CheckoutContent() {
         });
 
         console.log('[Checkout] Calling INIStdPay.pay()...');
+        console.log('[Checkout] INIStdPay object:', window.INIStdPay);
+        console.log('[Checkout] Form HTML:', form.outerHTML.substring(0, 500));
+
         try {
+          // 폼 필드 값 최종 확인
+          const midVal = (formElements.namedItem('mid') as HTMLInputElement)?.value;
+          const oidVal = (formElements.namedItem('oid') as HTMLInputElement)?.value;
+          const priceVal = (formElements.namedItem('price') as HTMLInputElement)?.value;
+          const timestampVal = (formElements.namedItem('timestamp') as HTMLInputElement)?.value;
+          const signatureVal = (formElements.namedItem('signature') as HTMLInputElement)?.value;
+          const mKeyVal = (formElements.namedItem('mKey') as HTMLInputElement)?.value;
+
+          console.log('[Checkout] === FINAL FORM CHECK ===');
+          console.log('[Checkout] mid:', midVal);
+          console.log('[Checkout] oid:', oidVal);
+          console.log('[Checkout] price:', priceVal);
+          console.log('[Checkout] timestamp:', timestampVal);
+          console.log('[Checkout] signature (64 chars):', signatureVal?.length === 64 ? 'OK' : `WRONG: ${signatureVal?.length}`);
+          console.log('[Checkout] mKey (64 chars):', mKeyVal?.length === 64 ? 'OK' : `WRONG: ${mKeyVal?.length}`);
+
+          // 필수값 누락 체크
+          if (!midVal || !oidVal || !priceVal || !timestampVal || !signatureVal || !mKeyVal) {
+            const missing = [];
+            if (!midVal) missing.push('mid');
+            if (!oidVal) missing.push('oid');
+            if (!priceVal) missing.push('price');
+            if (!timestampVal) missing.push('timestamp');
+            if (!signatureVal) missing.push('signature');
+            if (!mKeyVal) missing.push('mKey');
+            console.error('[Checkout] Missing required fields:', missing.join(', '));
+            alert('필수 결제 정보가 누락되었습니다: ' + missing.join(', '));
+            return;
+          }
+
           window.INIStdPay.pay('SendPayForm_id');
           console.log('[Checkout] INIStdPay.pay() called successfully');
         } catch (payError) {
           console.error('[Checkout] INIStdPay.pay() error:', payError);
+          alert('결제 호출 오류: ' + (payError instanceof Error ? payError.message : String(payError)));
         }
       } else {
         console.error('[Checkout] Form not found: SendPayForm_id');
@@ -339,33 +385,44 @@ function CheckoutContent() {
         </div>
 
         {/* === PC용 표준 폼 (Hidden) - 항상 렌더링 === */}
-        {/* 중요: oid는 signature 생성 시 사용된 signedOrderId를 사용해야 함 */}
-        <form id="SendPayForm_id" name="SendPayForm_id" style={{ display: 'none' }}>
+        {/* 매뉴얼 Page 19-20 기준 필수 필드 포함 */}
+        <form id="SendPayForm_id" name="SendPayForm_name" style={{ display: 'none' }}>
+          {/* 필수 기본 필드 */}
+          <input type="hidden" name="version" value="1.0" />
           <input type="hidden" name="mid" value="wpcrdot200" />
           <input type="hidden" name="oid" value={signedOrderId || orderId} />
           <input type="hidden" name="goodname" value={goodname} />
           <input type="hidden" name="price" value={price} />
+          <input type="hidden" name="currency" value="WON" />
+
+          {/* 구매자 정보 */}
           <input type="hidden" name="buyername" value={buyername} />
           <input type="hidden" name="buyertel" value={buyertel} />
           <input type="hidden" name="buyeremail" value={buyeremail} />
+
+          {/* 보안 필드 (서버에서 생성) */}
           <input type="hidden" name="timestamp" value={timestamp} />
-          <input type="hidden" name="currency" value="WON" />
-
-          {/* 선택된 결제 수단 적용 */}
-          <input type="hidden" name="gopaymethod" value={payMethod} />
-
-          {/* payViewType: overlay 고정 */}
-          <input type="hidden" name="payViewType" value="overlay" />
-          <input type="hidden" name="charset" value="UTF-8" />
-          <input type="hidden" name="acceptmethod" value="HPP(1):below1000" />
-
-          {/* partnerId 포함 */}
-          <input type="hidden" name="merchantData" value={merchantData} />
-
           <input type="hidden" name="signature" value={signature} />
           <input type="hidden" name="mKey" value={mKey} />
+
+          {/* 결제 수단 (필수 - 매뉴얼 v1.10.9에서 필수로 변경됨) */}
+          <input type="hidden" name="gopaymethod" value={payMethod} />
+
+          {/* 결제창 설정 */}
+          <input type="hidden" name="payViewType" value="overlay" />
+          <input type="hidden" name="charset" value="UTF-8" />
+
+          {/* 결제 옵션 */}
+          <input type="hidden" name="acceptmethod" value="HPP(1):below1000" />
+
+          {/* URL 설정 (필수) */}
           <input type="hidden" name="returnUrl" value="https://www.cruisedot.co.kr/api/payment/return" />
           <input type="hidden" name="closeUrl" value="https://www.cruisedot.co.kr/payment/close" />
+          <input type="hidden" name="popupUrl" value="https://www.cruisedot.co.kr/payment/popup" />
+          <input type="hidden" name="notiurl" value="https://www.cruisedot.co.kr/api/payment/notify" />
+
+          {/* 가맹점 데이터 (선택) */}
+          <input type="hidden" name="merchantData" value={merchantData} />
         </form>
       </div>
     </div>

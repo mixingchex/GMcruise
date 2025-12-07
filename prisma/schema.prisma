@@ -2021,10 +2021,10 @@ model Reservation {
   remarks           String?
   passportGroupLink String?
   passportStatus    String         @default("PENDING")
-  status            String         @default("CONFIRMED")
-  pnrStatus         String         @default("PENDING")
   affiliateSaleId   Int?
   createdAt         DateTime       @default(now())
+  pnrStatus         String         @default("PENDING")
+  status            String         @default("CONFIRMED")
   updatedAt         DateTime       @default(now()) @updatedAt
   AffiliateSale     AffiliateSale? @relation(fields: [affiliateSaleId], references: [id])
   User              User           @relation(fields: [mainUserId], references: [id])
@@ -2261,7 +2261,6 @@ model Traveler {
   engGivenName   String?
   korName        String?
   residentNum    String?
-  phone          String?     // 연락처
   gender         String?
   birthDate      String?
   passportNo     String?
@@ -2271,6 +2270,7 @@ model Traveler {
   userId         Int?
   nationality    String?
   notes          String?
+  phone          String?
   Reservation    Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   User           User?       @relation(fields: [userId], references: [id])
 
