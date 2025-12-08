@@ -53,13 +53,36 @@ export async function searchImagesFromDB(query: string): Promise<{
 
   scored.sort((a, b) => b.score - a.score);
 
-  return {
-    items: scored.slice(0, 200).map(s => ({
+  // 중복 제거: 같은 제목(확장자 제외)은 1개만 표시
+  const seen = new Set<string>();
+  const uniqueItems: Array<{ url: string; title: string; tags: string[] }> = [];
+
+  for (const s of scored) {
+    // 제목에서 확장자 제거하고 정규화 (폴더명__ 접두사도 제거)
+    let normalizedTitle = s.img.title
+      .replace(/\.(jpg|jpeg|png|webp|gif)$/i, '')  // 확장자 제거
+      .replace(/^.*__/, '')  // 폴더명__ 접두사 제거
+      .toLowerCase()
+      .trim();
+
+    // .backup 폴더 이미지 제외
+    if (s.img.folder.includes('.backup')) continue;
+
+    // 이미 본 제목이면 스킵
+    if (seen.has(normalizedTitle)) continue;
+
+    seen.add(normalizedTitle);
+    uniqueItems.push({
       url: s.img.driveUrl || s.img.path,
       title: s.img.title,
       tags: s.img.tags,
-    }))
-  };
+    });
+
+    // 최대 100개까지만
+    if (uniqueItems.length >= 100) break;
+  }
+
+  return { items: uniqueItems };
 }
 
 /**
