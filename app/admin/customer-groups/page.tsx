@@ -39,7 +39,7 @@ export default function CustomerGroupsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingGroup, setEditingGroup] = useState<CustomerGroup | null>(null);
-  const [selectedManagerId, setSelectedManagerId] = useState<string>(''); // 점장별 필터링
+  const [selectedManagerId, setSelectedManagerId] = useState<string>('HQ'); // 기본값: 본사 그룹만 표시
   const [managers, setManagers] = useState<Array<{ id: number; displayName: string | null; branchLabel: string | null }>>([]);
   const [showAddMembersModal, setShowAddMembersModal] = useState(false);
   const [showExcelUploadModal, setShowExcelUploadModal] = useState(false);
@@ -706,26 +706,47 @@ export default function CustomerGroupsPage() {
         </div>
       </div>
 
-      {/* 점장별 필터링 */}
+      {/* 소유자별 필터링 */}
       <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">점장별 필터:</label>
-          <select
-            value={selectedManagerId}
-            onChange={(e) => setSelectedManagerId(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">전체</option>
-            <option value="HQ">본사</option>
+        <div className="flex items-center gap-4 flex-wrap">
+          <label className="text-sm font-medium text-gray-700">소유자별 필터:</label>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setSelectedManagerId('HQ')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedManagerId === 'HQ'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              본사
+            </button>
+            <button
+              onClick={() => setSelectedManagerId('')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedManagerId === ''
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              전체
+            </button>
             {managers.map((manager) => (
-              <option key={manager.id} value={manager.id.toString()}>
-                {manager.displayName || manager.branchLabel || `점장 #${manager.id}`}
-                {manager.branchLabel && ` (${manager.branchLabel})`}
-              </option>
+              <button
+                key={manager.id}
+                onClick={() => setSelectedManagerId(manager.id.toString())}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedManagerId === manager.id.toString()
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {manager.displayName || manager.branchLabel || `대리점장 #${manager.id}`}
+              </button>
             ))}
-          </select>
-          <div className="text-sm text-gray-600">
-            총 {groups.length}개 그룹
+          </div>
+          <div className="text-sm text-gray-600 ml-auto">
+            총 <span className="font-semibold text-blue-600">{groups.length}</span>개 그룹
           </div>
         </div>
       </div>

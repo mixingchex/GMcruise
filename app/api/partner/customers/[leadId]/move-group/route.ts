@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePartnerContext, PartnerApiError } from '@/app/api/partner/_utils';
+import { schedulePartnerFunnelMessages } from '@/lib/funnel-scheduler';
 
 function parseLeadId(raw: string | undefined) {
   const id = Number(raw);
@@ -18,7 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ leadId: string }> | { leadId: string } }
 ) {
   try {
-    const { profile } = await requirePartnerContext();
+    const { profile, user } = await requirePartnerContext();
     if (!profile) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -46,17 +47,20 @@ export async function POST(
       );
     }
 
+    const previousGroupId = lead.groupId;
+
     // 그룹 소유권 확인 (groupId가 null이 아닌 경우)
     // PartnerCustomerGroup 모델 사용 (AffiliateLead.groupId가 참조하는 테이블)
+    let targetGroup = null;
     if (groupId !== null && groupId !== undefined) {
-      const group = await prisma.partnerCustomerGroup.findFirst({
+      targetGroup = await prisma.partnerCustomerGroup.findFirst({
         where: {
           id: parseInt(String(groupId)),
           profileId: profile.id,
         },
       });
 
-      if (!group) {
+      if (!targetGroup) {
         return NextResponse.json(
           { ok: false, message: 'Group not found or access denied.' },
           { status: 404 }
@@ -64,17 +68,31 @@ export async function POST(
       }
     }
 
+    const newGroupId = groupId === null || groupId === undefined ? null : parseInt(String(groupId));
+
     // 고객 그룹 업데이트
     const updatedLead = await prisma.affiliateLead.update({
       where: { id: leadId },
       data: {
-        groupId: groupId === null || groupId === undefined ? null : parseInt(String(groupId)),
+        groupId: newGroupId,
+        updatedAt: new Date(),
       },
     });
+
+    // 새 그룹으로 이동한 경우 퍼널 메시지 자동 예약
+    if (newGroupId && newGroupId !== previousGroupId) {
+      await schedulePartnerFunnelMessages({
+        leadId,
+        groupId: newGroupId,
+        profileId: profile.id,
+        userId: user.id,
+      });
+    }
 
     return NextResponse.json({
       ok: true,
       customer: updatedLead,
+      funnelScheduled: newGroupId && newGroupId !== previousGroupId,
     });
   } catch (error: any) {
     console.error('[MoveGroup] POST error:', error);

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FiSearch, FiFilter, FiArrowUp, FiArrowDown, FiChevronLeft, FiChevronRight, FiUser, FiPlus, FiX, FiInfo, FiDownload } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiArrowUp, FiArrowDown, FiChevronLeft, FiChevronRight, FiUser, FiPlus, FiX, FiInfo, FiDownload, FiExternalLink } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
 import { Customer } from '@/types/customer';
 
@@ -443,184 +443,195 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* 전체 고객 관리 - 카테고리 섹션 - 개선된 디자인 */}
-      <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border border-gray-200 p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">전체 고객 관리</h2>
-          <p className="text-sm text-gray-600">고객 유입 경로와 상태에 따라 그룹을 선택하여 관리하세요</p>
+      {/* 고객 관리 카테고리 - 핵심 7개 */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        {/* 헤더 */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white">고객 분류</h2>
+              <p className="text-blue-100 text-sm mt-1">카테고리를 선택하여 고객을 관리하세요</p>
+            </div>
+            <button
+              onClick={() => {
+                window.open('https://docs.google.com/spreadsheets/d/11_cfi841QGIDaBmYdjdk3aHYp2UYpCnx1QVVrgV7QJY/edit', '_blank');
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium transition-colors backdrop-blur-sm"
+            >
+              <FiExternalLink className="w-4 h-4" />
+              엑셀로 보기
+            </button>
+          </div>
         </div>
-        
-        {/* 카테고리 그리드 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[
-            { 
-              value: 'all', 
-              label: '전체 고객', 
-              description: '모든 고객 조회',
-              icon: '👥',
-              countKey: 'all',
-              color: 'gray'
-            },
-            { 
-              value: 'purchase', 
-              label: '구매 고객', 
-              description: '크루즈가이드 지니를 구매한 고객',
-              icon: '✅',
-              countKey: 'purchase',
-              color: 'blue'
-            },
-            { 
-              value: 'manager-customers', 
-              label: '대리점장 고객', 
-              description: '대리점장 소유 고객',
-              icon: '🏢',
-              countKey: 'manager-customers',
-              color: 'indigo'
-            },
-            { 
-              value: 'trial', 
-              label: '크루즈가이드 3일 체험', 
-              description: '3일 무료 체험을 시작한 고객',
-              icon: '🧪',
-              countKey: 'trial',
-              color: 'orange'
-            },
-            { 
-              value: 'refund', 
-              label: '환불 고객', 
-              description: '환불 처리가 완료된 고객',
-              icon: '↩️',
-              countKey: 'refund',
-              color: 'red'
-            },
-            { 
-              value: 'agent-customers', 
-              label: '판매원 고객', 
-              description: '판매원 소유 고객',
-              icon: '👤',
-              countKey: 'agent-customers',
-              color: 'teal'
-            },
-            { 
-              value: 'mall', 
-              label: '크루즈몰 고객', 
-              description: '크루즈몰에서 가입한 고객',
-              icon: '🛍️',
-              countKey: 'mall',
-              color: 'green'
-            },
-            { 
-              value: 'passport', 
-              label: '여권 관리', 
-              description: '구매 고객 중 여권 정보 관리 대상',
-              icon: '🛂',
-              countKey: 'passport',
-              color: 'purple'
-            },
-            { 
-              value: 'prospects', 
-              label: '잠재고객', 
-              description: '마케팅 랜딩페이지로 유입된 잠재고객',
-              icon: '📄',
-              countKey: 'prospects',
-              color: 'yellow'
-            },
-            { 
-              value: 'inquiry', 
-              label: '문의 고객', 
-              description: '상품 상세페이지 상담 신청 고객',
-              icon: '💬',
-              countKey: 'inquiry',
-              color: 'pink'
-            },
-          ].map((category) => {
-            const count = groupCounts[category.countKey] ?? 0;
-            const isActive = customerGroup === category.value;
-            const colorClasses = {
-              gray: isActive ? 'bg-gray-50 border-gray-500' : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50',
-              orange: isActive ? 'bg-orange-50 border-orange-500' : 'bg-white border-gray-200 hover:border-orange-300 hover:bg-orange-50',
-              green: isActive ? 'bg-green-50 border-green-500' : 'bg-white border-gray-200 hover:border-green-300 hover:bg-green-50',
-              blue: isActive ? 'bg-blue-50 border-blue-500' : 'bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50',
-              red: isActive ? 'bg-red-50 border-red-500' : 'bg-white border-gray-200 hover:border-red-300 hover:bg-red-50',
-              purple: isActive ? 'bg-purple-50 border-purple-500' : 'bg-white border-gray-200 hover:border-purple-300 hover:bg-purple-50',
-              indigo: isActive ? 'bg-indigo-50 border-indigo-500' : 'bg-white border-gray-200 hover:border-indigo-300 hover:bg-indigo-50',
-              teal: isActive ? 'bg-teal-50 border-teal-500' : 'bg-white border-gray-200 hover:border-teal-300 hover:bg-teal-50',
-              yellow: isActive ? 'bg-yellow-50 border-yellow-500' : 'bg-white border-gray-200 hover:border-yellow-300 hover:bg-yellow-50',
-              pink: isActive ? 'bg-pink-50 border-pink-500' : 'bg-white border-gray-200 hover:border-pink-300 hover:bg-pink-50',
-            };
-            
-            return (
-              <button
-                key={category.value}
-                onClick={() => {
-                  // 즉시 UI 업데이트 (낙관적 업데이트)
-                  setCustomerGroup(category.value);
-                  setPagination(prev => ({ ...prev, page: 1 }));
-                  // URL 업데이트로 브라우저 히스토리 관리
-                  router.push(`/admin/customers?customerGroup=${category.value}`, { scroll: false });
-                }}
-                disabled={isLoading}
-                className={`relative p-5 rounded-xl border-2 transition-all text-left transform hover:scale-[1.02] hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${colorClasses[category.color as keyof typeof colorClasses]}`}
-                title={category.description}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{category.icon}</span>
-                    <div>
-                      <h3 className="font-bold text-gray-900 text-base">{category.label}</h3>
-                      <p className="text-xs text-gray-600 mt-0.5">{category.description}</p>
-                    </div>
+
+        {/* 카테고리 그리드 - 7개 핵심 카테고리 */}
+        <div className="p-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+            {[
+              {
+                value: 'all',
+                label: '전체 고객',
+                icon: '👥',
+                countKey: 'all',
+                bgColor: 'bg-slate-100',
+                activeColor: 'bg-slate-600',
+                textColor: 'text-slate-700',
+              },
+              {
+                value: 'purchase',
+                label: '구매 고객',
+                icon: '✅',
+                countKey: 'purchase',
+                bgColor: 'bg-blue-100',
+                activeColor: 'bg-blue-600',
+                textColor: 'text-blue-700',
+              },
+              {
+                value: 'trial',
+                label: '3일 체험',
+                icon: '🧪',
+                countKey: 'trial',
+                bgColor: 'bg-orange-100',
+                activeColor: 'bg-orange-600',
+                textColor: 'text-orange-700',
+              },
+              {
+                value: 'refund',
+                label: '환불 고객',
+                icon: '↩️',
+                countKey: 'refund',
+                bgColor: 'bg-red-100',
+                activeColor: 'bg-red-600',
+                textColor: 'text-red-700',
+              },
+              {
+                value: 'mall',
+                label: '크루즈몰',
+                icon: '🛍️',
+                countKey: 'mall',
+                bgColor: 'bg-green-100',
+                activeColor: 'bg-green-600',
+                textColor: 'text-green-700',
+              },
+              {
+                value: 'passport',
+                label: '여권 관리',
+                icon: '🛂',
+                countKey: 'passport',
+                bgColor: 'bg-purple-100',
+                activeColor: 'bg-purple-600',
+                textColor: 'text-purple-700',
+              },
+              {
+                value: 'inquiry',
+                label: '문의 고객',
+                icon: '💬',
+                countKey: 'inquiry',
+                bgColor: 'bg-pink-100',
+                activeColor: 'bg-pink-600',
+                textColor: 'text-pink-700',
+              },
+            ].map((category) => {
+              const count = groupCounts[category.countKey] ?? 0;
+              const isActive = customerGroup === category.value;
+
+              return (
+                <button
+                  key={category.value}
+                  onClick={() => {
+                    setCustomerGroup(category.value);
+                    setPagination(prev => ({ ...prev, page: 1 }));
+                    router.push(`/admin/customers?customerGroup=${category.value}`, { scroll: false });
+                  }}
+                  disabled={isLoading}
+                  className={`relative p-4 rounded-xl border-2 transition-all text-center ${
+                    isActive
+                      ? `${category.activeColor} border-transparent text-white shadow-lg scale-105`
+                      : `${category.bgColor} border-transparent hover:border-gray-300 hover:shadow-md ${category.textColor}`
+                  } disabled:opacity-50`}
+                >
+                  <div className="text-2xl mb-2">{category.icon}</div>
+                  <div className="font-bold text-sm">{category.label}</div>
+                  <div className={`text-lg font-bold mt-1 ${isActive ? 'text-white' : ''}`}>
+                    {count.toLocaleString()}
                   </div>
-                  {count !== null && count !== undefined && (
-                    <span className={`px-3 py-1.5 rounded-full text-sm font-bold shadow-sm ${
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 추가 필터 (대리점장/판매원/잠재고객) - 접힌 상태로 */}
+          <details className="mt-4">
+            <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700 py-2">
+              + 더 많은 필터 보기 (대리점장 고객, 판매원 고객, 잠재고객)
+            </summary>
+            <div className="grid grid-cols-3 gap-3 mt-3 pt-3 border-t border-gray-200">
+              {[
+                {
+                  value: 'manager-customers',
+                  label: '대리점장 고객',
+                  icon: '🏢',
+                  countKey: 'manager-customers',
+                },
+                {
+                  value: 'agent-customers',
+                  label: '판매원 고객',
+                  icon: '👤',
+                  countKey: 'agent-customers',
+                },
+                {
+                  value: 'prospects',
+                  label: '잠재고객',
+                  icon: '📄',
+                  countKey: 'prospects',
+                },
+              ].map((category) => {
+                const count = groupCounts[category.countKey] ?? 0;
+                const isActive = customerGroup === category.value;
+
+                return (
+                  <button
+                    key={category.value}
+                    onClick={() => {
+                      setCustomerGroup(category.value);
+                      setPagination(prev => ({ ...prev, page: 1 }));
+                      router.push(`/admin/customers?customerGroup=${category.value}`, { scroll: false });
+                    }}
+                    disabled={isLoading}
+                    className={`p-3 rounded-lg border transition-all text-center ${
                       isActive
-                        ? 'bg-white text-gray-900 shadow-md'
-                        : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {count.toLocaleString()}
-                    </span>
-                  )}
-                </div>
-                {isActive && (
-                  <div className="absolute top-3 right-3">
-                    <div className="w-3 h-3 bg-blue-600 rounded-full shadow-lg animate-pulse"></div>
-                  </div>
-                )}
-              </button>
-            );
-          })}
+                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                        : 'bg-gray-50 border-gray-200 hover:border-gray-300 text-gray-700'
+                    } disabled:opacity-50`}
+                  >
+                    <span className="text-xl">{category.icon}</span>
+                    <div className="font-medium text-sm mt-1">{category.label}</div>
+                    <div className="font-bold">{count.toLocaleString()}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </details>
         </div>
       </div>
 
-      {/* 빠른 가이드 */}
+      {/* 빠른 가이드 - 간소화 */}
       {showStatusGuide && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 rounded-lg p-4 mb-6 relative">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 relative">
           <button
             onClick={() => setShowStatusGuide(false)}
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600"
+            className="absolute top-2 right-2 text-blue-400 hover:text-blue-600"
           >
             <FiX className="w-4 h-4" />
           </button>
-          <div className="flex items-start gap-3">
-            <FiInfo className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-base font-bold text-blue-900 mb-2">빠른 가이드</h3>
-              <div className="text-sm text-blue-800 space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  <span className="px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-300 rounded text-xs font-semibold">활성</span>
-                  <span className="px-2 py-0.5 bg-red-100 text-red-800 border border-red-300 rounded text-xs font-semibold">가이드잠금</span>
-                  <span className="px-2 py-0.5 bg-green-100 text-green-800 border border-green-300 rounded text-xs font-semibold">크루즈몰</span>
-                  <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-semibold">동면</span>
-                  <span className="px-2 py-0.5 bg-orange-100 text-orange-800 border border-orange-300 rounded text-xs font-semibold">테스트</span>
-                  <span className="px-2 py-0.5 bg-gray-100 text-gray-800 border border-gray-300 rounded text-xs font-semibold">테스트잠금</span>
-                </div>
-                <div className="flex flex-wrap gap-3 text-xs">
-                  <div><span className="font-semibold">구매 정보:</span> 예약이 있는 고객 표시</div>
-                  <div><span className="font-semibold">여권 상태:</span> ✅ 완료 / ⚠️ 부족</div>
-                  <div><span className="font-semibold">소속:</span> 대리점장/판매원/본사</div>
-                </div>
-                <p className="text-xs text-blue-700">고객 이름 클릭 → 상세 정보 확인 및 관리</p>
-              </div>
+          <div className="flex items-center gap-4 text-sm">
+            <FiInfo className="w-4 h-4 text-blue-600 flex-shrink-0" />
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-blue-800">
+              <span><strong>상세보기</strong> 클릭 → 고객 정보 및 상담기록</span>
+              <span>|</span>
+              <span><strong>여권</strong>: ✅완료 / ⚠️미완료</span>
+              <span>|</span>
+              <span><strong>소속</strong>: 대리점장/판매원/본사</span>
             </div>
           </div>
         </div>

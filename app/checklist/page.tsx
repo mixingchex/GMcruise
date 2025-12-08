@@ -144,37 +144,23 @@ export default function ChecklistPage() {
     trackFeature('checklist');
   }, []);
 
-  // 기본 체크리스트 항목들
+  // 기본 체크리스트 항목들 (핵심 15개 - 추가/삭제 기능으로 커스텀 가능)
   const getDefaultItems = (): ChecklistItem[] => [
     { id: Date.now() + 1, text: '여권 (유효기간 6개월 이상)', completed: false },
     { id: Date.now() + 2, text: 'E-티켓 또는 승선권', completed: false },
     { id: Date.now() + 3, text: '신용카드 (해외 사용 가능)', completed: false },
     { id: Date.now() + 4, text: '현금 (달러 또는 현지 화폐)', completed: false },
     { id: Date.now() + 5, text: '여행자 보험 증서', completed: false },
-    { id: Date.now() + 6, text: '비자 (필요한 경우)', completed: false },
-    { id: Date.now() + 7, text: '선상 정장 (캡틴 디너용)', completed: false },
-    { id: Date.now() + 8, text: '편한 신발 (관광용)', completed: false },
-    { id: Date.now() + 9, text: '실내화 또는 슬리퍼', completed: false },
-    { id: Date.now() + 10, text: '수영복', completed: false },
-    { id: Date.now() + 11, text: '가디건 또는 얇은 외투', completed: false },
-    { id: Date.now() + 12, text: '속옷 & 양말', completed: false },
-    { id: Date.now() + 13, text: '잠옷', completed: false },
-    { id: Date.now() + 14, text: '휴대폰 충전기', completed: false },
-    { id: Date.now() + 15, text: '보조배터리', completed: false },
-    { id: Date.now() + 16, text: '멀티 어댑터', completed: false },
-    { id: Date.now() + 17, text: '카메라', completed: false },
-    { id: Date.now() + 18, text: '상비약 (소화제, 진통제)', completed: false },
-    { id: Date.now() + 19, text: '멀미약', completed: false },
-    { id: Date.now() + 20, text: '개인 처방약', completed: false },
-    { id: Date.now() + 21, text: '선크림', completed: false },
-    { id: Date.now() + 22, text: '모기 퇴치제', completed: false },
-    { id: Date.now() + 23, text: '세면도구 (칫솔, 치약)', completed: false },
-    { id: Date.now() + 24, text: '화장품', completed: false },
-    { id: Date.now() + 25, text: '선글라스', completed: false },
-    { id: Date.now() + 26, text: '모자', completed: false },
-    { id: Date.now() + 27, text: '우산 또는 우비', completed: false },
-    { id: Date.now() + 28, text: '가방 또는 백팩', completed: false },
-    { id: Date.now() + 29, text: '지퍼백 (액체류 담기)', completed: false },
+    { id: Date.now() + 6, text: '선상 정장 (캡틴 디너용)', completed: false },
+    { id: Date.now() + 7, text: '편한 신발 (관광용)', completed: false },
+    { id: Date.now() + 8, text: '수영복', completed: false },
+    { id: Date.now() + 9, text: '휴대폰 충전기', completed: false },
+    { id: Date.now() + 10, text: '보조배터리', completed: false },
+    { id: Date.now() + 11, text: '멀티 어댑터', completed: false },
+    { id: Date.now() + 12, text: '상비약 (소화제, 진통제)', completed: false },
+    { id: Date.now() + 13, text: '멀미약', completed: false },
+    { id: Date.now() + 14, text: '세면도구 (칫솔, 치약)', completed: false },
+    { id: Date.now() + 15, text: '선글라스', completed: false },
   ];
 
   // 기본 항목을 서버에 저장하는 함수 (한 번만 실행되도록 보호)
@@ -270,20 +256,21 @@ export default function ChecklistPage() {
     } catch (err: any) {
       // 에러는 항상 로깅
       console.error('[Checklist] Error loading from API:', err);
-      if (!skipError) {
-        setError(`체크리스트를 불러오는 중 오류가 발생했습니다: ${err.message || '알 수 없는 오류'}`);
+
+      const errorMessage = err?.message || '';
+
+      // 429 에러(요청 과다)만 에러 메시지 표시
+      if (!skipError && errorMessage.includes('너무 많')) {
+        setError(`요청이 너무 많습니다. 잠시 후 다시 시도해주세요.`);
       }
 
-      // 401이나 429 오류가 아니고, 아직 기본 항목을 생성하지 않았으면 생성
-      const errorMessage = err?.message || '';
-      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많') && !hasCreatedDefaultsRef.current) {
+      // 429 오류가 아니면 기본 항목 표시 (인증 오류 시에도 기본 항목 표시)
+      if (!errorMessage.includes('너무 많') && !hasCreatedDefaultsRef.current) {
         hasCreatedDefaultsRef.current = true;
         const defaultItems = getDefaultItems();
         setItems(defaultItems);
-        // 백그라운드에서 서버에 저장 시도 (한 번만)
-        createDefaultItemsOnServer(defaultItems).catch((createError) => {
-          console.error('[Checklist] Error creating default items:', createError);
-        });
+        // 백그라운드에서 서버에 저장 시도 (실패해도 UI에는 표시됨)
+        createDefaultItemsOnServer(defaultItems).catch(console.error);
       }
     } finally {
       setIsLoading(false);

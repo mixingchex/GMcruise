@@ -1473,8 +1473,14 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     }
   };
 
-  // B2B 랜딩페이지 링크 섹션
-  const b2bLandingUrl = typeof window !== 'undefined' ? `${window.location.origin}/b2b/${user.mallUserId || user.phone}` : '';
+  // B2B 랜딩페이지 링크 섹션 - Hydration 오류 방지를 위해 state 사용
+  const [b2bLandingUrl, setB2bLandingUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setB2bLandingUrl(`${window.location.origin}/b2b/${user.mallUserId || user.phone}`);
+    }
+  }, [user.mallUserId, user.phone]);
 
   const copyB2BLink = () => {
     if (!b2bLandingUrl) return;
@@ -1697,17 +1703,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   <FiLink /> 링크 복사
                 </button>
                 <a
-                  href={b2bLandingUrl}
+                  href={b2bLandingUrl || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2 font-medium transition-colors"
+                  className={`flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2 font-medium transition-colors ${!b2bLandingUrl ? 'pointer-events-none opacity-50' : ''}`}
+                  onClick={(e) => !b2bLandingUrl && e.preventDefault()}
                 >
                   <FiEye /> 미리보기
                 </a>
               </div>
             </div>
             <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 break-all text-sm text-gray-600 font-mono">
-              {b2bLandingUrl}
+              {b2bLandingUrl || '로딩 중...'}
             </div>
           </div>
         )}

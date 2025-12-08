@@ -193,6 +193,48 @@ export async function POST(
         data: updateData,
       });
 
+      // CustomerNote도 동시 생성 (관리자 패널과 동기화)
+      if (lead.userId && note) {
+        const createdByType = profile.type || 'SALES_AGENT';
+        const createdByName = profile.displayName || sessionUser.name || '파트너';
+
+        await tx.customerNote.create({
+          data: {
+            customerId: lead.userId,
+            createdBy: sessionUser.id,
+            createdByType,
+            createdByName,
+            content: note,
+            consultedAt: occurredAt,
+            nextActionDate: nextActionAt,
+            nextActionNote: null,
+            statusAfter: status || null,
+            audioFileUrl: null,
+            isInternal: false,
+            updatedAt: new Date(),
+          },
+        });
+
+        // User 테이블의 다음 조치 알람도 업데이트
+        if (nextActionAt) {
+          await tx.user.update({
+            where: { id: lead.userId },
+            data: {
+              nextActionDate: nextActionAt,
+              nextActionNote: null,
+            },
+          });
+        }
+
+        // 상담 후 상태 변경
+        if (status) {
+          await tx.user.update({
+            where: { id: lead.userId },
+            data: { customerStatus: status },
+          });
+        }
+      }
+
       // '구매완료' 상태일 때 AffiliateSale 생성
       if (status === 'PURCHASED') {
         const productCode = lead.metadata?.productCode || lead.metadata?.product_code;

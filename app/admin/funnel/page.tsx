@@ -23,6 +23,13 @@ type FunnelMessage = {
   CustomerGroup?: {
     id: number;
     name: string;
+    affiliateProfileId?: number | null;
+    affiliateProfile?: {
+      id: number;
+      displayName: string | null;
+      branchLabel: string | null;
+      type: string | null;
+    } | null;
   } | null;
   FunnelMessageStage: Array<{
     id: number;
@@ -32,21 +39,26 @@ type FunnelMessage = {
     content: string;
     imageUrl: string | null;
   }>;
+  owner?: {
+    type: string;
+    name: string | null;
+  };
 };
 
 export default function FunnelManagementPage() {
   const [activeTab, setActiveTab] = useState<'sms' | 'email' | 'kakao'>('sms');
   const [messages, setMessages] = useState<FunnelMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [ownerFilter, setOwnerFilter] = useState<string>('HQ'); // 기본값: 본사
 
   useEffect(() => {
     loadMessages();
-  }, [activeTab]);
+  }, [activeTab, ownerFilter]);
 
   const loadMessages = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/admin/funnel-messages?type=${activeTab}`, {
+      const response = await fetch(`/api/admin/funnel-messages?type=${activeTab}&owner=${ownerFilter}`, {
         credentials: 'include',
       });
       const data = await response.json();
@@ -153,6 +165,38 @@ export default function FunnelManagementPage() {
         ))}
       </div>
 
+      {/* 소유자별 필터 */}
+      <div className="bg-white rounded-xl shadow-md p-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          <label className="text-sm font-medium text-gray-700">소유자:</label>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setOwnerFilter('HQ')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                ownerFilter === 'HQ'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              본사
+            </button>
+            <button
+              onClick={() => setOwnerFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                ownerFilter === 'all'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              전체
+            </button>
+          </div>
+          <div className="text-sm text-gray-600 ml-auto">
+            총 <span className="font-semibold text-purple-600">{messages.length}</span>개 퍼널
+          </div>
+        </div>
+      </div>
+
       {/* 메시지 목록 */}
       {isLoading ? (
         <div className="text-center py-16">
@@ -178,8 +222,21 @@ export default function FunnelManagementPage() {
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <h3 className="text-xl font-bold text-gray-900">{message.title}</h3>
+                    {/* 소유자 배지 */}
+                    {message.owner && (
+                      <span className={`px-2 py-1 rounded text-sm font-semibold ${
+                        message.owner.type === 'admin'
+                          ? 'bg-blue-100 text-blue-800'
+                          : message.owner.type === 'manager'
+                          ? 'bg-purple-100 text-purple-800'
+                          : 'bg-orange-100 text-orange-800'
+                      }`}>
+                        {message.owner.type === 'admin' ? '🏢' : message.owner.type === 'manager' ? '🏪' : '👤'}{' '}
+                        {message.owner.name || (message.owner.type === 'admin' ? '본사' : '대리점')}
+                      </span>
+                    )}
                     {message.CustomerGroup && (
                       <span className="px-2 py-1 bg-indigo-100 text-indigo-800 rounded text-sm font-semibold">
                         👥 {message.CustomerGroup.name}

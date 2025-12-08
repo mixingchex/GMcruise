@@ -55,13 +55,58 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get('type'); // 'sms', 'email', 'kakao'
+    const owner = searchParams.get('owner'); // 'HQ', 'all', or affiliateProfileId
 
-    const where: any = {
-      adminId: admin.id,
-    };
+    // 기본 조건: 관리자가 생성한 퍼널 또는 대리점장/판매원이 생성한 퍼널
+    let where: any = {};
 
+    if (owner === 'HQ') {
+      // 본사 퍼널만 (affiliateProfileId가 없는 그룹에 연결된 퍼널)
+      where = {
+        adminId: admin.id,
+        OR: [
+          { groupId: null },
+          {
+            CustomerGroup: {
+              affiliateProfileId: null,
+            },
+          },
+        ],
+      };
+    } else if (owner === 'all' || !owner) {
+      // 전체 (관리자 + 대리점장/판매원 그룹 퍼널)
+      where = {
+        OR: [
+          { adminId: admin.id },
+          {
+            CustomerGroup: {
+              affiliateProfileId: { not: null },
+            },
+          },
+        ],
+      };
+    } else {
+      // 특정 대리점장/판매원의 퍼널
+      const affiliateProfileId = parseInt(owner, 10);
+      if (!isNaN(affiliateProfileId)) {
+        where = {
+          CustomerGroup: {
+            affiliateProfileId: affiliateProfileId,
+          },
+        };
+      } else {
+        where = { adminId: admin.id };
+      }
+    }
+
+    // messageType 필터 추가 (기존 조건에 AND로 추가)
     if (type) {
-      where.messageType = type;
+      where = {
+        AND: [
+          where,
+          { messageType: type },
+        ],
+      };
     }
 
     try {
@@ -75,14 +120,23 @@ export async function GET(req: NextRequest) {
             select: {
               id: true,
               name: true,
+              affiliateProfileId: true,
+              AffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  branchLabel: true,
+                  type: true,
+                },
+              },
             },
           },
         },
         orderBy: { createdAt: 'desc' },
       });
 
-      return NextResponse.json({ 
-        ok: true, 
+      return NextResponse.json({
+        ok: true,
         messages: messages.map(msg => ({
           id: msg.id,
           adminId: msg.adminId,
@@ -114,7 +168,21 @@ export async function GET(req: NextRequest) {
           customerGroup: msg.CustomerGroup ? {
             id: msg.CustomerGroup.id,
             name: msg.CustomerGroup.name,
+            affiliateProfileId: msg.CustomerGroup.affiliateProfileId,
+            affiliateProfile: msg.CustomerGroup.AffiliateProfile ? {
+              id: msg.CustomerGroup.AffiliateProfile.id,
+              displayName: msg.CustomerGroup.AffiliateProfile.displayName,
+              branchLabel: msg.CustomerGroup.AffiliateProfile.branchLabel,
+              type: msg.CustomerGroup.AffiliateProfile.type,
+            } : null,
           } : null,
+          // 소유자 정보 (본사 또는 대리점장/판매원)
+          owner: msg.CustomerGroup?.AffiliateProfile
+            ? {
+                type: msg.CustomerGroup.AffiliateProfile.type || 'manager',
+                name: msg.CustomerGroup.AffiliateProfile.displayName || msg.CustomerGroup.AffiliateProfile.branchLabel,
+              }
+            : { type: 'admin', name: '본사' },
         }))
       });
     } catch (dbError: any) {

@@ -137,26 +137,27 @@ function AdminLayoutContent({
     router.push('/admin/login');
   };
 
+  // 고객관리 섹션 (상담기록, 백업 포함)
   const customerMenuItems = [
-    { href: '/admin/customers', label: '전체 고객 관리', icon: '👥' },
+    { href: '/admin/customers', label: '전체 고객 관리', icon: '👥', desc: '고객 목록 + 상담기록' },
+    { href: '/admin/customer-groups', label: '고객 그룹 관리', icon: '📁' },
+    { href: '/admin/affiliate/customers?source=mall', label: '전화상담 문의고객', icon: '📞' },
+    { href: '/admin/purchased-customers', label: '구매 고객 관리', icon: '🛒' },
     { href: '/admin/admin-panel-admins', label: '관리자 패널 관리', icon: '⚙️👑' },
   ];
 
   const menuItems = [
-    { href: '/admin/affiliate/customers?source=mall', label: '문의고객', icon: '📞', section: 'inquiries' },
-    { href: '/admin/purchased-customers', label: '구매 고객관리', icon: '🛒' },
+    // 고객관리 섹션으로 이동됨: 문의고객, 구매고객관리, 고객그룹관리
     { href: '/admin/apis', label: 'APIS 확인하기', icon: '📋' },
     { href: '/admin/dashboard', label: '대시보드', icon: '📊' },
     { href: '/admin/pwa-stats', label: 'PWA 설치 통계', icon: '📲' },
-    // { href: '/admin/video-meetings', label: '화상 회의', icon: '📹' }, // 화상회의 기능 비활성화
-    { href: '/admin/messages', label: '고객 메시지', icon: '💬', section: 'marketing' },
-    { href: '/admin/scheduled-messages', label: '예약 메시지', icon: '📅', section: 'marketing' },
-    { href: '/admin/customer-groups', label: '고객 그룹 관리', icon: '👥', section: 'marketing' },
+    { href: '/admin/message-center', label: '메시지 센터', icon: '📨', section: 'marketing' },
     { href: '/admin/data-analysis', label: '데이터분석', icon: '📊' },
     { href: '/admin/feedback', label: '후기 관리', icon: '💬' },
     { href: '/admin/documents', label: '서류관리', icon: '📄' },
     { href: '/admin/assign-trip', label: '여행 배정', icon: '✈️' },
     { href: '/admin/mall', label: '메인몰 관리', icon: '🛍️', section: 'mall' },
+    { href: '/admin/mall-sales', label: '크루즈몰 매출관리', icon: '💳', section: 'mall' },
     { href: '/admin/images', label: '이미지 라이브러리', icon: '🖼️', section: 'mall' },
     { href: '/admin/products', label: '크루즈 상품 관리', icon: '📦', section: 'mall' },
     { href: '/admin/inquiries', label: '구매 문의 관리', icon: '📋', section: 'mall' },
@@ -194,13 +195,12 @@ function AdminLayoutContent({
     { href: '/admin/cruisedot-news', label: '크루즈뉘우스 관리', icon: '📰', section: 'marketing' },
     // 마케팅 자동화
     { href: '/admin/marketing/dashboard', label: '마케팅 대시보드', icon: '📊', section: 'marketing' },
-    { href: '/admin/funnel', label: '퍼널 메시지', icon: '📊', section: 'marketing' },
+    // { href: '/admin/funnel', label: '퍼널 메시지', icon: '📊', section: 'marketing' }, // 메시지 센터로 통합
     { href: '/admin/marketing/customers', label: '고객 관리 (99K)', icon: '👥', section: 'marketing' },
     { href: '/admin/settings', label: '관리자 정보', icon: '⚙️', section: 'system' },
   ];
 
   const sectionConfigs = [
-    { key: 'inquiries', label: '문의고객', icon: '📞' },
     { key: 'general', label: '기본 메뉴', icon: '📂' },
     { key: 'marketing', label: '마케팅 자동화', icon: '🚀' },
     { key: 'mall', label: '메인몰', icon: '🛍️' },

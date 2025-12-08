@@ -217,3 +217,77 @@ async function getMonthlyStats() {
 
   return stats.reverse(); // 오래된 순으로 정렬
 }
+
+// DELETE - 결제 내역 삭제
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const deleteAll = searchParams.get('deleteAll') === 'true';
+
+    if (deleteAll) {
+      // 전체 삭제 (필터 조건 기준)
+      const status = searchParams.get('status') || 'all';
+      const search = searchParams.get('search') || '';
+      const month = searchParams.get('month') || '';
+
+      const where: any = {};
+
+      if (status && status !== 'all') {
+        where.status = status;
+      }
+
+      if (search) {
+        where.OR = [
+          { customerName: { contains: search, mode: 'insensitive' } },
+          { customerPhone: { contains: search.replace(/-/g, '') } },
+        ];
+      }
+
+      if (month) {
+        const [year, mon] = month.split('-').map(Number);
+        const monthStart = new Date(year, mon - 1, 1);
+        const monthEnd = new Date(year, mon, 0, 23, 59, 59, 999);
+        where.createdAt = { gte: monthStart, lte: monthEnd };
+      }
+
+      const result = await prisma.payAppPayment.deleteMany({ where });
+
+      console.log(`[PayApp Sales DELETE] Deleted ${result.count} payments (all with filters)`);
+
+      return NextResponse.json({
+        ok: true,
+        deletedCount: result.count,
+        message: `${result.count}건이 삭제되었습니다.`,
+      });
+    } else {
+      // 선택 삭제
+      const body = await request.json();
+      const { ids } = body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return NextResponse.json(
+          { ok: false, error: '삭제할 항목을 선택해주세요.' },
+          { status: 400 }
+        );
+      }
+
+      const result = await prisma.payAppPayment.deleteMany({
+        where: { id: { in: ids } },
+      });
+
+      console.log(`[PayApp Sales DELETE] Deleted ${result.count} payments (selected: ${ids.join(', ')})`);
+
+      return NextResponse.json({
+        ok: true,
+        deletedCount: result.count,
+        message: `${result.count}건이 삭제되었습니다.`,
+      });
+    }
+  } catch (error: any) {
+    console.error('[PayApp Sales DELETE] 삭제 오류:', error);
+    return NextResponse.json(
+      { ok: false, error: error?.message || '삭제 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
+}

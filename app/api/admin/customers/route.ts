@@ -637,13 +637,23 @@ export async function GET(req: NextRequest) {
       if (latestPasswordEvent?.to) {
         currentPassword = latestPasswordEvent.to; // PasswordEvent의 비밀번호 (평문)
       } else if (mergedCustomer.password) {
-        // password 필드가 해시인지 확인 (bcrypt는 $2로 시작)
-        if (mergedCustomer.password.startsWith('$2')) {
+        const pwd = mergedCustomer.password;
+        // 해시된 비밀번호 감지 (bcrypt, argon2, scrypt 등)
+        const isHashed =
+          pwd.startsWith('$2') ||           // bcrypt
+          pwd.startsWith('$argon2') ||      // argon2
+          pwd.startsWith('$scrypt') ||      // scrypt
+          pwd.length > 50 ||                // 너무 긴 문자열 (해시일 가능성)
+          /^[a-f0-9]{64}$/i.test(pwd) ||    // SHA-256 hex
+          /^[a-f0-9]{128}$/i.test(pwd) ||   // SHA-512 hex
+          /[^\x20-\x7E]/.test(pwd);         // 출력 불가능한 문자 포함 (바이너리/인코딩)
+
+        if (isHashed) {
           // 해시된 비밀번호는 표시 불가, 기본값 사용
-          currentPassword = '3800'; // 기본 비밀번호
+          currentPassword = '(암호화됨) 3800';
         } else {
           // 평문 비밀번호
-          currentPassword = mergedCustomer.password;
+          currentPassword = pwd;
         }
       } else {
         // 비밀번호가 없으면 기본값

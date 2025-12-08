@@ -51,6 +51,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const kakaoChannelAdded = searchParams.get('kakaoChannelAdded') === 'true'; // 카카오 채널 추가한 고객만 필터링
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100); // 최대 100개
+    const skip = (page - 1) * limit;
 
     const where: any = {
       role: { not: 'admin' },
@@ -90,6 +93,9 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    // 전체 개수 조회
+    const totalCount = await prisma.user.count({ where });
+
     const users = await prisma.user.findMany({
       where,
       select: {
@@ -103,13 +109,22 @@ export async function GET(req: NextRequest) {
         kakaoChannelAddedAt: true,
       },
       orderBy: { createdAt: 'desc' },
-      take: 1000,
+      skip,
+      take: limit,
     });
 
     const now = new Date();
 
+    const totalPages = Math.ceil(totalCount / limit);
+
     return NextResponse.json({
       ok: true,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+      },
       users: users.map(user => {
         // 테스트 고객: 이름과 연락처 입력된 고객이고 상태는 테스트, 테스트잠금 처리된 고객
         let testStatus = 'test';

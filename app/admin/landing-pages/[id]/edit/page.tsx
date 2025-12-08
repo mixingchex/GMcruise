@@ -701,7 +701,7 @@ export default function EditLandingPagePage() {
 
     setIsCreatingGroup(true);
     try {
-      const response = await fetch('/api/partner/customer-groups', {
+      const response = await fetch('/api/admin/customer-groups', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1133,21 +1133,21 @@ export default function EditLandingPagePage() {
     const formFields: string[] = [];
 
     if (formData.infoCollection) {
-      // 활성화된 필드들만 표시
-      if (dataFields.phone.enabled) {
-        formFields.push(`
-              <div class="form-field">
-                <label>휴대폰 번호 ${dataFields.phone.required ? '<span class="required">*</span>' : ''}</label>
-                <input type="tel" placeholder="010-1234-5678" ${dataFields.phone.required ? 'required' : ''} />
-              </div>
-            `);
-      }
-
+      // 활성화된 필드들만 표시 (이름 → 휴대폰 번호 순서)
       if (dataFields.name.enabled) {
         formFields.push(`
               <div class="form-field">
                 <label>이름 ${dataFields.name.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="text" placeholder="이름을 입력하세요" ${dataFields.name.required ? 'required' : ''} />
+              </div>
+            `);
+      }
+
+      if (dataFields.phone.enabled) {
+        formFields.push(`
+              <div class="form-field">
+                <label>휴대폰 번호 ${dataFields.phone.required ? '<span class="required">*</span>' : ''}</label>
+                <input type="tel" placeholder="010-1234-5678" ${dataFields.phone.required ? 'required' : ''} />
               </div>
             `);
       }
@@ -1561,7 +1561,7 @@ export default function EditLandingPagePage() {
 
   const fetchCustomerGroups = async () => {
     try {
-      const response = await fetch('/api/partner/customer-groups', { credentials: 'include' });
+      const response = await fetch('/api/admin/customer-groups', { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         if (data.ok) {

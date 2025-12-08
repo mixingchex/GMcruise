@@ -112,13 +112,13 @@ export async function GET(req: NextRequest) {
         },
       ];
     } else if (status === 'locked') {
-      // 만료/잠금: customerStatus가 'locked'이거나 72시간이 지난 경우
-      const now = new Date();
+      // 만료/잠금: customerStatus가 'locked', 'test-locked'이거나 isLocked가 true인 경우
       where.AND = [
         ...(where.AND || []),
         {
           OR: [
             { customerStatus: 'locked' },
+            { customerStatus: 'test-locked' },
             { isLocked: true },
           ],
         },

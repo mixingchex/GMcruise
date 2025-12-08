@@ -1005,23 +1005,30 @@ model CustomerJourney {
 }
 
 model CustomerNote {
-  id                                 Int      @id @default(autoincrement())
+  id                                 Int       @id @default(autoincrement())
   customerId                         Int
   createdBy                          Int
   createdByType                      String
   createdByName                      String?
   content                            String
-  isInternal                         Boolean  @default(false)
+  isInternal                         Boolean   @default(false)
   notifyTargets                      Json?
   metadata                           Json?
-  createdAt                          DateTime @default(now())
+  // 상담기록 확장 필드
+  consultedAt                        DateTime? // 실제 상담 일시
+  nextActionDate                     DateTime? // 다음 조치 알람 날짜
+  nextActionNote                     String?   // 다음 조치 메모
+  statusAfter                        String?   // 상담 후 고객 상태
+  audioFileUrl                       String?   // 녹음 파일 URL
+  createdAt                          DateTime  @default(now())
   updatedAt                          DateTime
-  User_CustomerNote_createdByToUser  User     @relation("CustomerNote_createdByToUser", fields: [createdBy], references: [id])
-  User_CustomerNote_customerIdToUser User     @relation("CustomerNote_customerIdToUser", fields: [customerId], references: [id], onDelete: Cascade)
+  User_CustomerNote_createdByToUser  User      @relation("CustomerNote_createdByToUser", fields: [createdBy], references: [id])
+  User_CustomerNote_customerIdToUser User      @relation("CustomerNote_customerIdToUser", fields: [customerId], references: [id], onDelete: Cascade)
 
   @@index([createdByType, createdAt])
   @@index([createdBy, createdAt])
   @@index([customerId, createdAt])
+  @@index([nextActionDate]) // 다음 조치 알람 조회용
 }
 
 model DashboardStats {
@@ -2359,6 +2366,9 @@ model User {
   testModeStartedAt                                             DateTime?
   customerSource                                                String?
   adminMemo                                                     String?
+  nextActionDate                                                DateTime?
+  nextActionNote                                                String?
+  customerGroupId                                               Int?
   mallUserId                                                    String?
   mallNickname                                                  String?
   genieStatus                                                   String?

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { buildScopedGroupWhere } from '@/app/api/partner/customer-groups/utils';
+import { schedulePartnerFunnelMessages } from '@/lib/funnel-scheduler';
 
 /**
  * POST /api/partner/customer-groups/[id]/members
@@ -68,6 +69,18 @@ export async function POST(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
     }
 
+    // 이전 그룹 정보 조회 (퍼널 발송 여부 결정용)
+    const leadsBeforeUpdate = await prisma.affiliateLead.findMany({
+      where: {
+        id: { in: normalizedLeadIds },
+        OR: [
+          { managerId: affiliateProfile.id },
+          { agentId: affiliateProfile.id },
+        ],
+      },
+      select: { id: true, groupId: true },
+    });
+
     // AffiliateLead의 groupId를 업데이트 (권한 있는 고객만)
     const result = await prisma.affiliateLead.updateMany({
       where: {
@@ -83,9 +96,25 @@ export async function POST(
       },
     });
 
+    // 퍼널 자동 발송: 새로 그룹에 추가된 고객들에게만
+    let funnelScheduled = 0;
+    for (const lead of leadsBeforeUpdate) {
+      // 이전에 다른 그룹에 있었거나 그룹이 없었던 경우에만 퍼널 발송
+      if (lead.groupId !== groupId) {
+        const scheduleResult = await schedulePartnerFunnelMessages({
+          leadId: lead.id,
+          groupId: groupId,
+          profileId: affiliateProfile.id,
+          userId: sessionUser.id,
+        });
+        funnelScheduled += scheduleResult.scheduled;
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       added: result.count,
+      funnelScheduled,
       message: `${result.count}명의 고객이 그룹에 추가되었습니다.`,
     });
   } catch (error: any) {

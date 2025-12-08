@@ -18,10 +18,10 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 사용자 정보 직접 조회 (isLocked, testModeStartedAt 포함)
+    // 사용자 정보 직접 조회 (isLocked, testModeStartedAt, customerStatus 포함)
     const user = await prisma.user.findUnique({
       where: { id: sessionUser.id },
-      select: { id: true, isLocked: true, testModeStartedAt: true },
+      select: { id: true, isLocked: true, testModeStartedAt: true, customerStatus: true },
     });
 
     if (!user) {
@@ -39,6 +39,17 @@ export async function GET(req: NextRequest) {
     }
 
     // 3일 체험 만료 체크 (72시간 = 3일)
+    // customerStatus: 'test-locked' 상태이거나, testModeStartedAt 기준 72시간 경과 시 만료
+    if (user.customerStatus === 'test-locked') {
+      return NextResponse.json({
+        ok: true,
+        allowed: false,
+        status: 'expired',
+        reason: 'trial_expired',
+        message: '3일 체험이 종료되었습니다. 새로운 여행을 등록해 주세요.',
+      });
+    }
+
     if (user.testModeStartedAt) {
       const testStartTime = new Date(user.testModeStartedAt);
       const testExpireTime = new Date(testStartTime);
@@ -46,6 +57,12 @@ export async function GET(req: NextRequest) {
       const now = new Date();
 
       if (now > testExpireTime) {
+        // customerStatus도 test-locked로 업데이트 (다음 체크 시 빠르게 처리)
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { customerStatus: 'test-locked' },
+        });
+
         return NextResponse.json({
           ok: true,
           allowed: false,

@@ -40,7 +40,7 @@ import { showError, showSuccess, showWarning } from '@/components/ui/Toast';
 import SymbolPicker from '@/components/ui/SymbolPicker';
 import SmsConfigModal from '@/components/partner/SmsConfigModal';
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
-import CustomerNoteModal from '@/components/admin/CustomerNoteModal';
+// CustomerNoteModal 삭제됨 - 고객 상세 패널의 상담기록으로 통합
 import ProductInquiryCustomerTable from '@/components/admin/ProductInquiryCustomerTable';
 
 type LeadStatusOption = {
@@ -559,8 +559,7 @@ export default function PartnerCustomersClient({
   const [excelFile, setExcelFile] = useState<File | null>(null);
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsMethod, setSmsMethod] = useState<'aligo' | 'link'>('aligo');
-  const [noteModalOpen, setNoteModalOpen] = useState(false);
-  const [selectedCustomerForNote, setSelectedCustomerForNote] = useState<{ id: number; name: string | null } | null>(null);
+  // CustomerNoteModal 관련 state 삭제 - 상담기록 패널로 통합됨
   const [smsRecipientMode, setSmsRecipientMode] = useState<'customer' | 'custom'>('customer'); // 고객 선택 또는 직접 번호 입력
   const [customPhoneNumber, setCustomPhoneNumber] = useState(''); // 직접 입력한 번호
   const [aligoConfig, setAligoConfig] = useState({
@@ -2529,6 +2528,13 @@ export default function PartnerCustomersClient({
                                         <span className="text-xs text-slate-500">
                                           {customer.customerPhone ?? '연락처 미입력'}
                                         </span>
+                                        <CustomerStatusBadges
+                                          testModeStartedAt={customer.testModeStartedAt}
+                                          customerStatus={customer.customerStatus}
+                                          customerSource={customer.customerSource}
+                                          mallUserId={customer.mallUserId}
+                                          totalTripCount={customer.totalTripCount || 0}
+                                        />
                                       </div>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-slate-600">
@@ -5500,22 +5506,7 @@ export default function PartnerCustomersClient({
         </div>
       )}
 
-      {/* 고객 기록 모달 */}
-      {selectedCustomerForNote && (
-        <CustomerNoteModal
-          customerId={selectedCustomerForNote.id}
-          customerName={selectedCustomerForNote.name}
-          isOpen={noteModalOpen}
-          onClose={() => {
-            setNoteModalOpen(false);
-            setSelectedCustomerForNote(null);
-          }}
-          onNoteAdded={() => {
-            // 고객 목록 새로고침
-            fetchCustomers(currentPage);
-          }}
-        />
-      )}
+      {/* CustomerNoteModal 삭제됨 - 고객 상세 패널의 상담기록으로 통합 */}
 
       {/* SMS 설정 모달 */}
       <SmsConfigModal

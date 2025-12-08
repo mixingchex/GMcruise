@@ -1,12 +1,13 @@
 'use client';
 
-import { FiCheckCircle, FiClock, FiShoppingBag, FiUser, FiMessageSquare } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiShoppingBag, FiUser, FiMessageSquare, FiPhone, FiLink, FiRefreshCw, FiRepeat } from 'react-icons/fi';
 
 interface CustomerStatusBadgesProps {
   testModeStartedAt: string | null | undefined;
   customerStatus: string | null | undefined;
   customerSource?: string | null | undefined; // 고객 출처 추가
   mallUserId: string | null | undefined;
+  totalTripCount?: number; // 재구매 횟수
   className?: string;
 }
 
@@ -21,6 +22,7 @@ export default function CustomerStatusBadges({
   customerStatus,
   customerSource,
   mallUserId,
+  totalTripCount = 0,
   className = '',
 }: CustomerStatusBadgesProps) {
   // 크루즈가이드 지니 3일 체험: customerStatus: 'test' 또는 'test-locked', customerSource: 'test-guide'
@@ -38,10 +40,10 @@ export default function CustomerStatusBadges({
 
   const badges = [];
 
-  // 크루즈가이드 지니 3일 체험
+  // 3일체험
   if (isTrialUser) {
     badges.push({
-      label: '크루즈가이드 지니 3일 체험',
+      label: '3일체험',
       icon: <FiClock className="w-3 h-3" />,
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-700',
@@ -49,10 +51,10 @@ export default function CustomerStatusBadges({
     });
   }
 
-  // 크루즈가이드 지니 (결제 고객)
+  // 지니체험 (결제 고객)
   if (isRegularGenie) {
     badges.push({
-      label: '크루즈가이드 지니 (결제)',
+      label: '지니체험',
       icon: <FiUser className="w-3 h-3" />,
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700',
@@ -60,10 +62,10 @@ export default function CustomerStatusBadges({
     });
   }
 
-  // B2B 유입
+  // B2B유입
   if (customerSource === 'B2B_INFLOW') {
     badges.push({
-      label: 'B2B 유입',
+      label: 'B2B유입',
       icon: <FiUser className="w-3 h-3" />,
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700',
@@ -71,10 +73,10 @@ export default function CustomerStatusBadges({
     });
   }
 
-  // 시스템 상담신청
+  // B2B시스템
   if (customerSource === 'TRIAL_DASHBOARD') {
     badges.push({
-      label: '시스템 상담신청',
+      label: 'B2B시스템',
       icon: <FiMessageSquare className="w-3 h-3" />,
       bgColor: 'bg-green-50',
       textColor: 'text-green-700',
@@ -82,10 +84,10 @@ export default function CustomerStatusBadges({
     });
   }
 
-  // 파트너 B2B 유입
+  // B2B유입 (파트너 랜딩)
   if (customerSource === 'B2B_LANDING') {
     badges.push({
-      label: '파트너 B2B 유입',
+      label: 'B2B유입',
       icon: <FiUser className="w-3 h-3" />,
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-700',
@@ -93,7 +95,7 @@ export default function CustomerStatusBadges({
     });
   }
 
-  // 크루즈몰 가입
+  // 크루즈몰
   if (isMallUser) {
     badges.push({
       label: '크루즈몰',
@@ -101,6 +103,61 @@ export default function CustomerStatusBadges({
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-700',
       borderColor: 'border-purple-200',
+    });
+  }
+
+  // 전화문의
+  if (customerSource === 'phone-consultation') {
+    badges.push({
+      label: '전화문의',
+      icon: <FiPhone className="w-3 h-3" />,
+      bgColor: 'bg-yellow-50',
+      textColor: 'text-yellow-700',
+      borderColor: 'border-yellow-200',
+    });
+  }
+
+  // 랜딩유입
+  if (customerSource === 'landing-page') {
+    badges.push({
+      label: '랜딩유입',
+      icon: <FiLink className="w-3 h-3" />,
+      bgColor: 'bg-indigo-50',
+      textColor: 'text-indigo-700',
+      borderColor: 'border-indigo-200',
+    });
+  }
+
+  // 구매확정
+  if (customerStatus === 'purchase_confirmed') {
+    badges.push({
+      label: '구매확정',
+      icon: <FiCheckCircle className="w-3 h-3" />,
+      bgColor: 'bg-green-50',
+      textColor: 'text-green-700',
+      borderColor: 'border-green-200',
+    });
+  }
+
+  // 환불
+  if (customerStatus === 'refunded') {
+    badges.push({
+      label: '환불',
+      icon: <FiRefreshCw className="w-3 h-3" />,
+      bgColor: 'bg-red-50',
+      textColor: 'text-red-700',
+      borderColor: 'border-red-200',
+    });
+  }
+
+  // 재구매N회 (2회 이상)
+  if (totalTripCount >= 2) {
+    badges.push({
+      label: `재구매${totalTripCount}회`,
+      icon: <FiRepeat className="w-3 h-3" />,
+      bgColor: 'bg-emerald-50',
+      textColor: 'text-emerald-700',
+      borderColor: 'border-emerald-200',
     });
   }
 

@@ -1118,21 +1118,21 @@ export default function EditLandingPagePage() {
     const formFields: string[] = [];
 
     if (formData.infoCollection) {
-      // 활성화된 필드들만 표시
-      if (dataFields.phone.enabled) {
-        formFields.push(`
-              <div class="form-field">
-                <label>휴대폰 번호 ${dataFields.phone.required ? '<span class="required">*</span>' : ''}</label>
-                <input type="tel" placeholder="010-1234-5678" ${dataFields.phone.required ? 'required' : ''} />
-              </div>
-            `);
-      }
-
+      // 활성화된 필드들만 표시 (이름 → 휴대폰 번호 순서)
       if (dataFields.name.enabled) {
         formFields.push(`
               <div class="form-field">
                 <label>이름 ${dataFields.name.required ? '<span class="required">*</span>' : ''}</label>
                 <input type="text" placeholder="이름을 입력하세요" ${dataFields.name.required ? 'required' : ''} />
+              </div>
+            `);
+      }
+
+      if (dataFields.phone.enabled) {
+        formFields.push(`
+              <div class="form-field">
+                <label>휴대폰 번호 ${dataFields.phone.required ? '<span class="required">*</span>' : ''}</label>
+                <input type="tel" placeholder="010-1234-5678" ${dataFields.phone.required ? 'required' : ''} />
               </div>
             `);
       }

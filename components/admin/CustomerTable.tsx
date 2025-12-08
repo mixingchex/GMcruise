@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { FiEdit2, FiCheck, FiX, FiFileText, FiEye, FiClock } from 'react-icons/fi';
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
-import CustomerNoteModal from '@/components/admin/CustomerNoteModal';
+// CustomerNoteModal 삭제됨 - CustomerDetailModal의 상담기록 탭으로 통합
 import CustomerDetailModal from '@/components/admin/CustomerDetailModal';
 import { Customer } from '@/types/customer';
 
@@ -119,8 +119,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
   const [savingField, setSavingField] = useState<number | null>(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCustomerForDetail, setSelectedCustomerForDetail] = useState<number | null>(null);
-  const [noteModalOpen, setNoteModalOpen] = useState(false);
-  const [selectedCustomerForNote, setSelectedCustomerForNote] = useState<{ id: number; name: string | null } | null>(null);
+  // CustomerNoteModal 관련 state 삭제됨 - CustomerDetailModal의 상담기록 탭으로 통합
 
   // 환불 관련 상태
   const [refundModalOpen, setRefundModalOpen] = useState(false);
@@ -859,6 +858,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                         customerStatus={customer.customerStatus}
                         customerSource={customer.customerSource}
                         mallUserId={customer.mallUserId}
+                        totalTripCount={customer.totalTripCount || 0}
                       />
                       <button
                         onClick={() => handleFieldEdit(customer.id, 'name', customer.name)}
@@ -1050,17 +1050,17 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                       // 이미 만료된 여권이 있는 경우 (최우선)
                       if (expiredCount > 0) {
                         return (
-                          <span className="px-2 py-1 bg-red-100 text-red-800 border border-red-300 rounded text-xs font-bold">
-                            🚨 만료됨
+                          <span className="px-2 py-1 bg-red-100 text-red-800 border-2 border-red-500 rounded text-xs font-bold animate-pulse">
+                            🚨 만료 {expiredCount}건
                           </span>
                         );
                       }
-                      
+
                       // 6개월 이내 만료 예정인 여권이 있는 경우
                       if (expiringCount > 0) {
                         return (
-                          <span className="px-2 py-1 bg-orange-100 text-orange-800 border-2 border-orange-400 rounded text-xs font-bold">
-                            6개월
+                          <span className="px-2 py-1 bg-orange-100 text-orange-800 border-2 border-orange-500 rounded text-xs font-bold">
+                            ⚠️ 6개월내 만료 {expiringCount}건
                           </span>
                         );
                       }
@@ -1069,29 +1069,29 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                       if (totalPeople > 0) {
                         if (missingCount > 0) {
                           return (
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-medium">
-                              부족 ({travelersWithPassport}/{totalPeople})
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-400 rounded text-xs font-medium">
+                              ⚠️ {travelersWithPassport}/{totalPeople}명
                             </span>
                           );
                         } else if (travelersWithPassport === totalPeople) {
                           return (
-                            <span className="px-2 py-1 bg-green-100 text-green-800 border border-green-300 rounded text-xs font-medium">
-                              완료
+                            <span className="px-2 py-1 bg-green-100 text-green-800 border border-green-400 rounded text-xs font-medium">
+                              ✅ {totalPeople}명 완료
                             </span>
                           );
                         } else if (travelersWithPassport > 0) {
                           // 일부만 등록된 경우
                           return (
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-300 rounded text-xs font-medium">
-                              부족 ({travelersWithPassport}/{totalPeople})
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 border border-yellow-400 rounded text-xs font-medium">
+                              ⚠️ {travelersWithPassport}/{totalPeople}명
                             </span>
                           );
                         }
                       } else if (travelersWithPassport > 0) {
                         // totalPeople이 없거나 0이지만 여권이 등록된 경우
                         return (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 border border-green-300 rounded text-xs font-medium">
-                            등록됨 ({travelersWithPassport}명)
+                          <span className="px-2 py-1 bg-green-100 text-green-800 border border-green-400 rounded text-xs font-medium">
+                            ✅ {travelersWithPassport}명 등록
                           </span>
                         );
                       }
@@ -1146,17 +1146,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                       <FiEye size={16} />
                       상세 보기
                     </button>
-                    <button
-                      onClick={() => {
-                        setSelectedCustomerForNote({ id: customer.id, name: customer.name });
-                        setNoteModalOpen(true);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
-                      title="고객 기록 작성"
-                    >
-                      <FiFileText size={16} />
-                      기록
-                    </button>
+                    {/* 기록 버튼 삭제됨 - 상세보기 모달의 상담기록 탭으로 통합 */}
                   </div>
                 </td>
               </tr>
@@ -1165,23 +1155,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
         </table>
       </div>
 
-      {/* 고객 기록 모달 */}
-      {selectedCustomerForNote && (
-        <CustomerNoteModal
-          customerId={selectedCustomerForNote.id}
-          customerName={selectedCustomerForNote.name}
-          isOpen={noteModalOpen}
-          onClose={() => {
-            setNoteModalOpen(false);
-            setSelectedCustomerForNote(null);
-          }}
-          onNoteAdded={() => {
-            if (onRefresh) {
-              onRefresh();
-            }
-          }}
-        />
-      )}
+      {/* CustomerNoteModal 삭제됨 - CustomerDetailModal의 상담기록 탭으로 통합 */}
 
       {/* 상세보기 모달 */}
       {selectedCustomerForDetail && (

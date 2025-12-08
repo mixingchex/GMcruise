@@ -46,7 +46,7 @@ interface BusinessInfo {
   address?: string;
 }
 
-const DATA_FIELD_ORDER: DataFieldKey[] = ['phone', 'name', 'gender', 'birthDate', 'email', 'address', 'marketingConsent'];
+const DATA_FIELD_ORDER: DataFieldKey[] = ['name', 'phone', 'gender', 'birthDate', 'email', 'address', 'marketingConsent'];
 
 const FIELD_DEFINITIONS: Record<
   DataFieldKey,

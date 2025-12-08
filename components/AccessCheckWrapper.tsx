@@ -50,15 +50,55 @@ export default function AccessCheckWrapper({ children }: { children: React.React
       return;
     }
 
-    // 테스트 모드 경로는 접근 체크 건너뛰기 (3일 체험은 별도 처리)
-    // -test로 끝나는 모든 경로는 자유롭게 이용 가능
+    // 테스트 모드 경로도 3일 체험 만료 체크 필요
+    // -test로 끝나는 경로는 별도의 체험 만료 체크 수행
     if (isTestModePath(pathname)) {
-      console.log('[AccessCheck] Test mode path detected, skipping check:', pathname);
-      setIsChecking(false);
-      setAccessStatus({
-        allowed: true,
-        status: 'active',
-      });
+      console.log('[AccessCheck] Test mode path detected, checking trial expiry:', pathname);
+
+      const checkTestAccess = async () => {
+        try {
+          const response = await fetch('/api/user/access-check', {
+            credentials: 'include',
+          });
+          const data = await response.json();
+
+          if (data.ok) {
+            // 3일 체험 만료 체크 (reason: 'trial_expired')
+            if (!data.allowed && data.reason === 'trial_expired') {
+              setAccessStatus({
+                allowed: false,
+                status: 'expired',
+                reason: data.reason,
+                message: data.message || '3일 체험이 종료되었습니다.',
+              });
+              setShowModal(true);
+            } else {
+              // 체험 중이거나 다른 이유로 허용
+              setAccessStatus({
+                allowed: true,
+                status: 'active',
+              });
+            }
+          } else {
+            // 체크 실패 시 허용 (세션 없음 등)
+            setAccessStatus({
+              allowed: true,
+              status: 'active',
+            });
+          }
+        } catch (error) {
+          console.error('[AccessCheck] Test mode check failed:', error);
+          // 에러 시 허용
+          setAccessStatus({
+            allowed: true,
+            status: 'active',
+          });
+        } finally {
+          setIsChecking(false);
+        }
+      };
+
+      checkTestAccess();
       return;
     }
 
@@ -165,37 +205,44 @@ export default function AccessCheckWrapper({ children }: { children: React.React
   // 접근 불가 시 모달 표시 및 재구매 유도 (크루즈 가이드 지니에서만 표시)
   // 크루즈몰 경로에서는 모달을 표시하지 않음
   const isMallPath = MALL_PATHS.some(path => pathname === path || pathname.startsWith(path)) || pathname === '/';
-  
+
+  // 3일 체험 만료 여부 확인
+  const isTrialExpired = accessStatus?.reason === 'trial_expired';
+
   return (
     <>
       {children}
       {showModal && !isMallPath && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 border-red-200">
+          <div className={`bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 ${isTrialExpired ? 'border-orange-200' : 'border-red-200'}`}>
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-3xl">⏰</span>
+              <div className={`w-16 h-16 ${isTrialExpired ? 'bg-orange-100' : 'bg-red-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+                <span className="text-3xl">{isTrialExpired ? '🎁' : '⏰'}</span>
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                여행이 종료되었습니다
+                {isTrialExpired ? '3일 무료체험이 종료되었습니다' : '여행이 종료되었습니다'}
               </h2>
               <p className="text-gray-600">
-                {accessStatus?.message || '여행 종료 후 사용 기간이 만료되었습니다.'}
+                {accessStatus?.message || (isTrialExpired
+                  ? '3일 체험 기간이 만료되었습니다.'
+                  : '여행 종료 후 사용 기간이 만료되었습니다.')}
               </p>
             </div>
 
-            <div className="bg-blue-50 rounded-lg p-4 mb-6">
+            <div className={`${isTrialExpired ? 'bg-orange-50' : 'bg-blue-50'} rounded-lg p-4 mb-6`}>
               <p className="text-sm text-gray-700 text-center">
-                새로운 여행을 등록하시면 지니를 다시 만나실 수 있습니다!
+                {isTrialExpired
+                  ? '크루즈 여행을 구매하시면 지니의 모든 기능을 이용하실 수 있습니다!'
+                  : '새로운 여행을 등록하시면 지니를 다시 만나실 수 있습니다!'}
               </p>
             </div>
 
             <div className="space-y-3">
               <Link
                 href="/products"
-                className="block w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-center"
+                className={`block w-full px-6 py-3 ${isTrialExpired ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg font-semibold text-center`}
               >
-                다음 여행 등록하기
+                {isTrialExpired ? '크루즈 여행 둘러보기' : '다음 여행 등록하기'}
               </Link>
               <button
                 onClick={() => {

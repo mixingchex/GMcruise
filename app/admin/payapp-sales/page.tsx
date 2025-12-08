@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { FiTrash2, FiAlertCircle } from 'react-icons/fi';
 
 interface Payment {
   id: number;
@@ -59,6 +60,10 @@ export default function PayAppSalesPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
+
+  // 선택 삭제용
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 환불 모달
   const [refundModal, setRefundModal] = useState<{
@@ -175,6 +180,97 @@ export default function PayAppSalesPage() {
     return options;
   };
 
+  // 선택 전체 토글
+  const toggleSelectAll = () => {
+    if (selectedIds.length === payments.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(payments.map((p) => p.id));
+    }
+  };
+
+  // 개별 선택 토글
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  // 선택 삭제
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) {
+      alert('삭제할 항목을 선택해주세요.');
+      return;
+    }
+
+    if (!confirm(`선택한 ${selectedIds.length}건을 삭제하시겠습니까?\n\n⚠️ 삭제된 데이터는 복구할 수 없습니다.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch('/api/admin/payapp-sales', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        alert(`${data.deletedCount}건이 삭제되었습니다.`);
+        setSelectedIds([]);
+        fetchData();
+      } else {
+        alert(data.error || '삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // 전체 삭제 (현재 필터 기준)
+  const handleDeleteAll = async () => {
+    if (!confirm(`현재 조회된 전체 ${totalCount}건을 삭제하시겠습니까?\n\n⚠️ 주의: 현재 필터 조건에 해당하는 모든 데이터가 삭제됩니다.\n삭제된 데이터는 복구할 수 없습니다.`)) {
+      return;
+    }
+
+    // 2차 확인
+    const confirmText = prompt('삭제를 확인하려면 "전체삭제"를 입력하세요:');
+    if (confirmText !== '전체삭제') {
+      alert('삭제가 취소되었습니다.');
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const params = new URLSearchParams({
+        deleteAll: 'true',
+        status: statusFilter,
+      });
+      if (searchQuery) params.append('search', searchQuery);
+      if (selectedMonth) params.append('month', selectedMonth);
+
+      const res = await fetch(`/api/admin/payapp-sales?${params}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+
+      if (data.ok) {
+        alert(`${data.deletedCount}건이 삭제되었습니다.`);
+        setSelectedIds([]);
+        fetchData();
+      } else {
+        alert(data.error || '삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 헤더 */}
@@ -261,6 +357,7 @@ export default function PayAppSalesPage() {
               onChange={(e) => {
                 setStatusFilter(e.target.value);
                 setPage(1);
+                setSelectedIds([]);
               }}
               className="border rounded-lg px-3 py-2 text-sm"
             >
@@ -279,6 +376,7 @@ export default function PayAppSalesPage() {
               onChange={(e) => {
                 setSelectedMonth(e.target.value);
                 setPage(1);
+                setSelectedIds([]);
               }}
               className="border rounded-lg px-3 py-2 text-sm"
             >
@@ -305,11 +403,43 @@ export default function PayAppSalesPage() {
             <button
               onClick={() => {
                 setPage(1);
+                setSelectedIds([]);
                 fetchData();
               }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
             >
               검색
+            </button>
+          </div>
+        </div>
+
+        {/* 선택/삭제 버튼 */}
+        <div className="flex items-center gap-3 mt-4 pt-4 border-t">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600">
+              {selectedIds.length > 0 ? (
+                <span className="font-medium text-blue-600">{selectedIds.length}건 선택됨</span>
+              ) : (
+                `전체 ${totalCount}건`
+              )}
+            </span>
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={handleDeleteSelected}
+              disabled={selectedIds.length === 0 || isDeleting}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiTrash2 size={14} />
+              선택 삭제
+            </button>
+            <button
+              onClick={handleDeleteAll}
+              disabled={totalCount === 0 || isDeleting}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FiAlertCircle size={14} />
+              전체 삭제
             </button>
           </div>
         </div>
@@ -326,6 +456,14 @@ export default function PayAppSalesPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="py-3 px-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.length === payments.length && payments.length > 0}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-gray-300"
+                    />
+                  </th>
                   <th className="text-left py-3 px-4">결제일시</th>
                   <th className="text-left py-3 px-4">고객정보</th>
                   <th className="text-left py-3 px-4">상품명</th>
@@ -338,7 +476,18 @@ export default function PayAppSalesPage() {
               </thead>
               <tbody>
                 {payments.map((p) => (
-                  <tr key={p.id} className="border-t hover:bg-gray-50">
+                  <tr
+                    key={p.id}
+                    className={`border-t hover:bg-gray-50 ${selectedIds.includes(p.id) ? 'bg-blue-50' : ''}`}
+                  >
+                    <td className="py-3 px-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(p.id)}
+                        onChange={() => toggleSelect(p.id)}
+                        className="w-4 h-4 rounded border-gray-300"
+                      />
+                    </td>
                     <td className="py-3 px-4">
                       <div className="text-gray-900">
                         {new Date(p.paidAt || p.createdAt).toLocaleDateString('ko-KR')}
@@ -389,7 +538,7 @@ export default function PayAppSalesPage() {
                               loading: false,
                             })
                           }
-                          className="text-red-600 hover:text-red-800 text-xs font-medium"
+                          className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-medium rounded border border-red-200"
                         >
                           환불
                         </button>
