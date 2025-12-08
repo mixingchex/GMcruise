@@ -1,9 +1,15 @@
 import type { ChatMessage } from '@/lib/chat-types';
 import { searchPhotos, getSubfolders } from '@/lib/photos-search';
+import { searchImagesFromDB, getSubfoldersFromDB } from '@/lib/image-cache-sync';
+import prisma from '@/lib/prisma';
 
 export async function handleShowPhotos(text: string): Promise<ChatMessage[]> {
-  // 크루즈 사진 검색
-  const result = await searchPhotos(text);
+  // DB 캐시에서 이미지 검색 (더 빠름)
+  // DB에 데이터가 없으면 기존 방식(로컬 파일/manifest) 사용
+  const useDbCache = await prisma.imageCache.count() > 0;
+  const result = useDbCache
+    ? await searchImagesFromDB(text)
+    : await searchPhotos(text);
 
   // 크루즈 사진이 없어도 구글 이미지 검색 결과를 표시
   if (!result.items || result.items.length === 0) {
@@ -24,8 +30,10 @@ export async function handleShowPhotos(text: string): Promise<ChatMessage[]> {
     }];
   }
 
-  // 하위 폴더 검색 (크루즈 선박명 등)
-  const subfolders = await getSubfolders(text);
+  // 하위 폴더 검색 (크루즈 선박명 등) - DB에 데이터 있으면 DB 사용
+  const subfolders = useDbCache
+    ? await getSubfoldersFromDB(text)
+    : await getSubfolders(text);
   console.log('[handleShowPhotos] Subfolders found:', {
     query: text,
     subfoldersCount: subfolders.length,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { syncContracts, syncDocuments, syncAllActiveTripsApis, syncLeads, syncSales, syncSettlements } from '@/lib/drive-sync';
 import { processApisSyncQueue } from '@/lib/apis-sync-queue';
+import { syncImageCache } from '@/lib/image-cache-sync';
 import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 
@@ -39,6 +40,10 @@ export async function GET(req: NextRequest) {
         // APIS Queue Processing (Priority)
         await processApisSyncQueue(10); // Process up to 10 tasks per cron run
 
+        // 이미지 캐시 동기화 (구글 드라이브 크루즈정보사진 → DB)
+        const imageSyncResult = await syncImageCache();
+        logger.log('[Cron] Image Cache Sync Result:', imageSyncResult);
+
         await Promise.all([
             syncContracts({ cleanup: true, retentionDays }),
             syncDocuments({ cleanup: true, retentionDays }),
@@ -56,7 +61,8 @@ export async function GET(req: NextRequest) {
             settings: {
                 enabled: backupEnabled,
                 retentionDays
-            }
+            },
+            imageSync: imageSyncResult
         });
 
     } catch (error: any) {

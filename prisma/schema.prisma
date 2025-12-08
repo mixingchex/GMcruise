@@ -2588,3 +2588,29 @@ model VisitedCountry {
   @@unique([userId, countryCode])
   @@index([userId])
 }
+
+// ============================================================================
+// 크루즈 사진 캐시 (구글 드라이브 → DB 동기화)
+// 매일 cron으로 구글 드라이브 [크루즈정보사진] 폴더를 스캔하여 DB에 저장
+// 검색 시 DB에서 빠르게 조회
+// ============================================================================
+model ImageCache {
+  id           Int      @id @default(autoincrement())
+  driveFileId  String   @unique // 구글 드라이브 파일 ID
+  path         String   // 파일 경로 (예: /크루즈정보사진/MSC벨리시마/...)
+  fileName     String   // 파일명
+  folder       String   // 폴더 경로
+  title        String   // 검색용 제목 (파일명에서 확장자 제거)
+  tags         String[] // 검색용 태그
+  mimeType     String?  // MIME 타입
+  fileSize     Int?     // 파일 크기 (bytes)
+  driveUrl     String?  // 구글 드라이브 직접 URL
+  thumbnailUrl String?  // 썸네일 URL
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  syncedAt     DateTime @default(now()) // 마지막 동기화 시간
+
+  @@index([folder])
+  @@index([title])
+  @@index([syncedAt])
+}

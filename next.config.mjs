@@ -137,8 +137,8 @@ const nextConfig = {
         'public/uploads/**',
         'public/contracts/pdfs/**',
         'public/payment-pages/**',
-        // 큰 데이터 파일
-        'data/image_manifest.json',
+        // 큰 데이터 파일 - image_manifest.json은 사진 검색에 필요하므로 포함
+        // 'data/image_manifest.json', // ✅ 사진 검색 기능에 필수 - 배포에 포함
         // 문서 및 스크립트
         'scripts/**',
         '**/*.md',
