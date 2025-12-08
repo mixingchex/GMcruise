@@ -4,14 +4,16 @@
 import prisma from '@/lib/prisma';
 import { sendNotificationToUser } from '@/lib/push/server';
 
-export type NotificationType = 
+export type NotificationType =
   | 'CONTRACT_TERMINATED'
   | 'CONTRACT_RENEWAL_APPROVED'
   | 'CONTRACT_RENEWAL_REJECTED'
   | 'DB_RECOVERY_FAILED'
   | 'DB_RECOVERY_SUCCESS'
   | 'COMMISSION_CALCULATION_FAILED'
-  | 'COMMISSION_CALCULATION_SUCCESS';
+  | 'COMMISSION_CALCULATION_SUCCESS'
+  | 'COMMISSION_TIER_MISSING'
+  | 'APIS_SYNC_FAILED';
 
 export interface AdminNotificationPayload {
   type: NotificationType;
@@ -242,6 +244,51 @@ export async function notifyCommissionCalculationSuccess(
       priority: 'low',
     });
   }
+}
+
+/**
+ * CommissionTier 누락 알림
+ * 상품/객실 타입에 대한 수당 설정이 없을 때 관리자에게 알림
+ */
+export async function notifyCommissionTierMissing(
+  productCode: string,
+  cabinType: string,
+  affiliateProductId: number | null,
+  fareCategory?: string | null
+): Promise<void> {
+  await notifyAdmin({
+    type: 'COMMISSION_TIER_MISSING',
+    title: '⚠️ 수당 티어 설정 누락',
+    message: `상품 "${productCode}"의 객실 타입 "${cabinType}"에 대한 수당 설정이 없습니다. 수당이 0원으로 처리됩니다.`,
+    details: {
+      productCode,
+      cabinType,
+      affiliateProductId,
+      fareCategory,
+    },
+    priority: 'high',
+  });
+}
+
+/**
+ * APIS 동기화 실패 알림
+ */
+export async function notifyApisSyncFailed(
+  tripId: number,
+  error: string,
+  retryCount: number
+): Promise<void> {
+  await notifyAdmin({
+    type: 'APIS_SYNC_FAILED',
+    title: '🚨 APIS 동기화 실패',
+    message: `Trip ID ${tripId}의 APIS 스프레드시트 동기화가 실패했습니다. (재시도: ${retryCount}회)`,
+    details: {
+      tripId,
+      error,
+      retryCount,
+    },
+    priority: retryCount >= 3 ? 'critical' : 'high',
+  });
 }
 
 

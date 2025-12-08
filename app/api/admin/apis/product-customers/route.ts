@@ -47,15 +47,25 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 상품별 구매 고객 조회 (UserTrip 기준)
-    const userTrips = await prisma.userTrip.findMany({
+    // 해당 상품의 Trip 조회
+    const trip = await prisma.trip.findUnique({
+      where: { productCode },
+      select: { id: true },
+    });
+
+    if (!trip) {
+      return NextResponse.json({
+        ok: true,
+        customers: [],
+        total: 0,
+        message: '해당 상품의 Trip이 없습니다.',
+      });
+    }
+
+    // 상품별 구매 고객 조회 (Reservation 기준 - 실제 결제 완료된 고객)
+    const reservations = await prisma.reservation.findMany({
       where: {
-        CruiseProduct: {
-          productCode: productCode,
-        },
-        status: {
-          in: ['Upcoming', 'InProgress'],
-        },
+        tripId: trip.id,
       },
       include: {
         User: {
@@ -66,12 +76,22 @@ export async function GET(req: NextRequest) {
             email: true,
           },
         },
-        CruiseProduct: {
+        Trip: {
           select: {
+            id: true,
+            departureDate: true,
             productCode: true,
-            cruiseLine: true,
             shipName: true,
-            packageName: true,
+          },
+        },
+        Traveler: {
+          select: {
+            id: true,
+            korName: true,
+            engSurname: true,
+            engGivenName: true,
+            passportNo: true,
+            passportImage: true,
           },
         },
       },
@@ -80,17 +100,49 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const customers = userTrips.map((trip) => ({
-      userId: trip.User.id,
-      name: trip.User.name,
-      phone: trip.User.phone,
-      email: trip.User.email,
-      tripId: trip.id,
-      productCode: trip.CruiseProduct?.productCode,
-      cruiseName: trip.cruiseName,
-      startDate: trip.startDate,
-      endDate: trip.endDate,
-      status: trip.status,
+    // productCode로 CruiseProduct 조회 (상품 정보 가져오기)
+    const cruiseProduct = await prisma.cruiseProduct.findUnique({
+      where: { productCode },
+      select: {
+        productCode: true,
+        cruiseLine: true,
+        shipName: true,
+        packageName: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+
+    const customers = reservations.map((reservation) => ({
+      userId: reservation.User.id,
+      name: reservation.User.name,
+      phone: reservation.User.phone,
+      email: reservation.User.email,
+      reservationId: reservation.id,
+      tripId: reservation.tripId,
+      productCode: productCode,
+      cruiseLine: cruiseProduct?.cruiseLine,
+      shipName: cruiseProduct?.shipName || reservation.Trip?.shipName,
+      packageName: cruiseProduct?.packageName,
+      startDate: cruiseProduct?.startDate,
+      endDate: cruiseProduct?.endDate,
+      // 예약 정보
+      totalPeople: reservation.totalPeople,
+      cabinType: reservation.cabinType,
+      pnrStatus: reservation.pnrStatus,
+      createdAt: reservation.createdAt,
+      // 여행자 수
+      travelerCount: reservation.Traveler.length,
+      // 여권 입력 완료 여부
+      passportCompleted: reservation.Traveler.every(t => t.passportNo),
+      // 여행자 목록 요약
+      travelers: reservation.Traveler.map(t => ({
+        id: t.id,
+        korName: t.korName,
+        engName: `${t.engSurname} ${t.engGivenName}`.trim(),
+        hasPassport: !!t.passportNo,
+        passportImage: t.passportImage,
+      })),
     }));
 
     return NextResponse.json({

@@ -315,19 +315,6 @@ export default function NewLandingPagePage() {
       return quillInstanceRef.current;
     }
 
-    // 2. ReactQuill 컴포넌트 ref 확인
-    if (reactQuillComponentRef.current) {
-      try {
-        const quill = reactQuillComponentRef.current.getEditor();
-        if (quill) {
-          quillInstanceRef.current = quill;
-          return quill;
-        }
-      } catch (e) {
-        // 무시
-      }
-    }
-
     // 3. DOM에서 직접 검색 (가장 확실한 방법)
     const container = document.getElementById('quill-editor-container');
     if (container) {

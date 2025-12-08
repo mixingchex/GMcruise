@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { generateLedgerEntries, calculateCommissionBreakdown } from '@/lib/affiliate/commission';
+import { notifyCommissionTierMissing } from '@/lib/affiliate/admin-notifications';
 
 /**
  * POST: 결제 완료 웹훅
@@ -56,6 +57,22 @@ export async function POST(req: NextRequest) {
 
     if (!imp_uid || !merchant_uid || !amount || !productCode) {
       return NextResponse.json({ ok: false, message: '필수 정보가 누락되었습니다.' }, { status: 400 });
+    }
+
+    // 🔒 중복 호출 방지: 이미 처리된 주문인지 확인
+    const existingSale = await prisma.affiliateSale.findFirst({
+      where: { externalOrderCode: merchant_uid },
+      select: { id: true, createdAt: true },
+    });
+
+    if (existingSale) {
+      console.log(`[Payment Webhook] ⚠️ 이미 처리된 주문입니다: ${merchant_uid} (saleId: ${existingSale.id})`);
+      return NextResponse.json({
+        ok: true,
+        message: '이미 처리된 주문입니다.',
+        saleId: existingSale.id,
+        duplicate: true,
+      });
     }
 
     // [v11.0] 어필리에이트 코드 추적 - 우선순위: 직접전달 > 쿠키 > metadata
@@ -220,6 +237,18 @@ export async function POST(req: NextRequest) {
           cabinType: determinedCabinType,
           fareCategory,
         });
+
+        // 🚨 어필리에이트 판매인 경우에만 관리자 알림 (수당이 0원으로 처리됨)
+        if (affiliateProductId && (managerId || agentId)) {
+          notifyCommissionTierMissing(
+            productCode,
+            determinedCabinType || 'unknown',
+            affiliateProductId,
+            fareCategory
+          ).catch((err) => {
+            console.error('[Payment Webhook] 알림 전송 실패:', err);
+          });
+        }
       }
     }
 
@@ -585,13 +614,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Google 스프레드시트 백업 및 자동화 + 구매확인서 발송 (비동기 실행)
-    // 담당자가 있는 경우에만 실행
-    if (managerId || agentId) {
-      // Google 스프레드시트 백업 및 자동화 (비동기 실행)
-      // 1. 기존 구매고객관리 시트 백업
-      // 2. Drive 폴더 생성 및 APIS 시트 생성
-      // 3. 구매확인서 PNG 생성 및 발송
-      (async () => {
+    // 파트너 유무와 관계없이 항상 실행 (본사 직접 판매 포함)
+    // 1. 기존 구매고객관리 시트 백업
+    // 2. Drive 폴더 생성 및 APIS 시트 생성
+    // 3. 구매확인서 PNG 생성 및 발송
+    (async () => {
         try {
           // 동적 import로 순환 참조 방지 및 성능 최적화
           const { sendToGoogleSheet } = await import('@/lib/google-sheets');
@@ -718,7 +745,52 @@ export async function POST(req: NextRequest) {
 
           // 3. 구매확인서 PNG 생성 및 발송
           try {
-            // PNG 생성
+            // 상품 상세 정보 조회 (구매확인서에 포함)
+            let productDetails = undefined;
+            if (productCode) {
+              const productInfo = await prisma.cruiseProduct.findUnique({
+                where: { productCode },
+                select: {
+                  tags: true,
+                  visitedCountries: true,
+                  destinations: true,
+                  nights: true,
+                  days: true,
+                  cruiseLine: true,
+                  shipName: true,
+                  included: true,
+                  excluded: true,
+                  refundPolicy: true,
+                  hasGuide: true,
+                  hasEscort: true,
+                  hasCruiseDotStaff: true,
+                  hasTravelInsurance: true,
+                  flightInfo: true,
+                }
+              });
+
+              if (productInfo) {
+                productDetails = {
+                  tags: productInfo.tags || [],
+                  visitedCountries: productInfo.visitedCountries || [],
+                  destinations: productInfo.destinations || [],
+                  nights: productInfo.nights || undefined,
+                  days: productInfo.days || undefined,
+                  cruiseLine: productInfo.cruiseLine || undefined,
+                  shipName: productInfo.shipName || undefined,
+                  included: productInfo.included || [],
+                  excluded: productInfo.excluded || [],
+                  refundPolicy: productInfo.refundPolicy || undefined,
+                  hasGuide: productInfo.hasGuide || false,
+                  hasEscort: productInfo.hasEscort || false,
+                  hasCruiseDotStaff: productInfo.hasCruiseDotStaff || false,
+                  hasTravelInsurance: productInfo.hasTravelInsurance || false,
+                  flightIncluded: (productInfo.flightInfo as any)?.included || false,
+                };
+              }
+            }
+
+            // PNG 생성 (관리자 패널과 동일한 양식)
             const pngBuffer = await generateCertificatePng({
               customerName: customerName || '고객',
               birthDate: '', // 생년월일은 결제 시점에 모를 수 있음 (빈칸)
@@ -726,7 +798,8 @@ export async function POST(req: NextRequest) {
               paymentAmount: amount,
               paymentDate: isoDate,
               orderId: merchant_uid,
-              managerName
+              managerName,
+              productDetails,
             });
 
             // Drive에 PNG 업로드 (비동기, 실패해도 진행)
@@ -767,24 +840,19 @@ export async function POST(req: NextRequest) {
               });
             }
 
-            // 이메일 발송 (PNG 첨부)
-            if (managerId || agentId) {
-              await sendPurchaseConfirmation(sale.id, pngBuffer);
-              console.log('[Automation] Purchase Confirmation with PNG sent');
-            }
+            // 이메일 발송 (PNG 첨부) - 파트너 유무와 관계없이 항상 발송
+            await sendPurchaseConfirmation(sale.id, pngBuffer);
+            console.log('[Automation] Purchase Confirmation with PNG sent');
           } catch (certError) {
             console.error('[Automation] Certificate Generation/Send Error:', certError);
-            // PNG 생성 실패시 기존 텍스트 이메일이라도 보내도록 fallback (sendPurchaseConfirmation 내부에서 처리)
-            if (managerId || agentId) {
-              await sendPurchaseConfirmation(sale.id);
-            }
+            // PNG 생성 실패시 기존 텍스트 이메일이라도 보내도록 fallback
+            await sendPurchaseConfirmation(sale.id);
           }
 
         } catch (error) {
           console.error('[Automation] Async Task Error:', error);
         }
       })();
-    }
 
     // [v11.0] 응답에 실적 저장 결과 포함
     return NextResponse.json({

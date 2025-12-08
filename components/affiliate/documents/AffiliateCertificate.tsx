@@ -167,7 +167,8 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
     loadProducts();
   }, []);
 
-  // 고객 검색 (판매원의 고객만)
+  // 고객 검색 (판매원의 고객만) - 인증서 유형에 따라 필터링
+  // purchase: 구매완료 고객만, refund: 환불완료 고객만
   const searchCustomers = useCallback(async (query: string) => {
     if (!query || query.trim().length < 1) {
       setCustomerSuggestions([]);
@@ -177,9 +178,9 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
 
     try {
       setIsLoadingCustomerInfo(true);
-      // 판매원의 고객만 검색하는 API 사용 (또는 전달받은 API)
+      // 판매원의 고객만 검색하는 API 사용 (또는 전달받은 API) - certificateType 파라미터 추가
       const apiUrl = searchApiUrl || '/api/affiliate/customers/search';
-      const response = await fetch(`${apiUrl}?q=${encodeURIComponent(query)}&limit=10&hasPurchase=true`, {
+      const response = await fetch(`${apiUrl}?q=${encodeURIComponent(query)}&limit=10&certificateType=${type}`, {
         credentials: 'include',
       });
 
@@ -187,7 +188,7 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
         const result = await response.json();
         if (result.ok) {
           setCustomerSuggestions(result.customers || []);
-          console.log('[AffiliateCertificate] 검색 결과:', result.customers?.length || 0, '명');
+          console.log('[AffiliateCertificate] 검색 결과:', result.customers?.length || 0, '명 (', type, ')');
         } else {
           // 고객이 없으면 샘플 고객 생성 제안
           if (result.error && result.error.includes('고객')) {
@@ -200,7 +201,7 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
     } finally {
       setIsLoadingCustomerInfo(false);
     }
-  }, []);
+  }, [type, searchApiUrl]);
 
   // 고객 검색 입력 핸들러
   const handleCustomerSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -223,7 +224,7 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
     }
   };
 
-  // 고객 정보 로드
+  // 고객 정보 로드 (구매/환불 정보 자동 입력)
   const loadCustomerInfo = useCallback(async (customerId: number) => {
     setIsLoadingCustomerInfo(true);
     try {
@@ -277,6 +278,31 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
               hasTravelInsurance: product.hasTravelInsurance || false,
             });
           }
+
+          // 환불 정보 자동 설정 (환불인증서인 경우)
+          if (type === 'refund' && result.refund) {
+            const refundAmount = result.refund.amount || result.payment?.amount || 0;
+            const refundDate = result.refund.date
+              ? new Date(result.refund.date).toISOString().split('T')[0]
+              : '';
+
+            setData(prev => ({
+              ...prev,
+              refundAmount: refundAmount,
+              refundDate: refundDate,
+            }));
+
+            // 환불 정보 확인 상태로 자동 설정
+            setConfirmedRefundAmount(refundAmount);
+            setConfirmedRefundDate(refundDate);
+          }
+
+          // 구매/환불 고객 선택 시 바로 발송 가능 (승인요청 불필요)
+          if (result.customer.customerStatus === 'purchase_confirmed' && type === 'purchase') {
+            setApprovalRequest({ id: 0, status: 'approved' });
+          } else if (result.customer.customerStatus === 'refunded' && type === 'refund') {
+            setApprovalRequest({ id: 0, status: 'approved' });
+          }
         }
       }
     } catch (error) {
@@ -285,7 +311,7 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
     } finally {
       setIsLoadingCustomerInfo(false);
     }
-  }, []);
+  }, [type]);
 
   // 고객 선택
   const handleCustomerSelect = async (customer: Customer) => {
@@ -571,16 +597,15 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
 
   // 권한별 버튼 렌더링
   const renderActionButton = () => {
-    // 승인 완료된 경우
+    // 구매완료/환불완료 고객이 선택된 경우 (승인 자동 완료)
     if (approvalRequest?.status === 'approved') {
       return (
         <div className="space-y-4">
-          <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <CheckCircle className="w-5 h-5 text-green-600" />
+          <div className={`flex items-center gap-2 p-4 rounded-lg ${type === 'purchase' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+            <CheckCircle className={`w-5 h-5 ${type === 'purchase' ? 'text-green-600' : 'text-red-600'}`} />
             <div className="flex-1">
-              <p className="font-semibold text-green-900">승인 완료</p>
-              <p className="text-sm text-green-700">
-                {approvalRequest.approvedAt && new Date(approvalRequest.approvedAt).toLocaleString('ko-KR')}
+              <p className={`font-semibold ${type === 'purchase' ? 'text-green-900' : 'text-red-900'}`}>
+                {type === 'purchase' ? '✓ 구매완료 고객 - 인증서 발송 가능' : '✓ 환불완료 고객 - 인증서 발송 가능'}
               </p>
             </div>
           </div>
@@ -608,81 +633,69 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
       );
     }
 
-    // 승인 대기 중인 경우
-    if (approvalRequest?.status === 'pending') {
+    // 고객 선택 대기 중
+    if (!selectedCustomerId) {
       return (
-        <div className="flex items-center gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <Clock className="w-5 h-5 text-yellow-600" />
+        <div className="flex items-center gap-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <Clock className="w-5 h-5 text-gray-500" />
           <div className="flex-1">
-            <p className="font-semibold text-yellow-900">승인 대기 중</p>
-            <p className="text-sm text-yellow-700">
-              대리점장 또는 본사의 승인을 기다리고 있습니다.
+            <p className="font-semibold text-gray-700">{type === 'purchase' ? '구매완료 고객을 선택하세요' : '환불완료 고객을 선택하세요'}</p>
+            <p className="text-sm text-gray-500">
+              고객을 선택하면 자동으로 인증서 발송이 가능합니다.
             </p>
           </div>
         </div>
       );
     }
 
-    // 승인 거부된 경우
-    if (approvalRequest?.status === 'rejected') {
-      return (
-        <div className="space-y-4">
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <XCircle className="w-5 h-5 text-red-600" />
-              <p className="font-semibold text-red-900">승인 거부됨</p>
-            </div>
-            {approvalRequest.rejectedReason && (
-              <p className="text-sm text-red-700">사유: {approvalRequest.rejectedReason}</p>
-            )}
-          </div>
-          <button
-            onClick={handleRequestApproval}
-            disabled={isRequesting}
-            className="w-full py-3 px-6 rounded-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center gap-2"
-          >
-            <Send className="w-5 h-5" />
-            {isRequesting ? '요청 중...' : '다시 승인 요청'}
-          </button>
-        </div>
-      );
-    }
-
-    // 승인 요청 전
+    // 고객 정보 로딩 중 (선택은 되었지만 아직 인증 상태가 확인되지 않은 경우)
     return (
-      <button
-        onClick={handleRequestApproval}
-        disabled={isRequesting || !data.customerName || !selectedCustomerId}
-        className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors flex items-center justify-center gap-2 ${type === 'purchase'
-          ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
-          : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
-          }`}
-      >
-        <Send className="w-5 h-5" />
-        {isRequesting
-          ? '요청 중...'
-          : type === 'purchase'
-            ? '구매확인 승인 요청'
-            : '환불인증 승인 요청'}
-      </button>
+      <div className="flex items-center gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <Clock className="w-5 h-5 text-yellow-600 animate-spin" />
+        <div className="flex-1">
+          <p className="font-semibold text-yellow-900">고객 정보 확인 중...</p>
+          <p className="text-sm text-yellow-700">
+            잠시만 기다려주세요.
+          </p>
+        </div>
+      </div>
     );
   };
 
   return (
     <div className="space-y-6">
-      {/* 권한 안내 */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">📋 권한 안내</h3>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• 비교견적서: 자유롭게 사용 가능</li>
-          <li>• 구매확인증서: 대리점장/본사 승인 필요 → 승인 후 다운로드</li>
-          <li>• 환불인증서: 대리점장/본사 승인 필요 → 승인 후 다운로드</li>
+      {/* 사용 안내 */}
+      <div className={`border rounded-lg p-4 ${type === 'purchase' ? 'bg-indigo-50 border-indigo-200' : 'bg-red-50 border-red-200'}`}>
+        <h3 className={`font-semibold mb-2 ${type === 'purchase' ? 'text-indigo-900' : 'text-red-900'}`}>📋 사용 안내</h3>
+        <ul className={`text-sm space-y-1 ${type === 'purchase' ? 'text-indigo-800' : 'text-red-800'}`}>
+          {type === 'purchase' ? (
+            <>
+              <li>• 구매완료 상태의 고객만 검색됩니다</li>
+              <li>• 고객 선택 시 정보가 자동으로 입력됩니다</li>
+              <li>• PNG 다운로드 또는 이메일로 직접 발송 가능합니다</li>
+            </>
+          ) : (
+            <>
+              <li>• 환불완료 상태의 고객만 검색됩니다</li>
+              <li>• 고객 선택 시 환불 정보가 자동으로 입력됩니다</li>
+              <li>• PNG 다운로드 또는 이메일로 직접 발송 가능합니다</li>
+            </>
+          )}
         </ul>
       </div>
 
       {/* 입력 폼 */}
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">고객 정보 입력</h2>
+
+        {/* 인증서 유형에 따른 안내 메시지 */}
+        <div className={`mb-4 p-3 rounded-lg border ${type === 'purchase' ? 'bg-indigo-50 border-indigo-200' : 'bg-red-50 border-red-200'}`}>
+          <p className={`text-sm font-medium ${type === 'purchase' ? 'text-indigo-700' : 'text-red-700'}`}>
+            {type === 'purchase'
+              ? '구매확인증서는 "구매완료" 상태의 고객만 검색됩니다. 이름, 연락처로 검색하세요.'
+              : '환불인증서는 "환불완료" 상태의 고객만 검색됩니다. 이름, 연락처로 검색하세요.'}
+          </p>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           <div className="relative">
@@ -703,7 +716,7 @@ export default function AffiliateCertificate({ type, searchApiUrl }: AffiliateCe
                     setShowSuggestions(true);
                   }
                 }}
-                placeholder="고객명, 전화번호, 이메일로 검색..."
+                placeholder={type === 'purchase' ? '구매완료 고객 검색 (이름, 연락처)...' : '환불완료 고객 검색 (이름, 연락처)...'}
                 className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 pr-24"
               />
               {isLoadingCustomerInfo && (

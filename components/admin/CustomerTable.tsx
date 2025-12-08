@@ -33,6 +33,23 @@ type AffiliateOwnership = {
   leadCreatedAt?: string | null;
 };
 
+// 결제 정보 타입
+type PaymentInfo = {
+  id: number;
+  orderId: string;
+  amount: number;
+  status: string;
+  buyerName: string;
+  buyerTel: string;
+  productName: string | null;
+  pgTransactionId: string | null;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  canRefund: boolean;
+  saleStatus: string;
+  saleAmount: number;
+};
+
 // CustomerTable에서 사용하는 확장 Customer 타입
 interface AdminCustomer extends Omit<Customer, 'customerType' | 'affiliateOwnership'> {
   email?: string | null;
@@ -79,6 +96,7 @@ interface AdminCustomer extends Omit<Customer, 'customerType' | 'affiliateOwners
   } | null;
   metadata?: any;
   updatedAt?: string;
+  paymentInfo?: PaymentInfo | null; // 결제 정보 추가
 }
 
 interface Props {
@@ -103,6 +121,62 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
   const [selectedCustomerForDetail, setSelectedCustomerForDetail] = useState<number | null>(null);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [selectedCustomerForNote, setSelectedCustomerForNote] = useState<{ id: number; name: string | null } | null>(null);
+
+  // 환불 관련 상태
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
+  const [selectedCustomerForRefund, setSelectedCustomerForRefund] = useState<AdminCustomer | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [isRefunding, setIsRefunding] = useState(false);
+
+  // 환불 처리 핸들러
+  const handleRefund = async () => {
+    if (!selectedCustomerForRefund?.paymentInfo) return;
+
+    if (!confirm(`정말 ${selectedCustomerForRefund.name || '고객'}님의 결제(${selectedCustomerForRefund.paymentInfo.amount.toLocaleString()}원)를 환불하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    setIsRefunding(true);
+    try {
+      const response = await fetch('/api/admin/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          paymentId: selectedCustomerForRefund.paymentInfo.id,
+          reason: refundReason || '관리자 환불 처리',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.ok) {
+        alert(`✅ 환불이 완료되었습니다. (${selectedCustomerForRefund.paymentInfo.amount.toLocaleString()}원)`);
+        setRefundModalOpen(false);
+        setSelectedCustomerForRefund(null);
+        setRefundReason('');
+        if (onRefresh) {
+          await onRefresh();
+        } else {
+          window.location.reload();
+        }
+      } else {
+        alert(`❌ 환불 실패: ${data.error || '알 수 없는 오류'}`);
+      }
+    } catch (error) {
+      console.error('[CustomerTable] Refund error:', error);
+      alert('❌ 환불 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
+  // 환불 버튼 클릭 핸들러
+  const handleOpenRefundModal = (customer: AdminCustomer) => {
+    setSelectedCustomerForRefund(customer);
+    setRefundReason('');
+    setRefundModalOpen(true);
+  };
 
   // 소유권 딱지 렌더링 함수 (고객 이름 옆에 표시)
   const renderOwnershipBadge = (customer: AdminCustomer) => {
@@ -1041,6 +1115,22 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                     {!customer.customerStatus || (customer.customerStatus !== 'purchase_confirmed' && customer.customerStatus !== 'refunded') ? (
                       <span className="text-gray-400 text-sm">-</span>
                     ) : null}
+
+                    {/* 환불 버튼 - 결제 완료 상태이고 아직 환불되지 않은 경우에만 표시 */}
+                    {customer.paymentInfo?.canRefund && customer.customerStatus !== 'refunded' && (
+                      <button
+                        onClick={() => handleOpenRefundModal(customer)}
+                        className="mt-1 px-2.5 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-xs font-medium transition-colors w-fit"
+                      >
+                        환불
+                      </button>
+                    )}
+                    {/* 이미 환불된 경우 표시 */}
+                    {customer.paymentInfo && !customer.paymentInfo.canRefund && customer.paymentInfo.cancelledAt && (
+                      <span className="text-xs text-gray-500 mt-1">
+                        환불완료: {new Date(customer.paymentInfo.cancelledAt).toLocaleDateString('ko-KR')}
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-6 py-4">
@@ -1103,6 +1193,126 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
             setSelectedCustomerForDetail(null);
           }}
         />
+      )}
+
+      {/* 환불 모달 */}
+      {refundModalOpen && selectedCustomerForRefund && selectedCustomerForRefund.paymentInfo && (
+        <div
+          className="fixed inset-0 z-[1001] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setRefundModalOpen(false);
+              setSelectedCustomerForRefund(null);
+              setRefundReason('');
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-200 bg-red-50 px-6 py-4 rounded-t-2xl">
+              <h2 className="text-xl font-bold text-red-800">환불 처리</h2>
+              <button
+                onClick={() => {
+                  setRefundModalOpen(false);
+                  setSelectedCustomerForRefund(null);
+                  setRefundReason('');
+                }}
+                className="rounded-full p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+              >
+                <FiX size={24} />
+              </button>
+            </div>
+
+            {/* 내용 */}
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+              <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
+                <h4 className="mb-3 text-lg font-semibold text-red-800">결제 정보</h4>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">고객명</p>
+                    <p className="text-base text-gray-900">{selectedCustomerForRefund.name || selectedCustomerForRefund.paymentInfo.buyerName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">연락처</p>
+                    <p className="text-base text-gray-900">{selectedCustomerForRefund.phone || selectedCustomerForRefund.paymentInfo.buyerTel}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">결제 금액</p>
+                    <p className="text-2xl font-bold text-red-600">{selectedCustomerForRefund.paymentInfo.amount.toLocaleString()}원</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">결제일</p>
+                    <p className="text-base text-gray-900">
+                      {selectedCustomerForRefund.paymentInfo.paidAt
+                        ? new Date(selectedCustomerForRefund.paymentInfo.paidAt).toLocaleDateString('ko-KR')
+                        : '-'}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-medium text-gray-500">상품명</p>
+                    <p className="text-sm text-gray-700">{selectedCustomerForRefund.paymentInfo.productName || '-'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-medium text-gray-500">주문번호</p>
+                    <p className="text-sm text-gray-700 font-mono">{selectedCustomerForRefund.paymentInfo.orderId}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 환불 사유 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  환불 사유 (선택)
+                </label>
+                <textarea
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  className="w-full rounded-lg border-2 border-gray-200 p-3 text-sm focus:border-red-500 focus:outline-none"
+                  rows={3}
+                  placeholder="환불 사유를 입력하세요 (선택사항)"
+                />
+              </div>
+
+              {/* 경고 */}
+              <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-3">
+                <p className="text-sm text-yellow-800 font-medium">
+                  ⚠️ 환불 처리 시 결제가 취소되며, 이 작업은 되돌릴 수 없습니다.
+                </p>
+              </div>
+            </div>
+
+            {/* 버튼 */}
+            <div className="flex justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                onClick={() => {
+                  setRefundModalOpen(false);
+                  setSelectedCustomerForRefund(null);
+                  setRefundReason('');
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRefund}
+                disabled={isRefunding}
+                className="rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {isRefunding ? (
+                  <>
+                    <FiClock className="animate-spin" />
+                    처리 중...
+                  </>
+                ) : (
+                  '환불 처리'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

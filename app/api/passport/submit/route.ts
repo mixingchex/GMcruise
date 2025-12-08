@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { backupPassportDataToUser } from '@/lib/passport-utils';
-import { enqueueApisSync } from '@/lib/apis-sync-queue';
+import { syncApisInBackground } from '@/lib/google-sheets';
 
 /**
  * POST /api/passport/submit
@@ -144,11 +144,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // APIS Sync Queue에 추가 (비동기, 에러 무시)
+    // APIS 스프레드시트 즉시 동기화 (재시도 로직 포함, 비동기)
     if (reservation.tripId) {
-      enqueueApisSync('TRIP_SHEET', reservation.tripId).catch((err) => {
-        console.error(`[Passport Submit] APIS Sync Error:`, err);
-      });
+      syncApisInBackground(reservation.tripId);
     }
 
     return NextResponse.json({

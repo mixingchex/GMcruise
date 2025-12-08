@@ -425,7 +425,13 @@ export default function CustomerPassportPage() {
 
         // 여권 이미지를 구글 드라이브에 백업 (비동기로 처리하여 OCR 응답 속도 향상)
         // 백업은 백그라운드에서 처리되므로 사용자 대기 시간에 영향 없음
-        fetch(`/api/customer/passport-upload?reservationId=${reservationId}`, {
+        // travelerId가 있으면 전달하여 Traveler.passportImage 필드도 업데이트
+        const travelerId = updatedTravelers[travelerIndex].id;
+        const uploadUrl = travelerId
+          ? `/api/customer/passport-upload?reservationId=${reservationId}&travelerId=${travelerId}`
+          : `/api/customer/passport-upload?reservationId=${reservationId}`;
+
+        fetch(uploadUrl, {
           method: 'POST',
           body: (() => {
             const uploadFormData = new FormData();
@@ -746,10 +752,10 @@ export default function CustomerPassportPage() {
                 >
                   <div
                     className={`mb-1 flex h-8 w-8 items-center justify-center rounded-full border-2 ${step < currentStep
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : step === currentStep
-                          ? 'border-blue-600 bg-white text-blue-600'
-                          : 'border-gray-300 bg-white text-gray-400'
+                      ? 'border-blue-600 bg-blue-600 text-white'
+                      : step === currentStep
+                        ? 'border-blue-600 bg-white text-blue-600'
+                        : 'border-gray-300 bg-white text-gray-400'
                       }`}
                   >
                     {step < currentStep ? '✓' : step}
@@ -1033,20 +1039,25 @@ export default function CustomerPassportPage() {
                         type="button"
                         onClick={() => handlePassportScan(index)}
                         disabled={traveler.isScanning}
-                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:bg-gray-400"
+                        className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:bg-blue-400"
                       >
                         {traveler.isScanning ? (
                           <>
                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                            <span>AI 분석 중...</span>
+                            <span>AI 분석 중... (5~10초 소요)</span>
                           </>
                         ) : (
                           <>
                             <span>📸</span>
-                            <span>여권 스캔</span>
+                            <span>여권 가져오기</span>
                           </>
                         )}
                       </button>
+                      {traveler.isScanning && (
+                        <p className="mt-2 text-sm text-blue-600 animate-pulse">
+                          💡 여권 이미지를 AI가 분석하고 있습니다. 잠시만 기다려주세요...
+                        </p>
+                      )}
                       <input
                         ref={(el) => {
                           fileInputRefs.current[index] = el;

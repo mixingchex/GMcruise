@@ -254,6 +254,28 @@ export async function GET(
       });
     }
 
+    // 환불 정보 조회 (환불인증서용)
+    let refundInfo = null;
+    if (recentPayment?.cancelledAt) {
+      refundInfo = {
+        amount: recentPayment.amount, // 환불 금액 (전액 환불 가정)
+        date: recentPayment.cancelledAt,
+        reason: recentPayment.cancelReason || '고객 요청',
+      };
+    } else if (recentSale?.refundedAt) {
+      refundInfo = {
+        amount: recentSale.refundAmount || recentSale.saleAmount,
+        date: recentSale.refundedAt,
+        reason: '고객 요청',
+      };
+    }
+
+    // 고객 상태 조회
+    const customerStatus = await prisma.user.findUnique({
+      where: { id: customerId },
+      select: { customerStatus: true },
+    });
+
     return NextResponse.json({
       ok: true,
       customer: {
@@ -262,6 +284,7 @@ export async function GET(
         phone: customer.phone,
         email: customer.email,
         birthDate: birthDate,
+        customerStatus: customerStatus?.customerStatus || null,
       },
       product: productInfo ? {
         id: productInfo.id,
@@ -278,6 +301,7 @@ export async function GET(
         ...productDetails,
       } : null,
       payment: paymentInfo,
+      refund: refundInfo,
     });
   } catch (error) {
     console.error('[Admin Customer Purchase Info] Error:', error);

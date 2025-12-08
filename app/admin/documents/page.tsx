@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import ComparativeQuote from '@/components/admin/documents/ComparativeQuote';
 import Certificate from '@/components/admin/documents/Certificate';
-import CertificateApprovals from '@/components/admin/documents/CertificateApprovals';
 
-type TabType = 'comparison' | 'purchase' | 'refund' | 'approvals';
+type TabType = 'comparison' | 'purchase' | 'refund';
 
 export default function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<TabType>('comparison');
@@ -46,16 +45,6 @@ export default function DocumentsPage() {
             >
               환불인증서
             </button>
-            <button
-              onClick={() => setActiveTab('approvals')}
-              className={`px-6 py-4 text-sm font-semibold transition-all duration-200 rounded-t-lg ${
-                activeTab === 'approvals'
-                  ? 'bg-orange-600 text-white shadow-md'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-              }`}
-            >
-              승인 관리
-            </button>
           </nav>
         </div>
 
@@ -64,7 +53,6 @@ export default function DocumentsPage() {
           {activeTab === 'comparison' && <ComparativeQuote key="comparison" />}
           {activeTab === 'purchase' && <Certificate key="purchase" type="purchase" />}
           {activeTab === 'refund' && <Certificate key="refund" type="refund" />}
-          {activeTab === 'approvals' && <CertificateApprovals key="approvals" />}
         </div>
       </div>
     </div>

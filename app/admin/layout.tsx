@@ -139,14 +139,6 @@ function AdminLayoutContent({
 
   const customerMenuItems = [
     { href: '/admin/customers', label: '전체 고객 관리', icon: '👥' },
-    { href: '/admin/customers?customerGroup=trial', label: '크루즈가이드 3일 체험', icon: '🧪' },
-    { href: '/admin/customers?customerGroup=mall', label: '크루즈몰 고객', icon: '🛍️' },
-    { href: '/admin/customers?customerGroup=purchase', label: '구매 고객', icon: '✅' },
-    { href: '/admin/customers?customerGroup=refund', label: '환불 고객', icon: '↩️' },
-    { href: '/admin/customers?customerGroup=passport', label: '여권 관리', icon: '🛂' },
-    { href: '/admin/customers?customerGroup=manager-customers', label: '대리점장 고객', icon: '🏢' },
-    { href: '/admin/customers?customerGroup=agent-customers', label: '판매원 고객', icon: '👤' },
-    { href: '/admin/customers?customerGroup=prospects', label: '잠재고객', icon: '📄' },
     { href: '/admin/admin-panel-admins', label: '관리자 패널 관리', icon: '⚙️👑' },
   ];
 
@@ -160,8 +152,6 @@ function AdminLayoutContent({
     { href: '/admin/messages', label: '고객 메시지', icon: '💬', section: 'marketing' },
     { href: '/admin/scheduled-messages', label: '예약 메시지', icon: '📅', section: 'marketing' },
     { href: '/admin/customer-groups', label: '고객 그룹 관리', icon: '👥', section: 'marketing' },
-    { href: '/admin/manual-passport-request', label: '수동 여권 요청', icon: '🛂' },
-    { href: '/admin/passport-request', label: '여권 요청 관리', icon: '🛂' },
     { href: '/admin/data-analysis', label: '데이터분석', icon: '📊' },
     { href: '/admin/feedback', label: '후기 관리', icon: '💬' },
     { href: '/admin/documents', label: '서류관리', icon: '📄' },
@@ -197,6 +187,7 @@ function AdminLayoutContent({
     { href: '/admin/affiliate/agent-dashboard', label: '판매원 대시보드', icon: '🧑‍💼', section: 'affiliate' },
     { href: '/admin/pages', label: '페이지 콘텐츠 관리', icon: '📝', section: 'marketing' },
     { href: '/admin/landing-pages', label: '랜딩페이지 관리', icon: '📄', section: 'marketing' },
+    { href: '/admin/payapp-sales', label: '랜딩페이지 매출관리', icon: '💰', section: 'marketing' },
     { href: '/admin/chat-bot', label: 'AI 지니 채팅봇(구매)', icon: '🤖' },
     { href: '/admin/community', label: '커뮤니티 관리', icon: '💬' },
     { href: '/admin/community-bot', label: '커뮤니티 봇 관리', icon: '🤖💬', section: 'marketing' },

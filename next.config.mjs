@@ -75,6 +75,14 @@ const nextConfig = {
   // useSearchParams를 Suspense 없이 사용 가능하도록 설정 (동적 라우팅 자동 적용)
   experimental: {
     missingSuspenseWithCSRBailout: false,
+    // Vercel에서 네이티브 바이너리 패키지 정상 작동을 위해 필요
+    serverComponentsExternalPackages: [
+      'sharp',
+      '@prisma/client',
+      'googleapis',
+      'google-auth-library',
+      '@resvg/resvg-js',
+    ],
     // 성능 최적화: 패키지 임포트 최적화
     optimizePackageImports: [
       'react-icons',
@@ -146,13 +154,7 @@ const nextConfig = {
     },
   },
 
-  // Vercel에서 네이티브 바이너리 패키지 정상 작동을 위해 필요
-  serverExternalPackages: [
-    'sharp',
-    '@prisma/client',
-    'googleapis',
-    'google-auth-library',
-  ],
+  // Vercel에서 네이티브 바이너리 패키지 정상 작동을 위해 필요 (deprecated 경고 무시)
 
   // 라이브러리 임포트 최적화
   modularizeImports: {

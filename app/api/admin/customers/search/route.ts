@@ -31,31 +31,78 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 export async function GET(req: NextRequest) {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '인증이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '인증이 필요합니다.'
       }, { status: 403 });
     }
 
     const isAdmin = await checkAdminAuth(sid);
     if (!isAdmin) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '관리자 권한이 필요합니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '관리자 권한이 필요합니다.'
       }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit') || '10');
+    const certificateType = searchParams.get('certificateType'); // 'purchase' or 'refund'
 
     if (!query || query.trim().length < 1) {
       return NextResponse.json({ ok: true, customers: [] });
     }
 
-    // 구매한 고객만 검색 (Payment가 있는 고객만)
+    // 인증서 유형에 따른 고객 상태 필터
+    // purchase: 구매완료(purchase_confirmed) 고객만
+    // refund: 환불완료(refunded) 고객만
+    let customerStatusFilter: any = undefined;
+    if (certificateType === 'purchase') {
+      customerStatusFilter = 'purchase_confirmed';
+    } else if (certificateType === 'refund') {
+      customerStatusFilter = 'refunded';
+    }
+
+    // 인증서 유형이 지정된 경우: User 테이블에서 직접 검색
+    if (customerStatusFilter) {
+      const users = await prisma.user.findMany({
+        where: {
+          role: { not: 'admin' },
+          customerStatus: customerStatusFilter,
+          OR: [
+            { name: { contains: query } },
+            { phone: { contains: query } },
+            { email: { contains: query } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          customerStatus: true,
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        customers: users.map(user => ({
+          id: user.id,
+          name: user.name || '',
+          phone: user.phone || '',
+          email: user.email || '',
+          customerStatus: user.customerStatus,
+          displayName: `${user.name || '이름 없음'}${user.phone ? ` (${user.phone})` : ''}`,
+        }))
+      });
+    }
+
+    // 기존 로직: 구매한 고객만 검색 (Payment가 있는 고객만)
     // 이름, 전화번호, 이메일로 검색하되 Payment가 있는 고객만
     const customersWithPayment = await prisma.payment.findMany({
       where: {
@@ -109,8 +156,8 @@ export async function GET(req: NextRequest) {
       email: user.email || '',
     }));
 
-    return NextResponse.json({ 
-      ok: true, 
+    return NextResponse.json({
+      ok: true,
       customers: customers.map(c => ({
         id: c.id,
         name: c.name || '',

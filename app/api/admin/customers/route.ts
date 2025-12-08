@@ -86,6 +86,7 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit;
     const userType = searchParams.get('userType') || 'all'; // all, trial, regular - 3일 체험 사용자와 일반 사용자 구분
     const managerProfileId = searchParams.get('managerProfileId'); // 점장별 필터링
+    const ownerSearch = searchParams.get('ownerSearch') || ''; // 담당자 이름 검색
     const customerGroupRaw = searchParams.get('customerGroup');
     const customerGroup: AdminCustomerGroup | null = customerGroupRaw === 'all' ? 'all' : (customerGroupRaw as AdminCustomerGroup | null); // 고객 그룹 필터: all, prospects, trial, mall, purchase, refund, passport, manager-customers, agent-customers, inquiry
     const customerSource = searchParams.get('customerSource'); // B2B_TRIAL_SUBSCRIPTION, affiliate-contract-approval 등 고객 소스 필터
@@ -697,7 +698,7 @@ export async function GET(req: NextRequest) {
     
     // Reservation 조회와 소유권 조회를 병렬로 실행
     const [reservations, ownershipMap] = await Promise.all([
-      // Reservation 조회
+      // Reservation 조회 (결제 정보 포함)
       customerIds.length > 0 ? prisma.reservation.findMany({
         where: { mainUserId: { in: customerIds } },
         select: {
@@ -706,6 +707,7 @@ export async function GET(req: NextRequest) {
           tripId: true,
           totalPeople: true,
           passportStatus: true,
+          affiliateSaleId: true,
           Traveler: {
             select: {
               id: true,
@@ -716,6 +718,29 @@ export async function GET(req: NextRequest) {
               engSurname: true,
               korName: true,
               passportImage: true, // 여권 이미지 포함
+            },
+          },
+          // AffiliateSale과 Payment 정보 포함 (환불 기능용)
+          AffiliateSale: {
+            select: {
+              id: true,
+              status: true,
+              saleAmount: true,
+              refundedAt: true,
+              Payment: {
+                select: {
+                  id: true,
+                  orderId: true,
+                  amount: true,
+                  status: true,
+                  buyerName: true,
+                  buyerTel: true,
+                  productName: true,
+                  pgTransactionId: true,
+                  paidAt: true,
+                  cancelledAt: true,
+                },
+              },
             },
           },
         },
@@ -831,11 +856,33 @@ export async function GET(req: NextRequest) {
         };
       }
 
+      // 결제 정보 추출
+      let paymentInfo = null;
+      if (latestReservation?.AffiliateSale?.Payment) {
+        const payment = latestReservation.AffiliateSale.Payment;
+        paymentInfo = {
+          id: payment.id,
+          orderId: payment.orderId,
+          amount: payment.amount,
+          status: payment.status,
+          buyerName: payment.buyerName,
+          buyerTel: payment.buyerTel,
+          productName: payment.productName,
+          pgTransactionId: payment.pgTransactionId,
+          paidAt: payment.paidAt?.toISOString() || null,
+          cancelledAt: payment.cancelledAt?.toISOString() || null,
+          canRefund: payment.status === 'paid' && !payment.cancelledAt && !!payment.pgTransactionId,
+          saleStatus: latestReservation.AffiliateSale.status,
+          saleAmount: latestReservation.AffiliateSale.saleAmount,
+        };
+      }
+
       return {
         ...customer,
         hasReservation,
         reservationCount,
         passportInfo,
+        paymentInfo,
       };
     });
 
@@ -937,22 +984,56 @@ export async function GET(req: NextRequest) {
         filteredCustomers = customersWithPurchaseInfo.filter(customer => {
           const ownership = ownershipMap.get(customer.id);
           const landingOwnership = landingPageOwnershipMap.get(customer.id);
-          
+
           // AffiliateLead 기반 소유권 확인
           if (ownership) {
             if (ownership.ownerType === 'BRANCH_MANAGER' && ownership.ownerProfileId === managerId) {
               return true;
             }
           }
-          
+
           // 랜딩페이지 기반 소유권 확인
           if (landingOwnership && landingOwnership.managerProfileId === managerId) {
             return true;
           }
-          
+
           return false;
         });
       }
+    }
+
+    // 담당자 이름 검색 필터 적용
+    if (ownerSearch) {
+      const searchLower = ownerSearch.toLowerCase();
+      filteredCustomers = filteredCustomers.filter(customer => {
+        const ownership = ownershipMap.get(customer.id);
+        const landingOwnership = landingPageOwnershipMap.get(customer.id);
+
+        // AffiliateLead 기반 소유권에서 이름 검색
+        if (ownership) {
+          const ownerName = ownership.ownerName?.toLowerCase() || '';
+          const ownerNickname = ownership.ownerNickname?.toLowerCase() || '';
+          const managerName = ownership.managerProfile?.displayName?.toLowerCase() || '';
+          const managerNickname = ownership.managerProfile?.nickname?.toLowerCase() || '';
+
+          if (ownerName.includes(searchLower) ||
+              ownerNickname.includes(searchLower) ||
+              managerName.includes(searchLower) ||
+              managerNickname.includes(searchLower)) {
+            return true;
+          }
+        }
+
+        // 랜딩페이지 기반 소유권에서 이름 검색
+        if (landingOwnership) {
+          const managerDisplayName = landingOwnership.managerDisplayName?.toLowerCase() || '';
+          if (managerDisplayName.includes(searchLower)) {
+            return true;
+          }
+        }
+
+        return false;
+      });
     }
 
     // 각 고객의 현재 그룹 계산 및 그룹 필터링

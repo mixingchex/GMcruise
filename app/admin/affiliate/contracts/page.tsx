@@ -2958,6 +2958,29 @@ export default function AdminAffiliateContractsPage() {
                             />
                           </div>
                         )}
+
+                        {/* 메인 계약서 싸인 */}
+                        {selectedContract.metadata.signatures.main?.url && (
+                          <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
+                            <h4 className="text-sm font-semibold text-green-700 mb-2">계약서 싸인</h4>
+                            {selectedContract.metadata.signatures.main.signedBy && (
+                              <p className="text-xs text-green-600 mb-1">
+                                서명자: {selectedContract.metadata.signatures.main.signedBy}
+                              </p>
+                            )}
+                            {selectedContract.metadata.signatures.main.signedAt && (
+                              <p className="text-xs text-green-600 mb-2">
+                                서명일시: {new Date(selectedContract.metadata.signatures.main.signedAt).toLocaleString('ko-KR')}
+                              </p>
+                            )}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={selectedContract.metadata.signatures.main.url}
+                              alt="계약서 서명"
+                              className="max-w-full h-auto max-h-48 bg-white p-2 rounded-lg border"
+                            />
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

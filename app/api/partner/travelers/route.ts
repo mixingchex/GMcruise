@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
-import { syncApisSpreadsheet } from '@/lib/google-sheets';
+import { syncApisInBackground } from '@/lib/google-sheets';
 
 // 파트너 권한 확인 (판매원, 대리점장, 관리자)
 async function checkPartnerAccess(userId: number, reservationId: number) {
@@ -95,12 +95,10 @@ export async function POST(req: NextRequest) {
       data: { totalPeople: travelerCount },
     });
 
-    // APIS 동기화 (비동기)
+    // APIS 스프레드시트 자동 동기화 (재시도 로직 포함)
     const tripId = reservation.Trip?.id;
     if (tripId) {
-      syncApisSpreadsheet(tripId).catch(err => {
-        console.error('[Partner Travelers Create] APIS sync failed:', err);
-      });
+      syncApisInBackground(tripId);
     }
 
     return NextResponse.json({

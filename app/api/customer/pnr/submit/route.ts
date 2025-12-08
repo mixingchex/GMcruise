@@ -6,8 +6,7 @@ import prisma from '@/lib/prisma';
 interface TravelerInput {
   id?: number;
   korName: string;
-  engSurname?: string | null;
-  engGivenName?: string | null;
+  residentNum?: string | null;
   phone?: string | null;
   roomNumber: number;
 }
@@ -27,6 +26,31 @@ export async function POST(req: NextRequest) {
         { ok: false, message: '예약 ID와 여행자 정보가 필요합니다.' },
         { status: 400 }
       );
+    }
+
+    // 서버 측 필수 필드 검증
+    for (let i = 0; i < travelers.length; i++) {
+      const traveler = travelers[i];
+      const label = i === 0 ? '대표자' : `동행자 ${i}`;
+
+      if (!traveler.korName || traveler.korName.trim() === '') {
+        return NextResponse.json(
+          { ok: false, message: `${label}의 이름을 입력해주세요.` },
+          { status: 400 }
+        );
+      }
+      if (!traveler.residentNum || traveler.residentNum.trim() === '') {
+        return NextResponse.json(
+          { ok: false, message: `${label}의 주민등록번호를 입력해주세요.` },
+          { status: 400 }
+        );
+      }
+      if (!traveler.phone || traveler.phone.trim() === '') {
+        return NextResponse.json(
+          { ok: false, message: `${label}의 연락처를 입력해주세요.` },
+          { status: 400 }
+        );
+      }
     }
 
     // 예약 정보 확인
@@ -59,8 +83,8 @@ export async function POST(req: NextRequest) {
             where: { id: traveler.id },
             data: {
               korName: traveler.korName,
-              engSurname: traveler.engSurname || null,
-              engGivenName: traveler.engGivenName || null,
+              residentNum: traveler.residentNum || null,
+              phone: traveler.phone || null,
               roomNumber: traveler.roomNumber,
             },
           });
@@ -70,8 +94,8 @@ export async function POST(req: NextRequest) {
             data: {
               reservationId: reservationId,
               korName: traveler.korName,
-              engSurname: traveler.engSurname || null,
-              engGivenName: traveler.engGivenName || null,
+              residentNum: traveler.residentNum || null,
+              phone: traveler.phone || null,
               roomNumber: traveler.roomNumber,
             },
           });

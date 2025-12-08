@@ -312,6 +312,10 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
   const [imageModalImages, setImageModalImages] = useState<string[]>([]);
   const [imageModalIndex, setImageModalIndex] = useState(0);
 
+  // 동영상 모달 상태
+  const [videoModalOpen, setVideoModalOpen] = useState(false);
+  const [videoModalUrl, setVideoModalUrl] = useState<string>('');
+
   useEffect(() => {
     const paramCode = searchParams.get('productCode');
     if (paramCode) {
@@ -327,10 +331,12 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     }
   }, [searchParams]);
 
-  // 이미지 클릭 모달 핸들러
+  // 이미지 클릭 모달 핸들러 - 모든 챗봇 이미지에 적용
   useEffect(() => {
     const handleImageClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+
+      // 1. 기존 방식: cruise-image-clickable 클래스가 있는 이미지
       if (target.classList.contains('cruise-image-clickable')) {
         const galleryData = target.getAttribute('data-image-gallery');
         const indexData = target.getAttribute('data-image-index');
@@ -342,9 +348,44 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
               setImageModalImages(images);
               setImageModalIndex(index);
               setImageModalOpen(true);
+              e.preventDefault();
+              e.stopPropagation();
             }
           } catch (error) {
             console.error('[Image Modal] Failed to parse gallery data:', error);
+          }
+          return;
+        }
+      }
+
+      // 2. 새 방식: 챗봇 메시지 영역 내 모든 이미지 (img 태그)
+      if (target.tagName === 'IMG') {
+        const chatContainer = target.closest('.chat-message-content, [class*="bg-blue-50"], [class*="bg-gray-50"]');
+        if (chatContainer) {
+          const imgSrc = (target as HTMLImageElement).src;
+          if (imgSrc && !imgSrc.includes('placeholder') && !imgSrc.includes('data:')) {
+            // 같은 컨테이너 내 모든 이미지 수집
+            const containerImages = chatContainer.querySelectorAll('img');
+            const imageUrls: string[] = [];
+            let clickedIndex = 0;
+
+            containerImages.forEach((img, idx) => {
+              const src = (img as HTMLImageElement).src;
+              if (src && !src.includes('placeholder') && !src.includes('data:')) {
+                if (src === imgSrc) {
+                  clickedIndex = imageUrls.length;
+                }
+                imageUrls.push(src);
+              }
+            });
+
+            if (imageUrls.length > 0) {
+              setImageModalImages(imageUrls);
+              setImageModalIndex(clickedIndex);
+              setImageModalOpen(true);
+              e.preventDefault();
+              e.stopPropagation();
+            }
           }
         }
       }
@@ -355,7 +396,30 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       document.removeEventListener('click', handleImageClick);
     };
   }, []);
-  
+
+  // 동영상 클릭 모달 핸들러 - iframe 위에 오버레이 클릭 시 모달 열기
+  useEffect(() => {
+    const handleVideoClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      // 동영상 오버레이 클릭 시 (iframe 직접 클릭은 감지 불가)
+      if (target.classList.contains('video-modal-trigger')) {
+        const videoUrl = target.getAttribute('data-video-url');
+        if (videoUrl) {
+          setVideoModalUrl(videoUrl);
+          setVideoModalOpen(true);
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }
+    };
+
+    document.addEventListener('click', handleVideoClick);
+    return () => {
+      document.removeEventListener('click', handleVideoClick);
+    };
+  }, []);
+
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<ChatBotQuestion | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -553,7 +617,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
             answeredAt: answeredAtIso,
           }),
           keepalive: true,
-        }).catch(() => {});
+        }).catch(() => { });
 
         if (!sessionId.startsWith('local-')) {
           const durationMs =
@@ -571,7 +635,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
               durationMs,
             }),
             keepalive: true,
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
     };
@@ -595,7 +659,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     try {
       setIsLoading(true);
       sessionStartTimeRef.current = Date.now();
-      
+
       // 1. 상품 정보 로드 (상품 코드가 있는 경우)
       let productData = null;
       if (productCode) {
@@ -605,11 +669,11 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
             {},
             10000
           );
-          
+
           if (!productResponse.ok) {
             throw new Error(`상품 정보 로드 실패: ${productResponse.status}`);
           }
-          
+
           const productResult = await productResponse.json();
           if (productResult.ok && productResult.product) {
             // layout에서 contactOptions 추출
@@ -639,7 +703,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           // 상품 정보 로드 실패해도 계속 진행
         }
       }
-      
+
       // 2. 시작 질문 로드 (상품 정보 포함)
       const startSearchParams = new URLSearchParams();
       if (productCode) {
@@ -652,12 +716,12 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       if (partnerId) {
         startSearchParams.set('partner', partnerId);
       }
-      
+
       const startUrl =
         startSearchParams.toString().length > 0
           ? `/api/chat-bot/start?${startSearchParams.toString()}`
           : '/api/chat-bot/start';
-      
+
       let startResponse: Response;
       try {
         startResponse = await fetchWithTimeout(startUrl, {}, 15000);
@@ -667,19 +731,19 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         }
         throw new Error('시작 질문을 불러올 수 없습니다. 네트워크 연결을 확인해주세요.');
       }
-      
+
       if (!startResponse.ok) {
         const errorText = await startResponse.text().catch(() => 'Unknown error');
         throw new Error(`시작 질문 로드 실패 (${startResponse.status}): ${errorText}`);
       }
-      
+
       let startData;
       try {
         startData = await startResponse.json();
       } catch (error) {
         throw new Error('서버 응답을 파싱할 수 없습니다.');
       }
-      
+
       if (!startData.ok || !startData.question) {
         throw new Error(startData.error || '시작 질문을 불러올 수 없습니다.');
       }
@@ -691,42 +755,11 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       if (startData.productInfo) {
         setProductInfo(startData.productInfo);
       }
-      
-      // 3. 세션 생성 (실패해도 계속 진행)
-      try {
-        const sessionResponse = await fetchWithTimeout(
-          '/api/chat-bot/session',
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              flowId: startData.flowId,
-              productCode: productCode || null,
-              partnerId: partnerId || null, // 파트너 ID 저장 (구매 추적용)
-            }),
-          },
-          10000
-        );
-        
-        if (sessionResponse.ok) {
-          const sessionData = await sessionResponse.json().catch(() => ({ ok: false }));
-          if (sessionData.ok && sessionData.data) {
-            setSessionId(sessionData.data.sessionId || sessionData.data.id);
-            logger.log('[createSessionAndLoadQuestion] Session ID set:', sessionData.data.sessionId || sessionData.data.id);
-          }
-        }
-      } catch (error) {
-        console.error('[createSessionAndLoadQuestion] Failed to create session:', error);
-        // 세션 생성 실패해도 계속 진행 (로컬 세션 ID 생성)
-        const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-        setSessionId(localSessionId);
-        logger.log('[createSessionAndLoadQuestion] Using local session ID:', localSessionId);
-      }
 
-      // 4. 질문 표시
+      // 🚀 질문 먼저 표시 (로딩 시간 최적화)
       setCurrentQuestion(startData.question);
       setQuestionStartTime(Date.now());
-      
+
       let initialReviews: Review[] | undefined;
       if (productCode && startData.question.order === 5) {
         const reviews = await fetchReviewsForProduct(3, productData?.cruiseLine || undefined);
@@ -746,10 +779,42 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       }
 
       addBotMessage(startData.question.questionText, startData.question, initialReviews);
+
+      // 🚀 세션 생성은 백그라운드에서 처리 (화면 표시 후)
+      (async () => {
+        try {
+          const sessionResponse = await fetchWithTimeout(
+            '/api/chat-bot/session',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                flowId: startData.flowId,
+                productCode: productCode || null,
+                partnerId: partnerId || null,
+              }),
+            },
+            10000
+          );
+
+          if (sessionResponse.ok) {
+            const sessionData = await sessionResponse.json().catch(() => ({ ok: false }));
+            if (sessionData.ok && sessionData.data) {
+              setSessionId(sessionData.data.sessionId || sessionData.data.id);
+              logger.log('[createSessionAndLoadQuestion] Session ID set:', sessionData.data.sessionId || sessionData.data.id);
+            }
+          }
+        } catch (error) {
+          console.error('[createSessionAndLoadQuestion] Failed to create session:', error);
+          const localSessionId = `local-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          setSessionId(localSessionId);
+          logger.log('[createSessionAndLoadQuestion] Using local session ID:', localSessionId);
+        }
+      })();
     } catch (error) {
       console.error('[createSessionAndLoadQuestion] Failed to initialize chat bot:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : '채팅봇을 불러오는 중 오류가 발생했습니다.';
       addBotMessage(`죄송합니다. ${errorMessage}\n\n페이지를 새로고침하거나 잠시 후 다시 시도해주세요.`);
     } finally {
@@ -770,7 +835,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       }
       const url = `/api/chat-bot/question/${questionId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       logger.log('[loadQuestion] Fetching URL:', url);
-      
+
       let response: Response;
       try {
         response = await fetchWithTimeout(url, {}, 15000);
@@ -780,41 +845,41 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         }
         throw new Error('질문을 불러올 수 없습니다. 네트워크 연결을 확인해주세요.');
       }
-      
+
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error');
         throw new Error(`질문 로드 실패 (${response.status}): ${errorText}`);
       }
-      
+
       let data;
       try {
         data = await response.json();
       } catch (error) {
         throw new Error('서버 응답을 파싱할 수 없습니다.');
       }
-      
+
       logger.log('[loadQuestion] Response data:', data);
-      
+
       if (data.ok && data.question) {
         logger.log('[loadQuestion] Question loaded:', data.question);
         setCurrentQuestion(data.question);
         setQuestionStartTime(Date.now());
-        
+
         let questionReviews: Review[] | undefined;
-    const lowerQuestionText = (data.question.questionText || '').toLowerCase();
-    const isReviewQuestion =
-      productCode &&
-      (data.question.order === 5 ||
-        data.question.order === 11 ||
-        lowerQuestionText.includes('실제 고객 후기') ||
-        lowerQuestionText.includes('후기 보여드릴게요'));
-    if (isReviewQuestion) {
-      const limit = data.question.order === 11 ? 6 : 3;
-      const reviews = await fetchReviewsForProduct(limit);
-      if (reviews.length > 0) {
-        questionReviews = reviews;
-      }
-    }
+        const lowerQuestionText = (data.question.questionText || '').toLowerCase();
+        const isReviewQuestion =
+          productCode &&
+          (data.question.order === 5 ||
+            data.question.order === 11 ||
+            lowerQuestionText.includes('실제 고객 후기') ||
+            lowerQuestionText.includes('후기 보여드릴게요'));
+        if (isReviewQuestion) {
+          const limit = data.question.order === 11 ? 6 : 3;
+          const reviews = await fetchReviewsForProduct(limit);
+          if (reviews.length > 0) {
+            questionReviews = reviews;
+          }
+        }
 
         const situationOrders = new Set([4, 5, 6, 7, 8, 9]);
         const solutionOrders = new Set([20, 21, 22, 23, 24, 25]);
@@ -862,12 +927,12 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                 }),
               },
               5000
-            ).catch(() => {}); // 실패해도 무시
+            ).catch(() => { }); // 실패해도 무시
           } catch (error) {
             console.error('[loadQuestion] Failed to update session:', error);
           }
         }
-        
+
         // 최종 구매 페이지로 이동
         if (data.finalPageUrl) {
           const query = new URLSearchParams();
@@ -907,8 +972,8 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       }
     } catch (error) {
       console.error('[loadQuestion] Failed to load question:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
+      const errorMessage = error instanceof Error
+        ? error.message
         : '질문을 불러오는 중 오류가 발생했습니다.';
       addBotMessage(`죄송합니다. ${errorMessage}\n\n다시 시도해주세요.`);
     } finally {
@@ -940,14 +1005,14 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     }
     content = content.trim();
     // 후기 카드는 별도 안내 없이 자연스럽게 표시 (대화 흐름 유지)
-    
+
     // 선택지 준비
     let optionsToAdd: { label: string; nextId?: number }[] | undefined = undefined;
-    
+
     if (question?.options && Array.isArray(question.options) && question.options.length > 0) {
       // 5가지 선택지
-      const nextIds = (question.nextQuestionIds && Array.isArray(question.nextQuestionIds)) 
-        ? question.nextQuestionIds 
+      const nextIds = (question.nextQuestionIds && Array.isArray(question.nextQuestionIds))
+        ? question.nextQuestionIds
         : [];
       optionsToAdd = question.options.map((opt, index) => ({
         label: opt,
@@ -968,7 +1033,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       ];
       logger.log('[addBotMessage] Prepared single option:', optionsToAdd);
     }
-    
+
     const attachments = question?.attachments ?? [];
 
     if (reviews && reviews.length > 0 && question?.id) {
@@ -996,22 +1061,22 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     // 중복 메시지 방지: 같은 내용의 메시지가 이미 있으면 추가하지 않음
     setMessages(prev => {
       // 메시지 내용이 정확히 일치하는지 확인
-      const hasExactMessage = prev.some(m => 
-        m.type === 'bot' && 
+      const hasExactMessage = prev.some(m =>
+        m.type === 'bot' &&
         m.content === content &&
         (!question || m.questionId === question.id) &&
         JSON.stringify(m.attachments ?? []) === JSON.stringify(attachments ?? [])
       );
-      
+
       if (hasExactMessage) {
         logger.log('[addBotMessage] Duplicate message detected, skipping');
         return prev; // 중복 메시지이면 추가하지 않음
       }
-      
+
       // 옵션이 있는 경우, 같은 questionId의 옵션이 이미 있는지 확인
       if (optionsToAdd && optionsToAdd.length > 0 && question?.id) {
-        const hasOptions = prev.some(m => 
-          m.options && 
+        const hasOptions = prev.some(m =>
+          m.options &&
           m.questionId === question.id &&
           m.options.length === optionsToAdd.length &&
           m.options.every((opt, idx) => opt.label === optionsToAdd![idx].label)
@@ -1021,7 +1086,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           return prev;
         }
       }
-      
+
       logger.log('[addBotMessage] Adding message with options:', { content, optionsToAdd, questionId: question?.id });
       return [...prev, message];
     });
@@ -1031,12 +1096,12 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     logger.log('[handleOptionClick] Called with option:', option);
     logger.log('[handleOptionClick] currentQuestion:', currentQuestion);
     logger.log('[handleOptionClick] sessionId:', sessionId);
-    
+
     if (!currentQuestion) {
       console.error('[handleOptionClick] No currentQuestion');
       return;
     }
-    
+
     const normalizedLabel = option.label.trim();
 
     const goToPayment = (durationMs?: number) => {
@@ -1060,7 +1125,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
             }),
           },
           5000,
-        ).catch(() => {});
+        ).catch(() => { });
       }
       if (productCode) {
         const query = new URLSearchParams();
@@ -1083,7 +1148,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           : normalizedLabel.includes('가족') && normalizedLabel.includes('상의')
             ? 'family'
             : null;
-    
+
     // 후기 보기 옵션 처리 (order 11, 19 등)
     const isReviewOption =
       productCode &&
@@ -1091,7 +1156,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         option.label.includes('더 많이 보고') ||
         option.label.includes('리뷰 더 보기') ||
         option.label.includes('실제 고객 후기'));
-    
+
     // sessionId가 없어도 계속 진행 (로컬 세션 ID 생성)
     let effectiveSessionId = sessionId;
     if (!effectiveSessionId) {
@@ -1102,7 +1167,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
 
     // 응답 시간 계산
     const responseTime = Date.now() - questionStartTime;
-    
+
     // 선택지 식별 (A/B 또는 인덱스)
     let selectedOption: string | null = null;
     if (currentQuestion.optionA && currentQuestion.optionB) {
@@ -1175,28 +1240,28 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
 
     // 응답 저장 (세션이 있으면)
     if (effectiveSessionId && !effectiveSessionId.startsWith('local-')) {
-    try {
-      await fetch('/api/chat-bot/response', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      try {
+        await fetch('/api/chat-bot/response', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             sessionId: effectiveSessionId,
-          questionId: currentQuestion.id,
-          selectedOption,
-          selectedText: option.label,
-          responseTime,
-          isAbandoned: false,
-          nextQuestionId: option.nextId || null,
-          questionOrder: currentQuestion.order ?? null,
-          optionLabel: option.label,
-          displayedAt:
-            questionStartTime > 0 ? new Date(questionStartTime).toISOString() : undefined,
-          answeredAt: new Date().toISOString(),
-        }),
-        keepalive: true,
-      });
-    } catch (error) {
-      console.error('Failed to save response:', error);
+            questionId: currentQuestion.id,
+            selectedOption,
+            selectedText: option.label,
+            responseTime,
+            isAbandoned: false,
+            nextQuestionId: option.nextId || null,
+            questionOrder: currentQuestion.order ?? null,
+            optionLabel: option.label,
+            displayedAt:
+              questionStartTime > 0 ? new Date(questionStartTime).toISOString() : undefined,
+            answeredAt: new Date().toISOString(),
+          }),
+          keepalive: true,
+        });
+      } catch (error) {
+        console.error('Failed to save response:', error);
       }
     }
 
@@ -1286,11 +1351,10 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                 className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[90%] md:max-w-[85%] rounded-xl md:rounded-2xl p-4 md:p-5 ${
-                    message.type === 'user'
-                      ? 'bg-blue-600 text-white text-lg md:text-xl'
-                      : 'bg-gray-50 text-gray-900'
-                  }`}
+                  className={`max-w-[90%] md:max-w-[85%] rounded-xl md:rounded-2xl p-4 md:p-5 ${message.type === 'user'
+                    ? 'bg-blue-600 text-white text-lg md:text-xl'
+                    : 'bg-gray-50 text-gray-900'
+                    }`}
                 >
                   {message.type === 'bot' && (
                     <div className="flex items-start gap-3 mb-3">
@@ -1298,7 +1362,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                     </div>
                   )}
                   {/* 일반 텍스트 메시지는 표시하지 않음 - 파란색 박스만 표시 */}
-                  
+
                   {/* 리뷰 표시 - 모바일 가독성 개선 */}
                   {message.type === 'bot' && message.reviews && message.reviews.length > 0 && (
                     <div className="mt-5 space-y-6 md:space-y-8">
@@ -1311,14 +1375,14 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                           실제로 다녀오신 분들의 생생한 경험담을 확인해보세요!
                         </p>
                       </div>
-                      
+
                       {message.reviews.map((review, reviewIndex) => {
                         // 이미지 배열 처리
-                        const reviewImages = Array.isArray(review.images) 
+                        const reviewImages = Array.isArray(review.images)
                           ? review.images.filter(img => img && typeof img === 'string')
                           : [];
                         const hasImages = reviewImages.length > 0;
-                        
+
                         return (
                           <button
                             key={review.id}
@@ -1327,7 +1391,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                             className="w-full text-left bg-white border-2 border-blue-300 rounded-xl md:rounded-2xl p-5 md:p-6 shadow-lg hover:shadow-2xl transition-transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400"
                           >
                             <div className="flex items-center gap-4 mb-5 pb-5 border-b border-gray-200">
-                            {/* 작성자 정보 및 평점 */}
+                              {/* 작성자 정보 및 평점 */}
                               <div className="w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-md">
                                 {review.authorName.charAt(0)}
                               </div>
@@ -1420,7 +1484,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                 )}
                               </div>
                             )}
-                            
+
                             {/* 제목과 내용 - 모바일 가독성 개선 */}
                             <div className="space-y-4">
                               {review.title && (
@@ -1444,20 +1508,20 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                           </button>
                         );
                       })}
-                      
+
                       {/* (이전 이탈 방지 메시지 제거) */}
                     </div>
                   )}
-                  
+
                   {/* 정보 박스 (파란색 배경) - 모바일 가독성 대폭 개선 */}
                   {message.type === 'bot' && message.content && (
                     <div className="mt-4 p-5 md:p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl">
                       <div
                         className="text-lg md:text-xl text-blue-900 whitespace-pre-wrap leading-loose md:leading-relaxed font-medium"
-                        dangerouslySetInnerHTML={{ 
+                        dangerouslySetInnerHTML={{
                           __html: (() => {
                             let processed = message.content;
-                            
+
                             // 1. HTML 태그가 이미 있으면 먼저 보호 (임시 마커로 교체)
                             const htmlTags: string[] = [];
                             // <div>, <img>, <iframe> 등 모든 HTML 태그 보호 (더 정교한 정규식)
@@ -1479,14 +1543,14 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                               htmlTags.push(match);
                               return marker;
                             });
-                            
+
                             // 2. 마크다운 처리
                             processed = processed
                               // 이미지 마크다운 처리 (![alt](url)) - 먼저 처리하여 일반 링크로 변환되지 않도록
                               .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
                                 // 서버에서 이미 인코딩된 URL인 경우 다시 인코딩하지 않음
                                 let encodedUrl = url;
-                                
+
                                 // 서버에서 인코딩된 URL인지 확인
                                 const isServerEncoded = url.includes('%') && (() => {
                                   try {
@@ -1496,7 +1560,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                     return false;
                                   }
                                 })();
-                                
+
                                 if (!isServerEncoded) {
                                   try {
                                     // 절대 URL인 경우
@@ -1515,7 +1579,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                     encodedUrl = url;
                                   }
                                 }
-                                
+
                                 // 이미지 로드 실패 시 처리하기 위한 onerror 핸들러 추가
                                 return `<img src="${encodedUrl}" alt="${alt || '여행지 사진'}" class="w-full h-auto rounded-lg shadow-md my-3 object-cover max-h-96 cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onerror="this.style.display='none'; this.onerror=null;" />`;
                               })
@@ -1546,14 +1610,14 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                   const videoIdMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
                                   if (videoIdMatch && videoIdMatch[1]) {
                                     const videoId = videoIdMatch[1];
-                                    return `<div class="mt-2 mb-2"><div class="aspect-video w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full"></iframe></div><a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-lg mt-1 block">${linkText}</a></div>`;
+                                    return `<div class="mt-2 mb-2"><div class="aspect-video w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg relative group cursor-pointer"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full pointer-events-none"></iframe><div class="video-modal-trigger absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all" data-video-url="${url}"><span class="text-white text-lg font-bold opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 px-4 py-2 rounded-full transition-all">🔍 크게 보기</span></div></div><a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-lg mt-1 block">${linkText}</a></div>`;
                                   }
                                 }
                                 // 일반 YouTube URL 처리
                                 const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/);
                                 if (videoIdMatch && videoIdMatch[1]) {
                                   const videoId = videoIdMatch[1];
-                                  return `<div class="mt-2 mb-2"><div class="aspect-video w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full"></iframe></div><a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-lg mt-1 block">${linkText}</a></div>`;
+                                  return `<div class="mt-2 mb-2"><div class="aspect-video w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg relative group cursor-pointer"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full pointer-events-none"></iframe><div class="video-modal-trigger absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all" data-video-url="${url}"><span class="text-white text-lg font-bold opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 px-4 py-2 rounded-full transition-all">🔍 크게 보기</span></div></div><a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-lg mt-1 block">${linkText}</a></div>`;
                                 }
                                 return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-xl">${linkText}</a>`;
                               })
@@ -1622,26 +1686,26 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                 // 앞뒤 100자 확인
                                 const before = string.substring(Math.max(0, offset - 100), offset);
                                 const after = string.substring(offset + 1, Math.min(string.length, offset + 101));
-                                
+
                                 // HTML 태그 안에 있는지 확인 (<div>...</div>, <img /> 등)
                                 const lastOpenTag = before.lastIndexOf('<');
                                 const nextCloseTag = after.indexOf('>');
                                 const lastCloseTag = before.lastIndexOf('>');
-                                
+
                                 // 열린 태그가 있고 닫히지 않았으면 HTML 태그 안에 있음
                                 if (lastOpenTag >= 0 && lastCloseTag < lastOpenTag && nextCloseTag >= 0) {
                                   return match; // HTML 태그 안에 있으면 그대로 유지
                                 }
-                                
+
                                 return '<br />';
                               })
                               .replace(/^\- /gm, '• ');
-                            
+
                             // 3. HTML 태그 복원
                             htmlTags.forEach((tag, index) => {
                               processed = processed.replace(`__HTML_TAG_${index}__`, tag);
                             });
-                            
+
                             return processed;
                           })()
                         }}
@@ -1672,7 +1736,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                       })}
                     </div>
                   )}
-                  
+
                   {/* 선택지 버튼 - 모바일 가독성 대폭 개선 */}
                   {(() => {
                     logger.log('[Render] Checking options for message:', {
@@ -1691,11 +1755,10 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                               key={`${message.questionId}-${optIndex}`}
                               onClick={() => handleOptionClick(option)}
                               disabled={isLoading}
-                              className={`w-full text-left px-5 md:px-6 py-4 md:py-5 rounded-xl md:rounded-2xl transition-all font-bold text-lg md:text-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-[0.98] ${
-                                isReviewButton
-                                  ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white border-2 border-yellow-500 hover:from-yellow-500 hover:to-orange-500 text-xl md:text-2xl'
-                                  : 'bg-white border-3 border-blue-600 text-blue-700 hover:bg-blue-50 active:bg-blue-100'
-                              }`}
+                              className={`w-full text-left px-5 md:px-6 py-4 md:py-5 rounded-xl md:rounded-2xl transition-all font-bold text-lg md:text-xl disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-[0.98] ${isReviewButton
+                                ? 'bg-gradient-to-r from-yellow-400 to-orange-400 text-white border-2 border-yellow-500 hover:from-yellow-500 hover:to-orange-500 text-xl md:text-2xl'
+                                : 'bg-white border-3 border-blue-600 text-blue-700 hover:bg-blue-50 active:bg-blue-100'
+                                }`}
                             >
                               {isReviewButton && <span className="mr-2 text-2xl">💬</span>}
                               {option.label}
@@ -1725,7 +1788,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           </div>
         </div>
       </div>
-      
+
       {/* 후기 팝업 모달 */}
       <ReviewModal
         isOpen={showReviewModal}
@@ -1736,48 +1799,127 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
         initialIndex={activeReviewIndex}
       />
 
-      {/* 이미지 모달 */}
+      {/* 이미지 모달 - 전체화면 뷰어 */}
       {imageModalOpen && imageModalImages.length > 0 && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
           onClick={() => setImageModalOpen(false)}
         >
-          <div 
-            className="bg-white rounded-lg p-4 max-w-4xl w-11/12 max-h-[90vh] overflow-y-auto"
+          {/* X 닫기 버튼 */}
+          <button
+            onClick={() => setImageModalOpen(false)}
+            className="absolute top-4 right-4 z-60 text-white text-4xl font-bold hover:text-gray-300 bg-black bg-opacity-50 rounded-full w-12 h-12 flex items-center justify-center"
+          >
+            ×
+          </button>
+
+          {/* 이미지 카운터 */}
+          <div className="absolute top-4 left-4 text-white text-lg bg-black bg-opacity-50 px-3 py-1 rounded-full">
+            {imageModalIndex + 1} / {imageModalImages.length}
+          </div>
+
+          {/* 메인 이미지 */}
+          <div
+            className="max-w-[95vw] max-h-[85vh] flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">크루즈 사진</h2>
-              <button 
-                onClick={() => setImageModalOpen(false)}
-                className="text-2xl font-bold text-gray-500 hover:text-gray-700"
-              >
-                ×
-              </button>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <Image
+              src={imageModalImages[imageModalIndex]}
+              alt={`크루즈 사진 ${imageModalIndex + 1}`}
+              width={1200}
+              height={800}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg"
+              unoptimized
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+              }}
+            />
+          </div>
+
+          {/* 이전 버튼 */}
+          {imageModalImages.length > 1 && imageModalIndex > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setImageModalIndex(imageModalIndex - 1);
+              }}
+              className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-5xl font-bold hover:text-gray-300 bg-black bg-opacity-50 rounded-full w-14 h-14 flex items-center justify-center"
+            >
+              ‹
+            </button>
+          )}
+
+          {/* 다음 버튼 */}
+          {imageModalImages.length > 1 && imageModalIndex < imageModalImages.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setImageModalIndex(imageModalIndex + 1);
+              }}
+              className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-5xl font-bold hover:text-gray-300 bg-black bg-opacity-50 rounded-full w-14 h-14 flex items-center justify-center"
+            >
+              ›
+            </button>
+          )}
+
+          {/* 썸네일 네비게이션 */}
+          {imageModalImages.length > 1 && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 overflow-x-auto max-w-[90vw] p-2 bg-black bg-opacity-50 rounded-lg">
               {imageModalImages.map((url, index) => (
-                <div 
+                <button
                   key={index}
-                  className="relative aspect-video bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => {
-                    // 클릭 시 전체 화면으로 보기
-                    window.open(url, '_blank');
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setImageModalIndex(index);
                   }}
+                  className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${index === imageModalIndex ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
                 >
-                  <Image 
-                    src={url} 
-                    alt={`크루즈 사진 ${index + 1}`}
-                    fill
-                    className="object-cover"
+                  <Image
+                    src={url}
+                    alt={`썸네일 ${index + 1}`}
+                    width={64}
+                    height={64}
+                    className="w-full h-full object-cover"
                     unoptimized
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
                   />
-                </div>
+                </button>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* 동영상 모달 - 전체화면 뷰어 */}
+      {videoModalOpen && videoModalUrl && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50"
+          onClick={() => setVideoModalOpen(false)}
+        >
+          {/* X 닫기 버튼 */}
+          <button
+            onClick={() => setVideoModalOpen(false)}
+            className="absolute top-4 right-4 z-60 text-white text-4xl font-bold hover:text-gray-300 bg-black bg-opacity-50 rounded-full w-12 h-12 flex items-center justify-center"
+          >
+            ×
+          </button>
+
+          {/* 동영상 플레이어 */}
+          <div
+            className="w-[95vw] max-w-5xl aspect-video"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <iframe
+              src={videoModalUrl.replace('watch?v=', 'embed/').replace('youtu.be/', 'www.youtube.com/embed/') + '?autoplay=1&rel=0'}
+              className="w-full h-full rounded-lg"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+
+          {/* 닫기 안내 */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-4 py-2 rounded-full">
+            화면을 탭하거나 X를 눌러 닫기
           </div>
         </div>
       )}

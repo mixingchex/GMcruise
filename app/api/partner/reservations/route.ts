@@ -136,6 +136,70 @@ export async function GET(req: NextRequest) {
               endDate: true,
             },
           },
+          Traveler: {
+            select: {
+              id: true,
+              korName: true,
+              engSurname: true,
+              engGivenName: true,
+              passportNo: true,
+              nationality: true,
+              birthDate: true,
+              issueDate: true,
+              expiryDate: true,
+              gender: true,
+              residentNum: true,
+              roomNumber: true,
+              passportImage: true,
+              notes: true,
+            },
+          },
+          AffiliateSale: {
+            select: {
+              id: true,
+              status: true,
+              saleDate: true,
+              refundedAt: true,
+              createdAt: true,
+              updatedAt: true,
+              AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  type: true,
+                },
+              },
+              AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                  type: true,
+                },
+              },
+              AffiliateLink: {
+                select: {
+                  id: true,
+                  code: true,
+                  title: true,
+                },
+              },
+              Payment: {
+                select: {
+                  id: true,
+                  orderId: true,
+                  amount: true,
+                  status: true,
+                  paidAt: true,
+                  cancelledAt: true,
+                  pgTransactionId: true,
+                  buyerName: true,
+                  buyerTel: true,
+                  pgProvider: true,
+                  metadata: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
           id: 'desc',
@@ -288,11 +352,31 @@ export async function GET(req: NextRequest) {
           endDate: trip.endDate ? trip.endDate.toISOString() : null,
         })) || [];
         
+        // 결제 정보 및 판매 채널 추출
+        const paymentMetadata = r.AffiliateSale?.Payment?.metadata as Record<string, any> | null;
+        const payMethod = paymentMetadata?.payMethod || paymentMetadata?.pay_method || r.AffiliateSale?.Payment?.pgProvider || null;
+
+        const agent = r.AffiliateSale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile;
+        const manager = r.AffiliateSale?.AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile;
+        const link = r.AffiliateSale?.AffiliateLink;
+
+        let salesChannel = '직접 판매';
+        let salesChannelDetail = '';
+
+        if (link) {
+          salesChannel = link.title || `링크(${link.code})`;
+          salesChannelDetail = link.code;
+        } else if (agent) {
+          salesChannel = agent.displayName || '판매원';
+          salesChannelDetail = agent.type === 'SALES' ? '판매원' : agent.type === 'BRANCH' ? '대리점장' : agent.type || '';
+        }
+
         return {
           id: r.id,
           totalPeople: r.totalPeople,
           passportStatus: r.passportStatus,
-          createdAt: r.paymentDate ? r.paymentDate.toISOString() : null,
+          pnrStatus: r.pnrStatus,
+          createdAt: r.createdAt ? r.createdAt.toISOString() : null,
           user: {
             ...user,
             customerType,
@@ -304,6 +388,7 @@ export async function GET(req: NextRequest) {
           trip: r.Trip ? {
             id: r.Trip.id,
             departureDate: r.Trip.departureDate?.toISOString() || null,
+            productCode: r.Trip.productCode,
             product: r.Trip.productCode ? productMap.get(r.Trip.productCode) || {
               cruiseLine: null,
               shipName: r.Trip.shipName || null,
@@ -314,6 +399,46 @@ export async function GET(req: NextRequest) {
               packageName: null,
             },
           } : null,
+          // 여행자 정보
+          travelers: r.Traveler || [],
+          // 판매원 정보
+          agent: agent ? {
+            id: agent.id,
+            displayName: agent.displayName,
+            type: agent.type,
+          } : null,
+          // 대리점장 정보
+          manager: manager ? {
+            id: manager.id,
+            displayName: manager.displayName,
+            type: manager.type,
+          } : null,
+          // 판매 채널 정보
+          salesChannel,
+          salesChannelDetail,
+          // 판매 링크 정보
+          link: link ? {
+            id: link.id,
+            code: link.code,
+            title: link.title,
+          } : null,
+          // 결제 정보
+          payment: r.AffiliateSale?.Payment ? {
+            id: r.AffiliateSale.Payment.id,
+            orderId: r.AffiliateSale.Payment.orderId,
+            amount: r.AffiliateSale.Payment.amount,
+            status: r.AffiliateSale.Payment.status,
+            paidAt: r.AffiliateSale.Payment.paidAt?.toISOString(),
+            cancelledAt: r.AffiliateSale.Payment.cancelledAt?.toISOString(),
+            pgTransactionId: r.AffiliateSale.Payment.pgTransactionId,
+            buyerName: r.AffiliateSale.Payment.buyerName,
+            buyerTel: r.AffiliateSale.Payment.buyerTel,
+            payMethod: payMethod,
+          } : null,
+          // 판매/환불 상태
+          saleStatus: r.AffiliateSale?.status || null,
+          saleRefundedAt: r.AffiliateSale?.refundedAt?.toISOString() || null,
+          saleDate: r.AffiliateSale?.saleDate?.toISOString() || r.AffiliateSale?.createdAt?.toISOString() || null,
         };
       }),
     });

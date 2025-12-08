@@ -256,7 +256,8 @@ export default function Certificate({ type }: CertificateProps) {
     });
   }, [confirmedRefundAmount, confirmedRefundDate, type]);
 
-  // 고객 검색
+  // 고객 검색 - 인증서 유형에 따라 필터링
+  // purchase: 구매완료 고객만, refund: 환불완료 고객만
   const searchCustomers = useCallback(async (query: string) => {
     if (!query || query.trim().length < 1) {
       setCustomerSuggestions([]);
@@ -266,7 +267,8 @@ export default function Certificate({ type }: CertificateProps) {
 
     try {
       setIsLoadingCustomerInfo(true);
-      const response = await fetch(`/api/admin/customers/search?q=${encodeURIComponent(query)}&limit=10`, {
+      // 인증서 유형에 따라 certificateType 파라미터 추가
+      const response = await fetch(`/api/admin/customers/search?q=${encodeURIComponent(query)}&limit=10&certificateType=${type}`, {
         credentials: 'include',
       });
 
@@ -274,7 +276,7 @@ export default function Certificate({ type }: CertificateProps) {
         const result = await response.json();
         if (result.ok) {
           setCustomerSuggestions(result.customers || []);
-          console.log('[Certificate] 검색 결과:', result.customers?.length || 0, '명');
+          console.log('[Certificate] 검색 결과:', result.customers?.length || 0, '명 (', type, ')');
         }
       }
     } catch (error) {
@@ -282,7 +284,7 @@ export default function Certificate({ type }: CertificateProps) {
     } finally {
       setIsLoadingCustomerInfo(false);
     }
-  }, []);
+  }, [type]);
 
   // 고객 검색 입력 핸들러
   const handleCustomerSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -305,7 +307,7 @@ export default function Certificate({ type }: CertificateProps) {
     }
   };
 
-  // 고객 선택 시 정보 로드
+  // 고객 선택 시 정보 로드 (구매/환불 정보 자동 입력)
   const loadCustomerInfo = useCallback(async (customerId: number) => {
     setIsLoadingCustomerInfo(true);
     try {
@@ -340,6 +342,10 @@ export default function Certificate({ type }: CertificateProps) {
                 : '',
             }));
 
+            // 상품명 검색 쿼리도 설정
+            setProductSearchQuery(product.packageName || '');
+            setSelectedProductId(product.id?.toString() || null);
+
             // 상품 상세 정보 설정
             setProductDetails({
               tags: product.tags || [],
@@ -359,6 +365,32 @@ export default function Certificate({ type }: CertificateProps) {
               hasTravelInsurance: product.hasTravelInsurance || false,
             });
           }
+
+          // 환불 정보 자동 설정 (환불인증서인 경우)
+          if (type === 'refund' && result.refund) {
+            const refundAmount = result.refund.amount || result.payment?.amount || 0;
+            const refundDate = result.refund.date
+              ? new Date(result.refund.date).toISOString().split('T')[0]
+              : '';
+
+            setData(prev => ({
+              ...prev,
+              refundAmount: refundAmount,
+              refundDate: refundDate,
+            }));
+
+            // 환불 정보 확인 상태로 자동 설정
+            setConfirmedRefundAmount(refundAmount);
+            setConfirmedRefundDate(refundDate);
+          }
+
+          // 구매/환불 고객 선택 시 바로 인증 처리된 것으로 간주 (승인요청 불필요)
+          // 고객 상태가 purchase_confirmed 또는 refunded인 경우 바로 발송 가능
+          if (result.customer.customerStatus === 'purchase_confirmed' && type === 'purchase') {
+            setIsCertified(true);
+          } else if (result.customer.customerStatus === 'refunded' && type === 'refund') {
+            setIsCertified(true);
+          }
         }
       }
     } catch (error) {
@@ -367,7 +399,7 @@ export default function Certificate({ type }: CertificateProps) {
     } finally {
       setIsLoadingCustomerInfo(false);
     }
-  }, []);
+  }, [type]);
 
   // 고객 선택 핸들러
   const handleCustomerSelect = (customer: CertificateCustomer) => {
@@ -622,6 +654,15 @@ export default function Certificate({ type }: CertificateProps) {
       <div className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-xl font-bold text-gray-900 mb-4">고객 정보 입력</h2>
 
+        {/* 인증서 유형에 따른 안내 메시지 */}
+        <div className={`mb-4 p-3 rounded-lg border ${type === 'purchase' ? 'bg-indigo-50 border-indigo-200' : 'bg-red-50 border-red-200'}`}>
+          <p className={`text-sm font-medium ${type === 'purchase' ? 'text-indigo-700' : 'text-red-700'}`}>
+            {type === 'purchase'
+              ? '구매확인증서는 "구매완료" 상태의 고객만 검색됩니다. 이름, 연락처, 이메일로 검색하세요.'
+              : '환불인증서는 "환불완료" 상태의 고객만 검색됩니다. 이름, 연락처, 이메일로 검색하세요.'}
+          </p>
+        </div>
+
         <div className="grid md:grid-cols-2 gap-6">
           <div className="relative">
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -641,7 +682,7 @@ export default function Certificate({ type }: CertificateProps) {
                     setShowSuggestions(true);
                   }
                 }}
-                placeholder="고객명, 전화번호, 이메일로 검색..."
+                placeholder={type === 'purchase' ? '구매완료 고객 검색 (이름, 연락처, 이메일)...' : '환불완료 고객 검색 (이름, 연락처, 이메일)...'}
                 className="w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-100 pr-24"
               />
               {isLoadingCustomerInfo && (
@@ -739,29 +780,22 @@ export default function Certificate({ type }: CertificateProps) {
             )}
           </div>
 
-          {/* 인증 버튼 */}
+          {/* 인증 상태 표시 (구매완료/환불완료 고객만 선택 가능하므로 자동 인증) */}
           <div className="md:col-span-2">
-            {!isCertified ? (
-              <button
-                onClick={handleCertify}
-                disabled={isCertifying || !data.customerName || !selectedCustomerId}
-                className={`w-full py-3 px-6 rounded-lg font-bold text-white transition-colors ${type === 'purchase'
-                  ? 'bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300'
-                  : 'bg-red-600 hover:bg-red-700 disabled:bg-red-300'
-                  }`}
-              >
-                {isCertifying
-                  ? '처리 중...'
-                  : type === 'purchase'
-                    ? '구매확인인증'
-                    : '환불인증완료'}
-              </button>
-            ) : (
+            {selectedCustomerId && isCertified ? (
               <div className={`w-full py-3 px-6 rounded-lg font-bold text-white text-center ${type === 'purchase'
                 ? 'bg-green-600'
                 : 'bg-red-600'
                 }`}>
-                {type === 'purchase' ? '✓ 구매확인인증 완료' : '✓ 환불인증완료 처리됨'}
+                {type === 'purchase' ? '✓ 구매완료 고객 - 인증서 발송 가능' : '✓ 환불완료 고객 - 인증서 발송 가능'}
+              </div>
+            ) : selectedCustomerId && !isCertified ? (
+              <div className="w-full py-3 px-6 rounded-lg font-bold text-yellow-800 text-center bg-yellow-100 border border-yellow-300">
+                고객 정보 확인 중...
+              </div>
+            ) : (
+              <div className="w-full py-3 px-6 rounded-lg font-bold text-gray-500 text-center bg-gray-100 border border-gray-300">
+                {type === 'purchase' ? '구매완료 고객을 선택하세요' : '환불완료 고객을 선택하세요'}
               </div>
             )}
           </div>
@@ -1394,7 +1428,7 @@ export default function Certificate({ type }: CertificateProps) {
               onClick={handleDownloadImage}
               disabled={isDownloading || (!isCertified && !hasBeenSent)}
               className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors"
-              title={!isCertified && !hasBeenSent ? (type === 'purchase' ? '구매확인인증을 먼저 완료해주세요' : '환불인증완료를 먼저 처리해주세요') : ''}
+              title={!isCertified && !hasBeenSent ? (type === 'purchase' ? '구매완료 고객을 선택해주세요' : '환불완료 고객을 선택해주세요') : ''}
             >
               <Download className="w-4 h-4" />
               {isDownloading ? '저장 중...' : '이미지 저장 (PNG)'}
@@ -1403,7 +1437,7 @@ export default function Certificate({ type }: CertificateProps) {
               onClick={handleSendEmail}
               disabled={isSendingEmail || (!isCertified && !hasBeenSent)}
               className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-6 py-3 text-sm font-semibold text-white hover:bg-purple-700 disabled:bg-purple-300 transition-colors"
-              title={!isCertified && !hasBeenSent ? (type === 'purchase' ? '구매확인인증을 먼저 완료해주세요' : '환불인증완료를 먼저 처리해주세요') : ''}
+              title={!isCertified && !hasBeenSent ? (type === 'purchase' ? '구매완료 고객을 선택해주세요' : '환불완료 고객을 선택해주세요') : ''}
             >
               <Mail className="w-4 h-4" />
               {isSendingEmail ? '전송 중...' : hasBeenSent ? '이메일 재발송' : '이메일 발송'}

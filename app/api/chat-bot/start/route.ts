@@ -36,7 +36,7 @@ function extractDestinations(product: {
   itineraryPattern?: string;
 }): string {
   const destinations: string[] = [];
-  
+
   if (product.packageName) {
     const packageName = product.packageName;
     if (packageName.includes('홍콩')) destinations.push('홍콩');
@@ -87,7 +87,7 @@ async function getUserName(): Promise<string> {
             name: true,
           },
         });
-        
+
         // mallNickname이 있으면 사용, 없으면 name 사용
         if (user?.mallNickname) {
           return user.mallNickname;
@@ -99,7 +99,7 @@ async function getUserName(): Promise<string> {
   } catch (error) {
     console.error('[ChatBot Start] Failed to get user name:', error);
   }
-  
+
   // 로그인하지 않은 경우 기본값
   return '행복♥';
 }
@@ -111,16 +111,16 @@ export async function GET(req: NextRequest) {
     const shareToken = searchParams.get('shareToken'); // 공유 토큰 파라미터 추가
     const flowIdParam = searchParams.get('flowId'); // 미리보기용 flowId 파라미터
     const isPreview = searchParams.get('preview') === 'true'; // 미리보기 모드
-    
-    // 상품 정보 로드 (있는 경우)
-    // ✅ prisma.cruiseProduct.findUnique 사용 (prisma.trip 사용하지 않음)
-    let productInfo = null;
-    if (productCode) {
-      try {
-        const normalizedProductCode = productCode.trim().toUpperCase();
-        if (!normalizedProductCode) {
-          console.warn('[ChatBot Start] Empty productCode after normalization');
-        } else {
+
+    // 🚀 병렬로 데이터 로드 (로딩 시간 최적화)
+    const [productResult, flowResult, userName] = await Promise.all([
+      // 1. 상품 정보 로드
+      (async () => {
+        if (!productCode) return null;
+        try {
+          const normalizedProductCode = productCode.trim().toUpperCase();
+          if (!normalizedProductCode) return null;
+
           const product = await prisma.cruiseProduct.findUnique({
             where: { productCode: normalizedProductCode },
             select: {
@@ -134,114 +134,92 @@ export async function GET(req: NextRequest) {
               startDate: true,
               endDate: true,
               itineraryPattern: true,
-              MallProductContent: {
-                select: {
-                  layout: true,
+            },
+          });
+
+          if (!product) return null;
+
+          return {
+            productCode: product.productCode,
+            packageName: product.packageName || '',
+            cruiseLine: product.cruiseLine || '',
+            shipName: product.shipName || '',
+            nights: product.nights || 0,
+            days: product.days || 0,
+            basePrice: product.basePrice,
+            startDate: product.startDate?.toISOString() || null,
+            endDate: product.endDate?.toISOString() || null,
+            itineraryPattern: product.itineraryPattern || '',
+          };
+        } catch (error) {
+          console.error('[ChatBot Start] Failed to load product:', error);
+          return null;
+        }
+      })(),
+
+      // 2. 플로우 찾기 (shareToken 또는 활성화된 플로우)
+      (async () => {
+        // 미리보기 모드: flowId로 직접 찾기
+        if (flowIdParam && isPreview) {
+          const flowId = parseInt(flowIdParam);
+          if (!isNaN(flowId)) {
+            const flow = await prisma.chatBotFlow.findFirst({
+              where: {
+                id: flowId,
+                category: 'AI 지니 채팅봇(구매)',
+              },
+              include: {
+                ChatBotQuestion: {
+                  where: { isActive: true },
+                  orderBy: { order: 'asc' },
                 },
+              },
+            });
+            if (flow) return flow;
+          }
+        }
+
+        // shareToken으로 플로우 찾기
+        if (shareToken) {
+          const flow = await prisma.chatBotFlow.findFirst({
+            where: {
+              shareToken: shareToken,
+              category: 'AI 지니 채팅봇(구매)',
+              isPublic: true,
+            },
+            orderBy: { order: 'asc' },
+            include: {
+              ChatBotQuestion: {
+                where: { isActive: true },
+                orderBy: { order: 'asc' },
               },
             },
           });
-          
-          if (product) {
-            productInfo = {
-              productCode: product.productCode,
-              packageName: product.packageName || '',
-              cruiseLine: product.cruiseLine || '',
-              shipName: product.shipName || '',
-              nights: product.nights || 0,
-              days: product.days || 0,
-              basePrice: product.basePrice,
-              startDate: product.startDate?.toISOString() || null,
-              endDate: product.endDate?.toISOString() || null,
-              itineraryPattern: product.itineraryPattern || '',
-            };
-          } else {
-            console.warn(`[ChatBot Start] Product not found: ${normalizedProductCode}`);
-          }
+          if (flow) return flow;
         }
-      } catch (error) {
-        console.error('[ChatBot Start] Failed to load product:', error);
-        console.error('[ChatBot Start] Error details:', {
-          message: error instanceof Error ? error.message : 'Unknown error',
-          stack: error instanceof Error ? error.stack : undefined,
-          productCode: productCode,
-        });
-        // 상품 정보 로드 실패해도 계속 진행 (productInfo는 null로 유지)
-      }
-    }
-    
-    // 플로우 찾기: flowId > shareToken > 활성화된 플로우 순서로 찾기
-    let flow = null;
-    
-    // 1. 미리보기 모드: flowId로 직접 찾기 (비활성화된 플로우도 가능, 관리자용)
-    if (flowIdParam && isPreview) {
-      const flowId = parseInt(flowIdParam);
-      if (!isNaN(flowId)) {
-        flow = await prisma.chatBotFlow.findFirst({
-          where: { 
-            id: flowId,
-            category: 'AI 지니 채팅봇(구매)', // 카테고리 체크는 유지
+
+        // 활성화된 플로우 찾기
+        return await prisma.chatBotFlow.findFirst({
+          where: {
+            isActive: true,
+            category: 'AI 지니 채팅봇(구매)',
           },
+          orderBy: { order: 'asc' },
           include: {
             ChatBotQuestion: {
-              where: {
-                isActive: true,
-              },
-              orderBy: {
-                order: 'asc',
-              },
+              where: { isActive: true },
+              orderBy: { order: 'asc' },
             },
           },
         });
-      }
-    }
-    
-    // 2. shareToken으로 플로우 찾기 (공개 링크용)
-    if (!flow && shareToken) {
-      flow = await prisma.chatBotFlow.findFirst({
-        where: {
-          shareToken: shareToken,
-          category: 'AI 지니 채팅봇(구매)',
-          isPublic: true, // 공개 플로우만
-        },
-        orderBy: {
-          order: 'asc',
-        },
-        include: {
-          ChatBotQuestion: {
-            where: {
-              isActive: true,
-            },
-            orderBy: {
-              order: 'asc',
-            },
-          },
-        },
-      });
-    }
-    
-    // 3. shareToken 플로우가 없거나 shareToken이 없으면 활성화된 플로우 찾기
-    if (!flow) {
-      flow = await prisma.chatBotFlow.findFirst({
-        where: {
-          isActive: true,
-          category: 'AI 지니 채팅봇(구매)',
-        },
-        orderBy: {
-          order: 'asc',
-        },
-        include: {
-          ChatBotQuestion: {
-            where: {
-              isActive: true,
-            },
-            orderBy: {
-              order: 'asc',
-            },
-          },
-        },
-      });
-    }
+      })(),
+
+      // 3. 사용자 이름 가져오기
+      getUserName(),
+    ]);
+
+    const productInfo = productResult;
+    const flow = flowResult;
 
     if (!flow) {
       return NextResponse.json({
@@ -257,7 +235,6 @@ export async function GET(req: NextRequest) {
         where: { id: flow.startQuestionId },
       });
     } else if (flow.ChatBotQuestion.length > 0) {
-      // 시작 질문이 없으면 첫 번째 질문 사용
       question = flow.ChatBotQuestion[0];
     }
 
@@ -268,26 +245,25 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 사용자 이름 가져오기
-    const userName = await getUserName();
-    
+    // 상품 정보가 있으면 질문 텍스트에 동적으로 반영
+
     // 상품 정보가 있으면 질문 텍스트에 동적으로 반영
     let questionText = question.questionText;
     let questionInformation = question.information;
-    
+
     // 사용자 이름 삽입
     questionText = questionText.replace(/\{userName\}/g, userName);
     if (questionInformation) {
       questionInformation = questionInformation.replace(/\{userName\}/g, userName);
     }
-    
+
     if (productInfo) {
       // 여행지 추출
       const destinations = extractDestinations({
         packageName: productInfo.packageName,
         itineraryPattern: productInfo.itineraryPattern || '',
       });
-      
+
       // 상품 정보를 질문에 동적으로 삽입
       questionText = questionText
         .replace(/\{packageName\}/g, productInfo.packageName)
@@ -297,13 +273,13 @@ export async function GET(req: NextRequest) {
         .replace(/\{days\}/g, String(productInfo.days))
         .replace(/\{basePrice\}/g, productInfo.basePrice ? productInfo.basePrice.toLocaleString() : '가격 문의')
         .replace(/\{여행지\}/g, destinations);
-      
+
       // 정보 필드에도 상품 정보 삽입
       // information이 null이면 빈 문자열로 초기화 (영상/이미지 추가를 위해)
       if (!questionInformation) {
         questionInformation = '';
       }
-      
+
       questionInformation = questionInformation
         .replace(/\{packageName\}/g, productInfo.packageName)
         .replace(/\{cruiseLine\}/g, productInfo.cruiseLine)
@@ -312,14 +288,14 @@ export async function GET(req: NextRequest) {
         .replace(/\{days\}/g, String(productInfo.days))
         .replace(/\{basePrice\}/g, productInfo.basePrice ? productInfo.basePrice.toLocaleString() : '가격 문의')
         .replace(/\{여행지\}/g, destinations);
-      
+
       // 크루즈 선사별 유튜브 영상 링크 추가 (q3에만)
       if (question.order === 3) {
         // 하드코딩된 영상 링크 사용 (YouTube API 사용 안 함)
         const videoUrl = productInfo ? getCruiseLineVideoUrl(productInfo.cruiseLine) : null;
         const finalVideoUrl = videoUrl || 'https://youtu.be/QcTTmP5Ldt4?si=mcG88DRo4wLmcv-B';
         const videoTitle = videoUrl ? `${productInfo.cruiseLine} 크루즈 실제 여행 영상` : 'MSC 크루즈 실제 여행 영상';
-        
+
         // 중복 체크
         const videoId = finalVideoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/)?.[1];
         const hasVideo = videoId && questionInformation.includes(videoId);
@@ -342,7 +318,7 @@ export async function GET(req: NextRequest) {
               itineraryPattern: productInfo.itineraryPattern || '',
             }, 9);
           }
-          
+
           // productInfo가 없거나 이미지가 없을 때 기본 이미지 사용
           if (cruiseImages.length === 0) {
             cruiseImages = getCruiseReviewImages({
@@ -350,7 +326,7 @@ export async function GET(req: NextRequest) {
               itineraryPattern: '',
             }, 9);
           }
-          
+
           if (cruiseImages.length > 0) {
             const imagesToAdd = cruiseImages.filter(img => !questionInformation?.includes(img.url));
 
@@ -362,7 +338,7 @@ export async function GET(req: NextRequest) {
                 imageSection += `<img src="${img.url}" alt="${img.title || '크루즈 후기 사진'}" style="width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onerror="this.style.display='none'; this.onerror=null;" />`;
               });
               imageSection += '</div>\n';
-              
+
               questionInformation += imageSection;
             }
           }
@@ -383,7 +359,7 @@ export async function GET(req: NextRequest) {
               itineraryPattern: productInfo.itineraryPattern || '',
             });
           }
-          
+
           // productInfo가 없거나 이미지가 없을 때 기본 이미지 사용
           if (destinationImages.length === 0) {
             destinationImages = getProductDestinationImages({
@@ -395,13 +371,13 @@ export async function GET(req: NextRequest) {
           // 여행지 이미지가 있으면 추가
           if (destinationImages.length > 0) {
             const imagesToAdd = destinationImages.filter(img => !questionInformation?.includes(img.url));
-            
+
             if (imagesToAdd.length > 0) {
               let imageSection = '\n\n';
               imagesToAdd.forEach((img) => {
                 imageSection += `![${img.title}](${img.url})\n\n`;
               });
-              
+
               questionInformation += imageSection;
             }
           }
@@ -418,10 +394,10 @@ export async function GET(req: NextRequest) {
           if (!questionInformation) {
             questionInformation = '';
           }
-          
+
           // 객실 이미지 3장 가져오기
           const roomImages = getRoomImages(3);
-          
+
           if (roomImages.length > 0) {
             const imagesToAdd = roomImages.filter(img => !questionInformation?.includes(img.url));
 
@@ -433,7 +409,7 @@ export async function GET(req: NextRequest) {
                 imageSection += `<img src="${img.url}" alt="${img.title || '객실 사진'}" style="flex: 1; min-width: 200px; max-width: 300px; height: auto; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onerror="this.style.display='none'; this.onerror=null;" />`;
               });
               imageSection += '</div>\n';
-              
+
               questionInformation += imageSection;
             }
           }
@@ -443,7 +419,7 @@ export async function GET(req: NextRequest) {
         }
       }
     }
-    
+
     // productInfo가 없을 때 기본 영상/이미지 추가
     if (!productInfo) {
       // 크루즈 선사별 유튜브 영상 링크 추가 (q3에만) - productInfo가 없을 때
@@ -462,7 +438,7 @@ export async function GET(req: NextRequest) {
           }
         }
       }
-      
+
       // 크루즈 후기 사진 추가 (q6에만) - productInfo가 없을 때
       if (question.order === 6) {
         try {
@@ -474,7 +450,7 @@ export async function GET(req: NextRequest) {
               packageName: '크루즈',
               itineraryPattern: '',
             }, 9);
-            
+
             if (cruiseImages.length > 0) {
               let imageSection = '\n\n📸 **크루즈 후기 사진**\n\n';
               imageSection += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 16px 0;">';
@@ -489,7 +465,7 @@ export async function GET(req: NextRequest) {
           console.error('[ChatBot Start] Failed to load default cruise review images:', error);
         }
       }
-      
+
       // 여행지 이미지 추가 (q4에만) - productInfo가 없을 때
       if (question.order === 4) {
         try {
@@ -500,7 +476,7 @@ export async function GET(req: NextRequest) {
             packageName: '크루즈 여행',
             itineraryPattern: '',
           });
-          
+
           if (destinationImages.length > 0) {
             let imageSection = '\n\n';
             destinationImages.forEach((img) => {
@@ -517,16 +493,16 @@ export async function GET(req: NextRequest) {
     // optionA, optionB, options에도 플레이스홀더 치환 적용
     let optionA = question.optionA;
     let optionB = question.optionB;
-    let options = question.options && typeof question.options === 'object' 
+    let options = question.options && typeof question.options === 'object'
       ? (Array.isArray(question.options) ? question.options : [])
       : null;
-    
+
     if (productInfo) {
       const destinations = extractDestinations({
         packageName: productInfo.packageName,
         itineraryPattern: productInfo.itineraryPattern || '',
       });
-      
+
       // optionA, optionB 치환
       if (optionA) {
         optionA = optionA.replace(/\{여행지\}/g, destinations);
@@ -534,7 +510,7 @@ export async function GET(req: NextRequest) {
       if (optionB) {
         optionB = optionB.replace(/\{여행지\}/g, destinations);
       }
-      
+
       // options 배열 치환
       if (options && Array.isArray(options)) {
         options = options.map(opt => {
@@ -569,8 +545,8 @@ export async function GET(req: NextRequest) {
       name: error instanceof Error ? error.name : undefined,
     });
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         error: '채팅봇을 시작하는 중 오류가 발생했습니다.',
         details: error instanceof Error ? error.message : 'Unknown error'
       },

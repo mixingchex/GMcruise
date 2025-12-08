@@ -6,8 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 interface Traveler {
   id?: number;
   korName: string;
-  engSurname: string;
-  engGivenName: string;
+  residentNum: string;
   phone: string;
   roomNumber: number;
   roomColor: string;
@@ -33,8 +32,7 @@ interface Reservation {
   travelers: Array<{
     id: number;
     korName: string;
-    engSurname: string | null;
-    engGivenName: string | null;
+    residentNum: string | null;
     phone?: string | null;
     roomNumber?: number;
   }>;
@@ -119,8 +117,7 @@ export default function CustomerPnrPage() {
         initialTravelers.push({
           id: t.id,
           korName: t.korName || '',
-          engSurname: t.engSurname || '',
-          engGivenName: t.engGivenName || '',
+          residentNum: t.residentNum || '',
           phone: index === 0 ? (reservationData.user?.phone || '') : (t.phone || ''),
           roomNumber: t.roomNumber || 1,
           roomColor: ROOM_COLORS[(t.roomNumber || 1) - 1]?.value || ROOM_COLORS[0].value,
@@ -130,8 +127,7 @@ export default function CustomerPnrPage() {
       for (let i = 0; i < totalPeople; i++) {
         initialTravelers.push({
           korName: i === 0 ? (reservationData.user?.name || '') : '',
-          engSurname: '',
-          engGivenName: '',
+          residentNum: '',
           phone: i === 0 ? (reservationData.user?.phone || '') : '',
           roomNumber: 1,
           roomColor: ROOM_COLORS[0].value,
@@ -227,8 +223,7 @@ export default function CustomerPnrPage() {
       ...travelers,
       {
         korName: '',
-        engSurname: '',
-        engGivenName: '',
+        residentNum: '',
         phone: '',
         roomNumber: nextRoomNumber > 8 ? 1 : nextRoomNumber,
         roomColor: ROOM_COLORS[(nextRoomNumber - 1) % ROOM_COLORS.length].value,
@@ -249,15 +244,27 @@ export default function CustomerPnrPage() {
   const handleSubmit = async () => {
     setError('');
 
-    // 유효성 검사
+    // 유효성 검사 - 모든 여행자에게 이름, 주민번호, 연락처 필수
     for (let i = 0; i < travelers.length; i++) {
       const traveler = travelers[i];
-      if (!traveler.korName) {
-        alert(`${i + 1}번째 여행자의 이름을 입력해주세요.`);
+      const label = i === 0 ? '대표자' : `동행자 ${i}`;
+
+      if (!traveler.korName || traveler.korName.trim() === '') {
+        alert(`${label}의 이름을 입력해주세요.`);
         return;
       }
-      if (i === 0 && !traveler.phone) {
-        alert('대표자 연락처는 필수 입력 항목입니다.');
+      if (!traveler.residentNum || traveler.residentNum.trim() === '') {
+        alert(`${label}의 주민등록번호를 입력해주세요.`);
+        return;
+      }
+      // 주민번호 형식 검사 (13자리 숫자 또는 6-7자리)
+      const cleanResidentNum = traveler.residentNum.replace(/-/g, '');
+      if (cleanResidentNum.length !== 13 && cleanResidentNum.length !== 6 && cleanResidentNum.length !== 7) {
+        alert(`${label}의 주민등록번호 형식이 올바르지 않습니다. (예: 000000-0000000)`);
+        return;
+      }
+      if (!traveler.phone || traveler.phone.trim() === '') {
+        alert(`${label}의 연락처를 입력해주세요.`);
         return;
       }
     }
@@ -276,8 +283,7 @@ export default function CustomerPnrPage() {
           travelers: travelers.map((t, index) => ({
             id: t.id,
             korName: t.korName,
-            engSurname: t.engSurname || null,
-            engGivenName: t.engGivenName || null,
+            residentNum: t.residentNum || null,
             phone: t.phone || null,
             roomNumber: t.roomNumber,
           })),
@@ -450,9 +456,10 @@ export default function CustomerPnrPage() {
             <div className="rounded-lg bg-blue-50 p-4 border-2 border-blue-200">
               <h3 className="mb-2 font-semibold text-blue-900">📋 PNR 등록 안내</h3>
               <ul className="space-y-1 text-sm text-blue-800">
+                <li>• <strong>이름, 주민등록번호, 연락처</strong>는 모든 여행자 필수 입력입니다</li>
+                <li>• <strong>영문이름</strong>은 여권 등록 시 자동으로 입력됩니다 (별도 입력 불필요)</li>
                 <li>• 같은 객실을 사용할 분들은 <strong>같은 방 번호</strong>를 선택해주세요</li>
                 <li>• 방 번호별로 <strong>색상이 다르게</strong> 표시됩니다</li>
-                <li>• 대표자(첫 번째) 연락처는 필수입니다</li>
               </ul>
             </div>
 
@@ -519,7 +526,7 @@ export default function CustomerPnrPage() {
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-700">
-                          한글 성명 <span className="text-red-500">*</span>
+                          이름 <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -532,33 +539,35 @@ export default function CustomerPnrPage() {
 
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-700">
-                          영문 성
+                          주민등록번호 <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
-                          value={traveler.engSurname}
-                          onChange={(e) => updateTraveler(index, 'engSurname', e.target.value.toUpperCase())}
+                          value={traveler.residentNum}
+                          onChange={(e) => {
+                            // 숫자와 하이픈만 허용, 자동 하이픈 추가
+                            let value = e.target.value.replace(/[^0-9-]/g, '');
+                            // 6자리 입력 후 하이픈 자동 추가
+                            if (value.length === 6 && !value.includes('-')) {
+                              value = value + '-';
+                            }
+                            // 최대 14자리 (000000-0000000)
+                            if (value.length <= 14) {
+                              updateTraveler(index, 'residentNum', value);
+                            }
+                          }}
                           className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          placeholder="HONG"
+                          placeholder="000000-0000000"
+                          maxLength={14}
                         />
+                        <p className="mt-1 text-xs text-gray-500">
+                          영문이름은 여권 등록 시 자동으로 입력됩니다
+                        </p>
                       </div>
 
                       <div>
                         <label className="mb-1 block text-sm font-medium text-gray-700">
-                          영문 이름
-                        </label>
-                        <input
-                          type="text"
-                          value={traveler.engGivenName}
-                          onChange={(e) => updateTraveler(index, 'engGivenName', e.target.value.toUpperCase())}
-                          className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                          placeholder="GILDONG"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="mb-1 block text-sm font-medium text-gray-700">
-                          연락처 {index === 0 && <span className="text-red-500">*</span>}
+                          연락처 <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="tel"

@@ -21,12 +21,81 @@ export async function GET(req: NextRequest) {
     const query = searchParams.get('q') || '';
     const limit = parseInt(searchParams.get('limit') || '10');
     const hasPurchase = searchParams.get('hasPurchase') === 'true';
+    const certificateType = searchParams.get('certificateType'); // 'purchase' or 'refund'
 
     if (!query || query.trim().length < 1) {
       return NextResponse.json({ ok: true, customers: [] });
     }
 
-    // AffiliateLead를 통해 고객 찾기
+    // 인증서 유형이 지정된 경우: User 테이블에서 직접 검색 (customerStatus 기반)
+    // purchase: 구매완료(purchase_confirmed) 고객만
+    // refund: 환불완료(refunded) 고객만
+    if (certificateType === 'purchase' || certificateType === 'refund') {
+      const customerStatusFilter = certificateType === 'purchase' ? 'purchase_confirmed' : 'refunded';
+
+      // 소유권 조건 설정
+      let leadWhereClause: any;
+      if (profile.type === 'SALES_AGENT') {
+        leadWhereClause = { agentId: profile.id };
+      } else if (profile.type === 'BRANCH_MANAGER') {
+        const managedAgents = profile.managedAgents || [];
+        const agentProfileIds = managedAgents.map((a: any) => a.id);
+        leadWhereClause = {
+          OR: [
+            { managerId: profile.id },
+            ...(agentProfileIds.length > 0 ? [{ agentId: { in: agentProfileIds } }] : []),
+          ],
+        };
+      } else {
+        return NextResponse.json({ ok: true, customers: [] });
+      }
+
+      // 파트너의 리드 전화번호 목록 가져오기
+      const partnerLeads = await prisma.affiliateLead.findMany({
+        where: leadWhereClause,
+        select: { customerPhone: true },
+      });
+      const partnerPhones = partnerLeads
+        .map(l => l.customerPhone)
+        .filter((phone): phone is string => !!phone);
+
+      // 해당 전화번호 중 customerStatus가 맞는 고객 검색
+      const users = await prisma.user.findMany({
+        where: {
+          role: { not: 'admin' },
+          customerStatus: customerStatusFilter,
+          phone: { in: partnerPhones },
+          OR: [
+            { name: { contains: query } },
+            { phone: { contains: query } },
+            { email: { contains: query } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          email: true,
+          customerStatus: true,
+        },
+        take: limit,
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        customers: users.map(u => ({
+          id: u.id,
+          name: u.name || '',
+          phone: u.phone || '',
+          email: u.email || '',
+          customerStatus: u.customerStatus,
+          displayName: `${u.name || '이름 없음'}${u.phone ? ` (${u.phone})` : ''}`,
+        })),
+      });
+    }
+
+    // 기존 로직: AffiliateLead를 통해 고객 찾기
     // 검색 조건
     const searchCondition: any = {
       OR: [

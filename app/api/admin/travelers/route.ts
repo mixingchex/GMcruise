@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
-import { syncApisSpreadsheet } from '@/lib/google-sheets';
+import { syncApisInBackground } from '@/lib/google-sheets';
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,12 +62,10 @@ export async function POST(req: NextRequest) {
       data: { totalPeople: travelerCount },
     });
 
-    // APIS 스프레드시트 자동 동기화 (비동기, 에러 무시)
+    // APIS 스프레드시트 자동 동기화 (재시도 로직 포함)
     const tripId = reservation.Trip?.id;
     if (tripId) {
-      syncApisSpreadsheet(tripId).catch(err => {
-        console.error('[Admin Travelers Create] APIS sync failed:', err);
-      });
+      syncApisInBackground(tripId);
     }
 
     return NextResponse.json({

@@ -129,6 +129,7 @@ export default function CustomersPage() {
   const [sortBy, setSortBy] = useState<'createdAt' | 'name' | 'tripCount' | 'lastActiveAt'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedManagerId, setSelectedManagerId] = useState<string>('');
+  const [ownerSearch, setOwnerSearch] = useState<string>(''); // 담당자 이름 검색
   const [managers, setManagers] = useState<Array<{ id: number; displayName: string | null; branchLabel: string | null; affiliateCode: string | null }>>([]);
   const [customerGroup, setCustomerGroup] = useState<string>(initialGroup); // 고객 그룹 필터 (기본값: trial)
   const [groupCounts, setGroupCounts] = useState<Record<string, number>>({}); // 그룹별 고객 수
@@ -185,6 +186,7 @@ export default function CustomersPage() {
         page: pagination.page.toString(),
         limit: pageSize.toString(), // 동적 페이지 크기 사용
         ...(selectedManagerId && { managerProfileId: selectedManagerId }),
+        ...(ownerSearch && { ownerSearch }), // 담당자 이름 검색
         ...(certificateType !== 'all' && { certificateType }),
         ...(monthFilter && { monthFilter }),
         ...(customerGroup && { customerGroup }), // customerGroup 파라미터 전달 (all 포함)
@@ -192,7 +194,7 @@ export default function CustomersPage() {
 
       // 성능 최적화: 클라이언트 측 캐싱 (30초)
       // 캐시 키 생성: undefined 값 처리로 정확성 향상
-      const cacheKey = `customers_${customerGroup || 'all'}_${search || ''}_${status || 'all'}_${certificateType || 'all'}_${monthFilter || ''}_${sortBy || 'createdAt'}_${sortOrder || 'desc'}_${pagination.page || 1}_${pageSize || 50}_${selectedManagerId || ''}`;
+      const cacheKey = `customers_${customerGroup || 'all'}_${search || ''}_${status || 'all'}_${certificateType || 'all'}_${monthFilter || ''}_${sortBy || 'createdAt'}_${sortOrder || 'desc'}_${pagination.page || 1}_${pageSize || 50}_${selectedManagerId || ''}_${ownerSearch || ''}`;
       const CACHE_DURATION = 30 * 1000; // 30초
       
       // 캐시 확인
@@ -305,7 +307,7 @@ export default function CustomersPage() {
       setIsLoading(false);
       isLoadingRef.current = false;
     }
-  }, [search, status, certificateType, monthFilter, sortBy, sortOrder, pagination.page, selectedManagerId, customerGroup, pageSize]);
+  }, [search, status, certificateType, monthFilter, sortBy, sortOrder, pagination.page, selectedManagerId, ownerSearch, customerGroup, pageSize]);
 
   useEffect(() => {
     loadCustomers();
@@ -642,6 +644,21 @@ export default function CustomersPage() {
             </div>
           </div>
 
+          {/* 담당자 이름 검색 */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">담당자 검색</label>
+            <input
+              type="text"
+              value={ownerSearch}
+              onChange={(e) => {
+                setOwnerSearch(e.target.value);
+                setPagination(prev => ({ ...prev, page: 1 }));
+              }}
+              placeholder="판매원/대리점장 이름 검색"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
           {/* 점장 필터 */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">대리점장별 필터</label>
@@ -755,7 +772,7 @@ export default function CustomersPage() {
         </div>
 
         {/* 활성 필터 표시 (필터 칩) */}
-        {(search || status !== 'all' || certificateType !== 'all' || monthFilter || selectedManagerId) && (
+        {(search || status !== 'all' || certificateType !== 'all' || monthFilter || selectedManagerId || ownerSearch) && (
           <div className="mt-4 flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-gray-700">활성 필터:</span>
             {search && (
@@ -816,6 +833,17 @@ export default function CustomersPage() {
                 </button>
               </span>
             )}
+            {ownerSearch && (
+              <span className="px-3 py-1 bg-teal-100 text-teal-800 rounded-full text-sm font-medium flex items-center gap-2">
+                담당자: {ownerSearch}
+                <button
+                  onClick={() => setOwnerSearch('')}
+                  className="hover:text-teal-600"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </span>
+            )}
             <button
               onClick={() => {
                 setSearchInput('');
@@ -824,6 +852,7 @@ export default function CustomersPage() {
                 setCertificateType('all');
                 setMonthFilter('');
                 setSelectedManagerId('');
+                setOwnerSearch('');
                 setPagination(prev => ({ ...prev, page: 1 }));
               }}
               className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-sm font-medium transition-colors"

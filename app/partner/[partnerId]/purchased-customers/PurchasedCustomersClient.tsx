@@ -46,6 +46,31 @@ type PartnerInfo = {
   }>;
 };
 
+type Payment = {
+  id: number;
+  orderId: string;
+  amount: number;
+  status: string;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  pgTransactionId: string | null;
+  buyerName: string;
+  buyerTel: string;
+  payMethod: string | null;
+};
+
+type AffiliateInfo = {
+  id: number;
+  displayName: string | null;
+  type: string | null;
+};
+
+type LinkInfo = {
+  id: number;
+  code: string;
+  title: string | null;
+};
+
 type Reservation = {
   id: number;
   totalPeople: number;
@@ -60,12 +85,27 @@ type Reservation = {
   trip: {
     id: number;
     departureDate: string | null;
+    productCode?: string;
     product: {
       cruiseLine: string | null;
       shipName: string | null;
       packageName: string | null;
     } | null;
   } | null;
+  // 판매원 정보
+  agent?: AffiliateInfo | null;
+  // 대리점장 정보
+  manager?: AffiliateInfo | null;
+  // 판매 채널 정보
+  salesChannel?: string;
+  salesChannelDetail?: string;
+  // 판매 링크 정보
+  link?: LinkInfo | null;
+  // 결제 정보
+  payment?: Payment | null;
+  saleStatus?: string | null;
+  saleRefundedAt?: string | null;
+  saleDate?: string | null;
 };
 
 type PurchasedCustomersClientProps = {
@@ -528,6 +568,15 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                       <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
                         {reservation.pnrStatus || '예약'}
                       </span>
+                      {/* 판매 채널 배지 */}
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold ${reservation.link
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : reservation.agent
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}>
+                        {reservation.salesChannel || '직접 판매'}
+                      </span>
                     </div>
                     <div className="space-y-1 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
@@ -549,8 +598,55 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                           </span>
                         </div>
                       )}
-                      <div className="text-xs text-gray-500">
-                        총 {reservation.totalPeople}명 • 예약일: {new Date(reservation.createdAt).toLocaleDateString('ko-KR')}
+                      {/* 결제 정보 */}
+                      {reservation.payment && (
+                        <div className="mt-2 pt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="font-semibold text-gray-900">
+                              {reservation.payment.amount.toLocaleString()}원
+                            </span>
+                            {reservation.payment.status === 'cancelled' || reservation.saleRefundedAt ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                환불완료
+                              </span>
+                            ) : reservation.payment.status === 'paid' ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                결제완료
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                                {reservation.payment.status}
+                              </span>
+                            )}
+                            {reservation.payment.payMethod && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                {reservation.payment.payMethod === 'card' || reservation.payment.payMethod === 'CARD' ? '카드' :
+                                  reservation.payment.payMethod === 'bank' || reservation.payment.payMethod === 'BANK' ? '계좌이체' :
+                                    reservation.payment.payMethod === 'vbank' || reservation.payment.payMethod === 'VBANK' ? '가상계좌' :
+                                      reservation.payment.payMethod}
+                              </span>
+                            )}
+                            {reservation.payment.paidAt && (
+                              <span className="text-xs text-gray-500">
+                                결제일: {new Date(reservation.payment.paidAt).toLocaleDateString('ko-KR')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
+                        <span>총 {reservation.totalPeople}명</span>
+                        <span>예약일: {new Date(reservation.createdAt).toLocaleDateString('ko-KR')}</span>
+                        {/* 판매 경로 상세 */}
+                        {reservation.agent && (
+                          <span>판매원: {reservation.agent.displayName || '-'}</span>
+                        )}
+                        {reservation.manager && (
+                          <span>대리점장: {reservation.manager.displayName || '-'}</span>
+                        )}
+                        {reservation.link && (
+                          <span className="text-blue-600">링크코드: {reservation.link.code}</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1296,28 +1392,6 @@ export default function PurchasedCustomersClient({ partner }: PurchasedCustomers
                   className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   닫기
-                </button>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!confirm('PNR 데이터를 전송하시겠습니까?')) return;
-                    try {
-                      const res = await fetch(`/api/partner/reservations/${reservationDetail.id}/sync-apis`, {
-                        method: 'POST',
-                      });
-                      const data = await res.json();
-                      if (data.ok) {
-                        alert('PNR 데이터 전송이 요청되었습니다.');
-                      } else {
-                        alert(data.error || '전송 실패');
-                      }
-                    } catch (e) {
-                      alert('전송 중 오류가 발생했습니다.');
-                    }
-                  }}
-                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
-                >
-                  PNR 전송
                 </button>
               </div>
             </div>

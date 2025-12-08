@@ -179,6 +179,35 @@ export async function GET(
       });
     }
 
+    // 환불 정보 조회 (환불인증서용)
+    let refundInfo = null;
+    if (payment?.cancelledAt) {
+      refundInfo = {
+        amount: payment.amount,
+        date: payment.cancelledAt,
+        reason: payment.cancelReason || '고객 요청',
+      };
+    } else if (lead.AffiliateSale && lead.AffiliateSale.length > 0) {
+      const sale = lead.AffiliateSale[0];
+      if (sale.refundedAt) {
+        refundInfo = {
+          amount: sale.refundAmount || sale.saleAmount,
+          date: sale.refundedAt,
+          reason: '고객 요청',
+        };
+      }
+    }
+
+    // 고객 상태 조회
+    let customerStatus = null;
+    if (customer) {
+      const userStatus = await prisma.user.findUnique({
+        where: { id: customer.id },
+        select: { customerStatus: true },
+      });
+      customerStatus = userStatus?.customerStatus || null;
+    }
+
     return NextResponse.json({
       ok: true,
       customer: customer ? {
@@ -187,12 +216,14 @@ export async function GET(
         phone: customer.phone || lead.customerPhone,
         email: customer.email,
         birthDate: birthDate,
+        customerStatus: customerStatus,
       } : {
         id: null,
         name: lead.customerName,
         phone: lead.customerPhone,
         email: null,
         birthDate: birthDate,
+        customerStatus: null,
       },
       product: productInfo ? {
         id: productInfo.id,
@@ -209,6 +240,7 @@ export async function GET(
         ...productDetails,
       } : null,
       payment: paymentInfo,
+      refund: refundInfo,
     });
   } catch (error) {
     console.error('[Partner Customer Purchase Info] Error:', error);

@@ -7,6 +7,7 @@ import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 
 import { uploadFileToDrive } from '@/lib/google-drive';
+import { logContractPdfBackup } from '@/lib/backup';
 
 import { generateContractPDFFromId } from '@/lib/affiliate/contract-pdf';
 
@@ -37,7 +38,14 @@ export async function POST(
     // 1. 계약서 정보 조회
     const contract = await prisma.affiliateContract.findUnique({
       where: { id: contractId },
-      include: { user: true }
+      include: {
+        User_AffiliateContract_userIdToUser: {
+          select: {
+            email: true,
+            name: true,
+          }
+        }
+      }
     });
 
     if (!contract) return NextResponse.json({ ok: false, error: 'Contract not found' }, { 
@@ -71,7 +79,7 @@ export async function POST(
       data: {
         status: 'completed',
         reviewedAt: new Date(),
-        approvedById: sessionUser.id,
+        reviewerId: sessionUser.id,
         metadata: {
           ...metadata,
           completedBy: sessionUser.id,
@@ -105,18 +113,48 @@ export async function POST(
           }
         });
         console.log('[Contract Complete] Uploaded to Drive:', driveResult.url);
+
+        // 백업 성공 로그 기록
+        logContractPdfBackup(
+          contractId,
+          contract.name || '계약서',
+          true,
+          driveResult.url,
+          undefined,
+          sessionUser.name || undefined
+        ).catch(err => console.error('[Contract Complete] 로그 기록 실패:', err));
       } else {
         console.error('[Contract Complete] Drive Upload Failed:', driveResult.error);
+
+        // 백업 실패 로그 기록
+        logContractPdfBackup(
+          contractId,
+          contract.name || '계약서',
+          false,
+          undefined,
+          driveResult.error,
+          sessionUser.name || undefined
+        ).catch(err => console.error('[Contract Complete] 로그 기록 실패:', err));
       }
     } catch (uploadError: any) {
       console.error('[Contract Complete] Drive Upload Failed:', uploadError);
+
+      // 백업 실패 로그 기록
+      logContractPdfBackup(
+        contractId,
+        contract.name || '계약서',
+        false,
+        undefined,
+        uploadError.message,
+        sessionUser.name || undefined
+      ).catch(err => console.error('[Contract Complete] 로그 기록 실패:', err));
       // 업로드 실패해도 계약 완료 상태는 유지 (필요 시 롤백)
     }
 
     // 4. 이메일 발송 (계약자에게 자동 전송)
     const { sendContractPDFByEmail } = await import('@/lib/affiliate/contract-email');
-    const recipientEmail = contract.email || contract.user?.email;
-    const recipientName = contract.name || contract.user?.name || '계약자';
+    const recipientEmail = contract.email || contract.User_AffiliateContract_userIdToUser?.email;
+    const recipientName = contract.name || contract.User_AffiliateContract_userIdToUser?.name || '계약자';
     
     if (recipientEmail) {
       // 계약자에게 PDF 전송 (비동기, 실패해도 계속 진행)

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
-import { syncApisSpreadsheet } from '@/lib/google-sheets';
+import { syncApisInBackground } from '@/lib/google-sheets';
 
 export async function PATCH(
   req: NextRequest,
@@ -85,12 +85,10 @@ export async function PATCH(
       }
     });
 
-    // APIS 스프레드시트 자동 동기화 (비동기, 에러 무시)
+    // APIS 스프레드시트 자동 동기화 (재시도 로직 포함)
     const tripId = updatedTraveler.Reservation?.Trip?.id;
     if (tripId) {
-      syncApisSpreadsheet(tripId).catch(err => {
-        console.error('[Admin Travelers Update] APIS sync failed:', err);
-      });
+      syncApisInBackground(tripId);
     }
 
     return NextResponse.json({
@@ -248,11 +246,9 @@ export async function DELETE(
       });
     }
 
-    // APIS 동기화 (비동기)
+    // APIS 스프레드시트 자동 동기화 (재시도 로직 포함)
     if (tripId) {
-      syncApisSpreadsheet(tripId).catch(err => {
-        console.error('[Admin Travelers Delete] APIS sync failed:', err);
-      });
+      syncApisInBackground(tripId);
     }
 
     return NextResponse.json({

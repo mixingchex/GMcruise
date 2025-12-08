@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const reservationId = searchParams.get('reservationId');
+    const travelerId = searchParams.get('travelerId');
 
     if (!reservationId) {
       return NextResponse.json(
@@ -36,6 +37,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const travelerIdNum = travelerId ? parseInt(travelerId) : null;
 
     // 예약 존재 확인
     const reservation = await prisma.reservation.findUnique({
@@ -93,10 +96,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 파일명 생성
+    // 파일명 생성 (travelerId가 있으면 포함)
     const timestamp = Date.now();
     const fileExtension = file.name.split('.').pop() || 'jpg';
-    const fileName = `passport_${reservationIdNum}_${timestamp}.${fileExtension}`;
+    const fileName = travelerIdNum
+      ? `passport_${reservationIdNum}_traveler${travelerIdNum}_${timestamp}.${fileExtension}`
+      : `passport_${reservationIdNum}_${timestamp}.${fileExtension}`;
 
     // 파일 Buffer 변환
     const bytes = await file.arrayBuffer();
@@ -121,7 +126,21 @@ export async function POST(req: NextRequest) {
     const fileUrl = uploadResult.url;
 
     // 로그 기록
-    logger.info(`[Customer Passport Upload] 여권 이미지 저장 완료: reservationId=${reservationIdNum}, fileId=${uploadResult.fileId}, url=${fileUrl}`);
+    logger.info(`[Customer Passport Upload] 여권 이미지 저장 완료: reservationId=${reservationIdNum}, travelerId=${travelerIdNum}, fileId=${uploadResult.fileId}, url=${fileUrl}`);
+
+    // travelerId가 있으면 Traveler.passportImage 필드 업데이트
+    if (travelerIdNum) {
+      try {
+        await prisma.traveler.update({
+          where: { id: travelerIdNum },
+          data: { passportImage: fileUrl },
+        });
+        logger.info(`[Customer Passport Upload] Traveler.passportImage 업데이트 완료: travelerId=${travelerIdNum}`);
+      } catch (travelerError) {
+        logger.warn(`[Customer Passport Upload] Traveler.passportImage 업데이트 실패:`, travelerError);
+        // 실패해도 계속 진행
+      }
+    }
 
     // APIS 스프레드시트에 여권 링크 자동 기록 (비동기, 실패해도 계속 진행)
     try {

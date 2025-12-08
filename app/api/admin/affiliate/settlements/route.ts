@@ -42,7 +42,7 @@ type CsvRow = {
   hqNetAfterFees: number | null;
 };
 
-const ALLOWED_STATUSES: string[] = ['CONFIRMED', 'PAID', 'PAYOUT_SCHEDULED'];
+const ALLOWED_STATUSES: string[] = ['CONFIRMED', 'PAID', 'PAYOUT_SCHEDULED', 'REFUNDED'];
 
 const CSV_COLUMNS: Array<{ key: keyof CsvRow; header: string }> = [
   { key: 'rowType', header: '구분' },
@@ -241,6 +241,8 @@ export async function GET(req: NextRequest) {
         audioFileType: true,
         audioFileGoogleDriveUrl: true,
         audioFileGoogleDriveId: true,
+        status: true,           // 환불 상태 확인용
+        refundedAt: true,       // 환불 날짜
         AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
           select: {
             id: true,
@@ -314,6 +316,10 @@ export async function GET(req: NextRequest) {
       agentGross: 0,
       agentWithholding: 0,
       agentNet: 0,
+      // 환불 관련 집계
+      refundCount: 0,           // 환불 건수
+      refundAmount: 0,          // 환불 금액
+      refundNetRevenue: 0,      // 환불된 순이익
     };
 
     const comparisonData = {
@@ -403,11 +409,25 @@ export async function GET(req: NextRequest) {
           ? sale.netRevenue
           : (sale.saleAmount ?? 0) - (sale.costAmount ?? 0);
 
-      totals.saleCount += 1;
-      totals.saleAmount += sale.saleAmount ?? 0;
-      totals.costAmount += sale.costAmount ?? 0;
-      totals.netRevenue += saleNetRevenue ?? 0;
-      totals.headcount += sale.headcount ?? 0;
+      // 환불된 건인지 확인
+      const isRefunded = sale.status === 'REFUNDED' || sale.refundedAt !== null;
+
+      if (isRefunded) {
+        // 환불된 건은 마이너스로 집계
+        totals.refundCount += 1;
+        totals.refundAmount += sale.saleAmount ?? 0;
+        totals.refundNetRevenue += saleNetRevenue ?? 0;
+        // 실제 금액에서 차감
+        totals.saleAmount -= sale.saleAmount ?? 0;
+        totals.netRevenue -= saleNetRevenue ?? 0;
+      } else {
+        // 정상 판매 건
+        totals.saleCount += 1;
+        totals.saleAmount += sale.saleAmount ?? 0;
+        totals.costAmount += sale.costAmount ?? 0;
+        totals.netRevenue += saleNetRevenue ?? 0;
+        totals.headcount += sale.headcount ?? 0;
+      }
 
       totals.hqNet += ledger.hqNet;
 
@@ -697,6 +717,12 @@ export async function GET(req: NextRequest) {
         saleAmount: totals.saleAmount,
         costAmount: totals.costAmount,
         netRevenue: totals.netRevenue,
+        // 환불 집계 추가
+        refund: {
+          count: totals.refundCount,
+          amount: totals.refundAmount,
+          netRevenue: totals.refundNetRevenue,
+        },
         hq: {
           ledgerNet: totals.hqNet,
           cardFees: totals.hqCardFees,

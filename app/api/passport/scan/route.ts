@@ -52,50 +52,35 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // 개선된 여권 정보 추출 프롬프트 (OCR 정확도 향상)
-    const prompt = `This is a passport image. Please extract the information accurately even if the photo is blurry, tilted, or low quality.
+    // 여권 정보 추출 프롬프트 (저화질/흐린 이미지 대응)
+    const prompt = `You are an expert passport OCR system. Extract information even from blurry, tilted, low-quality, or partially visible passport images.
 
-IMPORTANT: You MUST return ONLY a JSON object. No other text, explanation, or markdown.
+IMPORTANT: Try your BEST to read text even if:
+- Image is blurry or out of focus
+- Image is dark or overexposed
+- Image is tilted or rotated
+- Text is partially obscured
+- Image has glare or reflections
 
-Extract the following information in this EXACT JSON format:
+Return ONLY a JSON object (no markdown, no explanation):
 {
-  "korName": "Korean name if visible (e.g., 홍길동), or empty string if not found",
-  "engSurname": "English surname/family name in CAPITAL LETTERS (e.g., HONG)",
-  "engGivenName": "English given name in CAPITAL LETTERS (e.g., GILDONG)",
-  "passportNo": "Passport number (e.g., M12345678)",
-  "nationality": "3-letter nationality code (e.g., KOR, USA, JPN)",
-  "sex": "Gender: M for male, F for female (single letter only)",
-  "dateOfBirth": "Date of birth in YYYY-MM-DD format (e.g., 1990-01-15)",
-  "dateOfIssue": "Passport issue date in YYYY-MM-DD format (e.g., 2020-01-15)",
-  "passportExpiryDate": "Passport expiry date in YYYY-MM-DD format (e.g., 2030-01-15)"
+  "korName": "Korean name (한글) or empty",
+  "engSurname": "SURNAME in uppercase",
+  "engGivenName": "GIVEN NAME in uppercase",
+  "passportNo": "Passport number like M12345678",
+  "nationality": "3-letter code like KOR",
+  "sex": "M or F",
+  "dateOfBirth": "YYYY-MM-DD",
+  "dateOfIssue": "YYYY-MM-DD",
+  "passportExpiryDate": "YYYY-MM-DD"
 }
 
-CRITICAL RULES:
-1. Return ONLY the JSON object above. No markdown code blocks, no explanations.
-2. If a field cannot be found, use empty string "".
-3. Dates MUST be in YYYY-MM-DD format. Convert from YYMMDD or DDMMMYY if needed.
-   - For 2-digit years: 00-49 = 20XX, 50-99 = 19XX
-   - Month abbreviations: JAN=01, FEB=02, MAR=03, APR=04, MAY=05, JUN=06, JUL=07, AUG=08, SEP=09, OCT=10, NOV=11, DEC=12
-4. Passport number: Remove all spaces and special characters.
-5. English names: If format is "SURNAME/GIVEN NAME", split them correctly into surname and givenName.
-6. Korean name: Look for Hangul characters (한글), usually at the bottom of passport.
-7. Nationality: Must be exactly 3 uppercase letters (KOR, USA, CHN, JPN, etc).
-
-Example passport fields to look for:
-- Surname / 성
-- Given names / 이름
-- Passport No. / 여권번호
-- Nationality / 국적
-- Sex / 성별 (M or F, look for "Sex", "성별", or single letter M/F near other personal info)
-- Date of birth / 생년월일 (look for "Date of birth", "생년월일", dates near beginning with DD MMM YYYY or YYMMDD format)
-- Date of issue / 발급일 (look for "Date of issue", "발급일", dates between birth date and expiry date)
-- Date of expiry / 만료일 (look for "Date of expiry", "만료일", dates usually 10 years after issue date)
-- Personal No. / 주민등록번호 (ignore this field, do not extract)
-
-If the image is rotated or upside down, still try to read it.
-If text is partially visible, use context to infer missing characters.
-
-Return ONLY the JSON object now:`;
+Key rules:
+- Use "" for fields you cannot read
+- Convert dates: 2-digit years 00-49=20XX, 50-99=19XX
+- If name format is "SURNAME/GIVEN", split correctly
+- Look for MRZ (Machine Readable Zone) at bottom as backup
+- Infer missing characters from context when possible`;
 
     // Gemini Vision API 호출
     console.log('[Passport Scan] Gemini API 호출 시작...');
@@ -253,9 +238,9 @@ Return ONLY the JSON object now:`;
   } catch (error: any) {
     console.error('[Passport Scan] Error:', error);
     return NextResponse.json(
-      { 
-        ok: false, 
-        error: error.message || '여권 스캔 중 오류가 발생했습니다.' 
+      {
+        ok: false,
+        error: error.message || '여권 스캔 중 오류가 발생했습니다.'
       },
       { status: 500 }
     );
@@ -265,12 +250,12 @@ Return ONLY the JSON object now:`;
 // 날짜 정규화 헬퍼 함수
 function normalizeDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '';
-  
+
   // 이미 YYYY-MM-DD 형식이면 그대로 반환
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     return dateStr;
   }
-  
+
   // YYMMDD 형식 처리
   const cleaned = dateStr.replace(/[^0-9]/g, '');
   if (cleaned.length === 6) {
@@ -280,11 +265,11 @@ function normalizeDate(dateStr: string | null | undefined): string {
     const fullYear = year < 50 ? `20${year.toString().padStart(2, '0')}` : `19${year.toString().padStart(2, '0')}`;
     return `${fullYear}-${month}-${day}`;
   }
-  
+
   // YYYYMMDD 형식 처리
   if (cleaned.length === 8) {
     return `${cleaned.substring(0, 4)}-${cleaned.substring(4, 6)}-${cleaned.substring(6, 8)}`;
   }
-  
+
   return dateStr;
 }

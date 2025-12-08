@@ -19,6 +19,12 @@ type SettlementTotals = {
   saleAmount: number;
   costAmount: number;
   netRevenue: number;
+  // 환불 집계
+  refund?: {
+    count: number;
+    amount: number;
+    netRevenue: number;
+  };
   hq: {
     ledgerNet: number;
     cardFees: number;
@@ -713,6 +719,29 @@ export default function AffiliateSettlementDashboardPage() {
                   subtitle={`원천징수 ${currency(totals.agent.withholding)}`}
                 />
               </div>
+
+              {/* 환불 정보 표시 (환불이 있는 경우에만) */}
+              {totals.refund && totals.refund.count > 0 && (
+                <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-full bg-red-100 p-2">
+                        <FiDollarSign className="h-6 w-6 text-red-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-red-800">환불 내역</h3>
+                        <p className="text-sm text-red-600">
+                          {formatCount(totals.refund.count)}건 환불 처리됨
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-red-600">-{currency(totals.refund.amount)}</p>
+                      <p className="text-sm text-red-500">순이익 차감: -{currency(totals.refund.netRevenue)}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <section className="space-y-4">
                 <header className="flex items-center justify-between">

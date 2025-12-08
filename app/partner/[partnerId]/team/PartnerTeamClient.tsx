@@ -153,6 +153,10 @@ export default function PartnerTeamClient() {
   const [selectedContract, setSelectedContract] = useState<any | null>(null);
   const [showContractDetail, setShowContractDetail] = useState(false);
   const [loadingContractDetail, setLoadingContractDetail] = useState(false);
+  const [completingContract, setCompletingContract] = useState(false);
+  const [sendingPdf, setSendingPdf] = useState(false);
+  const [rejectingContract, setRejectingContract] = useState(false);
+  const [deletingContract, setDeletingContract] = useState(false);
 
   const loadData = async () => {
     try {
@@ -197,6 +201,106 @@ export default function PartnerTeamClient() {
       console.error('[PartnerTeamClient] load contracts error:', error);
     } finally {
       setLoadingContracts(false);
+    }
+  };
+
+  // 계약서 완료 (PDF 이메일 전송)
+  const handleCompleteContract = async (contractId: number) => {
+    if (!confirm('이 계약서를 완료하여 PDF를 이메일로 전송하시겠습니까?')) return;
+    try {
+      setCompletingContract(true);
+      const res = await fetch(`/api/partner/contracts/${contractId}/complete`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || json.error || '계약서 완료 처리에 실패했습니다.');
+      }
+      showSuccess(json.message || '계약서가 완료되었습니다.');
+      setShowContractDetail(false);
+      setSelectedContract(null);
+      loadContracts();
+    } catch (error: any) {
+      console.error('[PartnerTeamClient] complete error', error);
+      showError(error.message || '계약서 완료 처리 중 오류가 발생했습니다.');
+    } finally {
+      setCompletingContract(false);
+    }
+  };
+
+  // PDF 전송
+  const handleSendPdf = async (contractId: number) => {
+    if (!confirm('계약서 PDF를 계약자 이메일 주소로 전송하시겠습니까?')) return;
+    try {
+      setSendingPdf(true);
+      const res = await fetch(`/api/partner/contracts/${contractId}/send-pdf`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || json.error || 'PDF 전송에 실패했습니다.');
+      }
+      showSuccess(json.message || 'PDF가 성공적으로 전송되었습니다.');
+    } catch (error: any) {
+      console.error('[PartnerTeamClient] send PDF error', error);
+      showError(error.message || 'PDF 전송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingPdf(false);
+    }
+  };
+
+  // 계약서 거부
+  const handleRejectContract = async (contractId: number) => {
+    const reason = prompt('거부 사유를 입력하세요:');
+    if (!reason) return;
+    try {
+      setRejectingContract(true);
+      const res = await fetch(`/api/partner/contracts/${contractId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '계약서 거부에 실패했습니다.');
+      }
+      showSuccess('계약서가 거부되었습니다.');
+      setShowContractDetail(false);
+      setSelectedContract(null);
+      loadContracts();
+    } catch (error: any) {
+      console.error('[PartnerTeamClient] reject error', error);
+      showError(error.message || '계약서 거부 중 오류가 발생했습니다.');
+    } finally {
+      setRejectingContract(false);
+    }
+  };
+
+  // 계약서 삭제
+  const handleDeleteContract = async (contractId: number) => {
+    if (!confirm('정말로 이 계약서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+    try {
+      setDeletingContract(true);
+      const res = await fetch(`/api/partner/contracts/${contractId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '계약서 삭제에 실패했습니다.');
+      }
+      showSuccess('계약서가 삭제되었습니다.');
+      setShowContractDetail(false);
+      setSelectedContract(null);
+      loadContracts();
+    } catch (error: any) {
+      console.error('[PartnerTeamClient] delete error', error);
+      showError(error.message || '계약서 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingContract(false);
     }
   };
 
@@ -899,9 +1003,31 @@ export default function PartnerTeamClient() {
                           />
                         </div>
                       )}
+                      {selectedContract.metadata?.signatures?.main?.url && (
+                        <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4">
+                          <h4 className="text-sm font-semibold text-green-700 mb-2">계약서 싸인</h4>
+                          {selectedContract.metadata.signatures.main.signedBy && (
+                            <p className="text-xs text-green-600 mb-1">
+                              서명자: {selectedContract.metadata.signatures.main.signedBy}
+                            </p>
+                          )}
+                          {selectedContract.metadata.signatures.main.signedAt && (
+                            <p className="text-xs text-green-600 mb-2">
+                              서명일시: {new Date(selectedContract.metadata.signatures.main.signedAt).toLocaleString('ko-KR')}
+                            </p>
+                          )}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={selectedContract.metadata.signatures.main.url}
+                            alt="계약서 서명"
+                            className="max-w-full h-auto max-h-48 bg-white p-2 rounded-lg border"
+                          />
+                        </div>
+                      )}
                       {selectedContract.metadata?.signature && (
                         <div className="rounded-lg border-2 border-gray-200 bg-white p-4">
                           <h4 className="text-sm font-semibold text-gray-700 mb-2">계약서 싸인</h4>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={selectedContract.metadata.signature}
                             alt="계약서 서명"
@@ -912,13 +1038,76 @@ export default function PartnerTeamClient() {
                     </div>
                   </div>
                 )}
-                <div className="flex gap-2 pt-4 border-t">
+                <div className="flex flex-col gap-3 pt-4 border-t">
+                  {/* 액션 버튼들 */}
+                  <div className="flex flex-wrap gap-2">
+                    {/* 제출됨 상태: 완료 승인, 거부, 삭제 버튼 */}
+                    {selectedContract.status === 'submitted' && (
+                      <>
+                        <button
+                          onClick={() => handleCompleteContract(selectedContract.id)}
+                          disabled={completingContract}
+                          className="inline-flex items-center gap-1 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700 disabled:opacity-50"
+                        >
+                          {completingContract ? (
+                            <>
+                              <div className="h-4 w-4 border-2 border-white border-b-transparent rounded-full animate-spin" />
+                              처리 중...
+                            </>
+                          ) : (
+                            <>
+                              <FiCheck className="text-sm" />
+                              완료 승인
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleRejectContract(selectedContract.id)}
+                          disabled={rejectingContract}
+                          className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {rejectingContract ? '처리 중...' : '거부'}
+                        </button>
+                      </>
+                    )}
+                    {/* 완료됨 상태: PDF 전송 버튼 */}
+                    {selectedContract.status === 'completed' && (
+                      <button
+                        onClick={() => handleSendPdf(selectedContract.id)}
+                        disabled={sendingPdf}
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {sendingPdf ? (
+                          <>
+                            <div className="h-4 w-4 border-2 border-white border-b-transparent rounded-full animate-spin" />
+                            전송 중...
+                          </>
+                        ) : (
+                          <>
+                            <FiSend className="text-sm" />
+                            PDF 전송
+                          </>
+                        )}
+                      </button>
+                    )}
+                    {/* 삭제 버튼 (submitted 또는 rejected 상태에서만) */}
+                    {(selectedContract.status === 'submitted' || selectedContract.status === 'rejected') && (
+                      <button
+                        onClick={() => handleDeleteContract(selectedContract.id)}
+                        disabled={deletingContract}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {deletingContract ? '삭제 중...' : '삭제'}
+                      </button>
+                    )}
+                  </div>
+                  {/* 닫기 버튼 */}
                   <button
                     onClick={() => {
                       setShowContractDetail(false);
                       setSelectedContract(null);
                     }}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                   >
                     닫기
                   </button>

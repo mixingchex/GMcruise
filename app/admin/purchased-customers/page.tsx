@@ -18,6 +18,7 @@ import {
   FiFilter,
   FiCopy,
   FiMessageSquare,
+  FiDollarSign,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
@@ -36,6 +37,31 @@ type Traveler = {
   roomNumber: number | null;
   passportImage: string | null;
   notes: string | null;       // 비고
+};
+
+type Payment = {
+  id: number;
+  orderId: string;
+  amount: number;
+  status: string;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  pgTransactionId: string | null;
+  buyerName: string;
+  buyerTel: string;
+  payMethod: string | null;
+};
+
+type AffiliateInfo = {
+  id: number;
+  displayName: string | null;
+  type: string | null;
+};
+
+type LinkInfo = {
+  id: number;
+  code: string;
+  title: string | null;
 };
 
 type Reservation = {
@@ -61,16 +87,26 @@ type Reservation = {
     } | null;
   } | null;
   travelers?: Traveler[];
-  affiliate?: {
-    displayName: string | null;
-    type: string | null;
-  } | null;
+  // 판매원 정보
+  agent?: AffiliateInfo | null;
+  // 대리점장 정보
+  manager?: AffiliateInfo | null;
+  // 판매 채널 정보
+  salesChannel?: string;
+  salesChannelDetail?: string;
+  // 판매 링크 정보
+  link?: LinkInfo | null;
   passportSubmission?: {
     id: number;
     token: string;
     isSubmitted: boolean;
     submittedAt: string | null;
   } | null;
+  // 결제 정보 추가
+  payment?: Payment | null;
+  saleStatus?: string | null;
+  saleRefundedAt?: string | null;
+  saleDate?: string | null;
 };
 
 const APIS_TEMPLATE_URL = 'https://docs.google.com/spreadsheets/d/1Le6IPNzyvMqpn-6ZnqgvH0JTQ8O5rKymWMU_pkfbQ5Q/edit?gid=0#gid=0';
@@ -100,6 +136,12 @@ export default function AdminPurchasedCustomersPage() {
   // 월별 필터링
   const [selectedMonth, setSelectedMonth] = useState<string>(''); // 형식: "2025-01"
   const [filterType, setFilterType] = useState<'departure' | 'created'>('departure'); // 출발일 or 예약일 기준
+
+  // 환불 모달
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundReservation, setRefundReservation] = useState<Reservation | null>(null);
+  const [refundReason, setRefundReason] = useState('');
+  const [processingRefund, setProcessingRefund] = useState(false);
 
   const loadReservations = useCallback(async () => {
     try {
@@ -229,6 +271,63 @@ export default function AdminPurchasedCustomersPage() {
     }
   };
 
+  // 환불 모달 열기
+  const handleOpenRefundModal = (reservation: Reservation) => {
+    if (!reservation.payment) {
+      showError('결제 정보가 없습니다.');
+      return;
+    }
+    if (reservation.payment.status === 'cancelled' || reservation.payment.cancelledAt) {
+      showError('이미 환불된 결제입니다.');
+      return;
+    }
+    if (reservation.payment.status !== 'paid') {
+      showError(`결제 상태가 '${reservation.payment.status}'입니다.`);
+      return;
+    }
+    setRefundReservation(reservation);
+    setRefundReason('');
+    setShowRefundModal(true);
+  };
+
+  // 환불 처리
+  const handleRefund = async () => {
+    if (!refundReservation?.payment) return;
+
+    if (!confirm(`정말 ${refundReservation.user?.name || '고객'}님의 결제(${refundReservation.payment.amount.toLocaleString()}원)를 환불하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      setProcessingRefund(true);
+      const response = await fetch('/api/admin/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          paymentId: refundReservation.payment.id,
+          reason: refundReason || '관리자 환불 처리',
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.ok) {
+        showSuccess(`환불이 완료되었습니다. (${refundReservation.payment.amount.toLocaleString()}원)`);
+        setShowRefundModal(false);
+        setRefundReservation(null);
+        loadReservations();
+      } else {
+        showError(data.error || '환불 처리에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('환불 처리 실패:', error);
+      showError('환불 처리 중 오류가 발생했습니다.');
+    } finally {
+      setProcessingRefund(false);
+    }
+  };
+
   const handleSyncApis = async (reservationId: number) => {
     if (!confirm('APIS 데이터를 Google Sheets에 동기화하시겠습니까?')) return;
 
@@ -271,9 +370,7 @@ export default function AdminPurchasedCustomersPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          userId: reservation.user.id,
-          reservationId: reservation.id,
-          tripId: reservation.trip?.id,
+          userIds: [reservation.user.id],
         }),
       });
       const data = await response.json();
@@ -468,7 +565,8 @@ export default function AdminPurchasedCustomersPage() {
       reservation.user?.phone?.includes(search) ||
       reservation.user?.email?.toLowerCase().includes(search) ||
       reservation.trip?.product?.packageName?.toLowerCase().includes(search) ||
-      reservation.affiliate?.displayName?.toLowerCase().includes(search)
+      reservation.agent?.displayName?.toLowerCase().includes(search) ||
+      reservation.salesChannel?.toLowerCase().includes(search)
     );
   });
 
@@ -658,6 +756,7 @@ export default function AdminPurchasedCustomersPage() {
                 <tr>
                   <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">고객 정보</th>
                   <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">상품 정보</th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">결제 정보</th>
                   <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">판매원</th>
                   <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">APIS 상태</th>
                   <th className="px-4 py-4 text-left text-sm font-semibold text-gray-900">작업</th>
@@ -692,19 +791,85 @@ export default function AdminPurchasedCustomersPage() {
                           <p className="text-gray-400 text-sm">상품 정보 없음</p>
                         )}
                       </td>
+                      {/* 결제 정보 */}
                       <td className="px-4 py-4">
-                        {reservation.affiliate ? (
+                        {reservation.payment ? (
                           <div className="space-y-1">
-                            <p className="font-medium text-gray-900 text-sm">{reservation.affiliate.displayName || '-'}</p>
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                              {reservation.affiliate.type === 'BRANCH_MANAGER' ? '대리점장' :
-                               reservation.affiliate.type === 'SALES_AGENT' ? '판매원' :
-                               reservation.affiliate.type === 'HQ' ? '본사' : reservation.affiliate.type}
-                            </span>
+                            <p className="font-semibold text-gray-900 text-sm">
+                              {reservation.payment.amount.toLocaleString()}원
+                            </p>
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {reservation.payment.status === 'cancelled' || reservation.saleRefundedAt ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                                  환불완료
+                                </span>
+                              ) : reservation.payment.status === 'paid' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                  결제완료
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                                  {reservation.payment.status}
+                                </span>
+                              )}
+                              {/* 결제 방법 */}
+                              {reservation.payment.payMethod && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                  {reservation.payment.payMethod === 'card' || reservation.payment.payMethod === 'CARD' ? '카드' :
+                                   reservation.payment.payMethod === 'bank' || reservation.payment.payMethod === 'BANK' ? '계좌이체' :
+                                   reservation.payment.payMethod === 'vbank' || reservation.payment.payMethod === 'VBANK' ? '가상계좌' :
+                                   reservation.payment.payMethod}
+                                </span>
+                              )}
+                            </div>
+                            {reservation.payment.paidAt && (
+                              <p className="text-xs text-gray-500">
+                                결제: {new Date(reservation.payment.paidAt).toLocaleString('ko-KR')}
+                              </p>
+                            )}
+                            {reservation.saleRefundedAt && (
+                              <p className="text-xs text-red-500">
+                                환불: {new Date(reservation.saleRefundedAt).toLocaleDateString('ko-KR')}
+                              </p>
+                            )}
                           </div>
                         ) : (
-                          <p className="text-gray-400 text-sm">직접 판매</p>
+                          <p className="text-gray-400 text-sm">결제 정보 없음</p>
                         )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="space-y-1">
+                          {/* 판매 채널 */}
+                          <div className="flex items-center gap-1">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              reservation.link
+                                ? 'bg-blue-100 text-blue-700'
+                                : reservation.agent
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {reservation.salesChannel || '직접 판매'}
+                            </span>
+                          </div>
+                          {/* 판매원 */}
+                          {reservation.agent && (
+                            <p className="text-xs text-gray-600">
+                              <span className="font-medium">판매원:</span> {reservation.agent.displayName || '-'}
+                            </p>
+                          )}
+                          {/* 대리점장 */}
+                          {reservation.manager && (
+                            <p className="text-xs text-gray-600">
+                              <span className="font-medium">대리점장:</span> {reservation.manager.displayName || '-'}
+                            </p>
+                          )}
+                          {/* 링크 코드 */}
+                          {reservation.link && (
+                            <p className="text-xs text-blue-500 font-mono">
+                              코드: {reservation.link.code}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <div className="space-y-1">
@@ -772,6 +937,17 @@ export default function AdminPurchasedCustomersPage() {
                               <FiExternalLink className="text-xs" />
                               시트
                             </a>
+                          )}
+                          {/* 환불 버튼 - 결제완료 상태일 때만 표시 */}
+                          {reservation.payment && reservation.payment.status === 'paid' && !reservation.saleRefundedAt && (
+                            <button
+                              onClick={() => handleOpenRefundModal(reservation)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors"
+                              title="환불 처리"
+                            >
+                              <FiDollarSign className="text-xs" />
+                              환불
+                            </button>
                           )}
                         </div>
                       </td>
@@ -1355,6 +1531,131 @@ export default function AdminPurchasedCustomersPage() {
                   문자 발송
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 환불 모달 */}
+      {showRefundModal && refundReservation && refundReservation.payment && (
+        <div
+          className="fixed inset-0 z-[1001] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowRefundModal(false);
+              setRefundReservation(null);
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-200 bg-red-50 px-6 py-4 rounded-t-2xl">
+              <div>
+                <h3 className="text-xl font-bold text-red-800">환불 처리</h3>
+                <p className="text-sm text-red-600 mt-1">
+                  결제 취소 후 되돌릴 수 없습니다
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowRefundModal(false);
+                  setRefundReservation(null);
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* 내용 */}
+            <div className="px-6 py-6 space-y-6">
+              {/* 결제 정보 */}
+              <div className="rounded-lg border-2 border-red-200 bg-red-50 p-4">
+                <h4 className="mb-3 text-lg font-semibold text-red-800">결제 정보</h4>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">고객명</p>
+                    <p className="text-base text-gray-900">{refundReservation.user?.name || refundReservation.payment.buyerName}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">연락처</p>
+                    <p className="text-base text-gray-900">{refundReservation.user?.phone || refundReservation.payment.buyerTel}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">결제 금액</p>
+                    <p className="text-2xl font-bold text-red-600">{refundReservation.payment.amount.toLocaleString()}원</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">결제일</p>
+                    <p className="text-base text-gray-900">
+                      {refundReservation.payment.paidAt
+                        ? new Date(refundReservation.payment.paidAt).toLocaleDateString('ko-KR')
+                        : '-'}
+                    </p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-medium text-gray-500">주문번호</p>
+                    <p className="text-sm text-gray-700 font-mono">{refundReservation.payment.orderId}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 환불 사유 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  환불 사유 (선택)
+                </label>
+                <textarea
+                  value={refundReason}
+                  onChange={(e) => setRefundReason(e.target.value)}
+                  className="w-full rounded-lg border-2 border-gray-200 p-3 text-sm focus:border-red-500 focus:outline-none"
+                  rows={3}
+                  placeholder="환불 사유를 입력하세요 (선택사항)"
+                />
+              </div>
+
+              {/* 경고 메시지 */}
+              <div className="rounded-lg bg-yellow-50 border border-yellow-200 p-4">
+                <div className="flex items-start gap-3">
+                  <FiAlertCircle className="text-yellow-600 text-xl flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-yellow-800">주의사항</p>
+                    <ul className="mt-1 text-sm text-yellow-700 list-disc list-inside space-y-1">
+                      <li>환불 처리 후에는 취소할 수 없습니다.</li>
+                      <li>정산 내역에 환불 금액이 마이너스로 반영됩니다.</li>
+                      <li>고객에게 환불 완료 안내가 필요할 수 있습니다.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-6 py-4 rounded-b-2xl">
+              <button
+                onClick={() => {
+                  setShowRefundModal(false);
+                  setRefundReservation(null);
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRefund}
+                disabled={processingRefund}
+                className="rounded-lg bg-red-600 px-6 py-2 text-sm font-semibold text-white hover:bg-red-700 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+              >
+                {processingRefund ? (
+                  <FiRefreshCw className="animate-spin" />
+                ) : (
+                  <FiDollarSign />
+                )}
+                {processingRefund ? '처리 중...' : '환불 처리'}
+              </button>
             </div>
           </div>
         </div>

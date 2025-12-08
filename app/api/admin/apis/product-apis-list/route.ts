@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     // AffiliateProduct가 등록된 상품만 조회
     // 어필리에이트 수당이 설정된 상품만 APIS 확인 가능
     const now = new Date();
-    
+
     // 먼저 유효한 AffiliateProduct 조회
     const activeAffiliateProducts = await prisma.affiliateProduct.findMany({
       where: {
@@ -72,87 +72,143 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // AffiliateProduct가 등록된 상품만 조회
-    const products = await prisma.cruiseProduct.findMany({
+    // Trip과 연결된 상품만 조회 (실제 구매 고객이 있는 상품)
+    // Trip 기준으로 조회하여 Reservation이 있는 상품만 표시
+    const trips = await prisma.trip.findMany({
       where: {
-        AND: [
-          {
-            productCode: {
-              in: affiliateProductCodes,
-            },
-          },
-          {
-            saleStatus: {
-              in: ['판매중', '판매정지', '판매종료'],
-            },
-          },
-        ],
+        productCode: {
+          in: affiliateProductCodes,
+        },
       },
       include: {
-        UserTrip: {
-          where: {
-            status: {
-              in: ['Upcoming', 'InProgress'],
-            },
-          },
+        Reservation: {
           select: {
             id: true,
+            totalPeople: true,
+            pnrStatus: true,
+            User: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            Traveler: {
+              select: {
+                id: true,
+              },
+            },
           },
         },
       },
       orderBy: {
-        startDate: 'asc',
+        departureDate: 'asc',
       },
     });
 
-    // 각 상품별로 Trip을 찾아서 APIS 정보 가져오기
-    const apisData = [];
-    
-    for (const product of products) {
-      try {
-        const trip = await prisma.trip.findUnique({
-          where: { productCode: product.productCode },
-          select: {
-            id: true,
-            googleFolderId: true,
-            spreadsheetId: true,
-          },
-        });
+    // trips의 productCode로 CruiseProduct 조회
+    const tripProductCodes = [...new Set(trips.map(t => t.productCode).filter(Boolean))] as string[];
+    const cruiseProducts = await prisma.cruiseProduct.findMany({
+      where: {
+        productCode: { in: tripProductCodes },
+      },
+      select: {
+        productCode: true,
+        cruiseLine: true,
+        shipName: true,
+        packageName: true,
+        startDate: true,
+        endDate: true,
+        saleStatus: true,
+      },
+    });
 
-        apisData.push({
-          productCode: product.productCode,
-          cruiseLine: product.cruiseLine,
-          shipName: product.shipName,
-          packageName: product.packageName,
-          customerCount: product.UserTrip.length,
-          saleStatus: product.saleStatus,
-          startDate: product.startDate?.toISOString() || null,
-          endDate: product.endDate?.toISOString() || null,
-          folderUrl: trip?.googleFolderId
-            ? `https://drive.google.com/drive/folders/${trip.googleFolderId}`
-            : null,
-          spreadsheetUrl: trip?.spreadsheetId
-            ? `https://docs.google.com/spreadsheets/d/${trip.spreadsheetId}`
-            : null,
-          tripId: trip?.id || null,
-        });
-      } catch (error: any) {
-        console.error(`Failed to load trip for ${product.productCode}:`, error);
-        apisData.push({
-          productCode: product.productCode,
-          cruiseLine: product.cruiseLine,
-          shipName: product.shipName,
-          packageName: product.packageName,
-          customerCount: product.UserTrip.length,
-          saleStatus: product.saleStatus,
-          startDate: product.startDate?.toISOString() || null,
-          endDate: product.endDate?.toISOString() || null,
-          folderUrl: null,
-          spreadsheetUrl: null,
-          tripId: null,
-        });
-      }
+    // productCode로 빠르게 찾기 위한 맵 생성
+    type CruiseProductInfo = typeof cruiseProducts[number];
+    const productMap = new Map<string, CruiseProductInfo>(
+      cruiseProducts.map(p => [p.productCode, p])
+    );
+
+    // 각 Trip별로 APIS 데이터 구성
+    const apisData: any[] = [];
+
+    for (const trip of trips) {
+      const product = productMap.get(trip.productCode || '');
+      if (!product) continue;
+
+      // 실제 구매 고객 수 (예약 건수)
+      const reservationCount = trip.Reservation.length;
+      // 총 여행자 수 (모든 예약의 Traveler 합계)
+      const travelerCount = trip.Reservation.reduce(
+        (sum, res) => sum + res.Traveler.length,
+        0
+      );
+      // PNR 완료 건수
+      const pnrCompletedCount = trip.Reservation.filter(
+        (res) => res.pnrStatus === 'completed'
+      ).length;
+
+      apisData.push({
+        productCode: product.productCode,
+        cruiseLine: product.cruiseLine,
+        shipName: product.shipName,
+        packageName: product.packageName,
+        // 실제 구매 고객 수 (예약 건수)
+        customerCount: reservationCount,
+        // 총 여행자 수
+        travelerCount: travelerCount,
+        // PNR 완료 건수
+        pnrCompletedCount: pnrCompletedCount,
+        saleStatus: product.saleStatus,
+        startDate: product.startDate?.toISOString() || null,
+        endDate: product.endDate?.toISOString() || null,
+        folderUrl: trip.googleFolderId
+          ? `https://drive.google.com/drive/folders/${trip.googleFolderId}`
+          : null,
+        spreadsheetUrl: trip.spreadsheetId
+          ? `https://docs.google.com/spreadsheets/d/${trip.spreadsheetId}`
+          : null,
+        tripId: trip.id,
+      });
     }
+
+    // 구매 고객이 없는 AffiliateProduct도 표시 (Trip이 없는 경우)
+    const tripsProductCodes = trips.map(t => t.productCode).filter(Boolean) as string[];
+    const productsWithoutTrip = await prisma.cruiseProduct.findMany({
+      where: {
+        productCode: {
+          in: affiliateProductCodes.filter(code => !tripsProductCodes.includes(code)),
+        },
+        saleStatus: {
+          in: ['판매중', '판매정지'],
+        },
+      },
+    });
+
+    for (const product of productsWithoutTrip) {
+      apisData.push({
+        productCode: product.productCode,
+        cruiseLine: product.cruiseLine,
+        shipName: product.shipName,
+        packageName: product.packageName,
+        customerCount: 0,
+        travelerCount: 0,
+        pnrCompletedCount: 0,
+        saleStatus: product.saleStatus,
+        startDate: product.startDate?.toISOString() || null,
+        endDate: product.endDate?.toISOString() || null,
+        folderUrl: null,
+        spreadsheetUrl: null,
+        tripId: null,
+      });
+    }
+
+    // 출발일 기준으로 정렬
+    apisData.sort((a, b) => {
+      if (!a.startDate && !b.startDate) return 0;
+      if (!a.startDate) return 1;
+      if (!b.startDate) return -1;
+      return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+    });
 
     return NextResponse.json({
       ok: true,

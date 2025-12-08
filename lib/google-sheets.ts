@@ -142,7 +142,7 @@ import { getDriveFolderId } from '@/lib/config/drive-config';
  */
 export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
   try {
-    // 1. Get Trip Info with Travelers and User (for phone number)
+    // 1. Get Trip Info with Travelers, User, Payment, and Affiliate info
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
       include: {
@@ -152,6 +152,20 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
             User: {
               select: { phone: true, name: true }
             },
+            AffiliateSale: {
+              include: {
+                AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
+                  select: { displayName: true }
+                },
+                Payment: {
+                  select: {
+                    paidAt: true,
+                    payMethod: true,
+                    amount: true,
+                  }
+                }
+              }
+            }
           },
         },
       },
@@ -251,9 +265,25 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
     let updatedCount = 0;
     let addedCount = 0;
 
+    let rowNumber = 1; // 순번 카운터
+
     for (const reservation of trip.Reservation) {
       const userPhone = reservation.User?.phone || '';
       const cabinType = reservation.cabinType || '기타';
+
+      // 결제 정보 가져오기
+      const payment = reservation.AffiliateSale?.Payment;
+      const paidAt = payment?.paidAt
+        ? new Date(payment.paidAt).toLocaleString('ko-KR', {
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        })
+        : '';
+      const payMethod = payment?.payMethod || '';
+      const payAmount = payment?.amount ? payment.amount.toLocaleString('ko-KR') : '';
+
+      // 담당자 정보 (계약서 서명 이름)
+      const agentName = reservation.AffiliateSale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile?.displayName || '';
 
       for (const traveler of reservation.Traveler) {
         // 카테고리 = cabinType + roomNumber (예: 발코니1, 오션뷰2)
@@ -264,30 +294,39 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
         const personKey = `${travelerName}|${userPhone}`;
 
         // 행 데이터 생성 (구매자APIS 시트 열 구조에 맞게)
-        // 연락처: Traveler.phone이 있으면 사용, 없으면 User.phone 사용
+        // A~Y열 구조: No, 구매날짜, 상품코드, 상품명, 출발일, 카테고리, 영문성, 영문이름, 성명, 주민번호, 성별, 생년월일, 여권번호, 여권생성일, 여권만료일, 고객연락처, 항공, 결제일, 결제방법, 결제금액, 연결담당자, 최종수정자, 최종수정일시, 비고, 여권이미지링크
         const travelerPhone = (traveler as any).phone || userPhone;
+        const now = new Date().toLocaleString('ko-KR');
+
         const rowData = [
-          '', // A: No (빈칸 - 기존 유지 또는 수동 입력)
-          '', // B:
-          '', // C:
-          '', // D:
-          '', // E:
-          category, // F: 카테고리 (예약 시 선택한 객실 타입 - 발코니, 오션뷰 등)
-          '', // G:
-          '', // H:
+          rowNumber.toString(), // A: No (순번 자동)
+          reservation.createdAt ? new Date(reservation.createdAt).toLocaleDateString('ko-KR') : '', // B: 구매날짜
+          trip.productCode || '', // C: 상품 코드번호
+          trip.cruiseName || trip.shipName || '', // D: 상품명
+          trip.departureDate ? new Date(trip.departureDate).toLocaleDateString('ko-KR') : '', // E: 출발일
+          category, // F: 카테고리 (객실이름)
+          traveler.engSurname || '', // G: 영문성
+          traveler.engGivenName || '', // H: 영문이름
           traveler.korName || '', // I: 성명
-          traveler.engSurname || '', // J: 영문 성
-          traveler.engGivenName || '', // K: 영문 이름
-          traveler.residentNum || '', // L: 주민번호
-          traveler.gender || '', // M: 성별
-          traveler.birthDate || '', // N: 생년월일
-          traveler.passportNo || '', // O: 여권번호
-          travelerPhone, // P: 고객연락처 (Traveler.phone 또는 User.phone)
-          traveler.nationality || '', // Q: 국적
-          traveler.issueDate || '', // R: 여권생성일
-          traveler.expiryDate || '', // S: 여권만료일
-          traveler.notes || '', // T: 비고
+          traveler.residentNum || '', // J: 주민번호
+          traveler.gender || '', // K: 성별
+          traveler.birthDate || '', // L: 생년월일
+          traveler.passportNo || '', // M: 여권번호
+          traveler.issueDate || '', // N: 여권생성일
+          traveler.expiryDate || '', // O: 여권만료일
+          travelerPhone, // P: 고객연락처
+          '', // Q: 항공 (빈칸 - 수동 입력)
+          paidAt, // R: 결제일 (YYYY-MM-DD HH:MM:SS)
+          payMethod, // S: 결제방법 (카드/계좌이체/핸드폰)
+          payAmount, // T: 결제금액
+          agentName, // U: 연결담당자 (계약서 이름)
+          agentName, // V: 최종수정자 (계약서 이름)
+          now, // W: 최종수정일시
+          traveler.notes || '', // X: 비고
+          traveler.passportImage || '', // Y: 여권 이미지 링크 (구글 드라이브)
         ];
+
+        rowNumber++; // 순번 증가
 
         const existingPerson = existingPersonMap.get(personKey);
         if (existingPerson) {
@@ -436,4 +475,101 @@ export async function saveCommentToSheets(data: CommentData): Promise<SyncResult
 export async function updatePassportLinkInApis(reservationId: number, fileUrl: string): Promise<SyncResult> {
   console.warn(`[Google Sheets] updatePassportLinkInApis is deprecated. Called with reservationId=${reservationId}`);
   return { ok: true, error: 'Function deprecated - no operation performed' };
+}
+
+// ============================================================================
+// APIS 동기화 with 재시도 로직
+// ============================================================================
+
+/**
+ * APIS 스프레드시트 동기화 (재시도 로직 포함)
+ * - 최대 3회 재시도
+ * - 지수 백오프 (1초, 2초, 4초)
+ * - 최종 실패 시 관리자 알림
+ *
+ * @param tripId - Trip ID
+ * @param maxRetries - 최대 재시도 횟수 (기본값: 3)
+ */
+export async function syncApisWithRetry(
+  tripId: number,
+  maxRetries: number = 3
+): Promise<SyncResult> {
+  let lastError: string = '';
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[APIS Sync] tripId=${tripId}, 시도 ${attempt}/${maxRetries}`);
+
+      const result = await syncApisSpreadsheet(tripId);
+
+      if (result.ok) {
+        console.log(`[APIS Sync] tripId=${tripId}, 성공 (시도 ${attempt})`);
+
+        // 백업 성공 로그 기록
+        try {
+          const { logApisSyncResult } = await import('@/lib/backup');
+          await logApisSyncResult(
+            tripId,
+            `Trip #${tripId}`,
+            true,
+            result.rowCount,
+            result.spreadsheetUrl
+          );
+        } catch (logError) {
+          console.error('[APIS Sync] 로그 기록 실패:', logError);
+        }
+
+        return result;
+      }
+
+      lastError = result.error || 'Unknown error';
+      console.warn(`[APIS Sync] tripId=${tripId}, 실패 (시도 ${attempt}): ${lastError}`);
+
+    } catch (error: any) {
+      lastError = error.message || 'Exception occurred';
+      console.error(`[APIS Sync] tripId=${tripId}, 예외 (시도 ${attempt}):`, error);
+    }
+
+    // 마지막 시도가 아니면 대기 (지수 백오프)
+    if (attempt < maxRetries) {
+      const delay = Math.pow(2, attempt - 1) * 1000; // 1초, 2초, 4초
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  // 모든 재시도 실패 - 관리자 알림 + 백업 로그
+  console.error(`[APIS Sync] tripId=${tripId}, 모든 재시도 실패`);
+
+  try {
+    const { notifyApisSyncFailed } = await import('@/lib/affiliate/admin-notifications');
+    await notifyApisSyncFailed(tripId, lastError, maxRetries);
+  } catch (notifyError) {
+    console.error('[APIS Sync] 알림 전송 실패:', notifyError);
+  }
+
+  // 백업 실패 로그 기록
+  try {
+    const { logApisSyncResult } = await import('@/lib/backup');
+    await logApisSyncResult(tripId, `Trip #${tripId}`, false, 0, undefined, lastError);
+  } catch (logError) {
+    console.error('[APIS Sync] 로그 기록 실패:', logError);
+  }
+
+  return {
+    ok: false,
+    error: `${maxRetries}회 재시도 후 실패: ${lastError}`,
+  };
+}
+
+/**
+ * APIS 동기화 (비동기, 에러 무시)
+ * - 백그라운드에서 실행되며 실패해도 메인 작업에 영향 없음
+ * - 재시도 로직 포함
+ *
+ * @param tripId - Trip ID
+ */
+export function syncApisInBackground(tripId: number): void {
+  syncApisWithRetry(tripId).catch((err) => {
+    console.error(`[APIS Sync Background] tripId=${tripId}, 최종 실패:`, err);
+  });
 }

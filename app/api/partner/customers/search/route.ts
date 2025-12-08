@@ -25,14 +25,87 @@ export async function GET(req: NextRequest) {
         const query = searchParams.get('q') || '';
         const limit = parseInt(searchParams.get('limit') || '10');
         const hasPurchase = searchParams.get('hasPurchase') === 'true';
+        const certificateType = searchParams.get('certificateType'); // 'purchase' or 'refund'
 
         if (!query || query.trim().length < 1) {
             return NextResponse.json({ ok: true, customers: [] });
         }
 
-        // 파트너의 리드(AffiliateLead) 중에서 검색
-        // 대리점장인 경우 팀원의 리드도 검색 가능해야 하는지? -> 일단 본인/팀원 리드 모두 검색 가능하도록
+        // 인증서 유형이 지정된 경우: User 테이블에서 직접 검색 (customerStatus 기반)
+        // purchase: 구매완료(purchase_confirmed) 고객만
+        // refund: 환불완료(refunded) 고객만
+        if (certificateType === 'purchase' || certificateType === 'refund') {
+            const customerStatusFilter = certificateType === 'purchase' ? 'purchase_confirmed' : 'refunded';
 
+            // 파트너의 리드 중 해당 상태의 고객 전화번호 조회
+            let leadWhereClause: any = {};
+
+            if (profile.type === 'BRANCH_MANAGER') {
+                // 대리점장: 본인 또는 팀원의 리드
+                const teamRelations = await prisma.affiliateRelation.findMany({
+                    where: { managerId: profile.id, status: 'ACTIVE' },
+                    select: { agentId: true },
+                });
+                const agentIds = teamRelations.map(r => r.agentId);
+
+                leadWhereClause = {
+                    OR: [
+                        { managerId: profile.id },
+                        { agentId: profile.id },
+                        { agentId: { in: agentIds } },
+                    ]
+                };
+            } else {
+                // 판매원: 본인의 리드만
+                leadWhereClause = { agentId: profile.id };
+            }
+
+            // 파트너의 리드 전화번호 목록 가져오기
+            const partnerLeads = await prisma.affiliateLead.findMany({
+                where: leadWhereClause,
+                select: { customerPhone: true },
+            });
+            const partnerPhones = partnerLeads
+                .map(l => l.customerPhone)
+                .filter((phone): phone is string => !!phone);
+
+            // 해당 전화번호 중 customerStatus가 맞는 고객 검색
+            const users = await prisma.user.findMany({
+                where: {
+                    role: { not: 'admin' },
+                    customerStatus: customerStatusFilter,
+                    phone: { in: partnerPhones },
+                    OR: [
+                        { name: { contains: query } },
+                        { phone: { contains: query } },
+                        { email: { contains: query } },
+                    ],
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    phone: true,
+                    email: true,
+                    customerStatus: true,
+                },
+                take: limit,
+                orderBy: { updatedAt: 'desc' },
+            });
+
+            return NextResponse.json({
+                ok: true,
+                customers: users.map(u => ({
+                    id: u.id,
+                    name: u.name || '',
+                    phone: u.phone || '',
+                    email: u.email || '',
+                    customerStatus: u.customerStatus,
+                    displayName: `${u.name || '이름 없음'}${u.phone ? ` (${u.phone})` : ''}`,
+                })),
+            });
+        }
+
+        // 기존 로직: 파트너의 리드(AffiliateLead) 중에서 검색
         let whereClause: any = {
             OR: [
                 { customerName: { contains: query } },
@@ -73,7 +146,6 @@ export async function GET(req: NextRequest) {
                 id: true,
                 customerName: true,
                 customerPhone: true,
-                // customerEmail: true, // Lead 모델에 없음
             },
             take: limit,
             orderBy: { createdAt: 'desc' },
@@ -85,7 +157,7 @@ export async function GET(req: NextRequest) {
                 id: lead.id,
                 name: lead.customerName || '',
                 phone: lead.customerPhone || '',
-                email: '', // Lead 모델에 이메일이 없으므로 빈 값
+                email: '',
                 displayName: `${lead.customerName || '이름 없음'}${lead.customerPhone ? ` (${lead.customerPhone})` : ''}`,
             })),
         });

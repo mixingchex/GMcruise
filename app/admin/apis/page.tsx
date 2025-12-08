@@ -11,11 +11,20 @@ interface Product {
   packageName: string;
   startDate: string | null;
   endDate: string | null;
-  customerCount: number;
+  customerCount: number;      // 예약 건수
+  travelerCount: number;      // 총 여행자 수
+  pnrCompletedCount: number;  // PNR 완료 건수
   saleStatus: string;
   folderUrl: string | null;
   spreadsheetUrl: string | null;
   tripId: number | null;
+}
+
+interface CustomerTraveler {
+  id: number;
+  korName: string | null;
+  engName: string | null;
+  hasPassport: boolean;
 }
 
 interface Customer {
@@ -23,12 +32,23 @@ interface Customer {
   name: string | null;
   phone: string | null;
   email: string | null;
+  reservationId: number;
   tripId: number;
   productCode: string;
-  cruiseName: string | null;
+  cruiseLine: string | null;
+  shipName: string | null;
+  packageName: string | null;
   startDate: string | null;
   endDate: string | null;
-  status: string;
+  // 예약 정보
+  totalPeople: number;
+  cabinType: string | null;
+  pnrStatus: string;
+  createdAt: string;
+  // 여행자 정보
+  travelerCount: number;
+  passportCompleted: boolean;
+  travelers: CustomerTraveler[];
 }
 
 interface TravelerData {
@@ -570,7 +590,7 @@ export default function APISPage() {
               {/* 상태 표시 */}
               <div className="mb-4 space-y-2">
                 {/* 판매 상태 */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   {product.saleStatus === '판매중' && (
                     <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
                       판매중
@@ -586,17 +606,39 @@ export default function APISPage() {
                       판매종료
                     </span>
                   )}
+                  {/* PNR 상태 */}
+                  {product.customerCount > 0 && (
+                    <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                      product.pnrCompletedCount === product.customerCount
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-orange-100 text-orange-800'
+                    }`}>
+                      PNR {product.pnrCompletedCount}/{product.customerCount}
+                    </span>
+                  )}
                 </div>
                 {/* APIS 생성 상태 */}
                 {product.folderUrl || product.spreadsheetUrl ? (
                   <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
                     <FiFileText className="w-3 h-3" />
-                    APIS 생성
+                    APIS 생성완료
                   </div>
-                ) : (
+                ) : product.customerCount > 0 ? (
                   <div className="flex items-center gap-2 text-xs text-yellow-600 bg-yellow-50 px-2 py-1 rounded">
                     <FiFileText className="w-3 h-3" />
-                    APIS 미생성
+                    APIS 생성 대기
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
+                    <FiFileText className="w-3 h-3" />
+                    구매 고객 없음
+                  </div>
+                )}
+                {/* 여행자 수 표시 */}
+                {product.travelerCount > 0 && (
+                  <div className="flex items-center gap-2 text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                    <FiUsers className="w-3 h-3" />
+                    여행자 {product.travelerCount}명
                   </div>
                 )}
               </div>
@@ -736,39 +778,72 @@ export default function APISPage() {
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50">
                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">구매자명</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">전화번호</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">이메일</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">여행 시작일</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">여행 종료일</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">상태</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">연락처</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">객실</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">여행자</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">PNR 상태</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">여권</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">예약일</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredCustomers.map((customer) => (
-                        <tr key={customer.userId} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm text-gray-900">
-                            {customer.name || '이름 없음'}
+                        <tr key={customer.reservationId} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{customer.name || '이름 없음'}</p>
+                              <p className="text-xs text-gray-500">{customer.email || '-'}</p>
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-700">
                             {customer.phone || '-'}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-700">
-                            {customer.email || '-'}
+                            {customer.cabinType || '-'}
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-700">
-                            {customer.startDate
-                              ? new Date(customer.startDate).toLocaleDateString('ko-KR')
-                              : '-'}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-700">
-                            {customer.endDate
-                              ? new Date(customer.endDate).toLocaleDateString('ko-KR')
-                              : '-'}
+                          <td className="py-3 px-4">
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                {customer.travelerCount}명
+                              </span>
+                              {customer.travelers && customer.travelers.length > 0 && (
+                                <div className="text-xs text-gray-500">
+                                  {customer.travelers.slice(0, 2).map((t, i) => (
+                                    <span key={t.id}>
+                                      {t.korName || t.engName || '미입력'}
+                                      {i < Math.min(customer.travelers.length, 2) - 1 && ', '}
+                                    </span>
+                                  ))}
+                                  {customer.travelers.length > 2 && ` 외 ${customer.travelers.length - 2}명`}
+                                </div>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-sm">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {customer.status}
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              customer.pnrStatus === 'completed'
+                                ? 'bg-green-100 text-green-800'
+                                : customer.pnrStatus === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              {customer.pnrStatus === 'completed' ? 'PNR 완료' :
+                               customer.pnrStatus === 'pending' ? 'PNR 대기' : customer.pnrStatus}
                             </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              customer.passportCompleted
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {customer.passportCompleted ? '입력 완료' : '미완료'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-700">
+                            {customer.createdAt
+                              ? new Date(customer.createdAt).toLocaleDateString('ko-KR')
+                              : '-'}
                           </td>
                         </tr>
                       ))}

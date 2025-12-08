@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { enqueueApisSync } from '@/lib/apis-sync-queue';
+import { syncApisInBackground } from '@/lib/google-sheets';
 
 export async function POST(req: NextRequest) {
     try {
@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Enqueue APIS sync for this trip
-        await enqueueApisSync('TRIP_SHEET', tripId);
+        // APIS 스프레드시트 즉시 동기화 (재시도 로직 포함, 비동기)
+        syncApisInBackground(tripId);
 
         return NextResponse.json({ ok: true, message: 'PNR/Rooming list updated successfully' });
     } catch (error: any) {
