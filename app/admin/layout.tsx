@@ -194,7 +194,7 @@ function AdminLayoutContent({
     { href: '/admin/cruisedot-news', label: '크루즈뉴스 관리', icon: '📰', section: 'marketing' },
     // 마케팅 자동화
     { href: '/admin/marketing/dashboard', label: '마케팅 대시보드', icon: '📊', section: 'marketing' },
-    // { href: '/admin/funnel', label: '퍼널 메시지', icon: '📊', section: 'marketing' }, // 메시지 센터로 통합
+    { href: '/admin/funnel', label: '퍼널 메시지 관리', icon: '🔄', section: 'marketing' },
     { href: '/admin/marketing/customers', label: '고객 관리 (99K)', icon: '👥', section: 'marketing' },
     { href: '/admin/settings', label: '관리자 정보', icon: '⚙️', section: 'system' },
   ];
