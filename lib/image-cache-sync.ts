@@ -6,25 +6,12 @@
 import { google } from 'googleapis';
 import prisma from '@/lib/prisma';
 import { getDriveFolderId } from '@/lib/config/drive-config';
+import { getGoogleAuth } from '@/lib/google-drive';
 import { logger } from '@/lib/logger';
 import path from 'path';
 
 // 이미지 확장자
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-
-// Google Drive Auth
-function getAuth() {
-  const credentials = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!credentials) {
-    throw new Error('GOOGLE_SERVICE_ACCOUNT_JSON 환경변수가 설정되지 않았습니다.');
-  }
-
-  const parsed = JSON.parse(credentials);
-  return new google.auth.GoogleAuth({
-    credentials: parsed,
-    scopes: ['https://www.googleapis.com/auth/drive.readonly'],
-  });
-}
 
 interface DriveFile {
   id: string;
@@ -59,6 +46,8 @@ async function listFilesRecursively(
       fields: 'nextPageToken, files(id, name, mimeType, size, webContentLink, thumbnailLink, parents)',
       pageSize: 1000,
       pageToken,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     const files = response.data.files || [];
@@ -125,7 +114,7 @@ export async function syncImageCache(): Promise<{
   try {
     logger.log('[ImageCacheSync] 이미지 캐시 동기화 시작...');
 
-    const auth = getAuth();
+    const auth = getGoogleAuth(['https://www.googleapis.com/auth/drive.readonly']);
     const drive = google.drive({ version: 'v3', auth });
 
     // 크루즈정보사진 폴더 ID 가져오기
