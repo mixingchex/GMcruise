@@ -1,6 +1,6 @@
 import type { ChatMessage } from '@/lib/chat-types';
 import { searchPhotos, getSubfolders } from '@/lib/photos-search';
-import { searchImagesFromDB, getSubfoldersFromDB } from '@/lib/image-cache-sync';
+import { searchImagesFromDB, getSubfoldersFromDB } from '@/lib/image-cache-search';
 import prisma from '@/lib/prisma';
 
 export async function handleShowPhotos(text: string): Promise<ChatMessage[]> {
