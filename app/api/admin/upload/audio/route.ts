@@ -10,8 +10,8 @@ import { getGoogleAuth } from '@/lib/google-drive';
 import { Readable } from 'stream';
 
 // B2B 오디오 폴더 (B2B 유입 + 시스템 상담 모두 동일 폴더 사용)
-// 기존 작동하던 판매 오디오 폴더 ID 사용 (공유 드라이브 문제 해결)
-const B2B_AUDIO_FOLDER_ID = process.env.GOOGLE_DRIVE_B2B_AUDIO_FOLDER_ID || process.env.GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID || '1g8vNIeXEVHkavQnlBAXsBMkVZB_Y29Fk';
+// B2B 전용 오디오 폴더: https://drive.google.com/drive/folders/15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S
+const B2B_AUDIO_FOLDER_ID = '15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S';
 
 // 파일 크기 제한 (Vercel Free Plan: 4.5MB, FormData 오버헤드 고려해서 4MB)
 const MAX_FILE_SIZE_MB = 4;

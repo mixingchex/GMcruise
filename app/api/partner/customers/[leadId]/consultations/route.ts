@@ -321,3 +321,114 @@ export async function POST(
     return NextResponse.json({ ok: false, message: '상담기록 저장에 실패했습니다.' }, { status: 500 });
   }
 }
+
+/**
+ * 파트너용 상담기록 삭제 API
+ * DELETE /api/partner/customers/[leadId]/consultations?id=I-123 or id=N-456
+ *
+ * - 판매원: 본인이 작성한 상담기록만 삭제 가능
+ * - 대리점장: 본인 + 산하 판매원이 작성한 상담기록 삭제 가능
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ leadId: string }> | { leadId: string } }
+) {
+  let resolvedParams: { leadId: string } = { leadId: 'unknown' };
+  try {
+    const { profile, sessionUser } = await requirePartnerContext({ includeManagedAgents: true });
+    resolvedParams = await params;
+    const leadId = parseLeadId(resolvedParams.leadId);
+
+    // 권한 체크: 해당 고객에 접근 가능한지 확인
+    const lead = await getPartnerLead(profile.id, leadId, { interactions: 1 }, profile.type);
+
+    if (!lead) {
+      throw new PartnerApiError('고객을 찾을 수 없거나 접근 권한이 없습니다.', 404);
+    }
+
+    // URL 파라미터에서 삭제할 상담기록 ID 추출
+    const url = new URL(req.url);
+    const consultationId = url.searchParams.get('id');
+
+    if (!consultationId) {
+      throw new PartnerApiError('삭제할 상담기록 ID가 필요합니다.', 400);
+    }
+
+    // ID 파싱: I-123 (AffiliateInteraction) 또는 N-456 (CustomerNote)
+    const isInteraction = consultationId.startsWith('I-');
+    const isNote = consultationId.startsWith('N-');
+    const numericId = parseInt(consultationId.substring(2));
+
+    if ((!isInteraction && !isNote) || isNaN(numericId)) {
+      throw new PartnerApiError('유효하지 않은 상담기록 ID입니다.', 400);
+    }
+
+    // 트랜잭션으로 삭제 처리
+    await prisma.$transaction(async (tx) => {
+      if (isInteraction) {
+        // AffiliateInteraction 삭제
+        const interaction = await tx.affiliateInteraction.findUnique({
+          where: { id: numericId },
+          select: { id: true, leadId: true, profileId: true, createdById: true },
+        });
+
+        if (!interaction) {
+          throw new PartnerApiError('상담기록을 찾을 수 없습니다.', 404);
+        }
+
+        // 권한 확인: 본인이 작성했거나 대리점장인 경우만 삭제 가능
+        const canDelete = interaction.createdById === sessionUser.id ||
+          interaction.profileId === profile.id ||
+          profile.type === 'BRANCH_MANAGER';
+
+        if (!canDelete) {
+          throw new PartnerApiError('이 상담기록을 삭제할 권한이 없습니다.', 403);
+        }
+
+        // 관련 미디어 삭제
+        await tx.affiliateMedia.deleteMany({
+          where: { interactionId: numericId },
+        });
+
+        // 상담기록 삭제
+        await tx.affiliateInteraction.delete({
+          where: { id: numericId },
+        });
+      } else {
+        // CustomerNote 삭제
+        const note = await tx.customerNote.findUnique({
+          where: { id: numericId },
+          select: { id: true, createdBy: true, createdByType: true },
+        });
+
+        if (!note) {
+          throw new PartnerApiError('상담기록을 찾을 수 없습니다.', 404);
+        }
+
+        // 권한 확인: 본인이 작성했거나 대리점장인 경우만 삭제 가능
+        const canDelete = note.createdBy === sessionUser.id ||
+          profile.type === 'BRANCH_MANAGER';
+
+        if (!canDelete) {
+          throw new PartnerApiError('이 상담기록을 삭제할 권한이 없습니다.', 403);
+        }
+
+        // 상담기록 삭제
+        await tx.customerNote.delete({
+          where: { id: numericId },
+        });
+      }
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: '상담기록이 삭제되었습니다.',
+    });
+  } catch (error) {
+    if (error instanceof PartnerApiError) {
+      return NextResponse.json({ ok: false, message: error.message }, { status: error.status });
+    }
+    console.error(`DELETE /api/partner/customers/${resolvedParams.leadId}/consultations error:`, error);
+    return NextResponse.json({ ok: false, message: '상담기록 삭제에 실패했습니다.' }, { status: 500 });
+  }
+}

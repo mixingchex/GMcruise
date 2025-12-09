@@ -231,3 +231,93 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: false, message: '상담기록 저장에 실패했습니다.' }, { status: 500 });
   }
 }
+
+/**
+ * 파트너용 시스템 상담 문의의 상담기록 삭제 API
+ * DELETE /api/partner/system-inquiries/[id]/consultations?noteId=123
+ *
+ * - 판매원: 본인이 작성한 상담기록만 삭제 가능
+ * - 대리점장: 본인 + 산하 판매원이 작성한 상담기록 삭제 가능
+ */
+export async function DELETE(req: NextRequest, context: RouteContext) {
+  try {
+    const { profile, sessionUser } = await requirePartnerContext();
+    const resolvedParams = await context.params;
+    const consultationId = parseInt(resolvedParams.id);
+
+    if (isNaN(consultationId)) {
+      throw new PartnerApiError('유효한 ID가 필요합니다.', 400);
+    }
+
+    // URL 파라미터에서 삭제할 상담기록 ID 추출
+    const url = new URL(req.url);
+    const noteId = url.searchParams.get('noteId');
+
+    if (!noteId) {
+      throw new PartnerApiError('삭제할 상담기록 ID가 필요합니다.', 400);
+    }
+
+    const numericNoteId = parseInt(noteId);
+    if (isNaN(numericNoteId)) {
+      throw new PartnerApiError('유효하지 않은 상담기록 ID입니다.', 400);
+    }
+
+    // 시스템 상담 권한 확인
+    const consultation = await prisma.systemConsultation.findUnique({
+      where: { id: consultationId },
+      select: { id: true, managerId: true, agentId: true },
+    });
+
+    if (!consultation) {
+      throw new PartnerApiError('상담 문의를 찾을 수 없습니다.', 404);
+    }
+
+    // 대리점장 또는 해당 담당자만 접근 가능
+    const hasAccess = profile.type === 'BRANCH_MANAGER' ||
+      consultation.managerId === profile.id ||
+      consultation.agentId === profile.id;
+
+    if (!hasAccess) {
+      throw new PartnerApiError('이 상담에 접근할 권한이 없습니다.', 403);
+    }
+
+    // 상담기록 확인
+    const note = await prisma.systemConsultationNote.findUnique({
+      where: { id: numericNoteId },
+      select: { id: true, consultationId: true, createdByProfileId: true },
+    });
+
+    if (!note) {
+      throw new PartnerApiError('상담기록을 찾을 수 없습니다.', 404);
+    }
+
+    // 해당 시스템 상담에 속한 기록인지 확인
+    if (note.consultationId !== consultationId) {
+      throw new PartnerApiError('해당 상담의 기록이 아닙니다.', 400);
+    }
+
+    // 권한 확인: 본인이 작성했거나 대리점장인 경우만 삭제 가능
+    const canDelete = note.createdByProfileId === profile.id ||
+      profile.type === 'BRANCH_MANAGER';
+
+    if (!canDelete) {
+      throw new PartnerApiError('이 상담기록을 삭제할 권한이 없습니다.', 403);
+    }
+
+    // 상담기록 삭제
+    await prisma.systemConsultationNote.delete({
+      where: { id: numericNoteId },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: '상담기록이 삭제되었습니다.',
+    });
+  } catch (error) {
+    if (error instanceof PartnerApiError) {
+      return NextResponse.json({ ok: false, message: error.message }, { status: error.status });
+    }
+    console.error('[Partner System Inquiry Consultations] DELETE Error:', error);
+    return NextResponse.json({ ok: false, message: '상담기록 삭제에 실패했습니다.' }, { status: 500 });
+  }
+}

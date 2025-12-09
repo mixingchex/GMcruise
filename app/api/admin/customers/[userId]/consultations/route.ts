@@ -149,3 +149,64 @@ export async function POST(
     return NextResponse.json({ ok: false, error: error.message || '저장 실패' }, { status: 500 });
   }
 }
+
+/**
+ * 관리자용 상담기록 삭제 API
+ * DELETE /api/admin/customers/[userId]/consultations?noteId=123
+ *
+ * 관리자는 모든 상담기록 삭제 가능
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
+  try {
+    const { userId: customerId } = await params;
+    const auth = await checkAdminAuth();
+
+    if (!auth.isAdmin) {
+      return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
+    }
+
+    // URL 파라미터에서 삭제할 상담기록 ID 추출
+    const url = new URL(request.url);
+    const noteId = url.searchParams.get('noteId');
+
+    if (!noteId) {
+      return NextResponse.json({ ok: false, error: '삭제할 상담기록 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    const numericNoteId = parseInt(noteId);
+    if (isNaN(numericNoteId)) {
+      return NextResponse.json({ ok: false, error: '유효하지 않은 상담기록 ID입니다.' }, { status: 400 });
+    }
+
+    // 상담기록 확인
+    const note = await prisma.customerNote.findUnique({
+      where: { id: numericNoteId },
+      select: { id: true, customerId: true },
+    });
+
+    if (!note) {
+      return NextResponse.json({ ok: false, error: '상담기록을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 해당 고객의 상담기록인지 확인
+    if (note.customerId !== parseInt(customerId)) {
+      return NextResponse.json({ ok: false, error: '해당 고객의 상담기록이 아닙니다.' }, { status: 400 });
+    }
+
+    // 상담기록 삭제
+    await prisma.customerNote.delete({
+      where: { id: numericNoteId },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: '상담기록이 삭제되었습니다.',
+    });
+  } catch (error: any) {
+    console.error('[Consultations DELETE Error]', error);
+    return NextResponse.json({ ok: false, error: error.message || '삭제 실패' }, { status: 500 });
+  }
+}

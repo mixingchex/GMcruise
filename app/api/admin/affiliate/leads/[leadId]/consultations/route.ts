@@ -370,3 +370,94 @@ export async function POST(
     return NextResponse.json({ ok: false, error: '상담기록 저장에 실패했습니다.' }, { status: 500 });
   }
 }
+
+/**
+ * 관리자용 상담기록 삭제 API
+ * DELETE /api/admin/affiliate/leads/[leadId]/consultations?id=123 or id=N-456
+ *
+ * 관리자는 모든 상담기록 삭제 가능
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ leadId: string }> | { leadId: string } }
+) {
+  try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
+      return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const resolvedParams = await params;
+    const leadId = parseInt(resolvedParams.leadId);
+
+    if (isNaN(leadId)) {
+      return NextResponse.json({ ok: false, error: '유효한 고객 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    // URL 파라미터에서 삭제할 상담기록 ID 추출
+    const url = new URL(req.url);
+    const consultationId = url.searchParams.get('id');
+
+    if (!consultationId) {
+      return NextResponse.json({ ok: false, error: '삭제할 상담기록 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    // ID 파싱: 숫자만 있으면 AffiliateInteraction, N-456이면 CustomerNote
+    const isNote = consultationId.startsWith('N-');
+    const numericId = isNote ? parseInt(consultationId.substring(2)) : parseInt(consultationId);
+
+    if (isNaN(numericId)) {
+      return NextResponse.json({ ok: false, error: '유효하지 않은 상담기록 ID입니다.' }, { status: 400 });
+    }
+
+    // 트랜잭션으로 삭제 처리
+    await prisma.$transaction(async (tx) => {
+      if (isNote) {
+        // CustomerNote 삭제
+        const note = await tx.customerNote.findUnique({
+          where: { id: numericId },
+          select: { id: true },
+        });
+
+        if (!note) {
+          throw new Error('상담기록을 찾을 수 없습니다.');
+        }
+
+        await tx.customerNote.delete({
+          where: { id: numericId },
+        });
+      } else {
+        // AffiliateInteraction 삭제
+        const interaction = await tx.affiliateInteraction.findUnique({
+          where: { id: numericId },
+          select: { id: true, leadId: true },
+        });
+
+        if (!interaction) {
+          throw new Error('상담기록을 찾을 수 없습니다.');
+        }
+
+        // 관련 미디어 삭제
+        await tx.affiliateMedia.deleteMany({
+          where: { interactionId: numericId },
+        });
+
+        // 상담기록 삭제
+        await tx.affiliateInteraction.delete({
+          where: { id: numericId },
+        });
+      }
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: '상담기록이 삭제되었습니다.',
+    });
+  } catch (error: any) {
+    console.error('[Admin Lead Consultations] DELETE Error:', error);
+    return NextResponse.json({
+      ok: false,
+      error: error.message || '상담기록 삭제에 실패했습니다.'
+    }, { status: 500 });
+  }
+}

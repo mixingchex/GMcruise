@@ -293,34 +293,47 @@ export async function GET(req: NextRequest) {
 
     // 공통: 지난 6개월 매출 추세
     const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    let monthlySales;
+    let monthlySales: any[] = [];
 
-    if (profile.type === 'BRANCH_MANAGER') {
-      monthlySales = await prisma.$queryRaw`
-        SELECT
-          TO_CHAR("createdAt", 'YYYY-MM') as month,
-          COUNT(*) as count,
-          COALESCE(SUM("saleAmount"), 0) as total
-        FROM "AffiliateSale"
-        WHERE "managerId" = ${profile.id}
-          AND "createdAt" >= ${sixMonthsAgo}
-          AND status IN ('CONFIRMED', 'SETTLED')
-        GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
-        ORDER BY month ASC
-      `;
-    } else {
-      monthlySales = await prisma.$queryRaw`
-        SELECT
-          TO_CHAR("createdAt", 'YYYY-MM') as month,
-          COUNT(*) as count,
-          COALESCE(SUM("saleAmount"), 0) as total
-        FROM "AffiliateSale"
-        WHERE "agentId" = ${profile.id}
-          AND "createdAt" >= ${sixMonthsAgo}
-          AND status IN ('CONFIRMED', 'SETTLED')
-        GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
-        ORDER BY month ASC
-      `;
+    try {
+      let rawSales: any[] = [];
+      if (profile.type === 'BRANCH_MANAGER') {
+        rawSales = await prisma.$queryRaw`
+          SELECT
+            TO_CHAR("createdAt", 'YYYY-MM') as month,
+            COUNT(*)::int as count,
+            COALESCE(SUM("saleAmount"), 0)::numeric as total
+          FROM "AffiliateSale"
+          WHERE "managerId" = ${profile.id}
+            AND "createdAt" >= ${sixMonthsAgo}
+            AND status IN ('CONFIRMED', 'SETTLED')
+          GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
+          ORDER BY month ASC
+        `;
+      } else {
+        rawSales = await prisma.$queryRaw`
+          SELECT
+            TO_CHAR("createdAt", 'YYYY-MM') as month,
+            COUNT(*)::int as count,
+            COALESCE(SUM("saleAmount"), 0)::numeric as total
+          FROM "AffiliateSale"
+          WHERE "agentId" = ${profile.id}
+            AND "createdAt" >= ${sixMonthsAgo}
+            AND status IN ('CONFIRMED', 'SETTLED')
+          GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
+          ORDER BY month ASC
+        `;
+      }
+      // BigInt를 Number로 변환
+      monthlySales = rawSales.map(row => ({
+        month: row.month,
+        count: Number(row.count),
+        total: Number(row.total),
+      }));
+    } catch (sqlError) {
+      console.error('[Partner Dashboard Stats] SQL Error:', sqlError);
+      // SQL 에러 시 빈 배열로 처리 (API 자체는 동작하도록)
+      monthlySales = [];
     }
 
     stats.salesTrend = monthlySales;

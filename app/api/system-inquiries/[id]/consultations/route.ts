@@ -224,3 +224,64 @@ export async function POST(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: false, error: '상담기록 저장에 실패했습니다.' }, { status: 500 });
   }
 }
+
+/**
+ * 시스템 상담 문의의 상담기록 삭제 API (관리자용)
+ * DELETE /api/system-inquiries/[id]/consultations?noteId=123
+ */
+export async function DELETE(req: NextRequest, context: RouteContext) {
+  try {
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
+      return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
+    const resolvedParams = await context.params;
+    const consultationId = parseInt(resolvedParams.id);
+
+    if (isNaN(consultationId)) {
+      return NextResponse.json({ ok: false, error: '유효한 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    // URL 파라미터에서 삭제할 상담기록 ID 추출
+    const url = new URL(req.url);
+    const noteId = url.searchParams.get('noteId');
+
+    if (!noteId) {
+      return NextResponse.json({ ok: false, error: '삭제할 상담기록 ID가 필요합니다.' }, { status: 400 });
+    }
+
+    const numericNoteId = parseInt(noteId);
+    if (isNaN(numericNoteId)) {
+      return NextResponse.json({ ok: false, error: '유효하지 않은 상담기록 ID입니다.' }, { status: 400 });
+    }
+
+    // 상담기록 확인
+    const note = await prisma.systemConsultationNote.findUnique({
+      where: { id: numericNoteId },
+      select: { id: true, consultationId: true },
+    });
+
+    if (!note) {
+      return NextResponse.json({ ok: false, error: '상담기록을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 해당 시스템 상담에 속한 기록인지 확인
+    if (note.consultationId !== consultationId) {
+      return NextResponse.json({ ok: false, error: '해당 상담의 기록이 아닙니다.' }, { status: 400 });
+    }
+
+    // 상담기록 삭제
+    await prisma.systemConsultationNote.delete({
+      where: { id: numericNoteId },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      message: '상담기록이 삭제되었습니다.',
+    });
+  } catch (error) {
+    console.error('[System Inquiry Consultations] DELETE Error:', error);
+    return NextResponse.json({ ok: false, error: '상담기록 삭제에 실패했습니다.' }, { status: 500 });
+  }
+}
