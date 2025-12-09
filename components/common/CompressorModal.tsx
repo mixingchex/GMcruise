@@ -388,20 +388,28 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         showSuccess(`${processedCount}개 WebP 변환 완료! (평균 ${reduction}% 감소)`);
     };
 
-    // 4. Audio 압축 (M4A, MP3 등 → WAV로 변환하여 압축)
+    // 4. Audio 압축 (M4A, MP3 등 → WebM으로 변환하여 실제 압축)
     const processAudio = async (files: File[]) => {
         setStatusMessage('오디오 압축 중...');
         const config = AUDIO_COMPRESSION_CONFIG[compressionLevel];
         const targetSizeMB = 4.5; // Vercel 업로드 제한
 
-        const compressAudioFile = async (file: File): Promise<{ blob: Blob; originalSize: number }> => {
+        // 비트레이트 설정 (압축 레벨에 따라)
+        const bitrateMap = {
+            low: 128000,    // 128kbps - 고음질
+            medium: 64000,  // 64kbps - 보통
+            high: 32000,    // 32kbps - 최대 압축
+        };
+        const targetBitrate = bitrateMap[compressionLevel];
+
+        const compressAudioFile = async (file: File): Promise<{ blob: Blob; originalSize: number; extension: string }> => {
             return new Promise(async (resolve, reject) => {
                 try {
                     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
                     const arrayBuffer = await file.arrayBuffer();
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-                    // 선택된 압축 레벨에 따른 샘플레이트와 채널 설정
+                    // OfflineAudioContext로 오디오 처리
                     const targetSampleRate = Math.min(audioBuffer.sampleRate, config.sampleRate);
                     const targetChannels = config.channels;
                     const length = Math.floor(audioBuffer.duration * targetSampleRate);
@@ -414,90 +422,78 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
 
                     const renderedBuffer = await offlineContext.startRendering();
 
-                    // WAV로 인코딩 후 Blob 생성
-                    let wavBlob = audioBufferToWav(renderedBuffer);
+                    // MediaRecorder를 사용하여 WebM/OGG로 압축
+                    const mediaStreamDest = audioContext.createMediaStreamDestination();
+                    const bufferSource = audioContext.createBufferSource();
+                    bufferSource.buffer = renderedBuffer;
+                    bufferSource.connect(mediaStreamDest);
 
-                    // 파일 크기가 4.5MB 이상이면 자동으로 더 압축 (샘플레이트 낮춤)
-                    if (wavBlob.size > targetSizeMB * 1024 * 1024) {
-                        // 더 낮은 샘플레이트로 재시도 (8kHz까지)
-                        const lowerSampleRate = 8000;
-                        const lowerLength = Math.floor(audioBuffer.duration * lowerSampleRate);
-                        const lowerOfflineContext = new OfflineAudioContext(1, lowerLength, lowerSampleRate);
-                        const lowerSource = lowerOfflineContext.createBufferSource();
-                        lowerSource.buffer = audioBuffer;
-                        lowerSource.connect(lowerOfflineContext.destination);
-                        lowerSource.start(0);
-                        const lowerRenderedBuffer = await lowerOfflineContext.startRendering();
-                        wavBlob = audioBufferToWav(lowerRenderedBuffer);
+                    // 지원되는 MIME 타입 확인
+                    const mimeTypes = [
+                        'audio/webm;codecs=opus',
+                        'audio/webm',
+                        'audio/ogg;codecs=opus',
+                        'audio/ogg',
+                    ];
+                    let selectedMime = '';
+                    for (const mime of mimeTypes) {
+                        if (MediaRecorder.isTypeSupported(mime)) {
+                            selectedMime = mime;
+                            break;
+                        }
                     }
 
-                    resolve({ blob: wavBlob, originalSize: file.size });
+                    if (!selectedMime) {
+                        throw new Error('브라우저가 오디오 압축을 지원하지 않습니다.');
+                    }
+
+                    const chunks: Blob[] = [];
+                    const recorder = new MediaRecorder(mediaStreamDest.stream, {
+                        mimeType: selectedMime,
+                        audioBitsPerSecond: targetBitrate,
+                    });
+
+                    recorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) {
+                            chunks.push(e.data);
+                        }
+                    };
+
+                    recorder.onstop = () => {
+                        const extension = selectedMime.includes('webm') ? 'webm' : 'ogg';
+                        const compressedBlob = new Blob(chunks, { type: selectedMime });
+                        resolve({ blob: compressedBlob, originalSize: file.size, extension });
+                    };
+
+                    recorder.onerror = (e) => {
+                        reject(new Error('녹음 중 오류가 발생했습니다.'));
+                    };
+
+                    // 녹음 시작
+                    recorder.start();
+                    bufferSource.start(0);
+
+                    // 오디오 재생 완료 후 녹음 중지
+                    bufferSource.onended = () => {
+                        setTimeout(() => {
+                            recorder.stop();
+                            audioContext.close();
+                        }, 100);
+                    };
+
                 } catch (error) {
                     reject(error);
                 }
             });
         };
 
-        // AudioBuffer를 WAV Blob으로 변환하는 함수
-        const audioBufferToWav = (buffer: AudioBuffer): Blob => {
-            const numChannels = buffer.numberOfChannels;
-            const sampleRate = buffer.sampleRate;
-            const format = 1; // PCM
-            const bitDepth = 16;
-
-            const bytesPerSample = bitDepth / 8;
-            const blockAlign = numChannels * bytesPerSample;
-
-            const data = buffer.getChannelData(0);
-            const samples = new Int16Array(data.length);
-
-            for (let i = 0; i < data.length; i++) {
-                const s = Math.max(-1, Math.min(1, data[i]));
-                samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-            }
-
-            const dataLength = samples.length * bytesPerSample;
-            const bufferLength = 44 + dataLength;
-            const arrayBuffer = new ArrayBuffer(bufferLength);
-            const view = new DataView(arrayBuffer);
-
-            // WAV 헤더 작성
-            const writeString = (offset: number, str: string) => {
-                for (let i = 0; i < str.length; i++) {
-                    view.setUint8(offset + i, str.charCodeAt(i));
-                }
-            };
-
-            writeString(0, 'RIFF');
-            view.setUint32(4, 36 + dataLength, true);
-            writeString(8, 'WAVE');
-            writeString(12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, format, true);
-            view.setUint16(22, numChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * blockAlign, true);
-            view.setUint16(32, blockAlign, true);
-            view.setUint16(34, bitDepth, true);
-            writeString(36, 'data');
-            view.setUint32(40, dataLength, true);
-
-            // 오디오 데이터 작성
-            const offset = 44;
-            for (let i = 0; i < samples.length; i++) {
-                view.setInt16(offset + i * 2, samples[i], true);
-            }
-
-            return new Blob([arrayBuffer], { type: 'audio/wav' });
-        };
-
         if (files.length === 1) {
             const file = files[0];
             try {
                 setStatusMessage(`오디오 압축 중... (${file.name})`);
-                const { blob, originalSize } = await compressAudioFile(file);
+                const { blob, originalSize, extension } = await compressAudioFile(file);
                 const url = URL.createObjectURL(blob);
-                const name = file.name.replace(/\.[^/.]+$/, "") + "_compressed.wav";
+                const name = file.name.replace(/\.[^/.]+$/, "") + `_compressed.${extension}`;
                 const reduction = Math.round((1 - blob.size / originalSize) * 100);
 
                 setResultFile({
@@ -512,11 +508,11 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                 if (blob.size <= targetSizeMB * 1024 * 1024) {
                     showSuccess(`오디오 압축 완료! (${reduction}% 감소, ${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
                 } else {
-                    showSuccess(`압축 완료! 결과: ${(blob.size / 1024 / 1024).toFixed(1)}MB (4.5MB 초과 시 추가 압축 필요)`);
+                    showSuccess(`압축 완료! 결과: ${(blob.size / 1024 / 1024).toFixed(1)}MB (4.5MB 초과 시 더 강한 압축 필요)`);
                 }
-            } catch (e) {
+            } catch (e: any) {
                 console.error('오디오 압축 실패:', e);
-                showError('오디오 압축에 실패했습니다. 다른 파일을 시도해주세요.');
+                showError(e?.message || '오디오 압축에 실패했습니다. 다른 파일을 시도해주세요.');
             }
             return;
         }
@@ -530,8 +526,8 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         for (const file of files) {
             try {
                 setStatusMessage(`오디오 압축 중... (${processedCount + 1}/${files.length})`);
-                const { blob, originalSize } = await compressAudioFile(file);
-                const name = file.name.replace(/\.[^/.]+$/, "") + "_compressed.wav";
+                const { blob, originalSize, extension } = await compressAudioFile(file);
+                const name = file.name.replace(/\.[^/.]+$/, "") + `_compressed.${extension}`;
                 const arrayBuffer = await blob.arrayBuffer();
                 zip.file(name, arrayBuffer);
 
