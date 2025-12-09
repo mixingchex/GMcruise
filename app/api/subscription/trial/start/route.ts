@@ -56,7 +56,7 @@ async function saveToProspectSpreadsheet(name: string, phone: string) {
       range: 'Prospects!A:D',
       valueInputOption: 'RAW',
       requestBody: {
-        values: [[formattedDate, '7일 무료 체험', name, phone]],
+        values: [[formattedDate, '3일 무료 체험', name, phone]],
       },
     });
 
@@ -89,7 +89,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log('[Subscription Trial] 7일 무료 체험 시작:', { name, phone: normalizedPhone });
+    console.log('[Subscription Trial] 3일 무료 체험 시작:', { name, phone: normalizedPhone });
 
     // 구글 스프레드시트에 잠재고객 정보 저장 (B2B 잠재고객 추적)
     // 비동기로 처리하여 응답 속도 개선 (실패해도 DB 저장은 진행)
@@ -97,10 +97,10 @@ export async function POST(req: Request) {
       console.error('[Subscription Trial] 스프레드시트 저장 실패 (백그라운드):', err);
     });
 
-    // 7일 체험 정보 생성
+    // 3일 체험 정보 생성
     const now = new Date();
     const trialEndDate = new Date(now);
-    trialEndDate.setDate(trialEndDate.getDate() + 7);
+    trialEndDate.setDate(trialEndDate.getDate() + 3);
 
     // DB에 AffiliateLead로 저장 (또는 업데이트)
     try {
@@ -263,7 +263,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
       ok: true,
       trial: trialSession,
-      message: '7일 무료 체험이 시작되었습니다!',
+      message: '3일 무료 체험이 시작되었습니다!',
       redirectUrl: '/trial/dashboard',
     });
   } catch (error: any) {

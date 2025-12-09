@@ -34,6 +34,7 @@ import {
   FiCalendar,
   FiDollarSign,
 } from 'react-icons/fi';
+import MiniClassViewer from '@/components/funnel-visualizer/MiniClassViewer';
 
 // 체험 세션 타입
 interface TrialSession {
@@ -536,7 +537,7 @@ export default function TrialDashboardPage() {
           name: inquiryForm.name,
           phone: inquiryForm.phone,
           source: 'TRIAL_DASHBOARD',
-          message: '7일 체험 후 1:1 상담 요청',
+          message: '3일 체험 후 1:1 상담 요청',
         }),
       });
       setInquirySubmitted(true);
@@ -576,7 +577,7 @@ export default function TrialDashboardPage() {
         <div className="mx-auto max-w-7xl px-4 py-3">
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <span className="text-2xl">🎁</span>
-            <span className="font-bold">7일 무료 체험 중</span>
+            <span className="font-bold">3일 무료 체험 중</span>
             {countdown && (
               <span className="font-extrabold bg-white/30 px-4 py-1 rounded-full text-sm">
                 D-{countdown.days} {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
@@ -630,12 +631,23 @@ export default function TrialDashboardPage() {
           </div>
         </header>
 
+        {/* 퍼널 마케팅 미니 클래스 */}
+        <section className="mb-6">
+          <div className="mb-3">
+            <h2 className="text-base md:text-lg font-bold text-slate-800 flex items-center gap-2">
+              🎓 마케팅 미니 클래스
+            </h2>
+            <p className="text-xs md:text-sm text-slate-500">좌우 버튼으로 퍼널 마케팅의 핵심을 배워보세요</p>
+          </div>
+          <MiniClassViewer />
+        </section>
+
         {/* 빠른 메뉴 */}
-        <section className="bg-white rounded-2xl p-6 shadow-lg mb-6">
+        <section className="bg-white rounded-2xl p-4 md:p-6 shadow-lg mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold">빠른 메뉴</h2>
-            <span className="text-xs text-cyan-600 bg-cyan-50 px-3 py-1 rounded-full flex items-center gap-1">
-              <FiPlay className="w-3 h-3" /> 클릭해서 실제 화면 미리보기
+            <h2 className="text-base md:text-lg font-bold">빠른 메뉴</h2>
+            <span className="text-xs text-cyan-600 bg-cyan-50 px-2 md:px-3 py-1 rounded-full flex items-center gap-1">
+              <FiPlay className="w-3 h-3" /> <span className="hidden sm:inline">클릭해서</span> 미리보기
             </span>
           </div>
           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FiArrowRight, FiX } from 'react-icons/fi';
+import MiniClassViewer from '@/components/funnel-visualizer/MiniClassViewer';
 
-// 캐시 로그인 유틸리티 (localStorage 기반 7일 체험)
+// 캐시 로그인 유틸리티 (localStorage 기반 3일 체험)
 const TRIAL_CACHE_KEY = 'cruise_trial_session';
 
 interface TrialSession {
@@ -291,7 +292,7 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
                     </>
                 ) : (
                     <>
-                        <span>7일 무료 체험 시작하기</span>
+                        <span>3일 무료 체험 시작하기</span>
                         <FiArrowRight className="h-5 w-5" />
                     </>
                 )}
@@ -301,10 +302,23 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
 
     return (
         <>
-            {/* Render Template Parts */}
+            {/* Render Template Parts with Mini Class Viewer */}
             {parts.map((part, index) => {
                 if (part === 'TOP') return <div key={index}>{renderForm('top')}</div>;
                 if (part === 'MIDDLE') return <div key={index}>{renderForm('middle')}</div>;
+                // MINI_CLASS 마커가 있는 위치에 미니 클래스 삽입
+                if (part.includes('<!-- MINI_CLASS -->')) {
+                    const [before, after] = part.split('<!-- MINI_CLASS -->');
+                    return (
+                        <div key={index}>
+                            <div dangerouslySetInnerHTML={{ __html: before }} />
+                            <div className="py-8 px-4" style={{ backgroundColor: '#111827' }}>
+                                <MiniClassViewer />
+                            </div>
+                            <div dangerouslySetInnerHTML={{ __html: after }} />
+                        </div>
+                    );
+                }
                 return <div key={index} dangerouslySetInnerHTML={{ __html: part }} />;
             })}
 

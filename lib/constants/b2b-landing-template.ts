@@ -213,38 +213,19 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
                     <span class="block text-3xl md:text-5xl font-black mt-8 text-white leading-snug">
                         지금부터 대한민국 최초<br>
                         <span class="text-cyan-400">여행 자동화 시스템</span>을<br>
-                        7일 무료 경험 해 보세요
+                        3일 무료 경험 해 보세요
                     </span>
                 </h1>
 
-                <div class="grid grid-cols-2 gap-4 my-8">
-                    <div>
-                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_8859.jpg" class="w-full h-auto rounded-lg border border-gray-700" alt="7일체험 1" referrerpolicy="no-referrer">
-                    </div>
-                    <div>
-                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_9565.jpg" class="w-full h-auto rounded-lg border border-gray-700" alt="7일체험 2" referrerpolicy="no-referrer">
-                    </div>
-                    <div>
-                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_043.jpg" class="w-full h-auto rounded-lg border border-gray-700" alt="7일체험 3" referrerpolicy="no-referrer">
-                    </div>
-                    <div>
-                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_1041.jpg" class="w-full h-auto rounded-lg border border-gray-700" alt="7일체험 4" referrerpolicy="no-referrer">
-                    </div>
-                    <div>
-                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-12-01/1d909001e8c10d0e5dca46adce6195e4_1764566879_7118.png" class="w-full h-auto rounded-lg border border-gray-700" alt="판매원대시보드" referrerpolicy="no-referrer">
-                    </div>
-                    <div>
-                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-12-01/1d909001e8c10d0e5dca46adce6195e4_1764566879_7551.png" class="w-full h-auto rounded-lg border border-gray-700" alt="세일즈챗봇" referrerpolicy="no-referrer">
-                    </div>
-                    <div class="col-span-2">
-                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-12-01/1d909001e8c10d0e5dca46adce6195e4_1764566879_9114.png" class="w-full h-auto rounded-lg border border-gray-700" alt="개인구매몰" referrerpolicy="no-referrer">
-                    </div>
+                <!-- 마케팅 미니 클래스 -->
+                <div class="my-8">
+                    <h3 class="text-xl md:text-2xl font-bold text-white mb-3 flex items-center gap-2 justify-center">🎓 마케팅 미니 클래스</h3>
+                    <p class="text-gray-400 text-sm mb-4 text-center">좌우 버튼으로 퍼널 마케팅의 핵심을 배워보세요</p>
                 </div>
-
-
+                <!-- MINI_CLASS -->
 
                 <h2 class="text-3xl md:text-5xl font-black text-white mt-16 mb-8 leading-tight">
-                    "7일동안 <span class="text-cyan-400">여행사 시스템</span>을<br>
+                    "3일동안 <span class="text-cyan-400">여행사 시스템</span>을<br>
                     경험해 보세요"
                 </h2>
                 
@@ -604,7 +585,7 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
                     
                     <div class="text-center mb-8 relative z-10">
                         <h3 class="text-3xl md:text-5xl font-black text-white mb-6 leading-tight animate-pulse">
-                            7일 시스템 경험하기<br>
+                            3일 시스템 경험하기<br>
                             <span class="text-yellow-400 text-5xl md:text-7xl block my-4 drop-shadow-lg">"무료"</span>
                             지금 시작 해 보기
                         </h3>
