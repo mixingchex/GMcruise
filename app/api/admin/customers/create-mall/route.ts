@@ -69,12 +69,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 아이디 중복 확인 (phone 필드에 username 저장)
-    const existingUserByPhone = await prisma.user.findFirst({
-      where: { phone: username }
+    // 아이디 중복 확인 (mallUserId 필드로 확인)
+    const existingUserByMallUserId = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { mallUserId: username },
+          { phone: username } // 레거시 데이터 호환
+        ]
+      }
     });
 
-    if (existingUserByPhone) {
+    if (existingUserByMallUserId) {
       return NextResponse.json(
         { ok: false, error: '이미 사용 중인 아이디입니다.' },
         { status: 409 }

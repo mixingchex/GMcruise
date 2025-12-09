@@ -92,7 +92,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   const affiliateTerm = getAffiliateTerm(pathname || undefined);
   const [showContractInviteModal, setShowContractInviteModal] = useState(false);
   const [showContractTypeModal, setShowContractTypeModal] = useState(false);
-  const [selectedContractType, setSelectedContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
+  const [selectedContractType, setSelectedContractType] = useState<string>('SALES_AGENT');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [mallFullUrl, setMallFullUrl] = useState<string>('');
@@ -165,7 +165,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   const [loadingContractDetail, setLoadingContractDetail] = useState(false);
   const [deletingContractId, setDeletingContractId] = useState<number | null>(null);
   const [showSendContractModal, setShowSendContractModal] = useState(false);
-  const [contractType, setContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
+  const [contractType, setContractType] = useState<string>('SALES_AGENT');
   const [myContract, setMyContract] = useState<any | null>(null);
   const [loadingMyContract, setLoadingMyContract] = useState(false);
   const [completedAgentContracts, setCompletedAgentContracts] = useState<Array<{
@@ -182,7 +182,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   // 계약서 열람 확인 추적 (계약서 ID Set)
   const [viewedContractIds, setViewedContractIds] = useState<Set<number>>(new Set());
   const [showEducationContractModal, setShowEducationContractModal] = useState(false);
-  const [educationContractType, setEducationContractType] = useState<'SALES_AGENT' | 'BRANCH_MANAGER' | 'CRUISE_STAFF' | 'PRIMARKETER'>('SALES_AGENT');
+  const [educationContractType, setEducationContractType] = useState<string>('SALES_AGENT');
   const [mySales, setMySales] = useState<Array<{
     id: number;
     productCode: string | null;
@@ -311,6 +311,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+
+  // 계약서 타입 목록 (API에서 동적으로 로드)
+  const [availableContractTypes, setAvailableContractTypes] = useState<Array<{
+    code: string;
+    title: string;
+    price?: string;
+    icon: string;
+    description?: string;
+    isCustom: boolean;
+    isDefault: boolean;
+  }>>([]);
+  const [loadingContractTypes, setLoadingContractTypes] = useState(false);
 
   // 프로필 타입 확인 (useEffect보다 먼저 선언)
   const isBranchManager = profile?.type === 'BRANCH_MANAGER';
@@ -525,6 +537,33 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
       loadLandingPages();
     }
   }, [isBranchManager, loadLandingPages]);
+
+  // 계약서 타입 목록 로드 (대리점장만)
+  const loadContractTypes = useCallback(async () => {
+    if (!isBranchManager) return;
+    try {
+      setLoadingContractTypes(true);
+      const res = await fetch('/api/public/contract-types');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.ok && json.contractTypes) {
+          // AFFILIATE 계약서는 제외 (공통 계약서이므로)
+          const filteredTypes = json.contractTypes.filter((ct: any) => ct.code !== 'AFFILIATE');
+          setAvailableContractTypes(filteredTypes);
+        }
+      }
+    } catch (error) {
+      console.error('[Partner Dashboard] Failed to load contract types:', error);
+    } finally {
+      setLoadingContractTypes(false);
+    }
+  }, [isBranchManager]);
+
+  useEffect(() => {
+    if (isBranchManager) {
+      loadContractTypes();
+    }
+  }, [isBranchManager, loadContractTypes]);
 
   // 관리자가 생성한 공통 상품 링크 로드
   useEffect(() => {
@@ -3372,7 +3411,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                                     <button
                                       onClick={() => {
                                         const contractType = selectedContract.metadata?.contractType || 'SALES_AGENT';
-                                        setEducationContractType(contractType as any);
+                                        setEducationContractType(contractType);
                                         setShowEducationContractModal(true);
                                         // 계약서 열람 확인 추가
                                         if (selectedContract) {
@@ -3570,7 +3609,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
       {/* 계약서 타입 선택 모달 */}
       {isBranchManager && showContractTypeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur p-4">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-gray-900">계약서 타입 선택</h2>
               <p className="text-sm text-gray-600 mt-1">
@@ -3578,83 +3617,65 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <button
-                onClick={() => {
-                  setSelectedContractType('SALES_AGENT');
-                  setShowContractTypeModal(false);
-                  setShowContractInviteModal(true);
-                }}
-                className="flex flex-col items-start gap-3 rounded-xl border-2 border-blue-200 bg-blue-50 p-4 text-left transition-all hover:border-blue-400 hover:bg-blue-100 hover:shadow-md"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
-                    판매원
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">판매원 계약서</h3>
-                  <p className="text-xs text-gray-600 mt-1">교육 계약서 (330만원)</p>
-                </div>
-              </button>
+            {loadingContractTypes ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">계약서 목록 로딩 중...</span>
+              </div>
+            ) : availableContractTypes.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <p>사용 가능한 계약서가 없습니다.</p>
+                <p className="text-sm mt-2">관리자에게 문의해주세요.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {availableContractTypes.map((ct) => {
+                  // 계약서 타입별 색상 설정
+                  const colorMap: Record<string, { border: string; bg: string; hover: string; badge: string; text: string }> = {
+                    SALES_AGENT: { border: 'border-blue-200', bg: 'bg-blue-50', hover: 'hover:border-blue-400 hover:bg-blue-100', badge: 'bg-blue-100', text: 'text-blue-700' },
+                    BRANCH_MANAGER: { border: 'border-purple-200', bg: 'bg-purple-50', hover: 'hover:border-purple-400 hover:bg-purple-100', badge: 'bg-purple-100', text: 'text-purple-700' },
+                    CRUISE_STAFF: { border: 'border-green-200', bg: 'bg-green-50', hover: 'hover:border-green-400 hover:bg-green-100', badge: 'bg-green-100', text: 'text-green-700' },
+                    PRIMARKETER: { border: 'border-orange-200', bg: 'bg-orange-50', hover: 'hover:border-orange-400 hover:bg-orange-100', badge: 'bg-orange-100', text: 'text-orange-700' },
+                  };
+                  const defaultColor = { border: 'border-gray-200', bg: 'bg-gray-50', hover: 'hover:border-gray-400 hover:bg-gray-100', badge: 'bg-gray-100', text: 'text-gray-700' };
+                  const colors = colorMap[ct.code] || (ct.isCustom ? { border: 'border-indigo-200', bg: 'bg-indigo-50', hover: 'hover:border-indigo-400 hover:bg-indigo-100', badge: 'bg-indigo-100', text: 'text-indigo-700' } : defaultColor);
 
-              <button
-                onClick={() => {
-                  setSelectedContractType('BRANCH_MANAGER');
-                  setShowContractTypeModal(false);
-                  setShowContractInviteModal(true);
-                }}
-                className="flex flex-col items-start gap-3 rounded-xl border-2 border-purple-200 bg-purple-50 p-4 text-left transition-all hover:border-purple-400 hover:bg-purple-100 hover:shadow-md"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-1 text-xs font-semibold text-purple-700">
-                    대리점장
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">대리점장 계약서</h3>
-                  <p className="text-xs text-gray-600 mt-1">B2B 계약서 + 교육 계약서 (750만원)</p>
-                </div>
-              </button>
+                  // 계약서 타입별 라벨
+                  const labelMap: Record<string, string> = {
+                    SALES_AGENT: '판매원',
+                    BRANCH_MANAGER: '대리점장',
+                    CRUISE_STAFF: '크루즈스탭',
+                    PRIMARKETER: '프리마케터',
+                  };
+                  const label = labelMap[ct.code] || ct.title.replace(/계약서/g, '').trim();
 
-              <button
-                onClick={() => {
-                  setSelectedContractType('CRUISE_STAFF');
-                  setShowContractTypeModal(false);
-                  setShowContractInviteModal(true);
-                }}
-                className="flex flex-col items-start gap-3 rounded-xl border-2 border-green-200 bg-green-50 p-4 text-left transition-all hover:border-green-400 hover:bg-green-100 hover:shadow-md"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
-                    크루즈스탭
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">크루즈스탭 계약서</h3>
-                  <p className="text-xs text-gray-600 mt-1">교육 계약서 (540만원)</p>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSelectedContractType('PRIMARKETER');
-                  setShowContractTypeModal(false);
-                  setShowContractInviteModal(true);
-                }}
-                className="flex flex-col items-start gap-3 rounded-xl border-2 border-orange-200 bg-orange-50 p-4 text-left transition-all hover:border-orange-400 hover:bg-orange-100 hover:shadow-md"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-700">
-                    프리마케터
-                  </span>
-                </div>
-                <div>
-                  <h3 className="font-bold text-gray-900">프리마케터 계약서</h3>
-                  <p className="text-xs text-gray-600 mt-1">교육 계약서 (100만원)</p>
-                </div>
-              </button>
-            </div>
+                  return (
+                    <button
+                      key={ct.code}
+                      onClick={() => {
+                        setSelectedContractType(ct.code);
+                        setShowContractTypeModal(false);
+                        setShowContractInviteModal(true);
+                      }}
+                      className={`flex flex-col items-start gap-3 rounded-xl border-2 ${colors.border} ${colors.bg} p-4 text-left transition-all ${colors.hover} hover:shadow-md`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{ct.icon}</span>
+                        <span className={`inline-flex items-center gap-1 rounded-full ${colors.badge} px-2 py-1 text-xs font-semibold ${colors.text}`}>
+                          {label}
+                          {ct.isCustom && <span className="ml-1 text-[10px]">✨</span>}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">{ct.title}</h3>
+                        {ct.price && <p className="text-xs text-gray-600 mt-1">{ct.price}</p>}
+                        {ct.description && <p className="text-xs text-gray-500 mt-0.5">{ct.description}</p>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="flex justify-end">
               <button

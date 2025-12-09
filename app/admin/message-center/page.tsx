@@ -14,7 +14,7 @@ type TabType = 'instant' | 'scheduled' | 'history';
 type SendMethodType = 'sms' | 'email' | 'kakao' | 'push' | 'app';
 
 // 발송 대상 그룹
-type TargetGroupType = 'all' | 'active' | 'inProgress' | 'hibernated' | 'custom';
+type TargetGroupType = 'trial' | 'purchased' | 'mall' | 'b2b' | 'landing' | 'custom';
 
 // 메시지 내역 타입
 interface MessageHistory {
@@ -79,7 +79,7 @@ export default function MessageCenterPage() {
 
   // 즉시 발송 상태
   const [sendMethod, setSendMethod] = useState<SendMethodType>('sms');
-  const [targetGroup, setTargetGroup] = useState<TargetGroupType>('all');
+  const [targetGroup, setTargetGroup] = useState<TargetGroupType>('trial');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -118,6 +118,50 @@ export default function MessageCenterPage() {
   // 엑셀 백업 상태
   const [isExporting, setIsExporting] = useState(false);
 
+  // 발송 대상 인원수
+  const [targetCounts, setTargetCounts] = useState<{
+    trial: number;
+    purchased: number;
+    mall: number;
+    b2b: number;
+    landing: number;
+  }>({ trial: 0, purchased: 0, mall: 0, b2b: 0, landing: 0 });
+  const [isLoadingCounts, setIsLoadingCounts] = useState(false);
+
+  // 알리고 API 설정 상태
+  const [smsConfig, setSmsConfig] = useState<{
+    isConfigured: boolean;
+    senderPhone: string;
+  }>({ isConfigured: false, senderPhone: '' });
+
+  // 고객 목록 및 선택 상태
+  interface Customer {
+    id: number;
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    source: string | null;
+    createdAt: string;
+    selected?: boolean;
+  }
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<Set<number>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
+
+  // 수동 입력 수신자
+  const [manualRecipients, setManualRecipients] = useState<Array<{ name: string; phone: string }>>([]);
+  const [newManualName, setNewManualName] = useState('');
+  const [newManualPhone, setNewManualPhone] = useState('');
+
+  // 엑셀 업로드 수신자
+  const [excelRecipients, setExcelRecipients] = useState<Array<{ name: string; phone: string }>>([]);
+
+  // 상품 선택 (템플릿 변수용)
+  const [selectedProduct, setSelectedProduct] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
+
   // 고객 그룹 로드
   const loadCustomerGroups = useCallback(async () => {
     try {
@@ -130,6 +174,255 @@ export default function MessageCenterPage() {
       console.error('고객 그룹 로드 실패:', error);
     }
   }, []);
+
+  // 발송 대상 인원수 로드
+  const loadTargetCounts = useCallback(async () => {
+    setIsLoadingCounts(true);
+    try {
+      const res = await fetch('/api/admin/message-center/target-counts', { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) {
+        setTargetCounts(data.counts);
+      }
+    } catch (error) {
+      console.error('발송 대상 인원수 로드 실패:', error);
+    } finally {
+      setIsLoadingCounts(false);
+    }
+  }, []);
+
+  // 알리고 API 설정 확인
+  const loadSmsConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/settings/sms', { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok && data.config) {
+        setSmsConfig({
+          isConfigured: !!(data.config.apiKey && data.config.userId && data.config.senderPhone),
+          senderPhone: data.config.senderPhone || '',
+        });
+        if (data.config.senderPhone) {
+          setSenderPhone(data.config.senderPhone);
+        }
+      }
+    } catch (error) {
+      console.error('SMS 설정 로드 실패:', error);
+    }
+  }, []);
+
+  // 고객 목록 로드
+  const loadCustomers = useCallback(async (type: string) => {
+    setIsLoadingCustomers(true);
+    setCustomers([]); // 기존 목록 초기화
+    setSelectedCustomers(new Set());
+    setSelectAll(false);
+    try {
+      console.log('[Message Center] Loading customers for type:', type);
+      const res = await fetch(`/api/admin/message-center/customers?type=${type}`, { credentials: 'include' });
+      const data = await res.json();
+      console.log('[Message Center] Customer API response:', { ok: data.ok, count: data.customers?.length, total: data.total });
+      if (data.ok) {
+        setCustomers(data.customers || []);
+      } else {
+        console.error('[Message Center] Customer load failed:', data.error);
+      }
+    } catch (error) {
+      console.error('고객 목록 로드 실패:', error);
+    } finally {
+      setIsLoadingCustomers(false);
+    }
+  }, []);
+
+  // 전체 선택/해제
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedCustomers(new Set());
+    } else {
+      const allIds = new Set(filteredCustomers.map(c => c.id));
+      setSelectedCustomers(allIds);
+    }
+    setSelectAll(!selectAll);
+  };
+
+  // 개별 선택
+  const handleSelectCustomer = (id: number) => {
+    const newSelected = new Set(selectedCustomers);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedCustomers(newSelected);
+    setSelectAll(newSelected.size === filteredCustomers.length);
+  };
+
+  // 필터링된 고객 목록
+  const filteredCustomers = customers.filter(c => {
+    if (!customerSearch) return true;
+    const search = customerSearch.toLowerCase();
+    return (
+      (c.name?.toLowerCase() || '').includes(search) ||
+      (c.phone || '').includes(search) ||
+      (c.email?.toLowerCase() || '').includes(search)
+    );
+  });
+
+  // 수동 수신자 추가
+  const handleAddManualRecipient = () => {
+    if (!newManualName.trim() || !newManualPhone.trim()) {
+      alert('이름과 전화번호를 모두 입력해주세요.');
+      return;
+    }
+    setManualRecipients([...manualRecipients, { name: newManualName.trim(), phone: newManualPhone.trim() }]);
+    setNewManualName('');
+    setNewManualPhone('');
+  };
+
+  // 수동 수신자 삭제
+  const handleRemoveManualRecipient = (index: number) => {
+    setManualRecipients(manualRecipients.filter((_, i) => i !== index));
+  };
+
+  // 엑셀 양식 다운로드 (개선된 버전)
+  const handleDownloadExcelTemplate = () => {
+    const csvContent = `이름,전화번호
+홍길동,01012345678
+김철수,01098765432
+박영희,01011112222
+이민수,01033334444
+최지영,01055556666
+
+=== 작성 안내 ===
+1. 이름: 한글 또는 영문으로 입력
+2. 전화번호: 숫자만 입력 (하이픈 없이)
+   - 예시: 01012345678
+3. 첫 번째 줄(이름,전화번호)은 삭제하지 마세요
+4. 예시 데이터는 삭제 후 실제 데이터를 입력하세요`;
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'SMS_수신자_양식.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // 엑셀 파일 업로드 (개선된 버전)
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n');
+      const recipients: Array<{ name: string; phone: string }> = [];
+
+      // 헤더 찾기 (이름, 전화번호 포함된 줄)
+      let startIdx = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].toLowerCase();
+        if (line.includes('이름') && line.includes('전화')) {
+          startIdx = i + 1;
+          break;
+        }
+      }
+
+      // 데이터 파싱
+      for (let i = startIdx; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line.startsWith('===') || line.startsWith('#')) continue;
+
+        // 쉼표 또는 탭으로 분리
+        const parts = line.split(/[,\t]/).map(s => s.trim().replace(/"/g, ''));
+        if (parts.length >= 2) {
+          const name = parts[0];
+          const phone = parts[1].replace(/[^0-9]/g, '');
+
+          // 유효성 검사: 이름이 있고, 전화번호가 10-11자리
+          if (name && phone && phone.length >= 10 && phone.length <= 11) {
+            recipients.push({ name, phone });
+          }
+        }
+      }
+
+      if (recipients.length === 0) {
+        alert('유효한 수신자를 찾을 수 없습니다. 양식을 확인해주세요.\n\n- 첫 번째 열: 이름\n- 두 번째 열: 전화번호 (숫자만)');
+        return;
+      }
+
+      setExcelRecipients(recipients);
+      alert(`${recipients.length}명의 수신자를 불러왔습니다.`);
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = ''; // 리셋
+  };
+
+  // 상품 목록 상태
+  const [affiliateProducts, setAffiliateProducts] = useState<Array<{
+    id: number;
+    productCode: string;
+    title: string;
+    status: string;
+  }>>([]);
+
+  // 상품 목록 로드
+  const loadAffiliateProducts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/affiliate/products', { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok && data.products) {
+        // 활성화된 상품만 필터링
+        const activeProducts = data.products.filter((p: any) => p.status === 'ACTIVE' || p.isPublished);
+        setAffiliateProducts(activeProducts);
+      }
+    } catch (error) {
+      console.error('상품 목록 로드 실패:', error);
+    }
+  }, []);
+
+  // 상품 선택 시 링크 자동 설정
+  const handleProductSelect = (productCode: string) => {
+    const product = affiliateProducts.find(p => p.productCode === productCode);
+    if (product) {
+      setSelectedProduct(product.title);
+      // 상품 상세 페이지 링크 자동 생성
+      setLinkUrl(`https://cruisemall.kr/product/${product.productCode}`);
+    } else {
+      setSelectedProduct('');
+      setLinkUrl('');
+    }
+  };
+
+  // SMS 호환 이모티콘 목록 (특수문자로 깨지지 않는 것들)
+  const smsEmojis = [
+    // 별/하트/기호
+    '★', '☆', '♥', '♡', '◆', '◇', '■', '□', '●', '○',
+    '△', '▲', '▽', '▼', '◁', '▷', '♠', '♣', '♤', '♧',
+    // 화살표
+    '→', '←', '↑', '↓', '↔', '⇒', '⇐', '⇑', '⇓', '⇔',
+    // 체크/X
+    '√', '✓', '✔', '✕', '✖', '✗', '✘', '○', '●', '◎',
+    // 숫자 기호
+    '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩',
+    // 특수 기호
+    '※', '★', '☆', '◈', '◐', '◑', '◒', '◓', '♨', '☎',
+    '☏', '✉', '✈', '☀', '☁', '☂', '☃', '♬', '♪', '♩',
+    // 괄호/꺾쇠
+    '【', '】', '〔', '〕', '《', '》', '「', '」', '『', '』',
+    // 선/구분선
+    '─', '━', '│', '┃', '┌', '┐', '└', '┘', '├', '┤',
+    // 기타 기호
+    '◀', '▶', '◁', '▷', '♤', '♧', '♡', '♢', '⊙', '⊕',
+  ];
+
+  // 메시지 템플릿 변수 적용
+  const applyMessageVariables = (text: string, recipient: { name: string; phone: string }) => {
+    return text
+      .replace(/\{이름\}/g, recipient.name || '고객님')
+      .replace(/\{상품\}/g, selectedProduct || '크루즈 상품')
+      .replace(/\{링크\}/g, linkUrl || '');
+  };
 
   // 예약 메시지 로드
   const loadScheduledMessages = useCallback(async () => {
@@ -193,7 +486,20 @@ export default function MessageCenterPage() {
 
   useEffect(() => {
     loadCustomerGroups();
-  }, [loadCustomerGroups]);
+    loadTargetCounts();
+    loadSmsConfig();
+    loadAffiliateProducts();
+    // 초기 로드 시 trial 고객 목록도 함께 로드
+    loadCustomers('trial');
+  }, [loadCustomerGroups, loadTargetCounts, loadSmsConfig, loadAffiliateProducts, loadCustomers]);
+
+  // 발송 대상 그룹 변경 시 고객 목록 로드 (버튼 클릭 시에도 직접 호출됨)
+  useEffect(() => {
+    // 초기 로드 시 중복 호출 방지를 위해 체크
+    if (targetGroup !== 'custom' && targetGroup !== 'trial') {
+      loadCustomers(targetGroup);
+    }
+  }, [targetGroup, loadCustomers]);
 
   useEffect(() => {
     if (activeTab === 'scheduled') {
@@ -210,12 +516,21 @@ export default function MessageCenterPage() {
       return;
     }
 
-    const targetLabel = targetGroup === 'all' ? '전체 사용자' :
-      targetGroup === 'active' ? '활성 사용자' :
-      targetGroup === 'inProgress' ? '여행 중인 사용자' :
-      targetGroup === 'hibernated' ? '동면 사용자' : '선택한 고객 그룹';
+    // 총 발송 대상 수 계산
+    const totalRecipients = selectedCustomers.size + manualRecipients.length + excelRecipients.length;
 
-    if (!confirm(`${targetLabel}에게 ${sendMethod.toUpperCase()} 메시지를 발송하시겠습니까?`)) {
+    if (totalRecipients === 0) {
+      alert('발송 대상을 선택해주세요. 고객 목록에서 선택하거나, 수동으로 수신자를 추가해주세요.');
+      return;
+    }
+
+    const targetLabel = targetGroup === 'trial' ? '3일 무료체험 고객' :
+      targetGroup === 'purchased' ? '구매 고객' :
+      targetGroup === 'mall' ? '크루즈몰 고객' :
+      targetGroup === 'b2b' ? 'B2B 유입 고객' :
+      targetGroup === 'landing' ? '랜딩 유입 고객' : '선택한 고객 그룹';
+
+    if (!confirm(`총 ${totalRecipients}명에게 ${sendMethod.toUpperCase()} 메시지를 발송하시겠습니까?\n\n- 선택된 ${targetLabel}: ${selectedCustomers.size}명\n- 수동 입력: ${manualRecipients.length}명\n- 엑셀 업로드: ${excelRecipients.length}명`)) {
       return;
     }
 
@@ -223,6 +538,21 @@ export default function MessageCenterPage() {
     setSendResult(null);
 
     try {
+      // 선택된 고객들의 정보 수집 (이름, 전화번호)
+      const selectedRecipients: Array<{ name: string; phone: string }> = [];
+      filteredCustomers.forEach(c => {
+        if (selectedCustomers.has(c.id) && c.phone) {
+          selectedRecipients.push({ name: c.name || '고객', phone: c.phone });
+        }
+      });
+
+      // 수동 입력 + 엑셀 업로드 수신자 추가
+      const allRecipients = [
+        ...selectedRecipients,
+        ...manualRecipients,
+        ...excelRecipients,
+      ];
+
       let endpoint = '';
       let body: any = {};
 
@@ -239,18 +569,29 @@ export default function MessageCenterPage() {
         body = {
           title,
           content,
-          targetGroup,
-          groupId: targetGroup === 'custom' ? selectedGroupId : null,
+          recipients: allRecipients,
+          productName: selectedProduct || '',
+          linkUrl: linkUrl || '',
           senderName,
           senderPhone,
         };
       } else if (sendMethod === 'email') {
+        // 이메일 주소가 있는 수신자만 필터링
+        const emailRecipients = allRecipients.filter(r => {
+          const customer = filteredCustomers.find(c => c.phone === r.phone);
+          return customer?.email;
+        }).map(r => {
+          const customer = filteredCustomers.find(c => c.phone === r.phone);
+          return { name: r.name, email: customer?.email || '' };
+        });
+
         endpoint = '/api/admin/messages/send-email';
         body = {
           title,
           content,
-          targetGroup,
-          groupId: targetGroup === 'custom' ? selectedGroupId : null,
+          recipients: emailRecipients,
+          productName: selectedProduct || '',
+          linkUrl: linkUrl || '',
           senderName,
         };
       } else if (sendMethod === 'kakao') {
@@ -580,7 +921,40 @@ export default function MessageCenterPage() {
                 <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                   <FiUser className="text-blue-600" />
                   발신자 정보
+                  {sendMethod === 'sms' && (
+                    <a
+                      href="/admin/settings"
+                      className="ml-auto text-sm font-normal text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <FiExternalLink size={14} />
+                      알리고 API 설정
+                    </a>
+                  )}
                 </h2>
+
+                {/* SMS 발송 시 알리고 API 상태 표시 */}
+                {sendMethod === 'sms' && (
+                  <div className={`mb-4 p-3 rounded-lg ${smsConfig.isConfigured ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                    <div className="flex items-center gap-2">
+                      {smsConfig.isConfigured ? (
+                        <>
+                          <FiCheckCircle className="text-green-600" size={18} />
+                          <span className="text-green-800 font-medium">알리고 API 연동됨</span>
+                          {smsConfig.senderPhone && (
+                            <span className="text-green-600 text-sm ml-2">발신번호: {smsConfig.senderPhone}</span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <FiAlertCircle className="text-yellow-600" size={18} />
+                          <span className="text-yellow-800 font-medium">알리고 API 설정 필요</span>
+                          <a href="/admin/settings" className="text-yellow-700 underline text-sm ml-2">설정하기</a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -605,7 +979,11 @@ export default function MessageCenterPage() {
                         onChange={(e) => setSenderPhone(e.target.value)}
                         placeholder="02-1234-5678"
                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={smsConfig.isConfigured && smsConfig.senderPhone !== ''}
                       />
+                      {smsConfig.isConfigured && smsConfig.senderPhone && (
+                        <p className="text-xs text-gray-500 mt-1">알리고 설정의 발신번호가 자동으로 사용됩니다</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -617,26 +995,39 @@ export default function MessageCenterPage() {
               <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <FiUsers className="text-blue-600" />
                 발송 대상
+                {isLoadingCounts && <FiLoader className="animate-spin text-gray-400" size={16} />}
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 {[
-                  { value: 'all', label: '전체', icon: '👥' },
-                  { value: 'active', label: '활성 사용자', icon: '✅' },
-                  { value: 'inProgress', label: '여행 중', icon: '🚢' },
-                  { value: 'hibernated', label: '동면 사용자', icon: '💤' },
-                  { value: 'custom', label: '그룹 선택', icon: '📁' },
+                  { value: 'trial', label: '3일 무료체험', icon: '🎁', count: targetCounts.trial, desc: '지니 3일 무료체험 고객' },
+                  { value: 'purchased', label: '구매고객', icon: '💳', count: targetCounts.purchased, desc: '상품 구매 완료 고객' },
+                  { value: 'mall', label: '크루즈몰고객', icon: '🛒', count: targetCounts.mall, desc: '크루즈몰 가입 고객' },
+                  { value: 'b2b', label: 'B2B유입', icon: '🏢', count: targetCounts.b2b, desc: 'B2B 랜딩페이지 유입' },
+                  { value: 'landing', label: '랜딩유입', icon: '📄', count: targetCounts.landing, desc: '랜딩페이지 유입 고객' },
+                  { value: 'custom', label: '그룹 선택', icon: '📁', count: null, desc: '특정 그룹 선택' },
                 ].map((group) => (
                   <button
                     key={group.value}
-                    onClick={() => setTargetGroup(group.value as TargetGroupType)}
+                    onClick={() => {
+                      const newGroup = group.value as TargetGroupType;
+                      setTargetGroup(newGroup);
+                      // custom이 아닌 경우 바로 고객 목록 로드 (동일 그룹 재클릭 시에도 새로고침)
+                      if (newGroup !== 'custom') {
+                        loadCustomers(newGroup);
+                      }
+                    }}
                     className={`p-3 rounded-lg border-2 transition-all ${
                       targetGroup === group.value
                         ? 'bg-blue-50 border-blue-500 text-blue-700'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
+                    title={group.desc}
                   >
                     <div className="text-2xl mb-1">{group.icon}</div>
                     <div className="text-sm font-semibold">{group.label}</div>
+                    {group.count !== null && (
+                      <div className="text-xs text-gray-500 mt-1">{group.count.toLocaleString()}명</div>
+                    )}
                   </button>
                 ))}
               </div>
@@ -658,6 +1049,187 @@ export default function MessageCenterPage() {
                   </select>
                 </div>
               )}
+
+              {/* 고객 목록 표시 */}
+              {targetGroup !== 'custom' && (
+                <div className="mt-4 border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-gray-700">
+                        고객 목록 ({filteredCustomers.length}명)
+                      </span>
+                      {isLoadingCustomers && <FiLoader className="animate-spin text-gray-400" size={16} />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input
+                          type="text"
+                          placeholder="이름, 전화번호 검색..."
+                          value={customerSearch}
+                          onChange={(e) => setCustomerSearch(e.target.value)}
+                          className="pl-9 pr-3 py-2 border rounded-lg text-sm w-48"
+                        />
+                      </div>
+                      <button
+                        onClick={handleSelectAll}
+                        className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200"
+                      >
+                        {selectAll ? '전체 해제' : '전체 선택'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-blue-600 mb-2">
+                    선택된 수신자: <span className="font-bold">{selectedCustomers.size}명</span>
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto border rounded-lg">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 sticky top-0">
+                        <tr>
+                          <th className="px-3 py-2 text-left w-10">
+                            <input
+                              type="checkbox"
+                              checked={selectAll}
+                              onChange={handleSelectAll}
+                              className="rounded"
+                            />
+                          </th>
+                          <th className="px-3 py-2 text-left">이름</th>
+                          <th className="px-3 py-2 text-left">전화번호</th>
+                          <th className="px-3 py-2 text-left">이메일</th>
+                          <th className="px-3 py-2 text-left">유입경로</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCustomers.slice(0, 100).map((customer) => (
+                          <tr key={customer.id} className="border-t hover:bg-gray-50">
+                            <td className="px-3 py-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedCustomers.has(customer.id)}
+                                onChange={() => handleSelectCustomer(customer.id)}
+                                className="rounded"
+                              />
+                            </td>
+                            <td className="px-3 py-2 font-medium">{customer.name || '-'}</td>
+                            <td className="px-3 py-2">{customer.phone || '-'}</td>
+                            <td className="px-3 py-2 text-gray-500 truncate max-w-[150px]">{customer.email || '-'}</td>
+                            <td className="px-3 py-2">
+                              <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{customer.source || '-'}</span>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredCustomers.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="px-3 py-8 text-center text-gray-400">
+                              {isLoadingCustomers ? '로딩 중...' : '해당 그룹에 고객이 없습니다'}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  {filteredCustomers.length > 100 && (
+                    <p className="text-xs text-gray-500 mt-2">* 최대 100명까지 표시됩니다. 검색을 이용해주세요.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 수동 수신자 입력 / 엑셀 업로드 */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+                <FiUser className="text-blue-600" />
+                추가 수신자
+              </h2>
+
+              {/* 엑셀 양식 다운로드 / 업로드 */}
+              <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+                <button
+                  onClick={handleDownloadExcelTemplate}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 flex items-center gap-2"
+                >
+                  <FiDownload size={16} />
+                  엑셀 양식 다운로드
+                </button>
+                <label className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 flex items-center gap-2 cursor-pointer">
+                  <FiPlus size={16} />
+                  엑셀 파일 업로드
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleExcelUpload}
+                    className="hidden"
+                  />
+                </label>
+                {excelRecipients.length > 0 && (
+                  <span className="text-sm text-green-600 font-medium">
+                    엑셀에서 {excelRecipients.length}명 불러옴
+                  </span>
+                )}
+              </div>
+
+              {/* 수동 입력 */}
+              <div className="flex items-end gap-2 mb-3">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                  <input
+                    type="text"
+                    value={newManualName}
+                    onChange={(e) => setNewManualName(e.target.value)}
+                    placeholder="홍길동"
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
+                  <input
+                    type="tel"
+                    value={newManualPhone}
+                    onChange={(e) => setNewManualPhone(e.target.value)}
+                    placeholder="01012345678"
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                </div>
+                <button
+                  onClick={handleAddManualRecipient}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+                >
+                  추가
+                </button>
+              </div>
+
+              {/* 추가된 수신자 목록 */}
+              {(manualRecipients.length > 0 || excelRecipients.length > 0) && (
+                <div className="border rounded-lg p-3 bg-gray-50">
+                  <div className="text-sm font-medium text-gray-700 mb-2">
+                    추가 수신자 목록 ({manualRecipients.length + excelRecipients.length}명)
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                    {manualRecipients.map((r, idx) => (
+                      <span key={`manual-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 bg-white border rounded text-sm">
+                        {r.name} ({r.phone})
+                        <button onClick={() => handleRemoveManualRecipient(idx)} className="text-red-500 hover:text-red-700">×</button>
+                      </span>
+                    ))}
+                    {excelRecipients.map((r, idx) => (
+                      <span key={`excel-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-sm">
+                        {r.name} ({r.phone})
+                      </span>
+                    ))}
+                  </div>
+                  {excelRecipients.length > 0 && (
+                    <button
+                      onClick={() => setExcelRecipients([])}
+                      className="mt-2 text-sm text-red-600 hover:underline"
+                    >
+                      엑셀 수신자 초기화
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* 메시지 작성 */}
@@ -666,7 +1238,97 @@ export default function MessageCenterPage() {
                 <FiEdit className="text-blue-600" />
                 메시지 작성
               </h2>
+
+              {/* 템플릿 변수 가이드 */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm font-semibold text-blue-800 mb-2">📝 사용 가능한 변수</div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <button
+                    onClick={() => setContent(content + '{이름}')}
+                    className="px-2 py-1 bg-white border border-blue-300 rounded hover:bg-blue-100"
+                  >
+                    {'{이름}'} - 수신자 이름
+                  </button>
+                  <button
+                    onClick={() => setContent(content + '{상품}')}
+                    className="px-2 py-1 bg-white border border-blue-300 rounded hover:bg-blue-100"
+                  >
+                    {'{상품}'} - 선택한 상품명
+                  </button>
+                  <button
+                    onClick={() => setContent(content + '{링크}')}
+                    className="px-2 py-1 bg-white border border-blue-300 rounded hover:bg-blue-100"
+                  >
+                    {'{링크}'} - 첨부 링크
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-4">
+                {/* 상품 선택 (드롭다운) */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    상품 선택 (선택사항)
+                  </label>
+                  <select
+                    onChange={(e) => handleProductSelect(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    defaultValue=""
+                  >
+                    <option value="">상품을 선택하세요...</option>
+                    {affiliateProducts.length > 0 ? (
+                      affiliateProducts.map((product) => (
+                        <option key={product.id} value={product.productCode}>
+                          {product.title}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>등록된 상품이 없습니다</option>
+                    )}
+                  </select>
+                  {selectedProduct && (
+                    <p className="text-xs text-green-600 mt-1">선택됨: {selectedProduct}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">{'{상품}'} 변수에 자동으로 적용됩니다. 수당 등록된 활성 상품만 표시됩니다.</p>
+                </div>
+
+                {/* 링크 입력 (상품 선택 시 자동 입력) */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    링크 첨부 {selectedProduct && <span className="text-green-600">(자동 연결됨)</span>}
+                  </label>
+                  <input
+                    type="url"
+                    value={linkUrl}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                    placeholder="https://cruisemall.kr/product/..."
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">{'{링크}'} 변수에 자동으로 적용됩니다. 상품 선택 시 자동으로 링크가 입력됩니다.</p>
+                </div>
+
+                {/* SMS 호환 이모티콘 */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    SMS 호환 이모티콘 (깨지지 않는 특수문자)
+                  </label>
+                  <div className="p-3 bg-gray-50 border rounded-lg max-h-32 overflow-y-auto">
+                    <div className="flex flex-wrap gap-1">
+                      {smsEmojis.map((emoji, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setContent(content + emoji)}
+                          className="w-8 h-8 flex items-center justify-center text-lg bg-white border rounded hover:bg-blue-50 hover:border-blue-300"
+                          title={`클릭하면 내용에 추가됩니다`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">클릭하면 메시지 내용에 추가됩니다. 일반 이모지(😀)는 SMS에서 ????로 깨질 수 있습니다.</p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     제목 <span className="text-red-500">*</span>
@@ -688,8 +1350,8 @@ export default function MessageCenterPage() {
                   <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="메시지 내용을 입력하세요"
-                    rows={6}
+                    placeholder={`안녕하세요, {이름}님!\n\n{상품} 상품을 추천드립니다.\n\n자세한 내용은 아래 링크를 확인해주세요.\n{링크}`}
+                    rows={8}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                     maxLength={1000}
                   />
@@ -701,9 +1363,35 @@ export default function MessageCenterPage() {
 
           {/* 오른쪽: 미리보기 및 발송 */}
           <div className="space-y-6">
+            {/* 발송 대상 요약 */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-lg font-bold mb-4">발송 대상 요약</h2>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">선택된 고객</span>
+                  <span className="font-bold text-blue-600">{selectedCustomers.size}명</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">수동 입력 수신자</span>
+                  <span className="font-bold text-indigo-600">{manualRecipients.length}명</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b">
+                  <span className="text-gray-600">엑셀 업로드 수신자</span>
+                  <span className="font-bold text-green-600">{excelRecipients.length}명</span>
+                </div>
+                <div className="flex justify-between items-center py-2 bg-blue-50 -mx-6 px-6">
+                  <span className="font-semibold text-gray-800">총 발송 대상</span>
+                  <span className="font-bold text-xl text-blue-700">
+                    {selectedCustomers.size + manualRecipients.length + excelRecipients.length}명
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* 미리보기 */}
             <div className="bg-white rounded-xl shadow-md p-6">
               <h2 className="text-lg font-bold mb-4">미리보기</h2>
+              <p className="text-xs text-gray-500 mb-2">* 변수가 적용된 예시입니다</p>
               <div className="bg-gray-100 rounded-2xl p-4">
                 <div className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
@@ -711,7 +1399,7 @@ export default function MessageCenterPage() {
                     <span className="font-semibold text-gray-900">{title || '제목 없음'}</span>
                   </div>
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                    {content || '내용을 입력해주세요...'}
+                    {applyMessageVariables(content || '내용을 입력해주세요...', { name: '홍길동', phone: '01012345678' })}
                   </p>
                   {senderName && (
                     <p className="text-xs text-gray-500 mt-3 pt-2 border-t">
@@ -787,11 +1475,11 @@ export default function MessageCenterPage() {
               등록된 예약 메시지: <span className="font-bold text-blue-600">{scheduledMessages.length}개</span>
             </p>
             <a
-              href="/admin/scheduled-messages"
+              href="/admin/funnel"
               className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2 shadow-lg"
             >
               <FiPlus size={20} />
-              예약 메시지 작성
+              퍼널 메시지 관리
             </a>
           </div>
 
@@ -844,8 +1532,9 @@ export default function MessageCenterPage() {
                     </div>
                     <div className="flex gap-2">
                       <a
-                        href={`/admin/scheduled-messages?edit=${msg.id}`}
+                        href={`/admin/funnel`}
                         className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                        title="퍼널 메시지 관리에서 편집"
                       >
                         <FiEdit size={18} />
                       </a>

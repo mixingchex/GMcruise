@@ -30,6 +30,7 @@ export async function GET(
       where: { id: sessionUser.id },
       select: {
         id: true,
+        name: true,
         role: true,
         AffiliateProfile: {
           select: {
@@ -95,19 +96,20 @@ export async function GET(
         },
         AffiliateSale: {
           include: {
-            product: {
+            AffiliateProduct: {
               select: {
-                productName: true,
+                title: true,
+                productCode: true,
               },
             },
-            manager: {
+            AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
               select: {
                 id: true,
                 displayName: true,
                 affiliateCode: true,
               },
             },
-            agent: {
+            AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
               select: {
                 id: true,
                 displayName: true,
@@ -156,35 +158,41 @@ export async function GET(
       return NextResponse.json({ ok: false, message: 'Access denied' }, { status: 403 });
     }
 
-    // 여권 제출 정보 조회 (고객 전화번호로 매칭)
-    let passportSubmissions: any[] = [];
-    if (lead.customerPhone) {
-      try {
-        passportSubmissions = await prisma.passportSubmission.findMany({
-          where: {
-            User: {
-              phone: lead.customerPhone,
+    // 병렬 쿼리: 여권 제출 정보 + User ID 동시 조회 (성능 최적화)
+    const [passportSubmissions, matchedUser] = await Promise.all([
+      // 여권 제출 정보 조회
+      lead.customerPhone
+        ? prisma.passportSubmission.findMany({
+            where: {
+              User: { phone: lead.customerPhone },
+              isSubmitted: true,
             },
-            isSubmitted: true,
-          },
-          include: {
-            PassportSubmissionGuest: {
-              select: {
-                id: true,
-                name: true,
-                passportNumber: true,
-                passportExpiryDate: true,
+            select: {
+              id: true,
+              submittedAt: true,
+              PassportSubmissionGuest: {
+                select: {
+                  id: true,
+                  name: true,
+                  passportNumber: true,
+                  passportExpiryDate: true,
+                },
               },
             },
-          },
-          orderBy: { submittedAt: 'desc' },
-          take: 1,
-        });
-      } catch (error) {
-        console.error('[Lead API] Passport submission query error:', error);
-        // 여권 조회 실패해도 Lead 조회는 성공으로 처리
-      }
-    }
+            orderBy: { submittedAt: 'desc' },
+            take: 1,
+          }).catch(() => [] as any[])
+        : Promise.resolve([] as any[]),
+      // User ID 조회
+      lead.customerPhone
+        ? prisma.user.findFirst({
+            where: { phone: lead.customerPhone },
+            select: { id: true },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    const userId = matchedUser?.id || null;
 
     // 응답 데이터 형식화 (Prisma 필드명을 프론트엔드 호환 형식으로 변환)
     const formattedLead = {
@@ -197,7 +205,15 @@ export async function GET(
         createdBy: interaction.User,
         media: interaction.AffiliateMedia,
       })) || [],
-      sales: lead.AffiliateSale || [],
+      sales: (lead.AffiliateSale || []).map((sale: any) => ({
+        ...sale,
+        product: sale.AffiliateProduct ? {
+          ...sale.AffiliateProduct,
+          productName: sale.AffiliateProduct.title, // title을 productName으로 매핑
+        } : null,
+        manager: sale.AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile,
+        agent: sale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile,
+      })),
       passportSubmissions: passportSubmissions.map((submission: any) => ({
         ...submission,
         guests: submission.PassportSubmissionGuest || [],
@@ -210,16 +226,6 @@ export async function GET(
     delete (formattedLead as any).AffiliateLink;
     delete (formattedLead as any).AffiliateInteraction;
     delete (formattedLead as any).AffiliateSale;
-
-    // User ID 찾기 (전화번호 기준)
-    let userId: number | null = null;
-    if (lead.customerPhone) {
-      const matchedUser = await prisma.user.findFirst({
-        where: { phone: lead.customerPhone },
-        select: { id: true },
-      });
-      userId = matchedUser?.id || null;
-    }
 
     return NextResponse.json({
       ok: true,
@@ -263,6 +269,7 @@ export async function PUT(
       where: { id: sessionUser.id },
       select: {
         id: true,
+        name: true,
         role: true,
         AffiliateProfile: {
           select: {
@@ -584,6 +591,18 @@ export async function PUT(
     console.error('PUT /api/admin/affiliate/leads/[leadId] error:', error);
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
+}
+
+/**
+ * PATCH: Lead 부분 수정 (노트 등)
+ * - PUT과 동일한 권한 체크 적용
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ leadId: string }> }
+) {
+  // PATCH는 PUT과 동일하게 동작
+  return PUT(req, { params });
 }
 
 /**

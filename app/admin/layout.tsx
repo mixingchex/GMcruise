@@ -152,7 +152,6 @@ function AdminLayoutContent({
     { href: '/admin/dashboard', label: '대시보드', icon: '📊' },
     { href: '/admin/pwa-stats', label: 'PWA 설치 통계', icon: '📲' },
     { href: '/admin/message-center', label: '메시지 센터', icon: '📨', section: 'marketing' },
-    { href: '/admin/data-analysis', label: '데이터분석', icon: '📊' },
     { href: '/admin/feedback', label: '후기 관리', icon: '💬' },
     { href: '/admin/documents', label: '서류관리', icon: '📄' },
     { href: '/admin/assign-trip', label: '여행 배정', icon: '✈️' },

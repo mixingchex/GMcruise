@@ -40,43 +40,53 @@ export async function GET(
       throw new PartnerApiError('고객을 찾을 수 없거나 접근 권한이 없습니다.', 404);
     }
 
-    // 고객의 userId가 있으면 CustomerNote도 함께 조회
-    const userId = lead.userId;
+    // 병렬로 상담기록 및 User 조회 (성능 최적화)
+    const normalizedPhone = lead.customerPhone?.replace(/[^0-9]/g, '') || '';
 
-    // AffiliateInteraction 조회 (파트너 상담기록)
-    const interactions = await prisma.affiliateInteraction.findMany({
-      where: { leadId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        AffiliateProfile: {
-          select: {
-            id: true,
-            displayName: true,
-            type: true,
+    const [interactions, user] = await Promise.all([
+      prisma.affiliateInteraction.findMany({
+        where: { leadId },
+        orderBy: { occurredAt: 'desc' },
+        include: {
+          AffiliateProfile: {
+            select: {
+              id: true,
+              displayName: true,
+              type: true,
+            },
+          },
+          User: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          AffiliateMedia: {
+            select: {
+              id: true,
+              storagePath: true,
+              mimeType: true,
+              metadata: true,
+            },
           },
         },
-        User: {
-          select: {
-            id: true,
-            name: true,
-          },
+      }),
+      lead.customerPhone ? prisma.user.findFirst({
+        where: {
+          OR: [
+            { phone: normalizedPhone },
+            { phone: lead.customerPhone },
+          ],
         },
-        AffiliateMedia: {
-          select: {
-            id: true,
-            storagePath: true,
-            mimeType: true,
-            metadata: true,
-          },
-        },
-      },
-    });
+        select: { id: true },
+      }) : null,
+    ]);
 
     // CustomerNote 조회 (userId가 있는 경우)
     let customerNotes: any[] = [];
-    if (userId) {
+    if (user?.id) {
       customerNotes = await prisma.customerNote.findMany({
-        where: { customerId: userId },
+        where: { customerId: user.id },
         orderBy: { createdAt: 'desc' },
       });
     }
@@ -90,6 +100,9 @@ export async function GET(
           m.storagePath?.match(/\.(mp3|wav|m4a|ogg|webm)$/i)
         );
 
+        // metadata에서 audioFileUrl 추출
+        const metadataAudioUrl = (interaction.metadata as any)?.audioFileUrl || null;
+
         return {
           id: `I-${interaction.id}`,
           type: 'interaction',
@@ -98,11 +111,11 @@ export async function GET(
           nextActionDate: null,
           nextActionNote: null,
           statusAfter: interaction.interactionType,
-          audioFileUrl: audioMedia?.storagePath || (audioMedia?.metadata as any)?.googleDriveUrl || null,
+          audioFileUrl: metadataAudioUrl || audioMedia?.storagePath || (audioMedia?.metadata as any)?.googleDriveUrl || null,
           createdByLabel: interaction.AffiliateProfile?.type === 'BRANCH_MANAGER' ? '대리점장' :
             interaction.AffiliateProfile?.type === 'SALES_AGENT' ? '판매원' : '본사',
           createdByName: interaction.AffiliateProfile?.displayName || interaction.User?.name || '알 수 없음',
-          createdAt: interaction.createdAt.toISOString(),
+          createdAt: interaction.occurredAt.toISOString(), // AffiliateInteraction에 createdAt이 없어서 occurredAt 사용
         };
       }),
       // CustomerNote → 통합 포맷
@@ -155,6 +168,22 @@ export async function POST(
       throw new PartnerApiError('고객을 찾을 수 없거나 접근 권한이 없습니다.', 404);
     }
 
+    // AffiliateLead에는 userId가 없으므로 customerPhone으로 User를 찾아야 함
+    let leadUserId: number | null = null;
+    if (lead.customerPhone) {
+      const normalizedPhone = lead.customerPhone.replace(/[^0-9]/g, '');
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { phone: normalizedPhone },
+            { phone: lead.customerPhone },
+          ],
+        },
+        select: { id: true },
+      });
+      leadUserId = user?.id || null;
+    }
+
     const body = await req.json();
     const {
       content,
@@ -184,6 +213,7 @@ export async function POST(
           interactionType: statusAfter || 'NOTE',
           occurredAt: consultedAt ? new Date(consultedAt) : new Date(),
           note: content.trim(),
+          metadata: audioFileUrl ? { audioFileUrl } : undefined,
         },
       });
 
@@ -207,10 +237,10 @@ export async function POST(
 
       // 3. userId가 있으면 CustomerNote도 생성 (본사 시스템과 동기화)
       let customerNote = null;
-      if (lead.userId) {
+      if (leadUserId) {
         customerNote = await tx.customerNote.create({
           data: {
-            customerId: lead.userId,
+            customerId: leadUserId,
             createdBy: sessionUser.id,
             createdByType,
             createdByName,
@@ -228,7 +258,7 @@ export async function POST(
         // User 테이블의 다음 조치 알람도 업데이트
         if (nextActionDate) {
           await tx.user.update({
-            where: { id: lead.userId },
+            where: { id: leadUserId },
             data: {
               nextActionDate: new Date(nextActionDate),
               nextActionNote: nextActionNote || null,
@@ -239,7 +269,7 @@ export async function POST(
         // 상담 후 상태 변경
         if (statusAfter) {
           await tx.user.update({
-            where: { id: lead.userId },
+            where: { id: leadUserId },
             data: { customerStatus: statusAfter },
           });
         }
@@ -248,13 +278,25 @@ export async function POST(
       return { interaction, customerNote };
     });
 
-    // Google 스프레드시트 자동 백업 (비동기, 에러 무시)
-    import('@/lib/google/customer-backup').then(({ backupCustomerToSheet }) => {
-      if (lead.userId) {
-        backupCustomerToSheet(lead.userId).catch((err: any) => {
-          console.error('[Google Backup Error]', err);
-        });
-      }
+    // Google 스프레드시트 자동 백업 - B2B 상담기록 (비동기, 에러 무시)
+    import('@/lib/google/b2b-backup').then(({ appendConsultationNoteToSheet }) => {
+      appendConsultationNoteToSheet({
+        consultationId: result.interaction.id,
+        customerId: leadId,
+        customerName: lead.customerName || '이름없음',
+        customerPhone: lead.customerPhone || '',
+        consultedAt: (consultedAt ? new Date(consultedAt) : new Date()).toISOString(),
+        content: content.trim(),
+        consultantName: createdByName,
+        consultantType: createdByType === 'BRANCH_MANAGER' ? '대리점장' : '판매원',
+        nextActionDate: nextActionDate || null,
+        nextActionNote: nextActionNote || null,
+        statusAfter: statusAfter || null,
+        audioFileUrl: audioFileUrl || null,
+        createdAt: new Date().toISOString(),
+      }).catch((err: any) => {
+        console.error('[B2B Consultation Backup Error]', err);
+      });
     });
 
     return NextResponse.json({
@@ -264,6 +306,7 @@ export async function POST(
         content: content.trim(),
         consultedAt: result.interaction.occurredAt.toISOString(),
         createdAt: result.interaction.createdAt.toISOString(),
+        audioFileUrl: audioFileUrl || null,
       },
       message: '상담기록이 저장되었습니다.',
     });

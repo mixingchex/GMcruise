@@ -479,7 +479,6 @@ export async function backupConsultationNotesToSheet(): Promise<{
             id: true,
             customerName: true,
             customerPhone: true,
-            userId: true,
           },
         },
         AffiliateProfile: {
@@ -558,7 +557,7 @@ export async function backupConsultationNotesToSheet(): Promise<{
       return [
         '파트너기록',
         `I-${interaction.id}`,
-        lead?.userId?.toString() || lead?.id?.toString() || '',
+        lead?.id?.toString() || '',
         lead?.customerName || '-',
         lead?.customerPhone || '-',
         new Date(interaction.occurredAt).toLocaleString('ko-KR'),

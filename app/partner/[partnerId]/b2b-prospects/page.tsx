@@ -16,6 +16,7 @@ import {
     FiArrowLeft,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
+import B2BProspectDetailModal from '@/components/admin/B2BProspectDetailModal';
 
 interface B2BProspect {
     id: number;
@@ -29,6 +30,11 @@ interface B2BProspect {
     affiliateOwnership: {
         ownerType: string;
         ownerName: string | null;
+    } | null;
+    metadata?: {
+        receivedFromHQ?: boolean;
+        lastTransferFrom?: string;
+        lastTransferFromId?: number | null;
     } | null;
 }
 
@@ -92,6 +98,11 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
     const [selectedAgentId, setSelectedAgentId] = useState<string>('');
     const [isAssigning, setIsAssigning] = useState(false);
     const [isRecalling, setIsRecalling] = useState(false);
+
+    // Detail Modal State
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
+    const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
+    const [selectedProspectType, setSelectedProspectType] = useState<'lead' | 'consultation'>('lead');
 
     useEffect(() => {
         // Unwrap params
@@ -240,6 +251,34 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
         }
     };
 
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case 'NEW':
+            case '신규':
+                return '신규';
+            case 'CONTACTED':
+            case '연락됨':
+                return '연락됨';
+            case 'CONVERTED':
+            case '전환됨':
+                return '전환됨';
+            case 'LOST':
+            case '이탈':
+                return '이탈';
+            case 'PENDING':
+            case '대기중':
+                return '대기중';
+            case 'IN_PROGRESS':
+            case '진행중':
+                return '진행중';
+            case 'COMPLETED':
+            case '완료':
+                return '완료';
+            default:
+                return status;
+        }
+    };
+
     const filteredProspects = prospects.filter(p => {
         if (b2bSearch) {
             const query = b2bSearch.toLowerCase();
@@ -376,27 +415,23 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
         }
     };
 
-    const handleExtendTrial = async (id: number, type: 'lead' | 'consultation' = 'lead') => {
-        if (!confirm('체험 기간을 7일 연장하시겠습니까?')) return;
+    // 시스템 상담 신청자만 3일 연장 (B2B 유입은 제외)
+    const handleExtendTrial = async (consultationId: number, phone: string) => {
+        if (!confirm('체험 기간을 3일 연장하시겠습니까?')) return;
 
         try {
-            const endpoint = type === 'lead'
-                ? `/api/admin/affiliate/leads/${id}/extend-trial`
-                : `/api/admin/system-consultations/${id}/extend-trial`;
-
-            const res = await fetch(endpoint, {
+            const res = await fetch(`/api/system-inquiries/${consultationId}/extend-trial`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ days: 7 }),
+                body: JSON.stringify({ days: 3, phone }),
             });
 
             const json = await res.json();
             if (json.ok) {
-                showSuccess('체험 기간이 7일 연장되었습니다.');
-                if (type === 'lead') loadProspects();
-                else loadSystemConsultations();
+                showSuccess(json.message || '체험 기간이 3일 연장되었습니다.');
+                loadSystemConsultations();
             } else {
-                showError(json.message || '연장에 실패했습니다.');
+                showError(json.error || json.message || '연장에 실패했습니다.');
             }
         } catch (error) {
             console.error('Extend trial error:', error);
@@ -633,16 +668,32 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className="text-gray-600">{prospect.status}</span>
+                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                        prospect.status === 'NEW' ? 'bg-blue-100 text-blue-800' :
+                                                        prospect.status === 'CONTACTED' ? 'bg-yellow-100 text-yellow-800' :
+                                                        prospect.status === 'CONVERTED' ? 'bg-green-100 text-green-800' :
+                                                        prospect.status === 'LOST' ? 'bg-red-100 text-red-800' :
+                                                        'bg-gray-100 text-gray-800'
+                                                    }`}>
+                                                        {getStatusLabel(prospect.status)}
+                                                    </span>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
-                                                    {prospect.affiliateOwnership?.ownerType === 'SALES_AGENT' ? (
-                                                        <span className="text-blue-600 font-medium">
-                                                            {prospect.affiliateOwnership.ownerName}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-gray-400">-</span>
-                                                    )}
+                                                    <div className="flex flex-col gap-1">
+                                                        {prospect.affiliateOwnership?.ownerType === 'SALES_AGENT' ? (
+                                                            <span className="text-blue-600 font-medium">
+                                                                {prospect.affiliateOwnership.ownerName}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-gray-400">-</span>
+                                                        )}
+                                                        {/* DB 출처 표시 */}
+                                                        {(prospect.metadata?.receivedFromHQ || prospect.metadata?.lastTransferFrom) && (
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                                {prospect.metadata.lastTransferFrom || '본사'} 제공
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                     <div className="flex items-center gap-1">
@@ -651,12 +702,41 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <button
-                                                        onClick={() => handleExtendTrial(prospect.id)}
-                                                        className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs transition-colors"
-                                                    >
-                                                        7일 연장
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedProspectId(prospect.id);
+                                                                setSelectedProspectType('lead');
+                                                                setDetailModalOpen(true);
+                                                            }}
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                        >
+                                                            상세
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!confirm(`${prospect.customerName}님의 정보를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+                                                                try {
+                                                                    const res = await fetch(`/api/partner/customers/${prospect.id}`, {
+                                                                        method: 'DELETE',
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    if (data.ok) {
+                                                                        showSuccess('삭제되었습니다.');
+                                                                        loadProspects();
+                                                                    } else {
+                                                                        showError(data.message || '삭제에 실패했습니다.');
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Error deleting prospect:', error);
+                                                                    showError('오류가 발생했습니다.');
+                                                                }
+                                                            }}
+                                                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                        >
+                                                            삭제
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -818,12 +898,47 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <button
-                                                        onClick={() => handleExtendTrial(consultation.id, 'consultation')}
-                                                        className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs transition-colors"
-                                                    >
-                                                        7일 연장
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => handleExtendTrial(consultation.id, consultation.phone)}
+                                                            className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                        >
+                                                            +3일 연장
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedProspectId(consultation.id);
+                                                                setSelectedProspectType('consultation');
+                                                                setDetailModalOpen(true);
+                                                            }}
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                        >
+                                                            상세
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!confirm(`${consultation.name}님의 상담 신청을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+                                                                try {
+                                                                    const res = await fetch(`/api/partner/system-inquiries/${consultation.id}`, {
+                                                                        method: 'DELETE',
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    if (data.ok) {
+                                                                        showSuccess('삭제되었습니다.');
+                                                                        loadSystemConsultations();
+                                                                    } else {
+                                                                        showError(data.message || '삭제에 실패했습니다.');
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Error deleting consultation:', error);
+                                                                    showError('오류가 발생했습니다.');
+                                                                }
+                                                            }}
+                                                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                        >
+                                                            삭제
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -860,34 +975,56 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
 
 
 
-            {/* Assign Modal */}
+            {/* B2B Prospect Detail Modal */}
+            {selectedProspectId && (
+                <B2BProspectDetailModal
+                    prospectId={selectedProspectId}
+                    prospectType={selectedProspectType}
+                    isOpen={detailModalOpen}
+                    onClose={() => {
+                        setDetailModalOpen(false);
+                        setSelectedProspectId(null);
+                    }}
+                    onUpdate={() => {
+                        if (activeTab === 'B2B') {
+                            loadProspects();
+                        } else {
+                            loadSystemConsultations();
+                        }
+                    }}
+                    apiBasePath="partner"
+                />
+            )}
+
+            {/* Assign Modal - DB 보내기 (대리점장 간 교환) */}
             {isAssignModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-gray-900">DB 보내기 (판매원 할당)</h3>
+                            <h3 className="text-lg font-bold text-gray-900">DB 보내기</h3>
                             <button onClick={() => setIsAssignModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                                 <FiX className="w-6 h-6" />
                             </button>
                         </div>
 
                         <p className="text-gray-600 mb-6">
-                            선택한 {activeTab === 'B2B' ? selectedProspects.size : selectedConsultations.size}명의 고객을 담당할 판매원을 선택해주세요.
+                            선택한 {activeTab === 'B2B' ? selectedProspects.size : selectedConsultations.size}명의 고객 DB를 보낼 대상을 선택해주세요.
                         </p>
 
                         <div className="mb-6">
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                판매원 선택
+                                대상 선택
                             </label>
                             <select
-                                value={selectedAgentId}
-                                onChange={(e) => setSelectedAgentId(e.target.value)}
+                                value={selectedManagerId}
+                                onChange={(e) => setSelectedManagerId(e.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
                             >
                                 <option value="">선택해주세요</option>
-                                {agents.map(agent => (
-                                    <option key={agent.id} value={agent.id}>
-                                        {agent.displayName} ({agent.mallUserId || agent.affiliateCode})
+                                <option value="hq">본사로 반환</option>
+                                {branchManagers.map(manager => (
+                                    <option key={manager.id} value={manager.id}>
+                                        {manager.displayName} ({manager.affiliateCode})
                                     </option>
                                 ))}
                             </select>
@@ -901,11 +1038,56 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                 취소
                             </button>
                             <button
-                                onClick={handleAssign}
-                                disabled={isAssigning || !selectedAgentId}
+                                onClick={async () => {
+                                    if (!selectedManagerId) {
+                                        showError('대상을 선택해주세요.');
+                                        return;
+                                    }
+
+                                    setIsSharing(true);
+                                    try {
+                                        const leadIds = activeTab === 'B2B'
+                                            ? Array.from(selectedProspects)
+                                            : Array.from(selectedConsultations);
+
+                                        const targetManagerId = selectedManagerId === 'hq' ? null : parseInt(selectedManagerId);
+
+                                        const res = await fetch('/api/partner/customers/share-leads', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                leadIds,
+                                                targetManagerId,
+                                                type: activeTab === 'B2B' ? 'lead' : 'consultation'
+                                            }),
+                                        });
+
+                                        const json = await res.json();
+                                        if (json.ok) {
+                                            showSuccess(selectedManagerId === 'hq' ? 'DB가 본사로 반환되었습니다.' : 'DB가 성공적으로 전송되었습니다.');
+                                            setIsAssignModalOpen(false);
+                                            setSelectedManagerId('');
+                                            if (activeTab === 'B2B') {
+                                                setSelectedProspects(new Set());
+                                                loadProspects();
+                                            } else {
+                                                setSelectedConsultations(new Set());
+                                                loadSystemConsultations();
+                                            }
+                                        } else {
+                                            showError(json.error || json.message || 'DB 전송에 실패했습니다.');
+                                        }
+                                    } catch (error) {
+                                        console.error('Share error:', error);
+                                        showError('오류가 발생했습니다.');
+                                    } finally {
+                                        setIsSharing(false);
+                                    }
+                                }}
+                                disabled={isSharing || !selectedManagerId}
                                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
                             >
-                                {isAssigning ? (
+                                {isSharing ? (
                                     <>
                                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                         전송 중...

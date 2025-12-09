@@ -20,6 +20,7 @@ interface TrendData {
   date: string;
   users: number;
   trips: number;
+  productViews?: number;
 }
 
 interface ProductViewData {
@@ -35,16 +36,16 @@ interface DashboardChartsProps {
 export default function DashboardCharts({ trends, productViews }: DashboardChartsProps) {
   return (
     <>
-      {/* 최근 7일 트렌드 차트 */}
+      {/* 최근 7일 트렌드 차트 - 크루즈몰 상품 조회 빈도 */}
       {trends && trends.length > 0 && (
-        <div className="bg-gradient-to-br from-white to-blue-50 rounded-xl shadow-lg border-2 border-blue-100 p-6">
+        <div className="bg-gradient-to-br from-white to-purple-50 rounded-xl shadow-lg border-2 border-purple-100 p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
               <span className="text-3xl">📈</span>
               최근 7일 트렌드
             </h2>
-            <span className="text-xs font-bold px-3 py-1 rounded bg-blue-100 text-blue-700 border border-blue-300">
-              지니AI 가이드
+            <span className="text-xs font-bold px-3 py-1 rounded bg-purple-100 text-purple-700 border border-purple-300">
+              크루즈몰 상품조회
             </span>
           </div>
           <ResponsiveContainer width="100%" height={300}>
@@ -57,23 +58,32 @@ export default function DashboardCharts({ trends, productViews }: DashboardChart
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="users" 
-                stroke="#0088FE" 
+              <Line
+                type="monotone"
+                dataKey="productViews"
+                stroke="#8B5CF6"
                 strokeWidth={3}
-                name="신규 사용자"
-                dot={{ fill: '#0088FE', r: 4 }}
+                name="상품 조회"
+                dot={{ fill: '#8B5CF6', r: 4 }}
                 activeDot={{ r: 6 }}
               />
-              <Line 
-                type="monotone" 
-                dataKey="trips" 
-                stroke="#00C49F" 
-                strokeWidth={3}
+              <Line
+                type="monotone"
+                dataKey="users"
+                stroke="#0088FE"
+                strokeWidth={2}
+                name="신규 사용자"
+                dot={{ fill: '#0088FE', r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="trips"
+                stroke="#00C49F"
+                strokeWidth={2}
                 name="신규 여행"
-                dot={{ fill: '#00C49F', r: 4 }}
-                activeDot={{ r: 6 }}
+                dot={{ fill: '#00C49F', r: 3 }}
+                activeDot={{ r: 5 }}
               />
             </LineChart>
           </ResponsiveContainer>

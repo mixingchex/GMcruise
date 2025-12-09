@@ -26,7 +26,7 @@ interface PWAStatsData {
   recentInstalls: Array<{
     id: number;
     name: string | null;
-    phone: string | null;
+    email: string | null;
     pwaGenieInstalledAt: string | null;
     pwaMallInstalledAt: string | null;
     createdAt: string;
@@ -251,7 +251,7 @@ export default function PWAStatsPage() {
             <thead>
               <tr className="border-b-2 border-gray-200">
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">이름</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">전화번호</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">이메일</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">크루즈가이드 지니</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">크루즈몰</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">가입일</th>
@@ -262,7 +262,7 @@ export default function PWAStatsPage() {
                 statsData.recentInstalls.map((customer) => (
                   <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-800">{customer.name || '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{customer.phone || '-'}</td>
+                    <td className="px-4 py-3 text-gray-600">{customer.email || '-'}</td>
                     <td className="px-4 py-3">
                       {customer.pwaGenieInstalledAt ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800 border border-pink-300">

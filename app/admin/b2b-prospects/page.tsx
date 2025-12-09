@@ -13,6 +13,7 @@ import {
     FiTrash2,
 } from 'react-icons/fi';
 import { showError } from '@/components/ui/Toast';
+import B2BProspectDetailModal from '@/components/admin/B2BProspectDetailModal';
 
 interface B2BProspect {
     id: number;
@@ -41,6 +42,11 @@ interface SystemConsultation {
         displayName: string | null;
         affiliateCode: string | null;
     } | null;
+    agent: {
+        id: number;
+        displayName: string | null;
+        affiliateCode: string | null;
+    } | null;
 }
 
 export default function B2BProspectsPage() {
@@ -50,7 +56,7 @@ export default function B2BProspectsPage() {
     // B2B State
     const [prospects, setProspects] = useState<B2BProspect[]>([]);
     const [loadingB2B, setLoadingB2B] = useState(true);
-    const [filter, setFilter] = useState<'ALL' | 'INFLOW' | 'PARTNER'>('ALL');
+    const [filterManagerId, setFilterManagerId] = useState<string>('ALL'); // 대리점장 필터
     const [search, setSearch] = useState('');
     const [selectedProspects, setSelectedProspects] = useState<Set<number>>(new Set());
     const [isDeleting, setIsDeleting] = useState(false);
@@ -67,6 +73,11 @@ export default function B2BProspectsPage() {
     const [selectedManagerId, setSelectedManagerId] = useState<string>('');
     const [isAssigning, setIsAssigning] = useState(false);
     const [isRecalling, setIsRecalling] = useState(false);
+
+    // Detail Modal State
+    const [detailModalOpen, setDetailModalOpen] = useState(false);
+    const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
+    const [selectedProspectType, setSelectedProspectType] = useState<'lead' | 'consultation'>('lead');
 
     useEffect(() => {
         loadManagers();
@@ -87,17 +98,21 @@ export default function B2BProspectsPage() {
     const loadProspects = useCallback(async () => {
         try {
             setLoadingB2B(true);
+            console.log('[B2B Prospects] Loading prospects...');
             const res = await fetch('/api/admin/affiliate/leads?source=b2b&limit=100');
             const json = await res.json();
+            console.log('[B2B Prospects] API Response:', json);
 
             if (json.ok) {
+                console.log('[B2B Prospects] Leads count:', json.leads?.length);
                 setProspects(json.leads || []);
                 setSelectedProspects(new Set());
             } else {
+                console.error('[B2B Prospects] API Error:', json.message);
                 showError(json.message || '데이터를 불러오는데 실패했습니다.');
             }
         } catch (error) {
-            console.error('Failed to load prospects:', error);
+            console.error('[B2B Prospects] Failed to load prospects:', error);
             showError('데이터 로드 중 오류가 발생했습니다.');
         } finally {
             setLoadingB2B(false);
@@ -166,17 +181,26 @@ export default function B2BProspectsPage() {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'NEW':
+            case '신규':
                 return <span className="text-blue-600 font-medium">신규</span>;
             case 'CONTACTED':
+            case '연락됨':
                 return <span className="text-yellow-600 font-medium">연락됨</span>;
+            case 'CONVERTED':
+            case '전환됨':
+                return <span className="text-green-600 font-medium">전환됨</span>;
+            case 'LOST':
+            case '이탈':
+                return <span className="text-red-600 font-medium">이탈</span>;
             default:
                 return <span className="text-gray-600">{status}</span>;
         }
     };
 
     const filteredProspects = prospects.filter(p => {
-        if (filter === 'INFLOW' && p.source !== 'test-guide' && p.source !== 'B2B_INFLOW' && p.source !== 'TRIAL_DASHBOARD') return false;
-        if (filter === 'PARTNER' && p.source !== 'B2B_LANDING' && p.source !== 'B2B_LANDING_ADMIN') return false;
+        // 대리점장 필터
+        if (filterManagerId === 'NONE' && p.manager !== null) return false;
+        if (filterManagerId !== 'ALL' && filterManagerId !== 'NONE' && p.manager?.id !== parseInt(filterManagerId)) return false;
 
         if (search) {
             const query = search.toLowerCase();
@@ -190,6 +214,10 @@ export default function B2BProspectsPage() {
     });
 
     const filteredConsultations = consultations.filter(c => {
+        // 대리점장 필터
+        if (filterManagerId === 'NONE' && c.manager !== null) return false;
+        if (filterManagerId !== 'ALL' && filterManagerId !== 'NONE' && c.manager?.id !== parseInt(filterManagerId)) return false;
+
         if (systemSearch) {
             const query = systemSearch.toLowerCase();
             return (
@@ -232,39 +260,66 @@ export default function B2BProspectsPage() {
     };
 
     const handleDeleteSelected = async () => {
-        if (selectedProspects.size === 0) {
-            alert('삭제할 항목을 선택해주세요.');
-            return;
-        }
+        if (activeTab === 'B2B') {
+            if (selectedProspects.size === 0) {
+                alert('삭제할 항목을 선택해주세요.');
+                return;
+            }
 
-        if (!confirm(`선택한 ${selectedProspects.size}명의 고객 정보를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+            if (!confirm(`선택한 ${selectedProspects.size}명의 고객 정보를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
 
-        setIsDeleting(true);
-        try {
-            const deletePromises = Array.from(selectedProspects).map(id =>
-                fetch(`/api/admin/affiliate/leads/${id}`, { method: 'DELETE' })
-            );
+            setIsDeleting(true);
+            try {
+                const deletePromises = Array.from(selectedProspects).map(id =>
+                    fetch(`/api/admin/affiliate/leads/${id}`, { method: 'DELETE' })
+                );
 
-            await Promise.all(deletePromises);
+                await Promise.all(deletePromises);
 
-            alert('선택한 항목이 삭제되었습니다.');
-            loadProspects();
-        } catch (error) {
-            console.error('Error deleting prospects:', error);
-            alert('삭제 중 오류가 발생했습니다.');
-        } finally {
-            setIsDeleting(false);
+                alert('선택한 항목이 삭제되었습니다.');
+                loadProspects();
+            } catch (error) {
+                console.error('Error deleting prospects:', error);
+                alert('삭제 중 오류가 발생했습니다.');
+            } finally {
+                setIsDeleting(false);
+            }
+        } else {
+            // 시스템 상담 신청 삭제
+            if (selectedConsultations.size === 0) {
+                alert('삭제할 항목을 선택해주세요.');
+                return;
+            }
+
+            if (!confirm(`선택한 ${selectedConsultations.size}명의 상담 신청을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+
+            setIsDeleting(true);
+            try {
+                const deletePromises = Array.from(selectedConsultations).map(id =>
+                    fetch(`/api/system-inquiries/${id}`, { method: 'DELETE' })
+                );
+
+                await Promise.all(deletePromises);
+
+                alert('선택한 항목이 삭제되었습니다.');
+                loadSystemConsultations();
+            } catch (error) {
+                console.error('Error deleting consultations:', error);
+                alert('삭제 중 오류가 발생했습니다.');
+            } finally {
+                setIsDeleting(false);
+            }
         }
     };
 
     const handleExtendTrial = async (leadId: number, currentName: string) => {
-        if (!confirm(`${currentName}님의 무료 체험 기간을 7일 연장하시겠습니까?`)) return;
+        if (!confirm(`${currentName}님의 무료 체험 기간을 3일 연장하시겠습니까?`)) return;
 
         try {
             const res = await fetch(`/api/admin/affiliate/leads/${leadId}/extend-trial`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ days: 7 }),
+                body: JSON.stringify({ days: 3 }),
             });
             const data = await res.json();
 
@@ -273,6 +328,30 @@ export default function B2BProspectsPage() {
                 loadProspects();
             } else {
                 alert(data.message || '연장에 실패했습니다.');
+            }
+        } catch (error) {
+            console.error('Error extending trial:', error);
+            alert('오류가 발생했습니다.');
+        }
+    };
+
+    // 시스템 상담 신청자 3일 연장 (전화번호로 User 찾아서 연장)
+    const handleExtendTrialForConsultation = async (consultationId: number, name: string, phone: string) => {
+        if (!confirm(`${name}님의 무료 체험 기간을 3일 연장하시겠습니까?`)) return;
+
+        try {
+            const res = await fetch(`/api/system-inquiries/${consultationId}/extend-trial`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ days: 3, phone }),
+            });
+            const data = await res.json();
+
+            if (data.ok) {
+                alert(data.message);
+                loadSystemConsultations();
+            } else {
+                alert(data.message || data.error || '연장에 실패했습니다.');
             }
         } catch (error) {
             console.error('Error extending trial:', error);
@@ -377,7 +456,7 @@ export default function B2BProspectsPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">B2B 잠재고객 관리</h1>
-                    <p className="text-gray-500 mt-1">7일 무료체험 유입 및 시스템 상담 신청 고객을 관리합니다.</p>
+                    <p className="text-gray-500 mt-1">3일 무료체험 유입 및 시스템 상담 신청 고객을 관리합니다.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     {selectedCount > 0 && (
@@ -399,14 +478,14 @@ export default function B2BProspectsPage() {
                             </button>
                         </>
                     )}
-                    {activeTab === 'B2B' && selectedProspects.size > 0 && (
+                    {selectedCount > 0 && (
                         <button
                             onClick={handleDeleteSelected}
                             disabled={isDeleting}
                             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
                         >
                             <FiTrash2 />
-                            {isDeleting ? '삭제 중...' : `선택 삭제 (${selectedProspects.size})`}
+                            {isDeleting ? '삭제 중...' : `선택 삭제 (${selectedCount})`}
                         </button>
                     )}
                     <button
@@ -446,34 +525,25 @@ export default function B2BProspectsPage() {
                     {/* B2B Filters & Search */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
                         <div className="flex flex-col md:flex-row gap-4 justify-between">
-                            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-                                <button
-                                    onClick={() => setFilter('ALL')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${filter === 'ALL'
-                                        ? 'bg-gray-900 text-white'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
+                            {/* 대리점장 필터 드롭다운 */}
+                            <div className="flex items-center gap-3">
+                                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                    <FiFilter className="inline mr-1" />
+                                    대리점장 필터:
+                                </label>
+                                <select
+                                    value={filterManagerId}
+                                    onChange={(e) => setFilterManagerId(e.target.value)}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-w-[180px]"
                                 >
-                                    전체 보기
-                                </button>
-                                <button
-                                    onClick={() => setFilter('INFLOW')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${filter === 'INFLOW'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                        }`}
-                                >
-                                    B2B 유입
-                                </button>
-                                <button
-                                    onClick={() => setFilter('PARTNER')}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${filter === 'PARTNER'
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
-                                        }`}
-                                >
-                                    파트너 B2B 유입
-                                </button>
+                                    <option value="ALL">전체 보기</option>
+                                    <option value="NONE">본사 유입 (미배정)</option>
+                                    {managers.map((manager) => (
+                                        <option key={manager.id} value={manager.id}>
+                                            {manager.displayName} ({manager.affiliateCode})
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="relative w-full md:w-64">
@@ -565,11 +635,13 @@ export default function B2BProspectsPage() {
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     {prospect.manager ? (
                                                         <div className="text-sm">
-                                                            <p className="font-medium text-gray-900">{prospect.manager.displayName}</p>
+                                                            <p className="font-medium text-purple-600">{prospect.manager.displayName}</p>
                                                             <p className="text-xs text-gray-500">{prospect.manager.affiliateCode}</p>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-sm text-gray-400">-</span>
+                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                            본사
+                                                        </span>
                                                     )}
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -589,13 +661,11 @@ export default function B2BProspectsPage() {
                                                 <td className="px-6 py-4 whitespace-nowrap text-right">
                                                     <div className="flex items-center justify-end gap-2">
                                                         <button
-                                                            onClick={() => handleExtendTrial(prospect.id, prospect.customerName || '고객')}
-                                                            className="text-green-600 hover:text-green-800 text-sm font-medium px-2 py-1 bg-green-50 rounded hover:bg-green-100 transition-colors"
-                                                        >
-                                                            +7일 연장
-                                                        </button>
-                                                        <button
-                                                            onClick={() => router.push(`/admin/affiliate/customers/${prospect.id}`)}
+                                                            onClick={() => {
+                                                                setSelectedProspectId(prospect.id);
+                                                                setSelectedProspectType('lead');
+                                                                setDetailModalOpen(true);
+                                                            }}
                                                             className="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
                                                         >
                                                             상세
@@ -635,27 +705,50 @@ export default function B2BProspectsPage() {
                 </>
             ) : (
                 <>
-                    {/* System Consultation Search */}
+                    {/* System Consultation Filters & Search */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-                        <div className="relative w-full md:w-96">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                            <input
-                                type="text"
-                                placeholder="이름, 연락처, 담당자 검색"
-                                value={systemSearch}
-                                onChange={(e) => setSystemSearch(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                            />
+                        <div className="flex flex-col md:flex-row gap-4 justify-between">
+                            {/* 대리점장 필터 드롭다운 */}
+                            <div className="flex items-center gap-3">
+                                <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                    <FiFilter className="inline mr-1" />
+                                    대리점장 필터:
+                                </label>
+                                <select
+                                    value={filterManagerId}
+                                    onChange={(e) => setFilterManagerId(e.target.value)}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none min-w-[180px]"
+                                >
+                                    <option value="ALL">전체 보기</option>
+                                    <option value="NONE">본사 유입 (미배정)</option>
+                                    {managers.map((manager) => (
+                                        <option key={manager.id} value={manager.id}>
+                                            {manager.displayName} ({manager.affiliateCode})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="relative w-full md:w-64">
+                                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    type="text"
+                                    placeholder="이름, 연락처, 담당자 검색"
+                                    value={systemSearch}
+                                    onChange={(e) => setSystemSearch(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* System Consultation Table */}
+                    {/* System Consultation Table - B2B 유입 탭과 동일한 형식 */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-200">
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
+                                        <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
                                             <input
                                                 type="checkbox"
                                                 checked={allSelected}
@@ -666,17 +759,19 @@ export default function B2BProspectsPage() {
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                             />
                                         </th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">고객 정보</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">담당자</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">문의 내용</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">등록일시</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">구분</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">고객 정보</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">상태</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">문의/노트</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">등록일시</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right w-48">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
                                     {loadingSystem ? (
                                         <tr>
-                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                                 <div className="flex justify-center mb-2">
                                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
                                                 </div>
@@ -685,14 +780,14 @@ export default function B2BProspectsPage() {
                                         </tr>
                                     ) : filteredConsultations.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                                 데이터가 없습니다.
                                             </td>
                                         </tr>
                                     ) : (
                                         filteredConsultations.map((consultation) => (
                                             <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-4 py-4 whitespace-nowrap">
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedConsultations.has(consultation.id)}
@@ -700,49 +795,103 @@ export default function B2BProspectsPage() {
                                                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                                     />
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${consultation.status === 'NEW' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                        {consultation.status === 'NEW' ? '신규' : consultation.status}
+                                                <td className="px-3 py-4 whitespace-nowrap">
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                        시스템상담
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                                                            <FiUser className="text-orange-600" />
+                                                <td className="px-3 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                                                            <FiUser className="text-orange-600 w-3.5 h-3.5" />
                                                         </div>
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{consultation.name}</p>
-                                                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                                                                <FiPhone className="w-3 h-3" />
-                                                                {consultation.phone}
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium text-gray-900 text-sm truncate">{consultation.name}</p>
+                                                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                                <FiPhone className="w-3 h-3 flex-shrink-0" />
+                                                                <span className="truncate">{consultation.phone}</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    {consultation.manager ? (
-                                                        <div className="text-sm">
-                                                            <p className="font-medium text-gray-900">{consultation.manager.displayName}</p>
-                                                            <p className="text-xs text-gray-500">{consultation.manager.affiliateCode}</p>
+                                                <td className="px-3 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${consultation.status === 'NEW' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                                                        }`}>
+                                                        {consultation.status === 'NEW' ? '신규' : consultation.status}
+                                                    </span>
+                                                </td>
+                                                <td className="px-3 py-4 whitespace-nowrap">
+                                                    {consultation.agent ? (
+                                                        <div className="text-xs">
+                                                            <p className="font-medium text-blue-600 truncate">{consultation.agent.displayName}</p>
+                                                            <p className="text-gray-500 truncate">{consultation.agent.affiliateCode}</p>
+                                                        </div>
+                                                    ) : consultation.manager ? (
+                                                        <div className="text-xs">
+                                                            <p className="font-medium text-purple-600 truncate">{consultation.manager.displayName}</p>
+                                                            <p className="text-gray-500 truncate">{consultation.manager.affiliateCode}</p>
                                                         </div>
                                                     ) : (
-                                                        <span className="text-sm text-gray-400">-</span>
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                            본사
+                                                        </span>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-start gap-2">
-                                                        <FiMessageSquare className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                                        <p className="text-sm text-gray-600">{consultation.message}</p>
+                                                <td className="px-3 py-4">
+                                                    <div className="truncate text-sm text-gray-600" title={consultation.message || ''}>
+                                                        {consultation.message || '-'}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                                                     <div className="flex items-center gap-1">
                                                         <FiCalendar className="w-3 h-3" />
                                                         {new Date(consultation.createdAt).toLocaleDateString('ko-KR')}
                                                     </div>
-                                                    <div className="text-xs text-gray-400 mt-0.5">
+                                                    <div className="text-gray-400 mt-0.5">
                                                         {new Date(consultation.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                                    </div>
+                                                </td>
+                                                <td className="px-3 py-4 whitespace-nowrap text-right">
+                                                    <div className="flex items-center justify-end gap-1 flex-nowrap">
+                                                        <button
+                                                            onClick={() => handleExtendTrialForConsultation(consultation.id, consultation.name, consultation.phone)}
+                                                            className="text-green-600 hover:text-green-800 text-xs font-medium px-1.5 py-1 bg-green-50 rounded hover:bg-green-100 transition-colors whitespace-nowrap"
+                                                        >
+                                                            +3일
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedProspectId(consultation.id);
+                                                                setSelectedProspectType('consultation');
+                                                                setDetailModalOpen(true);
+                                                            }}
+                                                            className="text-blue-600 hover:text-blue-800 text-xs font-medium px-1.5 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors whitespace-nowrap"
+                                                        >
+                                                            상세
+                                                        </button>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (!confirm(`${consultation.name}님의 상담 신청을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+                                                                try {
+                                                                    const res = await fetch(`/api/system-inquiries/${consultation.id}`, {
+                                                                        method: 'DELETE',
+                                                                    });
+                                                                    const data = await res.json();
+                                                                    if (data.ok) {
+                                                                        alert('삭제되었습니다.');
+                                                                        loadSystemConsultations();
+                                                                    } else {
+                                                                        alert(data.message || '삭제에 실패했습니다.');
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Error deleting consultation:', error);
+                                                                    alert('오류가 발생했습니다.');
+                                                                }
+                                                            }}
+                                                            className="text-red-600 hover:text-red-800 text-xs font-medium px-1.5 py-1 bg-red-50 rounded hover:bg-red-100 transition-colors whitespace-nowrap"
+                                                        >
+                                                            삭제
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -806,6 +955,26 @@ export default function B2BProspectsPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* B2B Prospect Detail Modal */}
+            {selectedProspectId && (
+                <B2BProspectDetailModal
+                    prospectId={selectedProspectId}
+                    prospectType={selectedProspectType}
+                    isOpen={detailModalOpen}
+                    onClose={() => {
+                        setDetailModalOpen(false);
+                        setSelectedProspectId(null);
+                    }}
+                    onUpdate={() => {
+                        if (activeTab === 'B2B') {
+                            loadProspects();
+                        } else {
+                            loadSystemConsultations();
+                        }
+                    }}
+                />
             )}
         </div>
     );

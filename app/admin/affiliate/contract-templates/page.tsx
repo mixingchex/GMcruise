@@ -36,7 +36,6 @@ const DEFAULT_CONTRACT_TYPE_LABELS: Record<string, string> = {
   BRANCH_MANAGER: '🏢 대리점장 계약서 (750만원)',
   SALES_AGENT: '👤 판매원 계약서 (330만원)',
   CRUISE_STAFF: '🚢 크루즈스탭 계약서 (540만원)',
-  SUBSCRIPTION_AGENT: '💳 시스템 이용자 계약서',
 };
 
 const ICON_OPTIONS = ['📄', '📋', '📜', '📝', '🏢', '👤', '🚢', '💳', '🎯', '✨', '🌟', '💼', '🤝', '📊', '💰'];

@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
         status: 'NEW',
         managerId,
         agentId,
+        updatedAt: new Date(),
       },
     });
 
@@ -110,9 +111,39 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    // manager/agent 프로필 조회를 위한 ID 수집
+    const managerIds = consultations.map(c => c.managerId).filter((id): id is number => id !== null);
+    const agentIds = consultations.map(c => c.agentId).filter((id): id is number => id !== null);
+    const allProfileIds = [...new Set([...managerIds, ...agentIds])];
+
+    // 프로필 정보 일괄 조회
+    const profiles = allProfileIds.length > 0
+      ? await prisma.affiliateProfile.findMany({
+          where: { id: { in: allProfileIds } },
+          select: { id: true, displayName: true, affiliateCode: true },
+        })
+      : [];
+
+    const profileMap = new Map(profiles.map(p => [p.id, p]));
+
+    // 프론트엔드에서 사용하는 형식으로 변환
+    const inquiries = consultations.map((c) => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      message: c.message,
+      status: c.status,
+      createdAt: c.createdAt.toISOString(),
+      updatedAt: c.updatedAt?.toISOString() || c.createdAt.toISOString(),
+      managerId: c.managerId,
+      agentId: c.agentId,
+      manager: c.managerId ? profileMap.get(c.managerId) || null : null,
+      agent: c.agentId ? profileMap.get(c.agentId) || null : null,
+    }));
+
     return NextResponse.json({
       ok: true,
-      inquiries: consultations, // 호환성을 위해 inquiries 키 유지
+      inquiries,
       total: consultations.length,
     });
   } catch (error) {

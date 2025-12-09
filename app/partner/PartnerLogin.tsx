@@ -248,13 +248,13 @@ export default function PartnerLogin({ forceReauth = false }: PartnerLoginProps)
           <div>교육문의 jmonica@cruisedot.co.kr</div>
         </div>
 
-        {/* 7일 무료 체험 버튼 */}
+        {/* 3일 무료 체험 버튼 */}
         <div className="mt-6 pt-6 border-t border-slate-200">
           <button
             onClick={() => router.push('/subscription/login')}
             className="w-full rounded-xl bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-semibold py-3 px-4 shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
           >
-            <span>7일 무료 마비즈인 체험하기</span>
+            <span>3일 무료 마비즈인 체험하기</span>
             <FiArrowRight className="h-5 w-5" />
           </button>
         </div>

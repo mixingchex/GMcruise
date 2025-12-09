@@ -199,7 +199,8 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
             margin-right: 0.5rem;
         }
     </style>
-
+</head>
+<body>
     <!-- Kakao Share Banner REMOVED -->
 
     <!-- Main Content Area -->
@@ -209,26 +210,49 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
         <section class="text-center pt-12">
             <div class="content-wrapper">
                 <h1 class="text-4xl md:text-6xl font-black leading-tight my-8">
-                    <span class="text-yellow-400">"시스템 없이 여행사 창업을 한다구요?"</span>
+                    <span class="text-yellow-400">"대한민국 최초 크루즈여행 시스템"</span>
+                    <span class="block text-2xl md:text-4xl font-black mt-4 text-white leading-snug">
+                        이거 모르면 땅치고 후회합니다.
+                    </span>
                     <span class="block text-3xl md:text-5xl font-black mt-8 text-white leading-snug">
-                        지금부터 대한민국 최초<br>
+                        지금부터<br>
                         <span class="text-cyan-400">여행 자동화 시스템</span>을<br>
                         3일 무료 경험 해 보세요
                     </span>
                 </h1>
 
-                <!-- 마케팅 미니 클래스 -->
-                <div class="my-8">
-                    <h3 class="text-xl md:text-2xl font-bold text-white mb-3 flex items-center gap-2 justify-center">🎓 마케팅 미니 클래스</h3>
-                    <p class="text-gray-400 text-sm mb-4 text-center">좌우 버튼으로 퍼널 마케팅의 핵심을 배워보세요</p>
+                <!-- 시스템 미리보기 이미지 그리드 (2열) -->
+                <div class="grid grid-cols-2 gap-3 md:gap-4 my-8 md:my-12">
+                    <div class="aspect-square rounded-xl overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all hover:scale-105 cursor-pointer" onclick="showImage(this.querySelector('img').src)">
+                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_8859.jpg" alt="3일 체험 1" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="aspect-square rounded-xl overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all hover:scale-105 cursor-pointer" onclick="showImage(this.querySelector('img').src)">
+                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492349_9565.jpg" alt="3일 체험 2" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="aspect-square rounded-xl overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all hover:scale-105 cursor-pointer" onclick="showImage(this.querySelector('img').src)">
+                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_043.jpg" alt="3일 체험 3" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="aspect-square rounded-xl overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all hover:scale-105 cursor-pointer" onclick="showImage(this.querySelector('img').src)">
+                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-11-30/e9ac5e0515cbeac8729782ba6c2d93d6_1764492350_1041.jpg" alt="3일 체험 4" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="aspect-square rounded-xl overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all hover:scale-105 cursor-pointer" onclick="showImage(this.querySelector('img').src)">
+                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-12-01/1d909001e8c10d0e5dca46adce6195e4_1764566879_7118.png" alt="판매원 대시보드" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="aspect-square rounded-xl overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all hover:scale-105 cursor-pointer" onclick="showImage(this.querySelector('img').src)">
+                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-12-01/1d909001e8c10d0e5dca46adce6195e4_1764566879_7551.png" alt="세일즈 챗봇" class="w-full h-full object-cover" loading="lazy">
+                    </div>
+                    <div class="aspect-square rounded-xl overflow-hidden border border-gray-700 hover:border-cyan-500 transition-all hover:scale-105 cursor-pointer col-span-2" onclick="showImage(this.querySelector('img').src)">
+                        <img src="https://leadgen.kr/data/file/smarteditor2/2025-12-01/1d909001e8c10d0e5dca46adce6195e4_1764566879_9114.png" alt="개인 구매몰" class="w-full h-full object-cover" loading="lazy">
+                    </div>
                 </div>
-                <!-- MINI_CLASS -->
 
                 <h2 class="text-3xl md:text-5xl font-black text-white mt-16 mb-8 leading-tight">
                     "3일동안 <span class="text-cyan-400">여행사 시스템</span>을<br>
                     경험해 보세요"
                 </h2>
-                
+
+                <!-- FORM_TOP -->
+
                 <div class="py-10 md:py-16">
                     <h2 class="text-3xl md:text-5xl font-black text-white">단순 여행이 아닙니다.</h2>
                     <p class="text-xl md:text-2xl font-bold text-cyan-400 mt-3">'여행하며 수익을 창출하는' 전문 커리어입니다.</p>
@@ -369,6 +393,17 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
                         </div>
                     </div>
                 </div>
+
+                <!-- MINI_CLASS -->
+
+                <!-- 미니 클래스 밑 CTA -->
+                <div class="mt-12 text-center">
+                    <h3 class="text-2xl md:text-3xl font-black text-yellow-400 mb-4">
+                        지금 당장 3일 시스템 체험하기
+                    </h3>
+                    <p class="text-gray-300 mb-6">이름과 연락처만 입력하면 바로 시작됩니다</p>
+                </div>
+                <!-- FORM_MIDDLE -->
             </div>
         </section>
 

@@ -71,13 +71,51 @@ export async function POST(req: NextRequest) {
                             continue;
                         }
 
+                        // metadata에 본사 제공 출처 정보 기록
+                        const currentMetadata = (lead.metadata as Record<string, any>) || {};
+                        const transferHistory = currentMetadata.transferHistory || [];
+                        transferHistory.push({
+                            date: new Date().toISOString(),
+                            fromProfileId: null,
+                            fromProfileName: '본사',
+                            toProfileId: manager.id,
+                            toProfileName: manager.displayName || manager.affiliateCode,
+                        });
+
                         await prisma.affiliateLead.update({
                             where: { id: lead.id },
                             data: {
                                 managerId: manager.id,
                                 agentId: null, // 매니저가 바뀌면 판매원 할당은 초기화
+                                metadata: {
+                                    ...currentMetadata,
+                                    transferHistory,
+                                    lastTransferFrom: '본사',
+                                    lastTransferFromId: null,
+                                    receivedFromHQ: true,
+                                    receivedAt: new Date().toISOString(),
+                                },
                             },
                         });
+
+                        // 전송 이력 기록
+                        await prisma.affiliateInteraction.create({
+                            data: {
+                                leadId: lead.id,
+                                profileId: null,
+                                createdById: user.id,
+                                interactionType: 'DB_TRANSFER',
+                                occurredAt: new Date(),
+                                note: `본사에서 ${manager.displayName || manager.affiliateCode}에게 DB 전송`,
+                                metadata: {
+                                    action: 'hq_assign',
+                                    fromHQ: true,
+                                    toProfileId: manager.id,
+                                    toProfileName: manager.displayName || manager.affiliateCode,
+                                },
+                            },
+                        });
+
                         results.assigned.push(lead.id);
                     }
                 } catch (error: any) {

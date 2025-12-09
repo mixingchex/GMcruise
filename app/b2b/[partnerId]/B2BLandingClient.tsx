@@ -242,8 +242,24 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
         );
     }
 
-    // Template Parsing
-    const parts = initialTemplate.split(/<!-- FORM_(TOP|MIDDLE) -->/);
+    // Template Parsing - body 태그 내용만 추출
+    let bodyContent = initialTemplate;
+    const bodyMatch = initialTemplate.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) {
+        bodyContent = bodyMatch[1];
+    }
+
+    // head 내의 style 태그 추출
+    let headStyles = '';
+    const styleMatch = initialTemplate.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
+    if (styleMatch) {
+        headStyles = styleMatch.join('\n');
+    }
+
+    // 디버그 로그 제거 (무한 리렌더링 방지)
+
+    // FORM_TOP, FORM_MIDDLE, MINI_CLASS 마커로 분리
+    const parts = bodyContent.split(/<!-- FORM_(TOP|MIDDLE) -->/);
     // parts[0] = content before TOP
     // parts[1] = "TOP" (captured group)
     // parts[2] = content between TOP and MIDDLE
@@ -302,6 +318,12 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
 
     return (
         <>
+            {/* 템플릿 스타일 주입 */}
+            {headStyles && <div dangerouslySetInnerHTML={{ __html: headStyles }} />}
+
+            {/* Tailwind CDN */}
+            <script src="https://cdn.tailwindcss.com" />
+
             {/* Render Template Parts with Mini Class Viewer */}
             {parts.map((part, index) => {
                 if (part === 'TOP') return <div key={index}>{renderForm('top')}</div>;

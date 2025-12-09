@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiX, FiUser, FiPhone, FiMail, FiCalendar, FiLock, FiUnlock, FiPackage, FiShoppingCart, FiDollarSign, FiFileText, FiPlus, FiSave, FiInfo, FiCheckCircle, FiMessageSquare, FiSend, FiBell, FiUpload, FiMic, FiUsers, FiEdit2, FiTrash2, FiClock } from 'react-icons/fi';
+import { FiX, FiUser, FiPhone, FiMail, FiCalendar, FiLock, FiUnlock, FiPackage, FiShoppingCart, FiDollarSign, FiFileText, FiPlus, FiSave, FiInfo, FiCheckCircle, FiMessageSquare, FiSend, FiBell, FiUpload, FiMic, FiUsers, FiEdit2, FiTrash2, FiClock, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 
 // 상담기록 타입
 interface ConsultationNote {
@@ -158,6 +158,8 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isSavingConsultation, setIsSavingConsultation] = useState(false);
   const [consultationNotes, setConsultationNotes] = useState<ConsultationNote[]>([]);
+  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<number>>(new Set()); // 확장된 상담기록 ID 목록
+  const [selectedNote, setSelectedNote] = useState<ConsultationNote | null>(null); // 상세 모달용 선택된 노트
 
   // 문자 보내기 관련
   const [showSmsForm, setShowSmsForm] = useState(false);
@@ -1605,76 +1607,170 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                 </div>
               )}
 
-              {/* 기존 상담기록 목록 */}
-              <div className="space-y-4">
+              {/* 기존 상담기록 목록 - 블록 형태 */}
+              <div className="space-y-2">
                 {customer.consultationNotes && customer.consultationNotes.length > 0 ? (
-                  customer.consultationNotes.map((note) => (
-                    <div key={note.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                            note.createdByLabel === '본사' ? 'bg-gray-100 text-gray-700' :
-                            note.createdByLabel === '대리점장' ? 'bg-purple-100 text-purple-700' :
-                            'bg-blue-100 text-blue-700'
-                          }`}>
-                            {note.createdByLabel}
-                          </span>
-                          <span className="text-sm font-medium text-gray-700">{note.createdByName}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          상담: {new Date(note.consultedAt).toLocaleString('ko-KR')}
-                        </div>
-                      </div>
+                  customer.consultationNotes.map((note) => {
+                    const isExpanded = expandedNoteIds.has(note.id);
+                    const contentPreview = note.content.length > 50
+                      ? note.content.slice(0, 50) + '...'
+                      : note.content;
 
-                      <p className="text-gray-800 whitespace-pre-wrap mb-3">{note.content}</p>
-
-                      {/* 다음 조치 정보 */}
-                      {note.nextActionDate && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-2 text-sm">
-                          <span className="text-yellow-800 font-medium">📅 다음 조치: </span>
-                          <span className="text-yellow-700">
-                            {new Date(note.nextActionDate).toLocaleDateString('ko-KR')}
-                            {note.nextActionNote && ` - ${note.nextActionNote}`}
-                          </span>
-                        </div>
-                      )}
-
-                      {/* 상태 변경 정보 */}
-                      {note.statusAfter && (
-                        <div className="text-sm text-gray-600 mb-2">
-                          <span className="font-medium">상담 후 상태:</span> {note.statusAfter}
-                        </div>
-                      )}
-
-                      {/* 녹음 파일 */}
-                      {note.audioFileUrl && (
-                        <div className="mt-2 bg-gray-50 rounded-lg p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                              <FiMic size={14} />
-                              녹음 파일
+                    return (
+                      <div
+                        key={note.id}
+                        className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden"
+                      >
+                        {/* 헤더 영역 - 클릭으로 확장/축소 */}
+                        <button
+                          onClick={() => {
+                            const newExpanded = new Set(expandedNoteIds);
+                            if (isExpanded) {
+                              newExpanded.delete(note.id);
+                            } else {
+                              newExpanded.add(note.id);
+                            }
+                            setExpandedNoteIds(newExpanded);
+                          }}
+                          className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {/* 작성자 배지 */}
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                              note.createdByLabel === '본사' ? 'bg-gray-100 text-gray-700' :
+                              note.createdByLabel === '대리점장' ? 'bg-purple-100 text-purple-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {note.createdByLabel}
                             </span>
-                            <a
-                              href={note.audioFileUrl.replace('/view', '').replace('file/d/', 'uc?export=download&id=')}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200 flex items-center gap-1"
-                            >
-                              <FiUpload size={12} className="rotate-180" />
-                              다운로드
-                            </a>
-                          </div>
-                          <audio controls className="w-full h-10">
-                            <source src={note.audioFileUrl} type="audio/mpeg" />
-                          </audio>
-                        </div>
-                      )}
 
-                      <div className="text-xs text-gray-400 mt-2">
-                        등록: {new Date(note.createdAt).toLocaleString('ko-KR')}
+                            {/* 날짜 */}
+                            <span className="text-sm text-gray-500 flex-shrink-0">
+                              {new Date(note.consultedAt).toLocaleDateString('ko-KR')}
+                            </span>
+
+                            {/* 내용 미리보기 */}
+                            <span className="text-sm text-gray-700 truncate">
+                              {contentPreview}
+                            </span>
+
+                            {/* 다음 조치 표시 */}
+                            {note.nextActionDate && (
+                              <span className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-700 flex-shrink-0">
+                                다음 조치
+                              </span>
+                            )}
+
+                            {/* 녹음 파일 표시 */}
+                            {note.audioFileUrl && (
+                              <FiMic className="text-blue-500 flex-shrink-0" size={14} />
+                            )}
+                          </div>
+
+                          {/* 확장/축소 아이콘 */}
+                          <div className="flex-shrink-0 ml-2 text-gray-400">
+                            {isExpanded ? <FiChevronUp size={20} /> : <FiChevronDown size={20} />}
+                          </div>
+                        </button>
+
+                        {/* 확장된 상세 내용 */}
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gray-50">
+                            {/* 작성자 정보 */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="text-sm">
+                                <span className="text-gray-500">작성자:</span>{' '}
+                                <span className="font-medium text-gray-700">{note.createdByName}</span>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {/* 상세 보기 버튼 */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedNote(note);
+                                  }}
+                                  className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors"
+                                >
+                                  상세 보기
+                                </button>
+                                <div className="text-xs text-gray-400">
+                                  등록: {new Date(note.createdAt).toLocaleString('ko-KR')}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 상담 내용 (미리보기 - 긴 내용은 잘림) */}
+                            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-3">
+                              <p className="text-gray-800 whitespace-pre-wrap leading-relaxed line-clamp-4">
+                                {note.content}
+                              </p>
+                              {note.content.length > 200 && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedNote(note);
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 text-sm mt-2 font-medium"
+                                >
+                                  ... 전체 내용 보기
+                                </button>
+                              )}
+                            </div>
+
+                            {/* 다음 조치 정보 */}
+                            {note.nextActionDate && (
+                              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <FiClock size={14} className="text-yellow-600" />
+                                  <span className="text-yellow-800 font-medium text-sm">다음 조치</span>
+                                </div>
+                                <p className="text-yellow-700 text-sm">
+                                  {new Date(note.nextActionDate).toLocaleDateString('ko-KR')}
+                                  {note.nextActionNote && (
+                                    <span className="block mt-1">{note.nextActionNote}</span>
+                                  )}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* 상태 변경 정보 */}
+                            {note.statusAfter && (
+                              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                                <span className="text-sm text-blue-800">
+                                  <span className="font-medium">상담 후 상태 변경:</span> {note.statusAfter}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* 녹음 파일 */}
+                            {note.audioFileUrl && (
+                              <div className="bg-gray-100 border border-gray-200 rounded-lg p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                                    <FiMic size={14} />
+                                    녹음 파일
+                                  </span>
+                                  <a
+                                    href={note.audioFileUrl.replace('/view', '').replace('file/d/', 'uc?export=download&id=')}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200 flex items-center gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <FiUpload size={12} className="rotate-180" />
+                                    다운로드
+                                  </a>
+                                </div>
+                                <audio controls className="w-full h-10" onClick={(e) => e.stopPropagation()}>
+                                  <source src={note.audioFileUrl} type="audio/mpeg" />
+                                </audio>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="text-center py-12 text-gray-500">
                     <FiMessageSquare size={48} className="mx-auto mb-4 text-gray-300" />
@@ -1696,6 +1792,164 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
             닫기
           </button>
         </div>
+
+        {/* 상담기록 상세 모달 */}
+        {selectedNote && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
+              {/* 모달 헤더 */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FiMessageSquare size={24} />
+                  <div>
+                    <h3 className="text-lg font-bold">상담기록 상세</h3>
+                    <p className="text-sm text-blue-100">
+                      {new Date(selectedNote.consultedAt).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        weekday: 'short',
+                      })}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedNote(null)}
+                  className="text-white hover:text-gray-200 transition-colors p-1"
+                >
+                  <FiX size={24} />
+                </button>
+              </div>
+
+              {/* 모달 본문 */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* 작성자 정보 */}
+                <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                      selectedNote.createdByLabel === '본사' ? 'bg-gray-200 text-gray-700' :
+                      selectedNote.createdByLabel === '대리점장' ? 'bg-purple-100 text-purple-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      <FiUser size={20} />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">{selectedNote.createdByName}</p>
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                        selectedNote.createdByLabel === '본사' ? 'bg-gray-100 text-gray-700' :
+                        selectedNote.createdByLabel === '대리점장' ? 'bg-purple-100 text-purple-700' :
+                        'bg-blue-100 text-blue-700'
+                      }`}>
+                        {selectedNote.createdByLabel}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right text-sm text-gray-500">
+                    <p>상담일: {new Date(selectedNote.consultedAt).toLocaleString('ko-KR')}</p>
+                    <p>등록일: {new Date(selectedNote.createdAt).toLocaleString('ko-KR')}</p>
+                  </div>
+                </div>
+
+                {/* 상담 내용 */}
+                <div className="bg-white border border-gray-200 rounded-lg p-5">
+                  <h4 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                    <FiMessageSquare size={16} />
+                    상담 내용
+                  </h4>
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-gray-800 whitespace-pre-wrap leading-relaxed text-base">
+                      {selectedNote.content}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 다음 조치 정보 */}
+                {selectedNote.nextActionDate && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-5">
+                    <h4 className="text-sm font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                      <FiClock size={16} />
+                      다음 조치 예정
+                    </h4>
+                    <p className="text-yellow-700 font-medium">
+                      {new Date(selectedNote.nextActionDate).toLocaleDateString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        weekday: 'short',
+                      })}
+                    </p>
+                    {selectedNote.nextActionNote && (
+                      <p className="text-yellow-700 mt-2 whitespace-pre-wrap">
+                        {selectedNote.nextActionNote}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* 상태 변경 정보 */}
+                {selectedNote.statusAfter && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-blue-800">
+                      <span className="font-semibold">상담 후 상태 변경:</span>{' '}
+                      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium ${
+                        selectedNote.statusAfter === 'active' ? 'bg-green-100 text-green-800' :
+                        selectedNote.statusAfter === 'purchase_confirmed' ? 'bg-blue-100 text-blue-800' :
+                        selectedNote.statusAfter === 'lost' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedNote.statusAfter}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                {/* 녹음 파일 */}
+                {selectedNote.audioFileUrl && (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-5">
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <FiMic size={16} />
+                      녹음 파일
+                    </h4>
+                    <audio controls className="w-full mb-3">
+                      <source src={selectedNote.audioFileUrl} type="audio/mpeg" />
+                      브라우저가 오디오를 지원하지 않습니다.
+                    </audio>
+                    <div className="flex gap-2">
+                      <a
+                        href={selectedNote.audioFileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200 flex items-center gap-1"
+                      >
+                        <FiUpload size={14} className="rotate-180" />
+                        새 탭에서 열기
+                      </a>
+                      <a
+                        href={selectedNote.audioFileUrl.replace('/view', '').replace('file/d/', 'uc?export=download&id=')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 flex items-center gap-1"
+                      >
+                        <FiUpload size={14} className="rotate-180" />
+                        다운로드
+                      </a>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 모달 푸터 */}
+              <div className="bg-gray-50 px-6 py-4 flex justify-end border-t">
+                <button
+                  onClick={() => setSelectedNote(null)}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

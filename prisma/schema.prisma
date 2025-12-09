@@ -206,6 +206,7 @@ model AffiliateInteraction {
   createdById      Int
   interactionType  String
   occurredAt       DateTime          @default(now())
+  createdAt        DateTime          @default(now())
   note             String?
   metadata         Json?
   User             User              @relation(fields: [createdById], references: [id], onDelete: Cascade)
@@ -214,6 +215,7 @@ model AffiliateInteraction {
   AffiliateMedia   AffiliateMedia[]
 
   @@index([leadId, occurredAt])
+  @@index([createdAt])
 }
 
 model AffiliateLead {
@@ -2289,9 +2291,35 @@ model SystemConsultation {
   updatedAt DateTime
   metadata  Json?
 
+  // 상담기록 관계
+  SystemConsultationNote SystemConsultationNote[]
+
   @@index([agentId])
   @@index([createdAt])
   @@index([managerId])
+}
+
+// 시스템 상담 문의에 대한 상담기록 (콜녹음, 메모 등)
+model SystemConsultationNote {
+  id                   Int                @id @default(autoincrement())
+  consultationId       Int
+  content              String             @db.Text // 상담 내용/메모
+  consultedAt          DateTime?          // 상담 일시
+  audioFileUrl         String?            // 콜녹음 Google Drive 링크
+  createdByName        String?            // 작성자 이름
+  createdByType        String?            // 'ADMIN' | 'BRANCH_MANAGER' | 'SALES_AGENT'
+  createdByProfileId   Int?               // AffiliateProfile ID
+  nextActionDate       DateTime?          // 다음 조치 예정일
+  nextActionNote       String?            // 다음 조치 메모
+  statusAfter          String?            // 상담 후 변경된 상태
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime
+
+  SystemConsultation   SystemConsultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId])
+  @@index([createdAt])
+  @@index([createdByProfileId])
 }
 
 model TravelDiaryEntry {

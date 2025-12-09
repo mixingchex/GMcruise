@@ -53,8 +53,6 @@ function createEmailTransporter() {
   const smtpPort = parseInt(process.env.EMAIL_SMTP_PORT || '587');
   const smtpUser = process.env.EMAIL_SMTP_USER;
   const smtpPassword = process.env.EMAIL_SMTP_PASSWORD;
-  const fromName = process.env.EMAIL_FROM_NAME || '크루즈 가이드';
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS || smtpUser;
 
   if (!smtpUser || !smtpPassword) {
     throw new Error('이메일 설정이 완료되지 않았습니다. 환경 변수를 확인해주세요.');
@@ -71,6 +69,19 @@ function createEmailTransporter() {
   });
 }
 
+// 템플릿 변수 치환 함수
+const replaceTemplateVariables = (
+  text: string,
+  name: string,
+  productName: string,
+  linkUrl: string
+): string => {
+  return text
+    .replace(/\{이름\}/g, name || '고객')
+    .replace(/\{상품\}/g, productName || '')
+    .replace(/\{링크\}/g, linkUrl || '');
+};
+
 // POST: 이메일 발송
 export async function POST(req: NextRequest) {
   try {
@@ -80,7 +91,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { userIds, mallUserIds, title, content, includeMallUsers, includeProspects, directEmails, imageUrl } = body;
+    const { recipients, userIds, mallUserIds, title, content, productName, linkUrl, includeMallUsers, includeProspects, directEmails, imageUrl } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -97,8 +108,29 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    console.log('[Send Email] Request:', {
+      recipientsCount: recipients?.length || 0,
+      productName: productName || 'N/A',
+      linkUrl: linkUrl || 'N/A'
+    });
+
     // 대상 사용자 조회
-    let targetUsers: Array<{ id: number; name: string | null; email: string | null; type: string }> = [];
+    let targetUsers: Array<{ id: number; name: string; email: string; type: string }> = [];
+
+    // 새로운 방식: recipients 배열로 전달 (이름, 이메일 쌍)
+    if (recipients && Array.isArray(recipients) && recipients.length > 0) {
+      const validRecipients = recipients
+        .filter((r: any) => r.email && r.email.trim() && r.email.includes('@'))
+        .map((r: any) => ({
+          id: 0,
+          name: r.name || '고객',
+          email: r.email.trim(),
+          type: 'direct',
+        }));
+
+      targetUsers = validRecipients;
+      console.log('[Send Email] Recipients from new format:', targetUsers.length);
+    }
     
     if (userIds && Array.isArray(userIds) && userIds.length > 0) {
       // 특정 고객 선택 (크루즈 가이드 AI 사용 고객)
@@ -201,14 +233,6 @@ export async function POST(req: NextRequest) {
     const fromName = process.env.EMAIL_FROM_NAME || '크루즈 가이드';
     const fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_SMTP_USER || '';
 
-    // HTML 형식으로 변환 (줄바꿈 처리)
-    const htmlContent = content
-      .replace(/\n/g, '<br>')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/&lt;br&gt;/g, '<br>'); // <br> 태그는 유지
-
     // 이미지 HTML 추가
     const imageHtml = imageUrl ? `<div style="margin: 20px 0; text-align: center;"><img src="${imageUrl}" alt="첨부 이미지" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>` : '';
 
@@ -219,14 +243,25 @@ export async function POST(req: NextRequest) {
 
     for (const user of targetUsers) {
       try {
+        // 템플릿 변수 치환 (각 수신자마다 개별 적용)
+        const personalizedTitle = replaceTemplateVariables(title, user.name, productName || '', linkUrl || '');
+        const personalizedContent = replaceTemplateVariables(content, user.name, productName || '', linkUrl || '');
+
+        // HTML 형식으로 변환 (줄바꿈 처리)
+        const htmlContent = personalizedContent
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\n/g, '<br>');
+
         const mailOptions: any = {
           from: `"${fromName}" <${fromAddress}>`,
-          to: user.email!,
-          subject: title,
+          to: user.email,
+          subject: personalizedTitle,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
               <h2 style="color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
-                ${title}
+                ${personalizedTitle}
               </h2>
               <div style="margin-top: 20px; line-height: 1.6; color: #333;">
                 ${htmlContent}
@@ -242,9 +277,9 @@ export async function POST(req: NextRequest) {
 
         await transporter.sendMail(mailOptions);
         successCount++;
-        results.push({ userId: user.id, email: user.email, success: true });
-        
-        console.log(`[Send Email] 이메일 발송 성공: ${user.email}`);
+        results.push({ userId: user.id, email: user.email, name: user.name, success: true });
+
+        console.log(`[Send Email] 이메일 발송 성공: ${user.name} (${user.email})`);
       } catch (error) {
         failCount++;
         const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';

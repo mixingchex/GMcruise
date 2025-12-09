@@ -261,10 +261,11 @@ export async function GET() {
     // 일별 사용자 가입 수 (PostgreSQL 호환)
     let dailyUsers: Array<{ date: string; count: number }> = [];
     let dailyTrips: Array<{ date: string; count: number }> = [];
-    
+    let dailyProductViews: Array<{ date: string; count: number }> = [];
+
     try {
       const dailyUsersRaw = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
-        SELECT 
+        SELECT
           DATE("createdAt") as date,
           COUNT(*) as count
         FROM "User"
@@ -283,7 +284,7 @@ export async function GET() {
     // 일별 여행 등록 수 (PostgreSQL 호환)
     try {
       const dailyTripsRaw = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
-        SELECT 
+        SELECT
           DATE("createdAt") as date,
           COUNT(*) as count
         FROM "Trip"
@@ -299,21 +300,42 @@ export async function GET() {
       console.error('[Admin Dashboard] Daily trips query error:', dailyTripsError);
     }
 
+    // 일별 상품 조회 수 (크루즈몰)
+    try {
+      const dailyProductViewsRaw = await prisma.$queryRaw<Array<{ date: string; count: bigint }>>`
+        SELECT
+          DATE("viewedAt") as date,
+          COUNT(*) as count
+        FROM "ProductView"
+        WHERE "viewedAt" >= ${sevenDaysAgo}
+        GROUP BY DATE("viewedAt")
+        ORDER BY date ASC
+      `;
+      dailyProductViews = dailyProductViewsRaw.map(d => ({
+        date: d.date,
+        count: Number(d.count),
+      }));
+    } catch (dailyProductViewsError: any) {
+      console.error('[Admin Dashboard] Daily product views query error:', dailyProductViewsError);
+    }
+
     // 일별 통합 데이터 생성
-    const trendData: Array<{ date: string; users: number; trips: number }> = [];
+    const trendData: Array<{ date: string; users: number; trips: number; productViews: number }> = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(now.getDate() - i);
       date.setHours(0, 0, 0, 0);
       const dateStr = date.toISOString().split('T')[0];
-      
+
       const userCount = dailyUsers.find(d => d.date === dateStr)?.count || 0;
       const tripCount = dailyTrips.find(d => d.date === dateStr)?.count || 0;
-      
+      const productViewCount = dailyProductViews.find(d => d.date === dateStr)?.count || 0;
+
       trendData.push({
         date: dateStr,
         users: userCount,
         trips: tripCount,
+        productViews: productViewCount,
       });
     }
 
@@ -424,6 +446,12 @@ export async function GET() {
     let totalCommissionSettled = 0;
     let recentAffiliateSales: any[] = [];
 
+    // 추가 통계
+    let trialLeadsCount = 0; // 지니3일 체험 유입 수 (source가 '1101', 'genie-trial', 'TRIAL' 등)
+    let b2bLeadsCount = 0; // B2B 유입 수 (source가 'B2B_LANDING' 등)
+    let purchasedCustomersCount = 0; // 구매 고객 수
+    let recentTrialLeads: any[] = []; // 최근 지니3일 체험 유입 고객
+
     try {
       // 대리점장 수
       totalBranchManagers = await prisma.affiliateProfile.count({
@@ -470,6 +498,54 @@ export async function GET() {
           AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile: {
             select: { displayName: true, nickname: true },
           },
+        },
+      });
+
+      // 지니3일 체험 유입 수 (source가 '1101', 'genie-trial', 'TRIAL', 'trial' 포함)
+      trialLeadsCount = await prisma.affiliateLead.count({
+        where: {
+          OR: [
+            { source: { contains: '1101' } },
+            { source: { contains: 'trial', mode: 'insensitive' } },
+            { source: { contains: 'genie-trial', mode: 'insensitive' } },
+          ],
+        },
+      });
+
+      // B2B 유입 수 (source가 'B2B_LANDING' 등)
+      b2bLeadsCount = await prisma.affiliateLead.count({
+        where: {
+          source: { contains: 'B2B', mode: 'insensitive' },
+        },
+      });
+
+      // 구매 고객 수 (AffiliateSale에서 고유 leadId 또는 고유 전화번호)
+      purchasedCustomersCount = await prisma.affiliateSale.count({
+        where: {
+          status: { in: ['CONFIRMED', 'PENDING'] },
+        },
+      });
+
+      // 최근 지니3일 체험 유입 고객 (최근 10명)
+      recentTrialLeads = await prisma.affiliateLead.findMany({
+        where: {
+          OR: [
+            { source: { contains: '1101' } },
+            { source: { contains: 'trial', mode: 'insensitive' } },
+            { source: { contains: 'genie-trial', mode: 'insensitive' } },
+            { source: { contains: 'B2B', mode: 'insensitive' } },
+          ],
+        },
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          customerName: true,
+          customerPhone: true,
+          source: true,
+          status: true,
+          createdAt: true,
+          metadata: true,
         },
       });
     } catch (affiliateError: any) {
@@ -572,6 +648,19 @@ export async function GET() {
             status: sale.status,
           })),
         },
+        // 추가 통계
+        trialLeads: trialLeadsCount, // 지니3일 체험 유입 수
+        b2bLeads: b2bLeadsCount, // B2B 유입 수
+        purchasedCustomers: purchasedCustomersCount, // 구매 고객 수
+        recentTrialLeads: recentTrialLeads.map(lead => ({
+          id: lead.id,
+          name: lead.customerName,
+          phone: lead.customerPhone,
+          source: lead.source,
+          status: lead.status,
+          createdAt: lead.createdAt,
+          metadata: lead.metadata,
+        })),
       },
     }, {
       // 성능 최적화: API 응답 캐싱 헤더 추가

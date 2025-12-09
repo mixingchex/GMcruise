@@ -6,8 +6,9 @@ import { getGoogleAuth } from '@/lib/google-drive';
 import { Readable } from 'stream';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
 
-// Google Drive 녹음파일 저장 폴더 ID
-const AUDIO_FOLDER_ID = process.env.GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID || '1XfdoQrODfjZOaQzV6X859fE2mCG4QuwY';
+// B2B 오디오 폴더 (B2B 유입 + 시스템 상담 모두 동일 폴더 사용)
+// 기존 작동하던 판매 오디오 폴더 ID 사용 (공유 드라이브 문제 해결)
+const B2B_AUDIO_FOLDER_ID = process.env.GOOGLE_DRIVE_B2B_AUDIO_FOLDER_ID || process.env.GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID || '1g8vNIeXEVHkavQnlBAXsBMkVZB_Y29Fk';
 
 /**
  * 파트너용 녹음파일 업로드 API
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const leadId = formData.get('leadId') as string;
     const customerId = formData.get('customerId') as string;
+    const prospectType = formData.get('prospectType') as string; // 'lead' or 'consultation'
 
     if (!file) {
       return NextResponse.json({ ok: false, error: '파일이 없습니다.' }, { status: 400 });
@@ -34,19 +36,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: '지원하지 않는 오디오 형식입니다.' }, { status: 400 });
     }
 
-    // 파일명 생성: [원본파일명]_파트너타입_파트너명_고객ID_날짜시간.확장자
+    // 파일명 생성: [유형]_[원본파일명]_파트너타입_파트너명_고객ID_날짜시간.확장자
     const originalFileName = file.name;
     const ext = file.name.split('.').pop() || 'mp3';
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const partnerType = profile.type === 'BRANCH_MANAGER' ? '대리점장' : '판매원';
     const partnerName = profile.displayName || sessionUser.name || 'unknown';
+    const typePrefix = prospectType === 'lead' ? 'B2B유입' : '시스템상담';
     const baseNameWithoutExt = originalFileName.replace(/\.[^/.]+$/, '');
     const customerIdStr = customerId || leadId || 'unknown';
-    const fileName = `${baseNameWithoutExt}_${partnerType}_${partnerName}_${customerIdStr}_${timestamp}.${ext}`;
+    const fileName = `${typePrefix}_${baseNameWithoutExt}_${partnerType}_${partnerName}_${customerIdStr}_${timestamp}.${ext}`;
 
     // Google Drive에 업로드
     const googleAuth = getGoogleAuth();
     const drive = google.drive({ version: 'v3', auth: googleAuth });
+
+    // B2B 유입 + 시스템 상담 모두 동일한 B2B 오디오 폴더 사용
+    const targetFolderId = B2B_AUDIO_FOLDER_ID;
+
+    console.log(`[Partner Audio Upload] Uploading to B2B Audio folder (${targetFolderId}), type: ${typePrefix}`);
 
     // File을 Buffer로 변환
     const arrayBuffer = await file.arrayBuffer();
@@ -61,13 +69,14 @@ export async function POST(request: NextRequest) {
       requestBody: {
         name: fileName,
         mimeType: file.type || 'audio/mpeg',
-        parents: [AUDIO_FOLDER_ID],
+        parents: [targetFolderId],
       },
       media: {
         mimeType: file.type || 'audio/mpeg',
         body: stream,
       },
       fields: 'id, webViewLink, webContentLink',
+      supportsAllDrives: true,  // 공유 드라이브 지원
     });
 
     if (!response.data.id) {
@@ -81,6 +90,7 @@ export async function POST(request: NextRequest) {
         role: 'reader',
         type: 'anyone',
       },
+      supportsAllDrives: true,  // 공유 드라이브 지원
     });
 
     // 웹 링크 URL 생성

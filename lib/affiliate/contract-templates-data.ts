@@ -277,11 +277,6 @@ export const DEFAULT_CONTRACT_TEMPLATES: Record<string, ContractTemplate> = {
     price: '750만원',
     description: '대리점장 B2B 및 교육 계약서',
   },
-  SUBSCRIPTION_AGENT: {
-    ...SUBSCRIPTION_AGENT_CONTRACT_TEMPLATE,
-    icon: '💳',
-    price: '월 10만원',
-    description: '정액제 판매원 계약서',
-  },
+  // SUBSCRIPTION_AGENT 삭제됨 - 정액제 판매원 계약서 (월 10만원) 제거
 };
 

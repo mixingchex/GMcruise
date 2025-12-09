@@ -122,7 +122,6 @@ function getDefaultIcon(code: string): string {
     BRANCH_MANAGER: '🏢',
     SALES_AGENT: '👤',
     CRUISE_STAFF: '🚢',
-    SUBSCRIPTION_AGENT: '💳',
   };
   return icons[code] || '📄';
 }

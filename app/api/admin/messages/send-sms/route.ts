@@ -10,7 +10,7 @@ const SESSION_COOKIE = 'cg.sid.v2';
 async function checkAdminAuth() {
   try {
     const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+
     if (!sid) {
       return null;
     }
@@ -52,6 +52,19 @@ const normalizePhone = (phone: string | null): string | null => {
   return cleaned.length >= 10 ? cleaned : null;
 };
 
+// 템플릿 변수 치환 함수
+const replaceTemplateVariables = (
+  text: string,
+  name: string,
+  productName: string,
+  linkUrl: string
+): string => {
+  return text
+    .replace(/\{이름\}/g, name || '고객')
+    .replace(/\{상품\}/g, productName || '')
+    .replace(/\{링크\}/g, linkUrl || '');
+};
+
 // POST: SMS 발송
 export async function POST(req: NextRequest) {
   try {
@@ -61,7 +74,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { userIds, mallUserIds, title, content, directPhones } = body;
+    const { title, content, recipients, productName, linkUrl, directPhones, userIds, mallUserIds } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -71,11 +84,33 @@ export async function POST(req: NextRequest) {
     }
 
     // 대상 사용자 조회 (전화번호가 있는 사용자만)
-    let targetUsers: Array<{ id: number; name: string | null; phone: string | null }> = [];
-    
-    console.log('[Send SMS] Request body:', { userIds, mallUserIds, directPhones: directPhones?.length || 0 });
-    
-    // 크루즈가이드 사용자
+    let targetUsers: Array<{ id: number; name: string; phone: string }> = [];
+
+    console.log('[Send SMS] Request:', {
+      recipientsCount: recipients?.length || 0,
+      directPhonesCount: directPhones?.length || 0,
+      userIdsCount: userIds?.length || 0,
+      mallUserIdsCount: mallUserIds?.length || 0,
+      productName: productName || 'N/A',
+      linkUrl: linkUrl || 'N/A'
+    });
+
+    // 새로운 방식: recipients 배열로 전달 (이름, 전화번호 쌍)
+    if (recipients && Array.isArray(recipients) && recipients.length > 0) {
+      const validRecipients = recipients
+        .filter((r: any) => r.phone && r.phone.trim())
+        .map((r: any) => ({
+          id: 0,
+          name: r.name || '고객',
+          phone: normalizePhone(r.phone.trim()) || '',
+        }))
+        .filter(r => r.phone);
+
+      targetUsers = validRecipients;
+      console.log('[Send SMS] Recipients from new format:', targetUsers.length);
+    }
+
+    // 기존 방식: 크루즈가이드 사용자 ID
     if (userIds && Array.isArray(userIds) && userIds.length > 0) {
       const users = await prisma.user.findMany({
         where: {
@@ -85,11 +120,17 @@ export async function POST(req: NextRequest) {
         },
         select: { id: true, name: true, phone: true },
       });
-      console.log('[Send SMS] Cruise Guide users found:', users.length, 'out of', userIds.length, 'requested');
-      targetUsers = users.filter(u => u.phone !== null).map(u => ({ ...u })) as any;
+      console.log('[Send SMS] Cruise Guide users found:', users.length);
+      const userList = users
+        .filter(u => u.phone !== null)
+        .map(u => ({ id: u.id, name: u.name || '고객', phone: u.phone! }));
+
+      const existingPhones = new Set(targetUsers.map(u => u.phone));
+      const newUsers = userList.filter(u => !existingPhones.has(u.phone));
+      targetUsers = [...targetUsers, ...newUsers];
     }
 
-    // 크루즈몰 사용자
+    // 기존 방식: 크루즈몰 사용자 ID
     if (mallUserIds && Array.isArray(mallUserIds) && mallUserIds.length > 0) {
       const mallUsers = await prisma.user.findMany({
         where: {
@@ -99,32 +140,28 @@ export async function POST(req: NextRequest) {
         },
         select: { id: true, name: true, phone: true },
       });
-      console.log('[Send SMS] Mall users found:', mallUsers.length, 'out of', mallUserIds.length, 'requested');
+      console.log('[Send SMS] Mall users found:', mallUsers.length);
       const mallUsersList = mallUsers
         .filter(u => u.phone !== null && u.phone.trim() !== '')
-        .map(u => ({ ...u })) as any;
-      
+        .map(u => ({ id: u.id, name: u.name || '고객', phone: u.phone! }));
+
       const existingPhones = new Set(targetUsers.map(u => u.phone));
-      const newMallUsers = mallUsersList.filter((u: any) => !existingPhones.has(u.phone));
+      const newMallUsers = mallUsersList.filter(u => !existingPhones.has(u.phone));
       targetUsers = [...targetUsers, ...newMallUsers];
     }
 
-    // 직접 입력된 전화번호 추가
+    // 기존 방식: 직접 입력된 전화번호
     if (directPhones && Array.isArray(directPhones) && directPhones.length > 0) {
       const validPhones = directPhones
         .filter((phone: string) => phone && phone.trim() && /^[0-9-]+$/.test(phone))
         .map((phone: string) => normalizePhone(phone.trim()))
         .filter((phone: string | null): phone is string => phone !== null);
-      
+
       const existingPhones = new Set(targetUsers.map(u => u.phone));
       const newDirectPhones = validPhones
         .filter((phone: string) => !existingPhones.has(phone))
-        .map((phone: string) => ({ 
-          id: 0,
-          name: null, 
-          phone, 
-        })) as any;
-      
+        .map((phone: string) => ({ id: 0, name: '고객', phone }));
+
       targetUsers = [...targetUsers, ...newDirectPhones];
       console.log('[Send SMS] Direct phones added:', newDirectPhones.length);
     }
@@ -133,8 +170,8 @@ export async function POST(req: NextRequest) {
 
     if (targetUsers.length === 0) {
       return NextResponse.json(
-        { 
-          ok: false, 
+        {
+          ok: false,
           error: 'SMS를 발송할 고객이 없습니다.',
           message: '전화번호가 등록된 고객이 없거나 선택한 고객이 조건에 맞지 않습니다.',
         },
@@ -143,48 +180,50 @@ export async function POST(req: NextRequest) {
     }
 
     // SMS 발송
-    // 주의: 실제 SMS 발송을 위해서는 SMS 발송 서비스 연동이 필요합니다.
-    // 예: 알리고, 카카오 알림톡, 네이버 클라우드 플랫폼 등
-    
     const results = [];
     let successCount = 0;
     let failCount = 0;
     const errors: string[] = [];
 
-    // SMS 발송 서비스 연동 예시
-    // 실제 SMS 발송 서비스의 API를 호출해야 합니다.
-    // 여기서는 발송 준비만 완료하는 것으로 처리합니다.
-    
+    // 알리고 API 설정 확인
+    const aligoApiKey = process.env.ALIGO_API_KEY;
+    const aligoUserId = process.env.ALIGO_USER_ID;
+    const aligoSenderPhone = process.env.ALIGO_SENDER_PHONE;
+
+    if (!aligoApiKey || !aligoUserId || !aligoSenderPhone) {
+      console.error('[Send SMS] 알리고 API 설정 누락');
+      return NextResponse.json(
+        {
+          ok: false,
+          error: '알리고 API 설정이 완료되지 않았습니다.',
+          message: '관리자에게 문의하세요. (환경변수: ALIGO_API_KEY, ALIGO_USER_ID, ALIGO_SENDER_PHONE)',
+        },
+        { status: 400 }
+      );
+    }
+
     for (const user of targetUsers) {
       try {
         const normalizedPhone = normalizePhone(user.phone);
-        
+
         if (!normalizedPhone || normalizedPhone.length < 10) {
           failCount++;
           const errorMsg = '유효하지 않은 전화번호입니다.';
           errors.push(`${user.phone || 'N/A'}: ${errorMsg}`);
-          results.push({ userId: user.id, phone: user.phone, success: false, error: errorMsg });
+          results.push({ phone: user.phone, success: false, error: errorMsg });
           continue;
         }
 
-        // 알리고 API 호출
-        const aligoApiKey = process.env.ALIGO_API_KEY;
-        const aligoUserId = process.env.ALIGO_USER_ID;
-        const aligoSenderPhone = process.env.ALIGO_SENDER_PHONE;
+        // 템플릿 변수 치환 (각 수신자마다 개별 적용)
+        const personalizedTitle = replaceTemplateVariables(title, user.name, productName || '', linkUrl || '');
+        const personalizedContent = replaceTemplateVariables(content, user.name, productName || '', linkUrl || '');
+        const messageText = `${personalizedTitle}\n\n${personalizedContent}`;
 
-        if (!aligoApiKey || !aligoUserId || !aligoSenderPhone) {
-          failCount++;
-          const errorMsg = '알리고 API 설정이 완료되지 않았습니다. 관리자 패널에서 확인하세요.';
-          errors.push(`${user.phone || 'N/A'}: ${errorMsg}`);
-          results.push({ userId: user.id, phone: user.phone, success: false, error: errorMsg });
-          console.error(`[Send SMS] 알리고 API 설정 누락: ${user.phone}`);
-          continue;
-        }
+        console.log(`[Send SMS] Sending to ${user.name} (${normalizedPhone})`);
 
         try {
           const smsApiUrl = 'https://apis.aligo.in/send/';
-          const messageText = `${title}\n\n${content}`;
-          
+
           const response = await fetch(smsApiUrl, {
             method: 'POST',
             headers: {
@@ -200,37 +239,37 @@ export async function POST(req: NextRequest) {
           });
 
           const apiResult = await response.json();
-          
+
           // 알리고 API 응답 코드: 1 = 성공, 그 외는 실패
           if (apiResult.result_code === '1') {
             successCount++;
-            results.push({ 
-              userId: user.id, 
-              phone: user.phone, 
+            results.push({
+              phone: user.phone,
+              name: user.name,
               success: true,
-              messageId: apiResult.message_id || null,
+              messageId: apiResult.msg_id || null,
             });
-            console.log(`[Send SMS] SMS 발송 성공: ${user.phone} (메시지 ID: ${apiResult.message_id || 'N/A'})`);
+            console.log(`[Send SMS] 성공: ${user.name} (${normalizedPhone})`);
           } else {
             failCount++;
-            const errorMsg = apiResult.message || `SMS 발송 실패 (코드: ${apiResult.result_code})`;
-            errors.push(`${user.phone}: ${errorMsg}`);
-            results.push({ userId: user.id, phone: user.phone, success: false, error: errorMsg });
-            console.error(`[Send SMS] SMS 발송 실패 (${user.phone}):`, apiResult);
+            const errorMsg = apiResult.message || `실패 (코드: ${apiResult.result_code})`;
+            errors.push(`${user.name} (${user.phone}): ${errorMsg}`);
+            results.push({ phone: user.phone, name: user.name, success: false, error: errorMsg });
+            console.error(`[Send SMS] 실패 (${user.name}):`, apiResult);
           }
         } catch (apiError) {
           failCount++;
           const errorMessage = apiError instanceof Error ? apiError.message : '알 수 없는 오류';
-          errors.push(`${user.phone || 'N/A'}: ${errorMessage}`);
-          results.push({ userId: user.id, phone: user.phone, success: false, error: errorMessage });
-          console.error(`[Send SMS] 알리고 API 호출 실패 (${user.phone}):`, apiError);
+          errors.push(`${user.name} (${user.phone}): ${errorMessage}`);
+          results.push({ phone: user.phone, name: user.name, success: false, error: errorMessage });
+          console.error(`[Send SMS] API 호출 실패 (${user.name}):`, apiError);
         }
       } catch (error) {
         failCount++;
         const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류';
         errors.push(`${user.phone || 'N/A'}: ${errorMessage}`);
-        results.push({ userId: user.id, phone: user.phone, success: false, error: errorMessage });
-        console.error(`[Send SMS] SMS 발송 실패 (${user.phone}):`, error);
+        results.push({ phone: user.phone, success: false, error: errorMessage });
+        console.error(`[Send SMS] 발송 실패:`, error);
       }
     }
 
@@ -262,8 +301,8 @@ export async function POST(req: NextRequest) {
       failCount,
       results,
       errors: errors.length > 0 ? errors : undefined,
-      message: successCount > 0 
-        ? `SMS 발송이 완료되었습니다. (성공: ${successCount}명${failCount > 0 ? `, 실패: ${failCount}명` : ''})`
+      message: successCount > 0
+        ? `SMS 발송 완료 (성공: ${successCount}명${failCount > 0 ? `, 실패: ${failCount}명` : ''})`
         : 'SMS 발송에 실패했습니다.',
     });
   } catch (error) {

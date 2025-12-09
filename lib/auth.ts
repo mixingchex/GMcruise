@@ -15,7 +15,8 @@ export type SessionUser = {
 
 export async function getSessionUser(): Promise<SessionUser | null> {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value; // 프로젝트 세션 쿠키 키
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value; // 프로젝트 세션 쿠키 키
     if (!sid) return null;
 
     const sess = await prisma.session.findUnique({

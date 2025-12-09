@@ -4,12 +4,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 
-export async function POST(
-    req: NextRequest,
-    { params }: { params: { leadId: string } }
-) {
+type RouteContext = {
+    params: Promise<{ leadId: string }>;
+};
+
+export async function POST(req: NextRequest, context: RouteContext) {
     try {
-        const leadId = parseInt(params.leadId);
+        const resolvedParams = await context.params;
+        const leadId = parseInt(resolvedParams.leadId);
+        console.log('[B2B Lead Extend Trial] Starting...', { leadId });
+
         if (isNaN(leadId)) {
             return NextResponse.json({ ok: false, message: '잘못된 요청입니다.' }, { status: 400 });
         }
@@ -17,7 +21,8 @@ export async function POST(
         // 인증 확인
         let sessionUser: { id: number; role: string | null } | null = null;
         try {
-            const sid = cookies().get('cg.sid.v2')?.value;
+            const cookieStore = await cookies();
+            const sid = cookieStore.get('cg.sid.v2')?.value;
             if (sid) {
                 const sess = await prisma.session.findUnique({
                     where: { id: sid },
@@ -28,6 +33,7 @@ export async function POST(
                 }
             }
         } catch (authError) {
+            console.error('[B2B Lead Extend Trial] Auth error:', authError);
             return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
         }
 
@@ -35,8 +41,9 @@ export async function POST(
             return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
         }
 
+        console.log('[B2B Lead Extend Trial] Session user:', sessionUser.id);
+
         // 권한 확인: 관리자 또는 해당 리드의 담당자(대리점장/판매원)
-        // 일단 관리자만 허용하고, 파트너 권한은 추후 정교화하거나 여기서 체크
         const lead = await prisma.affiliateLead.findUnique({
             where: { id: leadId },
             include: {
@@ -49,13 +56,14 @@ export async function POST(
             return NextResponse.json({ ok: false, message: '리드를 찾을 수 없습니다.' }, { status: 404 });
         }
 
+        console.log('[B2B Lead Extend Trial] Lead found:', { id: lead.id, name: lead.customerName, phone: lead.customerPhone });
+
         // 권한 체크 로직
         let hasPermission = false;
         if (sessionUser.role === 'admin') {
             hasPermission = true;
         } else {
             // 파트너 권한 체크
-            // 현재 로그인한 유저가 해당 리드의 매니저나 에이전트인지 확인
             const userProfile = await prisma.affiliateProfile.findUnique({
                 where: { userId: sessionUser.id }
             });
@@ -72,26 +80,34 @@ export async function POST(
         }
 
         const body = await req.json();
-        const { days = 7 } = body; // 기본 7일 연장
+        const { days = 3 } = body; // 기본 3일 연장
 
-        const currentMetadata = lead.metadata as any || {};
-        const currentExpiresAt = currentMetadata.trialExpiresAt ? new Date(currentMetadata.trialExpiresAt) : new Date();
+        // B2B 대시보드 체험 정보는 AffiliateLead.metadata에 저장됨
+        const currentMetadata = (lead.metadata as any) || {};
+        const now = new Date();
 
-        // 만료일이 지났으면 현재 시간 기준으로 연장, 안 지났으면 기존 만료일 기준 연장
-        const baseDate = currentExpiresAt < new Date() ? new Date() : currentExpiresAt;
-        const newExpiresAt = new Date(baseDate);
-        newExpiresAt.setDate(newExpiresAt.getDate() + days);
+        // 현재 trialExpiresAt 확인
+        const currentTrialEnd = currentMetadata.trialExpiresAt
+            ? new Date(currentMetadata.trialExpiresAt)
+            : new Date();
 
-        // 업데이트
+        // 만료된 경우 오늘부터, 아직 유효한 경우 기존 날짜부터 연장
+        const baseDate = currentTrialEnd > now ? currentTrialEnd : now;
+        const newTrialEnd = new Date(baseDate);
+        newTrialEnd.setDate(newTrialEnd.getDate() + days);
+
+        // AffiliateLead metadata 업데이트
         await prisma.affiliateLead.update({
             where: { id: leadId },
             data: {
                 metadata: {
                     ...currentMetadata,
-                    trialExpiresAt: newExpiresAt.toISOString(),
-                    lastTrialExtensionBy: sessionUser.id,
-                    lastTrialExtensionAt: new Date().toISOString(),
-                }
+                    trialExpiresAt: newTrialEnd.toISOString(),
+                    trialExtendedAt: now.toISOString(),
+                    trialExtendedBy: sessionUser.id,
+                    trialExtendedDays: (currentMetadata.trialExtendedDays || 0) + days,
+                },
+                updatedAt: new Date(),
             }
         });
 
@@ -101,22 +117,30 @@ export async function POST(
                 leadId,
                 createdById: sessionUser.id,
                 interactionType: 'TRIAL_EXTENDED',
-                note: `무료 체험 기간이 ${days}일 연장되었습니다. (만료일: ${newExpiresAt.toLocaleDateString()})`,
+                note: `무료 체험 기간이 ${days}일 연장되었습니다. (만료일: ${newTrialEnd.toLocaleDateString('ko-KR')})`,
                 metadata: {
                     extendedDays: days,
-                    newExpiresAt: newExpiresAt.toISOString(),
+                    newExpiresAt: newTrialEnd.toISOString(),
                 }
             }
         });
 
+        const formattedDate = newTrialEnd.toLocaleDateString('ko-KR', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+
+        console.log(`[B2B Lead Extend Trial] ${lead.customerName} (${lead.customerPhone}) extended by ${days} days until ${formattedDate}`);
+
         return NextResponse.json({
             ok: true,
-            message: `${days}일 연장되었습니다.`,
-            newExpiresAt: newExpiresAt.toISOString(),
+            message: `${lead.customerName || '고객'}님의 무료 체험이 ${days}일 연장되었습니다.\n새 만료일: ${formattedDate}`,
+            newTrialEndDate: newTrialEnd.toISOString(),
         });
 
     } catch (error: any) {
-        console.error('[Trial Extend] Error:', error);
+        console.error('[B2B Lead Extend Trial] Error:', error);
         return NextResponse.json(
             { ok: false, message: '연장 처리에 실패했습니다.' },
             { status: 500 }
