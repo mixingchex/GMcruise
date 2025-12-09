@@ -161,14 +161,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
     const loadProspects = useCallback(async () => {
         try {
             setLoadingB2B(true);
-            // Fetch both B2B_INFLOW and B2B_LANDING
-            // Since API filters by source, we might need two calls or one call without source and filter client side?
-            // Or better, let's just fetch all and filter client side for now as volume isn't huge yet,
-            // or make two requests.
-            // Let's try fetching with a specific query param if supported, or just fetch all customers and filter.
-            // Actually, the requirement is "B2B Inflow".
-            // Let's fetch with source=B2B_INFLOW and source=B2B_LANDING
-
+            // B2B_INFLOW와 B2B_LANDING 소스 각각 조회
             const res1 = await fetch('/api/partner/customers?source=B2B_INFLOW&limit=100');
             const json1 = await res1.json();
 
@@ -179,7 +172,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
             if (json1.ok) allProspects = [...allProspects, ...json1.customers];
             if (json2.ok) allProspects = [...allProspects, ...json2.customers];
 
-            // Remove duplicates if any
+            // 중복 제거
             const uniqueProspects = Array.from(new Map(allProspects.map(item => [item.id, item])).values());
 
             setProspects(uniqueProspects);

@@ -13,6 +13,22 @@ import { Readable } from 'stream';
 // 기존 작동하던 판매 오디오 폴더 ID 사용 (공유 드라이브 문제 해결)
 const B2B_AUDIO_FOLDER_ID = process.env.GOOGLE_DRIVE_B2B_AUDIO_FOLDER_ID || process.env.GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID || '1g8vNIeXEVHkavQnlBAXsBMkVZB_Y29Fk';
 
+// 파일 크기 제한 (Vercel Free Plan: 4.5MB, FormData 오버헤드 고려해서 4MB)
+const MAX_FILE_SIZE_MB = 4;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+// OPTIONS 핸들러 (CORS preflight)
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await checkAdminAuth();
@@ -27,6 +43,16 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ ok: false, error: '파일이 없습니다.' }, { status: 400 });
+    }
+
+    // 파일 크기 검증
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json({
+        ok: false,
+        error: `파일 크기가 ${MAX_FILE_SIZE_MB}MB를 초과합니다. 만능 압축기를 사용하여 오디오를 압축해주세요.`,
+        fileSize: file.size,
+        maxSize: MAX_FILE_SIZE_BYTES,
+      }, { status: 413 });
     }
 
     // 파일 확장자 확인

@@ -930,6 +930,24 @@ export async function POST(req: NextRequest) {
       });
     });
 
+    // B2B 소스인 경우 B2B 전용 스프레드시트에도 백업
+    if (isB2BSource) {
+      import('@/lib/google/b2b-backup').then(({ appendB2BLeadToSheet }) => {
+        appendB2BLeadToSheet({
+          name: customerName || '',
+          phone: customerPhone || '',
+          partnerName: manager || '파트너',
+          source: source || 'B2B_LANDING',
+          createdAt: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
+          notes: notes || '',
+        }).catch((err: any) => {
+          console.error('[Partner Customers] B2B 백업 실패:', err);
+        });
+      }).catch((err: any) => {
+        console.warn('[Partner Customers] B2B 백업 모듈 로드 실패:', err);
+      });
+    }
+
     return NextResponse.json({
       ok: true,
       customer: {

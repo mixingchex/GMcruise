@@ -359,24 +359,48 @@ export default function B2BProspectDetailModal({ prospectId, prospectType, isOpe
         formData.append('prospectType', prospectType);
         const uploadUrl = apiBasePath === 'partner' ? '/api/partner/upload/audio' : '/api/admin/upload/audio';
 
-        console.log('[B2BProspectDetailModal] Uploading audio file:', audioFile.name);
+        console.log('[B2BProspectDetailModal] Uploading audio file:', audioFile.name, 'size:', audioFile.size);
 
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'POST',
-          body: formData,
-          credentials: 'include',
-        });
-        const uploadData = await uploadRes.json();
+        try {
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+          });
 
-        console.log('[B2BProspectDetailModal] Audio upload response:', uploadData);
+          console.log('[B2BProspectDetailModal] Upload response status:', uploadRes.status);
 
-        if (uploadData.ok && uploadData.url) {
-          audioUrl = uploadData.url;
-          console.log('[B2BProspectDetailModal] Audio uploaded successfully:', audioUrl);
-        } else {
-          console.error('[B2BProspectDetailModal] Audio upload failed:', uploadData.error);
-          // 업로드 실패 시 사용자에게 알림 (상담기록은 계속 저장)
-          alert(`녹음 파일 업로드 실패: ${uploadData.error || '알 수 없는 오류'}\n상담기록은 녹음 없이 저장됩니다.`);
+          // HTTP 에러 체크 (405, 413 등)
+          if (!uploadRes.ok) {
+            let errorMessage = `HTTP 오류 (${uploadRes.status})`;
+            try {
+              const errorData = await uploadRes.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch {
+              // JSON 파싱 실패 시 기본 메시지 사용
+              if (uploadRes.status === 405) {
+                errorMessage = 'API 메소드가 지원되지 않습니다. 배포 후 다시 시도해주세요.';
+              } else if (uploadRes.status === 413) {
+                errorMessage = '파일 크기가 너무 큽니다. 만능 압축기로 압축 후 다시 시도해주세요.';
+              }
+            }
+            console.error('[B2BProspectDetailModal] Audio upload failed:', errorMessage);
+            alert(`녹음 파일 업로드 실패: ${errorMessage}\n상담기록은 녹음 없이 저장됩니다.`);
+          } else {
+            const uploadData = await uploadRes.json();
+            console.log('[B2BProspectDetailModal] Audio upload response:', uploadData);
+
+            if (uploadData.ok && uploadData.url) {
+              audioUrl = uploadData.url;
+              console.log('[B2BProspectDetailModal] Audio uploaded successfully:', audioUrl);
+            } else {
+              console.error('[B2BProspectDetailModal] Audio upload failed:', uploadData.error);
+              alert(`녹음 파일 업로드 실패: ${uploadData.error || '알 수 없는 오류'}\n상담기록은 녹음 없이 저장됩니다.`);
+            }
+          }
+        } catch (uploadError) {
+          console.error('[B2BProspectDetailModal] Audio upload error:', uploadError);
+          alert(`녹음 파일 업로드 중 오류가 발생했습니다.\n상담기록은 녹음 없이 저장됩니다.`);
         }
       }
 

@@ -5,6 +5,8 @@ import { FiX, FiImage, FiFileText, FiLayers, FiDownload, FiUploadCloud, FiCheckC
 import JSZip from 'jszip';
 import imageCompression from 'browser-image-compression';
 import { showError, showSuccess } from '@/components/ui/Toast';
+// @ts-ignore - lamejs는 타입 정의가 없음
+import lamejs from 'lamejs';
 
 interface CompressorModalProps {
     isOpen: boolean;
@@ -29,11 +31,11 @@ const COMPRESSION_CONFIG = {
 };
 
 // 오디오 압축 설정 (목표: 4.5MB 이하)
-// 샘플레이트와 채널 수로 용량 조절
+// MP3 비트레이트와 샘플레이트로 용량 조절
 const AUDIO_COMPRESSION_CONFIG = {
-    low: { sampleRate: 44100, channels: 2, label: '약하게 (고음질)', description: '44.1kHz 스테레오, 적당한 압축' },
-    medium: { sampleRate: 22050, channels: 1, label: '보통 (권장)', description: '22kHz 모노, 균형 잡힌 압축' },
-    high: { sampleRate: 16000, channels: 1, label: '강하게 (최대 압축)', description: '16kHz 모노, 최대 압축' },
+    low: { bitrate: 128, sampleRate: 44100, channels: 1, label: '약하게 (고음질)', description: '128kbps MP3, 적당한 압축' },
+    medium: { bitrate: 64, sampleRate: 22050, channels: 1, label: '보통 (권장)', description: '64kbps MP3, 균형 잡힌 압축' },
+    high: { bitrate: 32, sampleRate: 16000, channels: 1, label: '강하게 (최대 압축)', description: '32kbps MP3, 최대 압축' },
 };
 
 export default function CompressorModal({ isOpen, onClose }: CompressorModalProps) {
@@ -388,19 +390,11 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         showSuccess(`${processedCount}개 WebP 변환 완료! (평균 ${reduction}% 감소)`);
     };
 
-    // 4. Audio 압축 (M4A, MP3 등 → WebM으로 변환하여 실제 압축)
+    // 4. Audio 압축 (M4A, MP3 등 → MP3로 변환하여 실제 압축)
     const processAudio = async (files: File[]) => {
         setStatusMessage('오디오 압축 중...');
         const config = AUDIO_COMPRESSION_CONFIG[compressionLevel];
         const targetSizeMB = 4.5; // Vercel 업로드 제한
-
-        // 비트레이트 설정 (압축 레벨에 따라)
-        const bitrateMap = {
-            low: 128000,    // 128kbps - 고음질
-            medium: 64000,  // 64kbps - 보통
-            high: 32000,    // 32kbps - 최대 압축
-        };
-        const targetBitrate = bitrateMap[compressionLevel];
 
         const compressAudioFile = async (file: File): Promise<{ blob: Blob; originalSize: number; extension: string }> => {
             return new Promise(async (resolve, reject) => {
@@ -409,7 +403,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                     const arrayBuffer = await file.arrayBuffer();
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
 
-                    // OfflineAudioContext로 오디오 처리
+                    // OfflineAudioContext로 오디오 리샘플링
                     const targetSampleRate = Math.min(audioBuffer.sampleRate, config.sampleRate);
                     const targetChannels = config.channels;
                     const length = Math.floor(audioBuffer.duration * targetSampleRate);
@@ -421,65 +415,41 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                     source.start(0);
 
                     const renderedBuffer = await offlineContext.startRendering();
+                    audioContext.close();
 
-                    // MediaRecorder를 사용하여 WebM/OGG로 압축
-                    const mediaStreamDest = audioContext.createMediaStreamDestination();
-                    const bufferSource = audioContext.createBufferSource();
-                    bufferSource.buffer = renderedBuffer;
-                    bufferSource.connect(mediaStreamDest);
+                    // lamejs를 사용하여 MP3로 인코딩
+                    const mp3encoder = new lamejs.Mp3Encoder(targetChannels, targetSampleRate, config.bitrate);
+                    const mp3Data: Int8Array[] = [];
 
-                    // 지원되는 MIME 타입 확인
-                    const mimeTypes = [
-                        'audio/webm;codecs=opus',
-                        'audio/webm',
-                        'audio/ogg;codecs=opus',
-                        'audio/ogg',
-                    ];
-                    let selectedMime = '';
-                    for (const mime of mimeTypes) {
-                        if (MediaRecorder.isTypeSupported(mime)) {
-                            selectedMime = mime;
-                            break;
+                    // 모노로 변환 (채널 수에 상관없이 모노로 처리)
+                    const samples = renderedBuffer.getChannelData(0);
+                    const sampleBlockSize = 1152; // MP3 프레임 크기
+
+                    // Float32 -> Int16 변환
+                    const int16Samples = new Int16Array(samples.length);
+                    for (let i = 0; i < samples.length; i++) {
+                        const s = Math.max(-1, Math.min(1, samples[i]));
+                        int16Samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                    }
+
+                    // 블록 단위로 인코딩
+                    for (let i = 0; i < int16Samples.length; i += sampleBlockSize) {
+                        const sampleChunk = int16Samples.subarray(i, i + sampleBlockSize);
+                        const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+                        if (mp3buf.length > 0) {
+                            mp3Data.push(new Int8Array(mp3buf));
                         }
                     }
 
-                    if (!selectedMime) {
-                        throw new Error('브라우저가 오디오 압축을 지원하지 않습니다.');
+                    // 마무리
+                    const mp3buf = mp3encoder.flush();
+                    if (mp3buf.length > 0) {
+                        mp3Data.push(new Int8Array(mp3buf));
                     }
 
-                    const chunks: Blob[] = [];
-                    const recorder = new MediaRecorder(mediaStreamDest.stream, {
-                        mimeType: selectedMime,
-                        audioBitsPerSecond: targetBitrate,
-                    });
-
-                    recorder.ondataavailable = (e) => {
-                        if (e.data.size > 0) {
-                            chunks.push(e.data);
-                        }
-                    };
-
-                    recorder.onstop = () => {
-                        const extension = selectedMime.includes('webm') ? 'webm' : 'ogg';
-                        const compressedBlob = new Blob(chunks, { type: selectedMime });
-                        resolve({ blob: compressedBlob, originalSize: file.size, extension });
-                    };
-
-                    recorder.onerror = (e) => {
-                        reject(new Error('녹음 중 오류가 발생했습니다.'));
-                    };
-
-                    // 녹음 시작
-                    recorder.start();
-                    bufferSource.start(0);
-
-                    // 오디오 재생 완료 후 녹음 중지
-                    bufferSource.onended = () => {
-                        setTimeout(() => {
-                            recorder.stop();
-                            audioContext.close();
-                        }, 100);
-                    };
+                    // Blob 생성
+                    const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                    resolve({ blob, originalSize: file.size, extension: 'mp3' });
 
                 } catch (error) {
                     reject(error);
