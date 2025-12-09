@@ -99,12 +99,21 @@ interface CustomerBackupData {
   managerName: string;
   managerPosition: string;
   managerPhone: string | null;
+  // 담당자 (계약서상 이름)
+  contractAgentName: string | null;
+  // 여권 관련 정보
+  passportGroupLink: string | null;
+  passportStatus: string | null;
+  // 여행자 여권 정보 (대표자)
+  travelerPassportNo: string | null;
+  travelerPassportImage: string | null;
+  travelerPassportExpiry: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 /**
- * 모든 고객 데이터를 가져와서 뱃지, 담당자 정보 포함
+ * 모든 고객 데이터를 가져와서 뱃지, 담당자 정보, 여권 정보 포함
  */
 async function getAllCustomersWithDetails(): Promise<CustomerBackupData[]> {
   const users = await prisma.user.findMany({
@@ -122,9 +131,22 @@ async function getAllCustomersWithDetails(): Promise<CustomerBackupData[]> {
                   displayName: true,
                   type: true,
                   contactPhone: true,
+                  // 계약서상 이름 (legalName)
+                  legalName: true,
                 },
               },
             },
+          },
+          // 여행자 정보 (여권 포함)
+          Traveler: {
+            select: {
+              passportNo: true,
+              passportImage: true,
+              expiryDate: true,
+              korName: true,
+            },
+            take: 1,
+            orderBy: { id: 'asc' },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -155,6 +177,9 @@ async function getAllCustomersWithDetails(): Promise<CustomerBackupData[]> {
     const latestReservation = user.Reservation[0];
     const agentProfile = latestReservation?.AffiliateSale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile;
 
+    // 대표 여행자 정보
+    const mainTraveler = latestReservation?.Traveler?.[0];
+
     result.push({
       id: user.id,
       name: user.name || '-',
@@ -167,6 +192,15 @@ async function getAllCustomersWithDetails(): Promise<CustomerBackupData[]> {
       managerName: agentProfile?.displayName || '-',
       managerPosition: getPositionLabel(agentProfile?.type || null),
       managerPhone: agentProfile?.contactPhone || null,
+      // 계약서상 이름 (legalName) 또는 예약의 agentName
+      contractAgentName: (agentProfile as any)?.legalName || latestReservation?.agentName || null,
+      // 여권 관련 정보
+      passportGroupLink: latestReservation?.passportGroupLink || null,
+      passportStatus: latestReservation?.passportStatus || null,
+      // 여행자 여권 정보
+      travelerPassportNo: mainTraveler?.passportNo || null,
+      travelerPassportImage: mainTraveler?.passportImage || null,
+      travelerPassportExpiry: mainTraveler?.expiryDate || null,
       createdAt: user.createdAt ? new Date(user.createdAt).toLocaleString('ko-KR') : '-',
       updatedAt: user.updatedAt ? new Date(user.updatedAt).toLocaleString('ko-KR') : '-',
     });
@@ -839,5 +873,190 @@ export async function runFullCustomerBackup(): Promise<{
       summary: { totalCustomers: 0, badgeCounts: {}, managerCounts: {}, consultationCount: 0, consultationByManagerCounts: {} },
       error: error.message,
     };
+  }
+}
+
+// 여행 예약 백업용 스프레드시트 ID
+const RESERVATION_BACKUP_SPREADSHEET_ID = '1Le6IPNzyvMqpn-6ZnqgvH0JTQ8O5rKymWMU_pkfbQ5Q';
+
+/**
+ * 여행 예약 + 여행자(여권) 정보를 스프레드시트에 백업
+ * 양식: 순번, 예약일(구매일), 예약번호(상품코드), 상품명, 출발일, 카테고리(PNR객실),
+ *       영문성, 영문이름, 성명, 주민번호, 성별, 생년월일, 여권번호, 여권생성일, 여권만료일,
+ *       고객연락처, 항공, 결제일, 결제방법, 결제금액, 연결담당자, 최종수정자, 최종수정일시, 비고, 여권링크
+ */
+export async function backupReservationsToSheet(): Promise<{
+  ok: boolean;
+  totalCount: number;
+  error?: string;
+}> {
+  try {
+    // 모든 예약 + 여행자 정보 조회
+    const reservations = await prisma.reservation.findMany({
+      include: {
+        User: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
+        Trip: {
+          select: {
+            productCode: true,
+            shipName: true,
+            departureDate: true,
+          },
+        },
+        AffiliateSale: {
+          include: {
+            AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile: {
+              select: {
+                displayName: true,
+                legalName: true,
+                type: true,
+              },
+            },
+            Payment: {
+              select: {
+                paidAt: true,
+              },
+            },
+          },
+        },
+        Traveler: {
+          orderBy: { roomNumber: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (reservations.length === 0) {
+      return { ok: true, totalCount: 0 };
+    }
+
+    const auth = getGoogleAuth();
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const sheetName = '예약목록';
+
+    // 헤더 (지정된 양식)
+    const header = [
+      '순번', '예약일', '예약번호', '상품명', '출발일', '카테고리',
+      '영문성', '영문이름', '성명', '주민번호', '성별', '생년월일',
+      '여권번호', '여권생성일', '여권만료일', '고객연락처',
+      '항공', '결제일', '결제방법', '결제금액',
+      '연결담당자', '최종수정자', '최종수정일시', '비고', '여권링크'
+    ];
+
+    const rows: string[][] = [];
+    let rowNum = 1;
+
+    for (const reservation of reservations) {
+      const travelers = reservation.Traveler || [];
+      const agent = reservation.AffiliateSale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile;
+      const sale = reservation.AffiliateSale;
+
+      // 담당자 이름 (계약서상 이름 또는 표시명)
+      const agentName = (agent as any)?.legalName || agent?.displayName || reservation.agentName || '-';
+
+      // 구매일 (결제일 우선, 없으면 saleDate, 없으면 예약생성일)
+      const purchaseDate = sale?.Payment?.paidAt
+        ? new Date(sale.Payment.paidAt).toLocaleDateString('ko-KR')
+        : sale?.saleDate
+          ? new Date(sale.saleDate).toLocaleDateString('ko-KR')
+          : reservation.createdAt
+            ? new Date(reservation.createdAt).toLocaleDateString('ko-KR')
+            : '';
+
+      // 상품코드
+      const productCode = reservation.Trip?.productCode || '';
+
+      // 여행자가 없으면 예약 정보만 한 줄로
+      if (travelers.length === 0) {
+        rows.push([
+          rowNum.toString(),
+          purchaseDate, // 예약일 = 구매일
+          productCode, // 예약번호 = 상품코드
+          reservation.Trip?.shipName || '', // 상품명
+          reservation.Trip?.departureDate ? new Date(reservation.Trip.departureDate).toLocaleDateString('ko-KR') : '', // 출발일
+          reservation.cabinType || '', // 카테고리 = PNR 객실유형
+          '', // 영문성
+          '', // 영문이름
+          reservation.User?.name || '', // 성명
+          '', // 주민번호
+          '', // 성별
+          '', // 생년월일
+          '', // 여권번호
+          '', // 여권생성일
+          '', // 여권만료일
+          reservation.User?.phone || '', // 고객연락처
+          (reservation as any).airlineName || '', // 항공
+          reservation.paymentDate ? new Date(reservation.paymentDate).toLocaleDateString('ko-KR') : '', // 결제일
+          reservation.paymentMethod || '', // 결제방법
+          reservation.paymentAmount?.toString() || '', // 결제금액
+          agentName, // 연결담당자
+          (reservation as any).lastModifiedByName || '', // 최종수정자
+          reservation.updatedAt ? new Date(reservation.updatedAt).toLocaleString('ko-KR') : '', // 최종수정일시
+          reservation.remarks || '', // 비고
+          reservation.passportGroupLink || '', // 여권링크
+        ]);
+        rowNum++;
+      } else {
+        // 각 여행자별로 한 줄씩
+        for (const traveler of travelers) {
+          // 카테고리: cabinType + roomNumber (예: 인사이드1)
+          const cabinCategory = reservation.cabinType
+            ? `${reservation.cabinType}${traveler.roomNumber || ''}`
+            : traveler.roomNumber?.toString() || '';
+
+          rows.push([
+            rowNum.toString(),
+            purchaseDate, // 예약일 = 구매일
+            productCode, // 예약번호 = 상품코드
+            reservation.Trip?.shipName || '', // 상품명
+            reservation.Trip?.departureDate ? new Date(reservation.Trip.departureDate).toLocaleDateString('ko-KR') : '', // 출발일
+            cabinCategory, // 카테고리 = PNR 객실유형 + 번호
+            traveler.engSurname || '', // 영문성
+            traveler.engGivenName || '', // 영문이름
+            traveler.korName || reservation.User?.name || '', // 성명
+            traveler.residentNum || '', // 주민번호
+            traveler.gender === 'M' ? '남' : traveler.gender === 'F' ? '여' : traveler.gender || '', // 성별
+            traveler.birthDate || '', // 생년월일
+            traveler.passportNo || '', // 여권번호
+            traveler.issueDate || '', // 여권생성일
+            traveler.expiryDate || '', // 여권만료일
+            traveler.phone || reservation.User?.phone || '', // 고객연락처
+            (reservation as any).airlineName || '', // 항공
+            reservation.paymentDate ? new Date(reservation.paymentDate).toLocaleDateString('ko-KR') : '', // 결제일
+            reservation.paymentMethod || '', // 결제방법
+            reservation.paymentAmount?.toString() || '', // 결제금액
+            agentName, // 연결담당자
+            (reservation as any).lastModifiedByName || '', // 최종수정자
+            reservation.updatedAt ? new Date(reservation.updatedAt).toLocaleString('ko-KR') : '', // 최종수정일시
+            traveler.notes || reservation.remarks || '', // 비고
+            traveler.passportImage || reservation.passportGroupLink || '', // 여권링크
+          ]);
+          rowNum++;
+        }
+      }
+    }
+
+    const values = [header, ...rows];
+
+    // 시트 데이터 덮어쓰기
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: RESERVATION_BACKUP_SPREADSHEET_ID,
+      range: `'${sheetName}'!A1`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values },
+    });
+
+    console.log(`[Reservation Backup] Successfully backed up ${rows.length} travelers from ${reservations.length} reservations to "${sheetName}" sheet`);
+
+    return { ok: true, totalCount: rows.length };
+  } catch (error: any) {
+    console.error('[Reservation Backup] Failed:', error);
+    return { ok: false, totalCount: 0, error: error.message };
   }
 }

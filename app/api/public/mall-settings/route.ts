@@ -1,8 +1,8 @@
 // app/api/public/mall-settings/route.ts
 // 메인몰 설정 공개 API (인증 불필요)
 
-// 성능 최적화: 30분 캐싱 (몰 설정은 자주 변경되지 않음)
-export const revalidate = 1800; // 30분
+// 동적 API로 설정 (req.url 사용)
+export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';

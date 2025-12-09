@@ -1,9 +1,13 @@
 // lib/certificate-generator.ts
-// 구매확인증서 PNG 이미지 생성 (Vercel 서버리스 호환 - Satori 사용)
+// 구매확인증서 PNG 이미지 생성 (Puppeteer 사용 - 한글 폰트 지원)
 // 관리자 패널 Certificate.tsx와 동일한 양식
 
-import satori from 'satori';
-import { Resvg } from '@resvg/resvg-js';
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
+import { existsSync } from 'fs';
+
+// 환경 감지 - Vercel 서버리스 환경인지 확인
+const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
 
 interface ProductDetails {
   tags?: string[];
@@ -34,41 +38,10 @@ interface CertificateData {
   productDetails?: ProductDetails;
 }
 
-// 폰트 캐시
-let fontCache: ArrayBuffer | null = null;
-
 /**
- * 폰트 데이터 로드 (캐싱)
+ * 구매확인서 HTML 생성
  */
-async function loadFont(): Promise<ArrayBuffer> {
-  if (fontCache) {
-    return fontCache;
-  }
-
-  // Pretendard 폰트 사용 (CDN에서 로드)
-  const fontUrl = 'https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/woff2/Pretendard-Regular.woff2';
-
-  try {
-    const response = await fetch(fontUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch font: ${response.status}`);
-    }
-    fontCache = await response.arrayBuffer();
-    return fontCache;
-  } catch (error) {
-    console.error('[Certificate Generator] Font load error:', error);
-    // 폴백: 기본 폰트 사용 시 에러 발생하므로 Noto Sans KR 시도
-    const fallbackUrl = 'https://fonts.gstatic.com/s/notosanskr/v36/PbyxFmXiEBPT4ITbgNA5Cgms3VYcOA-vvnIzzuozeLTq8H4hfeE.woff2';
-    const fallbackResponse = await fetch(fallbackUrl);
-    fontCache = await fallbackResponse.arrayBuffer();
-    return fontCache;
-  }
-}
-
-/**
- * 구매확인서 React Element 생성 (Satori용)
- */
-function generateCertificateElement(data: CertificateData) {
+function generateCertificateHTML(data: CertificateData): string {
   const formattedAmount = data.paymentAmount.toLocaleString('ko-KR');
   const now = new Date();
   const issueDate = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`;
@@ -77,17 +50,11 @@ function generateCertificateElement(data: CertificateData) {
   // 상품 상세 정보 행들
   const detailRows: { label: string; value: string }[] = [];
   if (pd) {
-    if (pd.tags && pd.tags.length > 0) {
-      detailRows.push({ label: '후킹태그', value: pd.tags.join(', ') });
-    }
-    if (pd.visitedCountries && pd.visitedCountries.length > 0) {
-      detailRows.push({ label: '방문국가', value: pd.visitedCountries.join(', ') });
-    }
     if (pd.destinations && pd.destinations.length > 0) {
       detailRows.push({ label: '목적지', value: pd.destinations.join(', ') });
     }
     if (pd.nights || pd.days) {
-      detailRows.push({ label: '여행기간', value: `${pd.nights || 0}박 ${pd.days || 0}일` });
+      detailRows.push({ label: '여행기간', value: `${pd.nights || 0}박 ${pd.days || (pd.nights ? pd.nights + 1 : 0)}일` });
     }
     if (pd.cruiseLine) {
       detailRows.push({ label: '크루즈 회사', value: pd.cruiseLine });
@@ -95,229 +62,295 @@ function generateCertificateElement(data: CertificateData) {
     if (pd.shipName) {
       detailRows.push({ label: '선박명', value: pd.shipName });
     }
-    detailRows.push({ label: '비행기', value: pd.flightIncluded ? '포함' : '불포함' });
-    detailRows.push({ label: '인솔자', value: pd.hasEscort ? '있음' : '없음' });
-    detailRows.push({ label: '가이드', value: pd.hasGuide ? '있음' : '없음' });
-    detailRows.push({ label: '크루즈닷 전용 스탭', value: pd.hasCruiseDotStaff ? '있음' : '없음' });
-    detailRows.push({ label: '여행자 보험', value: pd.hasTravelInsurance ? '포함' : '불포함' });
+    if (pd.flightIncluded !== undefined) {
+      detailRows.push({ label: '비행기', value: pd.flightIncluded ? '포함' : '불포함' });
+    }
   }
 
-  // Satori JSX 구조 (React.createElement 사용)
-  const h = (type: string, props: Record<string, unknown> | null, ...children: unknown[]) => ({
-    type,
-    props: { ...props, children: children.length === 1 ? children[0] : children },
-  });
+  const detailRowsHTML = detailRows.length > 0
+    ? `<tr>
+        <td class="label-cell">상품 상세</td>
+        <td class="value-cell">
+          ${detailRows.map(r => `<div class="detail-row"><span class="detail-label">${r.label}:</span> ${r.value}</div>`).join('')}
+        </td>
+      </tr>`
+    : '';
 
-  // 테이블 행 생성 헬퍼
-  const tableRow = (label: string, value: string, bold = false) =>
-    h('div', {
-      style: {
-        display: 'flex',
-        borderBottom: '1px solid #d1d5db',
-        width: '100%',
-      },
-    },
-      h('div', {
-        style: {
-          padding: '8px 12px',
-          fontWeight: 600,
-          color: '#111827',
-          backgroundColor: '#f9fafb',
-          width: '25%',
-          fontSize: 14,
-        },
-      }, label),
-      h('div', {
-        style: {
-          padding: '8px 12px',
-          color: '#111827',
-          fontWeight: bold ? 700 : 400,
-          width: '75%',
-          fontSize: 14,
-        },
-      }, value)
-    );
+  return `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+      background: #fff;
+      width: 800px;
+      min-height: 1100px;
+      padding: 60px 80px;
+    }
+    .certificate {
+      display: flex;
+      flex-direction: column;
+      min-height: 980px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: #111827;
+      margin-bottom: 5px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #d1d5db;
+      margin-bottom: 20px;
+    }
+    .info-table tr {
+      border-bottom: 1px solid #d1d5db;
+    }
+    .info-table tr:last-child {
+      border-bottom: none;
+    }
+    .label-cell {
+      background: #f9fafb;
+      padding: 12px 16px;
+      font-weight: 600;
+      color: #374151;
+      width: 25%;
+      font-size: 14px;
+      border-right: 1px solid #d1d5db;
+    }
+    .value-cell {
+      padding: 12px 16px;
+      color: #111827;
+      font-size: 14px;
+    }
+    .value-cell.amount {
+      font-weight: 700;
+      font-size: 18px;
+      color: #1d4ed8;
+    }
+    .detail-row {
+      margin-bottom: 4px;
+    }
+    .detail-row:last-child {
+      margin-bottom: 0;
+    }
+    .detail-label {
+      font-weight: 500;
+      color: #6b7280;
+    }
+    .footer {
+      margin-top: auto;
+      padding-top: 40px;
+    }
+    .issue-date {
+      text-align: right;
+      font-size: 14px;
+      color: #374151;
+      margin-bottom: 20px;
+    }
+    .company-section {
+      text-align: right;
+      margin-bottom: 30px;
+    }
+    .company-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 5px;
+    }
+    .seal {
+      display: inline-block;
+      width: 60px;
+      height: 60px;
+      border: 2px solid #dc2626;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 56px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #dc2626;
+      margin-left: 10px;
+    }
+    .slogan {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 13px;
+      color: #9ca3af;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="certificate">
+    <div class="header">
+      <h1 class="title">구 매 확 인 증 서</h1>
+      <p class="subtitle">Purchase Certificate</p>
+    </div>
 
-  return h('div', {
-    style: {
-      width: '800px',
-      minHeight: '1100px',
-      backgroundColor: 'white',
-      padding: '60px 80px',
-      display: 'flex',
-      flexDirection: 'column',
-      fontFamily: 'Pretendard',
-    },
-  },
-    // 제목
-    h('div', {
-      style: {
-        display: 'flex',
-        justifyContent: 'center',
-        marginBottom: '24px',
-      },
-    },
-      h('div', {
-        style: {
-          fontSize: 28,
-          fontWeight: 700,
-          color: '#111827',
-          letterSpacing: '0.05em',
-        },
-      }, '구 매 확 인 증 서')
-    ),
+    <table class="info-table">
+      <tr>
+        <td class="label-cell">성명</td>
+        <td class="value-cell">${data.customerName || '(고객명)'}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">생년월일</td>
+        <td class="value-cell">${data.birthDate || '-'}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">상품명</td>
+        <td class="value-cell">${data.productName || '(상품명)'}</td>
+      </tr>
+      ${detailRowsHTML}
+      <tr>
+        <td class="label-cell">결제금액</td>
+        <td class="value-cell amount">${formattedAmount}원</td>
+      </tr>
+      <tr>
+        <td class="label-cell">결제일자</td>
+        <td class="value-cell">${data.paymentDate || '-'}</td>
+      </tr>
+      <tr>
+        <td class="label-cell">주문번호</td>
+        <td class="value-cell">${data.orderId}</td>
+      </tr>
+      ${data.managerName ? `
+      <tr>
+        <td class="label-cell">담당자</td>
+        <td class="value-cell">${data.managerName}</td>
+      </tr>` : ''}
+    </table>
 
-    // 정보 테이블
-    h('div', {
-      style: {
-        display: 'flex',
-        flexDirection: 'column',
-        borderTop: '1px solid #d1d5db',
-        marginBottom: '16px',
-      },
-    },
-      tableRow('성명', data.customerName || '(고객명)'),
-      tableRow('생년월일', data.birthDate || '(생년월일)'),
-      tableRow('상품명', data.productName || '(상품명)'),
-      // 상품 상세 정보 (있을 경우)
-      ...(detailRows.length > 0
-        ? [h('div', {
-            style: {
-              display: 'flex',
-              borderBottom: '1px solid #d1d5db',
-              width: '100%',
-            },
-          },
-            h('div', {
-              style: {
-                padding: '8px 12px',
-                fontWeight: 600,
-                color: '#111827',
-                backgroundColor: '#f9fafb',
-                width: '25%',
-                fontSize: 14,
-              },
-            }, '상품 상세 정보'),
-            h('div', {
-              style: {
-                padding: '8px 12px',
-                color: '#111827',
-                width: '75%',
-                fontSize: 12,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              },
-            }, ...detailRows.map(row =>
-              h('div', { style: { display: 'flex' } },
-                h('span', { style: { fontWeight: 500, marginRight: '8px' } }, `${row.label}:`),
-                h('span', {}, row.value)
-              )
-            ))
-          )]
-        : []),
-      tableRow('결제금액', `${formattedAmount}원`, true),
-      tableRow('결제일자', data.paymentDate || '(결제일자)'),
-      tableRow('주문번호', data.orderId),
-      ...(data.managerName ? [tableRow('담당자', data.managerName)] : [])
-    ),
-
-    // 하단 영역 (발행일 및 서명)
-    h('div', {
-      style: {
-        marginTop: 'auto',
-        paddingTop: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-      },
-    },
-      // 발행일
-      h('div', {
-        style: {
-          display: 'flex',
-          justifyContent: 'flex-end',
-          fontSize: 14,
-          color: '#111827',
-          marginBottom: '16px',
-        },
-      }, issueDate),
-
-      // 서명
-      h('div', {
-        style: {
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: '16px',
-        },
-      },
-        h('div', {
-          style: {
-            fontSize: 14,
-            color: '#111827',
-          },
-        }, '크루즈닷 대표이사 [인]')
-      ),
-
-      // 슬로건
-      h('div', {
-        style: {
-          display: 'flex',
-          justifyContent: 'center',
-          paddingTop: '16px',
-          borderTop: '1px solid #e5e7eb',
-          fontSize: 14,
-          color: '#6b7280',
-          fontStyle: 'italic',
-        },
-      }, '크루즈 첫여행 크루즈닷, 두번째 부터 행복하게 크루즈닷 감사합니다')
-    )
-  );
+    <div class="footer">
+      <div class="issue-date">${issueDate}</div>
+      <div class="company-section">
+        <span class="company-name">크루즈닷 대표이사</span>
+        <span class="seal">인</span>
+      </div>
+      <div class="slogan">크루즈 첫여행 크루즈닷, 두번째 부터 행복하게 크루즈닷 감사합니다</div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
 }
 
 /**
  * Generates a PNG image of the certificate.
- * Uses Satori + Resvg for serverless compatibility (no Puppeteer required).
+ * Uses Puppeteer for proper Korean font rendering.
  */
 export async function generateCertificatePng(data: CertificateData): Promise<Buffer> {
+  let browser;
+
   try {
-    // 폰트 로드
-    const fontData = await loadFont();
+    console.log('[Certificate Generator] Starting browser launch...', { isVercel });
 
-    // React Element 생성
-    const element = generateCertificateElement(data);
+    if (isVercel) {
+      // Vercel 서버리스 환경: @sparticuz/chromium 사용
+      const executablePath = await chromium.executablePath();
+      console.log('[Certificate Generator] Using chromium executable:', executablePath);
 
-    // SVG 생성 (Satori)
-    const svg = await satori(element as React.ReactNode, {
-      width: 800,
-      height: 1100,
-      fonts: [
-        {
-          name: 'Pretendard',
-          data: fontData,
-          weight: 400,
-          style: 'normal',
-        },
-      ],
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: { width: 800, height: 1100 },
+        executablePath,
+        headless: true,
+      });
+    } else {
+      // 로컬 개발 환경: 시스템 Chrome 사용
+      const possiblePaths = [
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        process.env.CHROME_PATH,
+      ].filter(Boolean);
+
+      let executablePath: string | undefined;
+      for (const path of possiblePaths) {
+        if (path && existsSync(path)) {
+          executablePath = path;
+          break;
+        }
+      }
+
+      if (!executablePath) {
+        throw new Error('Chrome/Chromium 브라우저를 찾을 수 없습니다. 로컬 환경에서 Chrome을 설치해주세요.');
+      }
+
+      console.log('[Certificate Generator] Using local Chrome:', executablePath);
+
+      browser = await puppeteerCore.launch({
+        headless: true,
+        executablePath,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu',
+        ],
+      });
+    }
+
+    console.log('[Certificate Generator] Browser launched successfully');
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 800, height: 1100, deviceScaleFactor: 2 });
+
+    // 한글 폰트 지원 설정
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'ko-KR,ko;q=0.9',
     });
 
-    // PNG 변환 (Resvg)
-    const resvg = new Resvg(svg, {
-      background: 'white',
-      fitTo: {
-        mode: 'width',
-        value: 1600, // 2x resolution for quality
-      },
+    // HTML 생성 및 로드
+    const html = generateCertificateHTML(data);
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+
+    // 폰트 로드 대기
+    await page.evaluateHandle(() => document.fonts.ready);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 스크린샷으로 PNG 생성
+    const screenshot = await page.screenshot({
+      type: 'png',
+      fullPage: true,
+      omitBackground: false,
     });
 
-    const pngData = resvg.render();
-    const pngBuffer = pngData.asPng();
+    console.log(`[Certificate Generator] PNG generated successfully (${screenshot.length} bytes)`);
+    return Buffer.from(screenshot);
 
-    console.log(`[Certificate Generator] PNG generated successfully (${pngBuffer.length} bytes)`);
-    return Buffer.from(pngBuffer);
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('[Certificate Generator] Error:', error);
     throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 }
 

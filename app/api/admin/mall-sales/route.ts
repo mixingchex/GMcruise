@@ -32,6 +32,7 @@ async function verifyAdmin() {
 const STATUS_LABELS: Record<string, string> = {
   pending: '대기중',
   paid: '결제완료',
+  completed: '결제완료',
   cancelled: '환불완료',
   failed: '결제실패',
 };

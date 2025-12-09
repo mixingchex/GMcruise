@@ -630,7 +630,7 @@ export default function MallSalesPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      {p.status === 'paid' && (
+                      {(p.status === 'paid' || p.status === 'completed') && (
                         <button
                           onClick={() => openRefundModal(p)}
                           className="px-2 py-1 bg-red-50 text-red-600 hover:bg-red-100 text-xs font-medium rounded border border-red-200"

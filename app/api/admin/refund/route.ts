@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 결제 완료 상태가 아니면 취소 불가
-    if (payment.status !== 'paid') {
+    // 결제 완료 상태가 아니면 취소 불가 (paid 또는 completed)
+    if (payment.status !== 'paid' && payment.status !== 'completed') {
       return NextResponse.json(
         { ok: false, error: `결제 상태가 '${payment.status}'이므로 취소할 수 없습니다.` },
         { status: 400 }
@@ -324,7 +324,20 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const canRefund = payment.status === 'paid' && !payment.cancelledAt && !!payment.pgTransactionId;
+    // paid 또는 completed 상태에서 환불 가능
+    const canRefund = (payment.status === 'paid' || payment.status === 'completed') && !payment.cancelledAt && !!payment.pgTransactionId;
+
+    // 상태 한글 변환
+    const getStatusLabel = (status: string) => {
+      const labels: Record<string, string> = {
+        'paid': '결제완료',
+        'completed': '결제완료',
+        'pending': '대기중',
+        'cancelled': '환불완료',
+        'failed': '결제실패',
+      };
+      return labels[status] || status;
+    };
 
     return NextResponse.json({
       ok: true,
@@ -333,6 +346,7 @@ export async function GET(req: NextRequest) {
         orderId: payment.orderId,
         amount: payment.amount,
         status: payment.status,
+        statusLabel: getStatusLabel(payment.status),
         buyerName: payment.buyerName,
         buyerTel: payment.buyerTel,
         productName: payment.productName,
@@ -352,8 +366,8 @@ export async function GET(req: NextRequest) {
       refundDisabledReason: !canRefund
         ? payment.cancelledAt
           ? '이미 환불된 결제입니다.'
-          : payment.status !== 'paid'
-            ? `결제 상태가 '${payment.status}'입니다.`
+          : (payment.status !== 'paid' && payment.status !== 'completed')
+            ? `결제 상태가 '${getStatusLabel(payment.status)}'입니다.`
             : 'PG 거래번호가 없습니다.'
         : null,
     });

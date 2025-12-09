@@ -43,6 +43,7 @@ import SmsConfigModal from '@/components/partner/SmsConfigModal';
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 // CustomerNoteModal 삭제됨 - 고객 상세 패널의 상담기록으로 통합
 import ProductInquiryCustomerTable from '@/components/admin/ProductInquiryCustomerTable';
+import FinalConfirmSection from '@/components/partner/FinalConfirmSection';
 
 type LeadStatusOption = {
   value: string;
@@ -3621,6 +3622,15 @@ export default function PartnerCustomersClient({
                           문자 보내기
                         </button>
                       </div>
+                    </div>
+
+                    {/* 최종확인 섹션 */}
+                    <div className="mt-6 pt-6 border-t-2 border-slate-200">
+                      <FinalConfirmSection
+                        leadId={selectedLeadId}
+                        customerName={selectedLead.customerName || '고객'}
+                        onStatusChange={() => loadLeadDetail(selectedLeadId)}
+                      />
                     </div>
                   </div>
 

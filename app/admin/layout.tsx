@@ -172,6 +172,7 @@ function AdminLayoutContent({
     // 어필리에이트 - 판매/정산
     { href: '/admin/affiliate/products', label: '수당 설정', icon: '🤝', section: 'affiliate-sales' },
     { href: '/admin/affiliate/sales-confirmation/pending', label: '판매 확정 승인', icon: '✅', section: 'affiliate-sales' },
+    { href: '/admin/final-confirm', label: '최종확인 관리', icon: '📋', section: 'affiliate-sales' },
     { href: '/admin/affiliate/settlements', label: '정산 대시보드', icon: '💰', section: 'affiliate-sales' },
     { href: '/admin/affiliate/statements', label: '지급명세서', icon: '📋', section: 'affiliate-sales' },
     { href: '/admin/affiliate/refunds', label: '환불 처리', icon: '↩️', section: 'affiliate-sales' },

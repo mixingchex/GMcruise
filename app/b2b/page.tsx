@@ -1,8 +1,6 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '@/lib/prisma';
 import B2BLandingClient from './[partnerId]/B2BLandingClient';
 import { DEFAULT_B2B_LANDING_TEMPLATE } from '../../lib/constants/b2b-landing-template';
-
-const prisma = new PrismaClient();
 
 export default async function B2BLandingPage() {
     let template = DEFAULT_B2B_LANDING_TEMPLATE;

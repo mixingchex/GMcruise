@@ -1,8 +1,8 @@
 // app/api/public/reviews/route.ts
 // 공개 리뷰 API (메인페이지용)
 
-// 성능 최적화: 30분 캐싱 (리뷰는 자주 변경되지 않음)
-export const revalidate = 1800; // 30분
+// 동적 API로 설정 (req.url 사용)
+export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';

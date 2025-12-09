@@ -892,6 +892,9 @@ model CruiseProduct {
   saleStatus         String              @default("판매중")
   startDate          DateTime?
   endDate            DateTime?
+  // 항공 정보
+  airlineName        String?
+  airlineCode        String?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime
   AffiliateProduct   AffiliateProduct[]
@@ -2068,6 +2071,21 @@ model Reservation {
   pnrStatus         String         @default("PENDING")
   status            String         @default("CONFIRMED")
   updatedAt         DateTime       @default(now()) @updatedAt
+  // 항공 정보
+  airlineName       String?
+  airlineCode       String?
+  // 최종확인 관련
+  finalConfirmStatus    String     @default("PENDING")
+  finalConfirmRequestedAt DateTime?
+  finalConfirmRequestedById Int?
+  finalConfirmApprovedAt DateTime?
+  finalConfirmApprovedById Int?
+  finalConfirmRejectedAt DateTime?
+  finalConfirmRejectedById Int?
+  finalConfirmRejectionReason String?
+  finalConfirmAudioUrl  String?
+  finalConfirmAudioDriveUrl String?
+  lastModifiedByName    String?
   AffiliateSale     AffiliateSale? @relation(fields: [affiliateSaleId], references: [id])
   User              User           @relation(fields: [mainUserId], references: [id])
   Trip              Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
@@ -2078,6 +2096,7 @@ model Reservation {
   @@index([tripId])
   @@index([status])
   @@index([pnrStatus])
+  @@index([finalConfirmStatus])
 }
 
 model ScheduledMessage {

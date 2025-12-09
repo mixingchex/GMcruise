@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { uploadFileToDrive } from '@/lib/google-drive';
 import { findOrCreateFolder } from '@/lib/google-drive';
 import dayjs from 'dayjs';
+import { backupReservationsToSheet, runFullCustomerBackup } from '@/lib/google/customer-backup';
 
 /**
  * 데이터베이스 백업 스케줄러
@@ -252,11 +253,44 @@ export async function runDatabaseBackup(): Promise<BackupLog> {
 }
 
 /**
- * 수동 실행용 함수
+ * 수동 실행용 함수 (DB 백업 + 고객 백업 + 예약 백업)
  */
-export async function manualRunDatabaseBackup(): Promise<BackupLog> {
+export async function manualRunDatabaseBackup(): Promise<BackupLog & {
+  customerBackup?: any;
+  reservationBackup?: any;
+}> {
   console.log('[Database Backup] Manual backup triggered');
-  return await runDatabaseBackup();
+
+  // 1. DB 테이블 백업
+  const dbResult = await runDatabaseBackup();
+
+  // 2. 고객 정보 스프레드시트 백업
+  let customerBackupResult = null;
+  try {
+    console.log('[Database Backup] Starting customer spreadsheet backup...');
+    customerBackupResult = await runFullCustomerBackup();
+    console.log('[Database Backup] Customer backup completed:', customerBackupResult);
+  } catch (error: any) {
+    console.error('[Database Backup] Customer backup failed:', error);
+    customerBackupResult = { ok: false, error: error.message };
+  }
+
+  // 3. 여행 예약 + 여권 스프레드시트 백업
+  let reservationBackupResult = null;
+  try {
+    console.log('[Database Backup] Starting reservation spreadsheet backup...');
+    reservationBackupResult = await backupReservationsToSheet();
+    console.log('[Database Backup] Reservation backup completed:', reservationBackupResult);
+  } catch (error: any) {
+    console.error('[Database Backup] Reservation backup failed:', error);
+    reservationBackupResult = { ok: false, error: error.message };
+  }
+
+  return {
+    ...dbResult,
+    customerBackup: customerBackupResult,
+    reservationBackup: reservationBackupResult,
+  };
 }
 
 /**

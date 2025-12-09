@@ -166,7 +166,7 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const { id, isApproved } = await req.json();
+    const { id, isApproved, content } = await req.json();
 
     if (!id) {
       return NextResponse.json(
@@ -175,12 +175,21 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // 업데이트할 데이터 구성
+    const updateData: { isApproved?: boolean; content?: string } = {};
+
+    if (isApproved !== undefined) {
+      updateData.isApproved = isApproved;
+    }
+
+    if (content !== undefined) {
+      updateData.content = content;
+    }
+
     // 후기 업데이트 (CruiseReview 모델)
     const updated = await prisma.cruiseReview.update({
       where: { id },
-      data: {
-        isApproved: isApproved !== undefined ? isApproved : undefined,
-      },
+      data: updateData,
     });
 
     return NextResponse.json(

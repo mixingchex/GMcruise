@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { FiArrowLeft, FiUser, FiCalendar, FiStar, FiEdit, FiTrash2, FiClock, FiCheckCircle } from 'react-icons/fi';
+import { FiEdit, FiTrash2 } from 'react-icons/fi';
 import Image from 'next/image'; // Added missing import for Image
 
 interface Review {
@@ -23,7 +22,9 @@ export default function AdminFeedback() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [adminNotes, setAdminNotes] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedReviewText, setEditedReviewText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadReviews();
@@ -53,20 +54,61 @@ export default function AdminFeedback() {
 
   // 승인 기능 제거 - 모든 후기 자동 승인
 
-  const handleSaveNotes = async (reviewId: number) => {
-    // CruiseReview 모델에는 adminNotes 필드가 없으므로 로컬 상태만 업데이트
-    setReviews(prev => prev.map(review =>
-      review.id === reviewId
-        ? { ...review, adminNotes }
-        : review
-    ));
-    
-    if (selectedReview?.id === reviewId) {
-      setSelectedReview(prev => prev ? { ...prev, adminNotes } : null);
+  // 후기 수정 시작
+  const handleStartEdit = () => {
+    if (selectedReview) {
+      setEditedReviewText(selectedReview.reviewText);
+      setIsEditing(true);
     }
-    
-    setAdminNotes('');
-    alert('메모는 로컬에만 저장됩니다. (DB에 adminNotes 필드가 없습니다)');
+  };
+
+  // 후기 수정 취소
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedReviewText('');
+  };
+
+  // 후기 수정 저장
+  const handleSaveEdit = async () => {
+    if (!selectedReview || !editedReviewText.trim()) {
+      alert('후기 내용을 입력해주세요.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/admin/feedback', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: selectedReview.id,
+          content: editedReviewText.trim(),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || '후기 수정에 실패했습니다');
+      }
+
+      // 로컬 상태 업데이트
+      setReviews(prev => prev.map(review =>
+        review.id === selectedReview.id
+          ? { ...review, reviewText: editedReviewText.trim() }
+          : review
+      ));
+
+      setSelectedReview(prev => prev ? { ...prev, reviewText: editedReviewText.trim() } : null);
+      setIsEditing(false);
+      setEditedReviewText('');
+      alert('후기가 수정되었습니다.');
+    } catch (error) {
+      console.error('Failed to update review:', error);
+      alert(error instanceof Error ? error.message : '후기 수정 중 오류가 발생했습니다');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleExportCSV = () => {
@@ -245,8 +287,47 @@ export default function AdminFeedback() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">후기 내용</label>
-                  <p className="mt-1 text-gray-900 text-sm leading-relaxed">{selectedReview.reviewText}</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">후기 내용</label>
+                    {!isEditing && (
+                      <button
+                        onClick={handleStartEdit}
+                        className="text-blue-600 hover:text-blue-800 text-xs font-medium flex items-center gap-1"
+                      >
+                        <FiEdit className="w-3 h-3" />
+                        수정
+                      </button>
+                    )}
+                  </div>
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editedReviewText}
+                        onChange={(e) => setEditedReviewText(e.target.value)}
+                        className="w-full px-3 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                        rows={5}
+                        placeholder="후기 내용을 입력하세요..."
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSaveEdit}
+                          disabled={isSaving}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:bg-blue-300"
+                        >
+                          {isSaving ? '저장 중...' : '저장'}
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={isSaving}
+                          className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-3 py-1.5 rounded text-sm font-medium transition-colors disabled:bg-gray-200"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-gray-900 text-sm leading-relaxed">{selectedReview.reviewText}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -273,42 +354,15 @@ export default function AdminFeedback() {
                 </div>
               </div>
               
-              <div className="mt-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">관리자 메모</label>
-                  <textarea
-                    value={adminNotes}
-                    onChange={(e) => setAdminNotes(e.target.value)}
-                    placeholder="관리자 메모를 입력하세요..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-red focus:border-transparent text-sm"
-                    rows={3}
-                  />
-                  <button
-                    onClick={() => handleSaveNotes(selectedReview.id)}
-                    className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                  >
-                    메모 저장
-                  </button>
-                </div>
-                
-                {/* 승인 기능 제거 - 모든 후기 자동 승인 */}
-                
-                {selectedReview.adminNotes && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">저장된 메모</label>
-                    <p className="text-sm text-gray-600">{selectedReview.adminNotes}</p>
-                  </div>
-                )}
-                
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => handleDeleteReview(selectedReview.id)}
-                    className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                  >
-                    <FiTrash2 className="w-4 h-4" />
-                    후기 삭제
-                  </button>
-                </div>
+              {/* 삭제 버튼 */}
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => handleDeleteReview(selectedReview.id)}
+                  className="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <FiTrash2 className="w-4 h-4" />
+                  후기 삭제
+                </button>
               </div>
             </div>
           ) : (
