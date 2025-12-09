@@ -1,4 +1,7 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+// Vercel Serverless Functions에서 body 크기 제한 설정 (최대 4.5MB)
+// Pro plan에서는 더 높은 제한 가능
 
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';

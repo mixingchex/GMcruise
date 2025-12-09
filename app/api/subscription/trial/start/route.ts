@@ -1,28 +1,31 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const fetchCache = 'force-no-store';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import prisma from '@/lib/prisma';
 import { appendB2BLeadToSheet } from '@/lib/google/b2b-backup';
 
-// OPTIONS 핸들러 추가 (CORS preflight)
-export async function OPTIONS() {
+// OPTIONS 핸들러 (CORS preflight) - v2
+export async function OPTIONS(request: NextRequest) {
   return new NextResponse(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     },
   });
 }
 
-// GET 핸들러 추가 (라우트 인식 보장)
-export async function GET() {
+// GET 핸들러 (API 상태 확인) - v2
+export async function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
-    message: 'Subscription Trial API is running',
-    methods: ['POST'],
+    message: 'Subscription Trial Start API v2',
+    timestamp: new Date().toISOString(),
+    methods: ['GET', 'POST', 'OPTIONS'],
   });
 }
 
