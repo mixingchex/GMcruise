@@ -29,7 +29,6 @@ export async function POST(req: NextRequest) {
   try {
     // Lazy import to avoid module loading issues in production
     const prisma = (await import('@/lib/prisma')).default;
-    const { appendB2BLeadToSheet } = await import('@/lib/google/b2b-backup');
     const { name, phone, partnerId, source } = await req.json();
 
     if (!name || !phone) {
@@ -136,19 +135,25 @@ export async function POST(req: NextRequest) {
       });
       console.log('[Subscription Trial] 신규 리드 생성 완료:', newLead.id);
 
-      // Google 스프레드시트에 B2B 잠재고객 백업 (비동기)
+      // Google 스프레드시트에 B2B 잠재고객 백업 (비동기, 선택적)
       const createdAtStr = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-      appendB2BLeadToSheet({
-        name,
-        phone: normalizedPhone,
-        partnerName,
-        source: finalSource,
-        createdAt: createdAtStr,
-        notes: '3일 무료 체험 시작',
-      }).catch(err => {
-        console.error('[Subscription Trial] 스프레드시트 백업 실패:', err);
-      });
+      // googleapis 모듈이 없을 수 있으므로 try-catch로 안전하게 처리
+      try {
+        const { appendB2BLeadToSheet } = await import('@/lib/google/b2b-backup');
+        appendB2BLeadToSheet({
+          name,
+          phone: normalizedPhone,
+          partnerName,
+          source: finalSource,
+          createdAt: createdAtStr,
+          notes: '3일 무료 체험 시작',
+        }).catch(err => {
+          console.error('[Subscription Trial] 스프레드시트 백업 실패:', err);
+        });
+      } catch (sheetErr) {
+        console.warn('[Subscription Trial] 스프레드시트 모듈 로드 실패 (무시됨):', sheetErr);
+      }
 
     } catch (dbError) {
       console.error('[Subscription Trial] DB 저장 실패:', dbError);
