@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.23",
+    "@breezystack/lamejs": "^1.2.7",
     "@google-cloud/storage": "^7.17.3",
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.18.0",
@@ -76,7 +77,6 @@
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^3.0.4",
     "jszip": "^3.10.1",
-    "lamejs": "^1.2.1",
     "lucide-react": "^0.554.0",
     "mime-types": "^2.1.35",
     "nanoid": "^5.1.6",

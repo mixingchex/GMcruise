@@ -12,8 +12,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok:false, error:'messages required' }, { status:400 });
     }
 
-    const text = await askGemini(messages, body?.temperature ?? 0.7);
-    return NextResponse.json({ ok:true, text });
+    const result = await askGemini(messages, body?.temperature ?? 0.7);
+    // askGemini returns { text: string }, extract the text value
+    return NextResponse.json({ ok:true, text: result.text });
   } catch (e:any) {
     return NextResponse.json({ ok:false, error: e?.message || 'AI error' }, { status:500 });
   }

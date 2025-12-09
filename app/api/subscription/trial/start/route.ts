@@ -94,7 +94,8 @@ export async function POST(req: NextRequest) {
             whereClause.OR = [
               { affiliateCode: partnerId },
               { landingSlug: partnerId },
-              { User: { phone: partnerId } }
+              { User: { phone: partnerId } },
+              { User: { mallUserId: partnerId } }  // boss1~boss5 등 mallUserId로 매칭
             ];
           }
 

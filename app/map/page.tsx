@@ -920,6 +920,28 @@ export default function MapPage() {
         requestBody.id = tripData.id;
       }
 
+      // 색상 데이터 처리: TripFormModal에서 선택한 국가별 색상 적용
+      if (tripData.selectedCountriesWithColors && Array.isArray(tripData.selectedCountriesWithColors)) {
+        const newColors: { [key: string]: string } = {};
+        tripData.selectedCountriesWithColors.forEach((item: { englishName: string; color: string }) => {
+          if (item.englishName && item.color) {
+            newColors[item.englishName] = item.color;
+          }
+        });
+
+        if (Object.keys(newColors).length > 0) {
+          setManualColors(prev => {
+            const updated = { ...prev, ...newColors };
+            // localStorage에도 저장
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('countryColors', JSON.stringify(updated));
+            }
+            console.log('[MapPage] 국가별 색상 저장:', newColors);
+            return updated;
+          });
+        }
+      }
+
       // 서버 저장 전에 먼저 로컬에 저장 (오프라인 지원 및 크루즈가이드 지니/3일체험 공유)
       const tripToSave: Trip = {
         id: tripData.id || `local-${Date.now()}`,

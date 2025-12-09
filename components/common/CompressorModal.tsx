@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import imageCompression from 'browser-image-compression';
 import { showError, showSuccess } from '@/components/ui/Toast';
 // @ts-ignore - lamejs는 타입 정의가 없음
-import lamejs from 'lamejs';
+import lamejs from '@breezystack/lamejs';
 
 interface CompressorModalProps {
     isOpen: boolean;
