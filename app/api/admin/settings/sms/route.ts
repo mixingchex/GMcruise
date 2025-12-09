@@ -54,19 +54,24 @@ export async function GET(req: NextRequest) {
       });
     } catch (dbError: any) {
       console.error('[Admin SMS Config GET] Database error:', dbError);
-      // 테이블이 없는 경우 기본값 반환
+      // 테이블이 없는 경우 환경 변수에서 가져오기
       if (dbError?.code === 'P2021' || dbError?.message?.includes('does not exist') || dbError?.message?.includes('no such table')) {
-        console.warn('[Admin SMS Config GET] Table does not exist, returning default config');
+        console.warn('[Admin SMS Config GET] Table does not exist, returning config from env');
+        const envApiKey = process.env.ALIGO_API_KEY || '';
+        const envUserId = process.env.ALIGO_USER_ID || '';
+        const envSenderPhone = process.env.ALIGO_SENDER_PHONE || '';
+        const isConfiguredFromEnv = !!(envApiKey && envUserId && envSenderPhone);
+
         return NextResponse.json({
           ok: true,
           config: {
             provider: 'aligo',
-            apiKey: process.env.ALIGO_API_KEY || '',
-            userId: process.env.ALIGO_USER_ID || '',
-            senderPhone: process.env.ALIGO_SENDER_PHONE || '',
+            apiKey: envApiKey,
+            userId: envUserId,
+            senderPhone: envSenderPhone,
             kakaoSenderKey: process.env.ALIGO_KAKAO_SENDER_KEY || '',
             kakaoChannelId: process.env.ALIGO_KAKAO_CHANNEL_ID || '',
-            isActive: false,
+            isActive: isConfiguredFromEnv,
           },
         });
       }
@@ -75,16 +80,22 @@ export async function GET(req: NextRequest) {
 
     // 설정이 없으면 환경 변수에서 기본값 가져오기
     if (!config) {
+      const envApiKey = process.env.ALIGO_API_KEY || '';
+      const envUserId = process.env.ALIGO_USER_ID || '';
+      const envSenderPhone = process.env.ALIGO_SENDER_PHONE || '';
+      // 환경 변수에 필수 값이 모두 있으면 isActive를 true로 설정
+      const isConfiguredFromEnv = !!(envApiKey && envUserId && envSenderPhone);
+
       return NextResponse.json({
         ok: true,
         config: {
           provider: 'aligo',
-          apiKey: process.env.ALIGO_API_KEY || '',
-          userId: process.env.ALIGO_USER_ID || '',
-          senderPhone: process.env.ALIGO_SENDER_PHONE || '',
+          apiKey: envApiKey,
+          userId: envUserId,
+          senderPhone: envSenderPhone,
           kakaoSenderKey: process.env.ALIGO_KAKAO_SENDER_KEY || '',
           kakaoChannelId: process.env.ALIGO_KAKAO_CHANNEL_ID || '',
-          isActive: false,
+          isActive: isConfiguredFromEnv,
         },
       });
     }
