@@ -136,6 +136,7 @@ export default function B2BProspectsPage() {
         switch (source) {
             case 'test-guide':
             case 'B2B_INFLOW':
+            case 'TRIAL_DASHBOARD':
                 return (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         B2B 유입
@@ -145,6 +146,12 @@ export default function B2BProspectsPage() {
                 return (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                         파트너 B2B 유입
+                    </span>
+                );
+            case 'B2B_LANDING_ADMIN':
+                return (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        본사 B2B 유입
                     </span>
                 );
             default:

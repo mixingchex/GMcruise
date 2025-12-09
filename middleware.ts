@@ -13,6 +13,7 @@ const PUBLIC = [
   '/api/auth/logout',
   '/api/public', // 공개 쇼핑몰 API
   '/api/community', // 커뮤니티 API (공개)
+  '/api/subscription', // 구독/체험 API (공개)
   '/product', // 상품 페이지 (공개, 단수형)
   '/products', // 상품 페이지 (공개, 복수형)
   '/youtube', // 유튜브 페이지 (공개)
@@ -21,6 +22,8 @@ const PUBLIC = [
   '/p', // 숏링크 리다이렉트 (공개)
   '/passport', // 여권 제출 페이지 (공개)
   '/customer/passport', // 고객 여권 페이지 (공개)
+  '/b2b', // B2B 랜딩페이지 (공개)
+  '/trial', // 체험 대시보드 (공개)
   '/favicon.ico',
   '/assets',
   '/public',
