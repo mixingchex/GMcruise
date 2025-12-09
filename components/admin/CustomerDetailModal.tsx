@@ -1530,11 +1530,26 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                     <input
                       type="file"
                       accept="audio/*"
-                      onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Vercel 제한: 4.5MB, 안전하게 4MB로 제한
+                          const maxSize = 4 * 1024 * 1024; // 4MB
+                          if (file.size > maxSize) {
+                            alert(`파일 크기가 너무 큽니다.\n현재: ${(file.size / 1024 / 1024).toFixed(1)}MB\n최대: 4MB\n\n만능 압축기에서 오디오 파일을 압축해주세요.`);
+                            e.target.value = '';
+                            setAudioFile(null);
+                            return;
+                          }
+                          setAudioFile(file);
+                        } else {
+                          setAudioFile(null);
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
                     {audioFile && (
-                      <p className="text-sm text-green-600 mt-1">✓ {audioFile.name} 선택됨</p>
+                      <p className="text-sm text-green-600 mt-1">✓ {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(1)}MB) 선택됨</p>
                     )}
                   </div>
 

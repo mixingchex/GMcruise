@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { FiArrowRight, FiX } from 'react-icons/fi';
@@ -44,12 +44,147 @@ interface B2BLandingClientProps {
     initialTemplate: string;
 }
 
-export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLandingClientProps) {
+// 독립적인 폼 컴포넌트 - 입력 시 부모 리렌더링 방지
+interface TrialFormProps {
+    partnerId?: string;
+    location: string;
+}
+
+function TrialForm({ partnerId, location }: TrialFormProps) {
     const router = useRouter();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (loading) return;
+
+        setError(null);
+
+        const trimmedName = name.trim();
+        const trimmedPhone = phone.trim().replace(/[^0-9]/g, '');
+
+        if (!trimmedName || trimmedName.length < 2) {
+            setError('이름을 정확히 입력해주세요.');
+            return;
+        }
+
+        if (!trimmedPhone || !/^01([0|1|6|7|8|9])([0-9]{3,4})([0-9]{4})$/.test(trimmedPhone)) {
+            setError('올바른 휴대폰 번호를 입력해주세요.');
+            return;
+        }
+
+        try {
+            setLoading(true);
+
+            const response = await fetch('/api/subscription/trial/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    name: trimmedName,
+                    phone: trimmedPhone,
+                    partnerId: partnerId,
+                    source: 'B2B_LANDING'
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data?.ok) {
+                setError(data?.error || '무료 체험 시작에 실패했습니다.');
+                setLoading(false);
+                return;
+            }
+
+            if (data.trial) {
+                setTrialSession({
+                    name: data.trial.name,
+                    phone: data.trial.phone,
+                    mallUserId: data.trial.trialId,
+                    startedAt: data.trial.startedAt,
+                    expiresAt: data.trial.expiresAt,
+                });
+                router.push('/trial/dashboard');
+            } else {
+                setError('체험 정보를 받지 못했습니다.');
+                setLoading(false);
+            }
+        } catch (err: any) {
+            console.error('[Subscription Login] Error:', err);
+            setError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            setLoading(false);
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4 my-8">
+            <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="이름 입력"
+                required
+                className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg p-4 text-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400"
+                disabled={loading}
+            />
+            <input
+                type="tel"
+                value={phone}
+                onChange={(e) => {
+                    const value = e.target.value.replace(/[^0-9-]/g, '');
+                    setPhone(value);
+                }}
+                placeholder="휴대폰번호 입력 (010-1234-5678)"
+                required
+                className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg p-4 text-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400"
+                disabled={loading}
+            />
+
+            {error && (
+                <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
+                    {error}
+                </div>
+            )}
+
+            <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-xl py-5 rounded-full shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {loading ? (
+                    <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>처리 중...</span>
+                    </>
+                ) : (
+                    <>
+                        <span>3일 무료 체험 시작하기</span>
+                        <FiArrowRight className="h-5 w-5" />
+                    </>
+                )}
+            </button>
+        </form>
+    );
+}
+
+// 메모이즈된 HTML 콘텐츠 컴포넌트 - 불필요한 리렌더링 방지
+const MemoizedHtmlContent = memo(function MemoizedHtmlContent({ html }: { html: string }) {
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+});
+
+// 메모이즈된 미니 클래스 컴포넌트
+const MemoizedMiniClass = memo(function MemoizedMiniClass() {
+    return (
+        <div className="py-8 px-4" style={{ backgroundColor: '#111827' }}>
+            <MiniClassViewer />
+        </div>
+    );
+});
+
+export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLandingClientProps) {
     const [checkingCache, setCheckingCache] = useState(true);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -169,68 +304,6 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
         };
     }, [initialTemplate]);
 
-    const handleSubmit = async (event: React.FormEvent, formLocation: string = 'main') => {
-        event.preventDefault();
-        if (loading) return;
-
-        setError(null);
-
-        const trimmedName = name.trim();
-        const trimmedPhone = phone.trim().replace(/[^0-9]/g, '');
-
-        if (!trimmedName || trimmedName.length < 2) {
-            setError('이름을 정확히 입력해주세요.');
-            return;
-        }
-
-        if (!trimmedPhone || !/^01([0|1|6|7|8|9])([0-9]{3,4})([0-9]{4})$/.test(trimmedPhone)) {
-            setError('올바른 휴대폰 번호를 입력해주세요.');
-            return;
-        }
-
-        try {
-            setLoading(true);
-
-            const response = await fetch('/api/subscription/trial/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({
-                    name: trimmedName,
-                    phone: trimmedPhone,
-                    partnerId: partnerId,
-                    source: 'B2B_LANDING' // 명시적 소스
-                }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok || !data?.ok) {
-                setError(data?.error || '무료 체험 시작에 실패했습니다.');
-                setLoading(false);
-                return;
-            }
-
-            if (data.trial) {
-                setTrialSession({
-                    name: data.trial.name,
-                    phone: data.trial.phone,
-                    mallUserId: data.trial.trialId,
-                    startedAt: data.trial.startedAt,
-                    expiresAt: data.trial.expiresAt,
-                });
-                router.push('/trial/dashboard');
-            } else {
-                setError('체험 정보를 받지 못했습니다.');
-                setLoading(false);
-            }
-        } catch (err: any) {
-            console.error('[Subscription Login] Error:', err);
-            setError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-            setLoading(false);
-        }
-    };
-
     if (checkingCache) {
         return (
             <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -266,56 +339,6 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
     // parts[3] = "MIDDLE" (captured group)
     // parts[4] = content after MIDDLE
 
-    const renderForm = (location: string) => (
-        <form onSubmit={(e) => handleSubmit(e, location)} className="space-y-4 my-8">
-            <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="이름 입력"
-                required
-                className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg p-4 text-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400"
-                disabled={loading}
-            />
-            <input
-                type="tel"
-                value={phone}
-                onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9-]/g, '');
-                    setPhone(value);
-                }}
-                placeholder="휴대폰번호 입력 (010-1234-5678)"
-                required
-                className="w-full bg-gray-800 border border-gray-600 text-white rounded-lg p-4 text-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 placeholder-gray-400"
-                disabled={loading}
-            />
-
-            {error && (
-                <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm">
-                    {error}
-                </div>
-            )}
-
-            <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-black text-xl py-5 rounded-full shadow-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {loading ? (
-                    <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>처리 중...</span>
-                    </>
-                ) : (
-                    <>
-                        <span>3일 무료 체험 시작하기</span>
-                        <FiArrowRight className="h-5 w-5" />
-                    </>
-                )}
-            </button>
-        </form>
-    );
-
     return (
         <>
             {/* 템플릿 스타일 주입 */}
@@ -326,22 +349,20 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
 
             {/* Render Template Parts with Mini Class Viewer */}
             {parts.map((part, index) => {
-                if (part === 'TOP') return <div key={index}>{renderForm('top')}</div>;
-                if (part === 'MIDDLE') return <div key={index}>{renderForm('middle')}</div>;
+                if (part === 'TOP') return <div key={index}><TrialForm partnerId={partnerId} location="top" /></div>;
+                if (part === 'MIDDLE') return <div key={index}><TrialForm partnerId={partnerId} location="middle" /></div>;
                 // MINI_CLASS 마커가 있는 위치에 미니 클래스 삽입
                 if (part.includes('<!-- MINI_CLASS -->')) {
                     const [before, after] = part.split('<!-- MINI_CLASS -->');
                     return (
                         <div key={index}>
-                            <div dangerouslySetInnerHTML={{ __html: before }} />
-                            <div className="py-8 px-4" style={{ backgroundColor: '#111827' }}>
-                                <MiniClassViewer />
-                            </div>
-                            <div dangerouslySetInnerHTML={{ __html: after }} />
+                            <MemoizedHtmlContent html={before} />
+                            <MemoizedMiniClass />
+                            <MemoizedHtmlContent html={after} />
                         </div>
                     );
                 }
-                return <div key={index} dangerouslySetInnerHTML={{ __html: part }} />;
+                return <MemoizedHtmlContent key={index} html={part} />;
             })}
 
             {/* Image Modal */}

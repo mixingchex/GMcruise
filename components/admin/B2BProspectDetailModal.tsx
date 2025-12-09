@@ -850,16 +850,33 @@ export default function B2BProspectDetailModal({ prospectId, prospectType, isOpe
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       <FiMic className="inline mr-1" />
-                      녹음 파일 업로드 (선택)
+                      녹음 파일 업로드 (선택, 최대 4MB)
                     </label>
                     <input
                       type="file"
                       accept="audio/*"
-                      onChange={(e) => setAudioFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Vercel 제한: 4.5MB, 안전하게 4MB로 제한
+                          const maxSize = 4 * 1024 * 1024; // 4MB
+                          if (file.size > maxSize) {
+                            alert(`파일 크기가 너무 큽니다.\n현재: ${(file.size / 1024 / 1024).toFixed(1)}MB\n최대: 4MB\n\n파일을 압축하거나 짧은 녹음으로 나눠서 업로드해주세요.`);
+                            e.target.value = '';
+                            setAudioFile(null);
+                            return;
+                          }
+                          setAudioFile(file);
+                        } else {
+                          setAudioFile(null);
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
                     {audioFile && (
-                      <p className="text-sm text-green-600 mt-1">선택됨: {audioFile.name}</p>
+                      <p className="text-sm text-green-600 mt-1">
+                        선택됨: {audioFile.name} ({(audioFile.size / 1024 / 1024).toFixed(1)}MB)
+                      </p>
                     )}
                   </div>
 

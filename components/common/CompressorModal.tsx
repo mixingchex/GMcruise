@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { FiX, FiImage, FiFileText, FiLayers, FiDownload, FiUploadCloud, FiCheckCircle, FiInfo } from 'react-icons/fi';
+import { FiX, FiImage, FiFileText, FiLayers, FiDownload, FiUploadCloud, FiCheckCircle, FiInfo, FiMic } from 'react-icons/fi';
 import JSZip from 'jszip';
 import imageCompression from 'browser-image-compression';
 import { showError, showSuccess } from '@/components/ui/Toast';
@@ -11,7 +11,7 @@ interface CompressorModalProps {
     onClose: () => void;
 }
 
-type TabType = 'image' | 'pdf' | 'webp';
+type TabType = 'image' | 'pdf' | 'webp' | 'audio';
 type CompressionLevel = 'low' | 'medium' | 'high';
 
 interface FilePreview {
@@ -26,6 +26,14 @@ const COMPRESSION_CONFIG = {
     low: { maxSizeMB: 2, maxWidthOrHeight: 2560, quality: 0.95, label: '약하게 (화질 우선)', description: '원본의 70~90% 유지' },
     medium: { maxSizeMB: 1, maxWidthOrHeight: 1920, quality: 0.8, label: '보통', description: '원본의 40~60% 유지' },
     high: { maxSizeMB: 0.5, maxWidthOrHeight: 1280, quality: 0.6, label: '강하게 (용량 우선)', description: '원본의 15~30% 유지' },
+};
+
+// 오디오 압축 설정 (목표: 4.5MB 이하)
+// 샘플레이트와 채널 수로 용량 조절
+const AUDIO_COMPRESSION_CONFIG = {
+    low: { sampleRate: 44100, channels: 2, label: '약하게 (고음질)', description: '44.1kHz 스테레오, 적당한 압축' },
+    medium: { sampleRate: 22050, channels: 1, label: '보통 (권장)', description: '22kHz 모노, 균형 잡힌 압축' },
+    high: { sampleRate: 16000, channels: 1, label: '강하게 (최대 압축)', description: '16kHz 모노, 최대 압축' },
 };
 
 export default function CompressorModal({ isOpen, onClose }: CompressorModalProps) {
@@ -130,6 +138,8 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                 await processPdfs(selectedFiles);
             } else if (activeTab === 'webp') {
                 await processWebP(selectedFiles);
+            } else if (activeTab === 'audio') {
+                await processAudio(selectedFiles);
             }
         } catch (error: any) {
             console.error('Compression error:', error);
@@ -378,6 +388,183 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         showSuccess(`${processedCount}개 WebP 변환 완료! (평균 ${reduction}% 감소)`);
     };
 
+    // 4. Audio 압축 (M4A, MP3 등 → WAV로 변환하여 압축)
+    const processAudio = async (files: File[]) => {
+        setStatusMessage('오디오 압축 중...');
+        const config = AUDIO_COMPRESSION_CONFIG[compressionLevel];
+        const targetSizeMB = 4.5; // Vercel 업로드 제한
+
+        const compressAudioFile = async (file: File): Promise<{ blob: Blob; originalSize: number }> => {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const arrayBuffer = await file.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                    // 선택된 압축 레벨에 따른 샘플레이트와 채널 설정
+                    const targetSampleRate = Math.min(audioBuffer.sampleRate, config.sampleRate);
+                    const targetChannels = config.channels;
+                    const length = Math.floor(audioBuffer.duration * targetSampleRate);
+
+                    const offlineContext = new OfflineAudioContext(targetChannels, length, targetSampleRate);
+                    const source = offlineContext.createBufferSource();
+                    source.buffer = audioBuffer;
+                    source.connect(offlineContext.destination);
+                    source.start(0);
+
+                    const renderedBuffer = await offlineContext.startRendering();
+
+                    // WAV로 인코딩 후 Blob 생성
+                    let wavBlob = audioBufferToWav(renderedBuffer);
+
+                    // 파일 크기가 4.5MB 이상이면 자동으로 더 압축 (샘플레이트 낮춤)
+                    if (wavBlob.size > targetSizeMB * 1024 * 1024) {
+                        // 더 낮은 샘플레이트로 재시도 (8kHz까지)
+                        const lowerSampleRate = 8000;
+                        const lowerLength = Math.floor(audioBuffer.duration * lowerSampleRate);
+                        const lowerOfflineContext = new OfflineAudioContext(1, lowerLength, lowerSampleRate);
+                        const lowerSource = lowerOfflineContext.createBufferSource();
+                        lowerSource.buffer = audioBuffer;
+                        lowerSource.connect(lowerOfflineContext.destination);
+                        lowerSource.start(0);
+                        const lowerRenderedBuffer = await lowerOfflineContext.startRendering();
+                        wavBlob = audioBufferToWav(lowerRenderedBuffer);
+                    }
+
+                    resolve({ blob: wavBlob, originalSize: file.size });
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        };
+
+        // AudioBuffer를 WAV Blob으로 변환하는 함수
+        const audioBufferToWav = (buffer: AudioBuffer): Blob => {
+            const numChannels = buffer.numberOfChannels;
+            const sampleRate = buffer.sampleRate;
+            const format = 1; // PCM
+            const bitDepth = 16;
+
+            const bytesPerSample = bitDepth / 8;
+            const blockAlign = numChannels * bytesPerSample;
+
+            const data = buffer.getChannelData(0);
+            const samples = new Int16Array(data.length);
+
+            for (let i = 0; i < data.length; i++) {
+                const s = Math.max(-1, Math.min(1, data[i]));
+                samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+
+            const dataLength = samples.length * bytesPerSample;
+            const bufferLength = 44 + dataLength;
+            const arrayBuffer = new ArrayBuffer(bufferLength);
+            const view = new DataView(arrayBuffer);
+
+            // WAV 헤더 작성
+            const writeString = (offset: number, str: string) => {
+                for (let i = 0; i < str.length; i++) {
+                    view.setUint8(offset + i, str.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + dataLength, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, format, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, sampleRate * blockAlign, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, bitDepth, true);
+            writeString(36, 'data');
+            view.setUint32(40, dataLength, true);
+
+            // 오디오 데이터 작성
+            const offset = 44;
+            for (let i = 0; i < samples.length; i++) {
+                view.setInt16(offset + i * 2, samples[i], true);
+            }
+
+            return new Blob([arrayBuffer], { type: 'audio/wav' });
+        };
+
+        if (files.length === 1) {
+            const file = files[0];
+            try {
+                setStatusMessage(`오디오 압축 중... (${file.name})`);
+                const { blob, originalSize } = await compressAudioFile(file);
+                const url = URL.createObjectURL(blob);
+                const name = file.name.replace(/\.[^/.]+$/, "") + "_compressed.wav";
+                const reduction = Math.round((1 - blob.size / originalSize) * 100);
+
+                setResultFile({
+                    url,
+                    name,
+                    originalSize,
+                    newSize: blob.size,
+                });
+                setProgress(100);
+                setStatusMessage('완료!');
+
+                if (blob.size <= targetSizeMB * 1024 * 1024) {
+                    showSuccess(`오디오 압축 완료! (${reduction}% 감소, ${(blob.size / 1024 / 1024).toFixed(1)}MB)`);
+                } else {
+                    showSuccess(`압축 완료! 결과: ${(blob.size / 1024 / 1024).toFixed(1)}MB (4.5MB 초과 시 추가 압축 필요)`);
+                }
+            } catch (e) {
+                console.error('오디오 압축 실패:', e);
+                showError('오디오 압축에 실패했습니다. 다른 파일을 시도해주세요.');
+            }
+            return;
+        }
+
+        // 다중 파일 처리
+        const zip = new JSZip();
+        let processedCount = 0;
+        let totalOriginalSize = 0;
+        let totalNewSize = 0;
+
+        for (const file of files) {
+            try {
+                setStatusMessage(`오디오 압축 중... (${processedCount + 1}/${files.length})`);
+                const { blob, originalSize } = await compressAudioFile(file);
+                const name = file.name.replace(/\.[^/.]+$/, "") + "_compressed.wav";
+                const arrayBuffer = await blob.arrayBuffer();
+                zip.file(name, arrayBuffer);
+
+                totalOriginalSize += originalSize;
+                totalNewSize += blob.size;
+                processedCount++;
+                setProgress(Math.round((processedCount / files.length) * 90));
+            } catch (e) {
+                console.error(`Failed to compress ${file.name}`, e);
+            }
+        }
+
+        if (processedCount === 0) {
+            showError('압축된 파일이 없습니다.');
+            return;
+        }
+
+        setStatusMessage('ZIP 파일 생성 중...');
+        const content = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(content);
+        const reduction = Math.round((1 - totalNewSize / totalOriginalSize) * 100);
+
+        setResultFile({
+            url,
+            name: 'compressed_audio_files.zip',
+            originalSize: totalOriginalSize,
+            newSize: content.size,
+        });
+        setProgress(100);
+        setStatusMessage('완료!');
+        showSuccess(`${processedCount}개 오디오 압축 완료! (평균 ${reduction}% 감소)`);
+    };
+
     // 총 예상 정보 계산
     const totalOriginalSize = filePreviews.reduce((sum, p) => sum + p.originalSize, 0);
     const totalEstimatedSize = filePreviews.reduce((sum, p) => sum + p.estimatedSize, 0);
@@ -403,34 +590,42 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                 <div className="flex border-b">
                     <button
                         onClick={() => handleTabChange('image')}
-                        className={`flex-1 py-4 font-medium text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'image' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
+                        className={`flex-1 py-3 font-medium text-xs transition-all flex items-center justify-center gap-1 ${activeTab === 'image' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
                     >
-                        <FiImage className="w-5 h-5" /> 이미지 압축
+                        <FiImage className="w-4 h-4" /> 이미지
+                    </button>
+                    <button
+                        onClick={() => handleTabChange('audio')}
+                        className={`flex-1 py-3 font-medium text-xs transition-all flex items-center justify-center gap-1 ${activeTab === 'audio' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
+                    >
+                        <FiMic className="w-4 h-4" /> 오디오
                     </button>
                     <button
                         onClick={() => handleTabChange('pdf')}
-                        className={`flex-1 py-4 font-medium text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'pdf' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
+                        className={`flex-1 py-3 font-medium text-xs transition-all flex items-center justify-center gap-1 ${activeTab === 'pdf' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
                     >
-                        <FiFileText className="w-5 h-5" /> 문서(PDF)
+                        <FiFileText className="w-4 h-4" /> PDF
                     </button>
                     <button
                         onClick={() => handleTabChange('webp')}
-                        className={`flex-1 py-4 font-medium text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'webp' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
+                        className={`flex-1 py-3 font-medium text-xs transition-all flex items-center justify-center gap-1 ${activeTab === 'webp' ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-gray-500 hover:bg-gray-50'}`}
                     >
-                        <FiLayers className="w-5 h-5" /> WebP 변환
+                        <FiLayers className="w-4 h-4" /> WebP
                     </button>
                 </div>
 
-                {/* Options - 이미지/WebP만 표시 */}
+                {/* Options - 이미지/WebP/오디오 표시 (PDF 제외) */}
                 {!isProcessing && !resultFile && activeTab !== 'pdf' && (
                     <div className="px-6 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
                         <div className="flex items-center gap-2 mb-3">
                             <FiInfo className="text-blue-600" />
-                            <span className="text-sm font-bold text-gray-700">압축 강도 선택</span>
+                            <span className="text-sm font-bold text-gray-700">
+                                {activeTab === 'audio' ? '오디오 압축 설정 (목표: 4.5MB 이하)' : '압축 강도 선택'}
+                            </span>
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                             {(['low', 'medium', 'high'] as CompressionLevel[]).map((level) => {
-                                const config = COMPRESSION_CONFIG[level];
+                                const config = activeTab === 'audio' ? AUDIO_COMPRESSION_CONFIG[level] : COMPRESSION_CONFIG[level];
                                 return (
                                     <button
                                         key={level}
@@ -464,6 +659,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                             </div>
                             <p className="text-lg font-bold text-gray-700 mb-2">
                                 {activeTab === 'image' && '이미지 파일 선택 (PNG, JPG, GIF)'}
+                                {activeTab === 'audio' && '오디오 파일 선택 (M4A, MP3, WAV 등)'}
                                 {activeTab === 'pdf' && 'PDF 파일 선택'}
                                 {activeTab === 'webp' && '변환할 이미지 선택'}
                             </p>
@@ -513,7 +709,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                                 {filePreviews.map((preview, idx) => (
                                     <div key={idx} className="flex items-center justify-between p-3 border-b last:border-b-0 hover:bg-gray-50">
                                         <div className="flex items-center gap-2">
-                                            <FiImage className="text-gray-400" />
+                                            {activeTab === 'audio' ? <FiMic className="text-gray-400" /> : <FiImage className="text-gray-400" />}
                                             <span className="text-sm text-gray-700 truncate max-w-[200px]">{preview.file.name}</span>
                                         </div>
                                         <div className="flex items-center gap-4 text-sm">
@@ -539,6 +735,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                                     className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg"
                                 >
                                     {activeTab === 'image' && '압축 시작'}
+                                    {activeTab === 'audio' && '오디오 압축 시작'}
                                     {activeTab === 'pdf' && 'ZIP 생성'}
                                     {activeTab === 'webp' && 'WebP 변환'}
                                 </button>
@@ -613,7 +810,7 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                         ref={fileInputRef}
                         className="hidden"
                         multiple
-                        accept={activeTab === 'pdf' ? 'application/pdf' : 'image/*'}
+                        accept={activeTab === 'pdf' ? 'application/pdf' : activeTab === 'audio' ? 'audio/*,.m4a,.mp3,.wav,.ogg,.webm' : 'image/*'}
                         onChange={handleFileSelect}
                     />
                 </div>

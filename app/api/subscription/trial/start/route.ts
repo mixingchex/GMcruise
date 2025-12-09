@@ -1,36 +1,35 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const fetchCache = 'force-no-store';
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import prisma from '@/lib/prisma';
-import { appendB2BLeadToSheet } from '@/lib/google/b2b-backup';
 
-// OPTIONS 핸들러 (CORS preflight) - v2
-export async function OPTIONS(request: NextRequest) {
+// OPTIONS 핸들러 (CORS preflight)
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
     },
   });
 }
 
-// GET 핸들러 (API 상태 확인) - v2
-export async function GET(request: NextRequest) {
+// GET 핸들러 (API 상태 확인)
+export async function GET() {
   return NextResponse.json({
     ok: true,
-    message: 'Subscription Trial Start API v2',
-    timestamp: new Date().toISOString(),
+    message: 'Subscription Trial Start API is running',
     methods: ['GET', 'POST', 'OPTIONS'],
   });
 }
 
 export async function POST(req: NextRequest) {
   try {
+    // Lazy import to avoid module loading issues in production
+    const prisma = (await import('@/lib/prisma')).default;
+    const { appendB2BLeadToSheet } = await import('@/lib/google/b2b-backup');
     const { name, phone, partnerId, source } = await req.json();
 
     if (!name || !phone) {
