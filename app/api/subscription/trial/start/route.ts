@@ -1,10 +1,32 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { appendB2BLeadToSheet } from '@/lib/google/b2b-backup';
 
-export async function POST(req: Request) {
+// OPTIONS 핸들러 추가 (CORS preflight)
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
+// GET 핸들러 추가 (라우트 인식 보장)
+export async function GET() {
+  return NextResponse.json({
+    ok: true,
+    message: 'Subscription Trial API is running',
+    methods: ['POST'],
+  });
+}
+
+export async function POST(req: NextRequest) {
   try {
     const { name, phone, partnerId, source } = await req.json();
 
