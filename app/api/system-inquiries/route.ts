@@ -77,16 +77,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    import('@/lib/google/b2b-backup').then(({ appendSystemConsultationToSheet }) => {
-      appendSystemConsultationToSheet({
+    // Google 스프레드시트 백업 (동기 대기 - Vercel 서버리스 환경 필수)
+    try {
+      console.log('[System Inquiry] 스프레드시트 백업 시작...');
+      const { appendSystemConsultationToSheet } = await import('@/lib/google/b2b-backup');
+      const backupResult = await appendSystemConsultationToSheet({
         name: consultation.name,
         phone: consultation.phone,
         partnerName,
         status: consultation.status,
         createdAt: consultation.createdAt.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
         message: consultation.message || '',
-      }).catch(err => console.error('System consultation backup failed:', err));
-    });
+      });
+      console.log('[System Inquiry] 스프레드시트 백업 완료:', backupResult);
+    } catch (backupErr: any) {
+      console.error('[System Inquiry] 스프레드시트 백업 실패:', backupErr?.message || backupErr);
+    }
 
     return NextResponse.json({
       ok: true,

@@ -136,24 +136,23 @@ export async function POST(req: NextRequest) {
       });
       console.log('[Subscription Trial] 신규 리드 생성 완료:', newLead.id);
 
-      // Google 스프레드시트에 B2B 잠재고객 백업 (비동기, 선택적)
+      // Google 스프레드시트에 B2B 잠재고객 백업 (동기 대기 - Vercel 서버리스 환경 필수)
       const createdAtStr = now.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-      // googleapis 모듈이 없을 수 있으므로 try-catch로 안전하게 처리
       try {
+        console.log('[Subscription Trial] 스프레드시트 백업 시작...', { name, partnerName, finalSource });
         const { appendB2BLeadToSheet } = await import('@/lib/google/b2b-backup');
-        appendB2BLeadToSheet({
+        const backupResult = await appendB2BLeadToSheet({
           name,
           phone: normalizedPhone,
           partnerName,
           source: finalSource,
           createdAt: createdAtStr,
           notes: '3일 무료 체험 시작',
-        }).catch(err => {
-          console.error('[Subscription Trial] 스프레드시트 백업 실패:', err);
         });
-      } catch (sheetErr) {
-        console.warn('[Subscription Trial] 스프레드시트 모듈 로드 실패 (무시됨):', sheetErr);
+        console.log('[Subscription Trial] 스프레드시트 백업 완료:', backupResult);
+      } catch (sheetErr: any) {
+        console.error('[Subscription Trial] 스프레드시트 백업 실패:', sheetErr?.message || sheetErr);
       }
 
     } catch (dbError) {

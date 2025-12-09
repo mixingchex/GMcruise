@@ -278,9 +278,11 @@ export async function POST(
       return { interaction, customerNote };
     });
 
-    // Google 스프레드시트 자동 백업 - B2B 상담기록 (비동기, 에러 무시)
-    import('@/lib/google/b2b-backup').then(({ appendConsultationNoteToSheet }) => {
-      appendConsultationNoteToSheet({
+    // Google 스프레드시트 자동 백업 - B2B 상담기록 (동기 대기 - Vercel 서버리스 환경 필수)
+    try {
+      console.log('[Partner Consultation] 스프레드시트 백업 시작...');
+      const { appendConsultationNoteToSheet } = await import('@/lib/google/b2b-backup');
+      const backupResult = await appendConsultationNoteToSheet({
         consultationId: result.interaction.id,
         customerId: leadId,
         customerName: lead.customerName || '이름없음',
@@ -294,10 +296,11 @@ export async function POST(
         statusAfter: statusAfter || null,
         audioFileUrl: audioFileUrl || null,
         createdAt: new Date().toISOString(),
-      }).catch((err: any) => {
-        console.error('[B2B Consultation Backup Error]', err);
       });
-    });
+      console.log('[Partner Consultation] 스프레드시트 백업 완료:', backupResult);
+    } catch (backupErr: any) {
+      console.error('[Partner Consultation] 스프레드시트 백업 실패:', backupErr?.message || backupErr);
+    }
 
     return NextResponse.json({
       ok: true,

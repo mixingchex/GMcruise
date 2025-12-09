@@ -930,22 +930,23 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // B2B 소스인 경우 B2B 전용 스프레드시트에도 백업
+    // B2B 소스인 경우 B2B 전용 스프레드시트에도 백업 (동기 대기 - Vercel 서버리스 환경 필수)
     if (isB2BSource) {
-      import('@/lib/google/b2b-backup').then(({ appendB2BLeadToSheet }) => {
-        appendB2BLeadToSheet({
+      try {
+        console.log('[Partner Customers] B2B 스프레드시트 백업 시작...');
+        const { appendB2BLeadToSheet } = await import('@/lib/google/b2b-backup');
+        const backupResult = await appendB2BLeadToSheet({
           name: customerName || '',
           phone: customerPhone || '',
           partnerName: manager || '파트너',
           source: source || 'B2B_LANDING',
           createdAt: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
           notes: notes || '',
-        }).catch((err: any) => {
-          console.error('[Partner Customers] B2B 백업 실패:', err);
         });
-      }).catch((err: any) => {
-        console.warn('[Partner Customers] B2B 백업 모듈 로드 실패:', err);
-      });
+        console.log('[Partner Customers] B2B 스프레드시트 백업 완료:', backupResult);
+      } catch (backupErr: any) {
+        console.error('[Partner Customers] B2B 백업 실패:', backupErr?.message || backupErr);
+      }
     }
 
     return NextResponse.json({

@@ -297,28 +297,28 @@ export async function GET(req: NextRequest) {
 
     if (profile.type === 'BRANCH_MANAGER') {
       monthlySales = await prisma.$queryRaw`
-        SELECT 
-          DATE_FORMAT(createdAt, '%Y-%m') as month,
+        SELECT
+          TO_CHAR("createdAt", 'YYYY-MM') as month,
           COUNT(*) as count,
-          SUM(saleAmount) as total
-        FROM AffiliateSale
-        WHERE managerId = ${profile.id}
-          AND createdAt >= ${sixMonthsAgo}
+          COALESCE(SUM("saleAmount"), 0) as total
+        FROM "AffiliateSale"
+        WHERE "managerId" = ${profile.id}
+          AND "createdAt" >= ${sixMonthsAgo}
           AND status IN ('CONFIRMED', 'SETTLED')
-        GROUP BY DATE_FORMAT(createdAt, '%Y-%m')
+        GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
         ORDER BY month ASC
       `;
     } else {
       monthlySales = await prisma.$queryRaw`
-        SELECT 
-          DATE_FORMAT(createdAt, '%Y-%m') as month,
+        SELECT
+          TO_CHAR("createdAt", 'YYYY-MM') as month,
           COUNT(*) as count,
-          SUM(saleAmount) as total
-        FROM AffiliateSale
-        WHERE agentId = ${profile.id}
-          AND createdAt >= ${sixMonthsAgo}
+          COALESCE(SUM("saleAmount"), 0) as total
+        FROM "AffiliateSale"
+        WHERE "agentId" = ${profile.id}
+          AND "createdAt" >= ${sixMonthsAgo}
           AND status IN ('CONFIRMED', 'SETTLED')
-        GROUP BY DATE_FORMAT(createdAt, '%Y-%m')
+        GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
         ORDER BY month ASC
       `;
     }

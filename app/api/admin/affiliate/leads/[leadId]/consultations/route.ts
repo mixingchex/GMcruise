@@ -327,12 +327,14 @@ export async function POST(
 
     const createdInteraction = result.interaction;
 
-    // Google 스프레드시트 백업 (비동기 dynamic import로 응답 속도 최적화)
+    // Google 스프레드시트 백업 (동기 대기 - Vercel 서버리스 환경 필수)
     const createdAtStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
     const consultedAtStr = occurredAt.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-    import('@/lib/google/b2b-backup').then(({ appendConsultationNoteToSheet }) => {
-      appendConsultationNoteToSheet({
+    try {
+      console.log('[Admin Lead Consultations] 스프레드시트 백업 시작...');
+      const { appendConsultationNoteToSheet } = await import('@/lib/google/b2b-backup');
+      const backupResult = await appendConsultationNoteToSheet({
         consultationId: createdInteraction.id,
         customerId: leadId,
         customerName: lead.customerName || '',
@@ -346,10 +348,11 @@ export async function POST(
         statusAfter: statusAfter || null,
         audioFileUrl: audioFileUrl || null,
         createdAt: createdAtStr,
-      }).catch((err: any) => {
-        console.error('[Admin Lead Consultations] 스프레드시트 백업 실패:', err);
       });
-    });
+      console.log('[Admin Lead Consultations] 스프레드시트 백업 완료:', backupResult);
+    } catch (backupErr: any) {
+      console.error('[Admin Lead Consultations] 스프레드시트 백업 실패:', backupErr?.message || backupErr);
+    }
 
     return NextResponse.json({
       ok: true,

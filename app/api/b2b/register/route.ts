@@ -113,16 +113,22 @@ export async function POST(req: NextRequest) {
         });
         const partnerName = contract?.name || managerProfile.displayName || partnerUser.name || 'Unknown';
 
-        import('@/lib/google/b2b-backup').then(({ appendB2BLeadToSheet }) => {
-            appendB2BLeadToSheet({
+        // Google 스프레드시트 백업 (동기 대기 - Vercel 서버리스 환경 필수)
+        try {
+            console.log('[B2B Register] 스프레드시트 백업 시작...');
+            const { appendB2BLeadToSheet } = await import('@/lib/google/b2b-backup');
+            const backupResult = await appendB2BLeadToSheet({
                 name: newLead.customerName || '',
                 phone: newLead.customerPhone || '',
                 partnerName: partnerName,
                 source: newLead.source || 'B2B_LANDING',
                 createdAt: newLead.createdAt.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
                 notes: newLead.notes || ''
-            }).catch(err => console.error('Backup failed in background:', err));
-        });
+            });
+            console.log('[B2B Register] 스프레드시트 백업 완료:', backupResult);
+        } catch (backupErr: any) {
+            console.error('[B2B Register] 스프레드시트 백업 실패:', backupErr?.message || backupErr);
+        }
 
         return NextResponse.json({
             ok: true,

@@ -1095,6 +1095,20 @@ export default function MapPage() {
     }
 
     try {
+      // 삭제할 여행의 목적지 국가 정보 저장 (색상 정리용)
+      const tripToDelete = userTrips.find(t => String(t.id) === String(tripId));
+      const destinationsToRemove: string[] = [];
+
+      if (tripToDelete?.destination) {
+        const destinations = tripToDelete.destination.split(',').map((d: string) => d.trim()).filter((d: string) => d);
+        destinations.forEach((dest: string) => {
+          const englishName = countryKoreanToEnglishMap[dest];
+          if (englishName) {
+            destinationsToRemove.push(englishName);
+          }
+        });
+      }
+
       // 서버에서 삭제
       const response = await fetch(`/api/map-travel-records?id=${tripId}`, {
         method: 'DELETE',
@@ -1114,12 +1128,46 @@ export default function MapPage() {
       if (loadData.ok && Array.isArray(loadData.trips)) {
         setUserTrips(loadData.trips);
         saveTripsToLocal(loadData.trips);
+
+        // 삭제 후 남은 여행들에서 사용되는 국가 목록 계산
+        const remainingCountries = new Set<string>();
+        loadData.trips.forEach((trip: Trip) => {
+          if (trip.destination) {
+            const dests = trip.destination.split(',').map((d: string) => d.trim()).filter((d: string) => d);
+            dests.forEach((dest: string) => {
+              const englishName = countryKoreanToEnglishMap[dest];
+              if (englishName) {
+                remainingCountries.add(englishName);
+              }
+            });
+          }
+        });
+
+        // 삭제한 여행의 국가 중 다른 여행에서 사용되지 않는 국가의 색상 제거
+        setManualColors(prev => {
+          const newMap = { ...prev };
+          let hasChanges = false;
+
+          destinationsToRemove.forEach(country => {
+            // 다른 여행에서 사용되지 않는 국가만 삭제
+            if (!remainingCountries.has(country) && newMap[country]) {
+              delete newMap[country];
+              hasChanges = true;
+              console.log('[MapPage] 국가 색상 삭제:', country);
+            }
+          });
+
+          if (hasChanges) {
+            localStorage.setItem('countryColors', JSON.stringify(newMap));
+          }
+          return newMap;
+        });
       }
     } catch (error) {
       console.error('[MapPage] 여행 기록 삭제 실패:', error);
       alert(`여행 기록 삭제에 실패했습니다: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
     }
-  }, []);
+  }, [userTrips, countryKoreanToEnglishMap]);
 
   if (isLoading) {
     return (
