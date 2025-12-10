@@ -1,254 +1,151 @@
+// components/en/PathFinder.tsx
 'use client';
-
 import { useState } from 'react';
+import { FaMapMarkedAlt, FaTimes, FaSearch, FaExternalLinkAlt, FaStar, FaExpandArrowsAlt } from 'react-icons/fa';
 
-/**
- * PathFinder - Simple navigation for tourists
- *
- * Features:
- * - Input destination
- * - Get step-by-step directions
- * - Multiple transport options
- * - Estimated time & cost
- */
-
-interface PathFinderProps {
-  onClose: () => void;
-}
-
-interface DirectionsResult {
-  from: string;
-  to: string;
-  method: 'subway' | 'bus' | 'taxi' | 'walk';
-  steps: string[];
-  estimated_time: string;
-  estimated_cost: string;
-}
-
-const transportMethods = [
-  { id: 'subway', icon: '🚇', label: 'Subway', color: 'from-blue-500 to-blue-600' },
-  { id: 'bus', icon: '🚌', label: 'Bus', color: 'from-green-500 to-green-600' },
-  { id: 'taxi', icon: '🚕', label: 'Taxi', color: 'from-yellow-500 to-orange-500' },
-  { id: 'walk', icon: '🚶', label: 'Walk', color: 'from-purple-500 to-pink-500' },
-];
-
-export default function PathFinder({ onClose }: PathFinderProps) {
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [method, setMethod] = useState<string>('subway');
+export default function PathFinder({ onClose }: { onClose: () => void }) {
+  const [input, setInput] = useState('');
+  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [directions, setDirections] = useState<DirectionsResult | null>(null);
-  const [error, setError] = useState('');
+  const [isDriverMode, setIsDriverMode] = useState(false); // 기사님 확대 모드 상태
 
   const handleSearch = async () => {
-    if (!to.trim()) return;
-
+    if (!input) return;
     setLoading(true);
-    setError('');
-    setDirections(null);
-
     try {
-      const fromLocation = from.trim() || 'my current location';
-      const response = await fetch('/api/en/genie', {
+      // AI에게 명확한 '도로명 주소'와 '팁'을 요청
+      const res = await fetch('/api/en/genie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `I need directions from "${fromLocation}" to "${to}" using ${method}. Please provide step-by-step directions, estimated time, and cost in Korean Won.`,
-          mode: 'directions',
+          message: `I want to visit "${input}". Provide JSON with: {
+            "type": "directions",
+            "place_kr": "Official Korean Name",
+            "place_en": "English Name",
+            "address_kr": "Real Road Name Address (도로명주소)",
+            "tip": "Useful travel tip (1 sentence)"
+          }`
         }),
       });
-
-      const data = await response.json();
-
-      if (data.ok && data.data?.type === 'directions') {
-        setDirections(data.data.content);
-      } else if (data.ok && data.data?.content?.message) {
-        // Parse from text response
-        setDirections({
-          from: fromLocation,
-          to: to,
-          method: method as any,
-          steps: [data.data.content.message],
-          estimated_time: 'Varies',
-          estimated_cost: 'Varies',
-        });
-      } else {
-        throw new Error(data.error || 'Failed to get directions');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      const data = await res.json();
+      setResult(data);
+    } catch (e) {
+      alert("Could not find the path. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const openInMaps = () => {
-    const destination = encodeURIComponent(to);
-    const origin = from ? encodeURIComponent(from) : '';
-    const url = origin
-      ? `https://www.google.com/maps/dir/${origin}/${destination}`
-      : `https://www.google.com/maps/search/${destination}`;
+  const openMap = (service: 'naver' | 'google') => {
+    if (!result) return;
+    const query = encodeURIComponent(result.place_kr); // 한글명으로 검색해야 정확함
+    const url = service === 'naver'
+      ? `https://map.naver.com/p/search/${query}`
+      : `https://www.google.com/maps/search/?api=1&query=${query}`;
     window.open(url, '_blank');
   };
 
-  const resetSearch = () => {
-    setDirections(null);
-    setTo('');
-    setError('');
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-3xl p-6 pb-safe-bottom max-h-[90vh] overflow-y-auto animate-slide-up">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🧭</span>
-            <div>
-              <h2 className="text-xl font-bold text-white">PathFinder</h2>
-              <p className="text-xs text-gray-400">Get simple directions</p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <span className="text-xl">✕</span>
-          </button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose} />
 
-        {/* Search Form */}
-        {!directions && (
-          <div className="space-y-4">
-            {/* From Input */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">From (optional)</label>
-              <input
-                type="text"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                placeholder="Current location (or enter address)"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-              />
-            </div>
+      <div className="relative w-full max-w-md z-10 animate-in fade-in zoom-in duration-300">
+        <button onClick={onClose} className="absolute -top-12 right-0 text-white/50 hover:text-white text-3xl"><FaTimes /></button>
 
-            {/* To Input */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">To *</label>
+        {!result ? (
+          // [State 1] 검색 화면
+          <div className="bg-slate-900/90 border border-blue-500/30 rounded-3xl p-8 shadow-[0_0_50px_rgba(59,130,246,0.15)] text-center backdrop-blur-md">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-blue-500/30">
+              <FaMapMarkedAlt className="text-3xl text-blue-400" />
+            </div>
+            <h2 className="text-2xl font-serif font-bold text-white mb-2">Noble Path</h2>
+            <p className="text-slate-400 text-sm mb-6">Find hidden gems & exact locations.</p>
+
+            <div className="relative mb-6">
+              <FaSearch className="absolute left-4 top-4 text-slate-500" />
               <input
-                type="text"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                placeholder="Where do you want to go?"
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                placeholder="e.g. N Seoul Tower"
+                className="w-full bg-white/5 border border-white/10 text-white pl-12 pr-4 py-4 rounded-xl outline-none focus:border-blue-500 transition-colors placeholder:text-slate-600"
+                autoFocus
               />
             </div>
 
-            {/* Transport Method */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">How?</label>
-              <div className="grid grid-cols-4 gap-2">
-                {transportMethods.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setMethod(t.id)}
-                    className={`py-3 rounded-xl flex flex-col items-center gap-1 transition-all ${
-                      method === t.id
-                        ? `bg-gradient-to-r ${t.color} shadow-lg`
-                        : 'bg-white/10 hover:bg-white/20'
-                    }`}
-                  >
-                    <span className="text-xl">{t.icon}</span>
-                    <span className="text-xs font-medium">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-
-            {/* Search Button */}
             <button
               onClick={handleSearch}
-              disabled={loading || !to.trim()}
-              className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl font-bold text-lg text-white disabled:opacity-50 transition-all hover:shadow-lg"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 rounded-xl text-lg transition-all shadow-lg shadow-blue-900/50"
             >
-              {loading ? 'Finding path...' : 'Get Directions'}
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                  Locating...
+                </span>
+              ) : "Find Location"}
             </button>
-
-            {/* Quick Destinations */}
-            <div className="grid grid-cols-2 gap-2">
-              {['Myeongdong', 'Gangnam', 'Hongdae', 'Itaewon'].map((place) => (
-                <button
-                  key={place}
-                  onClick={() => setTo(place)}
-                  className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-gray-300 hover:bg-white/10 transition-colors"
-                >
-                  📍 {place}
-                </button>
-              ))}
-            </div>
           </div>
-        )}
+        ) : (
+          // [State 2] 결과 카드
+          <div className="bg-white rounded-3xl overflow-hidden shadow-2xl relative">
 
-        {/* Directions Result */}
-        {directions && !loading && (
-          <div className="space-y-4">
-            {/* Route Summary */}
-            <div className="bg-white/10 rounded-xl p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="flex-1">
-                  <p className="text-xs text-gray-400">From</p>
-                  <p className="text-white font-medium">{directions.from}</p>
-                </div>
-                <span className="text-2xl">→</span>
-                <div className="flex-1 text-right">
-                  <p className="text-xs text-gray-400">To</p>
-                  <p className="text-white font-medium">{directions.to}</p>
-                </div>
+            {/* 상단: 장소 정보 */}
+            <div className="bg-blue-600 p-6 text-white relative overflow-hidden">
+              <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+              <h3 className="text-3xl font-black mb-1 z-10 relative leading-tight">{result.place_kr}</h3>
+              <p className="text-blue-200 font-medium z-10 relative">{result.place_en}</p>
+            </div>
+
+            <div className="p-6">
+              {/* 주소 섹션 */}
+              <div className="mb-6">
+                 <p className="text-xs text-gray-400 font-bold uppercase mb-1">Navigation Address</p>
+                 <div className="flex justify-between items-start gap-2">
+                    <p className="text-lg font-bold text-slate-800 leading-snug break-keep">
+                      {result.address_kr || "Address not found."}
+                    </p>
+                    {/* 기사님 보여주기 버튼 (확대) */}
+                    <button
+                      onClick={() => setIsDriverMode(true)}
+                      className="text-blue-600 text-xs font-bold border border-blue-200 px-2 py-1 rounded hover:bg-blue-50 flex-shrink-0 flex items-center gap-1"
+                    >
+                      <FaExpandArrowsAlt /> Driver View
+                    </button>
+                 </div>
               </div>
 
-              <div className="flex justify-between pt-3 border-t border-white/10">
-                <div>
-                  <p className="text-xs text-gray-400">Time</p>
-                  <p className="text-lg font-bold text-blue-400">{directions.estimated_time}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-400">Cost</p>
-                  <p className="text-lg font-bold text-green-400">{directions.estimated_cost}</p>
-                </div>
+              {/* AI 팁 */}
+              <div className="flex gap-3 mb-6 bg-yellow-50 p-4 rounded-xl border border-yellow-100">
+                <FaStar className="text-yellow-400 text-lg flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-slate-700 leading-relaxed font-medium">
+                  {result.tip}
+                </p>
+              </div>
+
+              {/* 지도 버튼 2개 */}
+              <div className="grid grid-cols-2 gap-3 mb-2">
+                <button onClick={() => openMap('naver')} className="bg-[#03C75A] hover:bg-[#02b351] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
+                  <span className="text-sm">NAVER Map</span> <FaExternalLinkAlt className="text-xs opacity-70"/>
+                </button>
+                <button onClick={() => openMap('google')} className="bg-slate-100 hover:bg-slate-200 text-slate-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
+                  <span className="text-sm">Google Map</span> <FaExternalLinkAlt className="text-xs opacity-50"/>
+                </button>
               </div>
             </div>
 
-            {/* Steps */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-gray-400">Directions</h3>
-              {directions.steps.map((step, index) => (
-                <div key={index} className="flex gap-3 p-3 bg-white/5 rounded-xl">
-                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                    {index + 1}
+            {/* [State 3] 기사님 모드 (전체 화면 오버레이) */}
+            {isDriverMode && (
+               <div className="absolute inset-0 bg-white z-50 flex flex-col justify-center items-center p-6 text-center animate-in fade-in">
+                  <button onClick={() => setIsDriverMode(false)} className="absolute top-4 right-4 text-slate-400 p-2 text-xl"><FaTimes/></button>
+                  <p className="text-sm text-gray-500 font-bold uppercase tracking-widest mb-4">Destination Info</p>
+                  <h1 className="text-5xl font-black text-slate-900 mb-6 leading-tight break-keep">{result.place_kr}</h1>
+                  <div className="bg-slate-100 p-4 rounded-xl w-full">
+                    <p className="text-2xl font-bold text-slate-800 break-keep">{result.address_kr}</p>
                   </div>
-                  <p className="text-white text-sm">{step}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Actions */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={openInMaps}
-                className="py-3 bg-white/10 rounded-xl font-medium text-white hover:bg-white/20 transition-colors"
-              >
-                🗺️ Open in Maps
-              </button>
-              <button
-                onClick={resetSearch}
-                className="py-3 bg-blue-500/20 rounded-xl font-medium text-blue-400 hover:bg-blue-500/30 transition-colors"
-              >
-                🔄 New Search
-              </button>
-            </div>
+                  <p className="mt-8 text-lg font-medium text-blue-600">&quot;기사님, 여기로 가주세요.&quot;</p>
+               </div>
+            )}
           </div>
         )}
       </div>

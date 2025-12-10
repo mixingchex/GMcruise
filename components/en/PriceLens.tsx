@@ -1,249 +1,137 @@
+// components/en/PriceLens.tsx
 'use client';
-
 import { useState, useRef } from 'react';
+import { FaCamera, FaTimes, FaCheckCircle, FaExclamationTriangle, FaWonSign, FaDollarSign } from 'react-icons/fa';
 
-/**
- * PriceLens - Scan prices and check if they're fair
- *
- * Features:
- * - Camera capture for menus/receipts
- * - AI-powered price analysis
- * - USD conversion
- * - Fair price verdict
- */
-
-interface PriceLensProps {
-  onClose: () => void;
-}
-
-interface PriceItem {
-  name: string;
-  price_krw: number;
-  price_usd: number;
-  is_fair: boolean;
-}
-
-interface PriceAnalysis {
-  items: PriceItem[];
-  total_krw: number;
-  total_usd: number;
-  verdict: string;
-  tip: string;
-}
-
-export default function PriceLens({ onClose }: PriceLensProps) {
-  const [image, setImage] = useState<string | null>(null);
+export default function PriceLens({ onClose }: { onClose: () => void }) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [analysis, setAnalysis] = useState<PriceAnalysis | null>(null);
-  const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleCapture = () => {
-    fileInputRef.current?.click();
-  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Convert to base64
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setImage(base64);
-      analyzeImage(base64);
+      const base64String = reader.result as string;
+      setPreview(base64String);
+      analyzeImage(base64String);
     };
     reader.readAsDataURL(file);
   };
 
-  const analyzeImage = async (base64Image: string) => {
+  const analyzeImage = async (base64: string) => {
     setLoading(true);
-    setError('');
-    setAnalysis(null);
-
     try {
-      const response = await fetch('/api/en/genie', {
+      const cleanBase64 = base64.split(',')[1];
+      const res = await fetch('/api/en/genie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: 'Analyze this image for prices. Identify all items and their prices in KRW. Convert to USD (1 USD = 1,350 KRW approx). Tell me if the prices are fair for tourists or if this might be overpriced.',
-          image: base64Image,
-          mode: 'price',
+          message: "Analyze this price. Is it fair? Output JSON.",
+          image: { inline_data: { mime_type: "image/jpeg", data: cleanBase64 } }
         }),
       });
-
-      const data = await response.json();
-
-      if (data.ok && data.data?.type === 'price_analysis') {
-        setAnalysis(data.data.content);
-      } else if (data.ok && data.data?.content) {
-        // Fallback response
-        setAnalysis({
-          items: [],
-          total_krw: 0,
-          total_usd: 0,
-          verdict: 'Analysis complete',
-          tip: data.data.content.message || 'Unable to extract specific prices',
-        });
-      } else {
-        throw new Error(data.error || 'Failed to analyze image');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      const data = await res.json();
+      setAnalysis(data);
+    } catch (e) {
+      alert("Analysis failed.");
     } finally {
       setLoading(false);
     }
   };
 
-  const getVerdictColor = (verdict: string) => {
-    if (verdict.toLowerCase().includes('fair')) return 'text-green-400';
-    if (verdict.toLowerCase().includes('overpriced')) return 'text-yellow-400';
-    if (verdict.toLowerCase().includes('warning') || verdict.toLowerCase().includes('trap')) return 'text-red-400';
-    return 'text-gray-400';
-  };
-
-  const resetAnalysis = () => {
-    setImage(null);
-    setAnalysis(null);
-    setError('');
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-3xl p-6 pb-safe-bottom max-h-[90vh] overflow-y-auto animate-slide-up">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">📷</span>
-            <div>
-              <h2 className="text-xl font-bold text-white">Price Lens</h2>
-              <p className="text-xs text-gray-400">Scan & check fair prices</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose} />
+
+      <div className="relative w-full max-w-md z-10 animate-in fade-in zoom-in duration-300">
+        <button onClick={onClose} className="absolute -top-12 right-0 text-white/50 hover:text-white text-3xl"><FaTimes /></button>
+
+        {!preview ? (
+          // [State 1] 스캐너 대기 화면
+          <div className="bg-slate-900/80 border border-green-500/30 rounded-3xl p-8 shadow-[0_0_50px_rgba(34,197,94,0.1)] backdrop-blur-md text-center">
+            <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/30 animate-pulse">
+              <FaCamera className="text-3xl text-green-400" />
             </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <span className="text-xl">✕</span>
-          </button>
-        </div>
+            <h2 className="text-2xl font-serif font-bold text-white mb-2">Price Guardian</h2>
+            <p className="text-slate-400 text-sm mb-8">Scan menu or product to check fair price.</p>
 
-        {/* Hidden File Input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFileChange}
-          className="hidden"
-        />
-
-        {/* Capture Section */}
-        {!image && (
-          <div className="space-y-4">
             <button
-              onClick={handleCapture}
-              className="w-full aspect-video bg-white/5 border-2 border-dashed border-white/20 rounded-2xl flex flex-col items-center justify-center gap-3 hover:bg-white/10 transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-700 text-white font-bold py-4 rounded-xl text-lg hover:scale-[1.02] transition-transform shadow-lg shadow-green-900/50"
             >
-              <span className="text-5xl">📸</span>
-              <span className="text-lg font-medium text-white">Tap to Capture</span>
-              <span className="text-sm text-gray-400">Photo of menu, receipt, or price tag</span>
+              Activate Camera
             </button>
-
-            <div className="bg-white/5 rounded-xl p-4">
-              <h3 className="font-medium text-white mb-2">💡 Tips for best results:</h3>
-              <ul className="text-sm text-gray-400 space-y-1">
-                <li>• Make sure prices are clearly visible</li>
-                <li>• Good lighting helps accuracy</li>
-                <li>• Works with Korean & English text</li>
-              </ul>
-            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
           </div>
-        )}
-
-        {/* Loading State */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-white font-medium">Analyzing prices...</p>
-            <p className="text-sm text-gray-400">This may take a few seconds</p>
-          </div>
-        )}
-
-        {/* Error State */}
-        {error && (
-          <div className="text-center py-8">
-            <p className="text-red-400 mb-4">{error}</p>
-            <button
-              onClick={resetAnalysis}
-              className="px-6 py-2 bg-white/10 rounded-lg text-white hover:bg-white/20"
-            >
-              Try Again
-            </button>
-          </div>
-        )}
-
-        {/* Analysis Results */}
-        {analysis && !loading && (
-          <div className="space-y-4">
-            {/* Captured Image */}
-            {image && (
-              <div className="rounded-xl overflow-hidden">
-                <img src={image} alt="Captured" className="w-full h-40 object-cover" />
+        ) : (
+          // [State 2] 분석 결과 (디지털 영수증)
+          <div className="bg-white rounded-3xl overflow-hidden shadow-2xl relative">
+            {/* 상단: 이미지 프리뷰 */}
+            <div className="relative h-48 bg-black">
+              <img src={preview} alt="Scan" className="w-full h-full object-cover opacity-80" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+              <div className="absolute bottom-4 left-4">
+                <p className="text-xs text-green-400 font-mono tracking-widest uppercase">● AI Analysis Complete</p>
               </div>
-            )}
-
-            {/* Verdict Banner */}
-            <div className={`p-4 rounded-xl bg-white/10 border border-white/20 text-center`}>
-              <p className={`text-xl font-bold ${getVerdictColor(analysis.verdict)}`}>
-                {analysis.verdict}
-              </p>
             </div>
 
-            {/* Price Items */}
-            {analysis.items.length > 0 && (
-              <div className="space-y-2">
-                {analysis.items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-white/5 rounded-xl"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span>{item.is_fair ? '✅' : '⚠️'}</span>
-                      <span className="text-white">{item.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-white font-medium">₩{item.price_krw.toLocaleString()}</p>
-                      <p className="text-xs text-gray-400">${item.price_usd.toFixed(2)}</p>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Total */}
-                <div className="flex items-center justify-between p-4 bg-emerald-500/20 rounded-xl border border-emerald-500/30">
-                  <span className="text-white font-bold">Total</span>
-                  <div className="text-right">
-                    <p className="text-emerald-400 font-bold text-xl">₩{analysis.total_krw.toLocaleString()}</p>
-                    <p className="text-sm text-gray-400">${analysis.total_usd.toFixed(2)}</p>
-                  </div>
+            {/* 하단: 분석 내용 */}
+            <div className="p-6 bg-white -mt-4 rounded-t-3xl relative z-10">
+              {loading ? (
+                <div className="py-10 text-center">
+                  <div className="animate-spin text-3xl text-green-600 mb-2">⟳</div>
+                  <p className="text-gray-500 font-mono text-sm">Scanning database...</p>
                 </div>
-              </div>
-            )}
+              ) : analysis ? (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start border-b border-gray-100 pb-4">
+                    <div>
+                      <h3 className="text-2xl font-black text-slate-900">{analysis.item_name || "Unknown Item"}</h3>
+                      <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Product Name</p>
+                    </div>
+                    {/* 판정 뱃지 */}
+                    {analysis.verdict?.toLowerCase().includes("trap") || analysis.verdict?.toLowerCase().includes("expensive") ? (
+                      <span className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold border border-red-200 flex items-center gap-1">
+                        <FaExclamationTriangle /> CAUTION
+                      </span>
+                    ) : (
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200 flex items-center gap-1">
+                        <FaCheckCircle /> GOOD PRICE
+                      </span>
+                    )}
+                  </div>
 
-            {/* Tip */}
-            {analysis.tip && (
-              <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                <p className="text-sm text-blue-300">💡 {analysis.tip}</p>
-              </div>
-            )}
+                  {/* 가격 정보 그리드 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-slate-50 p-4 rounded-2xl">
+                      <FaWonSign className="text-gray-400 text-xs mb-1" />
+                      <p className="text-xl font-bold text-slate-800">{analysis.price_krw}</p>
+                      <p className="text-[10px] text-gray-400">KRW</p>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-2xl border border-green-100">
+                      <FaDollarSign className="text-green-600 text-xs mb-1" />
+                      <p className="text-xl font-bold text-green-700">{analysis.price_usd}</p>
+                      <p className="text-[10px] text-green-500">Approx. USD</p>
+                    </div>
+                  </div>
 
-            {/* Actions */}
-            <button
-              onClick={resetAnalysis}
-              className="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl font-bold text-lg text-white"
-            >
-              Scan Another
-            </button>
+                  {/* AI 조언 */}
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                    <p className="text-sm text-blue-800 font-medium leading-relaxed">
+                      &quot; {analysis.tips || "Always compare prices before buying."} &quot;
+                    </p>
+                  </div>
+
+                  <button onClick={() => setPreview(null)} className="w-full mt-2 py-3 text-sm text-gray-400 hover:text-black transition-colors font-medium">
+                    Scan Another Item
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         )}
       </div>

@@ -1,250 +1,139 @@
 'use client';
-
 import { useState } from 'react';
+import { FaMicrophone, FaTimes, FaVolumeUp, FaLanguage } from 'react-icons/fa';
 
-/**
- * VocalGenie - Instant translation for tourists
- *
- * Features:
- * - Text translation (EN ↔ KR)
- * - Phonetic pronunciation guide
- * - Common phrases quick access
- * - Copy & Speak functionality
- */
-
-interface VocalGenieProps {
-  onClose: () => void;
-}
-
-interface TranslationResult {
-  original: string;
-  translated: string;
-  pronunciation: string;
-  context: string;
-}
-
-const commonPhrases = [
-  { en: 'Hello', kr: '안녕하세요', pronunciation: 'An-nyeong-ha-se-yo' },
-  { en: 'Thank you', kr: '감사합니다', pronunciation: 'Gam-sa-ham-ni-da' },
-  { en: 'How much?', kr: '얼마예요?', pronunciation: 'Eol-ma-ye-yo?' },
-  { en: 'Where is...?', kr: '어디예요?', pronunciation: 'Eo-di-ye-yo?' },
-  { en: 'Excuse me', kr: '실례합니다', pronunciation: 'Sil-lye-ham-ni-da' },
-  { en: 'Help!', kr: '도와주세요!', pronunciation: 'Do-wa-ju-se-yo!' },
-  { en: 'I don\'t understand', kr: '이해 못해요', pronunciation: 'I-hae mot-hae-yo' },
-  { en: 'Bathroom', kr: '화장실', pronunciation: 'Hwa-jang-sil' },
-];
-
-export default function VocalGenie({ onClose }: VocalGenieProps) {
+export default function VocalGenie({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('');
-  const [direction, setDirection] = useState<'en-kr' | 'kr-en'>('en-kr');
+  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [translation, setTranslation] = useState<TranslationResult | null>(null);
-  const [error, setError] = useState('');
+  const [isListening, setIsListening] = useState(false);
 
-  const handleTranslate = async () => {
-    if (!text.trim()) return;
+  // 🎤 음성 인식 기능 (브라우저 내장 API 사용)
+  const startListening = () => {
+    // 브라우저 호환성 체크
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("Voice recognition is not supported in this browser. Please type.");
+      return;
+    }
 
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = 'en-US'; // 외국인이 영어로 말함
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    setIsListening(true);
+    recognition.start();
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setText(transcript);
+      // 말 끝나자마자 바로 번역 요청
+      handleTranslate(transcript);
+      setIsListening(false);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      alert("Could not hear you clearly.");
+    };
+
+    recognition.onend = () => setIsListening(false);
+  };
+
+  const handleTranslate = async (inputText = text) => {
+    if (!inputText) return;
     setLoading(true);
-    setError('');
-    setTranslation(null);
 
     try {
-      const fromLang = direction === 'en-kr' ? 'English' : 'Korean';
-      const toLang = direction === 'en-kr' ? 'Korean' : 'English';
-
-      const response = await fetch('/api/en/genie', {
+      const res = await fetch('/api/en/genie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: `Translate this from ${fromLang} to ${toLang}: "${text}". Include the pronunciation (romanization) if translating to Korean, and provide context on when to use this phrase.`,
-          mode: 'translation',
-        }),
+        body: JSON.stringify({ message: `Translate this to Korean: "${inputText}"` }),
       });
-
-      const data = await response.json();
-
-      if (data.ok && data.data?.type === 'translation') {
-        setTranslation(data.data.content);
-      } else if (data.ok && data.data?.content?.message) {
-        setTranslation({
-          original: text,
-          translated: data.data.content.message,
-          pronunciation: '',
-          context: '',
-        });
-      } else {
-        throw new Error(data.error || 'Translation failed');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      const data = await res.json();
+      setResult(data);
+    } catch (e) {
+      alert("Translation failed.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCopy = async (textToCopy: string) => {
-    await navigator.clipboard.writeText(textToCopy);
-    alert('Copied to clipboard!');
-  };
-
-  const handleSpeak = (textToSpeak: string, lang: string) => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.lang = lang;
-      speechSynthesis.speak(utterance);
-    }
-  };
-
-  const handleQuickPhrase = (phrase: typeof commonPhrases[0]) => {
-    setTranslation({
-      original: phrase.en,
-      translated: phrase.kr,
-      pronunciation: phrase.pronunciation,
-      context: 'Common phrase',
-    });
-  };
-
-  const resetTranslation = () => {
-    setTranslation(null);
-    setText('');
-    setError('');
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-3xl p-6 pb-safe-bottom max-h-[90vh] overflow-y-auto animate-slide-up">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🗣️</span>
-            <div>
-              <h2 className="text-xl font-bold text-white">VocalGenie</h2>
-              <p className="text-xs text-gray-400">Instant translation</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={onClose} />
+
+      <div className="relative w-full max-w-md z-10 animate-in slide-in-from-bottom-10 duration-300">
+        <button onClick={onClose} className="absolute -top-12 right-0 text-white/50 hover:text-white text-3xl"><FaTimes /></button>
+
+        {/* 메인 카드 */}
+        <div className="bg-slate-900 border border-purple-500/30 rounded-3xl overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.2)]">
+
+          <div className="bg-gradient-to-r from-purple-900 to-slate-900 p-6 border-b border-white/10">
+            <div className="flex items-center gap-3 mb-1">
+              <FaLanguage className="text-purple-400 text-2xl" />
+              <h2 className="text-xl font-serif font-bold text-white">Elite Translator</h2>
             </div>
+            <p className="text-purple-200/60 text-xs">Speak English, Show Korean</p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-          >
-            <span className="text-xl">✕</span>
-          </button>
-        </div>
 
-        {/* Translation Input */}
-        {!translation && (
-          <div className="space-y-4">
-            {/* Direction Toggle */}
-            <div className="flex items-center justify-center gap-3 p-3 bg-white/5 rounded-xl">
-              <span className={`text-lg ${direction === 'en-kr' ? 'text-white' : 'text-gray-500'}`}>
-                🇺🇸 English
-              </span>
-              <button
-                onClick={() => setDirection(direction === 'en-kr' ? 'kr-en' : 'en-kr')}
-                className="px-4 py-2 bg-purple-500/20 rounded-lg border border-purple-500/30 hover:bg-purple-500/30 transition-colors"
-              >
-                ⇄
-              </button>
-              <span className={`text-lg ${direction === 'kr-en' ? 'text-white' : 'text-gray-500'}`}>
-                🇰🇷 Korean
-              </span>
-            </div>
-
-            {/* Text Input */}
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">
-                Enter {direction === 'en-kr' ? 'English' : 'Korean'} text
-              </label>
+          <div className="p-6 space-y-6">
+            {/* 입력창 (User) */}
+            <div className="relative">
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder={direction === 'en-kr' ? 'Type in English...' : '한국어로 입력하세요...'}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 min-h-[100px] resize-none"
+                placeholder="Tap mic and speak... (e.g., I lost my bag)"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white placeholder:text-slate-500 focus:border-purple-500 outline-none resize-none h-32 transition-colors text-lg"
               />
+
+              {/* 🎤 마이크 버튼 (애니메이션 추가) */}
+              <button
+                onClick={startListening}
+                className={`absolute bottom-3 right-3 p-4 rounded-full shadow-lg transition-all ${
+                  isListening
+                    ? 'bg-red-500 animate-pulse scale-110 text-white'
+                    : 'bg-purple-600 hover:bg-purple-500 text-white active:scale-95'
+                }`}
+              >
+                {isListening ? <span className="animate-spin block">●</span> : <FaMicrophone className="text-xl"/>}
+              </button>
             </div>
 
-            {error && <p className="text-red-400 text-sm">{error}</p>}
-
-            {/* Translate Button */}
-            <button
-              onClick={handleTranslate}
-              disabled={loading || !text.trim()}
-              className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl font-bold text-lg text-white disabled:opacity-50 transition-all hover:shadow-lg"
-            >
-              {loading ? 'Translating...' : 'Translate'}
-            </button>
-
-            {/* Quick Phrases */}
-            <div>
-              <h3 className="text-sm text-gray-400 mb-3">Quick Phrases</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {commonPhrases.slice(0, 6).map((phrase, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleQuickPhrase(phrase)}
-                    className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-left hover:bg-white/10 transition-colors"
-                  >
-                    <p className="text-sm font-medium text-white">{phrase.en}</p>
-                    <p className="text-xs text-gray-400">{phrase.kr}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Translation Result */}
-        {translation && !loading && (
-          <div className="space-y-4">
-            {/* Original */}
-            <div className="p-4 bg-white/5 rounded-xl">
-              <p className="text-xs text-gray-400 mb-1">Original</p>
-              <p className="text-lg text-white">{translation.original}</p>
-            </div>
-
-            {/* Translated - Large Display */}
-            <div className="p-6 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl border border-purple-500/30">
-              <p className="text-xs text-gray-400 mb-2">Translation</p>
-              <p className="text-3xl font-bold text-white mb-2">{translation.translated}</p>
-              {translation.pronunciation && (
-                <p className="text-lg text-purple-300 italic">"{translation.pronunciation}"</p>
-              )}
-            </div>
-
-            {/* Context */}
-            {translation.context && (
-              <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
-                <p className="text-sm text-blue-300">💡 {translation.context}</p>
+            {/* 로딩 표시 */}
+            {loading && (
+              <div className="text-center py-4">
+                <span className="text-purple-400 animate-pulse">Translating...</span>
               </div>
             )}
 
-            {/* Actions */}
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => handleCopy(translation.translated)}
-                className="py-3 bg-white/10 rounded-xl font-medium text-white hover:bg-white/20 transition-colors"
-              >
-                📋 Copy
-              </button>
-              <button
-                onClick={() => handleSpeak(translation.translated, direction === 'en-kr' ? 'ko-KR' : 'en-US')}
-                className="py-3 bg-white/10 rounded-xl font-medium text-white hover:bg-white/20 transition-colors"
-              >
-                🔊 Speak
-              </button>
-              <button
-                onClick={resetTranslation}
-                className="py-3 bg-purple-500/20 rounded-xl font-medium text-purple-400 hover:bg-purple-500/30 transition-colors"
-              >
-                🔄 New
-              </button>
-            </div>
+            {/* 결과창 (AI) */}
+            {result && !loading && (
+              <div className="bg-white rounded-2xl p-5 relative animate-in zoom-in shadow-xl">
+                <div className="absolute -top-2 left-6 w-4 h-4 bg-white rotate-45 transform"></div>
 
-            {/* Tip */}
-            <p className="text-center text-xs text-gray-500">
-              💡 Tip: Turn up volume and tap "Speak" to hear pronunciation
-            </p>
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Show to Local</span>
+                  <button className="text-gray-400 hover:text-purple-600"><FaVolumeUp /></button>
+                </div>
+
+                {/* 1. 한국어 결과 (크게) */}
+                <h3 className="text-3xl font-black text-slate-900 mb-3 leading-snug break-keep">
+                  {result.translated_kr}
+                </h3>
+
+                {/* 2. 발음 가이드 (읽을 수 있게) */}
+                <div className="bg-slate-100 px-3 py-2 rounded-lg inline-block border border-slate-200">
+                  <p className="text-sm font-medium text-slate-600">
+                    &quot; {result.pronunciation} &quot;
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
