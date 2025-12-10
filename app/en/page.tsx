@@ -39,7 +39,6 @@ const LuxuryButton = ({ icon: Icon, title, sub, onClick }: any) => (
 
 export default function GlobalPage() {
   const [activeFeature, setActiveFeature] = useState<string | null>(null);
-  const [showChat, setShowChat] = useState(false);
 
   return (
     <main className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden">
@@ -113,14 +112,12 @@ export default function GlobalPage() {
           />
         </div>
 
-        {/* CTA 버튼 */}
+        {/* CTA 안내 문구 */}
         <div className="mt-8">
-          <button
-            onClick={() => setShowChat(true)}
-            className="flex items-center gap-2 px-8 py-3 bg-[#D4AF37] hover:bg-[#E5C04B] text-[#050B14] font-bold rounded-full transition-all hover:scale-105 shadow-[0_0_30px_rgba(212,175,55,0.4)]"
-          >
-            <FaRobot /> TALK TO CONCIERGE
-          </button>
+          <p className="text-sm text-white/40 flex items-center gap-2">
+            <FaRobot className="text-[#D4AF37]" />
+            <span>Tap the chat icon to talk to Concierge</span>
+          </p>
         </div>
 
         {/* 카피라이트 */}
@@ -133,17 +130,7 @@ export default function GlobalPage() {
       {activeFeature === 'voice' && <VocalGenie onClose={() => setActiveFeature(null)} />}
       {activeFeature === 'path' && <PathFinder onClose={() => setActiveFeature(null)} />}
 
-      {/* 플로팅 챗봇 */}
-      {showChat && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowChat(false)} />
-          <div className="absolute bottom-0 left-0 right-0 sm:bottom-6 sm:left-auto sm:right-6 sm:w-[400px]">
-            <ConciergeChat />
-          </div>
-        </div>
-      )}
-
-      {/* 플로팅 채팅 버튼 (항상 표시) */}
+      {/* 플로팅 챗봇 (자체 isOpen 상태 관리) */}
       <ConciergeChat />
 
     </main>

@@ -3,40 +3,67 @@ import { NextResponse } from "next/server";
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || "");
 
-// 🚨 시스템 프롬프트: "추상적 요청"을 "구체적 내비 주소"로 바꾸는 해결사
+// 🧞 다목적 AI Concierge 시스템 프롬프트
 const SYSTEM_PROMPT = `
-You are 'Genie', the ultimate Taxi Navigator for Korea.
-Your goal: Convert ANY user input into a SPECIFIC, NAVIGABLE KOREAN ADDRESS.
+You are 'Genie', a premium AI concierge for foreign tourists in Korea.
+You MUST detect the user's intent and respond with the appropriate JSON format.
 
-**CORE LOGIC (Intent -> Address):**
-1. **Specific Place**: If user says "Lotte World", give Lotte World's address.
-2. **Abstract Request**: If user says "I'm hungry" or "Kimchi", **PICK A FAMOUS/SAFE RESTAURANT** in central Seoul (e.g., Myeongdong Kyoja) and give THAT address.
-3. **Category**: If user says "Pharmacy", find a major pharmacy nearby or a specific one.
-4. **Typos**: Correct "ganam" to "Gangnam Station".
+**INTENT DETECTION:**
 
-**OUTPUT RULES:**
-- 'destination_kr': The name of the specific place (NOT the user's abstract sentence).
-- 'address_kr': MUST be a real "Road Name Address" (도로명 주소) that a driver can type into a GPS.
+1. **TAXI/NAVIGATION** (keywords: "take me", "go to", "destination", "where is", place names)
+   Response JSON:
+   {
+     "type": "taxi_card",
+     "destination_en": "English Name",
+     "destination_kr": "한글 이름 (Big Text for Driver)",
+     "address_kr": "Real Road Name Address (도로명주소)",
+     "driver_message": "기사님, [장소]로 가주세요."
+   }
+   - If input is abstract like "I'm hungry", pick a FAMOUS restaurant and provide its address.
+   - Correct typos: "ganam" → "강남역"
 
-**EXAMPLES:**
-- Input: "I want to see the ocean"
-  -> Destination: "을왕리 해수욕장" (Nearest famous beach from Seoul)
-  -> Address: "인천 중구 을왕로13번길 15"
-- Input: "I need a doctor"
-  -> Destination: "세브란스 병원 응급실" (Major Hospital)
-  -> Address: "서울 서대문구 연세로 50"
-- Input: "Delicious pork belly"
-  -> Destination: "금돼지식당" (Famous BBQ place)
-  -> Address: "서울 중구 다산로 149"
+2. **TRANSLATION** (keywords: "translate", "say in korean", "how to say")
+   Response JSON:
+   {
+     "type": "translation",
+     "original": "Original English",
+     "translated_kr": "한국어 번역",
+     "pronunciation": "Romanized pronunciation",
+     "politeness": "Polite/Casual"
+   }
 
-JSON Schema:
-{
-  "type": "taxi_card",
-  "destination_en": "English Name of the Place",
-  "destination_kr": "Korean Name (Big Text)",
-  "address_kr": "Real Road Name Address (For Navi)",
-  "driver_message": "A polite request to the driver including the destination name."
-}
+3. **PRICE ANALYSIS** (keywords: "price", "cost", "expensive", "fair", image analysis)
+   Response JSON:
+   {
+     "type": "price_analysis",
+     "item_name": "Product/Menu name",
+     "price_krw": "₩XX,XXX",
+     "price_usd": "~$XX",
+     "verdict": "Fair Price" or "Tourist Trap - Too Expensive",
+     "tips": "Advice for the tourist"
+   }
+
+4. **DIRECTIONS/PLACE INFO** (keywords: "visit", "find", "directions to")
+   Response JSON:
+   {
+     "type": "directions",
+     "place_kr": "장소 한글명",
+     "place_en": "Place English Name",
+     "address_kr": "도로명 주소",
+     "tip": "Useful tip about the place"
+   }
+
+5. **GENERAL CHAT** (anything else)
+   Response JSON:
+   {
+     "type": "text",
+     "message": "Helpful response in English"
+   }
+
+**RULES:**
+- ALWAYS respond with valid JSON only (no markdown, no explanation)
+- Korean addresses MUST be real "Road Name Address" (도로명주소)
+- Be helpful, friendly, and safety-conscious
 `;
 
 export async function POST(req: Request) {
@@ -44,8 +71,7 @@ export async function POST(req: Request) {
     const { message, image } = await req.json();
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // AI에게 "이 말은 목적지를 뜻하는 거야"라고 힌트 줌
-    let promptParts: any[] = [SYSTEM_PROMPT, `User's Navigation Request: "${message}"`];
+    let promptParts: any[] = [SYSTEM_PROMPT, `User Request: "${message}"`];
 
     if (image) {
       promptParts.push(image);
@@ -62,7 +88,7 @@ export async function POST(req: Request) {
     console.error("Genie API Error:", error);
     return NextResponse.json({
       type: "text",
-      message: "Please specify a clearer destination."
+      message: "I couldn't process that. Please try again."
     }, { status: 500 });
   }
 }

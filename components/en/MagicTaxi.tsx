@@ -39,7 +39,7 @@ export default function MagicTaxi({ onClose }: { onClose: () => void }) {
       const res = await fetch('/api/en/genie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: textToSearch }),
+        body: JSON.stringify({ message: `Take me to: ${textToSearch}` }),
       });
       const data = await res.json();
       setResult(data);
