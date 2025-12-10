@@ -36,6 +36,11 @@ export async function GET(req: NextRequest) {
 
     let stats: any = {
       profileType: profile.type,
+      // 기본값 설정 (컴포넌트 호환성)
+      totalLinks: 0,
+      totalLeads: 0,
+      totalSales: 0,
+      teamMembers: 0,
     };
 
     // 대리점장인 경우
@@ -183,6 +188,17 @@ export async function GET(req: NextRequest) {
           customersByStatus.map(stat => [stat.status, stat._count.id])
         ),
       };
+
+      // 링크 수 조회
+      const totalLinks = await prisma.affiliateLink.count({
+        where: { managerId: profile.id },
+      });
+
+      // 컴포넌트 호환용 flat 필드 설정
+      stats.totalLinks = totalLinks;
+      stats.totalLeads = totalCustomers;
+      stats.totalSales = thisMonthTeamSales._count.id || 0;
+      stats.teamMembers = totalAgents;
     }
     // 판매원인 경우
     else {
@@ -289,6 +305,17 @@ export async function GET(req: NextRequest) {
         userId: managerRelation.AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile?.User?.id,
         name: managerRelation.AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile?.User?.name,
       } : null;
+
+      // 링크 수 조회
+      const totalLinks = await prisma.affiliateLink.count({
+        where: { agentId: profile.id },
+      });
+
+      // 컴포넌트 호환용 flat 필드 설정
+      stats.totalLinks = totalLinks;
+      stats.totalLeads = totalCustomers;
+      stats.totalSales = totalSales._count.id || 0;
+      stats.teamMembers = 0; // 판매원은 팀원이 없음
     }
 
     // 공통: 지난 6개월 매출 추세
