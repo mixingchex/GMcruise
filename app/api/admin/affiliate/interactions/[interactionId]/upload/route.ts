@@ -65,8 +65,8 @@ export async function POST(
     const safeFileName = fileName.replace(/[^a-zA-Z0-9가-힣._-]/g, '_');
     const driveFileName = `interaction_${interactionId}_${safeCustomerName}_${dateStr}_${safeFileName}`;
 
-    // Google Drive에 업로드 (UPLOADS_SALES_AUDIO 폴더)
-    const folderId = await getDriveFolderId('UPLOADS_SALES_AUDIO');
+    // Google Drive에 업로드 (일반 상담 기록 오디오 폴더)
+    const folderId = await getDriveFolderId('UPLOADS_AUDIO');
 
     console.log('[Interaction Upload] Uploading to Google Drive:', {
       interactionId,
@@ -116,6 +116,44 @@ export async function POST(
         },
       },
     });
+
+    // 스프레드시트에 오디오 URL 전송
+    try {
+      const customerPhone = interaction.AffiliateLead?.customerPhone;
+      const customerName = interaction.AffiliateLead?.customerName;
+
+      if (customerPhone) {
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec';
+        const audioUrl = uploadResult.url || `https://drive.google.com/file/d/${uploadResult.fileId}/view`;
+        const timestamp = new Date().toLocaleString('ko-KR');
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'updateAudioUrl');
+        formData.append('timestamp', timestamp);
+        formData.append('name', customerName || '');
+        formData.append('phone', customerPhone);
+        formData.append('audioUrl', audioUrl);
+        formData.append('fileName', fileName);
+
+        console.log('[Interaction Upload] 스프레드시트에 오디오 URL 전송:', {
+          name: customerName,
+          phone: customerPhone,
+          audioUrl,
+        });
+
+        const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
+        });
+
+        const googleResult = await googleResponse.text();
+        console.log('[Interaction Upload] 스프레드시트 응답:', googleResult);
+      }
+    } catch (googleError) {
+      console.error('[Interaction Upload] 스프레드시트 전송 실패:', googleError);
+      // 스프레드시트 전송 실패해도 업로드는 성공으로 처리
+    }
 
     return NextResponse.json({
       ok: true,
