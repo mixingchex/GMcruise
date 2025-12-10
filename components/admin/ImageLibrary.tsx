@@ -569,46 +569,6 @@ export default function ImageLibrary({
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
-    // 이미지 삭제
-    const handleDelete = async (image: ImageItem, e: React.MouseEvent) => {
-        e.stopPropagation(); // 클릭 이벤트 전파 방지
-
-        if (!confirm(`"${image.name}" 이미지를 삭제하시겠습니까?`)) {
-            return;
-        }
-
-        try {
-            const urlParams = new URLSearchParams();
-            urlParams.append('url', image.url);
-            if (currentFolderId) {
-                urlParams.append('folderId', currentFolderId);
-            }
-            const response = await fetch(
-                `/api/admin/images?${urlParams.toString()}`,
-                {
-                    method: 'DELETE',
-                    credentials: 'include',
-                }
-            );
-
-            const data = await response.json();
-            if (data.ok) {
-                showSuccess('이미지가 삭제되었습니다.');
-                // 삭제된 이미지가 선택된 이미지이면 선택 해제
-                if (selectedImage?.url === image.url) {
-                    setSelectedImage(null);
-                }
-                // 목록 새로고침
-                loadImages();
-            } else {
-                showError(data.message || '이미지 삭제에 실패했습니다.');
-            }
-        } catch (error) {
-            console.error('이미지 삭제 실패:', error);
-            showError('이미지 삭제에 실패했습니다.');
-        }
-    };
-
     const filteredCruiseImages = cruiseImages.filter(img =>
         img.name.toLowerCase().includes(cruiseSearchQuery.toLowerCase())
     );
@@ -616,6 +576,24 @@ export default function ImageLibrary({
     const filteredCruiseFolders = cruiseFolders.filter(folder =>
         folder.name.toLowerCase().includes(cruiseFolderSearch.toLowerCase())
     );
+
+    // 클라이언트 마운트 전에는 로딩 상태 표시 (Hydration 에러 방지)
+    if (!isMounted) {
+        return (
+            <div className="min-h-screen bg-gray-50 p-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">이미지 라이브러리</h1>
+                        <p className="text-gray-600">로딩 중...</p>
+                    </div>
+                    <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">이미지 목록을 불러오는 중...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
