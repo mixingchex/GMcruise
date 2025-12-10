@@ -35,6 +35,7 @@ export async function POST(
             id: true,
             customerName: true,
             customerPhone: true,
+            source: true,
           },
         },
       },
@@ -117,57 +118,64 @@ export async function POST(
       },
     });
 
-    // 스프레드시트에 오디오 URL 전송 (전화상담신청 + 나의 고객 추가 둘 다)
+    // 스프레드시트에 오디오 URL 전송 (source에 따라 해당 스프레드시트로)
     try {
       const customerPhone = interaction.AffiliateLead?.customerPhone;
       const customerName = interaction.AffiliateLead?.customerName;
+      const source = interaction.AffiliateLead?.source || '';
 
       if (customerPhone) {
         const audioUrl = uploadResult.url || `https://drive.google.com/file/d/${uploadResult.fileId}/view`;
         const timestamp = new Date().toLocaleString('ko-KR');
 
-        // 공통 form data 생성 함수
-        const createFormData = () => {
-          const formData = new URLSearchParams();
-          formData.append('action', 'updateAudioUrl');
-          formData.append('timestamp', timestamp);
-          formData.append('name', customerName || '');
-          formData.append('phone', customerPhone);
-          formData.append('audioUrl', audioUrl);
-          formData.append('fileName', fileName);
-          return formData;
+        // source에 따라 스프레드시트 URL 결정
+        const SCRIPT_URLS = {
+          PHONE_CONSULT: 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec',
+          GROUP: 'https://script.google.com/macros/s/AKfycbyI7MEAS-fodkb7f8Y_PRUT8SBzDh-fvognlulXe3YeUDHmv0cuHRsNj3ub9YNoMxi9gg/exec',
+          MANAGEMENT: 'https://script.google.com/macros/s/AKfycbyZYKPmjQ_IWlAn0onXeUTnyj1DxLqtRJLuD2Lh70QEk_1IR4DkAZW0eM8aLyFJJGid/exec',
+          PURCHASED: 'https://script.google.com/macros/s/AKfycbwgZNwZnQwro13ZFfG8LQzqAhIBRV-xA8l_1TpK47vDip2gYKBV7W-aicGpbpwLSUXB/exec',
         };
+
+        // source에 따라 대상 스프레드시트 선택
+        let targetUrl = SCRIPT_URLS.MANAGEMENT; // 기본값: 나의고객추가
+        let targetName = '나의고객추가';
+
+        if (source.includes('phone-consultation') || source.includes('product-inquiry') || source.startsWith('mall')) {
+          targetUrl = SCRIPT_URLS.PHONE_CONSULT;
+          targetName = '전화상담고객';
+        } else if (source.includes('landing') || source.includes('partner-landing')) {
+          targetUrl = SCRIPT_URLS.GROUP;
+          targetName = '나의그룹고객';
+        } else if (source.includes('purchase') || source.includes('payment')) {
+          targetUrl = SCRIPT_URLS.PURCHASED;
+          targetName = '구매고객관리';
+        }
+        // partner-manual, trial, assigned, received 등은 기본값 MANAGEMENT 사용
+
+        const formData = new URLSearchParams();
+        formData.append('action', 'updateAudioUrl');
+        formData.append('timestamp', timestamp);
+        formData.append('name', customerName || '');
+        formData.append('phone', customerPhone);
+        formData.append('audioUrl', audioUrl);
+        formData.append('fileName', fileName);
 
         console.log('[Interaction Upload] 스프레드시트에 오디오 URL 전송:', {
           name: customerName,
           phone: customerPhone,
+          source,
+          targetSheet: targetName,
           audioUrl,
         });
 
-        // 1. 전화상담신청 스프레드시트
-        const PHONE_CONSULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec';
+        const googleResponse = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formData.toString(),
+        });
 
-        // 2. 나의 고객 추가 스프레드시트
-        const MANAGEMENT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZYKPmjQ_IWlAn0onXeUTnyj1DxLqtRJLuD2Lh70QEk_1IR4DkAZW0eM8aLyFJJGid/exec';
-
-        // 두 스프레드시트에 병렬로 전송 (각각에서 연락처로 검색하여 업데이트)
-        const [phoneConsultResult, managementResult] = await Promise.allSettled([
-          fetch(PHONE_CONSULT_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: createFormData().toString(),
-          }).then(res => res.text()),
-          fetch(MANAGEMENT_SCRIPT_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: createFormData().toString(),
-          }).then(res => res.text()),
-        ]);
-
-        console.log('[Interaction Upload] 전화상담신청 스프레드시트 응답:',
-          phoneConsultResult.status === 'fulfilled' ? phoneConsultResult.value : phoneConsultResult.reason);
-        console.log('[Interaction Upload] 나의고객추가 스프레드시트 응답:',
-          managementResult.status === 'fulfilled' ? managementResult.value : managementResult.reason);
+        const googleResult = await googleResponse.text();
+        console.log(`[Interaction Upload] ${targetName} 스프레드시트 응답:`, googleResult);
       }
     } catch (googleError) {
       console.error('[Interaction Upload] 스프레드시트 전송 실패:', googleError);

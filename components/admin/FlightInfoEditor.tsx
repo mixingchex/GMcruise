@@ -319,11 +319,82 @@ export default function FlightInfoEditor({
     return `${year}년 ${month}월 ${day}일 (${dayOfWeek})`;
   };
 
+  // 항공없음 - 국내출발도착 (출국 + 귀국 모두)
+  const setNoFlightBoth = () => {
+    const updated = {
+      ...localFlightInfo,
+      departure: {
+        ...localFlightInfo.departure,
+        from: '국내항',
+        to: '국내항',
+        flightNumber: '🚢 항공없음',
+        duration: '-',
+        type: '직항' as const,
+      },
+      return: {
+        ...localFlightInfo.return,
+        from: '국내항',
+        to: '국내항',
+        flightNumber: '🚢 항공없음',
+        duration: '-',
+        type: '직항' as const,
+      },
+      aircraftType: '🚢 크루즈 국내출발/도착 (항공 이용 없음)',
+    };
+    setLocalFlightInfo(updated);
+    onChange(updated);
+  };
+
+  // 항공없음 - 국내출발 (출국만)
+  const setNoFlightDeparture = () => {
+    const updated = {
+      ...localFlightInfo,
+      departure: {
+        ...localFlightInfo.departure,
+        from: '국내항',
+        to: '국내항',
+        flightNumber: '🚢 항공없음',
+        duration: '-',
+        type: '직항' as const,
+      },
+    };
+    setLocalFlightInfo(updated);
+    onChange(updated);
+  };
+
+  // 항공없음 - 국내도착 (귀국만)
+  const setNoFlightReturn = () => {
+    const updated = {
+      ...localFlightInfo,
+      return: {
+        ...localFlightInfo.return,
+        from: '국내항',
+        to: '국내항',
+        flightNumber: '🚢 항공없음',
+        duration: '-',
+        type: '직항' as const,
+      },
+    };
+    setLocalFlightInfo(updated);
+    onChange(updated);
+  };
+
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-2xl">✈️</span>
-        <h3 className="text-lg font-bold text-gray-800">항공 정보</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">✈️</span>
+          <h3 className="text-lg font-bold text-gray-800">항공 정보</h3>
+        </div>
+        {/* 항공없음 버튼 */}
+        <button
+          type="button"
+          onClick={setNoFlightBoth}
+          className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-semibold"
+        >
+          <span className="text-lg">🚢</span>
+          항공없음 국내출발도착!
+        </button>
       </div>
 
       {/* 여행기간 */}
@@ -379,10 +450,20 @@ export default function FlightInfoEditor({
 
       {/* 출국 */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <h4 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <span className="text-lg">✈️</span>
-          출국
-        </h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+            <span className="text-lg">✈️</span>
+            출국
+          </h4>
+          <button
+            type="button"
+            onClick={setNoFlightDeparture}
+            className="px-3 py-1.5 bg-gradient-to-r from-teal-400 to-cyan-500 text-white rounded-lg hover:from-teal-500 hover:to-cyan-600 transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 text-xs font-semibold"
+          >
+            <span>🚢</span>
+            항공없음 국내출발
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-600 mb-1">출발지</label>
@@ -550,10 +631,20 @@ export default function FlightInfoEditor({
 
       {/* 귀국 */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <h4 className="text-md font-semibold text-gray-800 mb-3 flex items-center gap-2">
-          <span className="text-lg">✈️</span>
-          귀국
-        </h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
+            <span className="text-lg">✈️</span>
+            귀국
+          </h4>
+          <button
+            type="button"
+            onClick={setNoFlightReturn}
+            className="px-3 py-1.5 bg-gradient-to-r from-indigo-400 to-purple-500 text-white rounded-lg hover:from-indigo-500 hover:to-purple-600 transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 text-xs font-semibold"
+          >
+            <span>🚢</span>
+            항공없음 국내도착
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-600 mb-1">출발지</label>

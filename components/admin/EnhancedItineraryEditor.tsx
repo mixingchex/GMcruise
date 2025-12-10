@@ -163,13 +163,15 @@ export default function EnhancedItineraryEditor({
 
   const loadCruiseFolders = async () => {
     try {
-      const res = await fetch('/api/admin/mall/cruise-photos?listFolders=true', {
+      // 이미지 라이브러리와 동일한 API 사용 (폴더 구조 탐색)
+      const res = await fetch('/api/admin/cruise-photos', {
         credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
         if (data.ok && data.folders) {
-          setCruiseFolders(data.folders);
+          // folders는 { name, path, id } 형태의 배열
+          setCruiseFolders(data.folders.map((f: { name: string }) => f.name));
         }
       }
     } catch (error) {
@@ -179,13 +181,15 @@ export default function EnhancedItineraryEditor({
 
   const loadCruiseImages = async (folder: string) => {
     try {
-      const res = await fetch(`/api/admin/mall/cruise-photos?folder=${encodeURIComponent(folder)}`, {
+      // 이미지 라이브러리와 동일한 API 사용
+      const res = await fetch(`/api/admin/cruise-photos?folder=${encodeURIComponent(folder)}`, {
         credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
         if (data.ok && data.images) {
-          setCruiseImages(data.images);
+          // images는 { id, name, url, webpUrl } 형태의 배열
+          setCruiseImages(data.images.map((img: { url: string }) => img.url));
         }
       }
     } catch (error) {

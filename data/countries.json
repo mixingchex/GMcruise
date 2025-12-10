@@ -4,7 +4,16 @@
     "countries": [
       {
         "name": "대한민국 (South Korea)",
+        "code": "KR",
         "regions": [
+          "부산항 (Busan Port)",
+          "인천항 (Incheon Port)",
+          "포항항 (Pohang Port)",
+          "서산항 (Seosan Port)",
+          "목포항 (Mokpo Port)",
+          "거제항 (Geoje Port)",
+          "제주항 (Jeju Port)",
+          "영도 (Yeongdo)",
           "제주도 (Jeju-do)"
         ]
       },

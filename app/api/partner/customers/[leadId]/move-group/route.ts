@@ -19,7 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ leadId: string }> | { leadId: string } }
 ) {
   try {
-    const { profile, user } = await requirePartnerContext();
+    const { profile, sessionUser } = await requirePartnerContext();
     if (!profile) {
       return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -119,7 +119,7 @@ export async function POST(
         leadId,
         groupId: newGroupId,
         profileId: profile.id,
-        userId: user.id,
+        userId: sessionUser.id,
       });
     }
 

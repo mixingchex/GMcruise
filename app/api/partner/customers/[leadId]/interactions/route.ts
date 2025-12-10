@@ -681,17 +681,41 @@ export async function POST(
       },
     });
 
-    // Google 스프레드시트에 상세기록 업데이트 (서버에서 직접 전송)
+    // Google 스프레드시트에 상세기록 업데이트 (source에 따라 해당 스프레드시트로)
     try {
-      // Lead에서 고객 정보 가져오기
+      // Lead에서 고객 정보 + source 가져오기
       const leadForGoogle = await prisma.affiliateLead.findUnique({
         where: { id: leadId },
-        select: { customerName: true, customerPhone: true },
+        select: { customerName: true, customerPhone: true, source: true },
       });
 
       if (leadForGoogle?.customerPhone && note) {
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec';
         const timestamp = new Date().toLocaleString('ko-KR');
+        const source = leadForGoogle.source || '';
+
+        // source에 따라 스프레드시트 URL 결정
+        const SCRIPT_URLS = {
+          PHONE_CONSULT: 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec',
+          GROUP: 'https://script.google.com/macros/s/AKfycbyI7MEAS-fodkb7f8Y_PRUT8SBzDh-fvognlulXe3YeUDHmv0cuHRsNj3ub9YNoMxi9gg/exec',
+          MANAGEMENT: 'https://script.google.com/macros/s/AKfycbyZYKPmjQ_IWlAn0onXeUTnyj1DxLqtRJLuD2Lh70QEk_1IR4DkAZW0eM8aLyFJJGid/exec',
+          PURCHASED: 'https://script.google.com/macros/s/AKfycbwgZNwZnQwro13ZFfG8LQzqAhIBRV-xA8l_1TpK47vDip2gYKBV7W-aicGpbpwLSUXB/exec',
+        };
+
+        // source에 따라 대상 스프레드시트 선택
+        let targetUrl = SCRIPT_URLS.MANAGEMENT; // 기본값: 나의고객추가
+        let targetName = '나의고객추가';
+
+        if (source.includes('phone-consultation') || source.includes('product-inquiry') || source.startsWith('mall')) {
+          targetUrl = SCRIPT_URLS.PHONE_CONSULT;
+          targetName = '전화상담고객';
+        } else if (source.includes('landing') || source.includes('partner-landing')) {
+          targetUrl = SCRIPT_URLS.GROUP;
+          targetName = '나의그룹고객';
+        } else if (source.includes('purchase') || source.includes('payment')) {
+          targetUrl = SCRIPT_URLS.PURCHASED;
+          targetName = '구매고객관리';
+        }
+        // partner-manual, trial, assigned, received 등은 기본값 MANAGEMENT 사용
 
         const formData = new URLSearchParams();
         formData.append('action', 'updateNote');
@@ -703,17 +727,19 @@ export async function POST(
         console.log('[Partner Interactions API] Google 스프레드시트 전송 시작:', {
           name: leadForGoogle.customerName,
           phone: leadForGoogle.customerPhone,
+          source,
+          targetSheet: targetName,
           note: note.substring(0, 50) + '...',
         });
 
-        const googleResponse = await fetch(GOOGLE_SCRIPT_URL, {
+        const googleResponse = await fetch(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: formData.toString(),
         });
 
         const googleResult = await googleResponse.text();
-        console.log('[Partner Interactions API] Google 스프레드시트 응답:', googleResult);
+        console.log(`[Partner Interactions API] ${targetName} 스프레드시트 응답:`, googleResult);
       } else {
         console.log('[Partner Interactions API] 고객 연락처 없음, 스프레드시트 업데이트 생략');
       }

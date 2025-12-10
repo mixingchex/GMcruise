@@ -2116,21 +2116,9 @@ export default function PartnerCustomersClient({
           </Link>
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-white/80">Partner CRM</p>
-                  <h1 className="mt-2 text-3xl font-black leading-snug md:text-4xl">나의 고객 관리</h1>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    window.open('https://docs.google.com/spreadsheets/d/11_cfi841QGIDaBmYdjdk3aHYp2UYpCnx1QVVrgV7QJY/edit', '_blank');
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-white/20 hover:bg-white/30 px-4 py-2.5 text-sm font-semibold text-white transition-colors backdrop-blur-sm"
-                >
-                  <FiExternalLink className="w-4 h-4" />
-                  시트 보기
-                </button>
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-white/80">Partner CRM</p>
+                <h1 className="mt-2 text-3xl font-black leading-snug md:text-4xl">나의 고객 관리</h1>
               </div>
               <p className="max-w-2xl text-sm text-white/80 md:text-base">
                 상담 기록과 다음 조치 일정을 관리하고, 고객이 어떤 파트너 링크를 통해 유입되었는지 추적하세요.
