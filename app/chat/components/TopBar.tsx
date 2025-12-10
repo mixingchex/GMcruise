@@ -75,7 +75,7 @@ export default function TopBar() {
 
         {/* 중앙: 타이틀 */}
         <h1 className="absolute left-1/2 -translate-x-1/2 text-base font-bold whitespace-nowrap hidden md:block text-white">
-          <span className="text-[#FDB931]">크루즈 가이드 지니</span> AI
+          <span className="text-[#FDB931]">크루즈닷</span> AI
         </h1>
 
         {/* 우측: 설정 버튼들 */}

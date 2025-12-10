@@ -19,7 +19,7 @@ export default function HelpModal({
     switch (mode) {
       case 'go':
         return {
-          title: '🧭 지니야 가자 - 사용 방법',
+          title: '🧭 크루즈닷 가자 - 사용 방법',
           icon: '🧭',
           color: 'text-red-600',
           sections: [
@@ -28,7 +28,7 @@ export default function HelpModal({
               items: [
                 '출발지와 도착지를 입력하세요. (예: 홍콩 공항 → 홍콩 크루즈 터미널)',
                 '출발지가 애매하면 "현 위치" 버튼을 클릭하거나 나라/도시/공항을 선택하세요.',
-                '입력 후 지니가 추천 후보 버튼을 띄우고, 대중교통/자동차/지도로 보기를 제공합니다.',
+                '입력 후 크루즈닷이 추천 후보 버튼을 띄우고, 대중교통/자동차/지도로 보기를 제공합니다.',
               ],
             },
             {
@@ -51,7 +51,7 @@ export default function HelpModal({
         };
       case 'show':
         return {
-          title: '🖼️ 지니야 보여줘 - 사용 방법',
+          title: '🖼️ 크루즈닷 보여줘 - 사용 방법',
           icon: '🖼️',
           color: 'text-blue-600',
           sections: [
@@ -59,7 +59,7 @@ export default function HelpModal({
               title: '📸 크루즈 사진 보기',
               items: [
                 '크루즈 이름을 입력하세요. (예: "벨리시마 보여줘", "오션뷰 보여줘")',
-                '지니가 해당 크루즈의 사진을 찾아서 보여줍니다.',
+                '크루즈닷이 해당 크루즈의 사진을 찾아서 보여줍니다.',
                 '사진을 클릭하면 더 큰 화면으로 볼 수 있습니다.',
               ],
             },
@@ -84,7 +84,7 @@ export default function HelpModal({
       case 'general':
       default:
         return {
-          title: '💬 지니야 (일반 대화) - 사용 방법',
+          title: '💬 크루즈닷 (일반 대화) - 사용 방법',
           icon: '💬',
           color: 'text-purple-600',
           sections: [
@@ -92,14 +92,14 @@ export default function HelpModal({
               title: '💬 일반 질문하기',
               items: [
                 '크루즈 여행에 대한 질문을 자유롭게 물어보세요.',
-                '지니가 지식 베이스를 검색해서 정확한 답변을 제공합니다.',
+                '크루즈닷이 지식 베이스를 검색해서 정확한 답변을 제공합니다.',
                 '예: "크루즈 준비물 뭐가 필요해?", "일본 여행 팁 알려줘"',
               ],
             },
             {
               title: '✨ 빠른 핵심 답변',
               items: [
-                '지니는 모든 답변을 100자 이내로 정리해드려요.',
+                '크루즈닷은 모든 답변을 100자 이내로 정리해드려요.',
                 '필요한 정보만 간단하게 받아보고 싶을 때 사용하세요.',
               ],
             },
@@ -125,7 +125,7 @@ export default function HelpModal({
               items: [
                 '답변은 100자 이내로 제공됩니다.',
                 '상품 추천이 필요하면 상품명이나 코드를 함께 알려주세요.',
-                '"지니야 가자"와 "지니야 보여줘" 탭에서는 일반 대화가 제공되지 않습니다.',
+                '"크루즈닷 가자"와 "크루즈닷 보여줘" 탭에서는 일반 대화가 제공되지 않습니다.',
               ],
             },
           ],

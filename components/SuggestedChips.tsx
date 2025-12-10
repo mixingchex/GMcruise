@@ -19,8 +19,8 @@ export default function SuggestedChips({ onPick, currentInput }: { onPick: (t: s
   }, [currentInput]);
 
   const staticItems = [
-    "지니야 미국 크루즈 터미널 어떻게 가?",
-    "지니야 미국 크루즈 터미널 어딨지 ?",
+    "크루즈닷 미국 크루즈 터미널 어떻게 가?",
+    "크루즈닷 미국 크루즈 터미널 어딨지 ?",
     "인천공항에서 카이탁 크루즈 터미널까지",
   ];
 

@@ -132,8 +132,8 @@ export default function ChatInputBar({
       )}
 
       <div className="flex gap-2">
-        <button className={`${btnBaseClass} ${mode==='go'?btnPrimaryClass:btnDefaultClass}`} onClick={()=>onChangeMode('go')}>지니야 가자</button>
-        <button className={`${btnBaseClass} ${mode==='show'?btnPrimaryClass:btnDefaultClass}`} onClick={()=>onChangeMode('show')}>지니야 보여줘</button>
+        <button className={`${btnBaseClass} ${mode==='go'?btnPrimaryClass:btnDefaultClass}`} onClick={()=>onChangeMode('go')}>크루즈닷 가자</button>
+        <button className={`${btnBaseClass} ${mode==='show'?btnPrimaryClass:btnDefaultClass}`} onClick={()=>onChangeMode('show')}>크루즈닷 보여줘</button>
         <button className={`${btnBaseClass} ${mode==='general'?btnPrimaryClass:btnDefaultClass}`} onClick={()=>onChangeMode('general')}>일반</button>
         <button className={`${btnBaseClass} ${btnDangerClass} ml-auto`} onClick={submit}>보내기</button>
       </div>

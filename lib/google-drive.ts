@@ -99,18 +99,74 @@ export function getGoogleAuth(scopes?: string[]) {
 
 /**
  * Google Access Token 가져오기 (REST API 직접 호출용)
- * googleapis 라이브러리 없이 Google Drive REST API를 호출할 때 사용
+ * googleapis 라이브러리 없이 JWT를 직접 생성하여 토큰 교환
+ * Vercel 번들링 이슈 완전 회피
  */
-export async function getGoogleAccessToken(): Promise<string> {
-  const auth = getGoogleAuth(['https://www.googleapis.com/auth/drive']);
-  const client = await auth.getClient();
-  const tokenResponse = await client.getAccessToken();
+export async function getGoogleAccessToken(scopes?: string[]): Promise<string> {
+  const jwt = await import('jsonwebtoken');
 
-  if (!tokenResponse.token) {
-    throw new Error('Google Access Token을 가져올 수 없습니다.');
+  // 환경변수에서 인증 정보 가져오기
+  const rawPrivateKey =
+    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
+    process.env.GOOGLE_PRIVATE_KEY ||
+    process.env.PRIVATE_KEY;
+
+  const clientEmail =
+    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    process.env.GOOGLE_CLIENT_EMAIL ||
+    process.env.CLIENT_EMAIL;
+
+  if (!rawPrivateKey || !clientEmail) {
+    throw new Error('Google Service Account 환경변수가 설정되지 않았습니다.');
   }
 
-  return tokenResponse.token;
+  // Private Key 형식 정규화
+  let privateKey = rawPrivateKey.trim();
+  if (privateKey.startsWith('"') || privateKey.startsWith("'")) {
+    try {
+      privateKey = JSON.parse(privateKey);
+    } catch {
+      privateKey = privateKey.replace(/^["']+|["']+$/g, '');
+    }
+  }
+  privateKey = privateKey.replace(/\\n/g, '\n');
+
+  // JWT 생성
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: clientEmail,
+    sub: clientEmail,
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600, // 1시간
+    scope: (scopes || [
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/spreadsheets'
+    ]).join(' '),
+  };
+
+  const token = jwt.default.sign(payload, privateKey, { algorithm: 'RS256' });
+
+  // Google OAuth2 토큰 교환
+  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: token,
+    }),
+  });
+
+  if (!tokenResponse.ok) {
+    const errorText = await tokenResponse.text();
+    console.error('[getGoogleAccessToken] Token exchange failed:', errorText);
+    throw new Error('Google Access Token 교환 실패');
+  }
+
+  const tokenData = await tokenResponse.json();
+  return tokenData.access_token;
 }
 
 export function getDriveClient() {

@@ -47,7 +47,7 @@ const classificationLabelMap: Record<string, string> = {
   popular: '인기 크루즈',
   recommended: '추천 크루즈',
   premium: '프리미엄 크루즈',
-  genie: '지니패키지 크루즈',
+  genie: '크루즈닷패키지 크루즈',
   domestic: '국내출발 크루즈',
   japan: '일본 크루즈',
   budget: '알뜰 크루즈',

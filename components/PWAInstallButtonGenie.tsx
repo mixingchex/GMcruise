@@ -215,7 +215,7 @@ export default function PWAInstallButtonGenie() {
         className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 ease-in-out transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
       >
         <FiSmartphone className="text-2xl" />
-        <span className="text-lg">📲 크루즈가이드 지니 바탕화면에 추가하기</span>
+        <span className="text-lg">📲 크루즈닷 바탕화면에 추가하기</span>
         {isIOS && (
           <span className="text-xs text-white opacity-80 ml-2">(수동 설치)</span>
         )}

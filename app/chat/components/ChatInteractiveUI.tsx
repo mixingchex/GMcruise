@@ -279,7 +279,7 @@ export default function ChatInteractiveUI() {
             </div>
             <div className="mt-4 bg-white/10 rounded-lg p-3">
               <p className="text-sm text-center">
-                새로운 여행을 등록하시면 지니를 다시 만나실 수 있습니다!
+                새로운 여행을 등록하시면 크루즈닷을 다시 만나실 수 있습니다!
               </p>
             </div>
           </div>

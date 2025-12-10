@@ -29,7 +29,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
     // videoUrl: '/videos/hero-video.mp4',  // 동영상 비활성화 (느린 로딩)
     backgroundImage: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png',  // 고화질 이미지 사용
     logoUrl: '/images/ai-cruise-logo.png',
-    title: '크루즈닷 AI 지니',
+    title: '크루즈닷AI',
     subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
     buttons: [
       { text: '지금 시작하기', link: '/login', backgroundColor: '#2563eb', textColor: '#ffffff' }, // 파란색 - 로그인 (지니 AI)
@@ -123,7 +123,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={heroConfig.logoUrl}
-                alt="크루즈닷 AI 지니"
+                alt="크루즈닷AI"
                 className="mx-auto h-20 md:h-24"
                 onError={(e) => {
                   // 이미지 로드 실패 시 기본 로고로 대체
@@ -145,22 +145,22 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-6 md:mb-8 lg:mb-10 text-sm md:text-base lg:text-lg">
             <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
               <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">🗺️</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 가자</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 가자</div>
               <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">경로 안내</div>
             </div>
             <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
               <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📸</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 보여줘</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 보여줘</div>
               <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">관광지 정보</div>
             </div>
             <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
               <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">💰</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 가계부</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 가계부</div>
               <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">경비 관리</div>
             </div>
             <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
               <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📝</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">지니야 다이어리</div>
+              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 다이어리</div>
               <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">여행 기록</div>
             </div>
           </div>

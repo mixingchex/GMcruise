@@ -22,7 +22,7 @@ const defaultBanners: Banner[] = [
   {
     id: 1,
     image: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png',  // 첫 번째 배너 - 고화질 배경 이미지
-    title: '크루즈닷 지니 AI 출시',
+    title: '크루즈닷AI 출시',
     subtitle: '3일 무료 체험',
     link: '/login-test',
   },

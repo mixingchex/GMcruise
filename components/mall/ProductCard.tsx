@@ -115,7 +115,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
     product.isPopular ? { label: '인기', color: 'bg-rose-500' } : null,
     product.isRecommended ? { label: '추천', color: 'bg-blue-500' } : null,
     product.isPremium ? { label: '프리미엄', color: 'bg-violet-500' } : null,
-    product.isGeniePack ? { label: '지니팩', color: 'bg-indigo-500' } : null,
+    product.isGeniePack ? { label: '크루즈닷팩', color: 'bg-indigo-500' } : null,
     product.isDomestic ? { label: '국내출', color: 'bg-emerald-500' } : null,
     product.isJapan ? { label: '일본', color: 'bg-amber-500' } : null,
     product.isBudget ? { label: '알뜰', color: 'bg-teal-500' } : null,

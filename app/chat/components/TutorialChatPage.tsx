@@ -28,12 +28,12 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
   // 3가지 대화 기능 메시지
   const chatFeatures = [
     {
-      title: '지니야 가자',
+      title: '크루즈닷 가자',
       description: '클릭만 해도 원하는 관광지, 맛집을 찾아드려요',
       example: '클릭만 하면 바로 추천!',
     },
     {
-      title: '지니야 보여줘',
+      title: '크루즈닷 보여줘',
       description: '"오키나와 보여줘"라고만 입력해도 오키나와를 다 보여줘요',
       example: '예: "오키나와 보여줘"',
       bonus: '보너스! 크루즈닷 만의 실제 여행 후 경험 컨텐츠도 보여드려요',
@@ -118,7 +118,7 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
         {/* 헤더 */}
         <div className="text-center mb-8 px-4">
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-4 leading-tight">
-            🎉 크루즈 가이드 지니 AI 체험하기
+            🎉 크루즈닷AI 체험하기
           </h1>
           <p className="text-lg md:text-xl text-gray-700 font-medium leading-relaxed">
             72시간 동안 모든 기능을 무료로 체험해보세요!
@@ -131,7 +131,7 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
             <div className="text-5xl md:text-6xl mb-4">💬</div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 leading-tight">AI 채팅 상담</h3>
             <p className="text-base md:text-lg text-gray-600 leading-relaxed">
-              크루즈 여행에 대한 모든 질문을 AI 지니에게 물어보세요! 실시간으로 답변해드립니다.
+              크루즈 여행에 대한 모든 질문을 AI 크루즈닷에게 물어보세요! 실시간으로 답변해드립니다.
             </p>
           </div>
 
@@ -156,7 +156,7 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
         <div className="bg-white rounded-3xl shadow-2xl p-5 md:p-6 border-4 border-purple-300 mx-4">
           <div className="text-center mb-6">
             <div className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-4 rounded-full font-bold text-lg md:text-xl mb-4">
-              ✨ 지금 바로 AI 지니와 대화해보세요!
+              ✨ 지금 바로 AI 크루즈닷과 대화해보세요!
             </div>
             <div className="bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 rounded-xl p-6 md:p-8 border-2 border-purple-200 transition-all duration-500">
               <div className="text-4xl md:text-5xl mb-4 animate-pulse">

@@ -232,8 +232,8 @@ export default function AccessCheckWrapper({ children }: { children: React.React
             <div className={`${isTrialExpired ? 'bg-orange-50' : 'bg-blue-50'} rounded-lg p-4 mb-6`}>
               <p className="text-sm text-gray-700 text-center">
                 {isTrialExpired
-                  ? '크루즈 여행을 구매하시면 지니의 모든 기능을 이용하실 수 있습니다!'
-                  : '새로운 여행을 등록하시면 지니를 다시 만나실 수 있습니다!'}
+                  ? '크루즈 여행을 구매하시면 크루즈닷의 모든 기능을 이용하실 수 있습니다!'
+                  : '새로운 여행을 등록하시면 크루즈닷을 다시 만나실 수 있습니다!'}
               </p>
             </div>
 

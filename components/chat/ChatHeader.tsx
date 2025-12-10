@@ -21,8 +21,8 @@ export default function ChatHeader({
     return (
         <div className="flex items-center justify-between gap-2">
             <div className="flex gap-2">
-                <Tab m="go" label="지니야 가자 (길찾기/지도)" />
-                <Tab m="show" label="지니야 보여줘 (사진/설명)" />
+                <Tab m="go" label="크루즈닷 가자 (길찾기/지도)" />
+                <Tab m="show" label="크루즈닷 보여줘 (사진/설명)" />
                 <Tab m="free" label="일반" />
             </div>
             <div className="flex items-center gap-2">

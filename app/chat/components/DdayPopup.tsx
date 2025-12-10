@@ -158,7 +158,7 @@ export default function DdayPopup({ initialUser, initialTrip }: DdayPopupProps) 
   return (
     <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow p-5">
-        <div className="text-lg font-extrabold mb-2">지니 알림</div>
+        <div className="text-lg font-extrabold mb-2">크루즈닷 알림</div>
         <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: popup.html }} />
         <button onClick={() => setPopup(null)} className="mt-4 w-full h-11 rounded-lg bg-red-600 text-white font-semibold">확인</button>
       </div>

@@ -362,7 +362,7 @@ export default function HomeClientPage() {
         <section className="container mx-auto px-4 py-12 bg-white">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {pageConfig?.youtubeShorts?.title || '🎬 크루즈닷 지니 쇼츠'}
+              {pageConfig?.youtubeShorts?.title || '🎬 크루즈닷 쇼츠'}
             </h2>
             <p className="text-gray-600 text-lg">
               {pageConfig?.youtubeShorts?.description || '크루즈 여행의 모든 순간을 Shorts로 만나보세요'}
@@ -380,7 +380,7 @@ export default function HomeClientPage() {
               {pageConfig?.youtubeLive?.title || '📡 라이브 방송'}
             </h2>
             <p className="text-gray-600 text-lg">
-              {pageConfig?.youtubeLive?.description || '지금 이 순간, 크루즈닷 지니와 함께하세요'}
+              {pageConfig?.youtubeLive?.description || '지금 이 순간, 크루즈닷과 함께하세요'}
             </p>
           </div>
           <YoutubeLiveSection />
@@ -427,7 +427,7 @@ export default function HomeClientPage() {
               유튜브 구독하기
             </h3>
             <p className="text-white/90 font-bold text-lg">
-              크루즈닷가이드지니AI
+              크루즈닷AI
             </p>
           </a>
         </div>
@@ -440,7 +440,7 @@ export default function HomeClientPage() {
         <section className="container mx-auto px-4 py-12 bg-gray-50">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {pageConfig?.youtubeVideos?.title || '📺 크루즈닷 지니 영상'}
+              {pageConfig?.youtubeVideos?.title || '📺 크루즈닷 영상'}
             </h2>
             <p className="text-gray-600 text-lg">
               {pageConfig?.youtubeVideos?.description || '크루즈 여행의 특별한 영상을 만나보세요'}
@@ -479,14 +479,14 @@ export default function HomeClientPage() {
         </section>
       )}
 
-      {/* 크루즈닷 지니 AI 출시 3일 무료체험 배너 (하단 신규 디자인) */}
+      {/* 크루즈닷AI 출시 3일 무료체험 배너 (하단 신규 디자인) */}
       <section className="w-full bg-gradient-to-r from-[#051C2C] via-[#0f2c44] to-[#051C2C] py-16 md:py-20 cursor-pointer relative overflow-hidden" onClick={() => window.location.href = '/login-test'}>
         <div className="absolute inset-0 bg-[url('/images/pattern-overlay.png')] opacity-5"></div>
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <div className="mb-6">
               <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
-                크루즈닷 지니 AI 출시
+                크루즈닷AI 출시
               </h2>
               <h3 className="text-3xl md:text-4xl font-bold text-[#D4AF37] mb-6 drop-shadow-sm">
                 3일 무료체험
@@ -504,7 +504,7 @@ export default function HomeClientPage() {
                 }}
                 className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#FFD700] via-[#FDB931] to-[#FFD700] bg-[length:200%_auto] animate-gradient text-[#051C2C] text-lg font-black rounded-full shadow-[0_0_20px_rgba(212,175,55,0.6)] hover:shadow-[0_0_35px_rgba(212,175,55,0.9)] transform hover:scale-105 transition-all border-2 border-[#fff]/40 backdrop-blur-md ring-2 ring-[#FFD700]/50"
               >
-                크루즈 지니 AI 3일 무료체험 구경하기
+                크루즈닷AI 3일 무료체험 구경하기
               </button>
             </div>
 

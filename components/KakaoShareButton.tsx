@@ -17,7 +17,7 @@ interface KakaoShareButtonProps {
 }
 
 export default function KakaoShareButton({
-  title = '크루즈 지니 AI 3일 무료체험',
+  title = '크루즈닷AI 3일 무료체험',
   description = '프리미엄 크루즈 여행을 위한 AI 파트너와 함께하세요! 72시간 동안 모든 기능을 무료로 체험할 수 있습니다.',
   imageUrl = '/images/ai-cruise-logo.png',
   buttonText = '카카오톡 친구 공유하기',

@@ -15,8 +15,8 @@ export function ChatTabs({
 
   return (
     <div className="flex gap-3 mb-4">
-      <button className={value === 'go' ? on : off} onClick={() => onChange('go')}>지니야 가자</button>
-      <button className={value === 'show' ? on : off} onClick={() => onChange('show')}>지니야 보여줘</button>
+      <button className={value === 'go' ? on : off} onClick={() => onChange('go')}>크루즈닷 가자</button>
+      <button className={value === 'show' ? on : off} onClick={() => onChange('show')}>크루즈닷 보여줘</button>
       <button className={value === 'general' ? on : off} onClick={() => onChange('general')}>일반</button>
     </div>
   );

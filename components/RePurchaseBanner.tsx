@@ -97,7 +97,7 @@ export default function RePurchaseBanner() {
                 여행이 곧 종료됩니다! 남은 시간: 약 {hours}시간
               </p>
               <p className="text-sm opacity-90">
-                다음 여행을 등록하시면 지니를 계속 만나실 수 있습니다.
+                다음 여행을 등록하시면 크루즈닷을 계속 만나실 수 있습니다.
               </p>
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function RePurchaseBanner() {
                 여행이 종료되었습니다
               </p>
               <p className="text-sm opacity-90">
-                새로운 여행을 등록하시면 지니를 다시 만나실 수 있습니다!
+                새로운 여행을 등록하시면 크루즈닷을 다시 만나실 수 있습니다!
               </p>
             </div>
           </div>

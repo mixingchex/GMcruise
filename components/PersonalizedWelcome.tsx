@@ -43,11 +43,11 @@ export default function PersonalizedWelcome() {
     if (userInfo.totalTripCount === 0) {
       return `${userInfo.name}님, 첫 번째 크루즈 여행을 준비하고 계시네요! 🎉`;
     } else if (userInfo.totalTripCount === 1) {
-      return `${userInfo.name}님, 지니와 함께하는 두 번째 크루즈 여행이네요! 🚢`;
+      return `${userInfo.name}님, 크루즈닷과 함께하는 두 번째 크루즈 여행이네요! 🚢`;
     } else if (userInfo.totalTripCount === 2) {
       return `${userInfo.name}님, 벌써 세 번째 크루즈 여행이네요! 🎊`;
     } else {
-      return `${userInfo.name}님, 지니와 함께하는 ${userInfo.totalTripCount + 1}번째 크루즈 여행이네요! 🌟`;
+      return `${userInfo.name}님, 크루즈닷과 함께하는 ${userInfo.totalTripCount + 1}번째 크루즈 여행이네요! 🌟`;
     }
   };
 

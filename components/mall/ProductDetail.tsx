@@ -386,7 +386,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
     '크루즈 객실료 (TAX 및 항구세 포함)',
     '하루 3식 이상의 식사 (뷔페, 정찬 레스토랑 등)',
     '크루즈 편의 시설 이용 (각종 쇼, 라이브 공연 등)',
-    'AI 지니 가이드 서비스 지원'
+    'AI 크루즈닷 가이드 서비스 지원'
   ];
   const defaultExcluded = [
     '크루즈 선상팁 (1인 1박당 $16)',
@@ -2339,7 +2339,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 const activeButtons = [
                   contactOptions.payment && { type: 'payment', url: getPaymentUrl(), label: '결제하기', icon: '💳', color: 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] hover:from-[#E1A21E] hover:to-[#C68C12] text-[#051C2C]' },
                   contactOptions.phoneCall && { type: 'phone', url: getInquiryUrl(), label: '전화상담', icon: '📞', color: 'bg-gradient-to-r from-[#051C2C] to-[#0A2E46] hover:from-[#0A2E46] hover:to-[#051C2C] text-white' },
-                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI 지니 채팅봇', icon: '🤖', color: 'bg-gradient-to-r from-[#E50914] to-[#B20710] hover:from-[#B20710] hover:to-[#900000] text-white' },
+                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI 크루즈닷 채팅봇', icon: '🤖', color: 'bg-gradient-to-r from-[#E50914] to-[#B20710] hover:from-[#B20710] hover:to-[#900000] text-white' },
                 ].filter(Boolean) as Array<{ type: string; url: string; label: string; icon: string; color: string }>;
 
                 const buttonCount = activeButtons.length;
@@ -2375,10 +2375,10 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
           {/* AI 지니 안내 */}
           <div className="bg-blue-50 rounded-xl p-5 md:p-6 mb-6 border border-blue-100">
             <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-3">
-              🤖 AI 지니와 함께하는 특별한 여행
+              🤖 AI 크루즈닷과 함께하는 특별한 여행
             </h2>
             <p className="text-gray-700 mb-4 text-sm md:text-base">
-              크루즈닷 AI 지니는 여행 준비부터 여행 중까지 당신의 여행 파트너입니다.
+              크루즈닷AI는 여행 준비부터 여행 중까지 당신의 여행 파트너입니다.
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center">

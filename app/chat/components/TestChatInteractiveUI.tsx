@@ -192,7 +192,7 @@ export default function TestChatInteractiveUI() {
             </div>
             <div className="mt-4 bg-white/10 rounded-lg p-3">
               <p className="text-sm text-center">
-                크루즈몰에서 구매하시면 지니를 계속 만나실 수 있습니다!
+                크루즈몰에서 구매하시면 크루즈닷을 계속 만나실 수 있습니다!
               </p>
             </div>
           </div>

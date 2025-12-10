@@ -25,7 +25,7 @@ export default function TutorialWelcomePopup({ onClose, remainingHours }: Tutori
         <div className="text-center overflow-y-auto flex-1 px-6 py-4">
           <div className="text-5xl mb-4 animate-bounce">🎉</div>
           <h2 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-3">
-            크루즈 가이드 지니 AI에 오신 것을 환영합니다!
+            크루즈닷AI에 오신 것을 환영합니다!
           </h2>
           <p className="text-lg text-gray-700 mb-4">
             <span className="font-bold text-purple-600">{remainingHours}시간</span> 동안

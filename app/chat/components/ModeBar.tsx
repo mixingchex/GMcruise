@@ -23,15 +23,15 @@ export default function ModeBar({
   return (
     <div className="w-full border-b bg-white">
       <div className="mx-auto max-w-6xl px-3 flex gap-2 p-3 border-b bg-white">
-        <Tab id="go" label="지니야 가자" />
-        <Tab id="show" label="지니야 보여줘" />
+        <Tab id="go" label="크루즈닷 가자" />
+        <Tab id="show" label="크루즈닷 보여줘" />
         <Tab id="general" label="일반" />
         <div className="ml-auto text-sm text-gray-500">
           <button
             className={`px-3 py-2 rounded-md text-sm bg-gray-100 text-gray-700`}
             onClick={() => onChangeTab('info')}
           >
-            지니사용설명서
+            크루즈닷사용설명서
           </button>
         </div>
       </div>

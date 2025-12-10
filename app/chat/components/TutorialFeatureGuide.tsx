@@ -14,7 +14,7 @@ interface TutorialFeatureGuideProps {
 const guideSteps = [
   {
     title: '💬 AI 채팅 상담',
-    description: '크루즈 여행에 대한 모든 질문을 AI 지니에게 물어보세요!',
+    description: '크루즈 여행에 대한 모든 질문을 AI 크루즈닷에게 물어보세요!',
     details: [
       '실시간으로 답변해드립니다',
       '크루즈 추천, 준비물, 일정 등 모든 것',
@@ -23,12 +23,12 @@ const guideSteps = [
     example: '예: "제주도 크루즈 3박 4일 추천해줘"',
     modes: [
       {
-        name: '지니야 가자',
+        name: '크루즈닷 가자',
         description: '클릭만 해도 원하는 관광지, 맛집을 찾아드려요',
         example: '클릭만 하면 바로 추천!',
       },
       {
-        name: '지니야 보여줘',
+        name: '크루즈닷 보여줘',
         description: '"오키나와 보여줘"라고만 입력해도 오키나와를 다 보여줘요',
         bonus: '보너스! 크루즈닷 만의 실제 여행 후 경험 컨텐츠도 보여드려요',
         example: '예: "오키나와 보여줘"',

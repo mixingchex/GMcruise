@@ -150,9 +150,9 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
 
       {messages.length === 0 && mode === 'info' && (
         <div className="mx-auto max-w-6xl w-full">
-          <h1 className="font-bold text-3xl mb-4">지니 사용설명서</h1>
+          <h1 className="font-bold text-3xl mb-4">크루즈닷 사용설명서</h1>
           <div className="text-gray-700 space-y-3 text-xl">
-            <p>지니는 다음과 같은 질문에 답변할 수 있어요.</p>
+            <p>크루즈닷은 다음과 같은 질문에 답변할 수 있어요.</p>
             <ul className="list-disc list-inside pl-4 space-y-3">
               <li>크루즈 터미널 및 공항 길찾기 (예: &quot;인천공항에서 카이탁 크루즈 터미널까지&quot;)</li>
               <li>장소 정보 (예: &quot;홍콩 크루즈 터미널 위치&quot;)</li>

@@ -14,7 +14,7 @@ export default async function OnboardingCard() {
     return (
       <div className="bg-white rounded-2xl shadow p-4 mb-4 flex items-center justify-between">
         <div>
-          <div className="font-bold text-[18px]">지니와 여행 시작하기</div>
+          <div className="font-bold text-[18px]">크루즈닷과 여행 시작하기</div>
           <div className="text-sm text-gray-500">로그인하면 내 정보/여행/체크리스트가 바로 떠요.</div>
         </div>
         <Link href="/login" className="px-4 py-2 bg-red-600 text-white rounded-lg">로그인</Link>
@@ -33,7 +33,7 @@ export default async function OnboardingCard() {
       <div className="bg-white rounded-2xl shadow p-4 mb-4 flex items-center justify-between">
         <div>
           <div className="font-bold text-[18px]">온보딩을 완료해 주세요</div>
-          <div className="text-sm text-gray-500">이름/연락처 입력 후 여행을 등록하면 지니가 더 똑똑해집니다.</div>
+          <div className="text-sm text-gray-500">이름/연락처 입력 후 여행을 등록하면 크루즈닷이 더 똑똑해집니다.</div>
         </div>
         <Link href="/onboarding" className="px-4 py-2 bg-blue-600 text-white rounded-lg">온보딩</Link>
       </div>

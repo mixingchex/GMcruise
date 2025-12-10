@@ -14,7 +14,7 @@ export const FUNNEL_DATA: FunnelItem[] = [
   {
     id: FunnelStageId.LEAD,
     title: "리드 확보 (Lead)",
-    description: "AI 지니 3일 체험권 제공 및 연락처 확보",
+    description: "AI 크루즈닷 3일 체험권 제공 및 연락처 확보",
     icon: FileText,
     color: "bg-indigo-400",
     gradient: "from-indigo-300 to-indigo-500",
@@ -23,7 +23,7 @@ export const FUNNEL_DATA: FunnelItem[] = [
   {
     id: FunnelStageId.NURTURE,
     title: "육성/설득 (Nurture)",
-    description: "챗봇 지니 AI로 맞춤 정보 제공",
+    description: "챗봇 크루즈닷AI로 맞춤 정보 제공",
     icon: HeartHandshake,
     color: "bg-violet-400",
     gradient: "from-violet-300 to-violet-500",

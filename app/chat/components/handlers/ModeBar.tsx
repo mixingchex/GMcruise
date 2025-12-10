@@ -25,15 +25,15 @@ export default function ModeBar({
   return (
     <div className="flex items-center justify-between gap-2 px-3 py-2 border-t bg-white"> {/* gap-2와 bg-white 추가 */}
       <div className="flex gap-2">
-        {btn('go', '지니야 가자')}
-        {btn('show', '지니야 보여줘')}
+        {btn('go', '크루즈닷 가자')}
+        {btn('show', '크루즈닷 보여줘')}
         {btn('plain', '일반')}
       </div>
       <button
         onClick={onGuide}
         className="h-9 px-3 rounded-lg bg-blue-600 text-white font-semibold"
       >
-        지니가이드소개
+        크루즈닷가이드소개
       </button>
     </div>
   );

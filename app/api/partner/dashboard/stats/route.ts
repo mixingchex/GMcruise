@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
       totalLeads: 0,
       totalSales: 0,
       teamMembers: 0,
+      recentLeads: [],
+      recentSales: [],
+      monthlySales: [],
     };
 
     // 대리점장인 경우
@@ -194,11 +197,48 @@ export async function GET(req: NextRequest) {
         where: { managerId: profile.id },
       });
 
+      // 최근 리드 조회
+      const recentLeads = await prisma.affiliateLead.findMany({
+        where: { managerId: profile.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          customerName: true,
+          customerPhone: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      // 최근 판매 조회
+      const recentSalesData = await prisma.affiliateSale.findMany({
+        where: { managerId: profile.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          saleAmount: true,
+          status: true,
+          saleDate: true,
+          createdAt: true,
+        },
+      });
+
       // 컴포넌트 호환용 flat 필드 설정
       stats.totalLinks = totalLinks;
       stats.totalLeads = totalCustomers;
       stats.totalSales = thisMonthTeamSales._count.id || 0;
       stats.teamMembers = totalAgents;
+      stats.recentLeads = recentLeads.map(l => ({
+        ...l,
+        createdAt: l.createdAt.toISOString(),
+      }));
+      stats.recentSales = recentSalesData.map(s => ({
+        ...s,
+        saleDate: s.saleDate?.toISOString() || null,
+        createdAt: s.createdAt.toISOString(),
+      }));
     }
     // 판매원인 경우
     else {
@@ -311,11 +351,48 @@ export async function GET(req: NextRequest) {
         where: { agentId: profile.id },
       });
 
+      // 최근 리드 조회
+      const recentLeads = await prisma.affiliateLead.findMany({
+        where: { agentId: profile.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          customerName: true,
+          customerPhone: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      // 최근 판매 조회
+      const recentSalesData = await prisma.affiliateSale.findMany({
+        where: { agentId: profile.id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          saleAmount: true,
+          status: true,
+          saleDate: true,
+          createdAt: true,
+        },
+      });
+
       // 컴포넌트 호환용 flat 필드 설정
       stats.totalLinks = totalLinks;
       stats.totalLeads = totalCustomers;
       stats.totalSales = totalSales._count.id || 0;
       stats.teamMembers = 0; // 판매원은 팀원이 없음
+      stats.recentLeads = recentLeads.map(l => ({
+        ...l,
+        createdAt: l.createdAt.toISOString(),
+      }));
+      stats.recentSales = recentSalesData.map(s => ({
+        ...s,
+        saleDate: s.saleDate?.toISOString() || null,
+        createdAt: s.createdAt.toISOString(),
+      }));
     }
 
     // 공통: 지난 6개월 매출 추세
@@ -364,6 +441,7 @@ export async function GET(req: NextRequest) {
     }
 
     stats.salesTrend = monthlySales;
+    stats.monthlySales = monthlySales; // 컴포넌트 호환용
 
     return NextResponse.json({
       ok: true,

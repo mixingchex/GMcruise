@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
-import { getGoogleAccessToken } from '@/lib/google-drive';
+import { getGoogleAccessToken } from '@/lib/google-auth-jwt';
 
 // B2B 오디오 폴더 (B2B 유입 + 시스템 상담 모두 동일 폴더 사용)
 // B2B 전용 오디오 폴더: https://drive.google.com/drive/folders/15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S

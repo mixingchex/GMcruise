@@ -87,7 +87,7 @@ export default function PushNotificationPrompt() {
         
         // 성공 알림 (팝업 메시지)
         try {
-          const notification = new Notification('🚢 크루즈 가이드 지니', {
+          const notification = new Notification('🚢 크루즈닷', {
             body: '푸시 알림이 활성화되었습니다! 중요한 일정을 놓치지 않으실 수 있습니다.',
             icon: '/images/ai-cruise-logo.png',
             badge: '/images/ai-cruise-logo.png',

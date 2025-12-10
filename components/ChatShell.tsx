@@ -38,7 +38,7 @@ export default function ChatShell({
     <div className="mx-auto max-w-4xl w-full px-3 sm:px-4 py-4 space-y-3">
       <ChatHeader mode={mode} onModeChange={setMode} />
 
-      <div className="text-lg font-bold text-gray-900">행복한 크루즈 여행! AI 가이드 지니</div>
+      <div className="text-lg font-bold text-gray-900">행복한 크루즈 여행! AI 가이드 크루즈닷</div>
 
       <QuickTools onPick={(cmd) => submit(cmd)} />
 
@@ -53,8 +53,8 @@ export default function ChatShell({
       <div className="rounded-xl border bg-white p-3">
         <div className="text-sm text-gray-800 leading-6">
           안녕하세요! 무엇을 도와드릴까요? (아래 예시를 눌러보세요)
-          <br />• <b>지니야 가자</b>: 길찾기·지도·주변검색
-          <br />• <b>지니야 보여줘</b>: 여행지·선박·자료·사진
+          <br />• <b>크루즈닷 가자</b>: 길찾기·지도·주변검색
+          <br />• <b>크루즈닷 보여줘</b>: 여행지·선박·자료·사진
         </div>
         <div className="mt-3">
           <SuggestedChips onPick={submit} currentInput={input} />

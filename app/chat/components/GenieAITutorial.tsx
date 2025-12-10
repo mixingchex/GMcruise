@@ -15,15 +15,15 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'where',
     title: '📍 어디서 사용하나요?',
-    description: '"지니야" 탭에서 사용할 수 있어요!\n가장 아래에 있는 "지니야" 탭을 눌러보세요.',
-    example: '📱 화면 하단 → "지니야" 탭 클릭\n\n✨ 여기서 모든 기능을 사용할 수 있어요!',
+    description: '"크루즈닷" 탭에서 사용할 수 있어요!\n가장 아래에 있는 "크루즈닷" 탭을 눌러보세요.',
+    example: '📱 화면 하단 → "크루즈닷" 탭 클릭\n\n✨ 여기서 모든 기능을 사용할 수 있어요!',
     emoji: '📍',
     color: 'bg-blue-500',
   },
   {
     id: 'concise',
     title: '⚡ 100자 핵심 답변',
-    description: '지니는 100자 이내로 핵심만 알려줘요.\n필요한 정보만 빠르게 확인해보세요!',
+    description: '크루즈닷은 100자 이내로 핵심만 알려줘요.\n필요한 정보만 빠르게 확인해보세요!',
     example: '💬 "3월 일본 크루즈 날씨 어때?"\n\n✨ "평균 12℃, 일교차 크니 얇은 겉옷 챙기세요!"',
     emoji: '⚡',
     color: 'bg-indigo-500',

@@ -35,7 +35,7 @@ export default function ChatContainer({ user, trip }: ChatContainerProps) {
       id: String(Date.now()),
       role: 'assistant',
       type: 'text',
-      text: `안녕하세요! ${user.name ?? ''}님. 무엇을 도와드릴까요?\n상단에서 모드를 선택해 주세요.\n• 지니야 가자: 길찾기/지도/근처검색\n• 지니야 보여줘: 여행지/선박/자료 사진\n• 일반: 무엇이든 물어보세요`,
+      text: `안녕하세요! ${user.name ?? ''}님. 무엇을 도와드릴까요?\n상단에서 모드를 선택해 주세요.\n• 크루즈닷 가자: 길찾기/지도/근처검색\n• 크루즈닷 보여줘: 여행지/선박/자료 사진\n• 일반: 무엇이든 물어보세요`,
     },
   ]);
   // const [trip, setTrip] = useState<Trip | null>(null); // trip prop으로 받으므로 제거

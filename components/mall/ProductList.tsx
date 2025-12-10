@@ -690,7 +690,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     title: '인기 크루즈',
     buttons: [
       { text: '프리미엄 서비스 보장', icon: '✓' },
-      { text: '지니 AI 가이드 서비스 지원', icon: '✓' },
+      { text: '크루즈닷AI 가이드 서비스 지원', icon: '✓' },
       { text: '확실한 출발 100%', icon: '✓' },
     ],
     rightBadge: { topText: '신뢰할 수 있는', bottomText: '한국 여행사' },
@@ -1310,7 +1310,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       {/* 지니패키지 크루즈 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && geniePackProducts.length > 0 && (
         <div id="geniepack-cruises" className="mb-12">
-          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">지니패키지 크루즈</h3>
+          <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">크루즈닷패키지 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {geniePackProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
