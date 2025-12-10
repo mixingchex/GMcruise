@@ -59,7 +59,7 @@ export default async function OnboardingCard() {
       {!session?.userId && (
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="font-extrabold text-[18px] md:text-[20px] text-gray-900">지니와 여행 시작하기</div>
+            <div className="font-extrabold text-[18px] md:text-[20px] text-gray-900">크루즈닷과 여행 시작하기</div>
             <div className="text-gray-600 text-sm md:text-[15px] mt-1">
               로그인하면 내 정보/여행/체크리스트가 바로 떠요.
             </div>

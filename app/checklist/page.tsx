@@ -713,14 +713,14 @@ export default function ChecklistPage() {
               <span className="font-semibold">뒤로가기</span>
             </Link>
             <h1 className="ml-2 text-xl md:text-2xl lg:text-3xl font-extrabold leading-tight">
-              꼼꼼한 지니의 여행 준비물 체크리스트
+              꼼꼼한 크루즈닷의 여행 준비물 체크리스트
             </h1>
           </div>
           <Link
             href="/chat"
             className="hidden sm:inline-flex items-center rounded-xl border px-4 md:px-5 py-2 md:py-2.5 hover:bg-gray-50 text-base md:text-lg font-semibold"
           >
-            지니와 대화하기
+            크루즈닷과 대화하기
           </Link>
         </div>
 

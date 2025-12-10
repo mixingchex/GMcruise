@@ -3,17 +3,28 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiUser, FiPhone, FiCalendar, FiPlus, FiSave, FiMessageSquare, FiClock, FiMic, FiUpload, FiSend, FiRotateCcw, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 
-// Google Drive URL을 스트리밍 가능한 URL로 변환
+// Google Drive URL을 프록시 다운로드 URL로 변환 (403 권한 문제 해결)
 const getStreamableAudioUrl = (url: string | null): string => {
   if (!url) return '';
+
+  // 이미 프록시 URL인 경우 그대로 반환
+  if (url.includes('/api/drive/download/')) {
+    return url;
+  }
 
   // Google Drive file ID 추출
   // 형식: https://drive.google.com/file/d/{FILE_ID}/view
   const match = url.match(/\/file\/d\/([^\/]+)/);
   if (match && match[1]) {
     const fileId = match[1];
-    // 직접 스트리밍 가능한 URL 반환
-    return `https://drive.google.com/uc?export=download&id=${fileId}`;
+    // 프록시 다운로드 URL 반환 (서버에서 서비스 계정으로 다운로드)
+    return `/api/drive/download/${fileId}`;
+  }
+
+  // uc?export=download&id= 형식에서 ID 추출
+  const ucMatch = url.match(/[?&]id=([^&]+)/);
+  if (ucMatch && ucMatch[1]) {
+    return `/api/drive/download/${ucMatch[1]}`;
   }
 
   return url;

@@ -861,7 +861,7 @@ export default function ChecklistPage() {
               onClick={() => router.push('/chat-test')}
               className="hidden sm:inline-flex items-center rounded-xl border-2 border-purple-200 px-4 py-2 hover:bg-purple-50 transition-colors"
             >
-              <span className="text-purple-600 font-semibold">지니와 대화하기</span>
+              <span className="text-purple-600 font-semibold">크루즈닷과 대화하기</span>
             </button>
           </div>
           
@@ -871,7 +871,7 @@ export default function ChecklistPage() {
               <span className="text-5xl md:text-6xl">✅</span>
             </div>
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 leading-tight">
-              꼼꼼한 지니의 여행 준비물 체크리스트
+              꼼꼼한 크루즈닷의 여행 준비물 체크리스트
             </h1>
             <p className="text-lg md:text-xl text-gray-600 leading-relaxed">
               72시간 동안 모든 기능을 무료로 체험해보세요!

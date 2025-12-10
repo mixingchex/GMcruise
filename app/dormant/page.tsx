@@ -58,7 +58,7 @@ export default function DormantPage() {
           </div>
           
           <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">
-            지니는 꿈나라에서<br />
+            크루즈닷은 꿈나라에서<br />
             당신을 기다리고 있어요
           </h1>
           
@@ -113,7 +113,7 @@ export default function DormantPage() {
           </h2>
           
           <p className="text-lg text-gray-600 mb-6 leading-relaxed">
-            지니는 언제든 다시 깨어날 준비가 되어 있어요.<br />
+            크루즈닷은 언제든 다시 깨어날 준비가 되어 있어요.<br />
             새로운 크루즈 여행을 예약하시면 자동으로 활성화됩니다.
           </p>
 
@@ -191,7 +191,7 @@ export default function DormantPage() {
               <span className="text-2xl">✓</span>
               <div>
                 <p className="font-semibold">새 여행 시 자동으로 다시 활성화됩니다</p>
-                <p className="text-sm text-gray-500">예약하시면 지니가 바로 깨어나요</p>
+                <p className="text-sm text-gray-500">예약하시면 크루즈닷이 바로 깨어나요</p>
               </div>
             </li>
             
@@ -211,7 +211,7 @@ export default function DormantPage() {
             &quot;여행은 끝이 아닌 또 다른 시작입니다&quot;
           </p>
           <p className="text-gray-400 mt-2">
-            — 지니 드림 🌟
+            — 크루즈닷 드림 🌟
           </p>
         </div>
       </div>

@@ -108,7 +108,7 @@ export default function ToolsTestPage() {
               className="inline-flex items-center gap-2 rounded-xl border border-purple-300 bg-white px-5 py-2.5 hover:bg-purple-50 text-base md:text-lg font-semibold text-purple-700 shadow-sm transition-all duration-200 hover:shadow-md"
             >
               <FiMessageCircle className="text-xl" />
-              <span>지니채팅 돌아가기</span>
+              <span>크루즈닷 채팅 돌아가기</span>
             </Link>
           </div>
           

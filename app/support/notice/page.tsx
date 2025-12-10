@@ -53,12 +53,12 @@ export default function NoticePage() {
     },
     {
       id: 4,
-      title: '[안내] 크루즈닷 지니 TV 오픈',
+      title: '[안내] 크루즈닷 TV 오픈',
       date: '2024.12.20',
       category: '신규서비스',
       content: `크루즈 여행 정보를 영상으로 만나보세요!
 
-새로운 서비스 '크루즈닷 지니 TV'가 오픈되었습니다.
+새로운 서비스 '크루즈닷 TV'가 오픈되었습니다.
 - YouTube Shorts로 간단한 여행 팁 확인
 - 여행 영상 콘텐츠 시청
 - 라이브 방송으로 실시간 정보 공유

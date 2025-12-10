@@ -215,7 +215,7 @@ function TestLoginPageContent() {
             
             <div className="space-y-1 md:space-y-2">
               <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-gray-900 tracking-tight leading-tight">
-                크루즈 지니 AI
+                크루즈닷AI
               </h1>
               <h2 className="text-lg md:text-2xl lg:text-3xl font-bold text-gray-700 leading-tight">
                 3일 무료체험
@@ -244,7 +244,7 @@ function TestLoginPageContent() {
             <div className="aspect-video w-full">
               <iframe
                 src="https://www.youtube.com/embed/-p_6G69MgyQ?autoplay=1&mute=1&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1&rel=0&enablejsapi=1"
-                title="크루즈 지니 AI 소개 영상"
+                title="크루즈닷AI 소개 영상"
                 allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen
@@ -408,7 +408,7 @@ function TestLoginPageContent() {
               <div className="flex flex-col gap-3 md:gap-4">
                 {/* 카카오톡 공유하기 버튼 */}
                 <KakaoShareButton
-                  title="크루즈 지니 AI 3일 무료체험"
+                  title="크루즈닷AI 3일 무료체험"
                   description="프리미엄 크루즈 여행을 위한 AI 파트너와 함께하세요! 72시간 동안 모든 기능을 무료로 체험할 수 있습니다."
                   imageUrl="/images/ai-cruise-logo.png"
                   buttonText="카카오톡 친구 공유하기"

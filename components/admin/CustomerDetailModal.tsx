@@ -3,6 +3,30 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiUser, FiPhone, FiMail, FiCalendar, FiLock, FiUnlock, FiPackage, FiShoppingCart, FiDollarSign, FiFileText, FiPlus, FiSave, FiInfo, FiCheckCircle, FiMessageSquare, FiSend, FiBell, FiUpload, FiMic, FiUsers, FiEdit2, FiTrash2, FiClock, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 
+// Google Drive URL을 프록시 다운로드 URL로 변환 (403 권한 문제 해결)
+const getProxyAudioUrl = (url: string | null): string => {
+  if (!url) return '';
+
+  // 이미 프록시 URL인 경우 그대로 반환
+  if (url.includes('/api/drive/download/')) {
+    return url;
+  }
+
+  // Google Drive file ID 추출 - file/d/{FILE_ID}/view 형식
+  const match = url.match(/\/file\/d\/([^\/]+)/);
+  if (match && match[1]) {
+    return `/api/drive/download/${match[1]}`;
+  }
+
+  // uc?export=download&id= 형식에서 ID 추출
+  const ucMatch = url.match(/[?&]id=([^&]+)/);
+  if (ucMatch && ucMatch[1]) {
+    return `/api/drive/download/${ucMatch[1]}`;
+  }
+
+  return url;
+};
+
 // 상담기록 타입
 interface ConsultationNote {
   id: number;
@@ -1766,7 +1790,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                                     녹음 파일
                                   </span>
                                   <a
-                                    href={note.audioFileUrl.replace('/view', '').replace('file/d/', 'uc?export=download&id=')}
+                                    href={getProxyAudioUrl(note.audioFileUrl)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium hover:bg-blue-200 flex items-center gap-1"
@@ -1777,7 +1801,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                                   </a>
                                 </div>
                                 <audio controls className="w-full h-10" onClick={(e) => e.stopPropagation()}>
-                                  <source src={note.audioFileUrl} type="audio/mpeg" />
+                                  <source src={getProxyAudioUrl(note.audioFileUrl)} type="audio/mpeg" />
                                 </audio>
                               </div>
                             )}
@@ -1926,12 +1950,12 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                       녹음 파일
                     </h4>
                     <audio controls className="w-full mb-3">
-                      <source src={selectedNote.audioFileUrl} type="audio/mpeg" />
+                      <source src={getProxyAudioUrl(selectedNote.audioFileUrl)} type="audio/mpeg" />
                       브라우저가 오디오를 지원하지 않습니다.
                     </audio>
                     <div className="flex gap-2">
                       <a
-                        href={selectedNote.audioFileUrl}
+                        href={getProxyAudioUrl(selectedNote.audioFileUrl)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded text-sm font-medium hover:bg-blue-200 flex items-center gap-1"
@@ -1940,7 +1964,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                         새 탭에서 열기
                       </a>
                       <a
-                        href={selectedNote.audioFileUrl.replace('/view', '').replace('file/d/', 'uc?export=download&id=')}
+                        href={getProxyAudioUrl(selectedNote.audioFileUrl)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm font-medium hover:bg-green-200 flex items-center gap-1"

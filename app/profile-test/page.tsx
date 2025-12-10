@@ -250,7 +250,7 @@ export default async function ProfilePage() {
               <div className="bg-white/80 rounded-lg p-5 md:p-6 border-2 border-purple-200">
                 <h3 className="font-bold text-purple-700 text-xl md:text-2xl mb-3 flex items-center gap-3 leading-tight">
                   <span className="text-3xl md:text-4xl">✨</span>
-                  지니의 여행 준비 가이드
+                  크루즈닷의 여행 준비 가이드
                 </h3>
                 <p className="text-base md:text-lg text-gray-700 mb-3 leading-relaxed">
                   D-day에 맞춰 단계별로 여행 준비를 도와드립니다.
@@ -321,11 +321,11 @@ export default async function ProfilePage() {
                   {/* 여행 종료 상태가 아닐 때만 D-Day 정보 표시 */}
                   {!isTripExpired ? (
                     <>
-                      {/* 지니의 여행 준비 가이드 */}
+                      {/* 크루즈닷의 여행 준비 가이드 */}
                       <section className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-purple-200">
                         <h2 className="text-3xl md:text-4xl font-extrabold text-center text-gray-900 mb-8 flex items-center justify-center gap-3 leading-tight">
                           <span className="text-5xl md:text-6xl">✨</span>
-                          지니의 여행 준비 가이드
+                          크루즈닷의 여행 준비 가이드
                           <span className="text-5xl md:text-6xl">✨</span>
                         </h2>
                         
@@ -650,7 +650,7 @@ export default async function ProfilePage() {
           <div className="mt-8">
             <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-3xl p-8 text-center shadow-2xl">
               <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                🎉 크루즈 가이드 지니 AI와 함께 완벽한 여행을 준비하세요!
+                🎉 크루즈닷AI와 함께 완벽한 여행을 준비하세요!
               </h3>
               <p className="text-white/90 text-lg mb-6">
                 72시간 무료 체험으로 모든 기능을 경험해보세요
@@ -659,7 +659,7 @@ export default async function ProfilePage() {
                 href="/chat-test"
                 className="inline-block px-8 py-4 bg-white text-purple-600 font-bold rounded-xl shadow-lg hover:bg-gray-100 transition-all transform hover:scale-105"
               >
-                지니와 대화하기 →
+                크루즈닷과 대화하기 →
               </Link>
             </div>
           </div>

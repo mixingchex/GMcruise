@@ -312,11 +312,11 @@ export default async function ProfilePage() {
                 {/* 여행 종료 상태가 아닐 때만 D-Day 정보 표시 */}
                 {!isTripExpired ? (
                   <>
-                    {/* 지니의 여행 준비 가이드 */}
+                    {/* 크루즈닷의 여행 준비 가이드 */}
                     <section className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-purple-200">
                       <h2 className="text-3xl md:text-4xl font-extrabold text-center text-gray-900 mb-8 flex items-center justify-center gap-3 leading-tight">
                         <span className="text-5xl md:text-6xl">✨</span>
-                        지니의 여행 준비 가이드
+                        크루즈닷의 여행 준비 가이드
                         <span className="text-5xl md:text-6xl">✨</span>
                       </h2>
 

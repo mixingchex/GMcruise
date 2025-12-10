@@ -71,7 +71,7 @@ export default function ToolsPage() {
               className="inline-flex items-center gap-2 rounded-xl border border-[#FDB931] bg-white px-5 py-2.5 hover:bg-[#FDB931]/10 text-base md:text-lg font-semibold text-[#051C2C] shadow-sm transition-all duration-200 hover:shadow-md"
             >
               <FiMessageCircle className="text-xl" />
-              <span>지니채팅 돌아가기</span>
+              <span>크루즈닷 채팅 돌아가기</span>
             </Link>
           </div>
 

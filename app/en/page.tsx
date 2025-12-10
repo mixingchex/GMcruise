@@ -48,11 +48,11 @@ export default function EnglishPage() {
   return (
     <main className="relative min-h-screen w-full overflow-hidden bg-black font-sans">
 
-      {/* 배경 이미지: 서울의 밤거리 (Unsplash 무료 이미지 사용) */}
+      {/* 배경 이미지: 남산타워 야경 (Unsplash 무료 이미지 사용) */}
       <div className="absolute inset-0 z-0">
         <img
-          src="https://images.unsplash.com/photo-1633934542430-0905ccb5f050?q=80&w=2525&auto=format&fit=crop"
-          alt="Seoul Night"
+          src="https://images.unsplash.com/photo-1546806177-430133055767?q=80&w=2574&auto=format&fit=crop"
+          alt="Namsan Tower at night"
           className="object-cover w-full h-full opacity-60 mix-blend-overlay"
         />
         {/* 어두운 오버레이로 텍스트 가독성 확보 및 분위기 조성 */}
