@@ -17,7 +17,7 @@ export const ConversionSlide: React.FC = () => {
   const elements = {
     offer: {
       title: "거절할 수 없는 오퍼 (Offer)",
-      desc: "\"3일 동안 크루즈 가이드 지니 AI와 함께 여행 준비를 시작하세요.\" AI 비서와 함께라면 복잡한 크루즈 여행도 쉽습니다."
+      desc: "\"3일 동안 크루즈닷AI와 함께 여행 준비를 시작하세요.\" AI 비서와 함께라면 복잡한 크루즈 여행도 쉽습니다."
     },
     copy: {
       title: "고객 언어 카피라이팅",
@@ -49,7 +49,7 @@ export const ConversionSlide: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 leading-tight">
             고객 만들기 (Conversion)
             <span className="block text-xl md:text-2xl font-normal text-slate-500 mt-1">
-              "지니와 함께라면 예약은 확신이 됩니다"
+              "크루즈닷과 함께라면 예약은 확신이 됩니다"
             </span>
           </h1>
         </header>
@@ -77,7 +77,7 @@ export const ConversionSlide: React.FC = () => {
                    처음 크루즈 여행,<br/>
                    <span className="bg-yellow-200 px-2">어떻게 해야 할지 막막하신가요?</span>
                  </h2>
-                 <p className="text-center text-slate-500">복잡한 준비는 지니에게 맡기고 설렘만 가져가세요.</p>
+                 <p className="text-center text-slate-500">복잡한 준비는 크루즈닷에게 맡기고 설렘만 가져가세요.</p>
                </div>
 
                {/* Video/Image Placeholder */}
@@ -107,7 +107,7 @@ export const ConversionSlide: React.FC = () => {
                  onClick={() => setActiveElement('offer')}
                  className="bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-xl p-6 text-center space-y-6 cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all"
                >
-                 <h3 className="text-xl font-bold text-emerald-800">지니(Genie) AI와 함께하는 3일의 기적!</h3>
+                 <h3 className="text-xl font-bold text-emerald-800">크루즈닷AI와 함께하는 3일의 기적!</h3>
                  <div className="flex justify-center">
                     <Bot size={48} className="text-emerald-500 animate-bounce" />
                  </div>

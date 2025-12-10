@@ -49,7 +49,7 @@ const SLIDES = [
     id: 3,
     step: 'Class 3',
     title: '연락처 확보하기',
-    subtitle: 'AI 가이드 지니 3일 체험권 받고 시작하세요',
+    subtitle: 'AI 가이드 크루즈닷 3일 체험권 받고 시작하세요',
     color: 'from-indigo-400 to-purple-500',
     showFlow: true,
     flowSteps: [
@@ -63,11 +63,11 @@ const SLIDES = [
     id: 4,
     step: 'Class 4',
     title: '신뢰 쌓기 (Nurturing)',
-    subtitle: '크루즈 가이드 챗봇 지니 AI로 신뢰 형성',
+    subtitle: '챗봇 크루즈닷AI로 신뢰 형성',
     color: 'from-violet-400 to-purple-500',
     showTrustMeter: true,
     trustSteps: [
-      { label: 'Step 1', desc: '지니 AI 시작하기', trust: 30, color: 'from-violet-300 to-violet-400' },
+      { label: 'Step 1', desc: '크루즈닷AI 시작하기', trust: 30, color: 'from-violet-300 to-violet-400' },
       { label: 'Step 2', desc: '실시간 맞춤 정보', trust: 70, color: 'from-violet-400 to-violet-500' },
       { label: 'Step 3', desc: '최적의 상품 제안', trust: 95, color: 'from-violet-500 to-purple-500' },
     ],
@@ -77,7 +77,7 @@ const SLIDES = [
     id: 5,
     step: 'Class 5',
     title: '고객 만들기 (Conversion)',
-    subtitle: '지니와 함께라면 예약은 확신이 됩니다',
+    subtitle: '크루즈닷과 함께라면 예약은 확신이 됩니다',
     color: 'from-emerald-400 to-teal-500',
     content: [
       { stage: '거절할 수 없는 오퍼', desc: 'AI 비서와 함께하는 여행 준비', color: 'bg-emerald-400', icon: '🎁' },

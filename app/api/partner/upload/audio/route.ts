@@ -6,8 +6,8 @@ import { requirePartnerContext } from '@/app/api/partner/_utils';
 import { getGoogleAccessToken } from '@/lib/google-auth-jwt';
 
 // B2B 오디오 폴더 (B2B 유입 + 시스템 상담 모두 동일 폴더 사용)
-// B2B 전용 오디오 폴더: https://drive.google.com/drive/folders/15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S
-const B2B_AUDIO_FOLDER_ID = '15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S';
+// 환경변수 GOOGLE_DRIVE_B2B_AUDIO_FOLDER_ID에서 가져옴
+const B2B_AUDIO_FOLDER_ID = process.env.GOOGLE_DRIVE_B2B_AUDIO_FOLDER_ID || '15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S';
 
 // 파일 크기 제한 (Vercel Free Plan: 4.5MB, FormData 오버헤드 고려해서 4MB)
 const MAX_FILE_SIZE_MB = 4;
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     ]);
 
     const uploadResponse = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink',
       {
         method: 'POST',
         headers: {

@@ -35,7 +35,7 @@ export const RetentionSlide: React.FC = () => {
       title: "여행 친구 추천 (Referral)",
       icon: Users,
       color: "text-purple-500",
-      desc: "\"친구에게 10만원 할인 쿠폰을 선물하세요.\" 만족한 고객을 우리 지니(Genie)의 홍보대사로 만듭니다."
+      desc: "\"친구에게 10만원 할인 쿠폰을 선물하세요.\" 만족한 고객을 우리 크루즈닷의 홍보대사로 만듭니다."
     }
   };
 

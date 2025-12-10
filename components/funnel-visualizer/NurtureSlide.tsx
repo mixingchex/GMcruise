@@ -17,9 +17,9 @@ export const NurtureSlide: React.FC = () => {
     {
       id: 1,
       day: "Step 1",
-      title: "크루즈 지니 AI 시작하기",
+      title: "크루즈닷AI 시작하기",
       icon: Bot,
-      content: "고객이 3일 무료 체험을 시작합니다. '환영합니다! 어떤 크루즈 여행을 꿈꾸시나요?' 라고 지니가 먼저 말을 걺으로써 대화를 유도합니다.",
+      content: "고객이 3일 무료 체험을 시작합니다. '환영합니다! 어떤 크루즈 여행을 꿈꾸시나요?' 라고 크루즈닷이 먼저 말을 걺으로써 대화를 유도합니다.",
       trustLevel: 30
     },
     {
@@ -35,7 +35,7 @@ export const NurtureSlide: React.FC = () => {
       day: "Step 3",
       title: "맞춤형 제안",
       icon: MessageSquare,
-      content: "고객의 선호도를 학습한 AI가 최적의 상품을 제안합니다. 고객은 자신이 원하는 것을 정확히 알고 있는 지니에게 신뢰를 느낍니다.",
+      content: "고객의 선호도를 학습한 AI가 최적의 상품을 제안합니다. 고객은 자신이 원하는 것을 정확히 알고 있는 크루즈닷에게 신뢰를 느낍니다.",
       trustLevel: 95
     }
   ];
@@ -57,7 +57,7 @@ export const NurtureSlide: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 leading-tight">
             신뢰 쌓기 (Nurturing)
             <span className="block text-xl md:text-2xl font-normal text-slate-500 mt-1">
-              "크루즈 가이드 챗봇 지니 AI로 신뢰 형성"
+              "챗봇 크루즈닷AI로 신뢰 형성"
             </span>
           </h1>
         </header>
@@ -141,9 +141,9 @@ export const NurtureSlide: React.FC = () => {
                <Bot size={24} />
             </div>
             <div>
-              <h4 className="font-bold text-violet-800 text-lg mb-1">크루즈 가이드 챗봇 지니 AI</h4>
+              <h4 className="font-bold text-violet-800 text-lg mb-1">크루즈닷AI</h4>
               <p className="text-violet-600">
-                지니 AI는 고객이 궁금해하는 다양한 크루즈 상품의 특징과 정보를 <span className="font-bold underline">직관적으로</span> 바로 전달합니다.
+                크루즈닷AI는 고객이 궁금해하는 다양한 크루즈 상품의 특징과 정보를 <span className="font-bold underline">직관적으로</span> 바로 전달합니다.
               </p>
             </div>
           </div>
