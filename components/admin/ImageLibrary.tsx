@@ -95,6 +95,12 @@ export default function ImageLibrary({
     const [selectedCruiseImage, setSelectedCruiseImage] = useState<CruisePhotoItem | null>(null);
     const [cruiseFolderSearch, setCruiseFolderSearch] = useState('');
 
+    // Hydration 에러 방지를 위한 마운트 상태
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     useEffect(() => {
         if (activeTab === 'library') {
@@ -526,7 +532,6 @@ export default function ImageLibrary({
 
     const loadCruisePhotos = async () => {
         try {
-            console.log('[ImageLibrary] Loading cruise photos...', cruiseCurrentPath);
             setCruiseIsLoading(true);
             const response = await fetch(`/api/admin/cruise-photos?folder=${encodeURIComponent(cruiseCurrentPath)}`, {
                 credentials: 'include'
@@ -611,13 +616,6 @@ export default function ImageLibrary({
     const filteredCruiseFolders = cruiseFolders.filter(folder =>
         folder.name.toLowerCase().includes(cruiseFolderSearch.toLowerCase())
     );
-
-    console.log('[ImageLibrary] Cruise Folders State:', {
-        total: cruiseFolders.length,
-        filtered: filteredCruiseFolders.length,
-        searchQuery: cruiseFolderSearch,
-        firstFew: cruiseFolders.slice(0, 3)
-    });
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -1083,7 +1081,7 @@ export default function ImageLibrary({
 
                         {/* 크루즈정보사진 상세 모달 */}
                         {
-                            selectedCruiseImage && activeTab === 'cruise' && (
+                            isMounted && selectedCruiseImage && activeTab === 'cruise' && (
                                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                                     <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                                         <div className="p-6">
@@ -1240,7 +1238,7 @@ export default function ImageLibrary({
 
                 {/* 이미지 라이브러리 상세 모달 */}
                 {
-                    selectedImage && activeTab === 'library' && (
+                    isMounted && selectedImage && activeTab === 'library' && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                                 <div className="p-6">
@@ -1423,7 +1421,7 @@ export default function ImageLibrary({
 
                 {/* 폴더 이동 모달 */}
                 {
-                    showMoveModal && (
+                    isMounted && showMoveModal && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden">
                                 <div className="p-6 border-b">
