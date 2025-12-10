@@ -2,10 +2,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { google } from 'googleapis';
-import { getGoogleAuth } from '@/lib/google-drive';
-import { Readable } from 'stream';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
+import { getGoogleAccessToken } from '@/lib/google-drive';
 
 // B2B 오디오 폴더 (B2B 유입 + 시스템 상담 모두 동일 폴더 사용)
 // B2B 전용 오디오 폴더: https://drive.google.com/drive/folders/15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S
@@ -45,6 +43,7 @@ export async function OPTIONS() {
  * POST /api/partner/upload/audio
  *
  * 판매원/대리점장이 상담 녹음 파일을 Google Drive에 업로드
+ * googleapis 라이브러리 대신 REST API 직접 호출 (Vercel 번들링 이슈 해결)
  */
 export async function POST(request: NextRequest) {
   console.log('[Partner Audio Upload] POST request received');
@@ -89,55 +88,85 @@ export async function POST(request: NextRequest) {
     const customerIdStr = customerId || leadId || 'unknown';
     const fileName = `${typePrefix}_${baseNameWithoutExt}_${partnerType}_${partnerName}_${customerIdStr}_${timestamp}.${ext}`;
 
-    // Google Drive에 업로드
-    const googleAuth = getGoogleAuth();
-    const drive = google.drive({ version: 'v3', auth: googleAuth });
+    console.log(`[Partner Audio Upload] Uploading to B2B Audio folder (${B2B_AUDIO_FOLDER_ID}), type: ${typePrefix}`);
 
-    // B2B 유입 + 시스템 상담 모두 동일한 B2B 오디오 폴더 사용
-    const targetFolderId = B2B_AUDIO_FOLDER_ID;
-
-    console.log(`[Partner Audio Upload] Uploading to B2B Audio folder (${targetFolderId}), type: ${typePrefix}`);
-
-    // File을 Buffer로 변환
+    // Google Drive REST API로 직접 업로드 (googleapis 번들링 이슈 회피)
+    const accessToken = await getGoogleAccessToken();
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Readable stream 생성
-    const stream = new Readable();
-    stream.push(buffer);
-    stream.push(null);
+    // Multipart upload 구성
+    const boundary = '-------314159265358979323846';
+    const delimiter = `\r\n--${boundary}\r\n`;
+    const closeDelimiter = `\r\n--${boundary}--`;
 
-    const response = await drive.files.create({
-      requestBody: {
-        name: fileName,
-        mimeType: file.type || 'audio/mpeg',
-        parents: [targetFolderId],
-      },
-      media: {
-        mimeType: file.type || 'audio/mpeg',
-        body: stream,
-      },
-      fields: 'id, webViewLink, webContentLink',
-      supportsAllDrives: true,  // 공유 드라이브 지원
-    });
+    const metadata = {
+      name: fileName,
+      parents: [B2B_AUDIO_FOLDER_ID],
+      mimeType: file.type || 'audio/mpeg',
+    };
 
-    if (!response.data.id) {
-      throw new Error('Google Drive 업로드 실패');
+    const multipartBody = Buffer.concat([
+      Buffer.from(
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(metadata) +
+        delimiter +
+        `Content-Type: ${file.type || 'audio/mpeg'}\r\n` +
+        'Content-Transfer-Encoding: base64\r\n\r\n'
+      ),
+      Buffer.from(buffer.toString('base64')),
+      Buffer.from(closeDelimiter),
+    ]);
+
+    const uploadResponse = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: multipartBody,
+      }
+    );
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('[Partner Audio Upload] Google Drive upload failed:', errorText);
+      throw new Error(`Google Drive 업로드 실패: ${uploadResponse.status}`);
+    }
+
+    const uploadResult = await uploadResponse.json();
+    const fileId = uploadResult.id;
+
+    if (!fileId) {
+      throw new Error('Google Drive 업로드 실패: 파일 ID 없음');
     }
 
     // 파일 공개 설정 (링크가 있는 사람 누구나)
-    await drive.permissions.create({
-      fileId: response.data.id,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone',
-      },
-      supportsAllDrives: true,  // 공유 드라이브 지원
-    });
+    const permissionResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: 'reader',
+          type: 'anyone',
+        }),
+      }
+    );
+
+    if (!permissionResponse.ok) {
+      console.warn('[Partner Audio Upload] Permission setting failed, but file uploaded');
+    }
 
     // 웹 링크 URL 생성
-    const driveViewUrl = `https://drive.google.com/file/d/${response.data.id}/view`;
-    const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${response.data.id}`;
+    const driveViewUrl = `https://drive.google.com/file/d/${fileId}/view`;
+    const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
 
     console.log(`[Partner Audio Upload] ${partnerType} ${partnerName} uploaded ${fileName} to Google Drive: ${driveViewUrl}`);
 
@@ -145,7 +174,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       url: driveViewUrl,
       downloadUrl: driveDownloadUrl,
-      fileId: response.data.id,
+      fileId: fileId,
       fileName: fileName,
       originalFileName: originalFileName,
       message: '녹음 파일이 Google 드라이브에 업로드되었습니다.',

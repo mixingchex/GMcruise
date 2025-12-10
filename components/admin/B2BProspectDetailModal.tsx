@@ -106,6 +106,7 @@ export default function B2BProspectDetailModal({ prospectId, prospectType, isOpe
   });
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isSavingConsultation, setIsSavingConsultation] = useState(false);
+  const [isDeletingConsultation, setIsDeletingConsultation] = useState<string | number | null>(null);
   const [consultationNotes, setConsultationNotes] = useState<ConsultationNote[]>([]);
   const [expandedNoteIds, setExpandedNoteIds] = useState<Set<number | string>>(new Set()); // 확장된 상담기록 ID 목록
   const [selectedNote, setSelectedNote] = useState<ConsultationNote | null>(null); // 상세 모달용 선택된 노트
@@ -456,6 +457,48 @@ export default function B2BProspectDetailModal({ prospectId, prospectType, isOpe
       alert('저장 중 오류가 발생했습니다.');
     } finally {
       setIsSavingConsultation(false);
+    }
+  };
+
+  // 상담기록 삭제 핸들러
+  const handleDeleteConsultation = async (noteId: string | number) => {
+    if (!confirm('이 상담기록을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    setIsDeletingConsultation(noteId);
+    try {
+      // API URL 결정
+      let apiUrl: string;
+      if (prospectType === 'lead') {
+        apiUrl = apiBasePath === 'partner'
+          ? `/api/partner/customers/${prospectId}/consultations?id=${noteId}`
+          : `/api/admin/affiliate/leads/${prospectId}/consultations?id=${noteId}`;
+      } else {
+        apiUrl = apiBasePath === 'partner'
+          ? `/api/partner/system-inquiries/${prospectId}/consultations?id=${noteId}`
+          : `/api/system-inquiries/${prospectId}/consultations?id=${noteId}`;
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        // 목록에서 삭제된 상담기록 제거
+        setConsultationNotes(prev => prev.filter(note => note.id !== noteId));
+        alert('상담기록이 삭제되었습니다.');
+        onUpdate?.();
+      } else {
+        alert(data.error || data.message || '삭제에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('[B2BProspectDetailModal] Consultation Delete Error:', err);
+      alert('삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeletingConsultation(null);
     }
   };
 
@@ -991,7 +1034,7 @@ export default function B2BProspectDetailModal({ prospectId, prospectType, isOpe
                                 <span className="text-gray-500">작성자:</span>{' '}
                                 <span className="font-medium text-gray-700">{note.createdByName}</span>
                               </div>
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
                                 {/* 상세 보기 버튼 */}
                                 <button
                                   onClick={(e) => {
@@ -1002,7 +1045,18 @@ export default function B2BProspectDetailModal({ prospectId, prospectType, isOpe
                                 >
                                   상세 보기
                                 </button>
-                                <div className="text-xs text-gray-400">
+                                {/* 삭제 버튼 */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteConsultation(note.id);
+                                  }}
+                                  disabled={isDeletingConsultation === note.id}
+                                  className="px-3 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
+                                >
+                                  {isDeletingConsultation === note.id ? '삭제 중...' : '삭제'}
+                                </button>
+                                <div className="text-xs text-gray-400 ml-1">
                                   등록: {new Date(note.createdAt).toLocaleString('ko-KR')}
                                 </div>
                               </div>

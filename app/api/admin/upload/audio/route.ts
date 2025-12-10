@@ -1,25 +1,19 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-// Vercel Serverless Functions에서 body 크기 제한 설정 (최대 4.5MB)
-// Pro plan에서는 더 높은 제한 가능
 
 import { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAuth } from '@/lib/auth';
-import { google } from 'googleapis';
-import { getGoogleAuth } from '@/lib/google-drive';
-import { Readable } from 'stream';
+import { getGoogleAccessToken } from '@/lib/google-drive';
 
-// B2B 오디오 폴더 (B2B 유입 + 시스템 상담 모두 동일 폴더 사용)
-// B2B 전용 오디오 폴더: https://drive.google.com/drive/folders/15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S
+// B2B 오디오 폴더 ID
 const B2B_AUDIO_FOLDER_ID = '15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S';
 
-// 파일 크기 제한 (Vercel Free Plan: 4.5MB, FormData 오버헤드 고려해서 4MB)
+// 파일 크기 제한 (4MB)
 const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 // GET 핸들러 - API 라우트 존재 확인용
 export async function GET() {
-  console.log('[Admin Audio Upload] GET request received - API route is working');
   return NextResponse.json({
     ok: true,
     message: 'Admin Audio Upload API is available',
@@ -31,7 +25,6 @@ export async function GET() {
 
 // OPTIONS 핸들러 (CORS preflight)
 export async function OPTIONS() {
-  console.log('[Admin Audio Upload] OPTIONS request received');
   return new NextResponse(null, {
     status: 200,
     headers: {
@@ -46,7 +39,6 @@ export async function POST(request: NextRequest) {
   console.log('[Admin Audio Upload] POST request received');
   try {
     const auth = await checkAdminAuth();
-    console.log('[Admin Audio Upload] Auth check result:', { isAdmin: auth.isAdmin });
     if (!auth.isAdmin) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
     }
@@ -54,7 +46,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const customerId = formData.get('customerId') as string;
-    const prospectType = formData.get('prospectType') as string; // 'lead' or 'consultation'
+    const prospectType = formData.get('prospectType') as string;
 
     if (!file) {
       return NextResponse.json({ ok: false, error: '파일이 없습니다.' }, { status: 400 });
@@ -64,9 +56,7 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
       return NextResponse.json({
         ok: false,
-        error: `파일 크기가 ${MAX_FILE_SIZE_MB}MB를 초과합니다. 만능 압축기를 사용하여 오디오를 압축해주세요.`,
-        fileSize: file.size,
-        maxSize: MAX_FILE_SIZE_BYTES,
+        error: `파일 크기가 ${MAX_FILE_SIZE_MB}MB를 초과합니다.`,
       }, { status: 413 });
     }
 
@@ -76,7 +66,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: '지원하지 않는 오디오 형식입니다.' }, { status: 400 });
     }
 
-    // 원본 파일명 보존 + 유형_고객ID_날짜시간 추가
+    // 파일명 생성
     const originalFileName = file.name;
     const ext = file.name.split('.').pop() || 'mp3';
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -84,75 +74,99 @@ export async function POST(request: NextRequest) {
     const baseNameWithoutExt = originalFileName.replace(/\.[^/.]+$/, '');
     const fileName = `${typePrefix}_${baseNameWithoutExt}_${customerId || 'unknown'}_${timestamp}.${ext}`;
 
-    // Google Drive에 업로드
-    const googleAuth = getGoogleAuth();
-    const drive = google.drive({ version: 'v3', auth: googleAuth });
-
-    // B2B 유입 + 시스템 상담 모두 동일한 B2B 오디오 폴더 사용
-    const targetFolderId = B2B_AUDIO_FOLDER_ID;
-
-    console.log(`[Audio Upload] Uploading to B2B Audio folder (${targetFolderId}), type: ${typePrefix}`);
-
-    // File을 Buffer로 변환
+    // Google Drive REST API로 직접 업로드
+    const accessToken = await getGoogleAccessToken();
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Readable stream 생성
-    const stream = new Readable();
-    stream.push(buffer);
-    stream.push(null);
+    // 1. 파일 메타데이터와 함께 업로드 (multipart upload)
+    const boundary = '-------314159265358979323846';
+    const delimiter = `\r\n--${boundary}\r\n`;
+    const closeDelimiter = `\r\n--${boundary}--`;
 
-    const response = await drive.files.create({
-      requestBody: {
-        name: fileName,
-        mimeType: file.type || 'audio/mpeg',
-        parents: [targetFolderId],
-      },
-      media: {
-        mimeType: file.type || 'audio/mpeg',
-        body: stream,
-      },
-      fields: 'id, webViewLink, webContentLink',
-      supportsAllDrives: true,  // 공유 드라이브 지원
-    });
+    const metadata = {
+      name: fileName,
+      parents: [B2B_AUDIO_FOLDER_ID],
+      mimeType: file.type || 'audio/mpeg',
+    };
 
-    if (!response.data.id) {
-      throw new Error('Google Drive 업로드 실패');
+    const multipartBody = Buffer.concat([
+      Buffer.from(
+        delimiter +
+        'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify(metadata) +
+        delimiter +
+        `Content-Type: ${file.type || 'audio/mpeg'}\r\n` +
+        'Content-Transfer-Encoding: base64\r\n\r\n'
+      ),
+      Buffer.from(buffer.toString('base64')),
+      Buffer.from(closeDelimiter),
+    ]);
+
+    const uploadResponse = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': `multipart/related; boundary=${boundary}`,
+        },
+        body: multipartBody,
+      }
+    );
+
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error('[Admin Audio Upload] Google Drive upload failed:', errorText);
+      throw new Error(`Google Drive 업로드 실패: ${uploadResponse.status}`);
     }
 
-    // 파일 공개 설정 (링크가 있는 사람 누구나)
-    await drive.permissions.create({
-      fileId: response.data.id,
-      requestBody: {
-        role: 'reader',
-        type: 'anyone',
-      },
-      supportsAllDrives: true,  // 공유 드라이브 지원
-    });
+    const uploadResult = await uploadResponse.json();
+    const fileId = uploadResult.id;
 
-    // 웹 링크 URL 생성 (보기용 + 다운로드용)
-    const driveViewUrl = `https://drive.google.com/file/d/${response.data.id}/view`;
-    const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${response.data.id}`;
+    if (!fileId) {
+      throw new Error('Google Drive 업로드 실패: 파일 ID 없음');
+    }
 
-    console.log(`[Audio Upload] Uploaded ${fileName} to Google Drive: ${driveViewUrl}`);
+    // 2. 파일 공개 설정
+    const permissionResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: 'reader',
+          type: 'anyone',
+        }),
+      }
+    );
+
+    if (!permissionResponse.ok) {
+      console.warn('[Admin Audio Upload] Permission setting failed, but file uploaded');
+    }
+
+    const driveViewUrl = `https://drive.google.com/file/d/${fileId}/view`;
+    const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+
+    console.log(`[Admin Audio Upload] Success: ${fileName} -> ${driveViewUrl}`);
 
     return NextResponse.json({
       ok: true,
       url: driveViewUrl,
       downloadUrl: driveDownloadUrl,
-      fileId: response.data.id,
+      fileId: fileId,
       fileName: fileName,
       originalFileName: originalFileName,
-      message: '녹음 파일이 Google 드라이브에 업로드되었습니다.',
+      message: '녹음 파일이 업로드되었습니다.',
     });
   } catch (error: any) {
-    console.error('[Audio Upload Error]', error);
+    console.error('[Admin Audio Upload Error]', error);
     return NextResponse.json({
       ok: false,
       error: error.message || '파일 업로드에 실패했습니다.',
     }, { status: 500 });
   }
 }
-
-// Next.js App Router에서는 config 대신 route segment config 사용
-// FormData는 자동으로 처리됨

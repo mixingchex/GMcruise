@@ -97,6 +97,22 @@ export function getGoogleAuth(scopes?: string[]) {
   }
 }
 
+/**
+ * Google Access Token 가져오기 (REST API 직접 호출용)
+ * googleapis 라이브러리 없이 Google Drive REST API를 호출할 때 사용
+ */
+export async function getGoogleAccessToken(): Promise<string> {
+  const auth = getGoogleAuth(['https://www.googleapis.com/auth/drive']);
+  const client = await auth.getClient();
+  const tokenResponse = await client.getAccessToken();
+
+  if (!tokenResponse.token) {
+    throw new Error('Google Access Token을 가져올 수 없습니다.');
+  }
+
+  return tokenResponse.token;
+}
+
 export function getDriveClient() {
   try {
     const auth = getGoogleAuth();
