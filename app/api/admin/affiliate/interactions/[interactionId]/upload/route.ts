@@ -148,7 +148,7 @@ export async function POST(
         const PHONE_CONSULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec';
 
         // 2. 나의 고객 추가 스프레드시트
-        const MANAGEMENT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywcApub-kRMhuNzkLf5MaEPArQoGwalfVMU5fCh1a_BUGUI-t5ux0szObncbNy_Gy7/exec';
+        const MANAGEMENT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZYKPmjQ_IWlAn0onXeUTnyj1DxLqtRJLuD2Lh70QEk_1IR4DkAZW0eM8aLyFJJGid/exec';
 
         // 두 스프레드시트에 병렬로 전송 (각각에서 연락처로 검색하여 업데이트)
         const [phoneConsultResult, managementResult] = await Promise.allSettled([

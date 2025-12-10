@@ -6,7 +6,7 @@ const GROUP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz9vkrgmtYuTIy
 
 // Google Apps Script URL for My Customer Management
 // Updated by user on 2025-12-03
-const MANAGEMENT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywcApub-kRMhuNzkLf5MaEPArQoGwalfVMU5fCh1a_BUGUI-t5ux0szObncbNy_Gy7/exec';
+const MANAGEMENT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyZYKPmjQ_IWlAn0onXeUTnyj1DxLqtRJLuD2Lh70QEk_1IR4DkAZW0eM8aLyFJJGid/exec';
 
 // Google Apps Script URL for Purchased Customers
 // Updated by user on 2025-12-03
