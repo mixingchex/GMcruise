@@ -54,7 +54,7 @@ export default function CustomerStatusBadges({
   // 지니체험 (결제 고객)
   if (isRegularGenie) {
     badges.push({
-      label: '지니체험',
+      label: '크루즈닷체험',
       icon: <FiUser className="w-3 h-3" />,
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700',

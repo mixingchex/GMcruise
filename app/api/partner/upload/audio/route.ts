@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
 
     // 파일 공개 설정 (링크가 있는 사람 누구나)
     const permissionResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+      `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?supportsAllDrives=true`,
       {
         method: 'POST',
         headers: {
@@ -161,7 +161,10 @@ export async function POST(request: NextRequest) {
     );
 
     if (!permissionResponse.ok) {
-      console.warn('[Partner Audio Upload] Permission setting failed, but file uploaded');
+      const permError = await permissionResponse.text();
+      console.warn('[Partner Audio Upload] Permission setting failed:', permError);
+    } else {
+      console.log('[Partner Audio Upload] File permission set to public');
     }
 
     // 웹 링크 URL 생성

@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     // 2. 파일 공개 설정
     const permissionResponse = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+      `https://www.googleapis.com/drive/v3/files/${fileId}/permissions?supportsAllDrives=true`,
       {
         method: 'POST',
         headers: {
@@ -145,7 +145,10 @@ export async function POST(request: NextRequest) {
     );
 
     if (!permissionResponse.ok) {
-      console.warn('[Admin Audio Upload] Permission setting failed, but file uploaded');
+      const permError = await permissionResponse.text();
+      console.warn('[Admin Audio Upload] Permission setting failed:', permError);
+    } else {
+      console.log('[Admin Audio Upload] File permission set to public');
     }
 
     const driveViewUrl = `https://drive.google.com/file/d/${fileId}/view`;

@@ -281,7 +281,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
       if (customer.status === 'test-locked' || customer.customerStatus === 'test-locked') {
         badges.push({ label: '3일체험 잠금', color: 'bg-gray-100 text-gray-800 border border-gray-300' });
       } else {
-        badges.push({ label: '크루즈가이드 지니 3일 체험', color: 'bg-orange-100 text-orange-800 border border-orange-300 font-semibold' });
+        badges.push({ label: '크루즈닷 3일 체험', color: 'bg-orange-100 text-orange-800 border border-orange-300 font-semibold' });
       }
       return badges; // 테스트 고객은 다른 딱지 표시 안 함
     }
@@ -306,7 +306,7 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
     // 8. 크루즈가이드 고객 딱지 (파란색) - 크루즈가이드 지니 (결제 고객)
     // customerStatus: 'active', customerSource: 'cruise-guide' → 명확히 구분
     if (customer.customerType === 'cruise-guide' || (customer.customerStatus === 'active' && customer.customerSource === 'cruise-guide')) {
-      badges.push({ label: '크루즈가이드 지니 (결제)', color: 'bg-blue-100 text-blue-800 border border-blue-300 font-semibold' });
+      badges.push({ label: '크루즈닷 (결제)', color: 'bg-blue-100 text-blue-800 border border-blue-300 font-semibold' });
     }
     
     // 9. 통합 딱지 (보라색) - 연동된 고객

@@ -163,7 +163,7 @@ export default function SystemTab() {
         <h3 className="text-lg font-semibold mb-4">PWA 설치 현황</h3>
         <StatCardGrid columns={4}>
           <StatCard
-            title="지니 앱"
+            title="크루즈닷 앱"
             value={pwaStats?.genie || 0}
             subtitle="바탕화면 추가"
             color="pink"
@@ -177,7 +177,7 @@ export default function SystemTab() {
           <StatCard
             title="둘 다 설치"
             value={pwaStats?.both || 0}
-            subtitle="지니 + 몰"
+            subtitle="크루즈닷 + 몰"
             color="purple"
           />
           <StatCard

@@ -30,7 +30,7 @@ export const PRODUCT_TAGS: ProductTag[] = [
   { id: 'ultra', label: '초초초특가', emoji: '⚡', color: 'bg-red-700' },
   { id: 'must', label: '이건가야대', emoji: '⭐', color: 'bg-yellow-500' },
   { id: 'exclusive', label: '크루즈닷단독', emoji: '🎯', color: 'bg-blue-600' },
-  { id: 'genie', label: '지니패키지', emoji: '🤖', color: 'bg-indigo-600' },
+  { id: 'genie', label: '크루즈닷패키지', emoji: '🤖', color: 'bg-indigo-600' },
 ];
 
 interface ProductTagsSelectorProps {
