@@ -399,14 +399,25 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         const compressAudioFile = async (file: File): Promise<{ blob: Blob; originalSize: number; extension: string }> => {
             return new Promise(async (resolve, reject) => {
                 try {
+                    console.log('[Audio Compress] Starting compression for:', file.name, 'Size:', file.size);
+                    console.log('[Audio Compress] Config:', config);
+
                     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
                     const arrayBuffer = await file.arrayBuffer();
                     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+                    console.log('[Audio Compress] Decoded audio:', {
+                        duration: audioBuffer.duration,
+                        sampleRate: audioBuffer.sampleRate,
+                        channels: audioBuffer.numberOfChannels
+                    });
 
                     // OfflineAudioContext로 오디오 리샘플링
                     const targetSampleRate = Math.min(audioBuffer.sampleRate, config.sampleRate);
                     const targetChannels = config.channels;
                     const length = Math.floor(audioBuffer.duration * targetSampleRate);
+
+                    console.log('[Audio Compress] Target settings:', { targetSampleRate, targetChannels, length });
 
                     const offlineContext = new OfflineAudioContext(targetChannels, length, targetSampleRate);
                     const source = offlineContext.createBufferSource();
@@ -417,9 +428,11 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                     const renderedBuffer = await offlineContext.startRendering();
                     audioContext.close();
 
+                    console.log('[Audio Compress] Rendered buffer length:', renderedBuffer.length);
+
                     // lamejs를 사용하여 MP3로 인코딩
                     const mp3encoder = new lamejs.Mp3Encoder(targetChannels, targetSampleRate, config.bitrate);
-                    const mp3Data: Int8Array[] = [];
+                    const mp3Data: Uint8Array[] = [];
 
                     // 모노로 변환 (채널 수에 상관없이 모노로 처리)
                     const samples = renderedBuffer.getChannelData(0);
@@ -432,26 +445,43 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
                         int16Samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                     }
 
+                    console.log('[Audio Compress] Int16 samples length:', int16Samples.length);
+
                     // 블록 단위로 인코딩
+                    let encodedBlocks = 0;
                     for (let i = 0; i < int16Samples.length; i += sampleBlockSize) {
                         const sampleChunk = int16Samples.subarray(i, i + sampleBlockSize);
                         const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
                         if (mp3buf.length > 0) {
-                            mp3Data.push(new Int8Array(mp3buf));
+                            mp3Data.push(new Uint8Array(mp3buf));
+                            encodedBlocks++;
                         }
                     }
 
                     // 마무리
                     const mp3buf = mp3encoder.flush();
                     if (mp3buf.length > 0) {
-                        mp3Data.push(new Int8Array(mp3buf));
+                        mp3Data.push(new Uint8Array(mp3buf));
+                    }
+
+                    console.log('[Audio Compress] Encoded blocks:', encodedBlocks, 'Total parts:', mp3Data.length);
+
+                    // 전체 크기 계산
+                    const totalSize = mp3Data.reduce((acc, arr) => acc + arr.length, 0);
+                    console.log('[Audio Compress] Total MP3 size:', totalSize);
+
+                    if (totalSize === 0) {
+                        throw new Error('MP3 인코딩 실패: 데이터가 생성되지 않았습니다.');
                     }
 
                     // Blob 생성
-                    const blob = new Blob(mp3Data, { type: 'audio/mp3' });
+                    const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
+                    console.log('[Audio Compress] Final blob size:', blob.size, 'Original:', file.size);
+
                     resolve({ blob, originalSize: file.size, extension: 'mp3' });
 
                 } catch (error) {
+                    console.error('[Audio Compress] Error:', error);
                     reject(error);
                 }
             });

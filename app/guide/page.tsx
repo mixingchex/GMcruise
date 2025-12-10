@@ -11,7 +11,7 @@ export default function GuidePage() {
     {
       icon: '💬',
       title: 'AI와 대화하기',
-      description: '지니와 자유롭게 대화하며 크루즈 여행에 대한 모든 정보를 얻어보세요.',
+      description: '크루즈닷과 자유롭게 대화하며 크루즈 여행에 대한 모든 정보를 얻어보세요.',
       features: [
         '크루즈 선박 정보 및 시설 안내',
         '여행지 관광지 추천',
@@ -22,7 +22,7 @@ export default function GuidePage() {
     {
       icon: '📸',
       title: '사진으로 질문하기',
-      description: '사진을 업로드하면 지니가 이미지를 분석하고 관련 정보를 제공합니다.',
+      description: '사진을 업로드하면 크루즈닷이 이미지를 분석하고 관련 정보를 제공합니다.',
       features: [
         '크루즈 선박 사진 분석',
         '관광지 사진 인식',
@@ -90,7 +90,7 @@ export default function GuidePage() {
               <span>뒤로가기</span>
             </button>
             <h1 className="text-2xl font-bold text-gray-900">
-              지니의 사용 설명서 💡
+              크루즈닷 사용 설명서 💡
             </h1>
           </div>
         </div>
@@ -104,11 +104,11 @@ export default function GuidePage() {
             🧞‍♂️
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            크루즈 가이드 지니와 함께하는 스마트 여행
+            크루즈닷AI와 함께하는 스마트 여행
           </h2>
           <p className="text-gray-700 text-lg max-w-2xl mx-auto">
             AI 기술로 더욱 편리하고 즐거운 크루즈 여행을 경험해보세요. 
-            지니가 여행의 모든 순간을 도와드립니다.
+            크루즈닷이 여행의 모든 순간을 도와드립니다.
           </p>
         </div>
 
@@ -161,13 +161,13 @@ export default function GuidePage() {
               더 궁금한 것이 있으신가요?
             </h3>
             <p className="text-gray-700 mb-6">
-              지니에게 직접 질문해보세요! 언제든지 도움을 드릴 준비가 되어있어요.
+              크루즈닷에게 직접 질문해보세요! 언제든지 도움을 드릴 준비가 되어있어요.
             </p>
             <button
               onClick={() => router.push('/')}
               className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
             >
-              지니와 대화하기
+              크루즈닷과 대화하기
             </button>
           </div>
         </div>

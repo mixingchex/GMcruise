@@ -23,7 +23,7 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.cruisedot.co.kr'),
   title: "크루즈 가이드 - AI 여행 도우미 | 크루즈 예약, 여행 준비, 실시간 안내",
-  description: "AI 가이드 지니와 함께하는 특별한 크루즈 여행. 크루즈 상품 예약, 여행 준비, 실시간 안내까지 모든 것을 한 곳에서. 일본 크루즈, 지중해 크루즈, 알래스카 크루즈 등 다양한 크루즈 여행 상품을 확인하세요.",
+  description: "AI 가이드 크루즈닷과 함께하는 특별한 크루즈 여행. 크루즈 상품 예약, 여행 준비, 실시간 안내까지 모든 것을 한 곳에서. 일본 크루즈, 지중해 크루즈, 알래스카 크루즈 등 다양한 크루즈 여행 상품을 확인하세요.",
   keywords: [
     "크루즈", "크루즈 여행", "AI 여행 도우미", "크루즈 가이드", "크루즈 상품", "크루즈 예약",
     "일본 크루즈", "해외 크루즈", "지중해 크루즈", "알래스카 크루즈", "카리브 크루즈",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   openGraph: {
     title: "크루즈 가이드 - AI 여행 도우미",
-    description: "AI 가이드 지니와 함께하는 특별한 크루즈 여행",
+    description: "AI 가이드 크루즈닷과 함께하는 특별한 크루즈 여행",
     url: process.env.NEXT_PUBLIC_BASE_URL || "https://cruisedot.co.kr",
     siteName: "크루즈 가이드",
     images: [
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "크루즈 가이드 - AI 여행 도우미",
-    description: "AI 가이드 지니와 함께하는 특별한 크루즈 여행",
+    description: "AI 가이드 크루즈닷과 함께하는 특별한 크루즈 여행",
     images: [`${process.env.NEXT_PUBLIC_BASE_URL || "https://cruisedot.co.kr"}/images/ai-cruise-logo.png`],
   },
   robots: {
@@ -153,7 +153,7 @@ export default async function RootLayout({
               alternateName: 'CruiseDot',
               url: process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr',
               logo: `${process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr'}/images/ai-cruise-logo.png`,
-              description: 'AI 가이드 지니와 함께하는 특별한 크루즈 여행. 크루즈 상품 예약, 여행 준비, 실시간 안내까지 모든 것을 한 곳에서.',
+              description: 'AI 가이드 크루즈닷과 함께하는 특별한 크루즈 여행. 크루즈 상품 예약, 여행 준비, 실시간 안내까지 모든 것을 한 곳에서.',
               contactPoint: {
                 '@type': 'ContactPoint',
                 telephone: contactPhone,
@@ -185,7 +185,7 @@ export default async function RootLayout({
               name: '크루즈 가이드',
               alternateName: 'Cruise Guide',
               url: process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr',
-              description: 'AI 가이드 지니와 함께하는 특별한 크루즈 여행. 크루즈 상품 예약, 여행 준비, 실시간 안내까지 모든 것을 한 곳에서.',
+              description: 'AI 가이드 크루즈닷과 함께하는 특별한 크루즈 여행. 크루즈 상품 예약, 여행 준비, 실시간 안내까지 모든 것을 한 곳에서.',
               publisher: {
                 '@type': 'Organization',
                 name: '크루즈닷',

@@ -99,7 +99,7 @@ export default function SystemInquiryPage() {
               <span className="text-cyan-400">시스템 상담 안내</span>
             </h1>
             <p className="text-lg md:text-xl text-white/80 mb-8">
-              크루즈닷 AI 지니 시스템을 활용한<br />
+              크루즈닷AI 시스템을 활용한<br />
               크루즈 마케팅 비즈니스에 관심이 있으신가요?
             </p>
             
@@ -109,7 +109,7 @@ export default function SystemInquiryPage() {
                   <span className="text-xl">🤖</span>
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg mb-1">AI 지니 판매 시스템</h3>
+                  <h3 className="font-bold text-lg mb-1">AI 크루즈닷 판매 시스템</h3>
                   <p className="text-white/70 text-sm">나만의 판매몰과 AI 챗봇으로 고객 응대 자동화</p>
                 </div>
               </div>

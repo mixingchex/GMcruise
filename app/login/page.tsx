@@ -198,7 +198,7 @@ function LoginPageContent() {
             
             <div className="space-y-2">
               <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tight leading-tight">
-                크루즈 가이드 지니 AI
+                크루즈닷AI
               </h1>
               <p className="text-lg md:text-xl text-gray-600 font-medium max-w-md mx-auto leading-relaxed">
                 프리미엄 크루즈 여행을 위한 AI 파트너
@@ -221,7 +221,7 @@ function LoginPageContent() {
             <div className="aspect-video w-full">
               <iframe
                 src="https://www.youtube.com/embed/-p_6G69MgyQ?autoplay=1&mute=1&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1&rel=0&enablejsapi=1"
-                title="크루즈 가이드 지니 AI 소개 영상"
+                title="크루즈닷AI 소개 영상"
                 allow="autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 referrerPolicy="strict-origin-when-cross-origin"
                 allowFullScreen

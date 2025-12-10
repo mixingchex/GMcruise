@@ -254,7 +254,7 @@ export default function AffiliateProductsPage() {
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-6">
             <FiYoutube className="text-red-600" size={32} />
-            <h2 className="text-2xl font-bold text-gray-900">크루즈닷 지니 TV</h2>
+            <h2 className="text-2xl font-bold text-gray-900">크루즈닷 TV</h2>
             <span className="text-sm text-gray-500">인기영상</span>
             <a
               href="https://www.youtube.com/@cruisedotgini"

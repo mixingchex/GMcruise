@@ -1274,7 +1274,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
 
     if (nextAction === 'family') {
       addBotMessage(
-        '물론이에요! 😊 가족분들과 충분히 상의하시고요.\n\n궁금한 점이 생기면 언제든지 다시 불러주세요. AI 지니가 24시간 기다리고 있을게요!'
+        '물론이에요! 😊 가족분들과 충분히 상의하시고요.\n\n궁금한 점이 생기면 언제든지 다시 불러주세요. AI 크루즈닷이 24시간 기다리고 있을게요!'
       );
       return;
     }
@@ -1334,7 +1334,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
           <div className="flex items-center gap-4">
             <span className="text-4xl md:text-5xl">🤖</span>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI 지니 채팅봇</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI 크루즈닷 채팅봇</h1>
               <p className="text-base md:text-lg text-gray-700">크루즈 여행 상담을 도와드립니다</p>
             </div>
           </div>

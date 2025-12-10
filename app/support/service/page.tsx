@@ -43,7 +43,7 @@ export default function ServicePage() {
   const defaultServices = [
     {
       icon: '🧞',
-      title: 'AI 크루즈 가이드 지니',
+      title: 'AI 크루즈닷',
       description: '24시간 언제든지 크루즈 여행에 대한 질문을 할 수 있는 AI 어시스턴트입니다. 실시간 정보 제공과 맞춤형 여행 가이드를 제공합니다.',
       features: ['길찾기 및 경로 안내', '사진 검색 및 갤러리', '실시간 질문 응답', '다국어 지원']
     },
@@ -61,7 +61,7 @@ export default function ServicePage() {
     },
     {
       icon: '📺',
-      title: '크루즈닷 지니 TV',
+      title: '크루즈닷 TV',
       description: '크루즈 여행 영상, Shorts, 라이브 방송을 통해 크루즈 여행의 생생한 경험을 공유합니다.',
       features: ['YouTube Shorts', '여행 영상 콘텐츠', '라이브 방송', '후기 영상']
     },

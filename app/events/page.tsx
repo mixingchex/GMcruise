@@ -46,11 +46,11 @@ export default function EventsPage() {
     },
     {
       id: 5,
-      title: '크루즈닷 지니 TV 구독 이벤트',
+      title: '크루즈닷 TV 구독 이벤트',
       image: '📺',
       period: '상시',
       status: '진행중',
-      description: '크루즈닷 지니 TV를 구독하고 리뷰를 남기면 추첨을 통해 크루즈 할인 쿠폰을 드립니다!',
+      description: '크루즈닷 TV를 구독하고 리뷰를 남기면 추첨을 통해 크루즈 할인 쿠폰을 드립니다!',
       benefits: ['할인 쿠폰 추첨', '구독자 특별 혜택', '선물 증정']
     },
     {
