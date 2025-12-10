@@ -469,7 +469,7 @@ export default function MyInfoPage() {
                 </div>
               </div>
 
-              {/* 크루즈닷지니AI 상태 */}
+              {/* 크루즈닷AI 상태 */}
               {isGenieUser ? (
                 <div className="p-5 bg-gradient-to-br from-yellow-400 via-yellow-300 to-orange-400 border-2 border-yellow-500 rounded-xl relative overflow-hidden shadow-lg">
                   {/* 블링블링 효과 - 그라데이션 애니메이션 */}
@@ -483,7 +483,7 @@ export default function MyInfoPage() {
                       </div>
                       <div>
                         <p className="font-bold text-lg text-gray-900 flex items-center gap-2 drop-shadow-sm">
-                          크루즈닷지니AI (유료)
+                          크루즈닷AI (유료)
                           <span className="text-xs px-2 py-1 bg-yellow-500 text-white rounded-full font-bold animate-pulse shadow-md">PRO</span>
                         </p>
                         <p className="text-sm text-gray-800 font-medium">AI 여행 가이드 서비스</p>
@@ -505,7 +505,7 @@ export default function MyInfoPage() {
                       </div>
                       <div>
                         <p className="font-bold text-lg text-gray-900 flex items-center gap-2 drop-shadow-sm">
-                          크루즈가이드지니 3일 체험
+                          크루즈닷AI 3일 체험
                           <span className="text-xs px-2 py-1 bg-purple-500 text-white rounded-full font-bold animate-pulse shadow-md">TRIAL</span>
                         </p>
                         <p className="text-sm text-gray-800 font-medium">3일 무료 체험 중</p>
@@ -520,7 +520,7 @@ export default function MyInfoPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">🤖</span>
                       <div>
-                        <p className="font-bold text-lg text-gray-900">크루즈닷지니AI</p>
+                        <p className="font-bold text-lg text-gray-900">크루즈닷AI</p>
                         <p className="text-sm text-gray-600">AI 여행 가이드 서비스</p>
                       </div>
                     </div>
@@ -543,7 +543,7 @@ export default function MyInfoPage() {
               <div className="relative z-10 text-center text-white">
                 <h3 className="text-3xl md:text-4xl font-black mb-4 flex items-center justify-center gap-3 drop-shadow-lg">
                   <span className="text-5xl animate-bounce">🎁</span>
-                  크루즈가이드지니 3일 무료체험
+                  크루즈닷AI 3일 무료체험
                 </h3>
                 <p className="text-lg md:text-xl mb-6 font-semibold drop-shadow-md">
                   지금 바로 AI 여행 가이드를 무료로 체험해보세요!

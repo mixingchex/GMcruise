@@ -47,7 +47,7 @@ export default function EnglishPage() {
       {/* 배경 이미지 - Next/Image로 최적화 */}
       <div className="absolute inset-0 z-0">
         <Image
-          src="/images/en-main.png"
+          src="/images/en-main.webp"
           alt="Seoul background"
           fill
           className="object-cover opacity-60 mix-blend-overlay"

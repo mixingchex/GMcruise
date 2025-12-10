@@ -2,11 +2,15 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "../globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
-  title: "CruiseDot AI - K-Survival Tool",
-  description: "Navigate Seoul like a local.",
+  title: "CruiseDot AI - Seoul Survival Tool",
+  description: "Navigate the neon nights of Seoul.",
 };
 
 export const viewport: Viewport = {
@@ -16,15 +20,14 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// ⚠️ 핵심: suppressHydrationWarning을 꼭 넣어주세요!
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-black text-white antialiased`}>
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
+      <body className="bg-black text-white antialiased font-sans selection:bg-purple-500 selection:text-white">
         {children}
       </body>
     </html>

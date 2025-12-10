@@ -89,7 +89,7 @@ const featureTutorials: Record<string, {
     title: '👥 나의 고객관리',
     icon: '👥',
     description: 'AI 챗봇이 수집한 고객 DB를 관리해요!',
-    features: ['AI 지니가 자동 수집한 고객 정보', '원클릭 전화/문자 발송', '고객별 상태 관리', '고객별 메모 기능'],
+    features: ['AI 크루즈닷이 자동 수집한 고객 정보', '원클릭 전화/문자 발송', '고객별 상태 관리', '고객별 메모 기능'],
     previewType: 'customers',
   },
   '구매고객 관리': {

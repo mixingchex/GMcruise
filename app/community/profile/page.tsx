@@ -308,13 +308,13 @@ export default function ProfileEditPage() {
                 {genieStatus === 'active' ? (
                   <div className="w-full px-6 py-4 bg-green-50 border-2 border-green-500 rounded-lg text-center">
                     <p className="text-lg font-bold text-green-700">
-                      🟢 지니 AI 사용중입니다. 행복한 여행 되세요!
+                      🟢 크루즈닷AI 사용중입니다. 행복한 여행 되세요!
                     </p>
                   </div>
                 ) : (
                   <div className="w-full px-6 py-4 bg-red-50 border-2 border-red-500 rounded-lg text-center">
                     <p className="text-lg font-bold text-red-700">
-                      🔴 지니AI 사용종료 되셨습니다. 다음에 또 만나요
+                      🔴 크루즈닷AI 사용종료 되셨습니다. 다음에 또 만나요
                     </p>
                   </div>
                 )}
@@ -325,13 +325,13 @@ export default function ProfileEditPage() {
               <div className="mb-6 space-y-4">
                 <div className="w-full px-6 py-4 bg-red-50 border-2 border-red-500 rounded-lg text-center">
                   <p className="text-lg font-bold text-red-700">
-                    🔴 이런! 지니 AI를 사용하지 않고 있군요? 빨리 만나길 바래요!
+                    🔴 이런! 크루즈닷AI를 사용하지 않고 있군요? 빨리 만나길 바래요!
                   </p>
                 </div>
                 <div className="aspect-video w-full rounded-xl overflow-hidden shadow-lg border border-gray-200">
                   <iframe
                     src="https://www.youtube.com/embed/-p_6G69MgyQ?si=3KTuC8W6n5Be1zzY"
-                    title="지니 AI 소개 영상"
+                    title="크루즈닷AI 소개 영상"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     referrerPolicy="strict-origin-when-cross-origin"
                     allowFullScreen
@@ -344,13 +344,13 @@ export default function ProfileEditPage() {
             {/* 크루즈 가이드 지니 연동 정보 표시 */}
             {user?.linkedGenieUser ? (
               <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
-                <p className="font-semibold mb-2">✅ 크루즈 가이드 지니 AI 연동됨</p>
+                <p className="font-semibold mb-2">✅ 크루즈닷AI 연동됨</p>
                 <ul className="space-y-1">
                   <li>
-                    <span className="font-medium">지니 사용자 이름:</span> {user.linkedGenieUser.name || '-'}
+                    <span className="font-medium">크루즈닷 사용자 이름:</span> {user.linkedGenieUser.name || '-'}
                   </li>
                   <li>
-                    <span className="font-medium">지니 사용자 연락처:</span> {user.linkedGenieUser.phone || '-'}
+                    <span className="font-medium">크루즈닷 사용자 연락처:</span> {user.linkedGenieUser.phone || '-'}
                   </li>
                   <li>
                     <span className="font-medium">연동 상태:</span> {user.linkedGenieUser.genieStatus === 'active' ? '활성' : '만료'}
@@ -363,23 +363,23 @@ export default function ProfileEditPage() {
                 </ul>
                 {user.linkedGenieUser.isLocked && (
                   <p className="mt-3 text-xs text-orange-700 font-medium">
-                    ⚠️ 지니 계정이 잠금 상태입니다. 관리자에게 문의하세요.
+                    ⚠️ 크루즈닷 계정이 잠금 상태입니다. 관리자에게 문의하세요.
                   </p>
                 )}
               </div>
             ) : genieStatus === 'active' ? (
               // genieStatus가 active인데 linkedGenieUser가 없는 경우 (데이터 불일치)
               <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-800">
-                <p className="font-semibold mb-1">⚠️ 크루즈 가이드 지니 AI 연동 정보 확인 필요</p>
+                <p className="font-semibold mb-1">⚠️ 크루즈닷AI 연동 정보 확인 필요</p>
                 <p className="text-xs text-yellow-700 mt-2">
-                  지니 AI가 활성 상태로 표시되지만 연동 정보를 찾을 수 없습니다. 관리자에게 문의하세요.
+                  크루즈닷AI가 활성 상태로 표시되지만 연동 정보를 찾을 수 없습니다. 관리자에게 문의하세요.
                 </p>
               </div>
             ) : (
               <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">
-                <p className="font-semibold mb-1">크루즈 가이드 지니 AI 연동 해제됨</p>
+                <p className="font-semibold mb-1">크루즈닷AI 연동 해제됨</p>
                 <p className="text-xs text-gray-600 mt-2">
-                  현재 크루즈 가이드 지니 AI와 연동되어 있지 않습니다. 아래 이름과 연락처를 입력하여 연동하세요.
+                  현재 크루즈닷AI와 연동되어 있지 않습니다. 아래 이름과 연락처를 입력하여 연동하세요.
                 </p>
               </div>
             )}
@@ -477,35 +477,35 @@ export default function ProfileEditPage() {
               {/* 이름, 연락처 입력 (크루즈 가이드 지니 연동용) - 모든 사용자 가능 */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  지니 가이드 로그인 이름 <span className="text-blue-600">(크루즈 가이드 지니 연동용)</span>
+                  크루즈닷 로그인 이름 <span className="text-blue-600">(크루즈닷AI 연동용)</span>
                 </label>
                 <input
                   type="text"
                   name="genieName"
                   value={formData.genieName}
                   onChange={handleChange}
-                  placeholder="크루즈 가이드 지니 로그인에 사용하는 이름을 입력하세요"
+                  placeholder="크루즈닷 로그인에 사용하는 이름을 입력하세요"
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  지니 가이드 로그인에 사용하는 이름과 연락처를 입력하면 자동으로 연동됩니다. (크루즈몰 아이디/닉네임과는 별개입니다)
+                  크루즈닷 로그인에 사용하는 이름과 연락처를 입력하면 자동으로 연동됩니다. (크루즈몰 아이디/닉네임과는 별개입니다)
                 </p>
               </div>
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  지니 가이드 로그인 연락처 <span className="text-blue-600">(크루즈 가이드 지니 연동용)</span>
+                  크루즈닷 로그인 연락처 <span className="text-blue-600">(크루즈닷AI 연동용)</span>
                 </label>
                 <input
                   type="text"
                   name="geniePhone"
                   value={formData.geniePhone}
                   onChange={handleChange}
-                  placeholder="크루즈 가이드 지니 로그인에 사용하는 연락처를 입력하세요"
+                  placeholder="크루즈닷 로그인에 사용하는 연락처를 입력하세요"
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  ⚠️ 이 연락처는 크루즈 가이드 지니 로그인에 사용하는 연락처입니다. 크루즈몰 아이디와는 별개입니다.
+                  ⚠️ 이 연락처는 크루즈닷 로그인에 사용하는 연락처입니다. 크루즈몰 아이디와는 별개입니다.
                 </p>
               </div>
 
