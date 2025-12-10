@@ -17,6 +17,44 @@ export const profileInclude: any = {
       password: true, // 비밀번호 추가
     },
   },
+  // 관리자-판매원 관계 (이 프로필이 판매원인 경우의 관리자 정보)
+  AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile: {
+    where: { status: 'ACTIVE' },
+    include: {
+      AffiliateProfile_AffiliateRelation_managerIdToAffiliateProfile: {
+        select: {
+          id: true,
+          affiliateCode: true,
+          type: true,
+          displayName: true,
+          nickname: true,
+          branchLabel: true,
+        },
+      },
+    },
+    take: 1,
+  },
+  // 통계용 _count
+  _count: {
+    select: {
+      // 대리점장으로서 관리하는 판매원 수
+      AffiliateRelation_AffiliateRelation_managerIdToAffiliateProfile: true,
+      // 판매원으로서 연결된 관리자 수
+      AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile: true,
+      // 대리점장으로서의 링크 수
+      AffiliateLink_AffiliateLink_managerIdToAffiliateProfile: true,
+      // 판매원으로서의 링크 수
+      AffiliateLink_AffiliateLink_agentIdToAffiliateProfile: true,
+      // 대리점장으로서의 리드 수
+      AffiliateLead_AffiliateLead_managerIdToAffiliateProfile: true,
+      // 판매원으로서의 리드 수
+      AffiliateLead_AffiliateLead_agentIdToAffiliateProfile: true,
+      // 대리점장으로서의 판매 수
+      AffiliateSale_AffiliateSale_managerIdToAffiliateProfile: true,
+      // 판매원으로서의 판매 수
+      AffiliateSale_AffiliateSale_agentIdToAffiliateProfile: true,
+    },
+  },
 };
 
 // 타입 에러를 피하기 위해 any 사용 (런타임에서는 정상 작동)

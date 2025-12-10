@@ -67,6 +67,44 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const [soldOutRooms, setSoldOutRooms] = useState<{ roomId: string; roomType: string; soldOutAt: string; soldOutBy: string }[]>([]);
   const [togglingRoom, setTogglingRoom] = useState<string | null>(null); // SOLD OUT 토글 중인 객실
 
+  // 모바일 뒤로가기 버튼 처리 - 모달이 열려있으면 모달만 닫기
+  const isAnyModalOpen = showPricingModal || showImageModal || showVideoModal || showReviewModal || showInquiryModal;
+
+  useEffect(() => {
+    // 모달이 열릴 때 히스토리에 상태 추가
+    if (isAnyModalOpen) {
+      window.history.pushState({ modal: true }, '');
+    }
+
+    // 뒤로가기 이벤트 핸들러
+    const handlePopState = (event: PopStateEvent) => {
+      // 모달이 열려있으면 모달을 닫음
+      if (showPricingModal) {
+        setShowPricingModal(false);
+        event.preventDefault();
+      } else if (showImageModal) {
+        setShowImageModal(false);
+        event.preventDefault();
+      } else if (showVideoModal) {
+        setShowVideoModal(false);
+        event.preventDefault();
+      } else if (showReviewModal) {
+        setShowReviewModal(false);
+        event.preventDefault();
+      } else if (showInquiryModal) {
+        setShowInquiryModal(false);
+        event.preventDefault();
+      }
+    };
+
+    // popstate 이벤트 리스너 등록
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isAnyModalOpen, showPricingModal, showImageModal, showVideoModal, showReviewModal, showInquiryModal]);
+
   // SOLD OUT 상태 조회
   useEffect(() => {
     const fetchSoldOutStatus = async () => {

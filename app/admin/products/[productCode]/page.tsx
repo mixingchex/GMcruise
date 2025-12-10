@@ -792,6 +792,147 @@ export default function ProductEditPage() {
     setThumbnailFile(file);
   };
 
+  // 섹션별 저장 상태
+  const [savingSection, setSavingSection] = useState<number | null>(null);
+
+  // 섹션별 저장 함수
+  const handleSaveSection = async (sectionNumber: number) => {
+    try {
+      setSavingSection(sectionNumber);
+
+      // 섹션별 데이터 구성
+      let sectionPayload: any = {};
+
+      switch (sectionNumber) {
+        case 1: // 기본 정보
+          // 썸네일 업로드
+          let thumbnailUrl = thumbnail;
+          if (thumbnailFile) {
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', thumbnailFile);
+            formDataUpload.append('type', 'image');
+
+            const uploadRes = await fetch('/api/admin/mall/upload', {
+              method: 'POST',
+              credentials: 'include',
+              body: formDataUpload
+            });
+
+            if (uploadRes.ok) {
+              const uploadData = await uploadRes.json();
+              if (uploadData.ok) {
+                thumbnailUrl = uploadData.url;
+              }
+            }
+          }
+
+          sectionPayload = {
+            productCode: formData.productCode || productCode,
+            cruiseLine: formData.cruiseLine || '',
+            shipName: formData.shipName || '',
+            packageName: formData.packageName || '',
+            nights: parseInt(formData.nights.toString()) || 0,
+            days: parseInt(formData.days.toString()) || 0,
+            basePrice: formData.basePrice ? parseInt(formData.basePrice) : null,
+            description: formData.description || null,
+            source: formData.source || 'manual',
+            category: formData.category || null,
+            tags: selectedTags || [],
+            isPopular: formData.isPopular || false,
+            isRecommended: formData.isRecommended || false,
+            isPremium: formData.isPremium || false,
+            isGeniePack: formData.isGeniePack || false,
+            isDomestic: formData.isDomestic || false,
+            isJapan: formData.isJapan || false,
+            isBudget: formData.isBudget || false,
+            thumbnail: thumbnailUrl || null,
+            startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+            endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
+            destination: selectedCountries.length > 0 ? selectedCountries.map(c => c.value) : [],
+            saleStatus: formData.saleStatus || 'active',
+            recommendedKeywords: recommendedKeywords || [],
+            rating: rating || 4.4,
+            reviewCount: reviewCount || 0,
+            hasEscort: hasEscort || false,
+            hasLocalGuide: hasLocalGuide || false,
+            hasCruisedotStaff: hasCruisedotStaff || false,
+            hasTravelInsurance: hasTravelInsurance || false,
+          };
+          break;
+
+        case 2: // 상세페이지 구성
+          sectionPayload = {
+            detailBlocks: detailBlocks || [],
+          };
+          break;
+
+        case 3: // 항공 정보
+          sectionPayload = {
+            flightInfo: flightInfo || null,
+          };
+          break;
+
+        case 4: // 포함/불포함 사항
+          sectionPayload = {
+            includedItems: includedItems || [],
+            excludedItems: excludedItems || [],
+          };
+          break;
+
+        case 5: // 여행일정
+          sectionPayload = {
+            itineraryDays: itineraryDays || [],
+          };
+          break;
+
+        case 6: // 요금표
+          sectionPayload = {
+            pricingRows: pricingRows || [],
+            departureDate: departureDate || '',
+          };
+          break;
+
+        case 7: // 환불/취소 규정
+          sectionPayload = {
+            refundPolicy: refundPolicy || '',
+          };
+          break;
+
+        case 8: // 문의 옵션
+          sectionPayload = {
+            contactOptions: contactOptions,
+          };
+          break;
+
+        default:
+          throw new Error('알 수 없는 섹션입니다.');
+      }
+
+      const res = await fetch(`/api/admin/products/${productCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(sectionPayload)
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `저장에 실패했습니다. (${res.status})`);
+      }
+
+      const data = await res.json();
+      if (data.ok) {
+        showSuccess(`${sectionNumber}번 섹션이 저장되었습니다.`);
+      } else {
+        throw new Error(data.error || '저장에 실패했습니다.');
+      }
+    } catch (error: any) {
+      showError(error.message || '저장 중 오류가 발생했습니다.');
+    } finally {
+      setSavingSection(null);
+    }
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
@@ -1124,7 +1265,26 @@ export default function ProductEditPage() {
 
         {/* 기본 정보 섹션 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">1. 기본 정보</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">1. 기본 정보</h2>
+            <button
+              onClick={() => handleSaveSection(1)}
+              disabled={savingSection === 1}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 1 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* 상품 코드 (읽기 전용) */}
@@ -1807,7 +1967,26 @@ export default function ProductEditPage() {
 
         {/* 상세페이지 에디터 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">2. 상세페이지 구성</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">2. 상세페이지 구성</h2>
+            <button
+              onClick={() => handleSaveSection(2)}
+              disabled={savingSection === 2}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 2 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           <p className="text-sm text-gray-600 mb-4">
             이미지, 동영상, 텍스트 블록을 자유롭게 추가하여 상세페이지를 구성하세요.
           </p>
@@ -1816,7 +1995,26 @@ export default function ProductEditPage() {
 
         {/* 항공 정보 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">3. 항공 정보</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">3. 항공 정보</h2>
+            <button
+              onClick={() => handleSaveSection(3)}
+              disabled={savingSection === 3}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 3 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           <p className="text-sm text-gray-600 mb-4">
             출국 및 귀국 항공편 정보를 입력하세요.
           </p>
@@ -1832,7 +2030,26 @@ export default function ProductEditPage() {
 
         {/* 포함/불포함 사항 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">4. 포함 사항과 불포함 사항</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">4. 포함 사항과 불포함 사항</h2>
+            <button
+              onClick={() => handleSaveSection(4)}
+              disabled={savingSection === 4}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 4 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           
           {/* 서비스 옵션 체크박스 */}
           <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
@@ -1909,7 +2126,26 @@ export default function ProductEditPage() {
 
         {/* 여행일정 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">5. 여행일정</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">5. 여행일정</h2>
+            <button
+              onClick={() => handleSaveSection(5)}
+              disabled={savingSection === 5}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 5 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           <p className="text-sm text-gray-600 mb-4">
             Day별로 일정을 구성하고, 이미지/동영상/텍스트 블록을 추가하세요. 그룹으로 저장하여 재사용할 수 있습니다.
           </p>
@@ -1924,7 +2160,26 @@ export default function ProductEditPage() {
 
         {/* 요금표 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">6. 요금표</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">6. 요금표</h2>
+            <button
+              onClick={() => handleSaveSection(6)}
+              disabled={savingSection === 6}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 6 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-gray-700">
@@ -1966,7 +2221,26 @@ export default function ProductEditPage() {
 
         {/* 환불/취소 규정 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">7. 환불/취소 규정</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">7. 환불/취소 규정</h2>
+            <button
+              onClick={() => handleSaveSection(7)}
+              disabled={savingSection === 7}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 7 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           <p className="text-sm text-gray-600 mb-4">
             환불 및 취소 규정을 입력하세요. 그룹으로 저장하여 재사용할 수 있습니다.
           </p>
@@ -1978,7 +2252,26 @@ export default function ProductEditPage() {
 
         {/* 8. 문의 옵션 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6" id="section-8-contact-options">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">8. 문의 옵션</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">8. 문의 옵션</h2>
+            <button
+              onClick={() => handleSaveSection(8)}
+              disabled={savingSection === 8}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+            >
+              {savingSection === 8 ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <FiSave size={16} />
+                  섹션 저장
+                </>
+              )}
+            </button>
+          </div>
           <p className="text-sm text-gray-600 mb-4">
             상품 상세 페이지에 표시될 문의 옵션을 선택하세요. 각 옵션을 개별적으로 활성화/비활성화할 수 있습니다.
           </p>

@@ -29,6 +29,11 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   const [hoveredImageIndex, setHoveredImageIndex] = useState<number | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
+  // 복수 선택 모드 상태
+  const [multiSelectMode, setMultiSelectMode] = useState<boolean>(false);
+  const [selectedCruiseImages, setSelectedCruiseImages] = useState<string[]>([]);
+  const [selectedGoogleDriveImageUrls, setSelectedGoogleDriveImageUrls] = useState<string[]>([]);
+
   // 구글 드라이브 상품 폴더 모달 상태
   const [showGoogleDriveModal, setShowGoogleDriveModal] = useState(false);
   const [googleDriveFolders, setGoogleDriveFolders] = useState<Array<{ id: string; name: string }>>([]);
@@ -146,7 +151,15 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   };
 
   const handleSelectCruiseImage = (imageUrl: string) => {
-    if (selectingForIndex !== null) {
+    if (multiSelectMode) {
+      // 복수 선택 모드: 선택된 이미지 토글
+      setSelectedCruiseImages(prev =>
+        prev.includes(imageUrl)
+          ? prev.filter(url => url !== imageUrl)
+          : [...prev, imageUrl]
+      );
+    } else if (selectingForIndex !== null) {
+      // 단일 선택 모드: 기존 동작
       updateBlock(selectingForIndex, { url: imageUrl });
       setShowCruisePhotoModal(false);
       setSelectingForIndex(null);
@@ -154,6 +167,30 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
       setCruiseImages([]);
       setSearchTerm('');
     }
+  };
+
+  // 크루즈사진 복수 선택 완료
+  const handleConfirmCruiseMultiSelect = () => {
+    if (selectedCruiseImages.length === 0) return;
+
+    const newBlocks: ContentBlock[] = selectedCruiseImages.map((url, index) => ({
+      type: 'image' as const,
+      id: `block-${Date.now()}-${index}`,
+      url,
+      alt: ''
+    }));
+
+    onChange([...blocks, ...newBlocks]);
+    alert(`${selectedCruiseImages.length}개의 이미지가 추가되었습니다.`);
+
+    // 상태 초기화
+    setShowCruisePhotoModal(false);
+    setSelectingForIndex(null);
+    setSelectedFolder('');
+    setCruiseImages([]);
+    setSearchTerm('');
+    setMultiSelectMode(false);
+    setSelectedCruiseImages([]);
   };
 
   const filteredFolders = cruiseFolders.filter(folder =>
@@ -219,7 +256,15 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   };
 
   const handleSelectGoogleDriveImage = (imageUrl: string) => {
-    if (selectingForIndex !== null) {
+    if (multiSelectMode) {
+      // 복수 선택 모드: 선택된 이미지 토글
+      setSelectedGoogleDriveImageUrls(prev =>
+        prev.includes(imageUrl)
+          ? prev.filter(url => url !== imageUrl)
+          : [...prev, imageUrl]
+      );
+    } else if (selectingForIndex !== null) {
+      // 단일 선택 모드: 기존 동작
       updateBlock(selectingForIndex, { url: imageUrl });
       setShowGoogleDriveModal(false);
       setSelectingForIndex(null);
@@ -227,6 +272,30 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
       setGoogleDriveImages([]);
       setGoogleDriveSearchTerm('');
     }
+  };
+
+  // 구글드라이브 복수 선택 완료
+  const handleConfirmGoogleDriveMultiSelect = () => {
+    if (selectedGoogleDriveImageUrls.length === 0) return;
+
+    const newBlocks: ContentBlock[] = selectedGoogleDriveImageUrls.map((url, index) => ({
+      type: 'image' as const,
+      id: `block-${Date.now()}-${index}`,
+      url,
+      alt: ''
+    }));
+
+    onChange([...blocks, ...newBlocks]);
+    alert(`${selectedGoogleDriveImageUrls.length}개의 이미지가 추가되었습니다.`);
+
+    // 상태 초기화
+    setShowGoogleDriveModal(false);
+    setSelectingForIndex(null);
+    setSelectedGoogleDriveFolder('');
+    setGoogleDriveImages([]);
+    setGoogleDriveSearchTerm('');
+    setMultiSelectMode(false);
+    setSelectedGoogleDriveImageUrls([]);
   };
 
   const filteredGoogleDriveFolders = googleDriveFolders.filter(folder =>
@@ -442,6 +511,29 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
             className="hidden"
           />
         </label>
+        <button
+          onClick={() => {
+            setMultiSelectMode(true);
+            setSelectedCruiseImages([]);
+            setShowCruisePhotoModal(true);
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white border border-green-600 rounded-lg hover:bg-green-700 transition-colors"
+        >
+          <FiFolder size={18} />
+          <span className="text-sm font-medium">크루즈사진 복수 선택</span>
+        </button>
+        <button
+          onClick={() => {
+            setMultiSelectMode(true);
+            setSelectedGoogleDriveImageUrls([]);
+            setShowGoogleDriveModal(true);
+            loadGoogleDriveImages();
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white border border-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+        >
+          <FiFolder size={18} />
+          <span className="text-sm font-medium">구글드라이브 복수 선택</span>
+        </button>
         <button
           onClick={() => addBlock('video')}
           className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -695,19 +787,39 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-800">크루즈정보사진에서 선택</h3>
-              <button
-                onClick={() => {
-                  setShowCruisePhotoModal(false);
-                  setSelectingForIndex(null);
-                  setSelectedFolder('');
-                  setCruiseImages([]);
-                  setSearchTerm('');
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FiX size={24} />
-              </button>
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  크루즈정보사진에서 선택
+                  {multiSelectMode && <span className="ml-2 text-sm font-normal text-green-600">(복수 선택 모드)</span>}
+                </h3>
+                {multiSelectMode && selectedCruiseImages.length > 0 && (
+                  <p className="text-sm text-blue-600 mt-1">{selectedCruiseImages.length}개 선택됨</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {multiSelectMode && selectedCruiseImages.length > 0 && (
+                  <button
+                    onClick={handleConfirmCruiseMultiSelect}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+                  >
+                    선택 완료 ({selectedCruiseImages.length}개)
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowCruisePhotoModal(false);
+                    setSelectingForIndex(null);
+                    setSelectedFolder('');
+                    setCruiseImages([]);
+                    setSearchTerm('');
+                    setMultiSelectMode(false);
+                    setSelectedCruiseImages([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-hidden flex">
@@ -749,22 +861,32 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                 {selectedFolder ? (
                   cruiseImages.length > 0 ? (
                     <div className="grid grid-cols-3 gap-4">
-                      {cruiseImages.map((imageUrl) => (
-                        <div
-                          key={imageUrl}
-                          onClick={() => handleSelectCruiseImage(imageUrl)}
-                          className="relative aspect-square cursor-pointer group"
-                        >
-                          <img
-                            src={imageUrl}
-                            alt={imageUrl}
-                            className="w-full h-full object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-500 transition-colors"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded-lg flex items-center justify-center">
-                            <span className="text-white opacity-0 group-hover:opacity-100 font-semibold">선택</span>
+                      {cruiseImages.map((imageUrl) => {
+                        const isSelected = multiSelectMode && selectedCruiseImages.includes(imageUrl);
+                        return (
+                          <div
+                            key={imageUrl}
+                            onClick={() => handleSelectCruiseImage(imageUrl)}
+                            className={`relative aspect-square cursor-pointer group ${isSelected ? 'ring-4 ring-green-500 rounded-lg' : ''}`}
+                          >
+                            <img
+                              src={imageUrl}
+                              alt={imageUrl}
+                              className={`w-full h-full object-cover rounded-lg border-2 transition-colors ${isSelected ? 'border-green-500' : 'border-gray-200 group-hover:border-blue-500'}`}
+                            />
+                            {multiSelectMode && (
+                              <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-gray-300'}`}>
+                                {isSelected && <span className="text-xs font-bold">✓</span>}
+                              </div>
+                            )}
+                            <div className={`absolute inset-0 transition-opacity rounded-lg flex items-center justify-center ${isSelected ? 'bg-green-500 bg-opacity-20' : 'bg-black bg-opacity-0 group-hover:bg-opacity-20'}`}>
+                              <span className={`font-semibold ${isSelected ? 'text-green-700' : 'text-white opacity-0 group-hover:opacity-100'}`}>
+                                {isSelected ? '선택됨' : '선택'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-12 text-gray-500">
@@ -787,19 +909,39 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-800">구글 드라이브 상품 폴더에서 선택</h3>
-              <button
-                onClick={() => {
-                  setShowGoogleDriveModal(false);
-                  setSelectingForIndex(null);
-                  setSelectedGoogleDriveFolder('');
-                  setGoogleDriveImages([]);
-                  setGoogleDriveSearchTerm('');
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FiX size={24} />
-              </button>
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  구글 드라이브 상품 폴더에서 선택
+                  {multiSelectMode && <span className="ml-2 text-sm font-normal text-purple-600">(복수 선택 모드)</span>}
+                </h3>
+                {multiSelectMode && selectedGoogleDriveImageUrls.length > 0 && (
+                  <p className="text-sm text-blue-600 mt-1">{selectedGoogleDriveImageUrls.length}개 선택됨</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {multiSelectMode && selectedGoogleDriveImageUrls.length > 0 && (
+                  <button
+                    onClick={handleConfirmGoogleDriveMultiSelect}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold"
+                  >
+                    선택 완료 ({selectedGoogleDriveImageUrls.length}개)
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowGoogleDriveModal(false);
+                    setSelectingForIndex(null);
+                    setSelectedGoogleDriveFolder('');
+                    setGoogleDriveImages([]);
+                    setGoogleDriveSearchTerm('');
+                    setMultiSelectMode(false);
+                    setSelectedGoogleDriveImageUrls([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-hidden flex">
@@ -852,57 +994,63 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
               <div className="flex-1 overflow-y-auto p-4">
                 {googleDriveImages.length > 0 ? (
                   <div className="grid grid-cols-3 gap-4">
-                    {googleDriveImages.map((image) => (
-                      <div
-                        key={image.id}
-                        onClick={() => handleSelectGoogleDriveImage(image.url)}
-                        className="relative aspect-square cursor-pointer group"
-                      >
-                        <img
-                          src={image.thumbnail || image.url}
-                          alt={image.name}
-                          className="w-full h-full object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-500 transition-colors"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            const currentSrc = img.src;
-                            console.error('[Google Drive Image] Load error:', {
-                              currentSrc,
-                              url: image.url,
-                              thumbnail: image.thumbnail,
-                              directUrl: (image as any).directUrl,
-                              proxyUrl: (image as any).proxyUrl,
-                            });
+                    {googleDriveImages.map((image) => {
+                      const isSelected = multiSelectMode && selectedGoogleDriveImageUrls.includes(image.url);
+                      return (
+                        <div
+                          key={image.id}
+                          onClick={() => handleSelectGoogleDriveImage(image.url)}
+                          className={`relative aspect-square cursor-pointer group ${isSelected ? 'ring-4 ring-purple-500 rounded-lg' : ''}`}
+                        >
+                          <img
+                            src={image.thumbnail || image.url}
+                            alt={image.name}
+                            className={`w-full h-full object-cover rounded-lg border-2 transition-colors ${isSelected ? 'border-purple-500' : 'border-gray-200 group-hover:border-blue-500'}`}
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              const currentSrc = img.src;
+                              console.error('[Google Drive Image] Load error:', {
+                                currentSrc,
+                                url: image.url,
+                                thumbnail: image.thumbnail,
+                                directUrl: (image as any).directUrl,
+                                proxyUrl: (image as any).proxyUrl,
+                              });
 
-                            // 로드 실패 시 다른 URL 시도
-                            if ((image as any).proxyUrl && currentSrc !== (image as any).proxyUrl) {
-                              // 프록시 URL 시도
-                              img.src = (image as any).proxyUrl;
-                            } else if ((image as any).directUrl && currentSrc !== (image as any).directUrl) {
-                              // 직접 URL 시도
-                              img.src = (image as any).directUrl;
-                            } else if (image.url && currentSrc !== image.url) {
-                              // 원본 URL 시도
-                              img.src = image.url;
-                            } else {
-                              // 모든 URL 실패 시 에러 표시
-                              console.error('[Google Drive Image] All URLs failed for:', image.name);
-                            }
-                          }}
-                          onLoad={(e) => {
-                            console.log('[Google Drive Image] Loaded successfully:', {
-                              src: (e.target as HTMLImageElement).src,
-                              name: image.name,
-                            });
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded-lg flex items-center justify-center">
-                          <span className="text-white opacity-0 group-hover:opacity-100 font-semibold">선택</span>
+                              // 로드 실패 시 다른 URL 시도
+                              if ((image as any).proxyUrl && currentSrc !== (image as any).proxyUrl) {
+                                img.src = (image as any).proxyUrl;
+                              } else if ((image as any).directUrl && currentSrc !== (image as any).directUrl) {
+                                img.src = (image as any).directUrl;
+                              } else if (image.url && currentSrc !== image.url) {
+                                img.src = image.url;
+                              } else {
+                                console.error('[Google Drive Image] All URLs failed for:', image.name);
+                              }
+                            }}
+                            onLoad={(e) => {
+                              console.log('[Google Drive Image] Loaded successfully:', {
+                                src: (e.target as HTMLImageElement).src,
+                                name: image.name,
+                              });
+                            }}
+                          />
+                          {multiSelectMode && (
+                            <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'bg-white border-gray-300'}`}>
+                              {isSelected && <span className="text-xs font-bold">✓</span>}
+                            </div>
+                          )}
+                          <div className={`absolute inset-0 transition-opacity rounded-lg flex items-center justify-center ${isSelected ? 'bg-purple-500 bg-opacity-20' : 'bg-black bg-opacity-0 group-hover:bg-opacity-20'}`}>
+                            <span className={`font-semibold ${isSelected ? 'text-purple-700' : 'text-white opacity-0 group-hover:opacity-100'}`}>
+                              {isSelected ? '선택됨' : '선택'}
+                            </span>
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate">
+                            {image.name}
+                          </div>
                         </div>
-                        <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 truncate">
-                          {image.name}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-12 text-gray-500">

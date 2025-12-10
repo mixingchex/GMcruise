@@ -69,6 +69,18 @@ export default function EnhancedItineraryEditor({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectingForDay, setSelectingForDay] = useState<number | null>(null);
   const [selectingForBlockIndex, setSelectingForBlockIndex] = useState<number | null>(null);
+
+  // 복수 선택 모드 상태
+  const [multiSelectMode, setMultiSelectMode] = useState<boolean>(false);
+  const [selectedCruiseImages, setSelectedCruiseImages] = useState<string[]>([]);
+
+  // 구글 드라이브 관련 상태
+  const [showGoogleDriveModal, setShowGoogleDriveModal] = useState(false);
+  const [googleDriveFolders, setGoogleDriveFolders] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedGoogleDriveFolder, setSelectedGoogleDriveFolder] = useState<string>('');
+  const [googleDriveImages, setGoogleDriveImages] = useState<Array<{ id: string; name: string; url: string; thumbnail?: string }>>([]);
+  const [googleDriveSearchTerm, setGoogleDriveSearchTerm] = useState('');
+  const [selectedGoogleDriveImageUrls, setSelectedGoogleDriveImageUrls] = useState<string[]>([]);
   const [showPPTUpload, setShowPPTUpload] = useState(false);
   const [uploadingPPT, setUploadingPPT] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState<number | null>(null);
@@ -198,7 +210,14 @@ export default function EnhancedItineraryEditor({
   };
 
   const handleSelectCruiseImage = (imageUrl: string) => {
-    if (showTourImagePicker !== null) {
+    if (multiSelectMode) {
+      // 복수 선택 모드: 선택된 이미지 토글
+      setSelectedCruiseImages(prev =>
+        prev.includes(imageUrl)
+          ? prev.filter(url => url !== imageUrl)
+          : [...prev, imageUrl]
+      );
+    } else if (showTourImagePicker !== null) {
       // 관광이미지에 추가
       const day = days.find(d => d.day === showTourImagePicker);
       if (day) {
@@ -231,8 +250,155 @@ export default function EnhancedItineraryEditor({
     }
   };
 
+  // 크루즈사진 복수 선택 완료 (여행일정용)
+  const handleConfirmCruiseMultiSelect = () => {
+    if (selectedCruiseImages.length === 0 || selectingForDay === null) return;
+
+    const day = days.find(d => d.day === selectingForDay);
+    if (!day) return;
+
+    // 선택된 이미지들을 블록으로 추가
+    const newBlocks: ContentBlock[] = selectedCruiseImages.map((url, index) => ({
+      type: 'image' as const,
+      id: `block-${Date.now()}-${index}`,
+      url,
+      alt: ''
+    }));
+
+    const updatedBlocks = [...(day.blocks || []), ...newBlocks];
+    updateDay(selectingForDay, { blocks: updatedBlocks });
+
+    alert(`${selectedCruiseImages.length}개의 이미지가 추가되었습니다.`);
+
+    // 상태 초기화
+    setShowCruisePhotoModal(false);
+    setSelectingForDay(null);
+    setSelectingForBlockIndex(null);
+    setSelectedFolder('');
+    setCruiseImages([]);
+    setSearchTerm('');
+    setMultiSelectMode(false);
+    setSelectedCruiseImages([]);
+  };
+
   const filteredFolders = cruiseFolders.filter(folder =>
     folder.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // 구글 드라이브 모달 열릴 때 폴더 목록 로드
+  useEffect(() => {
+    if (showGoogleDriveModal) {
+      loadGoogleDriveFolders();
+    }
+  }, [showGoogleDriveModal]);
+
+  const loadGoogleDriveFolders = async () => {
+    try {
+      const res = await fetch('/api/admin/mall/google-drive-products?listFolders=true', {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.ok && data.folders && Array.isArray(data.folders)) {
+          setGoogleDriveFolders(data.folders);
+        } else {
+          setGoogleDriveFolders([]);
+        }
+      } else {
+        setGoogleDriveFolders([]);
+      }
+    } catch (error) {
+      console.error('구글 드라이브 폴더 로드 실패:', error);
+      setGoogleDriveFolders([]);
+    }
+  };
+
+  const loadGoogleDriveImages = async (folderId?: string) => {
+    try {
+      const url = folderId
+        ? `/api/admin/mall/google-drive-products?folderId=${encodeURIComponent(folderId)}`
+        : '/api/admin/mall/google-drive-products';
+      const res = await fetch(url, {
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('[Google Drive] Failed to load images:', errorData);
+        setGoogleDriveImages([]);
+        return;
+      }
+
+      const data = await res.json();
+      if (data.ok) {
+        if (data.images && Array.isArray(data.images)) {
+          setGoogleDriveImages(data.images);
+        } else {
+          setGoogleDriveImages([]);
+        }
+      } else {
+        console.error('[Google Drive] API returned error:', data.error);
+        setGoogleDriveImages([]);
+      }
+    } catch (error: any) {
+      console.error('구글 드라이브 이미지 로드 에러:', error);
+      setGoogleDriveImages([]);
+    }
+  };
+
+  const handleSelectGoogleDriveImage = (imageUrl: string) => {
+    if (multiSelectMode) {
+      // 복수 선택 모드: 선택된 이미지 토글
+      setSelectedGoogleDriveImageUrls(prev =>
+        prev.includes(imageUrl)
+          ? prev.filter(url => url !== imageUrl)
+          : [...prev, imageUrl]
+      );
+    } else if (selectingForDay !== null && selectingForBlockIndex !== null) {
+      // 단일 선택 모드: 기존 동작
+      updateBlock(selectingForDay, selectingForBlockIndex, { url: imageUrl });
+      setShowGoogleDriveModal(false);
+      setSelectingForDay(null);
+      setSelectingForBlockIndex(null);
+      setSelectedGoogleDriveFolder('');
+      setGoogleDriveImages([]);
+      setGoogleDriveSearchTerm('');
+    }
+  };
+
+  // 구글드라이브 복수 선택 완료 (여행일정용)
+  const handleConfirmGoogleDriveMultiSelect = () => {
+    if (selectedGoogleDriveImageUrls.length === 0 || selectingForDay === null) return;
+
+    const day = days.find(d => d.day === selectingForDay);
+    if (!day) return;
+
+    // 선택된 이미지들을 블록으로 추가
+    const newBlocks: ContentBlock[] = selectedGoogleDriveImageUrls.map((url, index) => ({
+      type: 'image' as const,
+      id: `block-${Date.now()}-${index}`,
+      url,
+      alt: ''
+    }));
+
+    const updatedBlocks = [...(day.blocks || []), ...newBlocks];
+    updateDay(selectingForDay, { blocks: updatedBlocks });
+
+    alert(`${selectedGoogleDriveImageUrls.length}개의 이미지가 추가되었습니다.`);
+
+    // 상태 초기화
+    setShowGoogleDriveModal(false);
+    setSelectingForDay(null);
+    setSelectingForBlockIndex(null);
+    setSelectedGoogleDriveFolder('');
+    setGoogleDriveImages([]);
+    setGoogleDriveSearchTerm('');
+    setMultiSelectMode(false);
+    setSelectedGoogleDriveImageUrls([]);
+  };
+
+  const filteredGoogleDriveFolders = googleDriveFolders.filter(folder =>
+    folder.name.toLowerCase().includes(googleDriveSearchTerm.toLowerCase())
   );
 
   // 그룹 목록 로드
@@ -1337,13 +1503,38 @@ export default function EnhancedItineraryEditor({
                         <label className="block text-sm font-medium text-gray-700">
                           추가 콘텐츠 블록 (이미지/동영상/텍스트)
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           <button
                             onClick={() => addBlock(day.day, 'image')}
                             className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 text-sm"
                           >
                             <FiImage size={16} />
                             이미지
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMultiSelectMode(true);
+                              setSelectedCruiseImages([]);
+                              setSelectingForDay(day.day);
+                              setShowCruisePhotoModal(true);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm"
+                          >
+                            <FiFolder size={16} />
+                            크루즈사진 복수
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMultiSelectMode(true);
+                              setSelectedGoogleDriveImageUrls([]);
+                              setSelectingForDay(day.day);
+                              setShowGoogleDriveModal(true);
+                              loadGoogleDriveImages();
+                            }}
+                            className="flex items-center gap-1 px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                          >
+                            <FiFolder size={16} />
+                            구글드라이브 복수
                           </button>
                           <button
                             onClick={() => addBlock(day.day, 'video')}
@@ -1557,20 +1748,40 @@ export default function EnhancedItineraryEditor({
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             <div className="p-6 border-b flex items-center justify-between">
-              <h3 className="text-xl font-bold text-gray-800">크루즈정보사진에서 선택</h3>
-              <button
-                onClick={() => {
-                  setShowCruisePhotoModal(false);
-                  setSelectingForDay(null);
-                  setSelectingForBlockIndex(null);
-                  setSelectedFolder('');
-                  setCruiseImages([]);
-                  setSearchTerm('');
-                }}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FiX size={24} />
-              </button>
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">
+                  크루즈정보사진에서 선택
+                  {multiSelectMode && <span className="ml-2 text-sm font-normal text-green-600">(복수 선택 모드)</span>}
+                </h3>
+                {multiSelectMode && selectedCruiseImages.length > 0 && (
+                  <p className="text-sm text-blue-600 mt-1">{selectedCruiseImages.length}개 선택됨</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {multiSelectMode && selectedCruiseImages.length > 0 && (
+                  <button
+                    onClick={handleConfirmCruiseMultiSelect}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+                  >
+                    선택 완료 ({selectedCruiseImages.length}개)
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowCruisePhotoModal(false);
+                    setSelectingForDay(null);
+                    setSelectingForBlockIndex(null);
+                    setSelectedFolder('');
+                    setCruiseImages([]);
+                    setSearchTerm('');
+                    setMultiSelectMode(false);
+                    setSelectedCruiseImages([]);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <FiX size={24} />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-hidden flex">
@@ -1612,23 +1823,33 @@ export default function EnhancedItineraryEditor({
                 {selectedFolder ? (
                   cruiseImages.length > 0 ? (
                     <div className="grid grid-cols-3 gap-4">
-                      {cruiseImages.map((imageUrl) => (
-                        <div
-                          key={imageUrl}
-                          onClick={() => handleSelectCruiseImage(imageUrl)}
-                          className="relative aspect-square cursor-pointer group"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={imageUrl}
-                            alt={imageUrl}
-                            className="w-full h-full object-cover rounded-lg border-2 border-gray-200 group-hover:border-blue-500 transition-colors"
-                          />
-                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity rounded-lg flex items-center justify-center">
-                            <span className="text-white opacity-0 group-hover:opacity-100 font-semibold">선택</span>
+                      {cruiseImages.map((imageUrl) => {
+                        const isSelected = multiSelectMode && selectedCruiseImages.includes(imageUrl);
+                        return (
+                          <div
+                            key={imageUrl}
+                            onClick={() => handleSelectCruiseImage(imageUrl)}
+                            className={`relative aspect-square cursor-pointer group ${isSelected ? 'ring-4 ring-green-500 rounded-lg' : ''}`}
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={imageUrl}
+                              alt={imageUrl}
+                              className={`w-full h-full object-cover rounded-lg border-2 transition-colors ${isSelected ? 'border-green-500' : 'border-gray-200 group-hover:border-blue-500'}`}
+                            />
+                            {multiSelectMode && (
+                              <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-gray-300'}`}>
+                                {isSelected && <span className="text-xs font-bold">✓</span>}
+                              </div>
+                            )}
+                            <div className={`absolute inset-0 transition-opacity rounded-lg flex items-center justify-center ${isSelected ? 'bg-green-500 bg-opacity-20' : 'bg-black bg-opacity-0 group-hover:bg-opacity-20'}`}>
+                              <span className={`font-semibold ${isSelected ? 'text-green-700' : 'text-white opacity-0 group-hover:opacity-100'}`}>
+                                {isSelected ? '선택됨' : '선택'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-12 text-gray-500">
@@ -1638,6 +1859,142 @@ export default function EnhancedItineraryEditor({
                 ) : (
                   <div className="text-center py-12 text-gray-500">
                     <p>왼쪽에서 폴더를 선택하세요.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 구글 드라이브 모달 */}
+      {showGoogleDriveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col">
+            {/* 헤더 */}
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-purple-600 flex items-center gap-2">
+                  <FiFolder className="text-purple-500" />
+                  구글드라이브 상품 이미지
+                  {multiSelectMode && <span className="ml-2 text-sm font-normal text-purple-600">(복수 선택 모드)</span>}
+                </h3>
+                {multiSelectMode && selectedGoogleDriveImageUrls.length > 0 && (
+                  <p className="text-sm text-blue-600 mt-1">{selectedGoogleDriveImageUrls.length}개 선택됨</p>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {multiSelectMode && selectedGoogleDriveImageUrls.length > 0 && (
+                  <button
+                    onClick={handleConfirmGoogleDriveMultiSelect}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-semibold"
+                  >
+                    선택 완료 ({selectedGoogleDriveImageUrls.length}개)
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowGoogleDriveModal(false);
+                    setSelectingForDay(null);
+                    setSelectingForBlockIndex(null);
+                    setSelectedGoogleDriveFolder('');
+                    setGoogleDriveImages([]);
+                    setGoogleDriveSearchTerm('');
+                    setMultiSelectMode(false);
+                    setSelectedGoogleDriveImageUrls([]);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  <FiX size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="flex-1 flex overflow-hidden">
+              {/* 폴더 목록 */}
+              <div className="w-64 border-r border-gray-200 overflow-y-auto p-4">
+                <div className="mb-4">
+                  <div className="relative">
+                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={googleDriveSearchTerm}
+                      onChange={(e) => setGoogleDriveSearchTerm(e.target.value)}
+                      placeholder="폴더 검색..."
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      setSelectedGoogleDriveFolder('');
+                      loadGoogleDriveImages(); // 루트 폴더 이미지 로드
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedGoogleDriveFolder === ''
+                      ? 'bg-purple-100 text-purple-700 font-medium'
+                      : 'hover:bg-gray-100 text-gray-700'
+                      }`}
+                  >
+                    📁 전체 이미지
+                  </button>
+                  {filteredGoogleDriveFolders.map((folder) => (
+                    <button
+                      key={folder.id}
+                      onClick={() => {
+                        setSelectedGoogleDriveFolder(folder.id);
+                        loadGoogleDriveImages(folder.id);
+                      }}
+                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${selectedGoogleDriveFolder === folder.id
+                        ? 'bg-purple-100 text-purple-700 font-medium'
+                        : 'hover:bg-gray-100 text-gray-700'
+                        }`}
+                    >
+                      {folder.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 이미지 그리드 */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {googleDriveImages.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-4">
+                    {googleDriveImages.map((image) => {
+                      const isSelected = multiSelectMode && selectedGoogleDriveImageUrls.includes(image.url);
+                      return (
+                        <div
+                          key={image.id}
+                          onClick={() => handleSelectGoogleDriveImage(image.url)}
+                          className={`relative aspect-square cursor-pointer group ${isSelected ? 'ring-4 ring-purple-500 rounded-lg' : ''}`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={image.thumbnail || image.url}
+                            alt={image.name}
+                            className={`w-full h-full object-cover rounded-lg border-2 transition-colors ${isSelected ? 'border-purple-500' : 'border-gray-200 group-hover:border-purple-500'}`}
+                          />
+                          {multiSelectMode && (
+                            <div className={`absolute top-2 left-2 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-purple-500 border-purple-500 text-white' : 'bg-white border-gray-300'}`}>
+                              {isSelected && <span className="text-xs font-bold">✓</span>}
+                            </div>
+                          )}
+                          <div className={`absolute inset-0 transition-opacity rounded-lg flex items-center justify-center ${isSelected ? 'bg-purple-500 bg-opacity-20' : 'bg-black bg-opacity-0 group-hover:bg-opacity-20'}`}>
+                            <span className={`font-semibold ${isSelected ? 'text-purple-700' : 'text-white opacity-0 group-hover:opacity-100'}`}>
+                              {isSelected ? '선택됨' : '선택'}
+                            </span>
+                          </div>
+                          <p className="absolute bottom-1 left-1 right-1 text-xs text-white bg-black bg-opacity-50 px-1 py-0.5 rounded truncate">
+                            {image.name}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <p>이미지가 없습니다.</p>
                   </div>
                 )}
               </div>

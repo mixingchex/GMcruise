@@ -57,21 +57,24 @@ export async function backupImageToGoogleDrive(
       return imageUrl; // 파일 정보를 가져올 수 없으면 스킵
     }
 
-    // 구글 드라이브 상품 폴더 ID 가져오기
-    const config = await prisma.systemConfig.findUnique({
-      where: { configKey: 'google_drive_products_folder_id' },
+    // 구글 드라이브 이미지 라이브러리 폴더 ID 가져오기 (UPLOADS_IMAGES 폴더)
+    const uploadsImagesConfig = await prisma.systemConfig.findUnique({
+      where: { configKey: 'google_drive_uploads_images_folder_id' },
       select: { configValue: true },
     });
 
-    const productsFolderId = config?.configValue || process.env.GOOGLE_DRIVE_PRODUCTS_FOLDER_ID || '18YuEBt313yyKI3F7PSzjFFRF3Af-bVPH';
+    // 이미지 라이브러리 폴더 ID (기본값: 1fWbPelIoftl1DqXLayZNle7z-DSYzvl8)
+    const imageLibraryFolderId = uploadsImagesConfig?.configValue
+      || process.env.GOOGLE_DRIVE_UPLOADS_IMAGES_FOLDER_ID
+      || '1fWbPelIoftl1DqXLayZNle7z-DSYzvl8';
 
-    if (!productsFolderId) {
-      console.warn('[Product Backup] Google Drive products folder ID not configured');
+    if (!imageLibraryFolderId) {
+      console.warn('[Product Backup] Google Drive image library folder ID not configured');
       return imageUrl; // 설정이 없으면 원본 URL 반환
     }
 
-    // 상품 코드별 폴더 생성 또는 찾기
-    const productFolderResult = await findOrCreateFolder(productCode, productsFolderId);
+    // 상품 코드별 폴더 생성 또는 찾기 (이미지 라이브러리 내에 상품별 폴더)
+    const productFolderResult = await findOrCreateFolder(productCode, imageLibraryFolderId);
     
     if (!productFolderResult.ok || !productFolderResult.folderId) {
       console.error('[Product Backup] Failed to create/find product folder:', productFolderResult.error);
