@@ -8,9 +8,9 @@ import ProductReviews from '@/components/mall/ProductReviews';
 export default async function ProductReviewsPage({
   params,
 }: {
-  params: { productCode: string };
+  params: Promise<{ productCode: string }>;
 }) {
-  const { productCode } = params;
+  const { productCode } = await params;
 
   // 상품 정보 조회
   const product = await prisma.cruiseProduct.findUnique({

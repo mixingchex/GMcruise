@@ -140,11 +140,30 @@ export async function GET(
       }
     }
 
+    // MallProductContent를 mallProductContent로 변환 (프론트엔드 호환성)
+    const { MallProductContent, ...restProduct } = product;
+
+    // layout에서 destination도 추출
+    let layoutDestination: string[] | null = null;
+    if (MallProductContent?.layout) {
+      try {
+        const layout = typeof MallProductContent.layout === 'string'
+          ? JSON.parse(MallProductContent.layout)
+          : MallProductContent.layout;
+        if (layout.destination && Array.isArray(layout.destination)) {
+          layoutDestination = layout.destination;
+        }
+      } catch (e) {
+        console.error('[GET Product] Failed to parse layout for destination:', e);
+      }
+    }
+
     return NextResponse.json({
       ok: true,
       product: {
-        ...product,
-        destination, // destination 필드 추가
+        ...restProduct,
+        mallProductContent: MallProductContent, // 소문자로 변환
+        destination: destination || layoutDestination, // itineraryPattern 또는 layout에서 destination 가져오기
         createdAt: product.createdAt.toISOString(),
         updatedAt: product.updatedAt.toISOString()
       }
@@ -585,6 +604,11 @@ export async function PUT(
     // 문의 옵션 업데이트
     if (contactOptions !== undefined) {
       layoutData.contactOptions = contactOptions;
+    }
+
+    // 방문국가(destination) 업데이트 - layout에도 저장하여 로드 시 사용
+    if (destination !== undefined && Array.isArray(destination)) {
+      layoutData.destination = destination;
     }
 
     // 구글 드라이브에 이미지 백업 (로컬 이미지만)

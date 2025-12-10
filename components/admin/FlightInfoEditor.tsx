@@ -455,15 +455,48 @@ export default function FlightInfoEditor({
             <span className="text-lg">✈️</span>
             출국
           </h4>
-          <button
-            type="button"
-            onClick={setNoFlightDeparture}
-            className="px-3 py-1.5 bg-gradient-to-r from-teal-400 to-cyan-500 text-white rounded-lg hover:from-teal-500 hover:to-cyan-600 transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 text-xs font-semibold"
-          >
-            <span>🚢</span>
-            항공없음 국내출발
-          </button>
+          <div className="flex gap-2">
+            {localFlightInfo.departure.flightNumber?.includes('항공없음') && (
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = {
+                    ...localFlightInfo,
+                    departure: {
+                      ...localFlightInfo.departure,
+                      from: '',
+                      to: '',
+                      flightNumber: '',
+                      duration: '',
+                    },
+                  };
+                  setLocalFlightInfo(updated);
+                  onChange(updated);
+                }}
+                className="px-3 py-1.5 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-all shadow-sm text-xs font-semibold"
+              >
+                항공 입력하기
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={setNoFlightDeparture}
+              className="px-3 py-1.5 bg-gradient-to-r from-teal-400 to-cyan-500 text-white rounded-lg hover:from-teal-500 hover:to-cyan-600 transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <span>🚢</span>
+              항공없음 국내출발
+            </button>
+          </div>
         </div>
+
+        {/* 항공없음 선택 시 간단 메시지만 표시 */}
+        {localFlightInfo.departure.flightNumber?.includes('항공없음') ? (
+          <div className="bg-cyan-50 border-2 border-cyan-200 rounded-lg p-6 text-center">
+            <div className="text-4xl mb-2">🚢</div>
+            <p className="text-lg font-semibold text-cyan-700">항공없음 - 국내출발</p>
+            <p className="text-sm text-cyan-600 mt-1">크루즈 국내항 출발 (항공 이용 없음)</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-600 mb-1">출발지</label>
@@ -627,6 +660,7 @@ export default function FlightInfoEditor({
             </select>
           </div>
         </div>
+        )}
       </div>
 
       {/* 귀국 */}
@@ -636,15 +670,48 @@ export default function FlightInfoEditor({
             <span className="text-lg">✈️</span>
             귀국
           </h4>
-          <button
-            type="button"
-            onClick={setNoFlightReturn}
-            className="px-3 py-1.5 bg-gradient-to-r from-indigo-400 to-purple-500 text-white rounded-lg hover:from-indigo-500 hover:to-purple-600 transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 text-xs font-semibold"
-          >
-            <span>🚢</span>
-            항공없음 국내도착
-          </button>
+          <div className="flex gap-2">
+            {localFlightInfo.return.flightNumber?.includes('항공없음') && (
+              <button
+                type="button"
+                onClick={() => {
+                  const updated = {
+                    ...localFlightInfo,
+                    return: {
+                      ...localFlightInfo.return,
+                      from: '',
+                      to: '',
+                      flightNumber: '',
+                      duration: '',
+                    },
+                  };
+                  setLocalFlightInfo(updated);
+                  onChange(updated);
+                }}
+                className="px-3 py-1.5 bg-gray-400 text-white rounded-lg hover:bg-gray-500 transition-all shadow-sm text-xs font-semibold"
+              >
+                항공 입력하기
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={setNoFlightReturn}
+              className="px-3 py-1.5 bg-gradient-to-r from-indigo-400 to-purple-500 text-white rounded-lg hover:from-indigo-500 hover:to-purple-600 transition-all shadow-sm hover:shadow-md flex items-center gap-1.5 text-xs font-semibold"
+            >
+              <span>🚢</span>
+              항공없음 국내도착
+            </button>
+          </div>
         </div>
+
+        {/* 항공없음 선택 시 간단 메시지만 표시 */}
+        {localFlightInfo.return.flightNumber?.includes('항공없음') ? (
+          <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-6 text-center">
+            <div className="text-4xl mb-2">🚢</div>
+            <p className="text-lg font-semibold text-purple-700">항공없음 - 국내도착</p>
+            <p className="text-sm text-purple-600 mt-1">크루즈 국내항 도착 (항공 이용 없음)</p>
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs text-gray-600 mb-1">출발지</label>
@@ -808,6 +875,7 @@ export default function FlightInfoEditor({
             </select>
           </div>
         </div>
+        )}
       </div>
 
       {/* 비행기 정보 */}

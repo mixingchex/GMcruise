@@ -692,6 +692,10 @@ export default function ProductEditPage() {
             setHasLocalGuide(parsedLayout.hasLocalGuide || false);
             setHasCruisedotStaff(parsedLayout.hasCruisedotStaff || false);
             setHasTravelInsurance(parsedLayout.hasTravelInsurance || false);
+            // layout에서 방문국가(destination) 로드 - p.destination이 없는 경우 fallback
+            if (!p.destination && parsedLayout.destination && Array.isArray(parsedLayout.destination) && parsedLayout.destination.length > 0) {
+              setSelectedCountries(parsedLayout.destination.map((d: string) => ({ value: d, label: d })));
+            }
             // 8번: 문의 옵션 불러오기
             if (parsedLayout.contactOptions) {
               setContactOptions({

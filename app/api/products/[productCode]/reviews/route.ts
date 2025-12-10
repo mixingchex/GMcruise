@@ -247,10 +247,11 @@ function generateRatings(targetAverage: number, count: number): number[] {
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { productCode: string } }
+  { params }: { params: Promise<{ productCode: string }> | { productCode: string } }
 ) {
   try {
-    const { productCode } = params;
+    const resolvedParams = await Promise.resolve(params);
+    const { productCode } = resolvedParams;
 
     // 상품 정보 조회
     const product = await prisma.cruiseProduct.findUnique({
@@ -287,7 +288,16 @@ export async function GET(
     const rating = layout?.rating || 4.4;
     const reviewCount = layout?.reviewCount || 0;
 
+    // 디버깅 로그
+    console.log('[Reviews API] Product:', productCode, {
+      hasMallProductContent: !!product.MallProductContent,
+      hasLayout: !!layout,
+      rating,
+      reviewCount,
+    });
+
     if (reviewCount === 0) {
+      console.log('[Reviews API] reviewCount is 0, returning empty reviews');
       return NextResponse.json({
         ok: true,
         reviews: [],
