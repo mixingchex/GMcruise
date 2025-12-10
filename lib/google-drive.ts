@@ -97,78 +97,6 @@ export function getGoogleAuth(scopes?: string[]) {
   }
 }
 
-/**
- * Google Access Token 가져오기 (REST API 직접 호출용)
- * googleapis 라이브러리 없이 JWT를 직접 생성하여 토큰 교환
- * Vercel 번들링 이슈 완전 회피
- */
-export async function getGoogleAccessToken(scopes?: string[]): Promise<string> {
-  const jwt = await import('jsonwebtoken');
-
-  // 환경변수에서 인증 정보 가져오기
-  const rawPrivateKey =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY ||
-    process.env.GOOGLE_PRIVATE_KEY ||
-    process.env.PRIVATE_KEY;
-
-  const clientEmail =
-    process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
-    process.env.GOOGLE_CLIENT_EMAIL ||
-    process.env.CLIENT_EMAIL;
-
-  if (!rawPrivateKey || !clientEmail) {
-    throw new Error('Google Service Account 환경변수가 설정되지 않았습니다.');
-  }
-
-  // Private Key 형식 정규화
-  let privateKey = rawPrivateKey.trim();
-  if (privateKey.startsWith('"') || privateKey.startsWith("'")) {
-    try {
-      privateKey = JSON.parse(privateKey);
-    } catch {
-      privateKey = privateKey.replace(/^["']+|["']+$/g, '');
-    }
-  }
-  privateKey = privateKey.replace(/\\n/g, '\n');
-
-  // JWT 생성
-  const now = Math.floor(Date.now() / 1000);
-  const payload = {
-    iss: clientEmail,
-    sub: clientEmail,
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600, // 1시간
-    scope: (scopes || [
-      'https://www.googleapis.com/auth/drive',
-      'https://www.googleapis.com/auth/spreadsheets'
-    ]).join(' '),
-  };
-
-  const token = jwt.default.sign(payload, privateKey, { algorithm: 'RS256' });
-
-  // Google OAuth2 토큰 교환
-  const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: token,
-    }),
-  });
-
-  if (!tokenResponse.ok) {
-    const errorText = await tokenResponse.text();
-    console.error('[getGoogleAccessToken] Token exchange failed:', errorText);
-    throw new Error('Google Access Token 교환 실패');
-  }
-
-  const tokenData = await tokenResponse.json();
-  return tokenData.access_token;
-}
-
 export function getDriveClient() {
   try {
     const auth = getGoogleAuth();
@@ -317,13 +245,12 @@ export async function listFilesInFolder(
 
 /**
  * Google Drive 파일 ID를 직접 다운로드 URL로 변환 (CDN 최적화)
- * 이미지의 경우 lh3.googleusercontent.com 사용 (브라우저에서 직접 렌더링 가능)
- * 다른 파일은 다운로드 링크 사용
+ * 이미지의 경우 미리보기 링크 사용, 다른 파일은 다운로드 링크 사용
  */
 export function getDriveFileUrl(fileId: string, isImage: boolean = false): string {
   if (isImage) {
-    // 이미지는 lh3.googleusercontent.com 사용 (리다이렉트 없이 직접 이미지 반환)
-    return `https://lh3.googleusercontent.com/d/${fileId}`;
+    // 이미지는 미리보기 링크 사용 (최적화된 크기)
+    return `https://drive.google.com/uc?export=view&id=${fileId}`;
   }
   // 다른 파일은 다운로드 링크 사용
   return `https://drive.google.com/uc?export=download&id=${fileId}`;
@@ -391,8 +318,7 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
     }
 
     // 권한 설정 (공개/비공개)
-    // 공유 드라이브에서는 상위 폴더 권한을 상속받으므로 개별 파일 권한 설정이 실패할 수 있음
-    try {
+    if (makePublic) {
       const permissionOptions: any = {
         fileId,
         requestBody: {
@@ -403,9 +329,21 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       };
 
       await drive.permissions.create(permissionOptions);
-    } catch (permError: any) {
-      // 공유 드라이브에서 상속된 권한보다 제한적인 권한 설정 시 에러 발생 - 무시
-      console.warn('[GoogleDrive] Permission setting skipped (inherited from parent):', permError?.message);
+    } else {
+      // 기본적으로 'anyone with link'로 설정하여 관리자가 볼 수 있게 함
+      const permissionOptions: any = {
+        fileId,
+        requestBody: {
+          role: 'reader',
+          type: 'anyone',
+        },
+      };
+
+      if (sharedDriveId && sharedDriveId !== 'root') {
+        permissionOptions.supportsAllDrives = true;
+      }
+
+      await drive.permissions.create(permissionOptions);
     }
 
     // 이미지인지 확인
@@ -468,12 +406,6 @@ export async function deleteFileFromDrive(
             return { ok: false, error: '유효하지 않은 Google Drive URL입니다.' };
           }
         }
-      }
-    } else if (fileIdOrUrl.includes('lh3.googleusercontent.com')) {
-      // 형식 4: https://lh3.googleusercontent.com/d/xxx
-      const idPathMatch = fileIdOrUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-      if (idPathMatch) {
-        fileId = idPathMatch[1];
       }
     }
 

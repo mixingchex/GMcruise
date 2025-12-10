@@ -22,7 +22,8 @@ export const DRIVE_CONFIG_KEYS = {
     UPLOADS_VIDEOS: 'google_drive_uploads_videos_folder_id', // 동영상 업로드
     UPLOADS_FONTS: 'google_drive_uploads_fonts_folder_id', // 폰트 업로드
     UPLOADS_DOCUMENTS: 'google_drive_uploads_documents_folder_id', // 문서 업로드
-    UPLOADS_SALES_AUDIO: 'google_drive_uploads_sales_audio_folder_id', // 판매 오디오 파일
+    UPLOADS_SALES_AUDIO: 'google_drive_uploads_sales_audio_folder_id', // 구매확인 오디오 파일
+    UPLOADS_AUDIO: 'google_drive_uploads_audio_folder_id', // 일반 상담 기록 오디오 파일
     CRUISE_IMAGES: 'google_drive_cruise_images_folder_id', // 크루즈 사진 다운로드용
     APIS_MAIN: 'google_drive_apis_main_folder_id',
     APIS_TEMPLATE_ID: 'google_drive_apis_template_id',
@@ -36,7 +37,7 @@ export type DriveConfigKey = keyof typeof DRIVE_CONFIG_KEYS;
 // Default Fallbacks (from existing code or user provided)
 export const DEFAULTS: Record<DriveConfigKey, string> = {
     SIGNATURES: '1PcdSnWQ3iCdd87Y-UI_63HSjlYqcFGyX', // 계약서 싸인 이미지
-    PASSPORTS: '1OcqlLCumcXA84yOnH1YrDHQI7vHN-R8u', // 여권 이미지
+    PASSPORTS: '1Nen5t7rE8WaT9e4xWswSiUNJIcgMiDRF', // 여권 이미지
     ID_CARDS: '1DFWpAiS-edjiBym5Y5AonDOl2wXyuDV0', // 신분증
     BANKBOOKS: '1IjNSTTTBjU9NZE6fm6DeAAHBx4puWCRl', // 통장사본
     B2B_BACKUP: '1_svzM0e22cLbgABfRHa9__Xtgi46q2nZ', // Backups/B2B_Leads
@@ -55,7 +56,8 @@ export const DEFAULTS: Record<DriveConfigKey, string> = {
     UPLOADS_VIDEOS: '1VAZ9bOEV47keU-mJNhlwlgGHi6ONaFFI', // 동영상 업로드
     UPLOADS_FONTS: '1LgxTEm_1pue1XFduypj9YnMStCarxfOt', // 폰트 업로드
     UPLOADS_DOCUMENTS: '1YEsNRV2MQT5nSjtMniVcEVsECUeCgLBz', // 문서 업로드
-    UPLOADS_SALES_AUDIO: '1g8vNIeXEVHkavQnlBAXsBMkVZB_Y29Fk', // 판매 오디오 파일
+    UPLOADS_SALES_AUDIO: '1g8vNIeXEVHkavQnlBAXsBMkVZB_Y29Fk', // 구매확인 오디오 파일
+    UPLOADS_AUDIO: '1XfdoQrODfjZOaQzV6X859fE2mCG4QuwY', // 일반 상담 기록 오디오 파일
     CRUISE_IMAGES: '17QT8_NTQXpOzcfaZ3silp-hqD0sgOAck', // 크루즈 사진 다운로드용
     APIS_MAIN: '185t2eIIPDsEm-QW9KmhTbxkrywFJhGdk', // 여행별 APIS 메인 폴더
     APIS_TEMPLATE_ID: '1Le6IPNzyvMqpn-6ZnqgvH0JTQ8O5rKymWMU_pkfbQ5Q', // APIS 양식 시트
@@ -87,6 +89,7 @@ export const ENV_MAPPING: Record<DriveConfigKey, string | undefined> = {
     UPLOADS_FONTS: process.env.GOOGLE_DRIVE_UPLOADS_FONTS_FOLDER_ID,
     UPLOADS_DOCUMENTS: process.env.GOOGLE_DRIVE_UPLOADS_DOCUMENTS_FOLDER_ID,
     UPLOADS_SALES_AUDIO: process.env.GOOGLE_DRIVE_UPLOADS_SALES_AUDIO_FOLDER_ID,
+    UPLOADS_AUDIO: process.env.GOOGLE_DRIVE_UPLOADS_AUDIO_FOLDER_ID,
     CRUISE_IMAGES: process.env.GOOGLE_DRIVE_CRUISE_IMAGES_FOLDER_ID,
     APIS_MAIN: process.env.GOOGLE_DRIVE_APIS_MAIN_FOLDER_ID,
     APIS_TEMPLATE_ID: process.env.GOOGLE_DRIVE_APIS_TEMPLATE_ID,

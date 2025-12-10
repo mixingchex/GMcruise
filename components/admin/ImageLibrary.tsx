@@ -6,7 +6,6 @@ import { useState, useEffect, useRef } from 'react';
 import { FiUpload, FiCopy, FiCheck, FiFolder, FiFolderPlus, FiTrash2, FiSearch, FiImage, FiCode, FiX, FiArrowLeft, FiDownload, FiEdit2 } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
 import Image from 'next/image';
-import { getProxyImageUrl } from '@/lib/utils';
 
 interface ImageItem {
     id: string;
@@ -96,6 +95,12 @@ export default function ImageLibrary({
     const [selectedCruiseImage, setSelectedCruiseImage] = useState<CruisePhotoItem | null>(null);
     const [cruiseFolderSearch, setCruiseFolderSearch] = useState('');
 
+    // Hydration 에러 방지를 위한 마운트 상태
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     useEffect(() => {
         if (activeTab === 'library') {
@@ -106,17 +111,12 @@ export default function ImageLibrary({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentFolderId, activeTab, cruiseCurrentPath]);
 
-    const loadImages = async (forceRefresh = false) => {
+    const loadImages = async () => {
         try {
             setIsLoading(true);
-            let url = currentFolderId
+            const url = currentFolderId
                 ? `/api/admin/images?folderId=${encodeURIComponent(currentFolderId)}`
                 : '/api/admin/images';
-
-            if (forceRefresh) {
-                url += (url.includes('?') ? '&' : '?') + 'refresh=true';
-            }
-
             const response = await fetch(url);
             const data = await response.json();
 
@@ -188,8 +188,7 @@ export default function ImageLibrary({
                 showSuccess('폴더가 생성되었습니다.');
                 setNewFolderName('');
                 setShowNewFolderInput(false);
-                setShowNewFolderInput(false);
-                loadImages(true); // 목록 새로고침 (강제)
+                loadImages(); // 목록 새로고침
             } else {
                 showError(data.message || '폴더 생성에 실패했습니다.');
             }
@@ -231,9 +230,7 @@ export default function ImageLibrary({
                 showSuccess('폴더 이름이 수정되었습니다.');
                 setEditingFolder(null);
                 setEditFolderName('');
-                setEditingFolder(null);
-                setEditFolderName('');
-                loadImages(true); // 목록 새로고침 (강제)
+                loadImages(); // 목록 새로고침
             } else {
                 showError(data.message || '폴더 이름 수정에 실패했습니다.');
             }
@@ -280,9 +277,7 @@ export default function ImageLibrary({
                 showSuccess('파일이 이동되었습니다.');
                 setShowMoveModal(false);
                 setImageToMove(null);
-                setShowMoveModal(false);
-                setImageToMove(null);
-                loadImages(true); // 목록 새로고침 (강제)
+                loadImages(); // 목록 새로고침
             } else {
                 showError(data.message || '파일 이동에 실패했습니다.');
             }
@@ -336,8 +331,7 @@ export default function ImageLibrary({
         setSelectedImages([]);
         setIsSelectMode(false);
         setIsMovingFile(false);
-        setIsMovingFile(false);
-        loadImages(true);
+        loadImages();
     };
 
     // 이미지 선택 토글
@@ -389,8 +383,7 @@ export default function ImageLibrary({
             if (data.ok) {
                 showSuccess('이미지가 삭제되었습니다.');
                 setSelectedImage(null);
-                // Optimistic update
-                setImages(prev => prev.filter(img => img.id !== image.id));
+                loadImages();
             } else {
                 showError(data.message || '이미지 삭제에 실패했습니다.');
             }
@@ -412,7 +405,6 @@ export default function ImageLibrary({
 
         let successCount = 0;
         let failCount = 0;
-        const deletedImageIds: string[] = [];
 
         for (const image of selectedImages) {
             try {
@@ -432,7 +424,6 @@ export default function ImageLibrary({
                 const data = await response.json();
                 if (data.ok) {
                     successCount++;
-                    deletedImageIds.push(image.id);
                 } else {
                     failCount++;
                 }
@@ -443,15 +434,13 @@ export default function ImageLibrary({
 
         if (successCount > 0) {
             showSuccess(`${successCount}개 이미지가 삭제되었습니다.${failCount > 0 ? ` (${failCount}개 실패)` : ''}`);
-
-            // Optimistic update
-            setImages(prev => prev.filter(img => !deletedImageIds.includes(img.id)));
         } else {
             showError('이미지 삭제에 실패했습니다.');
         }
 
         setSelectedImages([]);
         setIsSelectMode(false);
+        loadImages();
     };
 
     // 이동 모달 열기
@@ -515,26 +504,9 @@ export default function ImageLibrary({
             }
         });
 
-        const results = await Promise.all(uploadPromises);
-
-        // Optimistic update
-        const newImages: ImageItem[] = results
-            .filter(result => result && result.ok && result.image)
-            .map(result => ({
-                id: result.image.original.fileId,
-                name: result.image.original.name,
-                url: result.image.original.url,
-                webpUrl: result.image.webp?.url || null,
-                size: result.image.original.size,
-                modified: new Date(),
-                code: result.code
-            }));
-
-        if (newImages.length > 0) {
-            setImages(prev => [...newImages, ...prev]);
-        }
-
+        await Promise.all(uploadPromises);
         setIsUploading(false);
+        loadImages(); // 목록 새로고침
     };
 
     const copyToClipboard = async (text: string, type: string) => {
@@ -560,7 +532,6 @@ export default function ImageLibrary({
 
     const loadCruisePhotos = async () => {
         try {
-            console.log('[ImageLibrary] Loading cruise photos...', cruiseCurrentPath);
             setCruiseIsLoading(true);
             const response = await fetch(`/api/admin/cruise-photos?folder=${encodeURIComponent(cruiseCurrentPath)}`, {
                 credentials: 'include'
@@ -598,46 +569,6 @@ export default function ImageLibrary({
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
 
-    // 이미지 삭제
-    const handleDelete = async (image: ImageItem, e: React.MouseEvent) => {
-        e.stopPropagation(); // 클릭 이벤트 전파 방지
-
-        if (!confirm(`"${image.name}" 이미지를 삭제하시겠습니까?`)) {
-            return;
-        }
-
-        try {
-            const urlParams = new URLSearchParams();
-            urlParams.append('url', image.url);
-            if (currentFolderId) {
-                urlParams.append('folderId', currentFolderId);
-            }
-            const response = await fetch(
-                `/api/admin/images?${urlParams.toString()}`,
-                {
-                    method: 'DELETE',
-                    credentials: 'include',
-                }
-            );
-
-            const data = await response.json();
-            if (data.ok) {
-                showSuccess('이미지가 삭제되었습니다.');
-                // 삭제된 이미지가 선택된 이미지이면 선택 해제
-                if (selectedImage?.url === image.url) {
-                    setSelectedImage(null);
-                }
-                // Optimistic update
-                setImages(prev => prev.filter(img => img.id !== image.id));
-            } else {
-                showError(data.message || '이미지 삭제에 실패했습니다.');
-            }
-        } catch (error) {
-            console.error('이미지 삭제 실패:', error);
-            showError('이미지 삭제에 실패했습니다.');
-        }
-    };
-
     const filteredCruiseImages = cruiseImages.filter(img =>
         img.name.toLowerCase().includes(cruiseSearchQuery.toLowerCase())
     );
@@ -646,12 +577,23 @@ export default function ImageLibrary({
         folder.name.toLowerCase().includes(cruiseFolderSearch.toLowerCase())
     );
 
-    console.log('[ImageLibrary] Cruise Folders State:', {
-        total: cruiseFolders.length,
-        filtered: filteredCruiseFolders.length,
-        searchQuery: cruiseFolderSearch,
-        firstFew: cruiseFolders.slice(0, 3)
-    });
+    // 클라이언트 마운트 전에는 로딩 상태 표시 (Hydration 에러 방지)
+    if (!isMounted) {
+        return (
+            <div className="min-h-screen bg-gray-50 p-6">
+                <div className="max-w-7xl mx-auto">
+                    <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">이미지 라이브러리</h1>
+                        <p className="text-gray-600">로딩 중...</p>
+                    </div>
+                    <div className="text-center py-12">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p className="text-gray-600">이미지 목록을 불러오는 중...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -726,17 +668,14 @@ export default function ImageLibrary({
                                                 <FiFolder className="w-5 h-5" />
                                                 선택 모드
                                             </button>
-                                            <div className="flex flex-col items-end">
-                                                <button
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                    disabled={isUploading}
-                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
-                                                >
-                                                    <FiUpload className="w-5 h-5" />
-                                                    {isUploading ? '업로드 중...' : '이미지 업로드'}
-                                                </button>
-                                                <p className="text-xs text-gray-500 mt-1">최대 4.5MB (초과 시 압축기 사용)</p>
-                                            </div>
+                                            <button
+                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={isUploading}
+                                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
+                                            >
+                                                <FiUpload className="w-5 h-5" />
+                                                {isUploading ? '업로드 중...' : '이미지 업로드'}
+                                            </button>
                                         </>
                                     )}
                                     <input
@@ -991,7 +930,7 @@ export default function ImageLibrary({
                                                 >
                                                     <div className="aspect-square relative bg-gray-100">
                                                         <Image
-                                                            src={getProxyImageUrl(image.webpUrl || image.url)}
+                                                            src={image.webpUrl || image.url}
                                                             alt={image.name}
                                                             fill
                                                             className="object-cover"
@@ -1098,7 +1037,7 @@ export default function ImageLibrary({
                                         >
                                             <div className="aspect-square relative bg-gray-100">
                                                 <Image
-                                                    src={getProxyImageUrl(image.url)}
+                                                    src={image.url}
                                                     alt={image.name}
                                                     fill
                                                     className="object-cover"
@@ -1120,7 +1059,7 @@ export default function ImageLibrary({
 
                         {/* 크루즈정보사진 상세 모달 */}
                         {
-                            selectedCruiseImage && activeTab === 'cruise' && (
+                            isMounted && selectedCruiseImage && activeTab === 'cruise' && (
                                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                                     <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                                         <div className="p-6">
@@ -1137,7 +1076,7 @@ export default function ImageLibrary({
                                             <div className="mb-6">
                                                 <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
                                                     <Image
-                                                        src={getProxyImageUrl(selectedCruiseImage.webpUrl || selectedCruiseImage.url)}
+                                                        src={selectedCruiseImage.webpUrl || selectedCruiseImage.url}
                                                         alt={selectedCruiseImage.name}
                                                         fill
                                                         className="object-contain"
@@ -1277,7 +1216,7 @@ export default function ImageLibrary({
 
                 {/* 이미지 라이브러리 상세 모달 */}
                 {
-                    selectedImage && activeTab === 'library' && (
+                    isMounted && selectedImage && activeTab === 'library' && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                                 <div className="p-6">
@@ -1317,7 +1256,7 @@ export default function ImageLibrary({
                                     <div className="mb-6">
                                         <div className="relative aspect-video bg-gray-100 rounded-lg overflow-hidden mb-4">
                                             <Image
-                                                src={getProxyImageUrl(selectedImage.webpUrl || selectedImage.url)}
+                                                src={selectedImage.webpUrl || selectedImage.url}
                                                 alt={selectedImage.name}
                                                 fill
                                                 className="object-contain"
@@ -1460,7 +1399,7 @@ export default function ImageLibrary({
 
                 {/* 폴더 이동 모달 */}
                 {
-                    showMoveModal && (
+                    isMounted && showMoveModal && (
                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-hidden">
                                 <div className="p-6 border-b">
