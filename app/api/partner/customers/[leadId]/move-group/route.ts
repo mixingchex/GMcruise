@@ -29,16 +29,25 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
     const { groupId } = body;
 
-    // 고객 소유권 확인
-    const lead = await prisma.affiliateLead.findFirst({
-      where: {
-        id: leadId,
-        OR: [
-          { managerId: profile.id },
-          { agentId: profile.id },
-        ],
-      },
-    });
+    // 고객 소유권 확인 (HQ는 모든 고객 접근 가능)
+    let lead;
+    if (profile.type === 'HQ') {
+      // 본사(HQ): 모든 고객 접근 가능
+      lead = await prisma.affiliateLead.findFirst({
+        where: { id: leadId },
+      });
+    } else {
+      // 대리점장/판매원: 본인 소유 고객만
+      lead = await prisma.affiliateLead.findFirst({
+        where: {
+          id: leadId,
+          OR: [
+            { managerId: profile.id },
+            { agentId: profile.id },
+          ],
+        },
+      });
+    }
 
     if (!lead) {
       return NextResponse.json(
@@ -53,12 +62,20 @@ export async function POST(
     // PartnerCustomerGroup 모델 사용 (AffiliateLead.groupId가 참조하는 테이블)
     let targetGroup = null;
     if (groupId !== null && groupId !== undefined) {
-      targetGroup = await prisma.partnerCustomerGroup.findFirst({
-        where: {
-          id: parseInt(String(groupId)),
-          profileId: profile.id,
-        },
-      });
+      if (profile.type === 'HQ') {
+        // 본사(HQ): 모든 그룹 접근 가능
+        targetGroup = await prisma.partnerCustomerGroup.findFirst({
+          where: { id: parseInt(String(groupId)) },
+        });
+      } else {
+        // 대리점장/판매원: 본인 소유 그룹만
+        targetGroup = await prisma.partnerCustomerGroup.findFirst({
+          where: {
+            id: parseInt(String(groupId)),
+            profileId: profile.id,
+          },
+        });
+      }
 
       if (!targetGroup) {
         return NextResponse.json(
