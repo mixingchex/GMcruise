@@ -210,7 +210,8 @@ export async function middleware(req: NextRequest) {
 
   // 보호 경로: 세션 쿠키 없으면 로그인으로
   // (실제 세션 검증은 각 페이지에서 getSession()을 통해 처리)
-  if (PROTECTED.some(p => pathname.startsWith(p))) {
+  // API 요청은 각 라우트에서 자체적으로 인증 처리하므로 제외
+  if (!pathname.startsWith('/api/') && PROTECTED.some(p => pathname.startsWith(p))) {
     const sessionId = req.cookies.get('cg.sid.v2')?.value;
     if (!sessionId) {
       const url = req.nextUrl.clone();
