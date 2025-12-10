@@ -24,7 +24,7 @@ export default function ReviewsPage() {
                     <span className="text-sm text-gray-500">2024.01.15</span>
                   </div>
                   <p className="text-gray-700 mb-2">
-                    AI 지니 덕분에 정말 편리하게 여행을 즐길 수 있었습니다. 
+                    AI 크루즈닷 덕분에 정말 편리하게 여행을 즐길 수 있었습니다. 
                     경로 안내부터 여행 기록까지 모든 것이 한 번에 가능했어요!
                   </p>
                   <div className="text-sm text-gray-500">
@@ -59,7 +59,7 @@ export default function ReviewsPage() {
             {/* 후기 작성 안내 */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
               <p className="text-gray-700 mb-4">
-                크루즈닷 AI 지니와 함께한 여행 후기를 공유해주세요!
+                크루즈닷AI와 함께한 여행 후기를 공유해주세요!
               </p>
               <a
                 href="/community/reviews/write"

@@ -151,8 +151,9 @@ export async function POST(request: NextRequest) {
       console.log('[Admin Audio Upload] File permission set to public');
     }
 
+    // 프록시 다운로드 URL 사용 (403 권한 문제 해결)
     const driveViewUrl = `https://drive.google.com/file/d/${fileId}/view`;
-    const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    const driveDownloadUrl = `/api/drive/download/${fileId}`;
 
     console.log(`[Admin Audio Upload] Success: ${fileName} -> ${driveViewUrl}`);
 

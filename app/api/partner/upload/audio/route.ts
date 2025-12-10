@@ -167,9 +167,9 @@ export async function POST(request: NextRequest) {
       console.log('[Partner Audio Upload] File permission set to public');
     }
 
-    // 웹 링크 URL 생성
+    // 웹 링크 URL 생성 (프록시 다운로드 사용)
     const driveViewUrl = `https://drive.google.com/file/d/${fileId}/view`;
-    const driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+    const driveDownloadUrl = `/api/drive/download/${fileId}`;
 
     console.log(`[Partner Audio Upload] ${partnerType} ${partnerName} uploaded ${fileName} to Google Drive: ${driveViewUrl}`);
 

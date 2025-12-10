@@ -39,7 +39,7 @@ export default function GenieLinkSection({ userRole, userName, userPhone }: Geni
         if (data.ok && data.linkedGenieUser) {
           setLinkedGenieInfo(data.linkedGenieUser);
           setLinkStatus('success');
-          setLinkMessage('크루즈 가이드 지니와 연동 완료');
+          setLinkMessage('크루즈닷AI와 연동 완료');
         }
       }
     } catch (error) {
@@ -97,7 +97,7 @@ export default function GenieLinkSection({ userRole, userName, userPhone }: Geni
     <section className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border-2 border-green-200 mb-6">
       <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-5 flex items-center gap-3 leading-tight">
         <span className="text-4xl md:text-5xl">🔗</span>
-        크루즈 가이드 지니 연동
+        크루즈닷AI 연동
       </h2>
 
       {linkStatus === 'success' && linkedGenieInfo ? (
@@ -108,12 +108,12 @@ export default function GenieLinkSection({ userRole, userName, userPhone }: Geni
               <span className="font-bold text-green-700 text-lg">연동 완료</span>
             </div>
             <p className="text-gray-700 text-base">
-              크루즈 가이드 지니와 성공적으로 연동되었습니다.
+              크루즈닷AI와 성공적으로 연동되었습니다.
             </p>
           </div>
           <div className="space-y-2 text-sm">
             <div>
-              <span className="font-semibold text-gray-700">연동된 지니 사용자 ID:</span>{' '}
+              <span className="font-semibold text-gray-700">연동된 크루즈닷 사용자 ID:</span>{' '}
               <span className="text-gray-900">{linkedGenieInfo.id}</span>
             </div>
             <div>
@@ -126,7 +126,7 @@ export default function GenieLinkSection({ userRole, userName, userPhone }: Geni
             </div>
             {linkedGenieInfo.genieStatus && (
               <div>
-                <span className="font-semibold text-gray-700">지니 상태:</span>{' '}
+                <span className="font-semibold text-gray-700">크루즈닷 상태:</span>{' '}
                 <span className="text-gray-900">
                   {linkedGenieInfo.genieStatus === 'active' ? '사용 중' : '사용 종료'}
                 </span>
@@ -153,14 +153,14 @@ export default function GenieLinkSection({ userRole, userName, userPhone }: Geni
       ) : (
         <div className="space-y-4">
           <p className="text-gray-700 text-base md:text-lg leading-relaxed">
-            크루즈 가이드 지니와 연동하면 여행 정보를 공유하고 더 편리하게 이용할 수 있습니다.
+            크루즈닷AI와 연동하면 여행 정보를 공유하고 더 편리하게 이용할 수 있습니다.
           </p>
           <button
             onClick={handleLinkGenie}
             disabled={isLinking || !userName || !userPhone}
             className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl shadow-lg hover:from-green-600 hover:to-emerald-700 transition-all transform hover:scale-105 text-lg md:text-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
           >
-            {isLinking ? '연동 중...' : '크루즈 가이드 지니 연동하기'}
+            {isLinking ? '연동 중...' : '크루즈닷AI 연동하기'}
           </button>
           {(!userName || !userPhone) && (
             <p className="text-sm text-red-600">

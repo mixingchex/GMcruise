@@ -546,10 +546,10 @@ export default function PageEditor({
     // 서비스 목록
     const serviceContents = contents.filter(c => c.section === 'services').sort((a, b) => a.order - b.order);
     const defaultServices = [
-      { icon: '🧞', title: 'AI 크루즈 가이드 지니', description: '24시간 언제든지 크루즈 여행에 대한 질문을 할 수 있는 AI 어시스턴트입니다.', features: ['길찾기 및 경로 안내', '사진 검색 및 갤러리', '실시간 질문 응답', '다국어 지원'] },
+      { icon: '🧞', title: 'AI 크루즈닷', description: '24시간 언제든지 크루즈 여행에 대한 질문을 할 수 있는 AI 어시스턴트입니다.', features: ['길찾기 및 경로 안내', '사진 검색 및 갤러리', '실시간 질문 응답', '다국어 지원'] },
       { icon: '📱', title: '모바일 앱 서비스', description: '스마트폰에서 언제든지 크루즈 정보를 확인하고, 여행 준비를 도와드립니다.', features: ['여행 준비물 체크리스트', '환율 계산기', '번역기', '지갑 관리'] },
       { icon: '🎫', title: '크루즈 예약 서비스', description: '다양한 크루즈 상품을 비교하고 예약할 수 있는 종합 플랫폼입니다.', features: ['다양한 크루즈 상품 비교', '실시간 예약 가능', '안전한 결제 시스템', '예약 관리'] },
-      { icon: '📺', title: '크루즈닷 지니 TV', description: '크루즈 여행 영상, Shorts, 라이브 방송을 통해 크루즈 여행의 생생한 경험을 공유합니다.', features: ['YouTube Shorts', '여행 영상 콘텐츠', '라이브 방송', '후기 영상'] },
+      { icon: '📺', title: '크루즈닷 TV', description: '크루즈 여행 영상, Shorts, 라이브 방송을 통해 크루즈 여행의 생생한 경험을 공유합니다.', features: ['YouTube Shorts', '여행 영상 콘텐츠', '라이브 방송', '후기 영상'] },
       { icon: '💬', title: '커뮤니티', description: '크루즈 여행자들과 정보를 공유하고, 여행 팁과 후기를 나누는 공간입니다.', features: ['여행 후기 게시판', '질문답변', '여행 팁 공유', '일정 공유'] },
       { icon: '🛡️', title: '해외여행자보험', description: '안전한 크루즈 여행을 위한 해외여행자보험 정보를 제공합니다.', features: ['보험 상품 비교', '보험 가입 안내', '보험료 계산', '보험 청구 안내'] },
     ];

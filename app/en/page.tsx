@@ -1,232 +1,150 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 
-/**
- * /en - Global Travel Survival Tool
- * Mobile-First 4-Grid UI for one-handed operation
- */
+export default function EnglishPage() {
+  const [activeTool, setActiveTool] = useState<string | null>(null);
 
-type ActiveTool = 'taxi' | 'price' | 'path' | 'voice' | null;
-
-const tools = [
-  {
-    id: 'taxi' as const,
-    icon: '🚕',
-    label: 'Magic Taxi',
-    desc: 'Show destination to driver',
-    gradient: 'from-yellow-500 to-orange-500',
-  },
-  {
-    id: 'price' as const,
-    icon: '📷',
-    label: 'Price Lens',
-    desc: 'Scan & check fair prices',
-    gradient: 'from-emerald-500 to-teal-500',
-  },
-  {
-    id: 'path' as const,
-    icon: '🧭',
-    label: 'PathFinder',
-    desc: 'Get simple directions',
-    gradient: 'from-blue-500 to-indigo-500',
-  },
-  {
-    id: 'voice' as const,
-    icon: '🗣️',
-    label: 'VocalGenie',
-    desc: 'Instant translation',
-    gradient: 'from-purple-500 to-pink-500',
-  },
-];
-
-// Simple Modal Component (inline to avoid import issues)
-function ToolModal({ tool, onClose }: { tool: ActiveTool; onClose: () => void }) {
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
-
-  const handleSubmit = async () => {
-    if (!input.trim()) return;
-    setLoading(true);
-
-    try {
-      const response = await fetch('/api/en/genie', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input, mode: tool }),
-      });
-      const data = await response.json();
-      setResult(data);
-    } catch (err) {
-      setResult({ error: 'Something went wrong' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getTitle = () => {
-    switch (tool) {
-      case 'taxi': return { icon: '🚕', title: 'Magic Taxi', placeholder: 'Where do you want to go? (e.g., Myeongdong Station)' };
-      case 'price': return { icon: '📷', title: 'Price Lens', placeholder: 'Describe what you want to check price for...' };
-      case 'path': return { icon: '🧭', title: 'PathFinder', placeholder: 'Where do you want to go?' };
-      case 'voice': return { icon: '🗣️', title: 'VocalGenie', placeholder: 'Enter text to translate...' };
-      default: return { icon: '🤖', title: 'AI Tool', placeholder: 'Enter your request...' };
-    }
-  };
-
-  const info = getTitle();
+  const tools = [
+    {
+      id: 'taxi',
+      icon: '🚕',
+      title: 'Magic Taxi',
+      desc: 'Summon your ride',
+      // 데몬 헌터스(카운터) 느낌의 강렬한 붉은/주황 빛
+      gradient: 'from-red-500 to-orange-500',
+      shadow: 'shadow-[0_0_30px_-5px_rgba(239,68,68,0.6)]',
+    },
+    {
+      id: 'price',
+      icon: '👁️',
+      title: 'Truth Lens', // 이름 변경: 가격을 꿰뚫어본다는 느낌
+      desc: 'Scan for scams',
+      // 사이버펑크 민트/그린
+      gradient: 'from-emerald-400 to-teal-400',
+      shadow: 'shadow-[0_0_30px_-5px_rgba(52,211,153,0.6)]',
+    },
+    {
+      id: 'path',
+      icon: '🧭',
+      title: 'Ghost Path', // 이름 변경: 유령처럼 빠르게 이동
+      desc: 'Fastest route',
+      // 서울의 밤하늘 같은 딥 블루/퍼플
+      gradient: 'from-blue-500 to-indigo-500',
+      shadow: 'shadow-[0_0_30px_-5px_rgba(99,102,241,0.6)]',
+    },
+    {
+      id: 'voice',
+      icon: '🔮',
+      title: 'Soul Voice', // 이름 변경: 언어의 장벽을 녹임
+      desc: 'Speak freely',
+      // 신비로운 마젠타/핑크
+      gradient: 'from-fuchsia-500 to-pink-500',
+      shadow: 'shadow-[0_0_30px_-5px_rgba(217,70,239,0.6)]',
+    },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-      <div
-        className="w-full max-w-lg bg-gradient-to-br from-slate-800 to-slate-900 rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto"
-        style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">{info.icon}</span>
-            <h2 className="text-xl font-bold text-white">{info.title}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20"
-          >
-            <span className="text-xl">✕</span>
-          </button>
-        </div>
+    <main className="relative min-h-screen w-full overflow-hidden bg-black font-sans">
 
-        {/* Input */}
-        <div className="space-y-4">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={info.placeholder}
-            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-          />
-
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !input.trim()}
-            className="w-full py-4 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl font-bold text-lg disabled:opacity-50"
-          >
-            {loading ? 'Processing...' : 'Submit'}
-          </button>
-
-          {/* Result Display */}
-          {result && (
-            <div className="mt-4 p-4 bg-white/10 rounded-xl">
-              {result.error ? (
-                <p className="text-red-400">{result.error}</p>
-              ) : result.ok && result.data ? (
-                <div className="space-y-2">
-                  {result.data.type === 'taxi_card' && result.data.content && (
-                    <div className="bg-white rounded-xl p-4 text-center">
-                      <p className="text-3xl font-bold text-gray-900">{result.data.content.destination_kr}</p>
-                      <p className="text-gray-600 mt-2">{result.data.content.address_kr}</p>
-                      {result.data.content.pronunciation && (
-                        <p className="text-blue-600 text-sm mt-1">Say: "{result.data.content.pronunciation}"</p>
-                      )}
-                    </div>
-                  )}
-                  {result.data.type === 'translation' && result.data.content && (
-                    <div className="space-y-2">
-                      <p className="text-gray-400">Original: {result.data.content.original}</p>
-                      <p className="text-2xl font-bold text-white">{result.data.content.translated}</p>
-                      {result.data.content.pronunciation && (
-                        <p className="text-purple-400">"{result.data.content.pronunciation}"</p>
-                      )}
-                    </div>
-                  )}
-                  {result.data.type === 'text' && result.data.content && (
-                    <p className="text-white">{result.data.content.message}</p>
-                  )}
-                  {!['taxi_card', 'translation', 'text'].includes(result.data.type) && (
-                    <pre className="text-xs text-gray-300 overflow-auto">
-                      {JSON.stringify(result.data, null, 2)}
-                    </pre>
-                  )}
-                </div>
-              ) : (
-                <pre className="text-xs text-gray-300 overflow-auto">
-                  {JSON.stringify(result, null, 2)}
-                </pre>
-              )}
-            </div>
-          )}
-        </div>
+      {/* 배경 이미지: 서울의 밤거리 (Unsplash 무료 이미지 사용) */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src="https://images.unsplash.com/photo-1633934542430-0905ccb5f050?q=80&w=2525&auto=format&fit=crop"
+          alt="Seoul Night"
+          className="object-cover w-full h-full opacity-60 mix-blend-overlay"
+        />
+        {/* 어두운 오버레이로 텍스트 가독성 확보 및 분위기 조성 */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black/90" />
       </div>
-    </div>
-  );
-}
 
-export default function EnglishHomePage() {
-  const [activeTool, setActiveTool] = useState<ActiveTool>(null);
+      {/* 콘텐츠 레이어 */}
+      <div className="relative z-10 flex flex-col h-screen px-6 py-6 max-w-md mx-auto">
 
-  return (
-    <div className="min-h-full flex flex-col">
-      {/* Header */}
-      <header className="flex-shrink-0 px-4 py-4" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              CruiseDot AI
-            </h1>
-            <p className="text-xs text-gray-400 mt-0.5">Travel Survival Tool for Korea</p>
+        {/* 상단 헤더: K-POP 뮤직비디오 타이틀 느낌 */}
+        <header className="mt-4 mb-8">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur-md">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span className="text-[10px] font-bold text-green-400 tracking-widest">SEOUL ONLINE</span>
+            </div>
+            <div className="text-[10px] text-gray-400 font-mono">23°C RAINY</div>
           </div>
-          <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
-            Online
-          </span>
-        </div>
-      </header>
 
-      {/* Main Grid - 2x2 Layout */}
-      <div className="flex-1 px-4 pb-4 pt-2">
-        <div className="grid grid-cols-2 gap-3 h-full" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+          <h1 className="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-gray-500 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+            CRUISE<br/>DOT.AI
+          </h1>
+          <p className="text-gray-300 mt-2 text-sm font-light tracking-wide border-l-2 border-red-500 pl-3">
+            Survive the night in <span className="text-white font-bold text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">SEOUL</span>
+          </p>
+        </header>
+
+        {/* 메인 그리드 */}
+        <div className="grid grid-cols-2 gap-4 flex-1 content-start">
           {tools.map((tool) => (
             <button
               key={tool.id}
               onClick={() => setActiveTool(tool.id)}
-              className={`
-                relative overflow-hidden rounded-2xl
-                bg-gradient-to-br ${tool.gradient}
-                p-4 flex flex-col justify-between
-                transition-all duration-200
-                hover:scale-[1.02] hover:shadow-xl
-                active:scale-[0.98]
-                focus:outline-none focus:ring-2 focus:ring-white/50
+              className={`group relative flex flex-col items-start justify-between p-5 h-40 w-full rounded-2xl
+                border border-white/10 bg-black/40 backdrop-blur-xl transition-all duration-300
+                hover:border-white/40 hover:-translate-y-1 active:scale-95 overflow-hidden
+                ${activeTool === tool.id ? 'ring-1 ring-white' : ''}
               `}
             >
-              {/* Background Pattern */}
-              <div className="absolute inset-0 opacity-10">
-                <div className="absolute -right-4 -top-4 text-8xl">{tool.icon}</div>
+              {/* 호버 시 나타나는 배경 글로우 (Demon Hunter Territory 느낌) */}
+              <div className={`absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br ${tool.gradient}`} />
+
+              {/* 상단 아이콘 */}
+              <div className="relative z-10 text-3xl mb-2 filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                {tool.icon}
               </div>
 
-              {/* Content */}
-              <div className="relative z-10">
-                <span className="text-4xl">{tool.icon}</span>
+              {/* 텍스트 */}
+              <div className="relative z-10 text-left w-full">
+                <h3 className={`font-bold text-lg leading-none mb-1 text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r ${tool.gradient}`}>
+                  {tool.title}
+                </h3>
+                <p className="text-[10px] text-gray-400 font-mono uppercase tracking-wider group-hover:text-gray-200">
+                  {tool.desc}
+                </p>
               </div>
-              <div className="relative z-10 text-left mt-auto">
-                <h2 className="font-bold text-lg text-white drop-shadow-sm">{tool.label}</h2>
-                <p className="text-xs text-white/80 mt-0.5">{tool.desc}</p>
-              </div>
+
+              {/* 장식용 라인 (테크 느낌) */}
+              <div className={`absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r ${tool.gradient} opacity-50`} />
+              <div className={`absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl ${tool.gradient} opacity-20 blur-xl rounded-full`} />
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Quick Help */}
-      <div className="flex-shrink-0 px-4 pb-4" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10">
-          <p className="text-center text-xs text-gray-400">
-            Tap any tool above to get started
-          </p>
+        {/* 하단 검색바 (AI 채팅) */}
+        <div className="mt-auto mb-6">
+          <div className="relative group w-full">
+            {/* 배경에서 숨쉬는 글로우 효과 */}
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-red-600 via-purple-600 to-blue-600 rounded-full opacity-70 group-hover:opacity-100 blur transition duration-1000 animate-pulse"></div>
+
+            <button
+              onClick={() => setActiveTool('chat')}
+              className="relative flex items-center justify-between w-full px-6 py-4 bg-black rounded-full border border-white/10 leading-none text-gray-300 group-hover:text-white transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <span className="text-xl animate-bounce">🔥</span>
+                <span className="font-medium tracking-wide">Ask the Genie...</span>
+              </span>
+              <div className="p-1.5 bg-white/10 rounded-full">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </div>
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Tool Modal */}
-      {activeTool && <ToolModal tool={activeTool} onClose={() => setActiveTool(null)} />}
-    </div>
+        <footer className="text-center text-[9px] text-gray-600 font-mono tracking-widest uppercase">
+          System Online • v.2.0.4 • Seoul
+        </footer>
+      </div>
+    </main>
   );
 }

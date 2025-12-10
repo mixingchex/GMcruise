@@ -62,7 +62,7 @@ export default function TermsOfServicePage() {
                 <p>1. 회사는 다음과 같은 서비스를 제공합니다:</p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
                   <li>크루즈 여행 상품 예약 서비스</li>
-                  <li>AI 크루즈 가이드 지니 서비스</li>
+                  <li>AI 크루즈닷 서비스</li>
                   <li>크루즈 여행 정보 제공 서비스</li>
                   <li>커뮤니티 및 후기 서비스</li>
                   <li>기타 회사가 정하는 업무</li>

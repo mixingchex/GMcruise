@@ -764,7 +764,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                     <div className="font-medium">
                       {customer.pwaGenieInstalledAt && (
                         <div className="text-pink-600">
-                          📲 지니: {new Date(customer.pwaGenieInstalledAt).toLocaleDateString('ko-KR')}
+                          📲 크루즈닷: {new Date(customer.pwaGenieInstalledAt).toLocaleDateString('ko-KR')}
                         </div>
                       )}
                       {customer.pwaMallInstalledAt && (

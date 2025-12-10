@@ -174,13 +174,13 @@ function MallLoginPageContent() {
           {/* 크루즈가이드 지니 3일 체험 로그인 */}
           <div className="mt-6 pt-6 border-t border-gray-300">
             <p className="text-sm text-gray-700 font-semibold mb-3 text-center">
-              크루즈가이드 지니 3일 무료체험
+              크루즈닷AI 3일 무료체험
             </p>
             <Link
               href="/login-test"
               className="block w-full text-center px-5 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold rounded-lg hover:from-pink-600 hover:to-rose-600 transition-colors shadow"
             >
-              크루즈가이드 지니 3일 체험 로그인 🎉
+              크루즈닷AI 3일 체험 로그인 🎉
             </Link>
           </div>
         </div>

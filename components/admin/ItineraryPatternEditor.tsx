@@ -260,7 +260,7 @@ export default function ItineraryPatternEditor({ value, onChange }: Props) {
                           ))}
                         </select>
                         <p className="text-xs text-red-600 mt-1 font-semibold">
-                          💡 온보딩 시 크루즈 가이드 지니 AI 날씨 정보에 자동 반영됩니다. 반드시 선택해주세요!
+                          💡 온보딩 시 크루즈닷AI 날씨 정보에 자동 반영됩니다. 반드시 선택해주세요!
                         </p>
                       </div>
 

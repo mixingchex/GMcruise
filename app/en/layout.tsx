@@ -1,20 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
-import "../globals.css"; // 상위 폴더의 전역 스타일 import
+import "../globals.css";
 
-/**
- * /en - Global Extension Layout
- * Isolated from Korean version
- */
-const inter = Inter({
-  subsets: ["latin"],
-  display: 'swap',
-  variable: '--font-inter',
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CruiseDot AI - Korea Travel Survival Tool",
-  description: "AI-powered travel assistant for foreigners in Korea",
+  title: "CruiseDot AI - K-Survival Tool",
+  description: "Navigate Seoul like a local.",
 };
 
 export const viewport: Viewport = {
@@ -24,7 +16,7 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// ✨ 핵심: suppressHydrationWarning 추가
+// ⚠️ 핵심: suppressHydrationWarning을 꼭 넣어주세요!
 export default function RootLayout({
   children,
 }: {
@@ -32,7 +24,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-black text-white antialiased selection:bg-purple-500 selection:text-white`}>
+      <body className={`${inter.className} bg-black text-white antialiased`}>
         {children}
       </body>
     </html>

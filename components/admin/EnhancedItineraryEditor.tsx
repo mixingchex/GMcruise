@@ -945,11 +945,11 @@ export default function EnhancedItineraryEditor({
                       <div className="flex items-center gap-2 mb-3">
                         <FiMapPin className="text-blue-600" size={18} />
                         <label className="text-sm font-semibold text-blue-800">
-                          기항지 정보 (크루즈 가이드 지니 연동)
+                          기항지 정보 (크루즈닷AI 연동)
                         </label>
                       </div>
                       <p className="text-xs text-blue-600 mb-3">
-                        이 정보는 크루즈 가이드 지니 &quot;내일 예정&quot;에 자동으로 표시됩니다.
+                        이 정보는 크루즈닷AI &quot;내일 예정&quot;에 자동으로 표시됩니다.
                       </p>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
