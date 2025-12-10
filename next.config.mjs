@@ -153,6 +153,10 @@ const nextConfig = {
         'tests/**',
       ],
     },
+    // googleapis 패키지 전체를 Vercel 서버리스 함수에 포함 (./docs 모듈 누락 해결)
+    outputFileTracingIncludes: {
+      '/api/**': ['./node_modules/googleapis/**/*'],
+    },
   },
 
   // Vercel에서 네이티브 바이너리 패키지 정상 작동을 위해 필요 (deprecated 경고 무시)
