@@ -1,12 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
-import "../globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: 'swap',
-  variable: '--font-inter',
-});
 
 export const metadata: Metadata = {
   title: "CruiseDot AI - Seoul Survival Tool",
@@ -20,16 +12,10 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({
+export default function EnLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
-      <body className="bg-black text-white antialiased font-sans selection:bg-purple-500 selection:text-white">
-        {children}
-      </body>
-    </html>
-  );
+  return <>{children}</>;
 }

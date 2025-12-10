@@ -361,9 +361,14 @@ export default function ImageLibrary({
         setSelectedImages([]);
     };
 
-    // 이미지 삭제 (단일)
+    // 이미지 삭제 (단일) - 낙관적 업데이트 적용
     const handleDeleteImage = async (image: ImageItem) => {
         if (!confirm(`"${image.name}" 이미지를 삭제하시겠습니까?`)) return;
+
+        // 낙관적 업데이트: 즉시 UI에서 제거
+        const previousImages = [...images];
+        setImages(prev => prev.filter(img => img.id !== image.id));
+        setSelectedImage(null);
 
         try {
             const urlParams = new URLSearchParams();
@@ -382,18 +387,20 @@ export default function ImageLibrary({
             const data = await response.json();
             if (data.ok) {
                 showSuccess('이미지가 삭제되었습니다.');
-                setSelectedImage(null);
-                loadImages();
             } else {
+                // 실패 시 롤백
+                setImages(previousImages);
                 showError(data.message || '이미지 삭제에 실패했습니다.');
             }
         } catch (error) {
+            // 에러 시 롤백
+            setImages(previousImages);
             console.error('이미지 삭제 에러:', error);
             showError('이미지 삭제에 실패했습니다.');
         }
     };
 
-    // 선택된 이미지 삭제
+    // 선택된 이미지 삭제 - 낙관적 업데이트 적용
     const handleDeleteSelected = async () => {
         if (selectedImages.length === 0) return;
 
@@ -403,10 +410,18 @@ export default function ImageLibrary({
 
         if (!confirm(confirmMsg)) return;
 
+        // 낙관적 업데이트: 즉시 UI에서 제거
+        const previousImages = [...images];
+        const selectedIds = new Set(selectedImages.map(img => img.id));
+        setImages(prev => prev.filter(img => !selectedIds.has(img.id)));
+        const imagesToDelete = [...selectedImages];
+        setSelectedImages([]);
+        setIsSelectMode(false);
+
         let successCount = 0;
         let failCount = 0;
 
-        for (const image of selectedImages) {
+        for (const image of imagesToDelete) {
             try {
                 const urlParams = new URLSearchParams();
                 urlParams.append('url', image.url);
@@ -435,12 +450,15 @@ export default function ImageLibrary({
         if (successCount > 0) {
             showSuccess(`${successCount}개 이미지가 삭제되었습니다.${failCount > 0 ? ` (${failCount}개 실패)` : ''}`);
         } else {
+            // 전체 실패 시 롤백
+            setImages(previousImages);
             showError('이미지 삭제에 실패했습니다.');
         }
 
-        setSelectedImages([]);
-        setIsSelectMode(false);
-        loadImages();
+        // 일부 실패 시 서버 상태와 동기화
+        if (failCount > 0 && successCount > 0) {
+            loadImages();
+        }
     };
 
     // 이동 모달 열기
@@ -935,6 +953,7 @@ export default function ImageLibrary({
                                                             fill
                                                             className="object-cover"
                                                             sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                                                            draggable={false}
                                                         />
                                                         {image.webpUrl && !isSelectMode && (
                                                             <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded z-10">
