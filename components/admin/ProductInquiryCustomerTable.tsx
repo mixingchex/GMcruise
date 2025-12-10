@@ -29,7 +29,7 @@ interface Props {
 }
 
 // Google Apps Script URL - 상세기록 업데이트용
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMnRse8lBCmU20IziTTFvLoLjnNUCy1vtE_y-X-niR67Xs63Bf5qBE4Zb5txQZ_R9-/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec';
 
 export default function ProductInquiryCustomerTable({ customers, onRefresh }: Props) {
   const [noteModalOpen, setNoteModalOpen] = useState(false);

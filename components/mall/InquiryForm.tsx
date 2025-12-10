@@ -12,7 +12,7 @@ interface InquiryFormProps {
 }
 
 // Google Apps Script URL - 전화상담 고객 백업용 스프레드시트
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMnRse8lBCmU20IziTTFvLoLjnNUCy1vtE_y-X-niR67Xs63Bf5qBE4Zb5txQZ_R9-/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwVYYHKLyNfXwO3fSX19jmb7hF3Bh2oyay7lrlw3mJx42eL9kQANxhwxLrQyzbEj29x/exec';
 
 export default function InquiryForm({ productCode, productName, partnerId, partnerPhone }: InquiryFormProps) {
   const router = useRouter();
