@@ -29,15 +29,32 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
     const { groupId } = body;
 
-    // 고객 소유권 확인 (HQ는 모든 고객 접근 가능)
+    // 고객 소유권 확인
     let lead;
     if (profile.type === 'HQ') {
       // 본사(HQ): 모든 고객 접근 가능
       lead = await prisma.affiliateLead.findFirst({
         where: { id: leadId },
       });
+    } else if (profile.type === 'BRANCH_MANAGER') {
+      // 대리점장: 본인 고객 + 소속 판매원 고객
+      const agents = await prisma.affiliateProfile.findMany({
+        where: { managerId: profile.id },
+        select: { id: true },
+      });
+      const agentIds = agents.map((a) => a.id);
+
+      lead = await prisma.affiliateLead.findFirst({
+        where: {
+          id: leadId,
+          OR: [
+            { managerId: profile.id },
+            { agentId: { in: [profile.id, ...agentIds] } },
+          ],
+        },
+      });
     } else {
-      // 대리점장/판매원: 본인 소유 고객만
+      // 판매원: 본인 소유 고객만
       lead = await prisma.affiliateLead.findFirst({
         where: {
           id: leadId,
