@@ -79,13 +79,20 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
 
     // 예상 압축률 계산
     const estimateCompression = (file: File, level: CompressionLevel): FilePreview => {
-        const config = COMPRESSION_CONFIG[level];
         let estimatedReduction: number;
 
         // 파일 크기와 압축 레벨에 따른 예상 압축률
         const sizeMB = file.size / (1024 * 1024);
 
-        if (level === 'low') {
+        // 오디오 파일은 별도 계산 (비트레이트 기반)
+        if (activeTab === 'audio') {
+            const audioConfig = AUDIO_COMPRESSION_CONFIG[level];
+            // 원본이 고음질(256kbps 이상)이라고 가정하고 비트레이트 비율로 계산
+            const assumedOriginalBitrate = 256; // kbps
+            const targetBitrate = audioConfig.bitrate;
+            estimatedReduction = Math.round((1 - targetBitrate / assumedOriginalBitrate) * 100);
+            estimatedReduction = Math.max(20, Math.min(90, estimatedReduction));
+        } else if (level === 'low') {
             estimatedReduction = Math.min(30, Math.max(10, sizeMB * 5));
         } else if (level === 'medium') {
             estimatedReduction = Math.min(60, Math.max(30, sizeMB * 10));
@@ -397,94 +404,122 @@ export default function CompressorModal({ isOpen, onClose }: CompressorModalProp
         const targetSizeMB = 4.5; // Vercel 업로드 제한
 
         const compressAudioFile = async (file: File): Promise<{ blob: Blob; originalSize: number; extension: string }> => {
-            return new Promise(async (resolve, reject) => {
+            console.log('[Audio Compress] ===== START =====');
+            console.log('[Audio Compress] File:', file.name, 'Type:', file.type, 'Size:', file.size);
+            console.log('[Audio Compress] Config:', config);
+
+            // AudioContext 생성
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContextClass) {
+                throw new Error('이 브라우저는 오디오 처리를 지원하지 않습니다.');
+            }
+            const audioContext = new AudioContextClass();
+
+            try {
+                // 파일을 ArrayBuffer로 읽기
+                console.log('[Audio Compress] Reading file as ArrayBuffer...');
+                const arrayBuffer = await file.arrayBuffer();
+                console.log('[Audio Compress] ArrayBuffer size:', arrayBuffer.byteLength);
+
+                // 오디오 디코딩 (M4A, MP3, WAV 등)
+                console.log('[Audio Compress] Decoding audio data...');
+                let audioBuffer: AudioBuffer;
                 try {
-                    console.log('[Audio Compress] Starting compression for:', file.name, 'Size:', file.size);
-                    console.log('[Audio Compress] Config:', config);
+                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer.slice(0));
+                } catch (decodeError: any) {
+                    console.error('[Audio Compress] decodeAudioData failed:', decodeError);
+                    throw new Error(`오디오 디코딩 실패: ${file.type || '알 수 없는 형식'}. MP3 또는 WAV 파일을 사용해주세요.`);
+                }
 
-                    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-                    const arrayBuffer = await file.arrayBuffer();
-                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                console.log('[Audio Compress] Decoded audio:', {
+                    duration: audioBuffer.duration.toFixed(2) + 's',
+                    sampleRate: audioBuffer.sampleRate,
+                    channels: audioBuffer.numberOfChannels,
+                    length: audioBuffer.length
+                });
 
-                    console.log('[Audio Compress] Decoded audio:', {
-                        duration: audioBuffer.duration,
-                        sampleRate: audioBuffer.sampleRate,
-                        channels: audioBuffer.numberOfChannels
-                    });
+                // OfflineAudioContext로 오디오 리샘플링
+                const targetSampleRate = Math.min(audioBuffer.sampleRate, config.sampleRate);
+                const targetChannels = config.channels;
+                const length = Math.floor(audioBuffer.duration * targetSampleRate);
 
-                    // OfflineAudioContext로 오디오 리샘플링
-                    const targetSampleRate = Math.min(audioBuffer.sampleRate, config.sampleRate);
-                    const targetChannels = config.channels;
-                    const length = Math.floor(audioBuffer.duration * targetSampleRate);
+                if (length <= 0) {
+                    throw new Error('오디오 길이가 0입니다.');
+                }
 
-                    console.log('[Audio Compress] Target settings:', { targetSampleRate, targetChannels, length });
+                console.log('[Audio Compress] Target settings:', { targetSampleRate, targetChannels, length });
 
-                    const offlineContext = new OfflineAudioContext(targetChannels, length, targetSampleRate);
-                    const source = offlineContext.createBufferSource();
-                    source.buffer = audioBuffer;
-                    source.connect(offlineContext.destination);
-                    source.start(0);
+                const offlineContext = new OfflineAudioContext(targetChannels, length, targetSampleRate);
+                const source = offlineContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(offlineContext.destination);
+                source.start(0);
 
-                    const renderedBuffer = await offlineContext.startRendering();
-                    audioContext.close();
+                console.log('[Audio Compress] Rendering offline context...');
+                const renderedBuffer = await offlineContext.startRendering();
+                console.log('[Audio Compress] Rendered buffer length:', renderedBuffer.length);
 
-                    console.log('[Audio Compress] Rendered buffer length:', renderedBuffer.length);
+                // lamejs를 사용하여 MP3로 인코딩
+                console.log('[Audio Compress] Creating MP3 encoder with bitrate:', config.bitrate);
+                const mp3encoder = new lamejs.Mp3Encoder(targetChannels, targetSampleRate, config.bitrate);
+                const mp3Data: Uint8Array[] = [];
 
-                    // lamejs를 사용하여 MP3로 인코딩
-                    const mp3encoder = new lamejs.Mp3Encoder(targetChannels, targetSampleRate, config.bitrate);
-                    const mp3Data: Uint8Array[] = [];
+                // 모노로 변환 (채널 수에 상관없이 모노로 처리)
+                const samples = renderedBuffer.getChannelData(0);
+                const sampleBlockSize = 1152; // MP3 프레임 크기
 
-                    // 모노로 변환 (채널 수에 상관없이 모노로 처리)
-                    const samples = renderedBuffer.getChannelData(0);
-                    const sampleBlockSize = 1152; // MP3 프레임 크기
+                // Float32 -> Int16 변환
+                console.log('[Audio Compress] Converting Float32 to Int16...');
+                const int16Samples = new Int16Array(samples.length);
+                for (let i = 0; i < samples.length; i++) {
+                    const s = Math.max(-1, Math.min(1, samples[i]));
+                    int16Samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
 
-                    // Float32 -> Int16 변환
-                    const int16Samples = new Int16Array(samples.length);
-                    for (let i = 0; i < samples.length; i++) {
-                        const s = Math.max(-1, Math.min(1, samples[i]));
-                        int16Samples[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-                    }
+                console.log('[Audio Compress] Int16 samples length:', int16Samples.length);
 
-                    console.log('[Audio Compress] Int16 samples length:', int16Samples.length);
-
-                    // 블록 단위로 인코딩
-                    let encodedBlocks = 0;
-                    for (let i = 0; i < int16Samples.length; i += sampleBlockSize) {
-                        const sampleChunk = int16Samples.subarray(i, i + sampleBlockSize);
-                        const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
-                        if (mp3buf.length > 0) {
-                            mp3Data.push(new Uint8Array(mp3buf));
-                            encodedBlocks++;
-                        }
-                    }
-
-                    // 마무리
-                    const mp3buf = mp3encoder.flush();
+                // 블록 단위로 인코딩
+                console.log('[Audio Compress] Encoding MP3 blocks...');
+                let encodedBlocks = 0;
+                for (let i = 0; i < int16Samples.length; i += sampleBlockSize) {
+                    const sampleChunk = int16Samples.subarray(i, i + sampleBlockSize);
+                    const mp3buf = mp3encoder.encodeBuffer(sampleChunk);
                     if (mp3buf.length > 0) {
                         mp3Data.push(new Uint8Array(mp3buf));
+                        encodedBlocks++;
                     }
-
-                    console.log('[Audio Compress] Encoded blocks:', encodedBlocks, 'Total parts:', mp3Data.length);
-
-                    // 전체 크기 계산
-                    const totalSize = mp3Data.reduce((acc, arr) => acc + arr.length, 0);
-                    console.log('[Audio Compress] Total MP3 size:', totalSize);
-
-                    if (totalSize === 0) {
-                        throw new Error('MP3 인코딩 실패: 데이터가 생성되지 않았습니다.');
-                    }
-
-                    // Blob 생성
-                    const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
-                    console.log('[Audio Compress] Final blob size:', blob.size, 'Original:', file.size);
-
-                    resolve({ blob, originalSize: file.size, extension: 'mp3' });
-
-                } catch (error) {
-                    console.error('[Audio Compress] Error:', error);
-                    reject(error);
                 }
-            });
+
+                // 마무리
+                const mp3buf = mp3encoder.flush();
+                if (mp3buf.length > 0) {
+                    mp3Data.push(new Uint8Array(mp3buf));
+                }
+
+                console.log('[Audio Compress] Encoded blocks:', encodedBlocks, 'Total parts:', mp3Data.length);
+
+                // 전체 크기 계산
+                const totalSize = mp3Data.reduce((acc, arr) => acc + arr.length, 0);
+                console.log('[Audio Compress] Total MP3 size:', totalSize);
+
+                if (totalSize === 0) {
+                    throw new Error('MP3 인코딩 실패: 데이터가 생성되지 않았습니다. lamejs 라이브러리 문제일 수 있습니다.');
+                }
+
+                // Blob 생성
+                const blob = new Blob(mp3Data, { type: 'audio/mpeg' });
+                const reduction = Math.round((1 - blob.size / file.size) * 100);
+                console.log('[Audio Compress] ===== SUCCESS =====');
+                console.log('[Audio Compress] Original:', file.size, '→ Compressed:', blob.size, `(${reduction}% 감소)`);
+
+                return { blob, originalSize: file.size, extension: 'mp3' };
+
+            } catch (error) {
+                console.error('[Audio Compress] ===== ERROR =====', error);
+                throw error;
+            } finally {
+                audioContext.close();
+            }
         };
 
         if (files.length === 1) {
