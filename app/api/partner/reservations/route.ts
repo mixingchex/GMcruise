@@ -151,7 +151,6 @@ export async function GET(req: NextRequest) {
               residentNum: true,
               roomNumber: true,
               passportImage: true,
-              notes: true,
             },
           },
           AffiliateSale: {
