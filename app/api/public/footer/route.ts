@@ -56,7 +56,7 @@ async function readFooterData(): Promise<any> {
         lines: [
           { id: '1', text: '상호: 크루즈닷 대표: 배연성', order: 1 },
           { id: '2', text: '주소: 경기 화성시 효행로 1068 (리더스프라자) 603-A60호', order: 2 },
-          { id: '3', text: '대표번호: 010-3289-3800 이메일: hyeseon28@naver.com', order: 3 },
+          { id: '3', text: '대표번호: 010-3289-3800 이메일: jmonica@cruisedot.co.kr', order: 3 },
           { id: '4', text: '사업자등록번호: 714-57-00419', order: 4 },
           { id: '5', text: '통신판매업신고번호: 제 2025-화성동부-0320 호', order: 5 },
           { id: '6', text: '관광사업자 등록번호: 2025-000004호', order: 6 },

@@ -120,17 +120,42 @@ Text to translate:
 Now translate and output ONLY the translation in ${to} (no labels, no explanations, just the translation):`;
 
       try {
-        // 번역 시도 (최대 2회 재시도)
+        // 번역 시도 (최대 3회 재시도, rate limit 포함)
         let cleanedTranslation = '';
         let attempts = 0;
-        const maxAttempts = 2;
+        const maxAttempts = 3;
         const trimmedOriginal = text.trim();
 
         while (attempts < maxAttempts) {
           attempts++;
 
-          const result = await model.generateContent(prompt);
-          const translated = result.response.text() || '';
+          let translated = '';
+          try {
+            const result = await model.generateContent(prompt);
+            translated = result.response.text() || '';
+          } catch (genError: any) {
+            // Rate limit (429) 에러 처리
+            if (genError?.status === 429 || genError?.message?.includes('429') || genError?.message?.includes('Too Many Requests')) {
+              console.warn(`[Translation] Rate limit hit, attempt ${attempts}/${maxAttempts}. Waiting before retry...`);
+
+              if (attempts < maxAttempts) {
+                // 지수 백오프: 2초, 4초, 8초...
+                const waitTime = Math.min(2000 * Math.pow(2, attempts - 1), 10000);
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+              } else {
+                // 최대 재시도 횟수 초과
+                console.error('[Translation] Rate limit - max retries exceeded');
+                return NextResponse.json({
+                  ok: false,
+                  error: '번역 서버가 바쁩니다. 잠시 후 다시 시도해주세요.',
+                  retryAfter: 30,
+                }, { status: 429 });
+              }
+            }
+            // 다른 에러는 상위로 전파
+            throw genError;
+          }
 
           // 번역 결과 정리
           cleanedTranslation = translated.trim();

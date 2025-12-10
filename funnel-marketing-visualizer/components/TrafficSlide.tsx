@@ -94,7 +94,7 @@ export const TrafficSlide: React.FC = () => {
                      <Search size={24} />
                    </div>
                    <div className="hidden md:block absolute left-24 bg-white border px-2 py-1 rounded text-xs text-slate-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30">
-                       SNS 퍼스널 브랜딩 -> 검색 유입
+                       SNS 퍼스널 브랜딩 → 검색 유입
                    </div>
                    <div className="h-0.5 flex-1 bg-slate-200 relative overflow-hidden transform rotate-6 origin-left">
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-green-400 to-transparent w-1/2 animate-[dash_1.5s_linear_infinite]" />
@@ -171,7 +171,7 @@ export const TrafficSlide: React.FC = () => {
                   </div>
                   <div>
                     <span className="inline-block px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded mb-1">Organic (자연유입)</span>
-                    <p className="text-slate-600 text-sm">SNS 퍼스널 브랜딩 지원 시스템 전략 -> 검색 유입</p>
+                    <p className="text-slate-600 text-sm">SNS 퍼스널 브랜딩 지원 시스템 전략 → 검색 유입</p>
                   </div>
                 </div>
               </div>

@@ -331,9 +331,9 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
     }
   }, [searchParams]);
 
-  // 이미지 클릭 모달 핸들러 - 모든 챗봇 이미지에 적용
+  // 이미지 클릭 모달 핸들러 - 모든 챗봇 이미지에 적용 (터치 이벤트 포함)
   useEffect(() => {
-    const handleImageClick = (e: MouseEvent) => {
+    const handleImageInteraction = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
 
       // 1. 기존 방식: cruise-image-clickable 클래스가 있는 이미지
@@ -369,7 +369,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
             const imageUrls: string[] = [];
             let clickedIndex = 0;
 
-            containerImages.forEach((img, idx) => {
+            containerImages.forEach((img) => {
               const src = (img as HTMLImageElement).src;
               if (src && !src.includes('placeholder') && !src.includes('data:')) {
                 if (src === imgSrc) {
@@ -391,20 +391,24 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       }
     };
 
-    document.addEventListener('click', handleImageClick);
+    // 클릭과 터치 이벤트 모두 등록
+    document.addEventListener('click', handleImageInteraction);
+    document.addEventListener('touchend', handleImageInteraction, { passive: false });
     return () => {
-      document.removeEventListener('click', handleImageClick);
+      document.removeEventListener('click', handleImageInteraction);
+      document.removeEventListener('touchend', handleImageInteraction);
     };
   }, []);
 
-  // 동영상 클릭 모달 핸들러 - iframe 위에 오버레이 클릭 시 모달 열기
+  // 동영상 클릭 모달 핸들러 - iframe 위에 오버레이 클릭 시 모달 열기 (터치 이벤트 포함)
   useEffect(() => {
-    const handleVideoClick = (e: MouseEvent) => {
+    const handleVideoInteraction = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
 
-      // 동영상 오버레이 클릭 시 (iframe 직접 클릭은 감지 불가)
-      if (target.classList.contains('video-modal-trigger')) {
-        const videoUrl = target.getAttribute('data-video-url');
+      // 동영상 오버레이 또는 그 자식 요소 클릭 시 (closest로 부모도 확인)
+      const videoTrigger = target.closest('.video-modal-trigger') as HTMLElement;
+      if (videoTrigger) {
+        const videoUrl = videoTrigger.getAttribute('data-video-url');
         if (videoUrl) {
           setVideoModalUrl(videoUrl);
           setVideoModalOpen(true);
@@ -414,9 +418,12 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
       }
     };
 
-    document.addEventListener('click', handleVideoClick);
+    // 클릭과 터치 이벤트 모두 등록
+    document.addEventListener('click', handleVideoInteraction);
+    document.addEventListener('touchend', handleVideoInteraction, { passive: false });
     return () => {
-      document.removeEventListener('click', handleVideoClick);
+      document.removeEventListener('click', handleVideoInteraction);
+      document.removeEventListener('touchend', handleVideoInteraction);
     };
   }, []);
 
@@ -1348,10 +1355,10 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
             {messages.map((message, index) => (
               <div
                 key={index}
-                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} w-full`}
               >
                 <div
-                  className={`max-w-[90%] md:max-w-[85%] rounded-xl md:rounded-2xl p-4 md:p-5 ${message.type === 'user'
+                  className={`${message.type === 'user' ? 'max-w-[85%] md:max-w-[75%]' : 'w-full'} rounded-xl md:rounded-2xl p-4 md:p-5 ${message.type === 'user'
                     ? 'bg-blue-600 text-white text-lg md:text-xl'
                     : 'bg-gray-50 text-gray-900'
                     }`}
@@ -1513,11 +1520,11 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                     </div>
                   )}
 
-                  {/* 정보 박스 (파란색 배경) - 모바일 가독성 대폭 개선 */}
+                  {/* 정보 박스 (파란색 배경) - 50대 이상 모바일 가독성 최적화 */}
                   {message.type === 'bot' && message.content && (
-                    <div className="mt-4 p-5 md:p-6 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl">
+                    <div className="mt-4 p-4 md:p-5 bg-blue-50 border-l-4 border-blue-500 rounded-r-xl w-full">
                       <div
-                        className="text-lg md:text-xl text-blue-900 whitespace-pre-wrap leading-loose md:leading-relaxed font-medium"
+                        className="text-lg md:text-xl text-blue-900 whitespace-pre-wrap leading-relaxed font-medium break-words"
                         dangerouslySetInnerHTML={{
                           __html: (() => {
                             let processed = message.content;
@@ -1580,8 +1587,8 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                   }
                                 }
 
-                                // 이미지 로드 실패 시 처리하기 위한 onerror 핸들러 추가
-                                return `<img src="${encodedUrl}" alt="${alt || '여행지 사진'}" class="w-full h-auto rounded-lg shadow-md my-3 object-cover max-h-96 cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onerror="this.style.display='none'; this.onerror=null;" />`;
+                                // 이미지 로드 실패 시 처리하기 위한 onerror 핸들러 추가 + 탭하여 확대 표시
+                                return `<div class="relative my-3 cursor-pointer group"><img src="${encodedUrl}" alt="${alt || '여행지 사진'}" class="w-full h-auto rounded-xl shadow-lg object-cover border-2 border-gray-200" loading="lazy" onerror="this.parentElement.style.display='none';" /><div class="absolute bottom-2 right-2 bg-blue-600 text-white text-base font-bold px-4 py-2 rounded-full shadow-lg">🔍 탭하여 확대</div></div>`;
                               })
                               // 남은 마크다운 이미지 패턴 처리 (이스케이프된 경우)
                               .replace(/\\!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, url) => {
@@ -1601,7 +1608,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                     encodedUrl = url;
                                   }
                                 }
-                                return `<img src="${encodedUrl}" alt="${alt || '여행지 사진'}" class="w-full h-auto rounded-lg shadow-md my-3 object-cover max-h-96 cursor-pointer hover:opacity-90 transition-opacity" loading="lazy" onerror="this.style.display='none'; this.onerror=null;" />`;
+                                return `<div class="relative my-3 cursor-pointer group"><img src="${encodedUrl}" alt="${alt || '여행지 사진'}" class="w-full h-auto rounded-xl shadow-lg object-cover border-2 border-gray-200" loading="lazy" onerror="this.parentElement.style.display='none';" /><div class="absolute bottom-2 right-2 bg-blue-600 text-white text-base font-bold px-4 py-2 rounded-full shadow-lg">🔍 탭하여 확대</div></div>`;
                               })
                               // 유튜브 링크를 임베드 iframe으로 변환 (마크다운 링크 형식)
                               .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+youtu\.be\/[^)]+)\)/g, (match, linkText, url) => {
@@ -1610,14 +1617,14 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                   const videoIdMatch = url.match(/\/shorts\/([a-zA-Z0-9_-]{11})/);
                                   if (videoIdMatch && videoIdMatch[1]) {
                                     const videoId = videoIdMatch[1];
-                                    return `<div class="mt-2 mb-2"><div class="aspect-video w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg relative group cursor-pointer"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full pointer-events-none"></iframe><div class="video-modal-trigger absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all" data-video-url="${url}"><span class="text-white text-lg font-bold opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 px-4 py-2 rounded-full transition-all">🔍 크게 보기</span></div></div><a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-lg mt-1 block">${linkText}</a></div>`;
+                                    return `<div class="mt-3 mb-3"><div class="aspect-video w-full rounded-xl overflow-hidden bg-gray-900 shadow-lg relative cursor-pointer border-2 border-blue-400 video-modal-trigger" data-video-url="https://www.youtube.com/watch?v=${videoId}"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full pointer-events-none"></iframe><div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30"><span class="text-white text-xl font-bold bg-blue-600 px-5 py-3 rounded-full shadow-lg">📺 탭하여 크게 보기</span></div></div></div>`;
                                   }
                                 }
                                 // 일반 YouTube URL 처리
                                 const videoIdMatch = url.match(/(?:youtu\.be\/|youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})/);
                                 if (videoIdMatch && videoIdMatch[1]) {
                                   const videoId = videoIdMatch[1];
-                                  return `<div class="mt-2 mb-2"><div class="aspect-video w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg relative group cursor-pointer"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full pointer-events-none"></iframe><div class="video-modal-trigger absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all" data-video-url="${url}"><span class="text-white text-lg font-bold opacity-0 group-hover:opacity-100 bg-black bg-opacity-50 px-4 py-2 rounded-full transition-all">🔍 크게 보기</span></div></div><a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-lg mt-1 block">${linkText}</a></div>`;
+                                  return `<div class="mt-3 mb-3"><div class="aspect-video w-full rounded-xl overflow-hidden bg-gray-900 shadow-lg relative cursor-pointer border-2 border-blue-400 video-modal-trigger" data-video-url="https://www.youtube.com/watch?v=${videoId}"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full pointer-events-none"></iframe><div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30"><span class="text-white text-xl font-bold bg-blue-600 px-5 py-3 rounded-full shadow-lg">📺 탭하여 크게 보기</span></div></div></div>`;
                                 }
                                 return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-semibold text-xl">${linkText}</a>`;
                               })
@@ -1631,7 +1638,7 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
                                 if (string.includes(`embed/${videoId}`)) {
                                   return match;
                                 }
-                                return `<div class="mt-2 mb-2"><div class="aspect-video w-full rounded-lg overflow-hidden bg-gray-900 shadow-lg"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full"></iframe></div></div>`;
+                                return `<div class="mt-3 mb-3"><div class="aspect-video w-full rounded-xl overflow-hidden bg-gray-900 shadow-lg relative cursor-pointer border-2 border-blue-400 video-modal-trigger" data-video-url="https://www.youtube.com/watch?v=${videoId}"><iframe src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen class="w-full h-full pointer-events-none"></iframe><div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30"><span class="text-white text-xl font-bold bg-blue-600 px-5 py-3 rounded-full shadow-lg">📺 탭하여 크게 보기</span></div></div></div>`;
                               })
                               // 일반 링크 처리 (YouTube 링크가 아닌 경우, 이미지가 아닌 경우)
                               .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, linkText, url) => {
@@ -1917,9 +1924,9 @@ export function ChatBotPageContent({ shareToken }: ChatBotPageContentProps = {})
             />
           </div>
 
-          {/* 닫기 안내 */}
-          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black bg-opacity-50 px-4 py-2 rounded-full">
-            화면을 탭하거나 X를 눌러 닫기
+          {/* 닫기 안내 - 50대 이상 가독성 */}
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-lg font-bold bg-black bg-opacity-60 px-5 py-3 rounded-full">
+            ✕ 화면을 탭하여 닫기
           </div>
         </div>
       )}

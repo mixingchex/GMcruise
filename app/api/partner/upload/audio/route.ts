@@ -15,8 +15,21 @@ const B2B_AUDIO_FOLDER_ID = '15h6_By31Y4Xy1MwIIWwkSc-uI-YI3A_S';
 const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
+// GET 핸들러 - API 라우트 존재 확인용
+export async function GET() {
+  console.log('[Partner Audio Upload] GET request received - API route is working');
+  return NextResponse.json({
+    ok: true,
+    message: 'Partner Audio Upload API is available',
+    method: 'POST',
+    maxFileSize: `${MAX_FILE_SIZE_MB}MB`,
+    supportedFormats: ['mp3', 'wav', 'm4a', 'ogg', 'webm'],
+  });
+}
+
 // OPTIONS 핸들러 (CORS preflight)
 export async function OPTIONS() {
+  console.log('[Partner Audio Upload] OPTIONS request received');
   return new NextResponse(null, {
     status: 200,
     headers: {
@@ -34,8 +47,10 @@ export async function OPTIONS() {
  * 판매원/대리점장이 상담 녹음 파일을 Google Drive에 업로드
  */
 export async function POST(request: NextRequest) {
+  console.log('[Partner Audio Upload] POST request received');
   try {
     const { profile, sessionUser } = await requirePartnerContext();
+    console.log('[Partner Audio Upload] Partner context:', { profileId: profile.id, type: profile.type });
 
     const formData = await request.formData();
     const file = formData.get('file') as File;

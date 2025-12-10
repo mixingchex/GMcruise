@@ -4,6 +4,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
 import { appendSystemConsultationNoteToSheet } from '@/lib/google/b2b-backup';
+import {
+  PartnerApiError,
+  requirePartnerContext,
+} from '@/app/api/partner/_utils';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -188,30 +192,34 @@ export async function POST(req: NextRequest, context: RouteContext) {
       });
     }
 
-    // Google 스프레드시트 백업
     const createdAtStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
     const consultedAtStr = consultedAtDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-    appendSystemConsultationNoteToSheet({
-      noteId: createdNote.id,
-      consultationId,
-      customerName: consultation.name,
-      customerPhone: consultation.phone,
-      partnerName: consultantName,
-      consultedAt: consultedAtStr,
-      content: content.trim(),
-      consultantName,
-      consultantType:
-        consultantType === 'BRANCH_MANAGER' ? '대리점장' :
-        consultantType === 'SALES_AGENT' ? '판매원' : '본사',
-      nextActionDate: nextActionDate || null,
-      nextActionNote: nextActionNote || null,
-      statusAfter: statusAfter || null,
-      audioFileUrl: audioFileUrl || null,
-      createdAt: createdAtStr,
-    }).catch((err) => {
-      console.error('[Partner System Inquiry Consultations] 스프레드시트 백업 실패:', err);
-    });
+    // Google 스프레드시트 백업 (동기 대기 - Vercel 서버리스 환경 필수)
+    try {
+      console.log('[Partner System Inquiry Consultations] 스프레드시트 백업 시작...');
+      const backupResult = await appendSystemConsultationNoteToSheet({
+        noteId: createdNote.id,
+        consultationId,
+        customerName: consultation.name,
+        customerPhone: consultation.phone,
+        partnerName: consultantName,
+        consultedAt: consultedAtStr,
+        content: content.trim(),
+        consultantName,
+        consultantType:
+          consultantType === 'BRANCH_MANAGER' ? '대리점장' :
+          consultantType === 'SALES_AGENT' ? '판매원' : '본사',
+        nextActionDate: nextActionDate || null,
+        nextActionNote: nextActionNote || null,
+        statusAfter: statusAfter || null,
+        audioFileUrl: audioFileUrl || null,
+        createdAt: createdAtStr,
+      });
+      console.log('[Partner System Inquiry Consultations] 스프레드시트 백업 완료:', backupResult);
+    } catch (backupErr: any) {
+      console.error('[Partner System Inquiry Consultations] 스프레드시트 백업 실패:', backupErr?.message || backupErr);
+    }
 
     return NextResponse.json({
       ok: true,

@@ -1166,8 +1166,8 @@ export default function AdminSettingsPage() {
           />
           <InfoRow
             label="이메일"
-            value="hyeseon28@naver.com"
-            onCopy={() => copyToClipboard('hyeseon28@naver.com', 'companyEmail')}
+            value="jmonica@cruisedot.co.kr"
+            onCopy={() => copyToClipboard('jmonica@cruisedot.co.kr', 'companyEmail')}
             copied={copiedField === 'companyEmail'}
           />
           <InfoRow

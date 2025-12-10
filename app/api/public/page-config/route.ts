@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
           ],
           contactInfo: {
             phone: '010-3289-3800',
-            email: 'hyeseon28@naver.com',
+            email: 'jmonica@cruisedot.co.kr',
             kakaoLink: 'https://www.cruisedot.co.kr/i/6nx',
             businessHours: '오전 9시 ~ 오후 5시 (공휴일 휴무)',
           },

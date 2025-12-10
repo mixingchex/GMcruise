@@ -156,7 +156,7 @@ export default function PrivacyPolicyPage() {
                   <p className="font-semibold mb-2">개인정보 보호책임자</p>
                   <p className="text-sm">성명: 전혜선</p>
                   <p className="text-sm">연락처: 010-3289-3800</p>
-                  <p className="text-sm">이메일: hyeseon28@naver.com</p>
+                  <p className="text-sm">이메일: jmonica@cruisedot.co.kr</p>
                 </div>
               </div>
             </section>

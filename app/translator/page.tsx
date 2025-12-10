@@ -370,7 +370,7 @@ export default function TranslatorPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: `Translate the following text from ${fromEnglish} to ${toEnglish}. Translate completely even if the text is long or partially unclear. Only provide the translation result in ${toEnglish}, no explanations:\n\n"${text}"\n\nTranslation in ${toEnglish}:`,
+          text: text, // 원본 텍스트만 전송 (서버에서 프롬프트 생성)
           mode: 'translate',
           from: fromEnglish, // 영어 언어 정보 전달
           to: toEnglish, // 영어 언어 정보 전달
@@ -379,7 +379,17 @@ export default function TranslatorPage() {
 
       if (!res.ok) {
         console.error('[Translation] API error:', res.status, res.statusText);
-        // API 오류 시 원문 반환 (부분 번역 시도 안 함)
+
+        // Rate limit 에러 (429) - 사용자 친화적 메시지
+        if (res.status === 429) {
+          return {
+            translated: '⏳ 번역 서버가 바쁩니다. 잠시 후 다시 시도해주세요.',
+            pronunciation: '',
+            isError: true
+          };
+        }
+
+        // 다른 API 오류 시 원문 반환 (부분 번역 시도 안 함)
         return { translated: text, pronunciation: '' };
       }
 

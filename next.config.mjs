@@ -104,12 +104,13 @@ const nextConfig = {
         'node_modules/eslint/**',
         'node_modules/typescript/**',
         'node_modules/@typescript-eslint/**',
-        // Google APIs - 전체 제외 (serverExternalPackages로 처리)
-        'node_modules/googleapis/**',
-        'node_modules/google-auth-library/**',
-        'node_modules/gaxios/**',
-        'node_modules/gcp-metadata/**',
-        'node_modules/google-p12-pem/**',
+        // Google APIs - serverExternalPackages로 처리되므로 제외하지 않음
+        // ⚠️ 주의: 아래 패키지들은 오디오 업로드 등 Google Drive API에 필요하므로 포함
+        // 'node_modules/googleapis/**',
+        // 'node_modules/google-auth-library/**',
+        // 'node_modules/gaxios/**',
+        // 'node_modules/gcp-metadata/**',
+        // 'node_modules/google-p12-pem/**',
         // Puppeteer 완전 제외
         'node_modules/puppeteer/**',
         'node_modules/puppeteer-core/**',

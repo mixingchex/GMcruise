@@ -401,7 +401,7 @@ export default function VisualEditorPage() {
       ],
       contactInfo: {
         phone: '010-3289-3800',
-        email: 'hyeseon28@naver.com',
+        email: 'jmonica@cruisedot.co.kr',
         kakaoLink: 'https://www.cruisedot.co.kr/i/6nx',
         businessHours: '오전 9시 ~ 오후 5시 (공휴일 휴무)',
       },
@@ -5210,7 +5210,7 @@ function FooterEditor({
                 contactInfo: { ...localConfig.contactInfo, email: e.target.value },
               })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="hyeseon28@naver.com"
+              placeholder="jmonica@cruisedot.co.kr"
             />
             <p className="text-xs text-gray-500 mt-1">
               • 고객센터 이메일 주소를 입력하세요. 클릭 시 이메일 앱이 열립니다.

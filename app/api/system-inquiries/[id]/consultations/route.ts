@@ -168,11 +168,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
       });
     }
 
-    // Google 스프레드시트 백업
     const createdAtStr = new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
     const consultedAtStr = consultedAtDate.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' });
 
-    // 담당자 이름 조회
+    // 담당자 이름 조회 (스프레드시트 백업용)
     let partnerName = '본사';
     const partnerProfileId = consultation.agentId || consultation.managerId;
     if (partnerProfileId) {
@@ -185,26 +184,31 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }
     }
 
-    appendSystemConsultationNoteToSheet({
-      noteId: createdNote.id,
-      consultationId,
-      customerName: consultation.name,
-      customerPhone: consultation.phone,
-      partnerName,
-      consultedAt: consultedAtStr,
-      content: content.trim(),
-      consultantName,
-      consultantType:
-        consultantType === 'BRANCH_MANAGER' ? '대리점장' :
-        consultantType === 'SALES_AGENT' ? '판매원' : '본사',
-      nextActionDate: nextActionDate || null,
-      nextActionNote: nextActionNote || null,
-      statusAfter: statusAfter || null,
-      audioFileUrl: audioFileUrl || null,
-      createdAt: createdAtStr,
-    }).catch((err) => {
-      console.error('[System Inquiry Consultations] 스프레드시트 백업 실패:', err);
-    });
+    // Google 스프레드시트 백업 (동기 대기 - Vercel 서버리스 환경 필수)
+    try {
+      console.log('[System Inquiry Consultations] 스프레드시트 백업 시작...');
+      const backupResult = await appendSystemConsultationNoteToSheet({
+        noteId: createdNote.id,
+        consultationId,
+        customerName: consultation.name,
+        customerPhone: consultation.phone,
+        partnerName,
+        consultedAt: consultedAtStr,
+        content: content.trim(),
+        consultantName,
+        consultantType:
+          consultantType === 'BRANCH_MANAGER' ? '대리점장' :
+          consultantType === 'SALES_AGENT' ? '판매원' : '본사',
+        nextActionDate: nextActionDate || null,
+        nextActionNote: nextActionNote || null,
+        statusAfter: statusAfter || null,
+        audioFileUrl: audioFileUrl || null,
+        createdAt: createdAtStr,
+      });
+      console.log('[System Inquiry Consultations] 스프레드시트 백업 완료:', backupResult);
+    } catch (backupErr: any) {
+      console.error('[System Inquiry Consultations] 스프레드시트 백업 실패:', backupErr?.message || backupErr);
+    }
 
     return NextResponse.json({
       ok: true,
