@@ -97,6 +97,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            updatedAt: new Date(),
           },
         });
       } else {
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            updatedAt: new Date(),
           },
         });
       }
@@ -130,6 +132,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            updatedAt: new Date(),
           },
         });
       } else {
@@ -143,6 +146,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            updatedAt: new Date(),
           },
         });
       }
