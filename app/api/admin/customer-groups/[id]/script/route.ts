@@ -56,21 +56,52 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    // 그룹 소유권 확인
-    const group = await prisma.customerGroup.findFirst({
-      where: {
-        id: groupId,
-        adminId: admin.id,
-      },
-      select: { id: true, name: true },
-    });
+    const { searchParams } = new URL(req.url);
+    const source = searchParams.get('source'); // 'admin' 또는 'partner'
 
-    if (!group) {
-      return NextResponse.json(
-        { ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' },
-        { status: 404 }
-      );
+    let groupName: string;
+    let groupIdForScript: number;
+
+    // 파트너 그룹인 경우
+    if (source === 'partner') {
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: groupId },
+        select: { id: true, name: true },
+      });
+
+      if (!partnerGroup) {
+        return NextResponse.json(
+          { ok: false, error: '파트너 그룹을 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+      groupName = partnerGroup.name;
+      groupIdForScript = partnerGroup.id;
+    } else {
+      // 관리자 그룹 소유권 확인 (본인 그룹 + affiliateProfileId가 있는 그룹)
+      const group = await prisma.customerGroup.findFirst({
+        where: {
+          id: groupId,
+          OR: [
+            { adminId: admin.id },
+            { affiliateProfileId: { not: null } },
+          ],
+        },
+        select: { id: true, name: true },
+      });
+
+      if (!group) {
+        return NextResponse.json(
+          { ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' },
+          { status: 404 }
+        );
+      }
+      groupName = group.name;
+      groupIdForScript = group.id;
     }
+
+    // 스크립트 생성에 사용할 변수 설정
+    const group = { id: groupIdForScript, name: groupName };
 
     // 기본 URL (환경 변수 또는 기본값 사용)
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL

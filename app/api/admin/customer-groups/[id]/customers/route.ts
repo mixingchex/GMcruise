@@ -56,11 +56,104 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    // 그룹 소유권 확인
+    const { searchParams } = new URL(req.url);
+    const source = searchParams.get('source'); // 'admin' 또는 'partner'
+    const search = searchParams.get('search') || '';
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const skip = (page - 1) * limit;
+
+    // 일차 계산 헬퍼 함수
+    const calculateDays = (addedAt: Date): number => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const joinDate = new Date(addedAt);
+      joinDate.setHours(0, 0, 0, 0);
+      const diffTime = today.getTime() - joinDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays + 1; // 1일차부터 시작
+    };
+
+    // 파트너 그룹인 경우
+    if (source === 'partner') {
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: groupId },
+        select: { id: true, name: true },
+      });
+
+      if (!partnerGroup) {
+        return NextResponse.json(
+          { ok: false, error: '파트너 그룹을 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
+      // 파트너 그룹의 고객(AffiliateLead) 조회
+      const leadWhere: any = { groupId };
+      if (search) {
+        leadWhere.OR = [
+          { customerName: { contains: search } },
+          { customerPhone: { contains: search } },
+        ];
+      }
+
+      const [leads, total] = await Promise.all([
+        prisma.affiliateLead.findMany({
+          where: leadWhere,
+          select: {
+            id: true,
+            customerName: true,
+            customerPhone: true,
+            notes: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit,
+        }),
+        prisma.affiliateLead.count({ where: leadWhere }),
+      ]);
+
+      const customers = leads.map(lead => ({
+        id: lead.id,
+        leadId: lead.id,
+        userId: null,
+        customerName: lead.customerName,
+        phone: lead.customerPhone,
+        email: null,
+        groupInflowDate: lead.createdAt.toISOString().split('T')[0],
+        daysSinceInflow: calculateDays(lead.createdAt),
+        messageSentCount: 0, // 파트너 그룹은 별도 로그 시스템 사용
+        addedAt: lead.createdAt.toISOString(),
+        notes: lead.notes,
+      }));
+
+      return NextResponse.json({
+        ok: true,
+        source: 'partner',
+        group: {
+          id: partnerGroup.id,
+          name: partnerGroup.name,
+        },
+        customers,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
+
+    // 관리자 그룹 소유권 확인 (본인 그룹 + affiliateProfileId가 있는 그룹)
     const group = await prisma.customerGroup.findFirst({
       where: {
         id: groupId,
-        adminId: admin.id,
+        OR: [
+          { adminId: admin.id },
+          { affiliateProfileId: { not: null } },
+        ],
       },
       select: { id: true, name: true },
     });
@@ -71,12 +164,6 @@ export async function GET(
         { status: 404 }
       );
     }
-
-    const { searchParams } = new URL(req.url);
-    const search = searchParams.get('search') || '';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const skip = (page - 1) * limit;
 
     // 필터 조건 구성
     const where: any = {
@@ -116,17 +203,6 @@ export async function GET(
       prisma.customerGroupMember.count({ where }),
     ]);
 
-    // 일차 계산 헬퍼 함수
-    const calculateDays = (addedAt: Date): number => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const joinDate = new Date(addedAt);
-      joinDate.setHours(0, 0, 0, 0);
-      const diffTime = today.getTime() - joinDate.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays + 1; // 1일차부터 시작
-    };
-
     // 각 멤버별 문자 발송 횟수 계산 (ScheduledMessageLog 사용)
     const customers = await Promise.all(
       members.map(async (member) => {
@@ -159,6 +235,7 @@ export async function GET(
 
     return NextResponse.json({
       ok: true,
+      source: 'admin',
       group: {
         id: group.id,
         name: group.name,

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
-import { buildScopedGroupWhere } from '@/app/api/partner/customer-groups/utils';
+import { buildScopedGroupWhere, getTeamAgentIds } from '@/app/api/partner/customer-groups/utils';
 
 // GET: 그룹별 스크립트 생성 (PartnerCustomerGroup 사용)
 export async function GET(
@@ -34,8 +34,11 @@ export async function GET(
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    // 그룹 소유권 확인 (PartnerCustomerGroup)
-    const where = buildScopedGroupWhere(groupId, affiliateProfile.id);
+    // 대리점장인 경우 팀 판매원 ID 목록 조회
+    const teamAgentIds = await getTeamAgentIds(affiliateProfile.id, affiliateProfile.type || '');
+
+    // 그룹 소유권 확인 (PartnerCustomerGroup) - 대리점장은 팀 판매원 그룹도 접근 가능
+    const where = buildScopedGroupWhere(groupId, affiliateProfile.id, teamAgentIds);
     const group = await prisma.partnerCustomerGroup.findFirst({
       where,
       select: { id: true, name: true },

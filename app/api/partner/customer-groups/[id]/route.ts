@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
-import { buildScopedGroupWhere, partnerGroupInclude, serializePartnerGroup } from '@/app/api/partner/customer-groups/utils';
+import { buildScopedGroupWhere, getTeamAgentIds, partnerGroupInclude, serializePartnerGroup } from '@/app/api/partner/customer-groups/utils';
 
 /**
  * GET /api/partner/customer-groups/[id]
@@ -21,7 +21,7 @@ export async function GET(
 
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
       where: { userId: user.id },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!affiliateProfile) {
@@ -34,8 +34,11 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
+    // 대리점장인 경우 팀 판매원 ID 목록 조회
+    const teamAgentIds = await getTeamAgentIds(affiliateProfile.id, affiliateProfile.type || '');
+
     const group = await prisma.partnerCustomerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id, teamAgentIds),
       include: partnerGroupInclude,
     });
 
@@ -43,14 +46,19 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // 고객 수 계산
+    // 고객 수 계산 (대리점장인 경우 팀 판매원 고객도 포함)
+    const leadOwnerConditions: any[] = [
+      { managerId: affiliateProfile.id },
+      { agentId: affiliateProfile.id },
+    ];
+    if (teamAgentIds.length > 0) {
+      leadOwnerConditions.push({ agentId: { in: teamAgentIds } });
+    }
+
     const leadCount = await prisma.affiliateLead.count({
       where: {
         groupId: group.id,
-        OR: [
-          { managerId: affiliateProfile.id },
-          { agentId: affiliateProfile.id },
-        ],
+        OR: leadOwnerConditions,
       },
     });
 
@@ -80,7 +88,7 @@ export async function PUT(
 
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
       where: { userId: user.id },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!affiliateProfile) {
@@ -93,8 +101,11 @@ export async function PUT(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
+    // 대리점장인 경우 팀 판매원 ID 목록 조회
+    const teamAgentIds = await getTeamAgentIds(affiliateProfile.id, affiliateProfile.type || '');
+
     const existingGroup = await prisma.partnerCustomerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id, teamAgentIds),
     });
 
     if (!existingGroup) {
@@ -129,14 +140,19 @@ export async function PUT(
       include: partnerGroupInclude,
     });
 
-    // 고객 수 계산
+    // 고객 수 계산 (대리점장인 경우 팀 판매원 고객도 포함)
+    const leadOwnerConditions: any[] = [
+      { managerId: affiliateProfile.id },
+      { agentId: affiliateProfile.id },
+    ];
+    if (teamAgentIds.length > 0) {
+      leadOwnerConditions.push({ agentId: { in: teamAgentIds } });
+    }
+
     const leadCount = await prisma.affiliateLead.count({
       where: {
         groupId: group.id,
-        OR: [
-          { managerId: affiliateProfile.id },
-          { agentId: affiliateProfile.id },
-        ],
+        OR: leadOwnerConditions,
       },
     });
 
@@ -166,7 +182,7 @@ export async function DELETE(
 
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
       where: { userId: user.id },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!affiliateProfile) {
@@ -179,8 +195,11 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
+    // 대리점장인 경우 팀 판매원 ID 목록 조회
+    const teamAgentIds = await getTeamAgentIds(affiliateProfile.id, affiliateProfile.type || '');
+
     const group = await prisma.partnerCustomerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id, teamAgentIds),
       select: { id: true },
     });
 
@@ -188,14 +207,20 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
     }
 
+    // 대리점장인 경우 팀 판매원의 고객도 포함
+    const leadOwnerConditions: any[] = [
+      { managerId: affiliateProfile.id },
+      { agentId: affiliateProfile.id },
+    ];
+    if (teamAgentIds.length > 0) {
+      leadOwnerConditions.push({ agentId: { in: teamAgentIds } });
+    }
+
     // 그룹에 속한 고객들의 groupId를 null로 설정 (고객은 삭제되지 않음)
     await prisma.affiliateLead.updateMany({
       where: {
         groupId: groupId,
-        OR: [
-          { managerId: affiliateProfile.id },
-          { agentId: affiliateProfile.id },
-        ],
+        OR: leadOwnerConditions,
       },
       data: {
         groupId: null,

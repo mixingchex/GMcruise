@@ -39,7 +39,7 @@ async function checkAdminAuth() {
   }
 }
 
-// GET: 특정 그룹 조회
+// GET: 특정 그룹 조회 (관리자 그룹 + 파트너 그룹 모두 지원)
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -57,15 +57,77 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const source = searchParams.get('source'); // 'admin' 또는 'partner'
+
+    // 파트너 그룹 조회
+    if (source === 'partner') {
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: groupId },
+        include: {
+          AffiliateProfile: {
+            select: {
+              id: true,
+              displayName: true,
+              branchLabel: true,
+              affiliateCode: true,
+              type: true,
+            },
+          },
+        },
+      });
+
+      if (!partnerGroup) {
+        return NextResponse.json({ ok: false, error: '파트너 그룹을 찾을 수 없습니다.' }, { status: 404 });
+      }
+
+      // 파트너 그룹의 고객 수 조회
+      const leadCount = await prisma.affiliateLead.count({
+        where: { groupId: partnerGroup.id },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        source: 'partner',
+        group: {
+          id: partnerGroup.id,
+          name: partnerGroup.name,
+          description: partnerGroup.description,
+          color: partnerGroup.color,
+          affiliateProfileId: partnerGroup.profileId,
+          affiliateProfile: partnerGroup.AffiliateProfile,
+          funnelTalkIds: partnerGroup.funnelTalkIds,
+          funnelSmsIds: partnerGroup.funnelSmsIds,
+          funnelEmailIds: partnerGroup.funnelEmailIds,
+          reEntryHandling: partnerGroup.reEntryHandling,
+          createdAt: partnerGroup.createdAt.toISOString(),
+          updatedAt: partnerGroup.updatedAt.toISOString(),
+          _count: { members: leadCount },
+        },
+      });
+    }
+
+    // 관리자 그룹 조회 (본인이 생성한 그룹 + affiliateProfileId가 있는 그룹)
     const group = await prisma.customerGroup.findFirst({
       where: {
         id: groupId,
-        adminId: admin.id, // 본인이 생성한 그룹만 조회 가능
+        OR: [
+          { adminId: admin.id },
+          { affiliateProfileId: { not: null } },
+        ],
       },
       include: {
-        members: {
+        AffiliateProfile: {
+          select: {
+            id: true,
+            displayName: true,
+            branchLabel: true,
+            affiliateCode: true,
+          },
+        },
+        CustomerGroupMember: {
           include: {
-            user: {
+            User_CustomerGroupMember_userIdToUser: {
               select: {
                 id: true,
                 name: true,
@@ -77,7 +139,7 @@ export async function GET(
         },
         _count: {
           select: {
-            members: true,
+            CustomerGroupMember: true,
           },
         },
       },
@@ -87,7 +149,21 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    return NextResponse.json({ ok: true, group });
+    return NextResponse.json({
+      ok: true,
+      source: 'admin',
+      group: {
+        ...group,
+        members: group.CustomerGroupMember.map((m: any) => ({
+          id: m.id,
+          userId: m.userId,
+          user: m.User_CustomerGroupMember_userIdToUser,
+          addedAt: m.addedAt.toISOString(),
+          addedBy: m.addedBy,
+        })),
+        _count: { members: group._count.CustomerGroupMember },
+      },
+    });
   } catch (error) {
     console.error('[Customer Groups GET] Error:', error);
     return NextResponse.json(

@@ -74,11 +74,17 @@ export async function schedulePartnerFunnelMessages({
     // 고객 정보 조회
     const lead = await prisma.affiliateLead.findUnique({
       where: { id: leadId },
-      select: { id: true, name: true, phone: true, email: true },
+      select: { id: true, customerName: true, customerPhone: true },
     });
 
     if (!lead) {
       return { scheduled: 0, error: 'Lead not found' };
+    }
+
+    // 전화번호가 없으면 SMS 발송 불가
+    if (!lead.customerPhone) {
+      console.log(`[Funnel Scheduler] Lead ${leadId} has no phone, skipping SMS funnel scheduling`);
+      return { scheduled: 0, error: 'Lead has no phone number' };
     }
 
     const now = new Date();
@@ -123,8 +129,8 @@ export async function schedulePartnerFunnelMessages({
               groupId: groupId,
               groupName: group.name,
               leadId: leadId,
-              leadName: lead.name,
-              leadPhone: lead.phone,
+              leadName: lead.customerName,
+              leadPhone: lead.customerPhone,
               profileId: profileId,
               imageUrl: stage.imageUrl,
               source: 'partner_funnel',

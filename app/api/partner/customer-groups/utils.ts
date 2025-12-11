@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import prisma from '@/lib/prisma';
 
 // PartnerCustomerGroup 모델을 위한 include 설정
 // PartnerCustomerGroup은 간단한 구조로 CustomerGroupMember 등 관련 테이블이 없음
@@ -37,15 +38,61 @@ export const serializePartnerGroup = (group: PartnerGroupWithRelations, leadCoun
   } : null,
 });
 
+// 대리점장인 경우 팀 판매원 ID 목록 조회
+export async function getTeamAgentIds(profileId: number, profileType: string): Promise<number[]> {
+  if (profileType !== 'BRANCH_MANAGER') {
+    return [];
+  }
+
+  const teamRelations = await prisma.affiliateRelation.findMany({
+    where: {
+      managerId: profileId,
+      status: 'ACTIVE',
+    },
+    select: {
+      agentId: true,
+    },
+  });
+
+  return teamRelations
+    .map(r => r.agentId)
+    .filter((id): id is number => id !== null);
+}
+
+// 기본 소유권 필터 (자신의 그룹만)
 export const buildOwnershipFilter = (
   profileId: number
 ): Prisma.PartnerCustomerGroupWhereInput => {
   return { profileId };
 };
 
+// 대리점장인 경우 팀 판매원 그룹도 포함하는 필터
+export const buildExtendedOwnershipFilter = (
+  profileId: number,
+  teamAgentIds: number[]
+): Prisma.PartnerCustomerGroupWhereInput => {
+  if (teamAgentIds.length === 0) {
+    return { profileId };
+  }
+
+  return {
+    OR: [
+      { profileId },
+      { profileId: { in: teamAgentIds } },
+    ],
+  };
+};
+
 export const buildScopedGroupWhere = (
   groupId: number,
-  profileId: number
-): Prisma.PartnerCustomerGroupWhereInput => ({
-  AND: [{ id: groupId }, buildOwnershipFilter(profileId)],
-});
+  profileId: number,
+  teamAgentIds?: number[]
+): Prisma.PartnerCustomerGroupWhereInput => {
+  const ownershipFilter = teamAgentIds && teamAgentIds.length > 0
+    ? buildExtendedOwnershipFilter(profileId, teamAgentIds)
+    : buildOwnershipFilter(profileId);
+
+  return {
+    AND: [{ id: groupId }, ownershipFilter],
+  };
+};

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { scheduleAdminFunnelMessages } from '@/lib/funnel-scheduler';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -39,7 +40,7 @@ async function checkAdminAuth() {
   }
 }
 
-// GET: 그룹 멤버 목록 조회
+// GET: 그룹 멤버 목록 조회 (관리자 그룹 + 파트너 그룹 모두 지원)
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -57,11 +58,53 @@ export async function GET(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    // 그룹 소유권 확인
+    const { searchParams } = new URL(req.url);
+    const source = searchParams.get('source'); // 'admin' 또는 'partner'
+
+    // 파트너 그룹인 경우
+    if (source === 'partner') {
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: groupId },
+      });
+
+      if (!partnerGroup) {
+        return NextResponse.json({ ok: false, error: '파트너 그룹을 찾을 수 없습니다.' }, { status: 404 });
+      }
+
+      // 파트너 그룹의 고객(AffiliateLead) 조회
+      const leads = await prisma.affiliateLead.findMany({
+        where: { groupId },
+        select: {
+          id: true,
+          customerName: true,
+          customerPhone: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        source: 'partner',
+        members: leads.map(l => ({
+          id: l.id,
+          leadId: l.id,
+          userId: null, // 파트너 그룹은 userId가 없음
+          name: l.customerName,
+          phone: l.customerPhone,
+          addedAt: l.createdAt.toISOString(),
+        })),
+      });
+    }
+
+    // 관리자 그룹인 경우
     const group = await prisma.customerGroup.findFirst({
       where: {
         id: groupId,
-        adminId: admin.id,
+        OR: [
+          { adminId: admin.id },
+          { affiliateProfileId: { not: null } },
+        ],
       },
     });
 
@@ -72,20 +115,26 @@ export async function GET(
     // 그룹 멤버 조회
     const members = await prisma.customerGroupMember.findMany({
       where: { groupId },
-      select: {
-        id: true,
-        userId: true,
-        addedAt: true,
-        addedBy: true,
+      include: {
+        User_CustomerGroupMember_userIdToUser: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+          },
+        },
       },
       orderBy: { addedAt: 'desc' },
     });
 
     return NextResponse.json({
       ok: true,
+      source: 'admin',
       members: members.map(m => ({
         id: m.id,
         userId: m.userId,
+        name: m.User_CustomerGroupMember_userIdToUser?.name || null,
+        phone: m.User_CustomerGroupMember_userIdToUser?.phone || null,
         addedAt: m.addedAt.toISOString(),
         addedBy: m.addedBy,
       })),
@@ -173,59 +222,12 @@ export async function POST(
         });
         addedMembers.push(member);
 
-        // 고객이 그룹에 추가될 때 퍼널문자 자동 실행
-        // 해당 그룹에 연결된 ScheduledMessage 찾기
-        const scheduledMessages = await prisma.scheduledMessage.findMany({
-          where: {
-            targetGroupId: groupId,
-            isActive: true,
-          },
-          include: {
-            ScheduledMessageStage: {
-              orderBy: { order: 'asc' },
-            },
-          },
-        });
-
-        // 각 ScheduledMessage에 대해 처리
-        for (const sm of scheduledMessages) {
-          // 예약설정을 하지 않고 1회차 메시지로 0부터 발송시간, 내용까지 입력한 경우
-          // 즉, startDate가 null이고, 첫 번째 단계가 daysAfter: 0인 경우
-          if (!sm.startDate && sm.ScheduledMessageStage.length > 0) {
-            const firstStage = sm.ScheduledMessageStage[0];
-            if (firstStage.daysAfter === 0 && firstStage.sendTime) {
-              // 즉시 발송 또는 sendTime에 맞춰 발송
-              const now = new Date();
-              const [hours, minutes] = firstStage.sendTime.split(':').map(Number);
-              const sendTime = new Date();
-              sendTime.setHours(hours, minutes, 0, 0);
-              
-              // 오늘 발송 시간이 지났으면 내일 같은 시간에 발송
-              if (sendTime < now) {
-                sendTime.setDate(sendTime.getDate() + 1);
-              }
-
-              // AdminMessage 생성 (예약 발송)
-              await prisma.adminMessage.create({
-                data: {
-                  adminId: admin.id,
-                  userId: userId,
-                  title: firstStage.title,
-                  content: firstStage.content,
-                  messageType: 'info',
-                  isActive: true,
-                  sendAt: sendTime,
-                  metadata: {
-                    scheduledMessageId: sm.id,
-                    scheduledMessageStageId: firstStage.id,
-                    groupId: groupId,
-                    groupName: sm.groupName,
-                  },
-                },
-              });
-            }
-          }
-        }
+        // 고객이 그룹에 추가될 때 퍼널 메시지 자동 예약 (통합 퍼널 시스템 사용)
+        scheduleAdminFunnelMessages({
+          userId,
+          groupId,
+          adminId: admin.id,
+        }).catch(err => console.error('[Admin Members POST] Funnel schedule error:', err));
       } catch (error: any) {
         // Unique constraint violation (이미 그룹에 속한 경우)
         if (error.code === 'P2002') {

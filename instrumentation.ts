@@ -12,6 +12,7 @@ export async function register() {
     const { startRePurchaseTriggerScheduler } = await import('./lib/scheduler/rePurchaseTrigger');
     const { startAffiliateLinkCleanupScheduler } = await import('./lib/scheduler/affiliateLinkCleanup');
     const { startScheduledMessageSender } = await import('./lib/scheduler/scheduledMessageSender');
+    const { startPartnerFunnelSender } = await import('./lib/scheduler/partnerFunnelSender');
     const { startDatabaseBackupScheduler } = await import('./lib/scheduler/databaseBackup');
     const { startPayslipSenderScheduler } = await import('./lib/scheduler/payslipSender');
     const { startSpreadsheetBackupScheduler } = await import('./lib/scheduler/spreadsheetBackup');
@@ -37,14 +38,17 @@ export async function register() {
       
       // 6. Scheduled Message Sender 시작 (매 5분)
       startScheduledMessageSender();
-      
-      // 7. Database Backup Scheduler 시작 (매일 새벽 3시)
+
+      // 7. Partner Funnel Sender 시작 (매 5분) - 파트너별 알리고 설정으로 퍼널 메시지 자동 발송
+      startPartnerFunnelSender();
+
+      // 8. Database Backup Scheduler 시작 (매일 새벽 3시)
       startDatabaseBackupScheduler();
-      
-      // 8. Payslip Sender Scheduler 시작 (매월 1일 오전 9시)
+
+      // 9. Payslip Sender Scheduler 시작 (매월 1일 오전 9시)
       startPayslipSenderScheduler();
-      
-      // 9. Spreadsheet Backup Scheduler 시작 (매일 오전 12시)
+
+      // 10. Spreadsheet Backup Scheduler 시작 (매일 오전 12시)
       startSpreadsheetBackupScheduler();
       
       console.log('✅ [Instrumentation] All schedulers started successfully');

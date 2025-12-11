@@ -5,10 +5,6 @@
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/excel-backup",
-      "schedule": "0 2 1 * *"
-    },
-    {
       "path": "/api/cron/database-backup",
       "schedule": "0 18 * * *"
     }

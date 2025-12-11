@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
-import { buildScopedGroupWhere } from '@/app/api/partner/customer-groups/utils';
+import { buildScopedGroupWhere, getTeamAgentIds } from '@/app/api/partner/customer-groups/utils';
 import { schedulePartnerFunnelMessages } from '@/lib/funnel-scheduler';
 
 /**
@@ -28,7 +28,7 @@ export async function POST(
 
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
       where: { userId: sessionUser.id },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!affiliateProfile) {
@@ -59,9 +59,12 @@ export async function POST(
       );
     }
 
-    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    // 대리점장인 경우 팀 판매원 ID 목록 조회
+    const teamAgentIds = await getTeamAgentIds(affiliateProfile.id, affiliateProfile.type || '');
+
+    // 그룹 소유권 확인 (PartnerCustomerGroup) - 대리점장은 팀 판매원 그룹도 접근 가능
     const group = await prisma.partnerCustomerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id, teamAgentIds),
       select: { id: true },
     });
 
@@ -69,14 +72,20 @@ export async function POST(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
     }
 
+    // 대리점장인 경우 팀 판매원의 고객도 포함
+    const leadOwnerConditions: any[] = [
+      { managerId: affiliateProfile.id },
+      { agentId: affiliateProfile.id },
+    ];
+    if (teamAgentIds.length > 0) {
+      leadOwnerConditions.push({ agentId: { in: teamAgentIds } });
+    }
+
     // 이전 그룹 정보 조회 (퍼널 발송 여부 결정용)
     const leadsBeforeUpdate = await prisma.affiliateLead.findMany({
       where: {
         id: { in: normalizedLeadIds },
-        OR: [
-          { managerId: affiliateProfile.id },
-          { agentId: affiliateProfile.id },
-        ],
+        OR: leadOwnerConditions,
       },
       select: { id: true, groupId: true },
     });
@@ -85,10 +94,7 @@ export async function POST(
     const result = await prisma.affiliateLead.updateMany({
       where: {
         id: { in: normalizedLeadIds },
-        OR: [
-          { managerId: affiliateProfile.id },
-          { agentId: affiliateProfile.id },
-        ],
+        OR: leadOwnerConditions,
       },
       data: {
         groupId: groupId,
@@ -129,6 +135,7 @@ export async function POST(
 /**
  * DELETE /api/partner/customer-groups/[id]/members
  * 그룹에서 고객(AffiliateLead) 제거 - PartnerCustomerGroup 사용
+ * leadId 또는 userId 파라미터 지원 (하위 호환성)
  */
 export async function DELETE(
   req: NextRequest,
@@ -147,11 +154,12 @@ export async function DELETE(
     }
 
     const { searchParams } = new URL(req.url);
-    const leadIdParam = searchParams.get('leadId');
+    // leadId 또는 userId 파라미터 지원
+    const leadIdParam = searchParams.get('leadId') || searchParams.get('userId');
 
     if (!leadIdParam) {
       return NextResponse.json(
-        { ok: false, error: '제거할 고객 ID가 필요합니다.' },
+        { ok: false, error: '제거할 고객 ID가 필요합니다. (leadId 또는 userId)' },
         { status: 400 }
       );
     }
@@ -163,16 +171,19 @@ export async function DELETE(
 
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
       where: { userId: sessionUser.id },
-      select: { id: true },
+      select: { id: true, type: true },
     });
 
     if (!affiliateProfile) {
       return NextResponse.json({ ok: false, error: 'Affiliate profile not found' }, { status: 404 });
     }
 
-    // 그룹 소유권 확인 (PartnerCustomerGroup)
+    // 대리점장인 경우 팀 판매원 ID 목록 조회
+    const teamAgentIds = await getTeamAgentIds(affiliateProfile.id, affiliateProfile.type || '');
+
+    // 그룹 소유권 확인 (PartnerCustomerGroup) - 대리점장은 팀 판매원 그룹도 접근 가능
     const group = await prisma.partnerCustomerGroup.findFirst({
-      where: buildScopedGroupWhere(groupId, affiliateProfile.id),
+      where: buildScopedGroupWhere(groupId, affiliateProfile.id, teamAgentIds),
       select: { id: true },
     });
 
@@ -180,21 +191,32 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
     }
 
+    // 대리점장인 경우 팀 판매원의 고객도 제거 가능
+    const leadOwnerConditions: any[] = [
+      { managerId: affiliateProfile.id },
+      { agentId: affiliateProfile.id },
+    ];
+
+    if (teamAgentIds.length > 0) {
+      leadOwnerConditions.push({ agentId: { in: teamAgentIds } });
+    }
+
     // AffiliateLead의 groupId를 null로 설정 (그룹에서 제거)
-    await prisma.affiliateLead.updateMany({
+    const result = await prisma.affiliateLead.updateMany({
       where: {
         id: leadId,
         groupId: groupId,
-        OR: [
-          { managerId: affiliateProfile.id },
-          { agentId: affiliateProfile.id },
-        ],
+        OR: leadOwnerConditions,
       },
       data: {
         groupId: null,
         updatedAt: new Date(),
       },
     });
+
+    if (result.count === 0) {
+      return NextResponse.json({ ok: false, error: '해당 고객을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
+    }
 
     return NextResponse.json({ ok: true, message: '고객이 그룹에서 제거되었습니다.' });
   } catch (error: any) {

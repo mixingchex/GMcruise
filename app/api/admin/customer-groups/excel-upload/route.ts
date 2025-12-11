@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import * as XLSX from 'xlsx';
+import { scheduleAdminFunnelMessages } from '@/lib/funnel-scheduler';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -284,12 +285,28 @@ export async function POST(req: NextRequest) {
               )
             );
             addedCount += newMembers.length;
+
+            // 퍼널 자동 발송: 새로 그룹에 추가된 고객들에게 퍼널 메시지 예약
+            for (const memberData of newMembers) {
+              scheduleAdminFunnelMessages({
+                userId: memberData.userId,
+                groupId: groupIdNum,
+                adminId: admin.id,
+              }).catch(err => console.error('[Admin Excel Upload] Funnel schedule error:', err));
+            }
           } catch (transactionError: any) {
             // 개별 에러 처리
             for (const memberData of newMembers) {
               try {
                 await prisma.customerGroupMember.create({ data: memberData });
                 addedCount++;
+
+                // 퍼널 자동 발송
+                scheduleAdminFunnelMessages({
+                  userId: memberData.userId,
+                  groupId: groupIdNum,
+                  adminId: admin.id,
+                }).catch(err => console.error('[Admin Excel Upload] Funnel schedule error:', err));
               } catch (memberError: any) {
                 if (memberError.code === 'P2002') {
                   skippedCount++;

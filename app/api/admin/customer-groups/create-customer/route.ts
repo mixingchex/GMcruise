@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { scheduleAdminFunnelMessages } from '@/lib/funnel-scheduler';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -108,6 +109,13 @@ export async function POST(req: NextRequest) {
               addedBy: admin.id,
             },
           });
+
+          // 퍼널 자동 발송: 새로 그룹에 추가된 고객에게 퍼널 메시지 예약
+          scheduleAdminFunnelMessages({
+            userId,
+            groupId: groupIdNum,
+            adminId: admin.id,
+          }).catch(err => console.error('[Admin Create Customer] Funnel schedule error:', err));
         } catch (error: any) {
           // 이미 그룹에 속한 경우 무시
           if (error.code !== 'P2002') {

@@ -39,7 +39,7 @@ async function checkAdminAuth() {
   }
 }
 
-// PUT: 퍼널 설정 업데이트
+// PUT: 퍼널 설정 업데이트 (관리자 그룹 + 파트너 그룹 모두 지원)
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -58,13 +58,53 @@ export async function PUT(
     }
 
     const body = await req.json();
-    const { funnelTalkIds, funnelSmsIds, funnelEmailIds, reEntryHandling } = body;
+    const { funnelTalkIds, funnelSmsIds, funnelEmailIds, reEntryHandling, source } = body;
 
-    // 그룹 소유권 확인
+    // 파트너 그룹인 경우
+    if (source === 'partner') {
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: groupId },
+      });
+
+      if (!partnerGroup) {
+        return NextResponse.json({ ok: false, error: '파트너 그룹을 찾을 수 없습니다.' }, { status: 404 });
+      }
+
+      // 파트너 그룹 퍼널 설정 업데이트
+      const updatedGroup = await prisma.partnerCustomerGroup.update({
+        where: { id: groupId },
+        data: {
+          funnelTalkIds: Array.isArray(funnelTalkIds) && funnelTalkIds.length > 0 ? funnelTalkIds : null,
+          funnelSmsIds: Array.isArray(funnelSmsIds) && funnelSmsIds.length > 0 ? funnelSmsIds : null,
+          funnelEmailIds: Array.isArray(funnelEmailIds) && funnelEmailIds.length > 0 ? funnelEmailIds : null,
+          reEntryHandling: reEntryHandling || null,
+          updatedAt: new Date(),
+        },
+      });
+
+      // 고객 수 조회
+      const leadCount = await prisma.affiliateLead.count({
+        where: { groupId: updatedGroup.id },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        source: 'partner',
+        group: {
+          ...updatedGroup,
+          _count: { members: leadCount },
+        },
+      });
+    }
+
+    // 관리자 그룹 소유권 확인 (본인 그룹 + affiliateProfileId가 있는 그룹)
     const existingGroup = await prisma.customerGroup.findFirst({
       where: {
         id: groupId,
-        adminId: admin.id,
+        OR: [
+          { adminId: admin.id },
+          { affiliateProfileId: { not: null } },
+        ],
       },
     });
 
@@ -84,13 +124,20 @@ export async function PUT(
       include: {
         _count: {
           select: {
-            members: true,
+            CustomerGroupMember: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ ok: true, group });
+    return NextResponse.json({
+      ok: true,
+      source: 'admin',
+      group: {
+        ...group,
+        _count: { members: group._count.CustomerGroupMember },
+      },
+    });
   } catch (error) {
     console.error('[Customer Groups Funnel Settings PUT] Error:', error);
     return NextResponse.json(

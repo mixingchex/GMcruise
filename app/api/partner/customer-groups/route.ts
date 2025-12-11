@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePartnerContext, PartnerApiError } from '@/app/api/partner/_utils';
-import { buildOwnershipFilter, partnerGroupInclude, serializePartnerGroup } from '@/app/api/partner/customer-groups/utils';
+import { buildExtendedOwnershipFilter, getTeamAgentIds, partnerGroupInclude, serializePartnerGroup } from '@/app/api/partner/customer-groups/utils';
 
 /**
  * GET /api/partner/customer-groups
@@ -15,24 +15,11 @@ export async function GET(req: NextRequest) {
 
     console.log('[Partner Customer Groups GET] Profile:', { id: profile.id, type: profile.type, userId: sessionUser.id });
 
-    // 대리점장인 경우 팀 판매원들의 ID 목록 조회
-    let teamAgentIds: number[] = [];
-    if (profile.type === 'BRANCH_MANAGER') {
-      const teamRelations = await prisma.affiliateRelation.findMany({
-        where: {
-          managerId: profile.id,
-          status: 'ACTIVE',
-        },
-        select: {
-          agentId: true,
-        },
-      });
-      teamAgentIds = teamRelations
-        .map(r => r.agentId)
-        .filter((id): id is number => id !== null);
-    }
+    // 대리점장인 경우 팀 판매원들의 ID 목록 조회 (공통 함수 사용)
+    const teamAgentIds = await getTeamAgentIds(profile.id, profile.type);
 
-    const ownershipFilter = buildOwnershipFilter(profile.id);
+    // 대리점장인 경우 자신 + 팀 판매원 그룹 모두 조회
+    const ownershipFilter = buildExtendedOwnershipFilter(profile.id, teamAgentIds);
     console.log('[Partner Customer Groups GET] Ownership filter:', JSON.stringify(ownershipFilter));
 
     // PartnerCustomerGroup 모델 사용

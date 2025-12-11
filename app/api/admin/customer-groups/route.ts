@@ -96,12 +96,12 @@ export async function GET(req: NextRequest) {
     console.log('[Customer Groups GET] 인증 성공, 그룹 목록 조회 시작');
 
     try {
-      // 관리자가 생성한 그룹 + 점장들이 생성한 그룹 모두 조회
-      const groups = await prisma.customerGroup.findMany({
+      // 1. 관리자가 생성한 그룹 + 점장들이 생성한 그룹 (CustomerGroup)
+      const adminGroups = await prisma.customerGroup.findMany({
         where: {
           OR: [
             { adminId: admin.id }, // 관리자가 생성한 그룹
-            { affiliateProfileId: { not: null } }, // 점장들이 생성한 그룹 (affiliateProfileId가 있는 모든 그룹)
+            { affiliateProfileId: { not: null } }, // 점장들이 생성한 그룹
           ],
         },
         include: {
@@ -134,34 +134,69 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: 'desc' },
       });
 
-      // 각 그룹에 추가 정보 추가 및 데이터 변환
-      const groupsWithDetails = groups.map((group) => ({
+      // 2. 파트너(대리점장/판매원)가 생성한 그룹 (PartnerCustomerGroup) - 모든 파트너 그룹 조회
+      const partnerGroups = await prisma.partnerCustomerGroup.findMany({
+        include: {
+          AffiliateProfile: {
+            select: {
+              id: true,
+              displayName: true,
+              branchLabel: true,
+              affiliateCode: true,
+              type: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // 파트너 그룹의 고객 수 조회
+      const partnerGroupIds = partnerGroups.map(g => g.id);
+      const partnerLeadCounts = partnerGroupIds.length > 0
+        ? await prisma.affiliateLead.groupBy({
+            by: ['groupId'],
+            where: { groupId: { in: partnerGroupIds } },
+            _count: true,
+          })
+        : [];
+      const partnerLeadCountMap = new Map(partnerLeadCounts.map(c => [c.groupId, c._count]));
+
+      // 관리자 그룹 변환
+      const adminGroupsWithDetails = adminGroups.map((group) => ({
         id: group.id,
+        source: 'admin' as const,
         adminId: group.adminId,
         name: group.name,
         description: group.description,
         color: group.color,
         parentGroupId: group.parentGroupId,
         affiliateProfileId: group.affiliateProfileId,
-        funnelTalkIds: group.funnelTalkIds 
-          ? (typeof group.funnelTalkIds === 'string' 
-              ? JSON.parse(group.funnelTalkIds) 
-              : Array.isArray(group.funnelTalkIds) 
-                ? group.funnelTalkIds 
+        affiliateProfile: group.AffiliateProfile ? {
+          id: group.AffiliateProfile.id,
+          displayName: group.AffiliateProfile.displayName,
+          branchLabel: group.AffiliateProfile.branchLabel,
+          affiliateCode: group.AffiliateProfile.affiliateCode,
+          type: null,
+        } : null,
+        funnelTalkIds: group.funnelTalkIds
+          ? (typeof group.funnelTalkIds === 'string'
+              ? JSON.parse(group.funnelTalkIds)
+              : Array.isArray(group.funnelTalkIds)
+                ? group.funnelTalkIds
                 : null)
           : null,
-        funnelSmsIds: group.funnelSmsIds 
-          ? (typeof group.funnelSmsIds === 'string' 
-              ? JSON.parse(group.funnelSmsIds) 
-              : Array.isArray(group.funnelSmsIds) 
-                ? group.funnelSmsIds 
+        funnelSmsIds: group.funnelSmsIds
+          ? (typeof group.funnelSmsIds === 'string'
+              ? JSON.parse(group.funnelSmsIds)
+              : Array.isArray(group.funnelSmsIds)
+                ? group.funnelSmsIds
                 : null)
           : null,
-        funnelEmailIds: group.funnelEmailIds 
-          ? (typeof group.funnelEmailIds === 'string' 
-              ? JSON.parse(group.funnelEmailIds) 
-              : Array.isArray(group.funnelEmailIds) 
-                ? group.funnelEmailIds 
+        funnelEmailIds: group.funnelEmailIds
+          ? (typeof group.funnelEmailIds === 'string'
+              ? JSON.parse(group.funnelEmailIds)
+              : Array.isArray(group.funnelEmailIds)
+                ? group.funnelEmailIds
                 : null)
           : null,
         reEntryHandling: group.reEntryHandling,
@@ -177,13 +212,48 @@ export async function GET(req: NextRequest) {
           user: member.User_CustomerGroupMember_userIdToUser,
         })),
         _count: group._count,
-        subGroups: [], // 필요시 별도 조회
+        subGroups: [],
         parentGroup: group.parentGroupId ? { id: group.parentGroupId, name: null } : null,
-        scheduledMessages: [], // 필요시 별도 조회
+        scheduledMessages: [],
       }));
 
-      console.log('[Customer Groups GET] 그룹 목록 조회 성공:', groupsWithDetails.length, '개');
-      return NextResponse.json({ ok: true, groups: groupsWithDetails });
+      // 파트너 그룹 변환 (통일된 포맷으로)
+      const partnerGroupsWithDetails = partnerGroups.map((group) => ({
+        id: group.id,
+        source: 'partner' as const,
+        adminId: null,
+        name: group.name,
+        description: group.description,
+        color: group.color,
+        parentGroupId: null,
+        affiliateProfileId: group.profileId,
+        affiliateProfile: group.AffiliateProfile ? {
+          id: group.AffiliateProfile.id,
+          displayName: group.AffiliateProfile.displayName,
+          branchLabel: group.AffiliateProfile.branchLabel,
+          affiliateCode: group.AffiliateProfile.affiliateCode,
+          type: group.AffiliateProfile.type,
+        } : null,
+        funnelTalkIds: group.funnelTalkIds,
+        funnelSmsIds: group.funnelSmsIds,
+        funnelEmailIds: group.funnelEmailIds,
+        reEntryHandling: group.reEntryHandling,
+        autoMoveEnabled: false,
+        createdAt: group.createdAt.toISOString(),
+        updatedAt: group.updatedAt.toISOString(),
+        members: [], // 파트너 그룹은 별도 API로 고객 조회
+        _count: { CustomerGroupMember: partnerLeadCountMap.get(group.id) || 0 },
+        subGroups: [],
+        parentGroup: null,
+        scheduledMessages: [],
+      }));
+
+      // 모든 그룹을 합쳐서 최신순 정렬
+      const allGroups = [...adminGroupsWithDetails, ...partnerGroupsWithDetails]
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      console.log('[Customer Groups GET] 그룹 목록 조회 성공 - 관리자:', adminGroupsWithDetails.length, '개, 파트너:', partnerGroupsWithDetails.length, '개');
+      return NextResponse.json({ ok: true, groups: allGroups });
     } catch (dbError) {
       console.error('[Customer Groups GET] 데이터베이스 쿼리 오류:', dbError);
       console.error('[Customer Groups GET] 에러 타입:', dbError?.constructor?.name);

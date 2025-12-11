@@ -62,14 +62,17 @@ export default function PartnerCustomerGroupsPage() {
   const [showCustomerListModal, setShowCustomerListModal] = useState(false);
   const [customerListGroup, setCustomerListGroup] = useState<CustomerGroup | null>(null);
   const [groupCustomers, setGroupCustomers] = useState<Array<{
-    id: number;
-    userId: number;
+    id: number;           // leadId
+    leadId?: number;      // 명시적 leadId (API 응답에서 제공)
     customerName: string | null;
     phone: string | null;
-    email: string | null;
+    email?: string | null;
     groupInflowDate: string;
     daysSinceInflow: number;
     messageSentCount: number;
+    status?: string;
+    source?: string;
+    notes?: string | null;
   }>>([]);
   const [customerListSearch, setCustomerListSearch] = useState('');
   const [customerListPage, setCustomerListPage] = useState(1);
@@ -565,15 +568,15 @@ export default function PartnerCustomerGroupsPage() {
     return () => clearTimeout(timer);
   }, [customerListSearch]);
 
-  // 그룹 해제 처리
-  const handleReleaseFromGroup = async (membershipId: number, userId: number, groupId: number) => {
+  // 그룹 해제 처리 (leadId 사용)
+  const handleReleaseFromGroup = async (leadId: number, groupId: number) => {
     if (!confirm('이 고객을 그룹에서 해제하시겠습니까?')) {
       return;
     }
 
-    setReleasingMemberId(membershipId);
+    setReleasingMemberId(leadId);
     try {
-      const response = await fetch(`/api/partner/customer-groups/${groupId}/members?userId=${userId}`, {
+      const response = await fetch(`/api/partner/customer-groups/${groupId}/members?leadId=${leadId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -1654,7 +1657,7 @@ export default function PartnerCustomerGroupsPage() {
                           </td>
                           <td className="py-3 px-4 text-right">
                             <button
-                              onClick={() => handleReleaseFromGroup(customer.id, customer.userId, customerListGroup.id)}
+                              onClick={() => handleReleaseFromGroup(customer.id, customerListGroup.id)}
                               disabled={releasingMemberId === customer.id}
                               className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 ml-auto"
                             >
