@@ -562,10 +562,10 @@ export default function B2BProspectsPage() {
                     {/* B2B Table */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-200">
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
+                                        <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
                                             <input
                                                 type="checkbox"
                                                 checked={allSelected}
@@ -576,13 +576,13 @@ export default function B2BProspectsPage() {
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                             />
                                         </th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">구분</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">고객 정보</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">담당자</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">문의/노트</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">등록일시</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">관리</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">구분</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">고객 정보</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">상태</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당자</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">문의/노트</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">등록일시</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right w-24">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -604,7 +604,7 @@ export default function B2BProspectsPage() {
                                     ) : (
                                         filteredProspects.map((prospect) => (
                                             <tr key={prospect.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-4 py-4 whitespace-nowrap">
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedProspects.has(prospect.id)}
@@ -612,61 +612,66 @@ export default function B2BProspectsPage() {
                                                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                                     />
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 py-4 whitespace-nowrap">
                                                     {getSourceBadge(prospect.source)}
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                                            <FiUser className="text-gray-500" />
+                                                <td className="px-3 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                                            <FiUser className="text-gray-500 w-3.5 h-3.5" />
                                                         </div>
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{prospect.customerName}</p>
-                                                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                                                                <FiPhone className="w-3 h-3" />
-                                                                {prospect.customerPhone}
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium text-gray-900 text-sm truncate">{prospect.customerName}</p>
+                                                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                                <FiPhone className="w-3 h-3 flex-shrink-0" />
+                                                                <span className="truncate">{prospect.customerPhone}</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 py-4 whitespace-nowrap">
                                                     {getStatusBadge(prospect.status)}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 py-4 whitespace-nowrap">
                                                     {prospect.manager ? (
-                                                        <div className="text-sm">
-                                                            <p className="font-medium text-purple-600">{prospect.manager.displayName}</p>
-                                                            <p className="text-xs text-gray-500">{prospect.manager.affiliateCode}</p>
+                                                        <div className="text-xs">
+                                                            <p className="font-medium text-purple-600 truncate">{prospect.manager.displayName}</p>
+                                                            <p className="text-gray-500 truncate">{prospect.manager.affiliateCode}</p>
                                                         </div>
                                                     ) : (
-                                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                                             본사
                                                         </span>
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="max-w-xs truncate text-sm text-gray-600" title={prospect.notes || ''}>
-                                                        {prospect.notes || '-'}
-                                                    </div>
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500" title={prospect.notes || ''}>
+                                                    {prospect.notes ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <FiMessageSquare className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                                            <span>{new Date(prospect.createdAt).toLocaleDateString('ko-KR')}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                                                     <div className="flex items-center gap-1">
                                                         <FiCalendar className="w-3 h-3" />
                                                         {new Date(prospect.createdAt).toLocaleDateString('ko-KR')}
                                                     </div>
-                                                    <div className="text-xs text-gray-400 mt-0.5">
+                                                    <div className="text-gray-400 mt-0.5">
                                                         {new Date(prospect.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right">
-                                                    <div className="flex items-center justify-end gap-2">
+                                                <td className="px-3 py-4 whitespace-nowrap text-right">
+                                                    <div className="flex items-center justify-end gap-1 flex-nowrap">
                                                         <button
                                                             onClick={() => {
                                                                 setSelectedProspectId(prospect.id);
                                                                 setSelectedProspectType('lead');
                                                                 setDetailModalOpen(true);
                                                             }}
-                                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+                                                            className="text-blue-600 hover:text-blue-800 text-xs font-medium px-1.5 py-1 bg-blue-50 rounded hover:bg-blue-100 transition-colors whitespace-nowrap"
                                                         >
                                                             상세
                                                         </button>
@@ -689,7 +694,7 @@ export default function B2BProspectsPage() {
                                                                     alert('오류가 발생했습니다.');
                                                                 }
                                                             }}
-                                                            className="text-red-600 hover:text-red-800 text-sm font-medium px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition-colors"
+                                                            className="text-red-600 hover:text-red-800 text-xs font-medium px-1.5 py-1 bg-red-50 rounded hover:bg-red-100 transition-colors whitespace-nowrap"
                                                         >
                                                             삭제
                                                         </button>

@@ -597,10 +597,10 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                     {/* B2B Table */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-200">
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
+                                        <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
                                             <input
                                                 type="checkbox"
                                                 checked={filteredProspects.length > 0 && selectedProspects.size === filteredProspects.length}
@@ -608,12 +608,12 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                             />
                                         </th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">구분</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">고객 정보</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">담당 판매원</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">등록일시</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">관리</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">구분</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">고객 정보</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">상태</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">담당 판매원</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">등록일시</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -635,7 +635,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                     ) : (
                                         filteredProspects.map((prospect) => (
                                             <tr key={prospect.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-4 py-4 whitespace-nowrap">
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedProspects.has(prospect.id)}
@@ -643,25 +643,25 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                                     />
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 py-4 whitespace-nowrap">
                                                     {getSourceBadge(prospect.source)}
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                                            <FiUser className="text-gray-500" />
+                                                <td className="px-3 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                                            <FiUser className="text-gray-500 w-3.5 h-3.5" />
                                                         </div>
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{prospect.customerName}</p>
-                                                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                                                                <FiPhone className="w-3 h-3" />
-                                                                {prospect.customerPhone}
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium text-gray-900 text-sm truncate">{prospect.customerName}</p>
+                                                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                                <FiPhone className="w-3 h-3 flex-shrink-0" />
+                                                                <span className="truncate">{prospect.customerPhone}</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                <td className="px-3 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                                         prospect.status === 'NEW' ? 'bg-blue-100 text-blue-800' :
                                                         prospect.status === 'CONTACTED' ? 'bg-yellow-100 text-yellow-800' :
                                                         prospect.status === 'CONVERTED' ? 'bg-green-100 text-green-800' :
@@ -671,38 +671,38 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                         {getStatusLabel(prospect.status)}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 py-4 whitespace-nowrap">
                                                     <div className="flex flex-col gap-1">
                                                         {prospect.affiliateOwnership?.ownerType === 'SALES_AGENT' ? (
-                                                            <span className="text-blue-600 font-medium">
+                                                            <span className="text-blue-600 font-medium text-xs truncate">
                                                                 {prospect.affiliateOwnership.ownerName}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-gray-400">-</span>
+                                                            <span className="text-gray-400 text-xs">-</span>
                                                         )}
                                                         {/* DB 출처 표시 */}
                                                         {(prospect.metadata?.receivedFromHQ || prospect.metadata?.lastTransferFrom) && (
-                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
                                                                 {prospect.metadata.lastTransferFrom || '본사'} 제공
                                                             </span>
                                                         )}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                                                     <div className="flex items-center gap-1">
                                                         <FiCalendar className="w-3 h-3" />
                                                         {new Date(prospect.createdAt).toLocaleDateString('ko-KR')}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <div className="flex items-center gap-2">
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium">
+                                                    <div className="flex items-center gap-1 flex-nowrap">
                                                         <button
                                                             onClick={() => {
                                                                 setSelectedProspectId(prospect.id);
                                                                 setSelectedProspectType('lead');
                                                                 setDetailModalOpen(true);
                                                             }}
-                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-1.5 py-1 rounded text-xs transition-colors whitespace-nowrap"
                                                         >
                                                             상세
                                                         </button>
@@ -725,7 +725,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                                     showError('오류가 발생했습니다.');
                                                                 }
                                                             }}
-                                                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-1.5 py-1 rounded text-xs transition-colors whitespace-nowrap"
                                                         >
                                                             삭제
                                                         </button>
@@ -786,10 +786,10 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                     {/* System Consultation Table */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full text-left border-collapse table-fixed">
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-200">
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
+                                        <th className="px-4 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-10">
                                             <input
                                                 type="checkbox"
                                                 checked={filteredConsultations.length > 0 && selectedConsultations.size === filteredConsultations.length}
@@ -797,12 +797,12 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                             />
                                         </th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">상태</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">고객 정보</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">문의 내용</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">담당 판매원</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">등록일시</th>
-                                        <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">관리</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">상태</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">고객 정보</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">문의/노트</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">담당 판매원</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">등록일시</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">관리</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200">
@@ -824,7 +824,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                     ) : (
                                         filteredConsultations.map((consultation) => (
                                             <tr key={consultation.id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-4 py-4 whitespace-nowrap">
                                                     <input
                                                         type="checkbox"
                                                         checked={selectedConsultations.has(consultation.id)}
@@ -832,71 +832,75 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                                                     />
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${consultation.status === 'NEW' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                                                <td className="px-3 py-4 whitespace-nowrap">
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${consultation.status === 'NEW' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
                                                         }`}>
                                                         {consultation.status === 'NEW' ? '신규' : consultation.status}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
-                                                            <FiUser className="text-orange-600" />
+                                                <td className="px-3 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                                                            <FiUser className="text-orange-600 w-3.5 h-3.5" />
                                                         </div>
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{consultation.name}</p>
-                                                            <div className="flex items-center gap-1 text-sm text-gray-500">
-                                                                <FiPhone className="w-3 h-3" />
-                                                                {consultation.phone}
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium text-gray-900 text-sm truncate">{consultation.name}</p>
+                                                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                                <FiPhone className="w-3 h-3 flex-shrink-0" />
+                                                                <span className="truncate">{consultation.phone}</span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
-                                                    <div className="flex items-start gap-2">
-                                                        <FiMessageSquare className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                                        <p className="text-sm text-gray-600 max-w-xs truncate">{consultation.message}</p>
-                                                    </div>
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500" title={consultation.message || ''}>
+                                                    {consultation.message ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <FiMessageSquare className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                                            <span>{new Date(consultation.createdAt).toLocaleDateString('ko-KR')}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="px-3 py-4 whitespace-nowrap">
                                                     {(() => {
                                                         const manager = consultation.AffiliateProfile_SystemConsultation_managerIdToAffiliateProfile;
                                                         const agent = consultation.AffiliateProfile_SystemConsultation_agentIdToAffiliateProfile;
 
                                                         if (agent?.displayName) {
                                                             return (
-                                                                <span className="text-blue-600 font-medium">
+                                                                <span className="text-blue-600 font-medium text-xs truncate">
                                                                     {agent.displayName}
                                                                 </span>
                                                             );
                                                         } else if (manager?.displayName) {
                                                             return (
-                                                                <span className="text-purple-600 font-medium">
+                                                                <span className="text-purple-600 font-medium text-xs truncate">
                                                                     {manager.displayName}
                                                                 </span>
                                                             );
                                                         } else {
                                                             return (
-                                                                <span className="text-gray-500 font-medium">
+                                                                <span className="text-gray-500 font-medium text-xs">
                                                                     본사
                                                                 </span>
                                                             );
                                                         }
                                                     })()}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                                                     <div className="flex items-center gap-1">
                                                         <FiCalendar className="w-3 h-3" />
                                                         {new Date(consultation.createdAt).toLocaleDateString('ko-KR')}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <div className="flex items-center gap-2">
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs font-medium">
+                                                    <div className="flex items-center gap-1 flex-nowrap">
                                                         <button
                                                             onClick={() => handleExtendTrial(consultation.id, consultation.phone)}
-                                                            className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                            className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-1.5 py-1 rounded text-xs transition-colors whitespace-nowrap"
                                                         >
-                                                            +3일 연장
+                                                            +3일
                                                         </button>
                                                         <button
                                                             onClick={() => {
@@ -904,7 +908,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                                 setSelectedProspectType('consultation');
                                                                 setDetailModalOpen(true);
                                                             }}
-                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-1.5 py-1 rounded text-xs transition-colors whitespace-nowrap"
                                                         >
                                                             상세
                                                         </button>
@@ -927,7 +931,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                                     showError('오류가 발생했습니다.');
                                                                 }
                                                             }}
-                                                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-full text-xs transition-colors"
+                                                            className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-1.5 py-1 rounded text-xs transition-colors whitespace-nowrap"
                                                         >
                                                             삭제
                                                         </button>
