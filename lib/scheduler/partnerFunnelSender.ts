@@ -166,16 +166,16 @@ async function sendSmsViaAligo(
 }
 
 /**
- * 파트너 퍼널 메시지 발송 처리
- * AdminMessage 테이블에서 발송 시간이 된 파트너 퍼널 메시지를 처리
+ * 퍼널 메시지 발송 처리
+ * AdminMessage 테이블에서 발송 시간이 된 퍼널 메시지(partner_funnel, admin_funnel)를 처리
  */
-async function processPartnerFunnelMessages() {
+async function processFunnelMessages() {
   try {
     const now = new Date();
-    console.log('[Partner Funnel Sender] 🔔 Processing partner funnel messages...', { now: now.toISOString() });
+    console.log('[Funnel Sender] 🔔 Processing funnel messages...', { now: now.toISOString() });
 
-    // 발송 대기 중인 파트너 퍼널 메시지 조회
-    // sendAt <= now, isActive = true, metadata.source = 'partner_funnel'
+    // 발송 대기 중인 메시지 조회
+    // sendAt <= now, isActive = true
     const pendingMessages = await prisma.adminMessage.findMany({
       where: {
         isActive: true,
@@ -185,15 +185,22 @@ async function processPartnerFunnelMessages() {
       },
     });
 
-    // 파트너 퍼널 메시지만 필터링
-    const partnerFunnelMessages = pendingMessages.filter((msg) => {
+    // 퍼널 메시지만 필터링 (partner_funnel 또는 admin_funnel)
+    const funnelMessages = pendingMessages.filter((msg) => {
       const metadata = msg.metadata as any;
-      return metadata?.source === 'partner_funnel' && metadata?.leadPhone && metadata?.profileId;
+      const source = metadata?.source;
+      if (source === 'partner_funnel') {
+        return metadata?.leadPhone && metadata?.profileId;
+      }
+      if (source === 'admin_funnel') {
+        return msg.userId; // admin_funnel은 userId가 필수
+      }
+      return false;
     });
 
-    console.log(`[Partner Funnel Sender] Found ${partnerFunnelMessages.length} pending partner funnel message(s)`);
+    console.log(`[Funnel Sender] Found ${funnelMessages.length} pending funnel message(s)`);
 
-    if (partnerFunnelMessages.length === 0) {
+    if (funnelMessages.length === 0) {
       return;
     }
 
@@ -201,26 +208,77 @@ async function processPartnerFunnelMessages() {
     let failedCount = 0;
     let skippedCount = 0;
 
-    // 프로필별로 그룹화하여 SMS 설정 캐싱
-    const smsConfigCache: Map<number, SmsConfig | null> = new Map();
+    // SMS 설정 캐싱 (프로필별, 관리자별)
+    const partnerSmsConfigCache: Map<number, SmsConfig | null> = new Map();
+    const adminSmsConfigCache: Map<number, SmsConfig | null> = new Map();
+    // User 전화번호 캐싱
+    const userPhoneCache: Map<number, string | null> = new Map();
 
-    for (const message of partnerFunnelMessages) {
+    for (const message of funnelMessages) {
       try {
         const metadata = message.metadata as any;
-        const profileId = metadata.profileId as number;
-        const leadPhone = metadata.leadPhone as string;
-        const leadId = metadata.leadId as number;
+        const source = metadata.source as string;
 
-        // SMS 설정 가져오기 (캐싱)
-        if (!smsConfigCache.has(profileId)) {
-          smsConfigCache.set(profileId, await getPartnerSmsConfig(profileId));
+        let smsConfig: SmsConfig | null = null;
+        let targetPhone: string | null = null;
+        let logAction: string;
+        let logDetails: any;
+
+        if (source === 'partner_funnel') {
+          // 파트너 퍼널: profileId로 SMS 설정, leadPhone 사용
+          const profileId = metadata.profileId as number;
+          targetPhone = metadata.leadPhone as string;
+          const leadId = metadata.leadId as number;
+
+          if (!partnerSmsConfigCache.has(profileId)) {
+            partnerSmsConfigCache.set(profileId, await getPartnerSmsConfig(profileId));
+          }
+          smsConfig = partnerSmsConfigCache.get(profileId) || null;
+
+          logAction = 'partner_funnel.sms.sent';
+          logDetails = {
+            messageId: message.id,
+            leadId,
+            profileId,
+            phone: targetPhone,
+            messageLength: message.content.length,
+            funnelMessageId: metadata.funnelMessageId,
+            stageNumber: metadata.stageNumber,
+          };
+        } else if (source === 'admin_funnel') {
+          // 관리자 퍼널: adminId로 SMS 설정, User 테이블에서 전화번호 조회
+          const adminId = message.adminId;
+          const userId = message.userId as number;
+
+          if (!adminSmsConfigCache.has(adminId)) {
+            adminSmsConfigCache.set(adminId, await getAdminSmsConfig(adminId));
+          }
+          smsConfig = adminSmsConfigCache.get(adminId) || null;
+
+          // User 전화번호 조회
+          if (!userPhoneCache.has(userId)) {
+            userPhoneCache.set(userId, await getUserPhone(userId));
+          }
+          targetPhone = userPhoneCache.get(userId) || null;
+
+          logAction = 'admin_funnel.sms.sent';
+          logDetails = {
+            messageId: message.id,
+            userId,
+            adminId,
+            phone: targetPhone,
+            messageLength: message.content.length,
+            funnelMessageId: metadata.funnelMessageId,
+            stageNumber: metadata.stageNumber,
+            groupId: metadata.groupId,
+          };
+        } else {
+          continue;
         }
-        const smsConfig = smsConfigCache.get(profileId);
 
+        // SMS 설정 확인
         if (!smsConfig) {
-          console.log(`[Partner Funnel Sender] No SMS config for profile ${profileId}, skipping message ${message.id}`);
-
-          // SMS 설정 없음 - 메시지 비활성화
+          console.log(`[Funnel Sender] No SMS config for message ${message.id} (source: ${source}), skipping`);
           await prisma.adminMessage.update({
             where: { id: message.id },
             data: {
@@ -236,13 +294,30 @@ async function processPartnerFunnelMessages() {
           continue;
         }
 
-        // SMS 발송
-        console.log(`[Partner Funnel Sender] Sending SMS to ${leadPhone} for message ${message.id}`);
+        // 전화번호 확인
+        if (!targetPhone) {
+          console.log(`[Funnel Sender] No phone number for message ${message.id} (source: ${source}), skipping`);
+          await prisma.adminMessage.update({
+            where: { id: message.id },
+            data: {
+              isActive: false,
+              metadata: {
+                ...metadata,
+                sendError: '수신자 전화번호 없음',
+                sendAttemptedAt: now.toISOString(),
+              },
+            },
+          });
+          skippedCount++;
+          continue;
+        }
 
-        const sendResult = await sendSmsViaAligo(smsConfig, leadPhone, message.content);
+        // SMS 발송
+        console.log(`[Funnel Sender] Sending SMS to ${targetPhone} for message ${message.id} (${source})`);
+        const sendResult = await sendSmsViaAligo(smsConfig, targetPhone, message.content);
 
         if (sendResult.success) {
-          // 발송 성공 - 메시지 비활성화 및 발송 횟수 증가
+          // 발송 성공
           await prisma.adminMessage.update({
             where: { id: message.id },
             data: {
@@ -260,91 +335,78 @@ async function processPartnerFunnelMessages() {
           await prisma.adminActionLog.create({
             data: {
               adminId: message.adminId,
-              targetUserId: null,
-              action: 'partner_funnel.sms.sent',
+              targetUserId: source === 'admin_funnel' ? message.userId : null,
+              action: logAction,
               details: {
-                messageId: message.id,
-                leadId,
-                profileId,
-                phone: leadPhone,
-                messageLength: message.content.length,
-                funnelMessageId: metadata.funnelMessageId,
-                stageNumber: metadata.stageNumber,
+                ...logDetails,
                 aligoResult: sendResult.result,
               },
             },
           });
 
           sentCount++;
-          console.log(`[Partner Funnel Sender] ✅ SMS sent successfully to ${leadPhone}`);
+          console.log(`[Funnel Sender] ✅ SMS sent successfully to ${targetPhone}`);
         } else {
           // 발송 실패
-          console.error(`[Partner Funnel Sender] ❌ SMS failed to ${leadPhone}:`, sendResult.error);
+          console.error(`[Funnel Sender] ❌ SMS failed to ${targetPhone}:`, sendResult.error);
+
+          const newAttemptCount = (metadata.sendAttemptCount || 0) + 1;
 
           await prisma.adminMessage.update({
             where: { id: message.id },
             data: {
+              isActive: newAttemptCount < 3, // 3회 미만이면 활성 유지
               metadata: {
                 ...metadata,
                 lastSendError: sendResult.error,
                 lastSendAttemptAt: now.toISOString(),
-                sendAttemptCount: (metadata.sendAttemptCount || 0) + 1,
+                sendAttemptCount: newAttemptCount,
+                ...(newAttemptCount >= 3 ? { finalError: '3회 발송 실패로 비활성화됨' } : {}),
               },
             },
           });
 
-          // 3회 이상 실패하면 비활성화
-          if ((metadata.sendAttemptCount || 0) + 1 >= 3) {
-            await prisma.adminMessage.update({
-              where: { id: message.id },
-              data: {
-                isActive: false,
-                metadata: {
-                  ...metadata,
-                  finalError: '3회 발송 실패로 비활성화됨',
-                  sendAttemptCount: (metadata.sendAttemptCount || 0) + 1,
-                },
-              },
-            });
-            console.log(`[Partner Funnel Sender] Message ${message.id} deactivated after 3 failed attempts`);
+          if (newAttemptCount >= 3) {
+            console.log(`[Funnel Sender] Message ${message.id} deactivated after 3 failed attempts`);
           }
 
           failedCount++;
         }
       } catch (msgError: any) {
-        console.error(`[Partner Funnel Sender] Error processing message ${message.id}:`, msgError);
+        console.error(`[Funnel Sender] Error processing message ${message.id}:`, msgError);
         failedCount++;
       }
     }
 
-    console.log(`[Partner Funnel Sender] ✅ Processing completed: ${sentCount} sent, ${failedCount} failed, ${skippedCount} skipped`);
+    console.log(`[Funnel Sender] ✅ Processing completed: ${sentCount} sent, ${failedCount} failed, ${skippedCount} skipped`);
   } catch (error) {
-    console.error('[Partner Funnel Sender] ❌ Error processing partner funnel messages:', error);
+    console.error('[Funnel Sender] ❌ Error processing funnel messages:', error);
   }
 }
 
 /**
- * Partner Funnel Sender 시작
+ * Funnel Sender 시작 (Partner + Admin)
  */
 export function startPartnerFunnelSender() {
-  console.log('[Partner Funnel Sender] 🚀 Starting Partner Funnel Sender...');
+  console.log('[Funnel Sender] 🚀 Starting Funnel Sender...');
 
   // 매 5분마다 실행 (cron: '*/5 * * * *')
   cron.schedule('*/5 * * * *', async () => {
-    console.log('[Partner Funnel Sender] ⏰ Running partner funnel message check...');
-    await processPartnerFunnelMessages();
+    console.log('[Funnel Sender] ⏰ Running funnel message check...');
+    await processFunnelMessages();
   });
 
-  console.log('[Partner Funnel Sender] ✅ Scheduler started');
-  console.log('[Partner Funnel Sender]    - Check interval: Every 5 minutes');
+  console.log('[Funnel Sender] ✅ Scheduler started');
+  console.log('[Funnel Sender]    - Check interval: Every 5 minutes');
+  console.log('[Funnel Sender]    - Handles: partner_funnel, admin_funnel');
 
   // 서버 시작 시 한 번 실행
-  processPartnerFunnelMessages();
+  processFunnelMessages();
 }
 
 /**
  * 수동 실행 함수 (테스트용)
  */
-export async function manualProcessPartnerFunnelMessages() {
-  return processPartnerFunnelMessages();
+export async function manualProcessFunnelMessages() {
+  return processFunnelMessages();
 }
