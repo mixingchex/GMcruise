@@ -472,10 +472,12 @@ model AffiliateProfile {
   AffiliateSale_AffiliateSale_agentIdToAffiliateProfile           AffiliateSale[]        @relation("AffiliateSale_agentIdToAffiliateProfile")
   AffiliateSale_AffiliateSale_managerIdToAffiliateProfile         AffiliateSale[]        @relation("AffiliateSale_managerIdToAffiliateProfile")
   AffiliateSmsConfig                                              AffiliateSmsConfig?
+  AffiliateEmailConfig                                            AffiliateEmailConfig?
   CommissionLedger                                                CommissionLedger[]
   CustomerGroup                                                   CustomerGroup[]
   PartnerCustomerGroup                                            PartnerCustomerGroup[]
   PartnerSmsConfig                                                PartnerSmsConfig?
+  PartnerEmailConfig                                              PartnerEmailConfig?
   SharedLandingPage                                               SharedLandingPage[]
 
   @@index([displayName])
@@ -1855,6 +1857,54 @@ model PartnerSmsConfig {
   @@index([profileId, isActive])
 }
 
+// 대리점장 이메일 설정
+model PartnerEmailConfig {
+  id               Int              @id @default(autoincrement())
+  profileId        Int              @unique
+  senderName       String?          // 발신자 이름 (없으면 계약서상 이름 사용)
+  senderEmail      String           // 발신자 이메일 (회신받을 이메일)
+  signature        String?          // 서명 (추가 서명 문구)
+  isActive         Boolean          @default(true)
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  AffiliateProfile AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, isActive])
+}
+
+// 판매원 이메일 설정
+model AffiliateEmailConfig {
+  id               Int              @id @default(autoincrement())
+  profileId        Int              @unique
+  senderName       String?          // 발신자 이름 (없으면 계약서상 이름 사용)
+  senderEmail      String           // 발신자 이메일 (회신받을 이메일)
+  signature        String?          // 서명 (추가 서명 문구)
+  isActive         Boolean          @default(true)
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime
+  AffiliateProfile AffiliateProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, isActive])
+}
+
+// 관리자 이메일 설정
+model AdminEmailConfig {
+  id          Int      @id @default(autoincrement())
+  adminId     Int      @unique
+  senderName  String?  // 발신자 이름
+  senderEmail String   // 발신자 이메일 (회신받을 이메일)
+  signature   String?  // 서명 (추가 서명 문구)
+  isActive    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime
+  User        User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, isActive])
+}
+
 model PassportRequestLog {
   id                                    Int                      @id @default(autoincrement())
   userId                                Int
@@ -2492,6 +2542,7 @@ model User {
   AdminMessage_AdminMessage_userIdToUser                        AdminMessage[]            @relation("AdminMessage_userIdToUser")
   AdminNotification                                             AdminNotification[]
   AdminSmsConfig                                                AdminSmsConfig?
+  AdminEmailConfig                                              AdminEmailConfig?
   AffiliateAuditLog                                             AffiliateAuditLog[]
   AffiliateContract_AffiliateContract_reviewerIdToUser          AffiliateContract[]       @relation("AffiliateContract_reviewerIdToUser")
   AffiliateContract_AffiliateContract_userIdToUser              AffiliateContract[]       @relation("AffiliateContract_userIdToUser")

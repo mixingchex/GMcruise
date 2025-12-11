@@ -11,8 +11,11 @@ import {
     FiCalendar,
     FiFilter,
     FiTrash2,
+    FiLink,
+    FiCopy,
+    FiExternalLink,
 } from 'react-icons/fi';
-import { showError } from '@/components/ui/Toast';
+import { showError, showSuccess } from '@/components/ui/Toast';
 import B2BProspectDetailModal from '@/components/admin/B2BProspectDetailModal';
 
 interface B2BProspect {
@@ -52,6 +55,24 @@ interface SystemConsultation {
 export default function B2BProspectsPage() {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'B2B' | 'SYSTEM'>('B2B');
+
+    // B2B 링크 URLs (Hydration 오류 방지)
+    const [b2bLandingUrl, setB2bLandingUrl] = useState<string>('');
+    const [trialDashboardUrl, setTrialDashboardUrl] = useState<string>('');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setB2bLandingUrl(`${window.location.origin}/b2b`);
+            setTrialDashboardUrl(`${window.location.origin}/trial/dashboard`);
+        }
+    }, []);
+
+    const copyToClipboard = (text: string, label: string) => {
+        if (!text) return;
+        navigator.clipboard.writeText(text).then(() => {
+            showSuccess(`${label} 링크가 복사되었습니다.`);
+        });
+    };
 
     // B2B State
     const [prospects, setProspects] = useState<B2BProspect[]>([]);
@@ -495,6 +516,83 @@ export default function B2BProspectsPage() {
                         <FiRefreshCw className={(activeTab === 'B2B' ? loadingB2B : loadingSystem) ? 'animate-spin' : ''} />
                         새로고침
                     </button>
+                </div>
+            </div>
+
+            {/* B2B 유입 링크 섹션 */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <FiLink className="text-blue-600 w-5 h-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-gray-900">B2B 유입 링크</h2>
+                        <p className="text-sm text-gray-500">본사 B2B 랜딩페이지와 체험 대시보드 링크를 복사하여 사용하세요.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 본사 B2B 랜딩페이지 링크 */}
+                    <div className="border border-green-200 rounded-lg p-4 bg-green-50">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-green-800">본사 B2B 유입 랜딩페이지</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">소스: B2B_LANDING_ADMIN</span>
+                        </div>
+                        <p className="text-xs text-green-600 mb-3">이 링크를 통해 유입된 고객은 '본사 B2B 유입'으로 분류됩니다.</p>
+                        <div className="flex items-center gap-2 p-2 bg-white rounded border border-green-200 mb-3">
+                            <code className="flex-1 text-xs text-gray-600 truncate">{b2bLandingUrl || '로딩 중...'}</code>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => copyToClipboard(b2bLandingUrl, '본사 B2B 랜딩페이지')}
+                                disabled={!b2bLandingUrl}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                            >
+                                <FiCopy className="w-4 h-4" />
+                                링크 복사
+                            </button>
+                            <a
+                                href={b2bLandingUrl || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors ${!b2bLandingUrl ? 'pointer-events-none opacity-50' : ''}`}
+                            >
+                                <FiExternalLink className="w-4 h-4" />
+                                미리보기
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* 체험 대시보드 링크 */}
+                    <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-blue-800">체험 대시보드</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">신청 후 리다이렉트</span>
+                        </div>
+                        <p className="text-xs text-blue-600 mb-3">이름/연락처 입력 후 이동되는 3일 무료체험 대시보드입니다.</p>
+                        <div className="flex items-center gap-2 p-2 bg-white rounded border border-blue-200 mb-3">
+                            <code className="flex-1 text-xs text-gray-600 truncate">{trialDashboardUrl || '로딩 중...'}</code>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => copyToClipboard(trialDashboardUrl, '체험 대시보드')}
+                                disabled={!trialDashboardUrl}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                            >
+                                <FiCopy className="w-4 h-4" />
+                                링크 복사
+                            </button>
+                            <a
+                                href={trialDashboardUrl || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors ${!trialDashboardUrl ? 'pointer-events-none opacity-50' : ''}`}
+                            >
+                                <FiExternalLink className="w-4 h-4" />
+                                미리보기
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 

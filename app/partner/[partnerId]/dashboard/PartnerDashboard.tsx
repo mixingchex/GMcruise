@@ -1514,10 +1514,12 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
   // B2B 랜딩페이지 링크 섹션 - Hydration 오류 방지를 위해 state 사용
   const [b2bLandingUrl, setB2bLandingUrl] = useState<string>('');
+  const [trialDashboardUrl, setTrialDashboardUrl] = useState<string>('');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setB2bLandingUrl(`${window.location.origin}/b2b/${user.mallUserId || user.phone}`);
+      setTrialDashboardUrl(`${window.location.origin}/trial/dashboard`);
     }
   }, [user.mallUserId, user.phone]);
 
@@ -1525,6 +1527,13 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     if (!b2bLandingUrl) return;
     navigator.clipboard.writeText(b2bLandingUrl).then(() => {
       showSuccess('B2B 랜딩페이지 링크가 복사되었습니다.');
+    });
+  };
+
+  const copyTrialDashboardLink = () => {
+    if (!trialDashboardUrl) return;
+    navigator.clipboard.writeText(trialDashboardUrl).then(() => {
+      showSuccess('체험 대시보드 링크가 복사되었습니다.');
     });
   };
 
@@ -1721,39 +1730,77 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           )}
         </div>
 
-        {/* B2B 랜딩페이지 링크 섹션 */}
+        {/* B2B 유입 링크 섹션 */}
         {isBranchManager && (
           <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6 border border-blue-100">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <span className="text-2xl">🔗</span>
-                  나만의 B2B 유입 랜딩페이지
-                </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  이 링크를 통해 들어온 고객은 자동으로 'B2B 유입'으로 분류됩니다.
-                </p>
-              </div>
-              <div className="flex gap-2 w-full md:w-auto">
-                <button
-                  onClick={copyB2BLink}
-                  className="flex-1 md:flex-none px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-2 font-medium transition-colors"
-                >
-                  <FiLink /> 링크 복사
-                </button>
-                <a
-                  href={b2bLandingUrl || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex-1 md:flex-none px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2 font-medium transition-colors ${!b2bLandingUrl ? 'pointer-events-none opacity-50' : ''}`}
-                  onClick={(e) => !b2bLandingUrl && e.preventDefault()}
-                >
-                  <FiEye /> 미리보기
-                </a>
-              </div>
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="text-2xl">🔗</span>
+                B2B 유입 링크
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                B2B 랜딩페이지와 체험 대시보드 링크를 복사하여 사용하세요.
+              </p>
             </div>
-            <div className="mt-4 p-3 bg-gray-50 rounded border border-gray-200 break-all text-sm text-gray-600 font-mono">
-              {b2bLandingUrl || '로딩 중...'}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* B2B 랜딩페이지 링크 */}
+              <div className="border border-purple-200 rounded-xl p-4 bg-purple-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-purple-800">나만의 B2B 유입 랜딩페이지</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">파트너 B2B</span>
+                </div>
+                <p className="text-xs text-purple-600 mb-3">이 링크로 유입된 고객은 자동으로 내 B2B 유입으로 분류됩니다.</p>
+                <div className="p-2 bg-white rounded border border-purple-200 mb-3">
+                  <code className="text-xs text-gray-600 break-all">{b2bLandingUrl || '로딩 중...'}</code>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={copyB2BLink}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <FiLink className="w-4 h-4" /> 링크 복사
+                  </button>
+                  <a
+                    href={b2bLandingUrl || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors ${!b2bLandingUrl ? 'pointer-events-none opacity-50' : ''}`}
+                    onClick={(e) => !b2bLandingUrl && e.preventDefault()}
+                  >
+                    <FiEye className="w-4 h-4" /> 미리보기
+                  </a>
+                </div>
+              </div>
+
+              {/* 체험 대시보드 링크 */}
+              <div className="border border-blue-200 rounded-xl p-4 bg-blue-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold text-blue-800">체험 대시보드</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">신청 후 리다이렉트</span>
+                </div>
+                <p className="text-xs text-blue-600 mb-3">이름/연락처 입력 후 이동되는 3일 무료체험 대시보드입니다.</p>
+                <div className="p-2 bg-white rounded border border-blue-200 mb-3">
+                  <code className="text-xs text-gray-600 break-all">{trialDashboardUrl || '로딩 중...'}</code>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={copyTrialDashboardLink}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    <FiLink className="w-4 h-4" /> 링크 복사
+                  </button>
+                  <a
+                    href={trialDashboardUrl || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors ${!trialDashboardUrl ? 'pointer-events-none opacity-50' : ''}`}
+                    onClick={(e) => !trialDashboardUrl && e.preventDefault()}
+                  >
+                    <FiEye className="w-4 h-4" /> 미리보기
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         )}

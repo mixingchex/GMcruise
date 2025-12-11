@@ -15,6 +15,13 @@ type SmsConfig = {
   isActive: boolean;
 };
 
+type EmailConfig = {
+  senderName: string;
+  senderEmail: string;
+  signature: string;
+  isActive: boolean;
+};
+
 export default function PartnerSettingsPage() {
   const params = useParams();
   const partnerId = params.partnerId as string;
@@ -37,8 +44,15 @@ export default function PartnerSettingsPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
+  // 이메일 설정 관련 상태
+  const [emailConfig, setEmailConfig] = useState<EmailConfig | null>(null);
+  const [isLoadingEmailConfig, setIsLoadingEmailConfig] = useState(false);
+  const [isEditingEmailConfig, setIsEditingEmailConfig] = useState(false);
+  const [editableEmailConfig, setEditableEmailConfig] = useState<Partial<EmailConfig>>({});
+
   useEffect(() => {
     loadSmsConfig();
+    loadEmailConfig();
   }, []);
 
   const loadSmsConfig = async () => {
@@ -56,6 +70,52 @@ export default function PartnerSettingsPage() {
       console.error('Failed to load SMS config:', error);
     } finally {
       setIsLoadingSmsConfig(false);
+    }
+  };
+
+  const loadEmailConfig = async () => {
+    try {
+      setIsLoadingEmailConfig(true);
+      const response = await fetch('/api/partner/settings/email', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok) {
+        setEmailConfig(data.config);
+        setEditableEmailConfig(data.config);
+      }
+    } catch (error) {
+      console.error('Failed to load email config:', error);
+    } finally {
+      setIsLoadingEmailConfig(false);
+    }
+  };
+
+  const handleSaveEmailConfig = async () => {
+    if (!editableEmailConfig.senderEmail) {
+      showError('발신자 이메일은 필수입니다.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/partner/settings/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(editableEmailConfig),
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess('이메일 설정이 저장되었습니다.');
+        setIsEditingEmailConfig(false);
+        await loadEmailConfig();
+      } else {
+        showError('저장 실패: ' + (data.message || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to save email config:', error);
+      showError('이메일 설정 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -529,10 +589,180 @@ export default function PartnerSettingsPage() {
             </div>
             <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">
-                <strong>💡 안내:</strong> SMS API 설정을 변경하면 즉시 적용됩니다. 
+                <strong>💡 안내:</strong> SMS API 설정을 변경하면 즉시 적용됩니다.
                 다른 API 제공자로 변경하려면 제공자를 선택하고 해당 API의 정보를 입력하세요.
                 <br />
                 <strong>필수 입력 항목:</strong> 제공자, API 키, 사용자 ID, 발신번호
+              </p>
+            </div>
+            <div className="mt-3 p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">
+              <p className="text-sm text-orange-800">
+                <strong>⚠️ 알리고 발송 제한 안내:</strong>
+                <br />
+                개인 계정은 <strong>하루 누적 500건</strong>만 전송 가능합니다.
+                <br />
+                500건 이상 전송을 원하신다면 <a href="https://smartsms.aligo.in" target="_blank" rel="noopener noreferrer" className="text-orange-700 underline font-semibold hover:text-orange-900">알리고문자</a>에서 <strong>사업자 전환</strong> 후 사용 가능합니다.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 이메일 설정 */}
+      <div className="bg-gradient-to-br from-white to-indigo-50 rounded-xl shadow-lg border-2 border-indigo-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <span className="text-3xl">✉️</span>
+            이메일 발송 설정
+          </h2>
+          <div className="flex gap-3">
+            {isEditingEmailConfig && (
+              <button
+                onClick={() => {
+                  setEditableEmailConfig(emailConfig || {});
+                  setIsEditingEmailConfig(false);
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors flex items-center gap-2 font-semibold"
+              >
+                취소
+              </button>
+            )}
+            <button
+              onClick={isEditingEmailConfig ? handleSaveEmailConfig : () => setIsEditingEmailConfig(true)}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 font-semibold ${
+                isEditingEmailConfig
+                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
+            >
+              {isEditingEmailConfig ? (
+                <>
+                  <FiSave size={18} />
+                  저장하기
+                </>
+              ) : (
+                <>
+                  <FiEdit2 size={18} />
+                  수정하기
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        {isLoadingEmailConfig ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mx-auto"></div>
+            <p className="mt-4 text-gray-600">로딩 중...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-gray-600 mb-1 block">
+                  발신자 이름 <span className="text-gray-400">(선택)</span>
+                </label>
+                {isEditingEmailConfig ? (
+                  <input
+                    type="text"
+                    value={editableEmailConfig.senderName || ''}
+                    onChange={(e) => setEditableEmailConfig({ ...editableEmailConfig, senderName: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="발신자 이름 (비워두면 계약서상 이름 사용)"
+                  />
+                ) : (
+                  <span className="text-lg font-medium text-gray-800">
+                    {emailConfig?.senderName || '(계약서상 이름 사용)'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-gray-600 mb-1 block">
+                  발신자 이메일 <span className="text-red-500">*</span>
+                </label>
+                {isEditingEmailConfig ? (
+                  <input
+                    type="email"
+                    value={editableEmailConfig.senderEmail || ''}
+                    onChange={(e) => setEditableEmailConfig({ ...editableEmailConfig, senderEmail: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="example@email.com (필수)"
+                  />
+                ) : (
+                  <span className="text-lg font-medium text-gray-800">
+                    {emailConfig?.senderEmail || '설정되지 않음'}
+                  </span>
+                )}
+              </div>
+              {emailConfig?.senderEmail && (
+                <button
+                  onClick={() => copyToClipboard(emailConfig?.senderEmail || '', 'senderEmail')}
+                  className="ml-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                >
+                  {copiedField === 'senderEmail' ? <FiCheck size={18} /> : <FiCopy size={18} />}
+                  {copiedField === 'senderEmail' ? '복사됨' : '복사'}
+                </button>
+              )}
+            </div>
+            <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-gray-600 mb-1 block">
+                  서명 (추가 문구) <span className="text-gray-400">(선택)</span>
+                </label>
+                {isEditingEmailConfig ? (
+                  <textarea
+                    value={editableEmailConfig.signature || ''}
+                    onChange={(e) => setEditableEmailConfig({ ...editableEmailConfig, signature: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="추가 서명 문구 (선택사항)"
+                    rows={2}
+                  />
+                ) : (
+                  <span className="text-lg font-medium text-gray-800">
+                    {emailConfig?.signature || '(서명 없음)'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-gray-600 mb-1 block">활성화 상태</label>
+                {isEditingEmailConfig ? (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editableEmailConfig.isActive !== false}
+                      onChange={(e) => setEditableEmailConfig({ ...editableEmailConfig, isActive: e.target.checked })}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-lg font-medium text-gray-800">
+                      {editableEmailConfig.isActive !== false ? '활성화' : '비활성화'}
+                    </span>
+                  </label>
+                ) : (
+                  <span className="text-lg font-medium text-gray-800">
+                    {emailConfig?.isActive ? '활성화' : '비활성화'}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="mt-4 p-4 bg-indigo-50 border-2 border-indigo-200 rounded-lg">
+              <p className="text-sm text-indigo-800">
+                <strong>💡 안내:</strong> 이메일 설정을 완료하면 고객에게 이메일을 보낼 수 있습니다.
+                <br />
+                <strong>발신자 이메일:</strong> 고객이 회신할 때 받을 이메일 주소입니다.
+                <br />
+                <strong>자동 추가:</strong> 이메일 하단에 크루즈닷 푸터(담당자 정보, 회사 주소)가 자동으로 추가됩니다.
+              </p>
+            </div>
+            <div className="mt-3 p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">
+              <p className="text-sm text-orange-800">
+                <strong>⚠️ 이메일 발송 제한 안내:</strong>
+                <br />
+                구글 개인 이메일은 <strong>매일 최대 500통</strong>까지 보낼 수 있습니다.
+                <br />
+                대량 발송이 필요하시면 비즈니스 이메일 서비스를 이용해주세요.
               </p>
             </div>
           </div>

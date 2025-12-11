@@ -584,6 +584,14 @@ export default function PartnerCustomersClient({
   const [excelAgentProfileId, setExcelAgentProfileId] = useState<string>('');
   const [showSmsConfigModal, setShowSmsConfigModal] = useState(false);
 
+  // 이메일 전송 관련 상태
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailTitle, setEmailTitle] = useState('');
+  const [emailContent, setEmailContent] = useState('');
+  const [emailRecipientMode, setEmailRecipientMode] = useState<'customer' | 'custom'>('customer');
+  const [customEmailAddress, setCustomEmailAddress] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+
   const statusSelectOptions = useMemo(
     () => [
       { value: '', label: '상태 선택' },
@@ -1867,6 +1875,69 @@ export default function PartnerCustomersClient({
         // 직접 번호 입력 모드에서는 링크 생성 불가
         showError('링크 생성 방식은 고객 선택 모드에서만 사용할 수 있습니다.');
       }
+    }
+  };
+
+  // 이메일 전송 함수
+  const handleSendEmail = async () => {
+    // 수신자 이메일 결정
+    let recipientEmail = '';
+    if (emailRecipientMode === 'customer') {
+      // 고객의 이메일이 있는지 확인 - selectedLead에 email이 없으면 직접 입력 모드로 안내
+      showWarning('고객 이메일 주소를 직접 입력해주세요.');
+      setEmailRecipientMode('custom');
+      return;
+    } else {
+      // 직접 이메일 입력 모드
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!customEmailAddress || !emailRegex.test(customEmailAddress)) {
+        showError('올바른 이메일 주소를 입력해주세요.');
+        return;
+      }
+      recipientEmail = customEmailAddress;
+    }
+
+    if (!emailTitle.trim()) {
+      showError('이메일 제목을 입력해주세요.');
+      return;
+    }
+
+    if (!emailContent.trim()) {
+      showError('이메일 내용을 입력해주세요.');
+      return;
+    }
+
+    setSendingEmail(true);
+    try {
+      const res = await fetch('/api/partner/customers/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          emails: [recipientEmail],
+          title: emailTitle,
+          content: emailContent,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.message || '이메일 발송에 실패했습니다.');
+      }
+
+      showSuccess('이메일이 성공적으로 발송되었습니다! (크루즈닷 푸터가 자동으로 추가됩니다)');
+      setShowEmailModal(false);
+      setEmailTitle('');
+      setEmailContent('');
+      setCustomEmailAddress('');
+      setEmailRecipientMode('customer');
+    } catch (error) {
+      console.error('handleSendEmail error', error);
+      showError(
+        error instanceof Error ? error.message : '이메일 발송 중 오류가 발생했습니다.',
+      );
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -3626,6 +3697,20 @@ export default function PartnerCustomersClient({
                         >
                           <FiMessageSquare />
                           문자 보내기
+                        </button>
+                      </div>
+
+                      {/* 이메일 보내기 버튼 */}
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowEmailModal(true);
+                          }}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-indigo-700 transition-colors"
+                        >
+                          <FiSend />
+                          이메일 보내기
                         </button>
                       </div>
                     </div>
@@ -5593,6 +5678,159 @@ export default function PartnerCustomersClient({
             }
           }}
         />
+      )}
+
+      {/* 이메일 보내기 모달 */}
+      {showEmailModal && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowEmailModal(false);
+              setEmailTitle('');
+              setEmailContent('');
+              setCustomEmailAddress('');
+              setEmailRecipientMode('customer');
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
+              <h3 className="text-xl font-bold text-gray-900">이메일 보내기</h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEmailModal(false);
+                  setEmailTitle('');
+                  setEmailContent('');
+                  setCustomEmailAddress('');
+                  setEmailRecipientMode('customer');
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* 내용 */}
+            <div className="px-6 py-6 space-y-6">
+              {/* 안내 메시지 */}
+              <div className="rounded-xl bg-indigo-50 border-2 border-indigo-200 p-4">
+                <div className="flex items-start gap-3">
+                  <FiInfo className="text-indigo-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 space-y-2 text-sm text-indigo-900">
+                    <p className="font-bold">📧 이메일 발송 안내</p>
+                    <p className="text-indigo-800">
+                      이메일 하단에 크루즈닷 로고, 담당자 정보(계급, 이름, 연락처), 슬로건, 회사 주소가 자동으로 추가됩니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 수신자 이메일 입력 */}
+              <div className="rounded-xl bg-indigo-50 p-4 border border-indigo-200">
+                <label className="block text-sm font-semibold text-indigo-900 mb-2">
+                  📬 수신자 이메일 주소 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={customEmailAddress}
+                  onChange={(e) => setCustomEmailAddress(e.target.value)}
+                  placeholder="example@email.com"
+                  className="w-full rounded-lg border border-indigo-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+                <p className="mt-1 text-xs text-indigo-700">고객의 이메일 주소를 입력해주세요.</p>
+              </div>
+
+              {/* 이메일 제목 입력 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📝 이메일 제목 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={emailTitle}
+                  onChange={(e) => setEmailTitle(e.target.value)}
+                  placeholder="이메일 제목을 입력하세요"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+              </div>
+
+              {/* 이메일 내용 입력 */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  ✉️ 이메일 내용 <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={emailContent}
+                  onChange={(e) => setEmailContent(e.target.value)}
+                  placeholder="고객에게 보낼 이메일 내용을 입력하세요."
+                  rows={8}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  내용 아래에 크루즈닷 푸터(담당자 정보, 회사 주소 등)가 자동으로 추가됩니다.
+                </p>
+              </div>
+
+              {/* 푸터 미리보기 */}
+              <div className="rounded-xl bg-gray-100 p-4 border border-gray-200">
+                <p className="text-xs font-semibold text-gray-700 mb-2">📋 자동 추가되는 푸터 미리보기</p>
+                <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg p-4 text-center">
+                  <p className="text-white font-bold text-sm mb-1">🚢 CruiseDot</p>
+                  <p className="text-white text-xs opacity-90">당신의 행복한 크루즈 여행을 동행합니다</p>
+                  <p className="text-white text-xs opacity-80">크루즈닷AI와 함께</p>
+                </div>
+                <p className="text-xs text-gray-600 mt-2 text-center">
+                  + 담당자 계급, 이름, 연락처, 회사 주소가 포함됩니다
+                </p>
+              </div>
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="sticky bottom-0 flex items-center justify-end gap-3 border-t border-gray-200 bg-white px-6 py-4">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEmailModal(false);
+                }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                disabled={sendingEmail}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSendEmail}
+                disabled={
+                  sendingEmail ||
+                  !customEmailAddress.includes('@') ||
+                  !emailTitle.trim() ||
+                  !emailContent.trim()
+                }
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-6 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                {sendingEmail ? (
+                  <>
+                    <FiRefreshCw className="animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <FiSend />
+                    이메일 보내기
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* SMS 설정 모달 */}
