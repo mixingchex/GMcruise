@@ -32,6 +32,7 @@ import {
   FiPhone,
   FiGlobe,
   FiImage,
+  FiMail,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 import CompressorModal from '@/components/common/CompressorModal';
@@ -1538,25 +1539,24 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
+    <div className="min-h-screen bg-slate-50 pb-24">
       {/* 정액제 구독 정보 고정 배너 */}
       {subscriptionInfo && countdown && (
         <div className={`fixed top-0 left-0 right-0 z-50 ${subscriptionInfo.isTrial
-          ? 'bg-gradient-to-r from-orange-500 via-orange-400 to-orange-600'
+          ? 'bg-gradient-to-r from-slate-800 to-slate-900'
           : subscriptionInfo.status === 'active'
-            ? 'bg-gradient-to-r from-blue-500 via-blue-400 to-blue-600'
-            : 'bg-gradient-to-r from-red-500 via-red-400 to-red-600'
-          } text-white shadow-lg`}>
-          <div className="mx-auto max-w-7xl px-4 py-3 md:py-4">
+            ? 'bg-gradient-to-r from-slate-900 to-slate-800'
+            : 'bg-gradient-to-r from-slate-700 to-slate-800'
+          } text-white shadow-lg shadow-slate-900/10`}>
+          <div className="mx-auto max-w-7xl px-4 py-2.5 md:py-3">
             <div className="flex items-center justify-center gap-3 md:gap-4 flex-wrap">
               {subscriptionInfo.isTrial ? (
                 <>
-                  <span className="text-2xl md:text-3xl">🎁</span>
                   <div className="flex flex-col md:flex-row md:items-center md:gap-3">
-                    <span className="text-base font-bold md:text-lg">무료 체험 중 (30% 기능)</span>
+                    <span className="text-sm font-semibold md:text-base">무료 체험 중</span>
                     {(countdown.days > 0 || countdown.hours > 0 || countdown.minutes > 0 || countdown.seconds > 0) && (
-                      <span className="text-sm md:text-base font-extrabold bg-white/30 px-4 py-1.5 rounded-full">
-                        D-{countdown.days} {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')} 남음
+                      <span className="text-xs md:text-sm font-mono font-bold bg-white/20 px-3 py-1 rounded-full">
+                        D-{countdown.days} {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:<span className="text-emerald-400">{String(countdown.seconds).padStart(2, '0')}</span>
                       </span>
                     )}
                   </div>
@@ -1581,27 +1581,31 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                       });
                       setShowPaymentConfirmModal(true);
                     }}
-                    className="px-4 py-2 bg-white text-orange-600 font-bold rounded-lg hover:bg-orange-50 transition-colors shadow-md text-sm md:text-base"
+                    className="px-3 py-1.5 bg-white text-slate-900 font-semibold rounded-lg hover:bg-slate-100 transition-colors text-xs md:text-sm"
                   >
                     시스템 문의
                   </button>
                 </>
               ) : subscriptionInfo.status === 'active' ? (
                 <>
-                  <span className="text-2xl md:text-3xl">✅</span>
                   <div className="flex flex-col md:flex-row md:items-center md:gap-3">
-                    <span className="text-base font-bold md:text-lg">정식 구독 중 (50% 기능)</span>
+                    <span className="text-sm font-semibold md:text-base flex items-center gap-2">
+                      <span className="w-2 h-2 bg-emerald-400 rounded-full"></span>
+                      정식 구독 중
+                    </span>
                     {(countdown.days > 0 || countdown.hours > 0 || countdown.minutes > 0 || countdown.seconds > 0) && (
-                      <span className="text-sm md:text-base font-extrabold bg-white/30 px-4 py-1.5 rounded-full">
-                        D-{countdown.days} {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')} 남음
+                      <span className="text-xs md:text-sm font-mono font-bold bg-white/20 px-3 py-1 rounded-full">
+                        D-{countdown.days} {String(countdown.hours).padStart(2, '0')}:{String(countdown.minutes).padStart(2, '0')}:{String(countdown.seconds).padStart(2, '0')}
                       </span>
                     )}
                   </div>
                 </>
               ) : (
                 <>
-                  <span className="text-2xl md:text-3xl">❌</span>
-                  <span className="text-base font-bold md:text-lg">구독 만료</span>
+                  <span className="text-sm font-semibold md:text-base flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-400 rounded-full"></span>
+                    구독 만료
+                  </span>
                   <button
                     onClick={() => {
                       setPendingPaymentAction(async () => {
@@ -1623,7 +1627,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                       });
                       setShowPaymentConfirmModal(true);
                     }}
-                    className="px-4 py-2 bg-white text-red-600 font-bold rounded-lg hover:bg-red-50 transition-colors shadow-md text-sm md:text-base"
+                    className="px-3 py-1.5 bg-white text-slate-900 font-semibold rounded-lg hover:bg-slate-100 transition-colors text-xs md:text-sm"
                   >
                     시스템 문의
                   </button>
@@ -1639,25 +1643,31 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
       <div className={`mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 md:gap-8 md:px-6 ${subscriptionInfo ? (isInstallable || (!isStandalone && /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(typeof navigator !== 'undefined' ? navigator.userAgent : ''))) && !isStandalone ? 'pt-32 md:pt-36' : 'pt-20 md:pt-24' : 'pt-6 md:pt-10'
         }`}>
         {/* 헤더 - 역할 명확하게 표시 */}
-        <header className={`relative bg-gradient-to-r ${roleColor} text-white rounded-2xl md:rounded-3xl shadow-xl`}>
-          <div className="relative z-10 flex flex-col gap-6 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-6 md:py-12">
+        <header className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl md:rounded-3xl shadow-xl shadow-slate-900/20 overflow-hidden">
+          {/* 배경 패턴 */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
+          </div>
+          <div className="relative z-10 flex flex-col gap-4 px-5 py-6 md:flex-row md:items-center md:justify-between md:px-8 md:py-10">
             {/* 알림 종 (오른쪽 상단) */}
-            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-20">
-              <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
+            <div className="absolute top-4 right-4 md:top-6 md:right-6 z-[100]">
+              <div className="bg-white/15 backdrop-blur-xl rounded-xl border border-white/20 shadow-lg">
                 <NotificationBell />
               </div>
             </div>
             <div className="space-y-3 md:space-y-4">
               <div className="flex items-center gap-3">
-                {roleIcon}
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10">
+                  {roleIcon}
+                </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.35em] text-white/80 md:text-sm">Partner Dashboard</p>
-                  <h1 className="text-2xl font-black leading-snug md:text-4xl">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-slate-400 md:text-xs font-medium">Partner Dashboard</p>
+                  <h1 className="text-xl font-bold leading-snug md:text-3xl tracking-tight">
                     {roleLabel} 대시보드
                   </h1>
                 </div>
               </div>
-              <p className="max-w-2xl text-sm text-white/90 md:text-base">
+              <p className="max-w-xl text-xs text-slate-300 md:text-sm leading-relaxed">
                 {isSubscriptionAgent
                   ? '시스템 이용자 대시보드입니다. 사용 가능한 기능은 빨간색 테두리로 표시됩니다.'
                   : (isBranchManager
@@ -1665,18 +1675,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     : '나의 판매 실적, 고객 관리, 링크 관리를 한 곳에서 확인하세요.')}
               </p>
               <div className="flex flex-wrap gap-2 text-xs md:text-sm">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 font-bold text-white backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-white text-slate-900 px-3 py-1.5 font-semibold">
                   {roleLabel}
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white/90 backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 font-medium text-slate-300 border border-white/10">
                   ID: {partnerId}
-                  {isSubscriptionAgent && <span className="ml-1 text-xs">(시스템 이용자)</span>}
-                  {!isSubscriptionAgent && isBranchManager && <span className="ml-1 text-xs">(대리점장)</span>}
-                  {!isSubscriptionAgent && isSalesAgent && <span className="ml-1 text-xs">(판매원)</span>}
-                  {!isSubscriptionAgent && !isBranchManager && !isSalesAgent && <span className="ml-1 text-xs">(파트너)</span>}
+                  {isSubscriptionAgent && <span className="ml-1 text-slate-400 text-[10px]">(시스템 이용자)</span>}
+                  {!isSubscriptionAgent && isBranchManager && <span className="ml-1 text-slate-400 text-[10px]">(대리점장)</span>}
+                  {!isSubscriptionAgent && isSalesAgent && <span className="ml-1 text-slate-400 text-[10px]">(판매원)</span>}
+                  {!isSubscriptionAgent && !isBranchManager && !isSalesAgent && <span className="ml-1 text-slate-400 text-[10px]">(파트너)</span>}
                 </span>
                 {profile.branchLabel && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 font-semibold text-white/90 backdrop-blur-sm">
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-3 py-1.5 font-medium text-slate-300 border border-white/10">
                     {profile.branchLabel}
                   </span>
                 )}
@@ -1686,24 +1696,26 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         </header>
 
         {/* 월별 필터링 UI */}
-        <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-100 p-4 md:p-6 mb-6">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-3">
-              <FiClock className="text-xl text-blue-600" />
+              <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                <FiClock className="text-lg text-slate-600" />
+              </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">월별 조회</h2>
-                <p className="text-xs text-gray-500 mt-1">하단의 최근 리드, 최근 판매, 내 판매 목록만 월별로 조회됩니다</p>
+                <h2 className="text-lg font-bold text-slate-900">월별 조회</h2>
+                <p className="text-xs text-slate-500 mt-1">하단의 최근 리드, 최근 판매, 내 판매 목록만 월별로 조회됩니다</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <label htmlFor="month-select" className="text-sm font-medium text-gray-700">
+              <label htmlFor="month-select" className="text-sm font-medium text-slate-600">
                 선택 월:
               </label>
               <select
                 id="month-select"
                 value={selectedMonth}
                 onChange={(e) => handleMonthChange(e.target.value)}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-sm transition-colors hover:border-blue-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 shadow-sm transition-all hover:border-slate-300 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900/10"
               >
                 {getAvailableMonths().map((month) => {
                   const [year, monthNum] = month.split('-');
@@ -1720,7 +1732,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
             </div>
           </div>
           {stats?.selectedMonth && (
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-3 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
               선택된 월: {(() => {
                 const [year, month] = stats.selectedMonth.split('-');
                 const monthNames = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
@@ -1732,32 +1744,34 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
         {/* B2B 유입 링크 섹션 */}
         {isBranchManager && (
-          <div className="bg-white rounded-2xl shadow-lg p-4 md:p-6 mb-6 border border-blue-100">
+          <div className="bg-white rounded-2xl shadow-lg shadow-slate-900/5 border border-slate-100 p-4 md:p-6 mb-6">
             <div className="mb-4">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <span className="text-2xl">🔗</span>
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+                  <FiLink className="text-slate-600" />
+                </div>
                 B2B 유입 링크
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-slate-500 mt-1">
                 B2B 랜딩페이지와 체험 대시보드 링크를 복사하여 사용하세요.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* B2B 랜딩페이지 링크 */}
-              <div className="border border-purple-200 rounded-xl p-4 bg-purple-50">
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-purple-800">나만의 B2B 유입 랜딩페이지</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">파트너 B2B</span>
+                  <span className="text-sm font-semibold text-slate-800">나만의 B2B 유입 랜딩페이지</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">파트너 B2B</span>
                 </div>
-                <p className="text-xs text-purple-600 mb-3">이 링크로 유입된 고객은 자동으로 내 B2B 유입으로 분류됩니다.</p>
-                <div className="p-2 bg-white rounded border border-purple-200 mb-3">
-                  <code className="text-xs text-gray-600 break-all">{b2bLandingUrl || '로딩 중...'}</code>
+                <p className="text-xs text-slate-600 mb-3">이 링크로 유입된 고객은 자동으로 내 B2B 유입으로 분류됩니다.</p>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 mb-3">
+                  <code className="text-xs text-slate-600 break-all">{b2bLandingUrl || '로딩 중...'}</code>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={copyB2BLink}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium transition-colors"
                   >
                     <FiLink className="w-4 h-4" /> 링크 복사
                   </button>
@@ -1765,7 +1779,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     href={b2bLandingUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors ${!b2bLandingUrl ? 'pointer-events-none opacity-50' : ''}`}
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors ${!b2bLandingUrl ? 'pointer-events-none opacity-50' : ''}`}
                     onClick={(e) => !b2bLandingUrl && e.preventDefault()}
                   >
                     <FiEye className="w-4 h-4" /> 미리보기
@@ -1774,19 +1788,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               </div>
 
               {/* 체험 대시보드 링크 */}
-              <div className="border border-blue-200 rounded-xl p-4 bg-blue-50">
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold text-blue-800">체험 대시보드</span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">신청 후 리다이렉트</span>
+                  <span className="text-sm font-semibold text-slate-800">체험 대시보드</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">신청 후 리다이렉트</span>
                 </div>
-                <p className="text-xs text-blue-600 mb-3">이름/연락처 입력 후 이동되는 3일 무료체험 대시보드입니다.</p>
-                <div className="p-2 bg-white rounded border border-blue-200 mb-3">
-                  <code className="text-xs text-gray-600 break-all">{trialDashboardUrl || '로딩 중...'}</code>
+                <p className="text-xs text-slate-600 mb-3">이름/연락처 입력 후 이동되는 3일 무료체험 대시보드입니다.</p>
+                <div className="p-2.5 bg-white rounded-lg border border-slate-200 mb-3">
+                  <code className="text-xs text-slate-600 break-all">{trialDashboardUrl || '로딩 중...'}</code>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={copyTrialDashboardLink}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-medium transition-colors"
                   >
                     <FiLink className="w-4 h-4" /> 링크 복사
                   </button>
@@ -1794,7 +1808,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     href={trialDashboardUrl || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors ${!trialDashboardUrl ? 'pointer-events-none opacity-50' : ''}`}
+                    className={`flex items-center justify-center gap-2 px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors ${!trialDashboardUrl ? 'pointer-events-none opacity-50' : ''}`}
                     onClick={(e) => !trialDashboardUrl && e.preventDefault()}
                   >
                     <FiEye className="w-4 h-4" /> 미리보기
@@ -1808,46 +1822,54 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         {/* 통계 카드 - 모바일 최적화 */}
         {loadingStats ? (
           <div className="flex items-center justify-center py-12">
-            <FiRefreshCw className="animate-spin text-3xl text-gray-400" />
+            <FiRefreshCw className="animate-spin text-3xl text-slate-400" />
           </div>
         ) : stats && (
           <section className={`grid grid-cols-2 gap-3 ${isBranchManager ? 'md:grid-cols-4' : 'md:grid-cols-3'} md:gap-6`}>
             {isBranchManager && (
-              <div className="rounded-xl bg-white p-4 shadow-md md:rounded-2xl md:p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <FiLink className="text-xl text-blue-600 md:text-2xl" />
-                  <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full">대리점장</span>
+              <div className="rounded-xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-2xl md:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <FiLink className="text-lg text-slate-600" />
+                  </div>
+                  <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">대리점장</span>
                 </div>
-                <p className="text-xs text-gray-500 mb-1 md:text-sm">총 링크</p>
-                <p className="text-2xl font-bold text-gray-900 md:text-3xl">{stats.totalLinks.toLocaleString()}</p>
+                <p className="text-xs text-slate-500 mb-1 md:text-sm">총 링크</p>
+                <p className="text-2xl font-bold text-slate-900 md:text-3xl">{stats.totalLinks.toLocaleString()}</p>
               </div>
             )}
 
-            <div className="rounded-xl bg-white p-4 shadow-md md:rounded-2xl md:p-6">
-              <div className="flex items-center justify-between mb-2">
-                <FiUsers className="text-xl text-green-600 md:text-2xl" />
+            <div className="rounded-xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-2xl md:p-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                  <FiUsers className="text-lg text-slate-600" />
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mb-1 md:text-sm">총 잠재고객 (누적)</p>
-              <p className="text-2xl font-bold text-gray-900 md:text-3xl">{stats.totalLeads.toLocaleString()}</p>
-              <p className="text-xs text-gray-400 mt-1">전체 기간 합계</p>
+              <p className="text-xs text-slate-500 mb-1 md:text-sm">총 잠재고객 (누적)</p>
+              <p className="text-2xl font-bold text-slate-900 md:text-3xl">{stats.totalLeads.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 mt-1">전체 기간 합계</p>
             </div>
 
-            <div className="rounded-xl bg-white p-4 shadow-md md:rounded-2xl md:p-6">
-              <div className="flex items-center justify-between mb-2">
-                <FiShoppingCart className="text-xl text-orange-600 md:text-2xl" />
+            <div className="rounded-xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-2xl md:p-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                  <FiShoppingCart className="text-lg text-slate-600" />
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mb-1 md:text-sm">총 판매 (누적)</p>
-              <p className="text-2xl font-bold text-gray-900 md:text-3xl">{stats.totalSales.toLocaleString()}</p>
-              <p className="text-xs text-gray-400 mt-1">전체 기간 합계</p>
+              <p className="text-xs text-slate-500 mb-1 md:text-sm">총 판매 (누적)</p>
+              <p className="text-2xl font-bold text-slate-900 md:text-3xl">{stats.totalSales.toLocaleString()}</p>
+              <p className="text-xs text-slate-400 mt-1">전체 기간 합계</p>
             </div>
 
             {isBranchManager && (
-              <div className="rounded-xl bg-white p-4 shadow-md md:rounded-2xl md:p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <FiTrendingUp className="text-xl text-purple-600 md:text-2xl" />
+              <div className="rounded-xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-2xl md:p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <FiTrendingUp className="text-lg text-slate-600" />
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mb-1 md:text-sm">팀원 수</p>
-                <p className="text-2xl font-bold text-gray-900 md:text-3xl">{stats.teamMembers.toLocaleString()}</p>
+                <p className="text-xs text-slate-500 mb-1 md:text-sm">팀원 수</p>
+                <p className="text-2xl font-bold text-slate-900 md:text-3xl">{stats.teamMembers.toLocaleString()}</p>
               </div>
             )}
           </section>
@@ -1855,28 +1877,30 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
         {/* 개인 링크 - 모바일 최적화 (대리점장/판매원은 빠른메뉴의 링크 관리에서 확인 가능하므로 숨김) */}
         {!isBranchManager && !isSalesAgent && (
-          <section className="rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 p-4 shadow-lg md:rounded-3xl md:p-6 border-2 border-indigo-100">
+          <section className="rounded-2xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-3xl md:p-6">
             <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
-              <FiLink className="text-indigo-600" />
+              <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">
+                <FiLink className="text-slate-600" />
+              </div>
               나의 개인 링크
             </h2>
-            <p className="mb-4 text-sm text-slate-600">모든 링크는 파트너 아이디에 맞춰 자동 생성됩니다.</p>
+            <p className="mb-4 text-sm text-slate-500">모든 링크는 파트너 아이디에 맞춰 자동 생성됩니다.</p>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-xl bg-white p-4 border border-indigo-200">
+              <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-indigo-700">대시보드</span>
+                  <span className="text-xs font-semibold text-slate-700">대시보드</span>
                 </div>
                 <Link
                   href={`${partnerBase}/dashboard`}
-                  className="text-xs text-gray-600 break-all hover:text-indigo-600 cursor-pointer"
+                  className="text-xs text-slate-600 break-all hover:text-slate-900 cursor-pointer"
                 >
                   {partnerBase}/dashboard
                 </Link>
               </div>
               {user.mallUserId && (
-                <div className="rounded-xl bg-white p-4 border border-blue-200">
+                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-blue-700">판매몰</span>
+                    <span className="text-xs font-semibold text-slate-700">판매몰</span>
                     <button
                       onClick={() => {
                         if (mallFullUrl) {
@@ -1884,65 +1908,65 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                           showSuccess('판매몰 링크가 복사되었습니다!');
                         }
                       }}
-                      className="text-xs text-blue-600 hover:text-blue-700"
+                      className="text-xs text-slate-600 hover:text-slate-900 font-medium"
                     >
                       복사
                     </button>
                   </div>
-                  <div className="text-xs text-gray-600 break-all">
+                  <div className="text-xs text-slate-600 break-all">
                     <a
                       href={`/${user.mallUserId}/shop`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-blue-600"
+                      className="hover:text-slate-900"
                     >
                       {mallFullUrl || `/${user.mallUserId}/shop`}
                     </a>
                   </div>
                 </div>
               )}
-              <div className="rounded-xl bg-white p-4 border border-orange-200">
+              <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-orange-700">결제 페이지</span>
+                  <span className="text-xs font-semibold text-slate-700">결제 페이지</span>
                 </div>
                 <Link
                   href={`${partnerBase}/payment`}
-                  className="text-xs text-gray-600 break-all hover:text-orange-600 cursor-pointer"
+                  className="text-xs text-slate-600 break-all hover:text-slate-900 cursor-pointer"
                 >
                   {partnerBase}/payment
                 </Link>
               </div>
-              <div className="rounded-xl bg-white p-4 border border-purple-200">
+              <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-purple-700">
+                  <span className="text-xs font-semibold text-slate-700">
                     {isBranchManager ? '나의 고객' : isSalesAgent ? '나의 고객관리' : '고객 관리'}
                   </span>
                 </div>
                 <Link
                   href={`${partnerBase}/customers`}
-                  className="text-xs text-gray-600 break-all hover:text-purple-600 cursor-pointer"
+                  className="text-xs text-slate-600 break-all hover:text-slate-900 cursor-pointer"
                 >
                   {partnerBase}/customers
                 </Link>
               </div>
-              <div className="rounded-xl bg-white p-4 border border-gray-200">
+              <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-gray-700">프로필</span>
+                  <span className="text-xs font-semibold text-slate-700">프로필</span>
                 </div>
                 <Link
                   href={`${partnerBase}/profile`}
-                  className="text-xs text-gray-600 break-all hover:text-gray-600 cursor-pointer"
+                  className="text-xs text-slate-600 break-all hover:text-slate-900 cursor-pointer"
                 >
                   {partnerBase}/profile
                 </Link>
               </div>
-              <div className="rounded-xl bg-white p-4 border border-green-200">
+              <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-green-700">SNS 프로필</span>
+                  <span className="text-xs font-semibold text-slate-700">SNS 프로필</span>
                 </div>
                 <Link
                   href={`${partnerBase}/sns-profile`}
-                  className="text-xs text-gray-600 break-all hover:text-green-600 cursor-pointer"
+                  className="text-xs text-slate-600 break-all hover:text-slate-900 cursor-pointer"
                 >
                   {partnerBase}/sns-profile
                 </Link>
@@ -1950,9 +1974,9 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
               {/* 관리자가 생성한 공통 상품 링크 자동 표시 */}
               {commonProductLinks.map((link) => (
-                <div key={link.id} className="rounded-xl bg-white p-4 border border-amber-200">
+                <div key={link.id} className="rounded-xl bg-slate-50 p-4 border border-slate-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-amber-700">
+                    <span className="text-xs font-semibold text-slate-700">
                       {link.product?.title || link.title || `상품 ${link.productCode}`}
                     </span>
                     <button
@@ -1962,7 +1986,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                           showSuccess('상품 링크가 복사되었습니다!');
                         }
                       }}
-                      className="text-xs text-amber-600 hover:text-amber-700"
+                      className="text-xs text-slate-600 hover:text-slate-900 font-medium"
                     >
                       복사
                     </button>
@@ -1971,7 +1995,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     href={link.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-gray-600 break-all hover:text-amber-600 cursor-pointer"
+                    className="text-xs text-slate-600 break-all hover:text-slate-900 cursor-pointer"
                   >
                     {link.url}
                   </a>
@@ -1983,13 +2007,13 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
 
         {/* 빠른 메뉴 - 모바일 최적화 */}
-        <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
+        <section className="rounded-2xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-3xl md:p-6">
           <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl">빠른 메뉴</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
             {/* 만능 압축기 (공통) */}
             <button
               onClick={() => setShowCompressorModal(true)}
-              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-4 text-center transition-all hover:shadow-md md:p-6 text-white"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-900 p-4 text-center transition-all hover:bg-slate-800 hover:shadow-lg md:p-6 text-white"
             >
               <FiLayers className="text-2xl md:text-3xl" />
               <span className="text-xs font-bold md:text-sm">만능 압축기</span>
@@ -2001,7 +2025,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   const url = `${window.location.origin}/b2b/${user.mallUserId || user.phone || partnerId}`;
                   window.open(url, '_blank');
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 p-4 text-center transition-all hover:shadow-md md:p-6 text-white"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-800 p-4 text-center transition-all hover:bg-slate-700 hover:shadow-lg md:p-6 text-white"
               >
                 <FiGlobe className="text-2xl md:text-3xl" />
                 <span className="text-xs font-bold md:text-sm">B2B 유입<br />랜딩</span>
@@ -2011,7 +2035,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
             {(isBranchManager || isSalesAgent) && (
               <button
                 onClick={() => router.push(`${partnerBase}/images`)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 p-4 text-center transition-all hover:shadow-md md:p-6 text-white"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-700 p-4 text-center transition-all hover:bg-slate-600 hover:shadow-lg md:p-6 text-white"
               >
                 <FiImage className="text-2xl md:text-3xl" />
                 <span className="text-xs font-bold md:text-sm">이미지<br />관리</span>
@@ -2029,26 +2053,20 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                       setShowFeatureRestrictionModal(true);
                     }
                   }}
-                  className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-md md:p-6 ${isSubscriptionAgent
-                    ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200'
-                    : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
-                    } ${subscriptionInfo && canUseFeatureClient('my-mall', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''}`}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-lg md:p-6 bg-slate-100 hover:bg-slate-200 ${subscriptionInfo && canUseFeatureClient('my-mall', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''}`}
                 >
                   <span className="text-2xl md:text-3xl">🛍️</span>
-                  <span className={`text-xs font-semibold md:text-sm ${isSubscriptionAgent ? 'text-yellow-700' : 'text-blue-700'}`}>나의 판매몰</span>
+                  <span className="text-xs font-semibold md:text-sm text-slate-700">나의 판매몰</span>
                 </button>
               ) : (
                 <Link
                   href={`/${user.mallUserId || user.phone || partnerId}/shop`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-md md:p-6 ${isSubscriptionAgent
-                    ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 hover:from-yellow-100 hover:to-yellow-200'
-                    : 'bg-gradient-to-br from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200'
-                    }`}
+                  className="flex flex-col items-center justify-center gap-2 rounded-xl p-4 text-center transition-all hover:shadow-lg md:p-6 bg-slate-100 hover:bg-slate-200"
                 >
                   <span className="text-2xl md:text-3xl">🛍️</span>
-                  <span className={`text-xs font-semibold md:text-sm ${isSubscriptionAgent ? 'text-yellow-700' : 'text-blue-700'}`}>나의 판매몰</span>
+                  <span className="text-xs font-semibold md:text-sm text-slate-700">나의 판매몰</span>
                 </Link>
               )
             )}
@@ -2063,19 +2081,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     setShowFeatureRestrictionModal(true);
                   }
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6 ${canUseFeatureClient('link-create', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('link-create', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiLink className="text-2xl text-green-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-green-700 md:text-sm">링크 관리</span>
+                <FiLink className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">링크 관리</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/links`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiLink className="text-2xl text-green-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-green-700 md:text-sm">링크 관리</span>
+                <FiLink className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">링크 관리</span>
               </Link>
             )}
             {subscriptionInfo ? (
@@ -2089,19 +2107,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     setShowFeatureRestrictionModal(true);
                   }
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6 ${canUseFeatureClient('customer-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('customer-management', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-purple-700 md:text-sm">나의 고객관리</span>
+                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">나의 고객관리</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/customers`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-purple-700 md:text-sm">
+                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">
                   {isBranchManager ? '나의 고객' : isSalesAgent ? '나의 고객관리' : '고객 관리'}
                 </span>
               </Link>
@@ -2110,20 +2128,20 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
             {(isBranchManager || isSalesAgent) && (
               <Link
                 href={`${partnerBase}/purchased-customers`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-orange-700 md:text-sm">구매고객관리</span>
+                <FiShoppingCart className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">구매고객관리</span>
               </Link>
             )}
             {/* B2B 잠재고객 관리 (대리점장 전용) */}
             {isBranchManager && (
               <button
                 onClick={() => router.push(`${partnerBase}/b2b-prospects`)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-cyan-50 to-cyan-100 p-4 text-center transition-all hover:from-cyan-100 hover:to-cyan-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
                 <span className="text-2xl md:text-3xl">🏢</span>
-                <span className="text-xs font-semibold text-cyan-700 md:text-sm">B2B<br />잠재고객</span>
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">B2B<br />잠재고객</span>
               </button>
             )}
             {subscriptionInfo ? (
@@ -2137,19 +2155,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     setShowFeatureRestrictionModal(true);
                   }
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6 ${canUseFeatureClient('companion-registration', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('companion-registration', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiUser className="text-2xl text-green-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-green-700 md:text-sm">크루즈가이드<br />동행인 등록</span>
+                <FiUser className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">크루즈가이드<br />동행인 등록</span>
               </button>
             ) : (
               <button
                 onClick={() => setShowCustomerRegisterModal(true)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-green-50 to-green-100 p-4 text-center transition-all hover:from-green-100 hover:to-green-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiUser className="text-2xl text-green-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-green-700 md:text-sm">크루즈가이드<br />동행인 등록</span>
+                <FiUser className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">크루즈가이드<br />동행인 등록</span>
               </button>
             )}
             {/* 고객 그룹 관리 */}
@@ -2164,19 +2182,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     setShowFeatureRestrictionModal(true);
                   }
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6 ${canUseFeatureClient('customer-group-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('customer-group-management', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiUsers className="text-2xl text-indigo-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-indigo-700 md:text-sm">고객 그룹<br />관리</span>
+                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">고객 그룹<br />관리</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/customer-groups`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiUsers className="text-2xl text-indigo-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-indigo-700 md:text-sm">고객 그룹<br />관리</span>
+                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">고객 그룹<br />관리</span>
               </Link>
             )}
 
@@ -2188,18 +2206,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiClock className="text-2xl text-purple-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-purple-700 md:text-sm">예약 메시지<br />관리</span>
+                <FiClock className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">예약 메시지<br />관리</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/scheduled-messages`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiClock className="text-2xl text-purple-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-purple-700 md:text-sm">예약 메시지<br />관리</span>
+                <FiClock className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">예약 메시지<br />관리</span>
               </Link>
             )}
 
@@ -2211,18 +2229,41 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-emerald-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiMessageSquare className="text-2xl text-emerald-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-emerald-700 md:text-sm">문자 보내기</span>
+                <FiMessageSquare className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">문자 보내기</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/customers?action=sms`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-emerald-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiMessageSquare className="text-2xl text-emerald-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-emerald-700 md:text-sm">문자 보내기</span>
+                <FiMessageSquare className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">문자 보내기</span>
+              </Link>
+            )}
+
+            {/* 이메일 보내기 */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('email-send', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
+              >
+                <FiMail className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">이메일 보내기</span>
+              </button>
+            ) : (
+              <Link
+                href={`${partnerBase}/customers?action=email`}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
+              >
+                <FiMail className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">이메일 보내기</span>
               </Link>
             )}
 
@@ -2234,18 +2275,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
+                <FiShoppingCart className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">결제/정산</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/payment`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 p-4 text-center transition-all hover:from-orange-100 hover:to-orange-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiShoppingCart className="text-2xl text-orange-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-orange-700 md:text-sm">결제/정산</span>
+                <FiShoppingCart className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">결제/정산</span>
               </Link>
             )}
 
@@ -2257,7 +2298,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
                 <span className="text-2xl md:text-3xl">📄</span>
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
@@ -2265,7 +2306,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
             ) : (
               <Link
                 href={`${partnerBase}/documents`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 p-4 text-center transition-all hover:from-slate-100 hover:to-slate-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
                 <span className="text-2xl md:text-3xl">📄</span>
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">서류관리</span>
@@ -2280,18 +2321,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiFileText className="text-2xl text-teal-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
+                <FiFileText className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">수동여권<br />등록</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/reservation/new`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-teal-50 to-teal-100 p-4 text-center transition-all hover:from-teal-100 hover:to-teal-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiFileText className="text-2xl text-teal-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-teal-700 md:text-sm">수동여권<br />등록</span>
+                <FiFileText className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">수동여권<br />등록</span>
               </Link>
             )}
             {/* 대리점장 전용 기능 (정액제 판매원도 표시하되 제한) */}
@@ -2303,19 +2344,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 p-4 text-center transition-all hover:from-amber-100 hover:to-amber-200 hover:shadow-md md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiLayers className="text-2xl text-amber-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-amber-700 md:text-sm">랜딩페이지<br />관리</span>
+                <FiLayers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">랜딩페이지<br />관리</span>
               </button>
             ) : isBranchManager ? (
               <Link
                 href={`${partnerBase}/landing-pages`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 p-4 text-center transition-all hover:from-amber-100 hover:to-amber-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiLayers className="text-2xl text-amber-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-amber-700 md:text-sm">랜딩페이지<br />관리</span>
+                <FiLayers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">랜딩페이지<br />관리</span>
               </Link>
             ) : null}
 
@@ -2327,19 +2368,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-purple-700 md:text-sm">판매원별<br />DB 관리</span>
+                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">판매원별<br />DB 관리</span>
               </button>
             ) : isBranchManager ? (
               <Link
                 href={`${partnerBase}/customers`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-purple-50 to-purple-100 p-4 text-center transition-all hover:from-purple-100 hover:to-purple-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiUsers className="text-2xl text-purple-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-purple-700 md:text-sm">판매원별<br />DB 관리</span>
+                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">판매원별<br />DB 관리</span>
               </Link>
             ) : null}
 
@@ -2351,19 +2392,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiTrendingUp className="text-2xl text-indigo-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-indigo-700 md:text-sm">팀 관리</span>
+                <FiTrendingUp className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">팀 관리</span>
               </button>
             ) : isBranchManager ? (
               <Link
                 href={`${partnerBase}/team`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-indigo-50 to-indigo-100 p-4 text-center transition-all hover:from-indigo-100 hover:to-indigo-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiTrendingUp className="text-2xl text-indigo-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-indigo-700 md:text-sm">팀 관리</span>
+                <FiTrendingUp className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">팀 관리</span>
               </Link>
             ) : null}
 
@@ -2375,19 +2416,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6 ${canUseFeatureClient('contract-invite', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('contract-invite', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiSend className="text-2xl text-pink-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-pink-700 md:text-sm">계약서 보내기</span>
+                <FiSend className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">계약서 보내기</span>
               </button>
             ) : isBranchManager ? (
               <button
                 onClick={() => setShowContractTypeModal(true)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiSend className="text-2xl text-pink-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-pink-700 md:text-sm">계약서 보내기</span>
+                <FiSend className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">계약서 보내기</span>
               </button>
             ) : null}
             {subscriptionInfo ? (
@@ -2401,19 +2442,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     setShowFeatureRestrictionModal(true);
                   }
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 text-center transition-all hover:from-gray-100 hover:to-gray-200 hover:shadow-md md:p-6 ${canUseFeatureClient('profile-edit', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('profile-edit', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiUser className="text-2xl text-gray-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-gray-700 md:text-sm">프로필 수정</span>
+                <FiUser className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">프로필 수정</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/profile`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-4 text-center transition-all hover:from-gray-100 hover:to-gray-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiUser className="text-2xl text-gray-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-gray-700 md:text-sm">프로필 수정</span>
+                <FiUser className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">프로필 수정</span>
               </Link>
             )}
             {subscriptionInfo ? (
@@ -2427,19 +2468,19 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                     setShowFeatureRestrictionModal(true);
                   }
                 }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6 ${canUseFeatureClient('sns-profile', subscriptionInfo) ? 'ring-4 ring-red-500 ring-offset-2' : ''
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('sns-profile', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
                   }`}
               >
-                <FiLink className="text-2xl text-pink-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-pink-700 md:text-sm">나의 SNS<br />프로필</span>
+                <FiLink className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">나의 SNS<br />프로필</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/sns-profile`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-pink-50 to-pink-100 p-4 text-center transition-all hover:from-pink-100 hover:to-pink-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiLink className="text-2xl text-pink-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-pink-700 md:text-sm">나의 SNS<br />프로필</span>
+                <FiLink className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">나의 SNS<br />프로필</span>
               </Link>
             )}
             {subscriptionInfo ? (
@@ -2449,18 +2490,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiFileText className="text-2xl text-blue-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 계약서<br />보기</span>
+                <FiFileText className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">나의 계약서<br />보기</span>
               </button>
             ) : (
               <Link
                 href={`${partnerBase}/contract`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 text-center transition-all hover:from-blue-100 hover:to-blue-200 hover:shadow-md md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
               >
-                <FiFileText className="text-2xl text-blue-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-blue-700 md:text-sm">나의 계약서<br />보기</span>
+                <FiFileText className="text-2xl text-slate-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-slate-700 md:text-sm">나의 계약서<br />보기</span>
               </Link>
             )}
           </div>
@@ -2470,7 +2511,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
         {stats && (
           <div className="grid gap-6 md:grid-cols-2">
             {/* 고객 관리 (탭: 전체 고객 / 전화상담고객) */}
-            <div className="block rounded-2xl bg-white p-4 shadow-lg transition-all hover:shadow-xl md:rounded-3xl md:p-6">
+            <div className="block rounded-2xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 transition-all hover:shadow-xl md:rounded-3xl md:p-6">
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-lg font-bold text-slate-900 md:text-xl">고객 관리</h2>
@@ -2485,26 +2526,26 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                           setShowFeatureRestrictionModal(true);
                         }
                       }}
-                      className="text-xs text-blue-600 hover:text-blue-700 md:text-sm"
+                      className="text-xs text-slate-600 hover:text-slate-900 font-medium md:text-sm"
                     >
                       전체보기 <FiArrowRight className="inline ml-1" />
                     </button>
                   ) : (
                     <Link
                       href={`${partnerBase}/customers${customerTab === 'inquiries' ? '?tab=inquiries' : ''}`}
-                      className="text-xs text-blue-600 hover:text-blue-700 md:text-sm"
+                      className="text-xs text-slate-600 hover:text-slate-900 font-medium md:text-sm"
                     >
                       전체보기 <FiArrowRight className="inline ml-1" />
                     </Link>
                   )}
                 </div>
                 {/* 탭 버튼 */}
-                <div className="flex gap-2 border-b border-gray-200">
+                <div className="flex gap-2 border-b border-slate-200">
                   <button
                     onClick={() => setCustomerTab('all')}
                     className={`px-4 py-2 text-sm font-semibold transition-colors ${customerTab === 'all'
-                      ? 'text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-slate-900 border-b-2 border-slate-900'
+                      : 'text-slate-500 hover:text-slate-700'
                       }`}
                   >
                     전체 고객
@@ -2512,8 +2553,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   <button
                     onClick={() => setCustomerTab('inquiries')}
                     className={`px-4 py-2 text-sm font-semibold transition-colors ${customerTab === 'inquiries'
-                      ? 'text-pink-600 border-b-2 border-pink-600'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-slate-900 border-b-2 border-slate-900'
+                      : 'text-slate-500 hover:text-slate-700'
                       }`}
                   >
                     전화상담고객

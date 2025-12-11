@@ -356,7 +356,7 @@ export default function ContractTemplatesPage() {
             </div>
             <button
               onClick={() => setShowNewModal(true)}
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md flex items-center gap-2 justify-center"
+              className="px-4 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-lg hover:from-slate-800 hover:to-slate-700 transition-all shadow-md flex items-center gap-2 justify-center"
             >
               <span className="text-xl">➕</span>
               <span className="font-semibold">새 계약서 추가</span>

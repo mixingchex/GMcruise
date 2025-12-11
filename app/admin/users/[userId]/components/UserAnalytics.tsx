@@ -356,7 +356,7 @@ export default function UserAnalytics({ userId }: UserAnalyticsProps) {
             {analytics.AI_채팅_사용.인기_키워드 && analytics.AI_채팅_사용.인기_키워드.length > 0 ? (
               <div
                 ref={keywordContainerRef}
-                className="relative border-2 border-blue-200 rounded-lg p-8 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-[400px] overflow-auto"
+                className="relative border-2 border-slate-200 rounded-lg p-8 bg-gradient-to-br from-slate-50 to-slate-100 min-h-[400px] overflow-auto"
                 style={{ transform: `scale(${keywordZoom})`, transformOrigin: 'top left', width: `${100 / keywordZoom}%` }}
               >
                 <div className="flex flex-wrap gap-4 items-center justify-center">

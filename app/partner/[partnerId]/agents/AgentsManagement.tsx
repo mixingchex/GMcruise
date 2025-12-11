@@ -133,7 +133,7 @@ export default function AgentsManagement({
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pt-10 md:px-6">
         {/* 헤더 */}
-        <header className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-3xl shadow-xl">
+        <header className="relative overflow-hidden bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-3xl shadow-xl shadow-slate-900/20">
           <div className="relative z-10 flex flex-col gap-8 px-6 py-12">
             <div className="flex items-center gap-4">
               <Link
@@ -152,7 +152,7 @@ export default function AgentsManagement({
                   판매원 관리
                 </h1>
               </div>
-              <p className="max-w-2xl text-sm text-white/80 md:text-base">
+              <p className="max-w-2xl text-sm text-slate-300 md:text-base">
                 소속 판매원의 실적과 수당을 확인하고 관리하세요.
               </p>
             </div>
@@ -160,7 +160,7 @@ export default function AgentsManagement({
             {/* 요약 통계 */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <div className="flex items-center gap-2 text-white/70 text-xs mb-1">
+                <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
                   <FiUsers className="w-4 h-4" />
                   <span>판매원 수</span>
                 </div>
@@ -168,7 +168,7 @@ export default function AgentsManagement({
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-                <div className="flex items-center gap-2 text-white/70 text-xs mb-1">
+                <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
                   <FiTrendingUp className="w-4 h-4" />
                   <span>총 매출</span>
                 </div>

@@ -178,12 +178,12 @@ export default function NotificationBell() {
             loadNotifications();
           }
         }}
-        className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+        className="relative p-2.5 hover:bg-white/20 rounded-xl transition-all"
         title="알림"
       >
-        <FiBell size={24} className="text-gray-700" />
+        <FiBell size={22} className="text-white drop-shadow-sm" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 bg-white text-slate-900 text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -194,28 +194,28 @@ export default function NotificationBell() {
         <>
           {/* 배경 클릭 시 닫기 */}
           <div
-            className="fixed inset-0 z-40"
+            className="fixed inset-0 z-[9998] bg-black/20 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
           {/* 알림 패널 */}
-          <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-[600px] flex flex-col">
+          <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl shadow-slate-900/20 border border-slate-200 z-[9999] max-h-[80vh] flex flex-col overflow-hidden">
             {/* 헤더 */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-bold text-gray-900">알림</h3>
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+              <h3 className="text-base font-bold text-slate-900">알림</h3>
               <div className="flex items-center gap-2">
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-xs text-blue-600 hover:text-blue-700"
+                    className="text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors"
                   >
                     모두 읽음
                   </button>
                 )}
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1.5 hover:bg-slate-200 rounded-lg transition-colors"
                 >
-                  <FiX size={18} />
+                  <FiX size={18} className="text-slate-500" />
                 </button>
               </div>
             </div>
@@ -224,37 +224,37 @@ export default function NotificationBell() {
             <div className="flex-1 overflow-y-auto">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-600"></div>
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm">
+                <div className="text-center py-8 text-slate-500 text-sm">
                   알림이 없습니다.
                 </div>
               ) : (
-                <div className="divide-y divide-gray-200">
+                <div className="divide-y divide-slate-100">
                   {notifications.map((notification) => (
                     <div
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
-                      className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${notification.isRead
-                        ? 'border-transparent'
-                        : 'border-blue-500'
-                        } ${getNotificationStyle(notification)}`}
+                      className={`p-4 cursor-pointer hover:bg-slate-50 transition-colors border-l-4 ${notification.isRead
+                        ? 'border-transparent bg-white'
+                        : 'border-slate-900 bg-slate-50'
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-sm text-gray-900">
+                            <h4 className="font-semibold text-sm text-slate-900">
                               {notification.title}
                             </h4>
                             {!notification.isRead && (
-                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                              <span className="w-2 h-2 bg-slate-900 rounded-full"></span>
                             )}
                           </div>
-                          <p className="text-xs text-gray-600 line-clamp-2">
+                          <p className="text-xs text-slate-600 line-clamp-2">
                             {notification.content}
                           </p>
-                          <span className="text-xs text-gray-400 mt-1 block">
+                          <span className="text-xs text-slate-400 mt-1 block">
                             {new Date(notification.createdAt).toLocaleString('ko-KR')}
                           </span>
                         </div>
@@ -266,36 +266,32 @@ export default function NotificationBell() {
             </div>
 
             {/* Footer / Quick Menu */}
-            <div className="p-3 border-t bg-gray-50">
+            <div className="p-3 border-t border-slate-100 bg-slate-50">
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => {
                     const isPartner = window.location.pathname.startsWith('/partner');
                     if (isPartner) {
-                      // Extract partnerId from URL or use current context if available
-                      // Assuming URL structure /partner/[partnerId]/...
                       const pathParts = window.location.pathname.split('/');
                       const partnerId = pathParts[2];
                       if (partnerId) {
                         router.push(`/partner/${partnerId}/messages`);
                       } else {
-                        // Fallback or error
                         console.error('Partner ID not found in URL');
                       }
                     } else {
-                      // 관리자는 팀 성과 대시보드에서 팀 메시지 확인
                       router.push('/admin/affiliate/team-dashboard');
                     }
                     setIsOpen(false);
                   }}
-                  className="flex items-center justify-center gap-2 p-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors relative"
+                  className="flex items-center justify-center gap-2 p-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-100 hover:text-slate-900 transition-colors relative"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                   </svg>
                   팀 메시지
                   {teamMessageCount > 0 && (
-                    <span className="ml-1 bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    <span className="ml-1 bg-slate-900 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
                       {teamMessageCount > 9 ? '9+' : teamMessageCount}
                     </span>
                   )}
@@ -305,7 +301,7 @@ export default function NotificationBell() {
                     router.push('/admin/notifications');
                     setIsOpen(false);
                   }}
-                  className="flex items-center justify-center gap-2 p-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 transition-colors"
+                  className="flex items-center justify-center gap-2 p-2.5 text-sm font-medium text-white bg-slate-900 rounded-xl hover:bg-slate-800 transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />

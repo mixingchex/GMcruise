@@ -140,7 +140,7 @@ export default function FunnelManagementPage() {
         </div>
         <Link
           href={`/admin/funnel/${activeTab}/new`}
-          className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold hover:from-purple-700 hover:to-indigo-700 flex items-center gap-2 shadow-lg hover:scale-105 transition-all"
+          className="px-6 py-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl font-bold hover:from-slate-800 hover:to-slate-700 flex items-center gap-2 shadow-lg hover:scale-105 transition-all"
         >
           <FiPlus size={20} />
           {getTabLabel(activeTab)} 작성
@@ -155,7 +155,7 @@ export default function FunnelManagementPage() {
             onClick={() => setActiveTab(tab)}
             className={`flex-1 px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
               activeTab === tab
-                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                ? 'bg-gradient-to-r from-slate-900 to-slate-800 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
             }`}
           >

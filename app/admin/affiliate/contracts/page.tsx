@@ -1387,11 +1387,11 @@ export default function AdminAffiliateContractsPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 pt-10 md:px-6">
         {/* 헤더 */}
-        <header className="rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
+        <header className="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 text-white shadow-xl shadow-slate-900/20">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
               <h1 className="text-3xl font-extrabold">어필리에이트 계약 관리</h1>
-              <p className="text-sm text-white/80">
+              <p className="text-sm text-slate-300">
                 파트너 계약 신청서를 검토하고 승인/거부할 수 있습니다.
               </p>
             </div>

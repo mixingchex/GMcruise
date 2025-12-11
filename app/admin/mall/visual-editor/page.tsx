@@ -1290,7 +1290,7 @@ export default function VisualEditorPage() {
                 {config.companyStats.topRowCards.map((card, idx) => (
                   <div key={idx} className="bg-white rounded-xl p-6 shadow-lg border-2 border-gray-100 text-center">
                     <div className="text-5xl mb-4">{card.icon}</div>
-                    <div className="text-3xl font-black text-blue-700 mb-2">{card.value}</div>
+                    <div className="text-3xl font-black text-slate-700 mb-2">{card.value}</div>
                     <div className="text-base font-bold text-gray-800">{card.description}</div>
                   </div>
                 ))}
@@ -1298,9 +1298,9 @@ export default function VisualEditorPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {config.companyStats.bottomRowCards.map((card, idx) => {
                   const bgColors = {
-                    blue: 'from-blue-50 to-blue-100 border-blue-200',
-                    yellow: 'from-yellow-50 to-yellow-100 border-yellow-200',
-                    green: 'from-green-50 to-green-100 border-green-200',
+                    blue: 'from-slate-50 to-slate-100 border-slate-200',
+                    yellow: 'from-slate-50 to-slate-100 border-slate-200',
+                    green: 'from-slate-50 to-slate-100 border-slate-200',
                   };
                   return (
                     <div key={idx} className={`bg-gradient-to-br ${bgColors[card.bgColor]} rounded-xl p-6 text-center shadow-lg border-2`}>

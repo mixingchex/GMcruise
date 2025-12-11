@@ -87,7 +87,7 @@ export default function SalesAgentInvitePage() {
             <h2 className="text-2xl font-bold text-slate-900 mb-2">프로필을 찾을 수 없습니다</h2>
             <button
               onClick={() => router.push('/admin/affiliate/mall')}
-              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white shadow hover:bg-slate-800"
             >
               <FiArrowLeft /> 판매원 개인몰 관리로 돌아가기
             </button>
@@ -100,7 +100,7 @@ export default function SalesAgentInvitePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-24">
       <div className="mx-auto w-full max-w-4xl px-4 pt-12">
-        <header className="mb-8 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-8 shadow-xl">
+        <header className="mb-8 rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 text-white p-8 shadow-xl shadow-slate-900/20">
           <button
             onClick={() => router.push('/admin/affiliate/mall')}
             className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-4 text-sm"
@@ -147,23 +147,23 @@ export default function SalesAgentInvitePage() {
           {/* 계약서 링크 */}
           <section className="rounded-3xl bg-white p-6 shadow-lg">
             <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <FiFileText className="text-blue-600" />
+              <FiFileText className="text-slate-700" />
               계약서 링크
             </h2>
             {contractLink ? (
               <div className="space-y-4">
-                <div className="rounded-xl border-2 border-blue-200 bg-blue-50 p-4">
-                  <p className="text-xs font-semibold text-blue-700 mb-2">계약서 링크</p>
+                <div className="rounded-xl border-2 border-slate-200 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">계약서 링크</p>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
                       value={contractLink}
                       readOnly
-                      className="flex-1 rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm font-mono text-slate-900"
+                      className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-mono text-slate-900"
                     />
                     <button
                       onClick={handleCopyLink}
-                      className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                      className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                     >
                       <FiCopy /> 복사
                     </button>

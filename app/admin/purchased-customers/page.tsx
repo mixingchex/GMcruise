@@ -585,10 +585,10 @@ export default function AdminPurchasedCustomersPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <section className="bg-white rounded-2xl shadow-lg border border-blue-100 p-6">
+      <section className="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-blue-800 flex items-center gap-3">
+            <h1 className="text-3xl font-extrabold text-slate-800 flex items-center gap-3">
               <span className="text-4xl">🛒</span>
               구매 고객관리
             </h1>
@@ -629,13 +629,13 @@ export default function AdminPurchasedCustomersPage() {
 
       {/* 통계 카드 */}
       <section className="grid gap-4 md:grid-cols-3">
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl shadow-lg border-2 border-blue-200 p-6">
+        <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl shadow-lg border-2 border-slate-200 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold text-blue-700 mb-1">전체 예약</p>
-              <p className="text-3xl font-bold text-blue-900">{stats.total}</p>
+              <p className="text-sm font-semibold text-slate-700 mb-1">전체 예약</p>
+              <p className="text-3xl font-bold text-slate-900">{stats.total}</p>
             </div>
-            <FiUser className="text-4xl text-blue-500" />
+            <FiUser className="text-4xl text-slate-500" />
           </div>
         </div>
         <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl shadow-lg border-2 border-green-200 p-6">

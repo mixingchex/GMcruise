@@ -655,7 +655,7 @@ export default function APISPage() {
                 <button
                   onClick={() => handleDownloadAPIS(product)}
                   disabled={downloading === product.productCode}
-                  className="w-full px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg font-bold transition-all shadow-md hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-white rounded-lg font-bold transition-all shadow-md hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {downloading === product.productCode ? (
                     <>

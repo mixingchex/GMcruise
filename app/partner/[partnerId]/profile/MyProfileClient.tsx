@@ -619,7 +619,7 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 pt-10 md:px-6">
         {/* Header */}
-        <header className="rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
+        <header className="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 text-white shadow-xl shadow-slate-900/20">
           <Link
             href={`/partner/${partnerId}/dashboard`}
             className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-4 text-sm"
@@ -629,7 +629,7 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
           <h1 className="text-3xl font-black leading-snug md:text-4xl">
             프로필 수정
           </h1>
-          <p className="mt-2 text-sm text-white/80 md:text-base">
+          <p className="mt-2 text-sm text-slate-300 md:text-base">
             파트너 프로필 정보를 수정할 수 있습니다.
           </p>
         </header>
@@ -640,7 +640,7 @@ export default function MyProfileClient({ user, profile }: MyProfileClientProps)
             {/* 기본 정보 */}
             <section>
               <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-slate-900">
-                <FiUser className="text-blue-600" />
+                <FiUser className="text-slate-600" />
                 기본 정보
               </h2>
               <div className="space-y-4">
@@ -1844,7 +1844,7 @@ function MobilePreview({ profile }: {
                             href={link.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="block w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-center gap-2"
+                            className="block w-full bg-slate-900 hover:bg-slate-800 text-white rounded-xl px-4 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
                           >
                             <span>{link.icon}</span>
                             <span>{link.label}</span>

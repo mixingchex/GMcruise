@@ -241,10 +241,10 @@ function AdminLayoutContent({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-red"></div>
-          <p className="mt-4 text-lg text-gray-600">관리자 패널 로딩 중...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-slate-900 mx-auto"></div>
+          <p className="mt-4 text-sm text-slate-600">관리자 패널 로딩 중...</p>
         </div>
       </div>
     );
@@ -255,20 +255,27 @@ function AdminLayoutContent({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 shadow-lg border-b-4 border-blue-800">
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-gradient-to-r from-slate-900 to-slate-800 shadow-lg shadow-slate-900/20">
         <div className="px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <span className="text-4xl">⚓</span>
-            <h1 className="text-2xl font-extrabold text-white">크루즈 가이드 관리자 패널</h1>
+            <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10">
+              <span className="text-xl">⚓</span>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 font-medium">Admin Panel</p>
+              <h1 className="text-lg font-bold text-white tracking-tight">크루즈 가이드</h1>
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {/* 알림 종 (오른쪽 상단) */}
-            <NotificationBell />
-            <span className="text-sm font-semibold text-blue-100 bg-blue-500/30 px-3 py-1.5 rounded-lg">관리자</span>
+            <div className="bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
+              <NotificationBell />
+            </div>
+            <span className="text-xs font-semibold text-slate-300 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">관리자</span>
             <button
               onClick={handleLogout}
-              className="bg-white hover:bg-gray-100 text-blue-700 px-5 py-2 rounded-lg text-sm font-bold transition-all shadow-md hover:scale-105"
+              className="bg-white hover:bg-slate-100 text-slate-900 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-lg"
             >
               로그아웃
             </button>
@@ -277,30 +284,30 @@ function AdminLayoutContent({
       </header>
 
       <div className="flex">
-        <aside className="w-64 bg-gradient-to-b from-white to-gray-50 shadow-lg border-r-2 border-gray-200 min-h-screen">
+        <aside className="w-64 bg-white shadow-lg shadow-slate-900/5 border-r border-slate-200 min-h-screen">
           <nav className="p-4">
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {sectionConfigs.map(({ key, label, icon }) => {
                 const items = groupedMenu[key] ?? [];
                 if (!items.length) return null;
 
                 return (
-                  <li key={key} className="rounded-2xl border border-gray-100 bg-white/70 shadow-sm">
+                  <li key={key} className="rounded-xl border border-slate-100 bg-white shadow-sm">
                     <button
                       onClick={() => toggleSection(key)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${sectionExpanded[key]
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                        : 'text-gray-700 hover:bg-gray-100'
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${sectionExpanded[key]
+                        ? 'bg-slate-900 text-white shadow-lg'
+                        : 'text-slate-700 hover:bg-slate-50'
                         }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{icon}</span>
-                        <span className="font-bold text-sm tracking-wide">{label}</span>
+                        <span className="text-lg">{icon}</span>
+                        <span className="font-semibold text-sm">{label}</span>
                       </div>
-                      <span className="text-lg">{sectionExpanded[key] ? '▼' : '▶'}</span>
+                      <span className="text-sm">{sectionExpanded[key] ? '▼' : '▶'}</span>
                     </button>
                     {sectionExpanded[key] && (
-                      <ul className="space-y-1 px-2 py-3">
+                      <ul className="space-y-1 px-2 py-2">
                         {items.map((item) => (
                           <li key={item.href}>
                             <Link
@@ -308,12 +315,12 @@ function AdminLayoutContent({
                               prefetch={true}
                               target={(item as any).external ? '_blank' : undefined}
                               rel={(item as any).external ? 'noopener noreferrer' : undefined}
-                              className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${pathname === item.href
-                                ? 'bg-blue-100 text-blue-700 shadow'
-                                : 'text-gray-700 hover:bg-gray-100'
+                              className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${pathname === item.href
+                                ? 'bg-slate-100 text-slate-900'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                                 }`}
                             >
-                              <span className="text-lg">{item.icon}</span>
+                              <span className="text-base">{item.icon}</span>
                               <span>{item.label}</span>
                             </Link>
                           </li>
@@ -324,34 +331,34 @@ function AdminLayoutContent({
                 );
               })}
 
-              <li className="rounded-2xl border border-gray-100 bg-white/70 shadow-sm">
+              <li className="rounded-xl border border-slate-100 bg-white shadow-sm">
                 <button
                   onClick={() => setShowCompressorModal(true)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 text-gray-700 hover:bg-gray-100"
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 text-slate-700 hover:bg-slate-50"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🗜️</span>
-                    <span className="font-bold text-sm tracking-wide">만능 압축기</span>
+                    <span className="text-lg">🗜️</span>
+                    <span className="font-semibold text-sm">만능 압축기</span>
                   </div>
                 </button>
               </li>
 
-              <li className="rounded-2xl border border-gray-100 bg-white/70 shadow-sm">
+              <li className="rounded-xl border border-slate-100 bg-white shadow-sm">
                 <button
                   onClick={() => setCustomerGroupExpanded(!customerGroupExpanded)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-200 ${customerGroupExpanded
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md'
-                    : 'text-gray-700 hover:bg-gray-100'
+                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${customerGroupExpanded
+                    ? 'bg-slate-800 text-white shadow-lg'
+                    : 'text-slate-700 hover:bg-slate-50'
                     }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <span className="text-2xl">👥</span>
-                    <span className="font-bold text-sm tracking-wide">고객</span>
+                    <span className="text-lg">👥</span>
+                    <span className="font-semibold text-sm">고객</span>
                   </div>
-                  <span className="text-lg">{customerGroupExpanded ? '▼' : '▶'}</span>
+                  <span className="text-sm">{customerGroupExpanded ? '▼' : '▶'}</span>
                 </button>
                 {customerGroupExpanded && (
-                  <ul className="space-y-1 px-2 py-3">
+                  <ul className="space-y-1 px-2 py-2">
                     {customerMenuItems.map((item) => {
                       // customerGroup 쿼리 파라미터 확인
                       const isActive = item.href.includes('customerGroup=')
@@ -363,12 +370,12 @@ function AdminLayoutContent({
                           <Link
                             href={item.href}
                             prefetch={true}
-                            className={`flex items-center space-x-3 rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${isActive
-                              ? 'bg-purple-100 text-purple-700 shadow'
-                              : 'text-gray-700 hover:bg-gray-100'
+                            className={`flex items-center space-x-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ${isActive
+                              ? 'bg-slate-100 text-slate-900'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                               }`}
                           >
-                            <span className="text-lg">{item.icon}</span>
+                            <span className="text-base">{item.icon}</span>
                             <span>{item.label}</span>
                           </Link>
                         </li>
@@ -398,10 +405,10 @@ export default function AdminLayout({
 }) {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-brand-red"></div>
-          <p className="mt-4 text-lg text-gray-600">로딩 중...</p>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-slate-900 mx-auto"></div>
+          <p className="mt-4 text-sm text-slate-600">로딩 중...</p>
         </div>
       </div>
     }>

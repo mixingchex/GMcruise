@@ -30,7 +30,10 @@ export async function POST(req: NextRequest) {
   try {
     const { profile, sessionUser } = await requirePartnerContext();
     const body = await req.json();
-    const { emails, title, content } = body;
+    const { emails, title, content, images, buttons } = body;
+
+    // images: Array<{ url: string; name: string }> - base64 또는 URL
+    // buttons: Array<{ label: string; url: string }> - 최대 3개
 
     if (!emails || !Array.isArray(emails) || emails.length === 0) {
       throw new PartnerApiError('이메일 주소 목록이 필요합니다.', 400);
@@ -113,6 +116,34 @@ export async function POST(req: NextRequest) {
       ? `<p style="font-size: 13px; color: #555; margin: 8px 0; line-height: 1.6;">${contactInfo.join(' &nbsp;|&nbsp; ')}</p>`
       : '';
 
+    // 이미지 HTML 생성
+    let imagesHtml = '';
+    if (images && Array.isArray(images) && images.length > 0) {
+      const imageItems = images.slice(0, 5).map((img: { url: string; name: string }) =>
+        `<div style="margin-bottom: 15px; text-align: center;">
+          <img src="${img.url}" alt="${img.name || '이미지'}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+        </div>`
+      ).join('');
+      imagesHtml = `
+        <div style="margin-top: 20px; margin-bottom: 20px;">
+          ${imageItems}
+        </div>
+      `;
+    }
+
+    // 버튼 HTML 생성
+    let buttonsHtml = '';
+    if (buttons && Array.isArray(buttons) && buttons.length > 0) {
+      const buttonItems = buttons.slice(0, 3).map((btn: { label: string; url: string }) =>
+        `<a href="${btn.url}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; margin: 5px; box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);">${btn.label}</a>`
+      ).join('');
+      buttonsHtml = `
+        <div style="margin-top: 25px; margin-bottom: 20px; text-align: center;">
+          ${buttonItems}
+        </div>
+      `;
+    }
+
     // HTML 본문 작성 - 크루즈닷 푸터 자동 추가
     const htmlBody = `
       <!DOCTYPE html>
@@ -132,6 +163,12 @@ export async function POST(req: NextRequest) {
 
           <!-- 본문 -->
           <div style="font-size: 15px; line-height: 1.8; white-space: pre-wrap; color: #333; padding: 10px 0;">${content.replace(/\n/g, '<br>')}</div>
+
+          <!-- 이미지 섹션 -->
+          ${imagesHtml}
+
+          <!-- 버튼 섹션 -->
+          ${buttonsHtml}
         </div>
 
         <!-- 크루즈닷 푸터 (자동 추가) -->

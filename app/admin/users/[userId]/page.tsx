@@ -2563,7 +2563,7 @@ function TripSection({
                 ? trip.destination.join(', ')
                 : trip.destination || '목적지 정보 없음';
               return (
-                <div key={trip.id} className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+                <div key={trip.id} className="p-5 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border-2 border-slate-200">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -2994,7 +2994,7 @@ function TravelRecordsSection({ userId }: { userId: string }) {
         ) : (
           <div className="space-y-4">
             {travelRecords.map((record, index) => (
-              <div key={record.id} className="border-l-4 border-blue-500 pl-4 py-4 bg-gradient-to-r from-blue-50 to-white rounded-r-lg">
+              <div key={record.id} className="border-l-4 border-slate-500 pl-4 py-4 bg-gradient-to-r from-slate-50 to-white rounded-r-lg">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">

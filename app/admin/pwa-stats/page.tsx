@@ -134,7 +134,7 @@ export default function PWAStatsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-extrabold text-gray-800 mb-2 flex items-center gap-3">
-            <FiSmartphone className="text-indigo-600" />
+            <FiSmartphone className="text-slate-700" />
             PWA 바탕화면 추가 통계
           </h1>
           <p className="text-lg text-gray-600 font-medium">
@@ -147,7 +147,7 @@ export default function PWAStatsPage() {
           </div>
           <button
             onClick={loadStats}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
           >
             <FiRefreshCw className="w-4 h-4" />
             갱신
@@ -157,7 +157,7 @@ export default function PWAStatsPage() {
 
       {/* 요약 카드 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">크루즈가이드 지니</h3>
             <FiSmartphone className="w-6 h-6" />
@@ -166,7 +166,7 @@ export default function PWAStatsPage() {
           <p className="text-sm opacity-90">명 설치</p>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-gradient-to-br from-slate-700 to-slate-800 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">크루즈몰</h3>
             <FiSmartphone className="w-6 h-6" />
@@ -175,7 +175,7 @@ export default function PWAStatsPage() {
           <p className="text-sm opacity-90">명 설치</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-gradient-to-br from-slate-600 to-slate-700 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">둘 다 설치</h3>
             <FiUsers className="w-6 h-6" />
@@ -184,7 +184,7 @@ export default function PWAStatsPage() {
           <p className="text-sm opacity-90">명</p>
         </div>
 
-        <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="bg-gradient-to-br from-slate-500 to-slate-600 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">전체 설치</h3>
             <FiTrendingUp className="w-6 h-6" />

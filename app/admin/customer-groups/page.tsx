@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiPlus, FiEdit, FiTrash2, FiUsers, FiX, FiCheck, FiUpload, FiDownload, FiLoader, FiCode } from 'react-icons/fi';
+import { FiPlus, FiEdit, FiTrash2, FiUsers, FiX, FiCheck, FiUpload, FiDownload, FiLoader, FiCode, FiCheckSquare, FiSquare } from 'react-icons/fi';
 import { showSuccess, showError, showWarning } from '@/components/ui/Toast';
 
 type CustomerGroup = {
@@ -76,7 +76,12 @@ export default function CustomerGroupsPage() {
   const [customerListPage, setCustomerListPage] = useState(1);
   const [customerListTotal, setCustomerListTotal] = useState(0);
   const [releasingMemberId, setReleasingMemberId] = useState<number | null>(null);
-  
+
+  // 복수 선택 관련 상태
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
   // 스크립트 모달
   const [showScriptModal, setShowScriptModal] = useState(false);
   const [scriptGroup, setScriptGroup] = useState<CustomerGroup | null>(null);
@@ -511,6 +516,8 @@ export default function CustomerGroupsPage() {
     setCustomerListGroup(group);
     setCustomerListSearch('');
     setCustomerListPage(1);
+    setSelectedMemberIds([]); // 모달 열릴 때 선택 초기화
+    setSelectionMode(false);
     setShowCustomerListModal(true);
     await loadGroupCustomers(group.id);
   };
@@ -553,6 +560,7 @@ export default function CustomerGroupsPage() {
     
     const timer = setTimeout(() => {
       setCustomerListPage(1);
+      setSelectedMemberIds([]); // 검색 시 선택 초기화
       loadGroupCustomers(customerListGroup.id, 1);
     }, 500);
     
@@ -590,6 +598,76 @@ export default function CustomerGroupsPage() {
     } finally {
       setReleasingMemberId(null);
     }
+  };
+
+  // 복수 선택 토글
+  const toggleMemberSelection = (memberId: number) => {
+    setSelectedMemberIds(prev =>
+      prev.includes(memberId)
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
+
+  // 전체 선택/해제
+  const toggleSelectAll = () => {
+    if (selectedMemberIds.length === groupCustomers.length) {
+      setSelectedMemberIds([]);
+    } else {
+      setSelectedMemberIds(groupCustomers.map(c => c.id));
+    }
+  };
+
+  // 복수 선택 삭제
+  const handleBulkRelease = async () => {
+    if (selectedMemberIds.length === 0 || !customerListGroup) return;
+
+    const confirmMsg = selectedMemberIds.length === 1
+      ? '선택한 고객을 그룹에서 해제하시겠습니까?'
+      : `선택한 ${selectedMemberIds.length}명의 고객을 그룹에서 해제하시겠습니까?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setIsBulkDeleting(true);
+    try {
+      // 선택된 멤버들의 userId 찾기
+      const selectedCustomers = groupCustomers.filter(c => selectedMemberIds.includes(c.id));
+
+      const results = await Promise.all(
+        selectedCustomers.map(customer =>
+          fetch(`/api/admin/customer-groups/${customerListGroup.id}/members?userId=${customer.userId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+          })
+        )
+      );
+
+      const failedCount = results.filter(r => !r.ok).length;
+      const successCount = results.length - failedCount;
+
+      if (failedCount > 0) {
+        showWarning(`${successCount}명 해제 완료, ${failedCount}명 실패`);
+      } else {
+        showSuccess(`${successCount}명의 고객이 그룹에서 해제되었습니다.`);
+      }
+
+      // 선택 초기화 및 리스트 새로고침
+      setSelectedMemberIds([]);
+      setSelectionMode(false);
+      await loadGroupCustomers(customerListGroup.id);
+      await loadGroups();
+    } catch (error) {
+      console.error('Failed to bulk release:', error);
+      showError('일부 고객 해제에 실패했습니다.');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
+  // 선택 모드 취소
+  const cancelSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedMemberIds([]);
   };
 
   // 그룹별 스크립트 열기
@@ -1752,6 +1830,8 @@ export default function CustomerGroupsPage() {
                   setCustomerListGroup(null);
                   setGroupCustomers([]);
                   setCustomerListSearch('');
+                  setSelectedMemberIds([]);
+                  setSelectionMode(false);
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -1759,15 +1839,60 @@ export default function CustomerGroupsPage() {
               </button>
             </div>
 
-            {/* 검색 바 */}
-            <div className="p-4 border-b border-gray-200">
+            {/* 검색 바 및 선택 컨트롤 */}
+            <div className="p-4 border-b border-gray-200 space-y-3">
               <input
                 type="text"
                 placeholder="고객명, 전화번호, 이메일로 검색..."
                 value={customerListSearch}
                 onChange={(e) => setCustomerListSearch(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
+
+              {/* 선택 모드 컨트롤 */}
+              <div className="flex items-center gap-3 flex-wrap">
+                {selectionMode ? (
+                  <>
+                    <button
+                      onClick={toggleSelectAll}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200"
+                    >
+                      {selectedMemberIds.length === groupCustomers.length ? (
+                        <><FiCheckSquare className="w-4 h-4" /> 전체 해제</>
+                      ) : (
+                        <><FiSquare className="w-4 h-4" /> 전체 선택</>
+                      )}
+                    </button>
+                    <span className="text-sm text-slate-600">{selectedMemberIds.length}명 선택됨</span>
+                    <button
+                      onClick={handleBulkRelease}
+                      disabled={selectedMemberIds.length === 0 || isBulkDeleting}
+                      className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FiTrash2 className="w-4 h-4" />
+                      {isBulkDeleting ? '해제 중...' : '선택 해제'}
+                    </button>
+                    <button
+                      onClick={cancelSelectionMode}
+                      className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                    >
+                      취소
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {groupCustomers.length > 0 && (
+                      <button
+                        onClick={() => setSelectionMode(true)}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 rounded-lg border border-slate-200"
+                      >
+                        <FiCheckSquare className="w-4 h-4" />
+                        선택
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             {/* 고객 리스트 */}
@@ -1787,18 +1912,51 @@ export default function CustomerGroupsPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-200">
+                        {selectionMode && (
+                          <th className="w-10 py-3 px-2">
+                            <input
+                              type="checkbox"
+                              checked={selectedMemberIds.length === groupCustomers.length && groupCustomers.length > 0}
+                              onChange={toggleSelectAll}
+                              className="w-4 h-4 text-slate-600 rounded cursor-pointer"
+                            />
+                          </th>
+                        )}
                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">고객명</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">전화번호</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">이메일</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">유입날짜</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">일차</th>
                         <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">문자 발송 횟수</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">작업</th>
+                        {!selectionMode && (
+                          <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">작업</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
                       {groupCustomers.map((customer) => (
-                        <tr key={customer.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <tr
+                          key={customer.id}
+                          onClick={() => selectionMode && toggleMemberSelection(customer.id)}
+                          className={`border-b border-gray-100 hover:bg-gray-50 ${
+                            selectionMode ? 'cursor-pointer' : ''
+                          } ${
+                            selectionMode && selectedMemberIds.includes(customer.id)
+                              ? 'bg-slate-50'
+                              : ''
+                          }`}
+                        >
+                          {selectionMode && (
+                            <td className="py-3 px-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedMemberIds.includes(customer.id)}
+                                onChange={() => toggleMemberSelection(customer.id)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-4 h-4 text-slate-600 rounded cursor-pointer"
+                              />
+                            </td>
+                          )}
                           <td className="py-3 px-4 text-sm text-gray-900">
                             {customer.customerName || '이름 없음'}
                           </td>
@@ -1821,25 +1979,30 @@ export default function CustomerGroupsPage() {
                               {customer.messageSentCount || 0}회
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-right">
-                            <button
-                              onClick={() => handleReleaseFromGroup(customer.id, customer.userId, customerListGroup.id)}
-                              disabled={releasingMemberId === customer.id}
-                              className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 ml-auto"
-                            >
-                              {releasingMemberId === customer.id ? (
-                                <>
-                                  <FiLoader className="animate-spin" size={14} />
-                                  해제 중...
-                                </>
-                              ) : (
-                                <>
-                                  <FiX size={14} />
-                                  해제
-                                </>
-                              )}
-                            </button>
-                          </td>
+                          {!selectionMode && (
+                            <td className="py-3 px-4 text-right">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReleaseFromGroup(customer.id, customer.userId, customerListGroup.id);
+                                }}
+                                disabled={releasingMemberId === customer.id}
+                                className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1 ml-auto"
+                              >
+                                {releasingMemberId === customer.id ? (
+                                  <>
+                                    <FiLoader className="animate-spin" size={14} />
+                                    해제 중...
+                                  </>
+                                ) : (
+                                  <>
+                                    <FiX size={14} />
+                                    해제
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
@@ -1860,6 +2023,7 @@ export default function CustomerGroupsPage() {
                       const newPage = customerListPage - 1;
                       if (newPage >= 1) {
                         setCustomerListPage(newPage);
+                        setSelectedMemberIds([]); // 페이지 변경 시 선택 초기화
                         loadGroupCustomers(customerListGroup.id, newPage);
                       }
                     }}
@@ -1874,6 +2038,7 @@ export default function CustomerGroupsPage() {
                       const totalPages = Math.ceil(customerListTotal / 50);
                       if (newPage <= totalPages) {
                         setCustomerListPage(newPage);
+                        setSelectedMemberIds([]); // 페이지 변경 시 선택 초기화
                         loadGroupCustomers(customerListGroup.id, newPage);
                       }
                     }}
@@ -1930,7 +2095,7 @@ export default function CustomerGroupsPage() {
                   {productApisData.map((product) => (
                     <div
                       key={product.productCode}
-                      className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl border-2 border-emerald-200 p-5 hover:shadow-lg transition-all"
+                      className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border-2 border-slate-200 p-5 hover:shadow-lg transition-all"
                     >
                       <div className="mb-3">
                         <h3 className="text-lg font-bold text-gray-900 mb-1">

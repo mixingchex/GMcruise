@@ -1950,7 +1950,7 @@ export default function EditLandingPagePage() {
     <div className="p-4 bg-gray-50 min-h-screen">
       <div className="bg-white rounded-lg shadow-lg max-w-[1920px] mx-auto">
         {/* 헤더 */}
-        <div className="border-b px-6 py-4 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="border-b px-6 py-4 flex items-center justify-between bg-gradient-to-r from-slate-50 to-slate-100">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-gray-800">블로그형 랜딩페이지 수정</h1>
             {autoSaveStatus === 'saving' && (

@@ -476,9 +476,9 @@ export default function EditFlowPage() {
           </div>
 
           {/* AI로 플로우 생성 */}
-          <div className="p-4 border-b border-gray-200 bg-gradient-to-br from-purple-50 to-pink-50">
+          <div className="p-4 border-b border-gray-200 bg-gradient-to-br from-slate-50 to-slate-100">
             <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <MdAutoAwesome className="text-purple-600" />
+              <MdAutoAwesome className="text-slate-700" />
               AI로 플로우 생성
             </h2>
             <div className="space-y-3">
@@ -492,7 +492,7 @@ export default function EditFlowPage() {
               <button
                 onClick={generateFlowWithAI}
                 disabled={isGenerating}
-                className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                className="w-full px-4 py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <MdAutoAwesome />
                 {isGenerating ? '생성 중...' : 'AI로 생성하기'}

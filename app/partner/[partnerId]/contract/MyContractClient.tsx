@@ -391,7 +391,7 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white pb-24">
       <div className="mx-auto w-full max-w-4xl px-4 pt-12">
-        <header className="mb-8 rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-8 shadow-xl">
+        <header className="mb-8 rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 text-white p-8 shadow-xl shadow-slate-900/20">
           <Link
             href={`/partner/${partnerId}/dashboard`}
             className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-4 text-sm"
@@ -404,7 +404,7 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
               {isBranchManager ? '계약서 관리' : `나의 ${affiliateTerm} 계약서`}
             </h1>
           </div>
-          <p className="text-white/90">
+          <p className="text-slate-300">
             {isBranchManager
               ? '판매원 계약서 관리 및 나의 계약 정보를 확인할 수 있습니다.'
               : '승인된 계약 정보와 서명을 확인할 수 있습니다.'}
@@ -418,7 +418,7 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
               {/* 기본 정보 */}
               <section className="rounded-3xl bg-white p-6 shadow-lg">
                 <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-                  <FiUser className="text-blue-600" />
+                  <FiUser className="text-slate-600" />
                   계약자 정보
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2 text-sm">

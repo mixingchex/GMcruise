@@ -843,7 +843,7 @@ export default function AffiliateTeamDashboardPage() {
           {overviewCards.map((card) => (
             <article
               key={card.title}
-              className="flex h-full flex-col justify-between rounded-3xl bg-gradient-to-br from-indigo-500/90 to-blue-500/80 p-6 text-white shadow-lg"
+              className="flex h-full flex-col justify-between rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 p-6 text-white shadow-lg"
             >
               <div className="flex items-start justify-between">
                 <div>

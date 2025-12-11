@@ -1421,7 +1421,7 @@ export default function LinksPage() {
                             {formData.productCode ? (
                               <>
                                 <div className="mb-4">
-                                  <div className="h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl mb-4 flex items-center justify-center">
+                                  <div className="h-48 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl mb-4 flex items-center justify-center">
                                     <span className="text-white text-2xl font-bold">
                                       {products.find(p => p.productCode === formData.productCode)?.packageName || '상품 이미지'}
                                     </span>

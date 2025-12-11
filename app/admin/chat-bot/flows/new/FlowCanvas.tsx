@@ -661,10 +661,19 @@ function FlowCanvas({
         // 간단한 조건 평가 (변수와 비교)
         let conditionResult = false;
         try {
-          // 변수 값을 사용하여 조건 평가
-          const evalCondition = condition.replace(/(\w+)/g, (match: string) => {
+          // 변수 값을 사용하여 조건 평가 (한글 변수명 포함)
+          const evalCondition = condition.replace(/([\w가-힣]+)/g, (match: string) => {
             if (previewVariables[match] !== undefined) {
-              return String(previewVariables[match]);
+              const value = previewVariables[match];
+              // 문자열인 경우 따옴표로 감싸기
+              if (typeof value === 'string') {
+                return `"${value.replace(/"/g, '\\"')}"`;
+              }
+              return String(value);
+            }
+            // 변수에 없으면 문자열로 처리 (한글 등)
+            if (/[가-힣]/.test(match)) {
+              return `"${match}"`;
             }
             return match;
           });
@@ -1047,9 +1056,9 @@ function FlowCanvas({
           {/* 왼쪽 사이드바 - 노드 추가 및 설정 */}
           <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
             {/* 노드 추가 버튼들 - 맨 위로 이동하여 항상 보이도록 */}
-            <div className="p-4 border-b border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 sticky top-0 z-10">
+            <div className="p-4 border-b border-gray-200 bg-gradient-to-br from-slate-50 to-slate-100 sticky top-0 z-10">
               <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <FiPlus className="text-blue-500" />
+                <FiPlus className="text-slate-700" />
                 노드 추가
               </h2>
               <div className="space-y-2">
@@ -1361,9 +1370,9 @@ function FlowCanvas({
           </div>
 
             {/* AI로 플로우 생성 */}
-            <div className="p-4 border-b border-gray-200 bg-gradient-to-br from-purple-50 to-pink-50">
+            <div className="p-4 border-b border-gray-200 bg-gradient-to-br from-slate-50 to-slate-100">
               <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <MdAutoAwesome className="text-purple-600" />
+                <MdAutoAwesome className="text-slate-700" />
                 AI로 플로우 생성
               </h2>
               <div className="space-y-3">
@@ -1377,7 +1386,7 @@ function FlowCanvas({
                 <button
                   onClick={generateFlowWithAI}
                   disabled={isGenerating}
-                  className="w-full px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <MdAutoAwesome />
                   {isGenerating ? '생성 중...' : 'AI로 생성하기'}

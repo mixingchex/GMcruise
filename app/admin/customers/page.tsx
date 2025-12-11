@@ -446,11 +446,11 @@ export default function CustomersPage() {
       {/* 고객 관리 카테고리 - 핵심 7개 */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         {/* 헤더 */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-bold text-white">고객 분류</h2>
-              <p className="text-blue-100 text-sm mt-1">카테고리를 선택하여 고객을 관리하세요</p>
+              <p className="text-slate-300 text-sm mt-1">카테고리를 선택하여 고객을 관리하세요</p>
             </div>
             <button
               onClick={() => {

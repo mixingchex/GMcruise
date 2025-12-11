@@ -166,7 +166,7 @@ export default function SalesClient({ currentUser, profile }: SalesClientProps) 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
@@ -198,8 +198,8 @@ export default function SalesClient({ currentUser, profile }: SalesClientProps) 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <FiPackage className="w-5 h-5 text-blue-600" />
+                <div className="p-2 bg-slate-100 rounded-lg">
+                  <FiPackage className="w-5 h-5 text-slate-600" />
                 </div>
                 <span className="text-sm font-medium text-slate-600">총 판매건수</span>
               </div>
@@ -218,12 +218,12 @@ export default function SalesClient({ currentUser, profile }: SalesClientProps) 
 
             <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
               <div className="flex items-center gap-3 mb-2">
-                <div className="p-2 bg-purple-50 rounded-lg">
-                  <FiTrendingUp className="w-5 h-5 text-purple-600" />
+                <div className="p-2 bg-slate-900 rounded-lg">
+                  <FiTrendingUp className="w-5 h-5 text-white" />
                 </div>
                 <span className="text-sm font-medium text-slate-600">나의 수당</span>
               </div>
-              <p className="text-2xl font-bold text-purple-600">{formatCurrency(stats.myCommission)}</p>
+              <p className="text-2xl font-bold text-slate-900">{formatCurrency(stats.myCommission)}</p>
               <p className="text-xs text-slate-500 mt-1">
                 원천징수 전: {formatCurrency(stats.myCommission + stats.totalWithholding)}
               </p>
@@ -331,7 +331,7 @@ export default function SalesClient({ currentUser, profile }: SalesClientProps) 
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <span className="text-sm font-bold text-purple-600">{formatCurrency(commission)}</span>
+                          <span className="text-sm font-bold text-slate-900">{formatCurrency(commission)}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
                           <span
@@ -392,18 +392,18 @@ export default function SalesClient({ currentUser, profile }: SalesClientProps) 
                 {/* Commission Info */}
                 <div>
                   <h4 className="text-sm font-medium text-slate-600 mb-3">수당 정보</h4>
-                  <div className="bg-purple-50 rounded-lg p-4 space-y-3">
+                  <div className="bg-slate-100 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-slate-700">판매액</span>
                       <span className="text-lg font-bold text-slate-900">
                         {formatCurrency(selectedSale.saleAmount)}
                       </span>
                     </div>
-                    <div className="border-t border-purple-100 pt-2 space-y-2">
+                    <div className="border-t border-slate-200 pt-2 space-y-2">
                       {selectedSale.branchCommission > 0 && (
                         <div className="flex justify-between">
                           <span className="text-sm text-slate-600">대리점 수당</span>
-                          <span className="text-sm font-semibold text-purple-600">
+                          <span className="text-sm font-semibold text-slate-900">
                             {formatCurrency(selectedSale.branchCommission)}
                           </span>
                         </div>
@@ -411,7 +411,7 @@ export default function SalesClient({ currentUser, profile }: SalesClientProps) 
                       {selectedSale.salesCommission > 0 && (
                         <div className="flex justify-between">
                           <span className="text-sm text-slate-600">판매원 수당</span>
-                          <span className="text-sm font-semibold text-purple-600">
+                          <span className="text-sm font-semibold text-slate-900">
                             {formatCurrency(selectedSale.salesCommission)}
                           </span>
                         </div>

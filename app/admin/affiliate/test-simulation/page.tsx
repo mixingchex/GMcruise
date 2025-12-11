@@ -468,11 +468,11 @@ export default function AdminTestSimulationPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pt-10 md:px-6">
         {/* 헤더 */}
-        <header className="rounded-3xl bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 p-8 text-white shadow-xl">
+        <header className="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 text-white shadow-xl">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-2">
               <h1 className="text-3xl font-extrabold">구매 시뮬레이션</h1>
-              <p className="text-sm text-white/80">
+              <p className="text-sm text-slate-300">
                 테스트 목적으로 어필리에이트 판매를 시뮬레이션합니다. 실제 결제 없이 판매 데이터를 생성할 수 있습니다.
               </p>
             </div>

@@ -459,7 +459,7 @@ export default function PartnerTeamClient() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-10 md:px-6">
-        <header className="rounded-3xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 p-8 text-white shadow-xl">
+        <header className="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 text-white shadow-xl shadow-slate-900/20">
           <Link
             href={`/partner/${partnerId}/dashboard`}
             className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-4 text-sm"
@@ -468,16 +468,16 @@ export default function PartnerTeamClient() {
           </Link>
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-3">
-              <p className="text-xs uppercase tracking-[0.35em] text-white/80">Partner Team</p>
+              <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Partner Team</p>
               <h1 className="text-3xl font-black leading-snug md:text-4xl">
                 {isBranchManager ? '판매원 팀 관리' : '나의 판매 실적'}
               </h1>
-              <p className="max-w-2xl text-sm text-white/80 md:text-base">
+              <p className="max-w-2xl text-sm text-slate-300 md:text-base">
                 팀 판매원들의 활동 현황과 정산 수당을 한눈에 확인하세요. 판매 실적과 수당 정보가 실시간으로 반영됩니다.
               </p>
             </div>
             <div className="rounded-3xl bg-white/10 p-6 backdrop-blur">
-              <p className="text-sm font-semibold uppercase tracking-widest text-white/70">
+              <p className="text-sm font-semibold uppercase tracking-widest text-slate-400">
                 요약 지표
               </p>
               <div className="mt-4 grid gap-3 text-sm text-white">
@@ -503,7 +503,7 @@ export default function PartnerTeamClient() {
             >
               <div className="text-slate-500 text-sm">{card.title}</div>
               <div className="mt-3 flex items-center gap-3">
-                <div className="text-2xl text-blue-600">{card.icon}</div>
+                <div className="text-2xl text-slate-600">{card.icon}</div>
                 <div className="text-xl font-bold text-slate-900">{card.value}</div>
               </div>
               <p className="mt-2 text-xs text-slate-500">{card.description}</p>

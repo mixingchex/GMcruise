@@ -1398,7 +1398,7 @@ export default function NewProductPage() {
             </div>
 
             {/* 방문 국가 설정 */}
-            <div className="md:col-span-2 p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+            <div className="md:col-span-2 p-4 bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300 rounded-lg">
               <CountrySelector
                 selectedCountries={selectedCountries}
                 onChange={setSelectedCountries}
@@ -1408,8 +1408,8 @@ export default function NewProductPage() {
             </div>
 
             {/* 출발 날짜 및 종료 날짜 선택 (지도 캘린더) - 여행기간 박수/일수 위에 배치 */}
-            <div className="md:col-span-2 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
-              <div className="text-sm font-bold text-blue-900 mb-4 flex items-center gap-2">
+            <div className="md:col-span-2 p-4 bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300 rounded-lg">
+              <div className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <span className="text-xl">🗓️</span>
                 <span>출발 날짜 및 종료 날짜 선택 (지도 캘린더)</span>
                 <span className="text-red-600">* 필수</span>
