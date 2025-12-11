@@ -56,12 +56,17 @@ const normalizePhone = (phone: string | null): string | null => {
 const replaceTemplateVariables = (
   text: string,
   name: string,
+  phone: string,
   productName: string,
   linkUrl: string
 ): string => {
   return text
     .replace(/\{이름\}/g, name || '고객')
+    .replace(/\{\{이름\}\}/g, name || '고객')
+    .replace(/\{연락처\}/g, phone || '')
+    .replace(/\{\{연락처\}\}/g, phone || '')
     .replace(/\{상품\}/g, productName || '')
+    .replace(/\{\{상품명\}\}/g, productName || '')
     .replace(/\{링크\}/g, linkUrl || '');
 };
 
@@ -215,8 +220,8 @@ export async function POST(req: NextRequest) {
         }
 
         // 템플릿 변수 치환 (각 수신자마다 개별 적용)
-        const personalizedTitle = replaceTemplateVariables(title, user.name, productName || '', linkUrl || '');
-        const personalizedContent = replaceTemplateVariables(content, user.name, productName || '', linkUrl || '');
+        const personalizedTitle = replaceTemplateVariables(title, user.name, normalizedPhone || '', productName || '', linkUrl || '');
+        const personalizedContent = replaceTemplateVariables(content, user.name, normalizedPhone || '', productName || '', linkUrl || '');
         const messageText = `${personalizedTitle}\n\n${personalizedContent}`;
 
         console.log(`[Send SMS] Sending to ${user.name} (${normalizedPhone})`);

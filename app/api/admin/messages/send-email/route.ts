@@ -73,12 +73,17 @@ function createEmailTransporter() {
 const replaceTemplateVariables = (
   text: string,
   name: string,
+  phone: string,
   productName: string,
   linkUrl: string
 ): string => {
   return text
     .replace(/\{이름\}/g, name || '고객')
+    .replace(/\{\{이름\}\}/g, name || '고객')
+    .replace(/\{연락처\}/g, phone || '')
+    .replace(/\{\{연락처\}\}/g, phone || '')
     .replace(/\{상품\}/g, productName || '')
+    .replace(/\{\{상품명\}\}/g, productName || '')
     .replace(/\{링크\}/g, linkUrl || '');
 };
 
@@ -91,7 +96,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { recipients, userIds, mallUserIds, title, content, productName, linkUrl, includeMallUsers, includeProspects, directEmails, imageUrl } = body;
+    const { recipients, userIds, mallUserIds, title, content, productName, linkUrl, includeMallUsers, includeProspects, directEmails, imageUrl, images, buttons } = body;
 
     if (!title || !content) {
       return NextResponse.json(
@@ -233,8 +238,27 @@ export async function POST(req: NextRequest) {
     const fromName = process.env.EMAIL_FROM_NAME || '크루즈 가이드';
     const fromAddress = process.env.EMAIL_FROM_ADDRESS || process.env.EMAIL_SMTP_USER || '';
 
-    // 이미지 HTML 추가
-    const imageHtml = imageUrl ? `<div style="margin: 20px 0; text-align: center;"><img src="${imageUrl}" alt="첨부 이미지" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>` : '';
+    // 이미지 HTML 추가 (새로운 images 배열 또는 기존 imageUrl 지원)
+    let imageHtml = '';
+    if (images && Array.isArray(images) && images.length > 0) {
+      const imageItems = images.slice(0, 5).map((img: { url: string; name: string }) =>
+        `<div style="margin-bottom: 15px; text-align: center;">
+          <img src="${img.url}" alt="${img.name || '이미지'}" style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+        </div>`
+      ).join('');
+      imageHtml = `<div style="margin-top: 20px; margin-bottom: 20px;">${imageItems}</div>`;
+    } else if (imageUrl) {
+      imageHtml = `<div style="margin: 20px 0; text-align: center;"><img src="${imageUrl}" alt="첨부 이미지" style="max-width: 100%; height: auto; border-radius: 8px;" /></div>`;
+    }
+
+    // 버튼 HTML 추가 (최대 3개)
+    let buttonsHtml = '';
+    if (buttons && Array.isArray(buttons) && buttons.length > 0) {
+      const buttonItems = buttons.slice(0, 3).map((btn: { label: string; url: string }) =>
+        `<a href="${btn.url}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; margin: 5px; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);">${btn.label}</a>`
+      ).join('');
+      buttonsHtml = `<div style="margin-top: 25px; margin-bottom: 20px; text-align: center;">${buttonItems}</div>`;
+    }
 
     // 각 사용자에게 이메일 발송
     const results = [];
@@ -244,8 +268,9 @@ export async function POST(req: NextRequest) {
     for (const user of targetUsers) {
       try {
         // 템플릿 변수 치환 (각 수신자마다 개별 적용)
-        const personalizedTitle = replaceTemplateVariables(title, user.name, productName || '', linkUrl || '');
-        const personalizedContent = replaceTemplateVariables(content, user.name, productName || '', linkUrl || '');
+        const userPhone = (user as any).phone || '';
+        const personalizedTitle = replaceTemplateVariables(title, user.name, userPhone, productName || '', linkUrl || '');
+        const personalizedContent = replaceTemplateVariables(content, user.name, userPhone, productName || '', linkUrl || '');
 
         // HTML 형식으로 변환 (줄바꿈 처리)
         const htmlContent = personalizedContent
@@ -267,6 +292,7 @@ export async function POST(req: NextRequest) {
                 ${htmlContent}
               </div>
               ${imageHtml}
+              ${buttonsHtml}
               <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px;">
                 <p>본 메일은 크루즈 가이드에서 발송되었습니다.</p>
                 <p>문의사항이 있으시면 고객센터로 연락해주세요.</p>

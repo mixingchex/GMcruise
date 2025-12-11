@@ -162,6 +162,10 @@ export default function MessageCenterPage() {
   const [selectedProduct, setSelectedProduct] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
 
+  // 이메일용 이미지 및 버튼 상태
+  const [emailImages, setEmailImages] = useState<Array<{ id: string; url: string; name: string }>>([]);
+  const [emailButtons, setEmailButtons] = useState<Array<{ id: string; label: string; url: string }>>([]);
+
   // 고객 그룹 로드
   const loadCustomerGroups = useCallback(async () => {
     try {
@@ -420,7 +424,11 @@ export default function MessageCenterPage() {
   const applyMessageVariables = (text: string, recipient: { name: string; phone: string }) => {
     return text
       .replace(/\{이름\}/g, recipient.name || '고객님')
+      .replace(/\{\{이름\}\}/g, recipient.name || '고객님')
+      .replace(/\{연락처\}/g, recipient.phone || '')
+      .replace(/\{\{연락처\}\}/g, recipient.phone || '')
       .replace(/\{상품\}/g, selectedProduct || '크루즈 상품')
+      .replace(/\{\{상품명\}\}/g, selectedProduct || '크루즈 상품')
       .replace(/\{링크\}/g, linkUrl || '');
   };
 
@@ -582,8 +590,11 @@ export default function MessageCenterPage() {
           return customer?.email;
         }).map(r => {
           const customer = filteredCustomers.find(c => c.phone === r.phone);
-          return { name: r.name, email: customer?.email || '' };
+          return { name: r.name, email: customer?.email || '', phone: r.phone };
         });
+
+        // 유효한 버튼만 필터링 (label과 url 모두 있는 것만)
+        const validButtons = emailButtons.filter(btn => btn.label.trim() && btn.url.trim());
 
         endpoint = '/api/admin/messages/send-email';
         body = {
@@ -593,6 +604,8 @@ export default function MessageCenterPage() {
           productName: selectedProduct || '',
           linkUrl: linkUrl || '',
           senderName,
+          images: emailImages.length > 0 ? emailImages : undefined,
+          buttons: validButtons.length > 0 ? validButtons : undefined,
         };
       } else if (sendMethod === 'kakao') {
         endpoint = '/api/admin/messages/send-kakao';
@@ -831,12 +844,12 @@ export default function MessageCenterPage() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-6 text-white">
         <h1 className="text-3xl font-bold flex items-center gap-3">
           <FiMessageSquare size={32} />
           메시지 센터
         </h1>
-        <p className="mt-2 text-blue-100">
+        <p className="mt-2 text-slate-300">
           SMS, 이메일, 카카오톡, 푸시 알림을 한 곳에서 관리하세요
         </p>
       </div>
@@ -1241,25 +1254,31 @@ export default function MessageCenterPage() {
 
               {/* 템플릿 변수 가이드 */}
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-sm font-semibold text-blue-800 mb-2">📝 사용 가능한 변수</div>
+                <div className="text-sm font-semibold text-blue-800 mb-2">📝 클릭하면 내용에 자동 삽입됩니다</div>
                 <div className="flex flex-wrap gap-2 text-xs">
                   <button
-                    onClick={() => setContent(content + '{이름}')}
-                    className="px-2 py-1 bg-white border border-blue-300 rounded hover:bg-blue-100"
+                    onClick={() => setContent(content + '{{이름}}')}
+                    className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 font-medium transition-colors"
                   >
-                    {'{이름}'} - 수신자 이름
+                    {'{{이름}}'} <span className="text-gray-500">수신자 이름</span>
                   </button>
                   <button
-                    onClick={() => setContent(content + '{상품}')}
-                    className="px-2 py-1 bg-white border border-blue-300 rounded hover:bg-blue-100"
+                    onClick={() => setContent(content + '{{연락처}}')}
+                    className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 font-medium transition-colors"
                   >
-                    {'{상품}'} - 선택한 상품명
+                    {'{{연락처}}'} <span className="text-gray-500">수신자 연락처</span>
+                  </button>
+                  <button
+                    onClick={() => setContent(content + '{{상품명}}')}
+                    className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 font-medium transition-colors"
+                  >
+                    {'{{상품명}}'} <span className="text-gray-500">선택한 상품</span>
                   </button>
                   <button
                     onClick={() => setContent(content + '{링크}')}
-                    className="px-2 py-1 bg-white border border-blue-300 rounded hover:bg-blue-100"
+                    className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 font-medium transition-colors"
                   >
-                    {'{링크}'} - 첨부 링크
+                    {'{링크}'} <span className="text-gray-500">첨부 링크</span>
                   </button>
                 </div>
               </div>
@@ -1350,13 +1369,135 @@ export default function MessageCenterPage() {
                   <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder={`안녕하세요, {이름}님!\n\n{상품} 상품을 추천드립니다.\n\n자세한 내용은 아래 링크를 확인해주세요.\n{링크}`}
+                    placeholder={`안녕하세요, {{이름}}님!\n\n{{상품명}} 상품을 추천드립니다.\n\n자세한 내용은 아래 링크를 확인해주세요.\n{링크}`}
                     rows={8}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                     maxLength={1000}
                   />
                   <p className="text-xs text-gray-500 mt-1 text-right">{content.length}/1000</p>
                 </div>
+
+                {/* 이메일 전용: 이미지 추가 */}
+                {sendMethod === 'email' && (
+                  <div className="border-t pt-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      📷 이미지 추가 (최대 5개)
+                    </label>
+                    <div className="space-y-3">
+                      {/* 이미지 업로드 버튼 */}
+                      {emailImages.length < 5 && (
+                        <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-colors">
+                          <FiPlus size={18} />
+                          <span className="text-sm font-medium text-gray-600">이미지 업로드</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  const base64 = event.target?.result as string;
+                                  setEmailImages([...emailImages, {
+                                    id: Date.now().toString(),
+                                    url: base64,
+                                    name: file.name
+                                  }]);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
+
+                      {/* 추가된 이미지 목록 */}
+                      {emailImages.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {emailImages.map((img) => (
+                            <div key={img.id} className="relative group">
+                              <img
+                                src={img.url}
+                                alt={img.name}
+                                className="w-20 h-20 object-cover rounded-lg border"
+                              />
+                              <button
+                                onClick={() => setEmailImages(emailImages.filter(i => i.id !== img.id))}
+                                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* 이메일 전용: 버튼 추가 */}
+                {sendMethod === 'email' && (
+                  <div className="border-t pt-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      🔘 버튼 추가 (최대 3개)
+                    </label>
+                    <div className="space-y-3">
+                      {/* 추가된 버튼 목록 */}
+                      {emailButtons.map((btn, idx) => (
+                        <div key={btn.id} className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                          <span className="text-sm font-bold text-gray-500">{idx + 1}</span>
+                          <input
+                            type="text"
+                            value={btn.label}
+                            onChange={(e) => {
+                              const updated = emailButtons.map(b =>
+                                b.id === btn.id ? { ...b, label: e.target.value } : b
+                              );
+                              setEmailButtons(updated);
+                            }}
+                            placeholder="버튼 텍스트"
+                            className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          />
+                          <input
+                            type="url"
+                            value={btn.url}
+                            onChange={(e) => {
+                              const updated = emailButtons.map(b =>
+                                b.id === btn.id ? { ...b, url: e.target.value } : b
+                              );
+                              setEmailButtons(updated);
+                            }}
+                            placeholder="https://..."
+                            className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                          />
+                          <button
+                            onClick={() => setEmailButtons(emailButtons.filter(b => b.id !== btn.id))}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+
+                      {/* 버튼 추가 */}
+                      {emailButtons.length < 3 && (
+                        <button
+                          onClick={() => setEmailButtons([...emailButtons, {
+                            id: Date.now().toString(),
+                            label: '',
+                            url: ''
+                          }])}
+                          className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:text-blue-600 transition-colors w-full justify-center"
+                        >
+                          <FiPlus size={16} />
+                          <span className="text-sm font-medium">버튼 추가</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1447,7 +1588,7 @@ export default function MessageCenterPage() {
               className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all ${
                 isSending || !title.trim() || !content.trim()
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl'
+                  : 'bg-gradient-to-r from-slate-900 to-slate-800 text-white hover:from-slate-800 hover:to-slate-700 shadow-lg hover:shadow-xl'
               }`}
             >
               {isSending ? (
@@ -1476,7 +1617,7 @@ export default function MessageCenterPage() {
             </p>
             <a
               href="/admin/funnel"
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-indigo-700 flex items-center gap-2 shadow-lg"
+              className="px-6 py-3 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl font-bold hover:from-slate-800 hover:to-slate-700 flex items-center gap-2 shadow-lg"
             >
               <FiPlus size={20} />
               퍼널 메시지 관리

@@ -315,7 +315,7 @@ function StatusBadge({
   };
 
   const styleMap: Record<string, string> = {
-    'NEW': 'bg-blue-100 text-blue-700',
+    'NEW': 'bg-slate-100 text-slate-700',
     'CONTACTED': 'bg-amber-100 text-amber-700',
     'QUALIFIED': 'bg-indigo-100 text-indigo-700',
     'CONVERTED': 'bg-emerald-100 text-emerald-700',
@@ -591,6 +591,37 @@ export default function PartnerCustomersClient({
   const [emailRecipientMode, setEmailRecipientMode] = useState<'customer' | 'custom'>('customer');
   const [customEmailAddress, setCustomEmailAddress] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailAttachments, setEmailAttachments] = useState<File[]>([]);
+  // 이메일 이미지 (URL 또는 base64)
+  const [emailImages, setEmailImages] = useState<Array<{ id: string; url: string; name: string }>>([]);
+  // 이메일 버튼 (최대 3개)
+  const [emailButtons, setEmailButtons] = useState<Array<{ id: string; label: string; url: string }>>([]);
+  // 이미지 라이브러리 모달
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
+
+  // 치환 기능 - 선택된 상품 ID (상품 목록은 기존 activeProducts 사용)
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+
+  // 치환 함수 - 메시지에서 {{이름}}, {{연락처}}, {{상품명}} 치환
+  const applySubstitution = useCallback((text: string) => {
+    let result = text;
+    // 이름 치환
+    if (selectedLead?.customerName) {
+      result = result.replace(/\{\{이름\}\}/g, selectedLead.customerName);
+    }
+    // 연락처 치환
+    if (selectedLead?.customerPhone) {
+      result = result.replace(/\{\{연락처\}\}/g, selectedLead.customerPhone);
+    }
+    // 상품명 치환
+    if (selectedProductId) {
+      const product = activeProducts.find(p => p.id === selectedProductId);
+      if (product) {
+        result = result.replace(/\{\{상품명\}\}/g, product.packageName);
+      }
+    }
+    return result;
+  }, [selectedLead, selectedProductId, activeProducts]);
 
   const statusSelectOptions = useMemo(
     () => [
@@ -1399,6 +1430,25 @@ export default function PartnerCustomersClient({
     }
   }, [showPassportModal, passportTemplates.length, loadPassportTemplates, hasSyncedAligoConfig, loadingAligoConfig, loadAligoConfig]);
 
+  // SMS 모달이 열릴 때 알리고 설정 및 상품 목록 로드
+  useEffect(() => {
+    if (showSmsModal) {
+      // 알리고 설정이 아직 로드되지 않았으면 로드
+      if (!hasSyncedAligoConfig && !loadingAligoConfig) {
+        loadAligoConfig();
+      }
+      // 상품 목록 로드
+      loadActiveProducts();
+    }
+  }, [showSmsModal, hasSyncedAligoConfig, loadingAligoConfig, loadAligoConfig, loadActiveProducts]);
+
+  // 이메일 모달이 열릴 때 상품 목록 로드
+  useEffect(() => {
+    if (showEmailModal) {
+      loadActiveProducts();
+    }
+  }, [showEmailModal, loadActiveProducts]);
+
   // 템플릿 선택 시 메시지 업데이트
   useEffect(() => {
     if (selectedPassportTemplateId && passportTemplates.length > 0) {
@@ -1411,6 +1461,7 @@ export default function PartnerCustomersClient({
 
   // URL 파라미터로 모달 열기 (한 번만 실행)
   const [smsActionProcessed, setSmsActionProcessed] = useState(false);
+  const [emailActionProcessed, setEmailActionProcessed] = useState(false);
   useEffect(() => {
     const action = searchParams.get('action');
     if (action === 'sms' && !smsActionProcessed) {
@@ -1432,11 +1483,23 @@ export default function PartnerCustomersClient({
         setSmsRecipientMode('custom'); // 직접 번호 입력 모드로 시작
       }
     }
+    // 이메일 action 처리
+    if (action === 'email' && !emailActionProcessed) {
+      setEmailActionProcessed(true);
+      // 이메일 모달 바로 열기 (직접 이메일 입력 모드)
+      if (!showEmailModal) {
+        setShowEmailModal(true);
+        setEmailRecipientMode('custom');
+      }
+    }
     // action이 없으면 초기화
     if (!action && smsActionProcessed) {
       setSmsActionProcessed(false);
     }
-  }, [searchParams, selectedLeadId, selectedLead, showSmsModal, loadLeadDetail, customers.length, smsActionProcessed]);
+    if (!action && emailActionProcessed) {
+      setEmailActionProcessed(false);
+    }
+  }, [searchParams, selectedLeadId, selectedLead, showSmsModal, showEmailModal, loadLeadDetail, customers.length, smsActionProcessed, emailActionProcessed]);
 
   // 다음 조치 알람 스케줄링 함수
   const scheduleNextActionAlarm = useCallback((nextActionAt: string, customerName: string | null, leadId: number) => {
@@ -1817,6 +1880,9 @@ export default function PartnerCustomersClient({
 
       setSendingSms(true);
       try {
+        // 치환 적용
+        const finalMessage = applySubstitution(smsMessage);
+
         const res = await fetch('/api/partner/customers/send-sms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1824,7 +1890,7 @@ export default function PartnerCustomersClient({
           body: JSON.stringify({
             leadId: smsRecipientMode === 'customer' ? selectedLeadId : null,
             phone: recipientPhone,
-            message: smsMessage,
+            message: finalMessage,
             aligoApiKey: aligoConfig.apiKey,
             aligoUserId: aligoConfig.userId,
             aligoSenderPhone: aligoConfig.senderPhone,
@@ -1909,14 +1975,20 @@ export default function PartnerCustomersClient({
 
     setSendingEmail(true);
     try {
+      // 치환 적용
+      const finalTitle = applySubstitution(emailTitle);
+      const finalContent = applySubstitution(emailContent);
+
       const res = await fetch('/api/partner/customers/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           emails: [recipientEmail],
-          title: emailTitle,
-          content: emailContent,
+          title: finalTitle,
+          content: finalContent,
+          images: emailImages.map(img => ({ url: img.url, name: img.name })),
+          buttons: emailButtons.filter(btn => btn.label && btn.url).map(btn => ({ label: btn.label, url: btn.url })),
         }),
       });
 
@@ -1931,6 +2003,8 @@ export default function PartnerCustomersClient({
       setEmailContent('');
       setCustomEmailAddress('');
       setEmailRecipientMode('customer');
+      setEmailImages([]);
+      setEmailButtons([]);
     } catch (error) {
       console.error('handleSendEmail error', error);
       showError(
@@ -2182,7 +2256,7 @@ export default function PartnerCustomersClient({
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 pb-24">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pt-10 md:px-6">
-        <header className="rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-8 text-white shadow-xl">
+        <header className="rounded-3xl bg-gradient-to-r from-slate-900 to-slate-800 p-8 text-white shadow-xl shadow-slate-900/20">
           <Link
             href={`/partner/${partnerId}/dashboard`}
             className="inline-flex items-center gap-2 text-white/80 hover:text-white mb-4 text-sm"
@@ -2192,10 +2266,10 @@ export default function PartnerCustomersClient({
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div className="space-y-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.35em] text-white/80">Partner CRM</p>
+                <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Partner CRM</p>
                 <h1 className="mt-2 text-3xl font-black leading-snug md:text-4xl">나의 고객 관리</h1>
               </div>
-              <p className="max-w-2xl text-sm text-white/80 md:text-base">
+              <p className="max-w-2xl text-sm text-slate-300 md:text-base">
                 상담 기록과 다음 조치 일정을 관리하고, 고객이 어떤 파트너 링크를 통해 유입되었는지 추적하세요.
               </p>
               <div className="flex flex-wrap gap-3 text-xs md:text-sm">
@@ -2205,20 +2279,20 @@ export default function PartnerCustomersClient({
                     {
                       value: 'MANAGER',
                       label: '대리점장',
-                      theme: 'bg-amber-200/90 text-amber-900',
+                      theme: 'bg-white/20 text-white',
                     },
                     {
                       value: 'AGENT',
                       label: '판매원',
-                      theme: 'bg-emerald-200/90 text-emerald-900',
+                      theme: 'bg-white/15 text-white',
                     },
                   ]}
                 />
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white/90">
+                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">
                   파트너 ID {partner.mallUserId}
                 </span>
                 {partner.branchLabel ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white/90">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/90">
                     {partner.branchLabel}
                   </span>
                 ) : null}
@@ -2234,7 +2308,7 @@ export default function PartnerCustomersClient({
               type="button"
               onClick={() => setActiveTab('customers')}
               className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'customers'
-                ? 'border-b-2 border-blue-600 text-blue-600'
+                ? 'border-b-2 border-slate-900 text-slate-900'
                 : 'text-slate-500 hover:text-slate-700'
                 }`}
             >
@@ -2244,7 +2318,7 @@ export default function PartnerCustomersClient({
               type="button"
               onClick={() => setActiveTab('inquiries')}
               className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'inquiries'
-                ? 'border-b-2 border-blue-600 text-blue-600'
+                ? 'border-b-2 border-slate-900 text-slate-900'
                 : 'text-slate-500 hover:text-slate-700'
                 }`}
             >
@@ -2256,22 +2330,22 @@ export default function PartnerCustomersClient({
             <>
               {/* 판매원별 DB 관리 현황 (대리점장만) - 판매원에게는 표시하지 않음 */}
               {partner.type === 'BRANCH_MANAGER' && (
-                <div className="mb-6 rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
+                <div className="mb-6 rounded-2xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-3xl md:p-6">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
-                      <FiUsers className="text-purple-600" />
+                      <FiUsers className="text-slate-600" />
                       판매원별 DB 관리 현황
                     </h2>
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/partner/${partnerId}/customers`}
-                        className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
+                        className="text-xs text-slate-600 hover:text-slate-900 md:text-sm font-semibold"
                       >
                         전체보기 <FiArrowRight className="inline ml-1" />
                       </Link>
                       <Link
                         href={`/partner/${partnerId}/customers/send-db`}
-                        className="text-xs text-purple-600 hover:text-purple-700 md:text-sm font-semibold"
+                        className="text-xs text-slate-600 hover:text-slate-900 md:text-sm font-semibold"
                       >
                         DB 보내기 <FiArrowRight className="inline ml-1" />
                       </Link>
@@ -2295,7 +2369,7 @@ export default function PartnerCustomersClient({
                           <Link
                             key={agent.agentId}
                             href={`/partner/${partnerId}/customers?agentId=${agent.agentId}`}
-                            className="block rounded-lg border border-gray-200 p-4 hover:border-purple-300 hover:bg-purple-50 transition-all"
+                            className="block rounded-xl border border-slate-200 p-4 hover:border-slate-300 hover:bg-slate-50 transition-all"
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex-1">
@@ -2357,7 +2431,7 @@ export default function PartnerCustomersClient({
                   />
                   <button
                     type="submit"
-                    className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                   >
                     검색
                   </button>
@@ -2427,7 +2501,7 @@ export default function PartnerCustomersClient({
                       setIsAddModalOpen(true);
                       resetAddForm();
                     }}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800"
                   >
                     <FiPlus /> 새 고객 추가
                   </button>
@@ -2438,7 +2512,7 @@ export default function PartnerCustomersClient({
                       setExcelFile(null);
                       setExcelAgentProfileId('');
                     }}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 shadow hover:bg-blue-50"
+                    className="inline-flex items-center gap-2 rounded-2xl border border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow hover:bg-slate-50"
                   >
                     <FiUpload /> 엑셀 업로드
                   </button>
@@ -2453,7 +2527,7 @@ export default function PartnerCustomersClient({
                   {partner.type === 'BRANCH_MANAGER' && (
                     <Link
                       href={`/partner/${partnerId}/customers/send-db`}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-purple-700"
+                      className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800"
                     >
                       <FiUsers /> DB 보내기
                     </Link>
@@ -2532,7 +2606,7 @@ export default function PartnerCustomersClient({
                                     type="checkbox"
                                     checked={regularCustomers.length > 0 && regularCustomers.every(c => selectedForDelete.has(c.id))}
                                     onChange={() => toggleAllForDelete(regularCustomers.map(c => c.id))}
-                                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    className="h-4 w-4 rounded border-slate-300 text-slate-700 focus:ring-blue-500"
                                   />
                                 </th>
                               )}
@@ -2593,7 +2667,7 @@ export default function PartnerCustomersClient({
                                           type="checkbox"
                                           checked={selectedForDelete.has(customer.id)}
                                           onChange={() => toggleCustomerForDelete(customer.id)}
-                                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                          className="h-4 w-4 rounded border-slate-300 text-slate-700 focus:ring-blue-500"
                                         />
                                       </td>
                                     )}
@@ -2718,7 +2792,7 @@ export default function PartnerCustomersClient({
                                                     <button
                                                       type="button"
                                                       onClick={() => handleRecallDb([customer.id])}
-                                                      className="text-xs text-purple-600 hover:text-purple-700 hover:underline"
+                                                      className="text-xs text-slate-700 hover:text-slate-700 hover:underline"
                                                       title="DB 회수"
                                                     >
                                                       회수
@@ -2756,7 +2830,7 @@ export default function PartnerCustomersClient({
                                         <button
                                           type="button"
                                           onClick={() => openDetail(customer.id)}
-                                          className="inline-flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-2 font-semibold text-blue-600 hover:bg-blue-100"
+                                          className="inline-flex items-center gap-2 rounded-xl bg-slate-50 px-4 py-2 font-semibold text-slate-700 hover:bg-slate-100"
                                         >
                                           상세 보기
                                         </button>
@@ -2805,7 +2879,7 @@ export default function PartnerCustomersClient({
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <FiMonitor className="text-blue-600" />
+                  <FiMonitor className="text-slate-700" />
                   시스템 상담 신청
                 </h3>
                 <p className="text-sm text-slate-600">
@@ -2822,12 +2896,12 @@ export default function PartnerCustomersClient({
                     placeholder="이름 또는 연락처 검색"
                     value={systemConsultationSearch}
                     onChange={(e) => setSystemConsultationSearch(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm outline-none focus:border-blue-500"
+                    className="w-full rounded-xl border border-slate-200 pl-10 pr-4 py-2 text-sm outline-none focus:border-slate-500"
                   />
                 </div>
                 <button
                   onClick={loadSystemConsultations}
-                  className="p-2 text-slate-500 hover:text-blue-600 transition-colors"
+                  className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
                   title="새로고침"
                 >
                   <FiRefreshCw className={systemConsultationLoading ? 'animate-spin' : ''} />
@@ -2906,7 +2980,7 @@ export default function PartnerCustomersClient({
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <FiPhone className="text-blue-600" />
+                  <FiPhone className="text-slate-700" />
                   전화상담고객
                 </h3>
                 <p className="text-sm text-slate-600">
@@ -2931,7 +3005,7 @@ export default function PartnerCustomersClient({
                       }
                     }}
                     placeholder="고객명, 전화번호 검색"
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-slate-500"
                   />
                 </div>
                 <select
@@ -2941,7 +3015,7 @@ export default function PartnerCustomersClient({
                     setInquiryCurrentPage(1);
                     fetchInquiryCustomers(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-slate-500"
                 >
                   <option value="ALL">전체 상태</option>
                   <option value="NEW">신규</option>
@@ -2955,7 +3029,7 @@ export default function PartnerCustomersClient({
                     setInquiryCurrentPage(1);
                     fetchInquiryCustomers(1);
                   }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
                   disabled={inquiryLoading}
                 >
                   <FiRefreshCw className={inquiryLoading ? 'animate-spin' : ''} />
@@ -2997,7 +3071,7 @@ export default function PartnerCustomersClient({
           <div className="mt-6 grid gap-6 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-700">
                   <FiUsers className="text-xl" />
                 </div>
                 <div>
@@ -3008,7 +3082,7 @@ export default function PartnerCustomersClient({
               <dl className="mt-4 space-y-2 text-sm text-slate-600">
                 <div className="grid grid-cols-3 gap-2">
                   <dt className="font-semibold text-slate-500">파트너몰</dt>
-                  <dd className="col-span-2 break-all text-blue-600">
+                  <dd className="col-span-2 break-all text-slate-700">
                     {/* 판매원인 경우 대리점장의 파트너몰 링크 표시, 대리점장인 경우 본인의 파트너몰 링크 표시 */}
                     {partner.type === 'SALES_AGENT' && partner.manager?.mallUserId
                       ? `/${partner.manager.mallUserId}/shop`
@@ -3027,7 +3101,7 @@ export default function PartnerCustomersClient({
             {partner.type === 'BRANCH_MANAGER' && partner.teamAgents.length > 0 && (
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50 text-purple-600">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-50 text-slate-700">
                     <FiUsers className="text-xl" />
                   </div>
                   <div>
@@ -3052,7 +3126,7 @@ export default function PartnerCustomersClient({
                             href={`/products/${agent.mallUserId}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline break-all flex-1"
+                            className="text-xs text-slate-700 hover:text-blue-800 hover:underline break-all flex-1"
                           >
                             /products/{agent.mallUserId}
                           </Link>
@@ -3064,7 +3138,7 @@ export default function PartnerCustomersClient({
                                 : `/products/${agent.mallUserId}`;
                               copyToClipboard(fullUrl);
                             }}
-                            className="inline-flex items-center gap-1 rounded-lg bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                            className="inline-flex items-center gap-1 rounded-lg bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                           >
                             <FiCopy className="text-xs" />
                             복사
@@ -3185,7 +3259,7 @@ export default function PartnerCustomersClient({
                           }
                         }
                       }}
-                      className="text-blue-500 hover:text-blue-700"
+                      className="text-blue-500 hover:text-slate-700"
                       title="알림 권한 요청"
                     >
                       <FiBell />
@@ -3279,7 +3353,7 @@ export default function PartnerCustomersClient({
                 type="button"
                 disabled={creating}
                 onClick={handleCreateCustomer}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 disabled:bg-slate-300"
               >
                 {creating ? '저장 중...' : '고객 추가'}
               </button>
@@ -3308,8 +3382,8 @@ export default function PartnerCustomersClient({
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-blue-900 mb-2">📋 엑셀 파일 형식</p>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-900 mb-2">📋 엑셀 파일 형식</p>
                 <ul className="text-xs text-blue-800 space-y-1 list-disc list-inside">
                   <li>첫 번째 행은 헤더(컬럼명)입니다</li>
                   <li>필수 컬럼: <strong>이름</strong>, <strong>연락처</strong></li>
@@ -3376,7 +3450,7 @@ export default function PartnerCustomersClient({
                 type="button"
                 disabled={!excelFile || uploadingExcel}
                 onClick={handleUploadExcel}
-                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300"
+                className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 disabled:bg-slate-300"
               >
                 {uploadingExcel ? (
                   <>
@@ -3464,9 +3538,9 @@ export default function PartnerCustomersClient({
 
                       if (productCode) {
                         return (
-                          <div className="rounded-3xl border-2 border-blue-200 bg-blue-50/70 p-5">
+                          <div className="rounded-3xl border-2 border-slate-200 bg-slate-50/70 p-5">
                             <div className="flex items-center gap-2 mb-3">
-                              <FiPhone className="text-blue-600" />
+                              <FiPhone className="text-slate-700" />
                               <h4 className="font-bold text-slate-900">전화상담 신청 상품</h4>
                             </div>
                             <div className="space-y-2">
@@ -3489,7 +3563,7 @@ export default function PartnerCustomersClient({
                                     : `/products/${productCode}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
                                 >
                                   상품 상세 보기 →
                                 </Link>
@@ -3514,7 +3588,7 @@ export default function PartnerCustomersClient({
                             {selectedLead.customerPhone ? (
                               <a
                                 href={`tel:${selectedLead.customerPhone.replace(/[^0-9]/g, '')}`}
-                                className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors shadow-sm"
+                                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
                               >
                                 <FiPhone /> 전화걸기
                               </a>
@@ -3536,7 +3610,7 @@ export default function PartnerCustomersClient({
                               handleUpdateLead({ notes: event.target.value })
                             }
                             rows={4}
-                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                             placeholder="고객 메모를 입력하세요."
                           />
                         </div>
@@ -3550,7 +3624,7 @@ export default function PartnerCustomersClient({
                             onChange={(event) =>
                               handleUpdateLead({ status: event.target.value })
                             }
-                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
                           >
                             {leadStatusOptions.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -3570,7 +3644,7 @@ export default function PartnerCustomersClient({
                                   agentProfileId: event.target.value || null,
                                 })
                               }
-                              className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
+                              className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 disabled:bg-slate-100 disabled:cursor-not-allowed bg-white"
                             >
                               <option value="">대리점장이 직접 관리</option>
                               {partner.teamAgents.map((agent) => (
@@ -3622,7 +3696,7 @@ export default function PartnerCustomersClient({
                               showError(error instanceof Error ? error.message : '그룹 이동에 실패했습니다.');
                             }
                           }}
-                          className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                          className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                         >
                           <option value="">그룹 없음</option>
                           {customerGroups.map((group) => (
@@ -3639,7 +3713,7 @@ export default function PartnerCustomersClient({
                             setGroupForm({ name: '', description: '', productCode: '', color: '#3B82F6' });
                             setShowGroupModal(true);
                           }}
-                          className="rounded-xl border-2 border-blue-500 bg-blue-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-blue-700 transition-colors shadow-sm"
+                          className="rounded-xl border-2 border-slate-500 bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition-colors shadow-sm"
                         >
                           <FiPlus /> 새 그룹
                         </button>
@@ -3660,7 +3734,7 @@ export default function PartnerCustomersClient({
                                 type="button"
                                 onClick={() => setShowPassportModal(true)}
                                 disabled={requestingPassport}
-                                className="inline-flex items-center gap-1 rounded-xl border-2 border-blue-500 bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-sm"
+                                className="inline-flex items-center gap-1 rounded-xl border-2 border-slate-500 bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition-colors shadow-sm"
                               >
                                 <FiFileText /> 여권 재요청
                               </button>
@@ -3675,7 +3749,7 @@ export default function PartnerCustomersClient({
                             type="button"
                             onClick={() => setShowPassportModal(true)}
                             disabled={requestingPassport}
-                            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                            className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-slate-800 disabled:bg-slate-300 transition-colors"
                           >
                             <FiFileText />
                             {requestingPassport ? '전송 중...' : '여권 보내기'}
@@ -3749,7 +3823,7 @@ export default function PartnerCustomersClient({
                             }
                             rows={4}
                             placeholder="상담 내용을 입력하세요."
-                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                           />
                         </div>
                         <div className="grid gap-4 md:grid-cols-2">
@@ -3769,7 +3843,7 @@ export default function PartnerCustomersClient({
                                     occurredAt: dateValue ? `${dateValue}T${timeValue}` : '',
                                   }));
                                 }}
-                                className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                               />
                               <input
                                 type="time"
@@ -3786,7 +3860,7 @@ export default function PartnerCustomersClient({
                                     occurredAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.occurredAt,
                                   }));
                                 }}
-                                className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                               />
                             </div>
                           </div>
@@ -3810,7 +3884,7 @@ export default function PartnerCustomersClient({
                                       }
                                     }
                                   }}
-                                  className="text-blue-500 hover:text-blue-700"
+                                  className="text-blue-500 hover:text-slate-700"
                                   title="알림 권한 요청"
                                 >
                                   <FiBell />
@@ -3831,7 +3905,7 @@ export default function PartnerCustomersClient({
                                     nextActionAt: dateValue ? `${dateValue}T${timeValue}` : '',
                                   }));
                                 }}
-                                className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                className="flex-1 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                               />
                               <input
                                 type="time"
@@ -3848,7 +3922,7 @@ export default function PartnerCustomersClient({
                                     nextActionAt: dateValue && timeValue ? `${dateValue}T${timeValue}` : prev.nextActionAt,
                                   }));
                                 }}
-                                className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                                className="w-32 rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                               />
                             </div>
                           </div>
@@ -3863,7 +3937,7 @@ export default function PartnerCustomersClient({
                                 status: event.target.value,
                               }))
                             }
-                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                           >
                             {statusSelectOptions.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -3879,7 +3953,7 @@ export default function PartnerCustomersClient({
                             multiple
                             accept="audio/*,video/*,image/*"
                             onChange={handleFileChange}
-                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                            className="w-full rounded-xl border-2 border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-slate-500 bg-white"
                           />
                           {interactionForm.files.length > 0 && (
                             <div className="mt-2 space-y-2">
@@ -3906,7 +3980,7 @@ export default function PartnerCustomersClient({
                           type="button"
                           onClick={handleAddInteraction}
                           disabled={interactionSaving}
-                          className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                          className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-slate-800 disabled:bg-slate-300 transition-colors"
                         >
                           {interactionSaving ? '저장 중...' : '상담 기록 추가'}
                         </button>
@@ -3955,9 +4029,9 @@ export default function PartnerCustomersClient({
                                           <span>{interaction.createdBy?.name || '알 수 없음'}</span>
                                           <span
                                             className={`text-[10px] px-2 py-0.5 rounded-full ${selectedLead.ownership === 'AGENT' && interaction.profileId === selectedLead.agent?.id
-                                              ? 'bg-blue-100 text-blue-700'
+                                              ? 'bg-slate-100 text-slate-700'
                                               : selectedLead.ownership === 'MANAGER' && interaction.profileId === selectedLead.manager?.id
-                                                ? 'bg-purple-100 text-purple-700'
+                                                ? 'bg-slate-100 text-slate-700'
                                                 : 'bg-gray-100 text-gray-600'
                                               }`}
                                           >
@@ -3974,8 +4048,8 @@ export default function PartnerCustomersClient({
                                       <div
                                         className={`rounded-xl px-4 py-3 text-sm whitespace-pre-line leading-relaxed ${isMyRecord
                                           ? selectedLead.ownership === 'AGENT'
-                                            ? 'bg-blue-50 border border-blue-200 text-blue-900'
-                                            : 'bg-purple-50 border border-purple-200 text-purple-900'
+                                            ? 'bg-slate-50 border border-slate-200 text-slate-900'
+                                            : 'bg-slate-50 border border-slate-200 text-slate-900'
                                           : 'bg-slate-50 border border-slate-200 text-slate-700'
                                           }`}
                                       >
@@ -3992,7 +4066,7 @@ export default function PartnerCustomersClient({
                                                   href={file.url}
                                                   target="_blank"
                                                   rel="noopener noreferrer"
-                                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs hover:bg-slate-50 hover:border-slate-300 transition-colors"
                                                   title={file.fileName || '파일 열기'}
                                                 >
                                                   {file.mimeType?.startsWith('audio/') ? (
@@ -4078,7 +4152,7 @@ export default function PartnerCustomersClient({
                       setCustomPhoneNumber('');
                     }}
                     className={`p-4 rounded-xl border-2 transition-all ${smsRecipientMode === 'customer'
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-slate-500 bg-slate-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
@@ -4100,7 +4174,7 @@ export default function PartnerCustomersClient({
                       }
                     }}
                     className={`p-4 rounded-xl border-2 transition-all ${smsRecipientMode === 'custom'
-                      ? 'border-purple-500 bg-purple-50'
+                      ? 'border-slate-500 bg-slate-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
@@ -4116,8 +4190,8 @@ export default function PartnerCustomersClient({
               {/* 고객 정보 또는 직접 번호 입력 */}
               {smsRecipientMode === 'customer' ? (
                 selectedLead ? (
-                  <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
-                    <p className="text-sm font-semibold text-blue-900 mb-2">📋 보낼 고객 정보</p>
+                  <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
+                    <p className="text-sm font-semibold text-slate-900 mb-2">📋 보낼 고객 정보</p>
                     <div className="space-y-1 text-sm text-blue-800">
                       <p><span className="font-semibold">고객명:</span> {selectedLead.customerName || '이름 없음'}</p>
                       <p><span className="font-semibold">전화번호:</span> {selectedLead.customerPhone || '전화번호 없음'}</p>
@@ -4130,8 +4204,8 @@ export default function PartnerCustomersClient({
                   </div>
                 )
               ) : (
-                <div className="rounded-xl bg-purple-50 p-4 border border-purple-200">
-                  <label className="block text-sm font-semibold text-purple-900 mb-2">
+                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">
                     📱 전화번호 입력 <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -4142,9 +4216,9 @@ export default function PartnerCustomersClient({
                       setCustomPhoneNumber(cleaned);
                     }}
                     placeholder="01012345678 (하이픈 없이 숫자만 입력)"
-                    className="w-full rounded-lg border border-purple-300 px-4 py-2.5 text-sm focus:border-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
+                    className="w-full rounded-lg border border-purple-300 px-4 py-2.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-100"
                   />
-                  <p className="mt-1 text-xs text-purple-700">하이픈 없이 숫자만 입력해주세요 (예: 01012345678)</p>
+                  <p className="mt-1 text-xs text-slate-700">하이픈 없이 숫자만 입력해주세요 (예: 01012345678)</p>
                 </div>
               )}
 
@@ -4158,7 +4232,7 @@ export default function PartnerCustomersClient({
                     type="button"
                     onClick={() => setSmsMethod('aligo')}
                     className={`p-4 rounded-xl border-2 transition-all ${smsMethod === 'aligo'
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-slate-500 bg-slate-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
@@ -4193,7 +4267,7 @@ export default function PartnerCustomersClient({
                     <button
                       type="button"
                       onClick={() => setShowAligoGuide(!showAligoGuide)}
-                      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                      className="inline-flex items-center gap-1 text-sm text-slate-700 hover:text-slate-700"
                     >
                       <FiHelpCircle />
                       {showAligoGuide ? '가이드 숨기기' : '연결 가이드 보기'}
@@ -4202,10 +4276,10 @@ export default function PartnerCustomersClient({
 
                   {/* 알리고 연결 가이드 */}
                   {showAligoGuide && (
-                    <div className="rounded-xl bg-blue-50 border-2 border-blue-200 p-5 space-y-4">
+                    <div className="rounded-xl bg-slate-50 border-2 border-slate-200 p-5 space-y-4">
                       <div className="flex items-start gap-3">
-                        <FiInfo className="text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 space-y-3 text-sm text-blue-900">
+                        <FiInfo className="text-slate-700 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 space-y-3 text-sm text-slate-900">
                           <p className="font-bold text-base">📱 알리고 문자 서비스 연결 가이드</p>
                           <div className="space-y-3">
                             <div>
@@ -4231,13 +4305,22 @@ export default function PartnerCustomersClient({
                               <p className="text-xs text-blue-800">• "설정 저장하기" 클릭 (다음에도 사용 가능)</p>
                             </div>
                           </div>
-                          <div className="mt-4 p-3 bg-blue-100 rounded-lg">
+                          <div className="mt-4 p-3 bg-slate-100 rounded-lg">
                             <p className="font-semibold text-xs mb-1">💡 알리고에서 받아야 할 정보:</p>
                             <ul className="list-disc list-inside space-y-1 text-xs text-blue-800">
                               <li>API 키 (알리고 관리자 페이지 → API 관리)</li>
                               <li>사용자 ID (알리고 로그인 아이디)</li>
                               <li>발신번호 (알리고에서 등록한 전화번호, 하이픈 없이 숫자만)</li>
                             </ul>
+                          </div>
+                          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="font-semibold text-xs mb-1 text-amber-800">📊 발송 건수 제한 (사업자 등록 기준)</p>
+                            <ul className="list-disc list-inside space-y-1 text-xs text-amber-700">
+                              <li>■ 동일한 내용의 문자 (POST /send/) : 1회 기준 최대 <span className="font-bold">1,000건</span></li>
+                              <li>■ 개별 내용의 문자 (POST /send_mass/) : 1회 기준 최대 <span className="font-bold">500건</span></li>
+                              <li>■ 알림톡 & 친구톡 : 1회 기준 최대 <span className="font-bold">500건</span></li>
+                            </ul>
+                            <p className="mt-2 text-xs text-amber-600">예) 동일한 내용의 문자를 10,000건 전송하는 경우 1,000건씩 10회 호출해 주셔야 합니다.</p>
                           </div>
                         </div>
                       </div>
@@ -4254,7 +4337,7 @@ export default function PartnerCustomersClient({
                         value={aligoConfig.apiKey}
                         onChange={(e) => setAligoConfig({ ...aligoConfig, apiKey: e.target.value })}
                         placeholder="알리고에서 받은 API 키를 입력하세요"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                       />
                       <p className="mt-1 text-xs text-gray-500">알리고 관리자 페이지 → API 관리에서 확인</p>
                     </div>
@@ -4268,7 +4351,7 @@ export default function PartnerCustomersClient({
                         value={aligoConfig.userId}
                         onChange={(e) => setAligoConfig({ ...aligoConfig, userId: e.target.value })}
                         placeholder="알리고 로그인 아이디를 입력하세요"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                       />
                       <p className="mt-1 text-xs text-gray-500">알리고에 로그인할 때 사용하는 아이디</p>
                     </div>
@@ -4282,7 +4365,7 @@ export default function PartnerCustomersClient({
                         value={aligoConfig.senderPhone}
                         onChange={(e) => setAligoConfig({ ...aligoConfig, senderPhone: e.target.value.replace(/[^0-9]/g, '') })}
                         placeholder="01012345678 (하이픈 없이 숫자만 입력)"
-                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                       />
                       <p className="mt-1 text-xs text-gray-500">알리고에서 등록한 발신번호 (하이픈 없이 숫자만)</p>
                     </div>
@@ -4322,6 +4405,61 @@ export default function PartnerCustomersClient({
                 </div>
               )}
 
+              {/* 치환 가이드 및 상품 선택 */}
+              <div className="rounded-xl bg-amber-50 border-2 border-amber-200 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-amber-600 text-lg">📝</span>
+                  <div className="flex-1">
+                    <p className="font-bold text-amber-900 text-sm mb-2">치환 가이드</p>
+                    <p className="text-xs text-amber-800 mb-3">아래 치환 태그를 문자 내용에 넣으면 발송 시 자동으로 치환됩니다.</p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setSmsMessage(smsMessage + '{{이름}}')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                      >
+                        <span>{{이름}}</span>
+                        <span className="text-amber-500">→ {selectedLead?.customerName || '고객명'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSmsMessage(smsMessage + '{{연락처}}')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                      >
+                        <span>{{연락처}}</span>
+                        <span className="text-amber-500">→ {selectedLead?.customerPhone || '연락처'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSmsMessage(smsMessage + '{{상품명}}')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                      >
+                        <span>{{상품명}}</span>
+                        <span className="text-amber-500">→ {selectedProductId ? activeProducts.find(p => p.id === selectedProductId)?.packageName || '상품명' : '상품 선택 필요'}</span>
+                      </button>
+                    </div>
+                    {/* 상품 선택 드롭다운 */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-amber-800 whitespace-nowrap">상품 선택:</label>
+                      <select
+                        value={selectedProductId || ''}
+                        onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : null)}
+                        className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                        disabled={loadingProducts}
+                      >
+                        <option value="">상품을 선택하세요 ({{상품명}} 치환용)</option>
+                        {activeProducts.map((product) => (
+                          <option key={product.id} value={product.id}>
+                            {product.packageName} ({product.cruiseLine} - {product.shipName})
+                          </option>
+                        ))}
+                      </select>
+                      {loadingProducts && <span className="text-xs text-amber-600">로딩중...</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* 문자 내용 입력 */}
               <div>
                 <div className="flex items-center justify-between mb-2">
@@ -4354,15 +4492,22 @@ export default function PartnerCustomersClient({
                   value={smsMessage}
                   onChange={(e) => setSmsMessage(e.target.value)}
                   placeholder={smsMethod === 'link'
-                    ? `안녕하세요 ${selectedLead?.customerName || '고객'}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n[링크가 자동으로 포함됩니다]`
-                    : '고객에게 보낼 문자 내용을 입력하세요.'}
+                    ? `안녕하세요 {{이름}}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n[링크가 자동으로 포함됩니다]`
+                    : '안녕하세요 {{이름}}님. {{상품명}} 상품에 관심 가져주셔서 감사합니다.'}
                   rows={6}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
+                {/* 미리보기 */}
+                {smsMessage && (smsMessage.includes('{{이름}}') || smsMessage.includes('{{연락처}}') || smsMessage.includes('{{상품명}}')) && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs font-semibold text-gray-600 mb-1">📱 발송될 메시지 미리보기:</p>
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{applySubstitution(smsMessage)}</p>
+                  </div>
+                )}
                 <p className="mt-1 text-xs text-gray-500">
                   {smsMethod === 'link'
                     ? '링크는 자동으로 문자 내용 끝에 추가됩니다.'
-                    : '문자 내용을 입력한 후 "문자 보내기" 버튼을 클릭하세요.'}
+                    : '치환 태그({{이름}}, {{연락처}}, {{상품명}})를 사용하면 발송 시 자동 치환됩니다.'}
                 </p>
               </div>
             </div>
@@ -4442,8 +4587,8 @@ export default function PartnerCustomersClient({
             <div className="px-6 py-6 space-y-6">
               {/* 고객 정보 */}
               {selectedLead ? (
-                <div className="rounded-xl bg-blue-50 p-4 border border-blue-200">
-                  <p className="text-sm font-semibold text-blue-900 mb-1">고객 정보</p>
+                <div className="rounded-xl bg-slate-50 p-4 border border-slate-200">
+                  <p className="text-sm font-semibold text-slate-900 mb-1">고객 정보</p>
                   <p className="text-sm text-blue-800">{selectedLead.customerName || '이름 없음'}</p>
                   <p className="text-sm text-blue-800">{selectedLead.customerPhone || '전화번호 없음'}</p>
                 </div>
@@ -4461,7 +4606,7 @@ export default function PartnerCustomersClient({
                     type="button"
                     onClick={() => setPassportMethod('link')}
                     className={`p-4 rounded-xl border-2 transition-all ${passportMethod === 'link'
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-slate-500 bg-slate-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
@@ -4475,7 +4620,7 @@ export default function PartnerCustomersClient({
                     type="button"
                     onClick={() => setPassportMethod('aligo')}
                     className={`p-4 rounded-xl border-2 transition-all ${passportMethod === 'aligo'
-                      ? 'border-blue-500 bg-blue-50'
+                      ? 'border-slate-500 bg-slate-50'
                       : 'border-gray-200 bg-white hover:border-gray-300'
                       }`}
                   >
@@ -4505,7 +4650,7 @@ export default function PartnerCustomersClient({
                       type="text"
                       value={aligoConfig.apiKey}
                       onChange={(e) => updateAligoConfigField('apiKey', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                       placeholder="알리고 API Key 입력"
                     />
                   </div>
@@ -4517,7 +4662,7 @@ export default function PartnerCustomersClient({
                       type="text"
                       value={aligoConfig.userId}
                       onChange={(e) => updateAligoConfigField('userId', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                       placeholder="알리고 User ID 입력"
                     />
                   </div>
@@ -4529,7 +4674,7 @@ export default function PartnerCustomersClient({
                       type="text"
                       value={aligoConfig.senderPhone}
                       onChange={(e) => updateAligoConfigField('senderPhone', e.target.value.replace(/[^0-9]/g, ''))}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                       placeholder="01012345678 (하이픈 없이 숫자만)"
                     />
                   </div>
@@ -4538,7 +4683,7 @@ export default function PartnerCustomersClient({
                       type="button"
                       onClick={() => handleSaveAligoConfig()}
                       disabled={savingAligoConfig}
-                      className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                      className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                     >
                       {savingAligoConfig ? '저장 중...' : '💾 설정 저장하기 (다음에도 사용)'}
                     </button>
@@ -4590,8 +4735,8 @@ export default function PartnerCustomersClient({
 
               {/* 여권 링크 표시 (링크 복사 방식일 때) */}
               {passportMethod === 'link' && selectedLeadId && (
-                <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-                  <p className="text-sm font-semibold text-blue-900 mb-2">🛂 여권 등록 링크</p>
+                <div className="rounded-lg bg-slate-50 border border-slate-200 p-4">
+                  <p className="text-sm font-semibold text-slate-900 mb-2">🛂 여권 등록 링크</p>
                   <div className="mb-3 rounded-lg bg-white border border-blue-300 p-3">
                     <p className="text-xs font-medium text-gray-500 mb-1">링크 URL</p>
                     <p className="text-xs text-gray-900 break-all font-mono">
@@ -4626,7 +4771,7 @@ export default function PartnerCustomersClient({
                           showError(error instanceof Error ? error.message : '링크 복사 실패');
                         }
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 transition-colors"
                     >
                       <span>📋</span>
                       <span>링크 복사</span>
@@ -4654,13 +4799,13 @@ export default function PartnerCustomersClient({
                           showError('미리보기 실패');
                         }
                       }}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-2 rounded-lg border-2 border-blue-600 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       <span>👁️</span>
                       <span>미리보기</span>
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-blue-700">
+                  <p className="mt-2 text-xs text-slate-700">
                     💡 미리보기 버튼을 클릭하면 고객이 보는 화면을 확인할 수 있습니다.
                   </p>
                 </div>
@@ -4803,7 +4948,7 @@ export default function PartnerCustomersClient({
                     }
                   }
                 }}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:bg-blue-300 transition-colors"
+                className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 disabled:bg-slate-300 transition-colors"
                 disabled={requestingPassport}
               >
                 {requestingPassport ? (
@@ -4992,7 +5137,7 @@ export default function PartnerCustomersClient({
                       type="button"
                       onClick={handleUploadGroupExcel}
                       disabled={uploadingGroupExcel}
-                      className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {uploadingGroupExcel ? '업로드 중...' : '엑셀 등록하기'}
                     </button>
@@ -5032,7 +5177,7 @@ export default function PartnerCustomersClient({
               <button
                 type="button"
                 onClick={handleSaveGroup}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800"
               >
                 {editingGroup ? '수정' : '생성'}
               </button>
@@ -5132,7 +5277,7 @@ export default function PartnerCustomersClient({
                     onClick={() => {
                       setNewCustomers([...newCustomers, { name: '', phone: '', email: '', notes: '' }]);
                     }}
-                    className="text-xs text-blue-600 hover:text-blue-700"
+                    className="text-xs text-slate-700 hover:text-slate-700"
                   >
                     + 추가
                   </button>
@@ -5223,7 +5368,7 @@ export default function PartnerCustomersClient({
                 type="button"
                 onClick={handleSendDb}
                 disabled={sendingDb}
-                className="flex-1 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {sendingDb ? '보내는 중...' : '보내기'}
               </button>
@@ -5264,7 +5409,7 @@ export default function PartnerCustomersClient({
                   <p className="text-sm text-gray-400 py-2">등록된 카카오톡 예약메시지가 없습니다.</p>
                 ) : (
                   <div>
-                    <p className="text-xs text-purple-600 mb-1">
+                    <p className="text-xs text-slate-700 mb-1">
                       {funnelTalks.filter(group => group.messages.some(msg => funnelForm.funnelTalkIds.includes(msg.id))).length}개 그룹 선택됨
                     </p>
                     <select
@@ -5288,7 +5433,7 @@ export default function PartnerCustomersClient({
                           funnelTalkIds: allMessageIds,
                         });
                       }}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-slate-500"
                     >
                       {funnelTalks.map((group) => (
                         <option key={group.groupName} value={group.groupName}>
@@ -5312,7 +5457,7 @@ export default function PartnerCustomersClient({
                   <p className="text-sm text-gray-400 py-2">등록된 SMS 예약메시지가 없습니다.</p>
                 ) : (
                   <div>
-                    <p className="text-xs text-purple-600 mb-1">
+                    <p className="text-xs text-slate-700 mb-1">
                       {funnelSms.filter(group => group.messages.some(msg => funnelForm.funnelSmsIds.includes(msg.id))).length}개 그룹 선택됨
                     </p>
                     <select
@@ -5336,7 +5481,7 @@ export default function PartnerCustomersClient({
                           funnelSmsIds: allMessageIds,
                         });
                       }}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-slate-500"
                     >
                       {funnelSms.map((group) => (
                         <option key={group.groupName} value={group.groupName}>
@@ -5360,7 +5505,7 @@ export default function PartnerCustomersClient({
                   <p className="text-sm text-gray-400 py-2">등록된 이메일 예약메시지가 없습니다.</p>
                 ) : (
                   <div>
-                    <p className="text-xs text-purple-600 mb-1">
+                    <p className="text-xs text-slate-700 mb-1">
                       {funnelEmails.filter(group => group.messages.some(msg => funnelForm.funnelEmailIds.includes(msg.id))).length}개 그룹 선택됨
                     </p>
                     <select
@@ -5384,7 +5529,7 @@ export default function PartnerCustomersClient({
                           funnelEmailIds: allMessageIds,
                         });
                       }}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-slate-500"
                     >
                       {funnelEmails.map((group) => (
                         <option key={group.groupName} value={group.groupName}>
@@ -5490,7 +5635,7 @@ export default function PartnerCustomersClient({
                       showError('퍼널 설정 저장 중 네트워크 오류가 발생했습니다.');
                     }
                   }}
-                  className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  className="flex-1 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
                 >
                   저장
                 </button>
@@ -5535,7 +5680,7 @@ export default function PartnerCustomersClient({
                   value={customerListSearch}
                   onChange={(e) => setCustomerListSearch(e.target.value)}
                   placeholder="고객 이름 또는 연락처 검색"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-slate-500"
                 />
               </div>
             </div>
@@ -5543,7 +5688,7 @@ export default function PartnerCustomersClient({
             <div className="flex-1 overflow-y-auto p-6">
               {isLoadingCustomerList ? (
                 <div className="text-center py-12">
-                  <FiRefreshCw className="inline-block animate-spin text-4xl text-blue-600 mb-4" />
+                  <FiRefreshCw className="inline-block animate-spin text-4xl text-slate-700 mb-4" />
                   <p className="text-gray-600">고객 목록을 불러오는 중...</p>
                 </div>
               ) : groupCustomers.length === 0 ? (
@@ -5691,11 +5836,13 @@ export default function PartnerCustomersClient({
               setEmailContent('');
               setCustomEmailAddress('');
               setEmailRecipientMode('customer');
+              setEmailImages([]);
+              setEmailButtons([]);
             }
           }}
         >
           <div
-            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 헤더 */}
@@ -5710,6 +5857,8 @@ export default function PartnerCustomersClient({
                   setEmailContent('');
                   setCustomEmailAddress('');
                   setEmailRecipientMode('customer');
+                  setEmailImages([]);
+                  setEmailButtons([]);
                 }}
                 className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
               >
@@ -5756,9 +5905,63 @@ export default function PartnerCustomersClient({
                   type="text"
                   value={emailTitle}
                   onChange={(e) => setEmailTitle(e.target.value)}
-                  placeholder="이메일 제목을 입력하세요"
+                  placeholder="{{이름}}님께 드리는 특별한 크루즈 여행 안내"
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
+              </div>
+
+              {/* 치환 가이드 및 상품 선택 */}
+              <div className="rounded-xl bg-amber-50 border-2 border-amber-200 p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="text-amber-600 text-lg">📝</span>
+                  <div className="flex-1">
+                    <p className="font-bold text-amber-900 text-sm mb-2">치환 가이드</p>
+                    <p className="text-xs text-amber-800 mb-3">아래 치환 태그를 제목/내용에 넣으면 발송 시 자동으로 치환됩니다.</p>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setEmailContent(emailContent + '{{이름}}')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                      >
+                        <span>{{이름}}</span>
+                        <span className="text-amber-500">→ {selectedLead?.customerName || '고객명'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEmailContent(emailContent + '{{연락처}}')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                      >
+                        <span>{{연락처}}</span>
+                        <span className="text-amber-500">→ {selectedLead?.customerPhone || '연락처'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEmailContent(emailContent + '{{상품명}}')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
+                      >
+                        <span>{{상품명}}</span>
+                        <span className="text-amber-500">→ {selectedProductId ? activeProducts.find(p => p.id === selectedProductId)?.packageName || '상품명' : '상품 선택 필요'}</span>
+                      </button>
+                    </div>
+                    {/* 상품 선택 드롭다운 */}
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs font-semibold text-amber-800 whitespace-nowrap">상품 선택:</label>
+                      <select
+                        value={selectedProductId || ''}
+                        onChange={(e) => setSelectedProductId(e.target.value ? Number(e.target.value) : null)}
+                        className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
+                        disabled={loadingProducts}
+                      >
+                        <option value="">상품을 선택하세요 ({{상품명}} 치환용)</option>
+                        {activeProducts.map((product) => (
+                          <option key={product.id} value={product.id}>
+                            {product.packageName} ({product.cruiseLine} - {product.shipName})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* 이메일 내용 입력 */}
@@ -5769,13 +5972,137 @@ export default function PartnerCustomersClient({
                 <textarea
                   value={emailContent}
                   onChange={(e) => setEmailContent(e.target.value)}
-                  placeholder="고객에게 보낼 이메일 내용을 입력하세요."
+                  placeholder="안녕하세요 {{이름}}님,&#10;&#10;{{상품명}} 상품에 관심을 가져주셔서 감사합니다.&#10;&#10;자세한 문의사항이 있으시면 연락 주세요."
                   rows={8}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  내용 아래에 크루즈닷 푸터(담당자 정보, 회사 주소 등)가 자동으로 추가됩니다.
-                </p>
+                {/* 미리보기 */}
+                {emailContent && (emailContent.includes('{{이름}}') || emailContent.includes('{{연락처}}') || emailContent.includes('{{상품명}}')) && (
+                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs font-semibold text-gray-600 mb-1">📧 발송될 내용 미리보기:</p>
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap">{applySubstitution(emailContent)}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* 이미지 추가 섹션 */}
+              <div className="rounded-xl bg-slate-50 border-2 border-slate-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <FiImage className="text-slate-700" />
+                    이미지 추가
+                  </p>
+                  <div className="flex gap-2">
+                    <label className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold cursor-pointer hover:bg-slate-800 transition-colors">
+                      <FiPlus className="w-3 h-3" />
+                      업로드
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const result = event.target?.result as string;
+                              setEmailImages([...emailImages, {
+                                id: `img-${Date.now()}`,
+                                url: result,
+                                name: file.name
+                              }]);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+                {emailImages.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {emailImages.map((img) => (
+                      <div key={img.id} className="relative group">
+                        <img src={img.url} alt={img.name} className="w-full h-24 object-cover rounded-lg border border-blue-300" />
+                        <button
+                          type="button"
+                          onClick={() => setEmailImages(emailImages.filter(i => i.id !== img.id))}
+                          className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <FiX className="w-3 h-3" />
+                        </button>
+                        <p className="text-xs text-blue-800 mt-1 truncate">{img.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-700">이미지를 추가하면 이메일 본문에 포함됩니다.</p>
+                )}
+              </div>
+
+              {/* 버튼 추가 섹션 */}
+              <div className="rounded-xl bg-slate-50 border-2 border-slate-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <FiExternalLink className="text-slate-700" />
+                    버튼 추가 (최대 3개)
+                  </p>
+                  {emailButtons.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() => setEmailButtons([...emailButtons, {
+                        id: `btn-${Date.now()}`,
+                        label: '자세히 보기',
+                        url: ''
+                      }])}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition-colors"
+                    >
+                      <FiPlus className="w-3 h-3" />
+                      버튼 추가
+                    </button>
+                  )}
+                </div>
+                {emailButtons.length > 0 ? (
+                  <div className="space-y-3">
+                    {emailButtons.map((btn, index) => (
+                      <div key={btn.id} className="flex items-center gap-2 p-3 bg-white rounded-lg border border-slate-200">
+                        <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">버튼 {index + 1}</span>
+                        <input
+                          type="text"
+                          value={btn.label}
+                          onChange={(e) => {
+                            const updated = [...emailButtons];
+                            updated[index].label = e.target.value;
+                            setEmailButtons(updated);
+                          }}
+                          placeholder="버튼 이름"
+                          className="flex-1 min-w-0 rounded border border-purple-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
+                        />
+                        <input
+                          type="url"
+                          value={btn.url}
+                          onChange={(e) => {
+                            const updated = [...emailButtons];
+                            updated[index].url = e.target.value;
+                            setEmailButtons(updated);
+                          }}
+                          placeholder="https://..."
+                          className="flex-1 min-w-0 rounded border border-purple-300 px-2 py-1 text-xs focus:border-slate-500 focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEmailButtons(emailButtons.filter(b => b.id !== btn.id))}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded"
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-700">버튼을 추가하면 이메일 하단에 클릭 가능한 버튼이 포함됩니다.</p>
+                )}
               </div>
 
               {/* 푸터 미리보기 */}
@@ -5799,6 +6126,8 @@ export default function PartnerCustomersClient({
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowEmailModal(false);
+                  setEmailImages([]);
+                  setEmailButtons([]);
                 }}
                 className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
                 disabled={sendingEmail}
