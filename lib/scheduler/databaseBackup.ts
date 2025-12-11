@@ -299,24 +299,35 @@ export async function manualRunDatabaseBackup(): Promise<BackupLog & {
  */
 export function startDatabaseBackupScheduler() {
   const cron = require('node-cron');
-  
+
   // 매일 새벽 3시에 실행 (KST 기준)
   cron.schedule('0 3 * * *', async () => {
     console.log('[Database Backup Scheduler] Starting scheduled backup...');
     try {
+      // 1. DB 테이블 백업
       const result = await runDatabaseBackup();
-      console.log('[Database Backup Scheduler] Backup completed:', {
+      console.log('[Database Backup Scheduler] DB Backup completed:', {
         successCount: result.successCount,
         failureCount: result.failureCount,
         duration: `${(result.duration / 1000).toFixed(2)}s`,
       });
+
+      // 2. 고객 스프레드시트 백업 (전체 + 뱃지별 + 담당자별 + 상담기록)
+      console.log('[Database Backup Scheduler] Starting customer spreadsheet backup...');
+      const customerResult = await runFullCustomerBackup();
+      console.log('[Database Backup Scheduler] Customer backup completed:', customerResult);
+
+      // 3. 여행 예약 + 여권 스프레드시트 백업
+      console.log('[Database Backup Scheduler] Starting reservation backup...');
+      const reservationResult = await backupReservationsToSheet();
+      console.log('[Database Backup Scheduler] Reservation backup completed:', reservationResult);
     } catch (error) {
       console.error('[Database Backup Scheduler] Backup failed:', error);
     }
   }, {
     timezone: 'Asia/Seoul' // 한국 시간 기준
   });
-  
-  console.log('📦 [Database Backup Scheduler] Started - Will run daily at 3:00 AM KST');
+
+  console.log('📦 [Database Backup Scheduler] Started - Will run daily at 3:00 AM KST (DB + Customer Spreadsheet + Reservation)');
 }
 

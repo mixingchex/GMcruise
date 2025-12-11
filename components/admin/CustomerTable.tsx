@@ -5,6 +5,7 @@ import { FiEdit2, FiCheck, FiX, FiFileText, FiEye, FiClock } from 'react-icons/f
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 // CustomerNoteModal 삭제됨 - CustomerDetailModal의 상담기록 탭으로 통합
 import CustomerDetailModal from '@/components/admin/CustomerDetailModal';
+import SharedCustomerDetailModal from '@/components/shared/SharedCustomerDetailModal';
 import { Customer } from '@/types/customer';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
@@ -29,6 +30,7 @@ type AffiliateOwnership = {
     contactPhone: string | null; // 대리점장 연락처
     type?: 'HQ' | 'BRANCH_MANAGER' | 'SALES_AGENT';
   } | null;
+  leadId?: number | null; // AffiliateLead ID
   leadStatus?: string | null;
   leadCreatedAt?: string | null;
 };
@@ -120,6 +122,9 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCustomerForDetail, setSelectedCustomerForDetail] = useState<number | null>(null);
   // CustomerNoteModal 관련 state 삭제됨 - CustomerDetailModal의 상담기록 탭으로 통합
+  // 공통 고객 상세 모달 (AffiliateLead 기반)
+  const [showSharedDetailModal, setShowSharedDetailModal] = useState(false);
+  const [sharedDetailLeadId, setSharedDetailLeadId] = useState<number | null>(null);
 
   // 환불 관련 상태
   const [refundModalOpen, setRefundModalOpen] = useState(false);
@@ -1144,8 +1149,22 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
                       title="상세 보기"
                     >
                       <FiEye size={16} />
-                      상세 보기
+                      상세
                     </button>
+                    {/* 통합 상세 (AffiliateLead 기반) */}
+                    {customer.affiliateOwnership?.leadId && (
+                      <button
+                        onClick={() => {
+                          setSharedDetailLeadId(customer.affiliateOwnership!.leadId!);
+                          setShowSharedDetailModal(true);
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        title="통합 상세 (상담기록 공유)"
+                      >
+                        <FiFileText size={16} />
+                        통합
+                      </button>
+                    )}
                     {/* 기록 버튼 삭제됨 - 상세보기 모달의 상담기록 탭으로 통합 */}
                   </div>
                 </td>
@@ -1165,6 +1184,62 @@ export default function CustomerTable({ customers, onRefresh }: Props) {
           onClose={() => {
             setDetailModalOpen(false);
             setSelectedCustomerForDetail(null);
+          }}
+        />
+      )}
+
+      {/* 공통 고객 상세 모달 (AffiliateLead 기반) */}
+      {sharedDetailLeadId && (
+        <SharedCustomerDetailModal
+          leadId={sharedDetailLeadId}
+          isOpen={showSharedDetailModal}
+          onClose={() => {
+            setShowSharedDetailModal(false);
+            setSharedDetailLeadId(null);
+          }}
+          viewerType="HQ"
+          onCustomerUpdate={() => onRefresh?.()}
+          onTransfer={async (leadId, targetType, targetProfileId) => {
+            try {
+              const res = await fetch('/api/shared/customers/transfer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ leadIds: [leadId], targetType, targetProfileId }),
+              });
+              const json = await res.json();
+              if (res.ok && json.ok) {
+                alert(json.message);
+                setShowSharedDetailModal(false);
+                setSharedDetailLeadId(null);
+                onRefresh?.();
+              } else {
+                alert(json.message || 'DB 전달에 실패했습니다.');
+              }
+            } catch (error) {
+              alert('DB 전달 중 오류가 발생했습니다.');
+            }
+          }}
+          onRecall={async (leadId) => {
+            try {
+              const res = await fetch('/api/shared/customers/recall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ leadIds: [leadId] }),
+              });
+              const json = await res.json();
+              if (res.ok && json.ok) {
+                alert(json.message);
+                setShowSharedDetailModal(false);
+                setSharedDetailLeadId(null);
+                onRefresh?.();
+              } else {
+                alert(json.message || 'DB 회수에 실패했습니다.');
+              }
+            } catch (error) {
+              alert('DB 회수 중 오류가 발생했습니다.');
+            }
           }}
         />
       )}

@@ -44,6 +44,7 @@ import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 // CustomerNoteModal 삭제됨 - 고객 상세 패널의 상담기록으로 통합
 import ProductInquiryCustomerTable from '@/components/admin/ProductInquiryCustomerTable';
 import FinalConfirmSection from '@/components/partner/FinalConfirmSection';
+import SharedCustomerDetailModal from '@/components/shared/SharedCustomerDetailModal';
 
 type LeadStatusOption = {
   value: string;
@@ -562,6 +563,9 @@ export default function PartnerCustomersClient({
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsMethod, setSmsMethod] = useState<'aligo' | 'link'>('aligo');
   // CustomerNoteModal 관련 state 삭제 - 상담기록 패널로 통합됨
+  // 공통 고객 상세 모달 상태
+  const [showSharedDetailModal, setShowSharedDetailModal] = useState(false);
+  const [sharedDetailLeadId, setSharedDetailLeadId] = useState<number | null>(null);
   const [smsRecipientMode, setSmsRecipientMode] = useState<'customer' | 'custom'>('customer'); // 고객 선택 또는 직접 번호 입력
   const [customPhoneNumber, setCustomPhoneNumber] = useState(''); // 직접 입력한 번호
   const [aligoConfig, setAligoConfig] = useState({
@@ -3355,6 +3359,20 @@ export default function PartnerCustomersClient({
                       {deletingLead ? '삭제 중...' : '고객 삭제'}
                     </button>
                   )}
+                {/* 통합 상세 보기 버튼 */}
+                {selectedLeadId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSharedDetailLeadId(selectedLeadId);
+                      setShowSharedDetailModal(true);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+                  >
+                    <FiExternalLink />
+                    통합 상세
+                  </button>
+                )}
               </div>
             </div>
 
@@ -5518,6 +5536,64 @@ export default function PartnerCustomersClient({
       )}
 
       {/* CustomerNoteModal 삭제됨 - 고객 상세 패널의 상담기록으로 통합 */}
+
+      {/* 공통 고객 상세 모달 */}
+      {sharedDetailLeadId && (
+        <SharedCustomerDetailModal
+          leadId={sharedDetailLeadId}
+          isOpen={showSharedDetailModal}
+          onClose={() => {
+            setShowSharedDetailModal(false);
+            setSharedDetailLeadId(null);
+          }}
+          viewerType={partner.type === 'BRANCH_MANAGER' ? 'BRANCH_MANAGER' : 'SALES_AGENT'}
+          viewerProfileId={partner.profileId}
+          teamAgents={partner.teamAgents}
+          onCustomerUpdate={() => fetchCustomers(currentPage)}
+          onTransfer={async (leadId, targetType, targetProfileId) => {
+            try {
+              const res = await fetch('/api/shared/customers/transfer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ leadIds: [leadId], targetType, targetProfileId }),
+              });
+              const json = await res.json();
+              if (res.ok && json.ok) {
+                showSuccess(json.message);
+                setShowSharedDetailModal(false);
+                setSharedDetailLeadId(null);
+                fetchCustomers(currentPage);
+              } else {
+                showError(json.message || 'DB 전달에 실패했습니다.');
+              }
+            } catch (error) {
+              showError('DB 전달 중 오류가 발생했습니다.');
+            }
+          }}
+          onRecall={async (leadId) => {
+            try {
+              const res = await fetch('/api/shared/customers/recall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ leadIds: [leadId] }),
+              });
+              const json = await res.json();
+              if (res.ok && json.ok) {
+                showSuccess(json.message);
+                setShowSharedDetailModal(false);
+                setSharedDetailLeadId(null);
+                fetchCustomers(currentPage);
+              } else {
+                showError(json.message || 'DB 회수에 실패했습니다.');
+              }
+            } catch (error) {
+              showError('DB 회수 중 오류가 발생했습니다.');
+            }
+          }}
+        />
+      )}
 
       {/* SMS 설정 모달 */}
       <SmsConfigModal
