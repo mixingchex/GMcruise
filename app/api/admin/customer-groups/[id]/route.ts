@@ -251,19 +251,21 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: '유효하지 않은 그룹 ID입니다.' }, { status: 400 });
     }
 
-    // 그룹 소유권 확인
-    const existingGroup = await prisma.customerGroup.findFirst({
-      where: {
-        id: groupId,
-        adminId: admin.id,
-      },
+    // 그룹 존재 확인 (관리자 권한이면 모든 그룹 삭제 가능)
+    const existingGroup = await prisma.customerGroup.findUnique({
+      where: { id: groupId },
     });
 
     if (!existingGroup) {
-      return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없거나 권한이 없습니다.' }, { status: 404 });
+      return NextResponse.json({ ok: false, error: '그룹을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // 그룹 삭제 (Cascade로 멤버도 자동 삭제됨)
+    // 그룹 멤버 먼저 삭제 (외래키 제약)
+    await prisma.customerGroupMember.deleteMany({
+      where: { groupId: groupId },
+    });
+
+    // 그룹 삭제
     await prisma.customerGroup.delete({
       where: { id: groupId },
     });

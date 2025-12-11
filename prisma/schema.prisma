@@ -878,6 +878,7 @@ model CruiseProduct {
   days               Int
   itineraryPattern   Json
   basePrice          Int?
+  maxPrice           Int?                // 최고가 (정가) - 할인율 계산 기준
   description        String?
   source             String?
   category           String?
@@ -904,6 +905,8 @@ model CruiseProduct {
   ProductInquiry     ProductInquiry[]
   ProductView        ProductView[]
   UserTrip           UserTrip[]
+  ProductMaxPrice    ProductMaxPrice[]
+  ProductPricePeriod ProductPricePeriod[]
 
   @@index([category])
   @@index([isBudget])
@@ -918,6 +921,63 @@ model CruiseProduct {
   @@index([productCode])
   @@index([saleStatus])
   @@index([source])
+}
+
+// 상품별 객실 타입 최고가 (정가)
+model ProductMaxPrice {
+  id              Int           @id @default(autoincrement())
+  cruiseProductId Int
+  cabinType       String        // 객실 타입 (발코니, 오션뷰, 인사이드 등)
+  maxPrice        Int           // 최고가 (정가)
+  currency        String        @default("KRW")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  CruiseProduct   CruiseProduct @relation(fields: [cruiseProductId], references: [id], onDelete: Cascade)
+
+  @@unique([cruiseProductId, cabinType])
+  @@index([cruiseProductId])
+}
+
+// 기간별 가격 설정
+model ProductPricePeriod {
+  id              Int                 @id @default(autoincrement())
+  cruiseProductId Int
+  name            String              // 기간명 (예: "조기예약 할인", "성수기 가격")
+  startDate       DateTime            // 기간 시작일
+  endDate         DateTime            // 기간 종료일
+  isActive        Boolean             @default(true)
+  metadata        Json?               // 추가 메타데이터
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  CruiseProduct     CruiseProduct       @relation(fields: [cruiseProductId], references: [id], onDelete: Cascade)
+  ProductCabinPrice ProductCabinPrice[]
+
+  @@index([cruiseProductId])
+  @@index([startDate, endDate])
+  @@index([isActive])
+}
+
+// 기간별 객실 가격 (판매가 + 입금가)
+model ProductCabinPrice {
+  id                   Int                @id @default(autoincrement())
+  productPricePeriodId Int
+  cabinType            String             // 객실 타입 (발코니, 오션뷰, 인사이드 등)
+  fareCategory         String             // 요금 카테고리 (adult, adult3rd, child2to11, infantUnder2)
+  fareLabel            String?            // 표시용 라벨
+  saleAmount           Int                // 판매가
+  costAmount           Int                // 입금가 (원가)
+  netRevenue           Int?               // 순매출 (saleAmount - costAmount)
+  currency             String             @default("KRW")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  ProductPricePeriod   ProductPricePeriod @relation(fields: [productPricePeriodId], references: [id], onDelete: Cascade)
+
+  @@unique([productPricePeriodId, cabinType, fareCategory])
+  @@index([productPricePeriodId])
+  @@index([cabinType])
 }
 
 model CruiseReview {

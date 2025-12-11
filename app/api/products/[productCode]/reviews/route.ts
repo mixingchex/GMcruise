@@ -361,6 +361,7 @@ export async function GET(
         usedReviews.add(reviewText);
 
         // 리뷰 생성
+        const reviewDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000); // 최근 90일 내 랜덤 날짜
         await prisma.cruiseReview.create({
           data: {
             productCode,
@@ -369,7 +370,8 @@ export async function GET(
             content: reviewText,
             isApproved: true,
             isDeleted: false,
-            createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000), // 최근 90일 내 랜덤 날짜
+            createdAt: reviewDate,
+            updatedAt: reviewDate,
           },
         });
       }
@@ -421,6 +423,7 @@ export async function GET(
         usedReviews.add(reviewText);
 
         // 리뷰 생성
+        const reviewDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000); // 최근 90일 내 랜덤 날짜
         const review = await prisma.cruiseReview.create({
           data: {
             productCode,
@@ -429,7 +432,8 @@ export async function GET(
             content: reviewText,
             isApproved: true,
             isDeleted: false,
-            createdAt: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000), // 최근 90일 내 랜덤 날짜
+            createdAt: reviewDate,
+            updatedAt: reviewDate,
           },
         });
 

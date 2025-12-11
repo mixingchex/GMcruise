@@ -60,6 +60,8 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const [showImageModal, setShowImageModal] = useState(false); // 이미지 모달
   const [showVideoModal, setShowVideoModal] = useState(false); // 동영상 모달
   const [showReviewModal, setShowReviewModal] = useState(false); // 리뷰 미리보기 모달
+  const [reviews, setReviews] = useState<{ id: number; authorName: string; rating: number; content: string; createdAt: string }[]>([]); // 리뷰 데이터
+  const [reviewsLoading, setReviewsLoading] = useState(false); // 리뷰 로딩 상태
   const [modalImageUrl, setModalImageUrl] = useState<string | null>(null); // 모달에 표시할 이미지 URL
   const [modalVideoUrl, setModalVideoUrl] = useState<string | null>(null); // 모달에 표시할 동영상 URL
 
@@ -104,6 +106,27 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
       window.removeEventListener('popstate', handlePopState);
     };
   }, [isAnyModalOpen, showPricingModal, showImageModal, showVideoModal, showReviewModal, showInquiryModal]);
+
+  // 리뷰 데이터 가져오기 (모달 열릴 때)
+  useEffect(() => {
+    if (showReviewModal && reviewCount > 0 && reviews.length === 0) {
+      const fetchReviews = async () => {
+        setReviewsLoading(true);
+        try {
+          const res = await fetch(`/api/products/${product.productCode}/reviews`);
+          const data = await res.json();
+          if (data.ok && data.reviews) {
+            setReviews(data.reviews);
+          }
+        } catch (error) {
+          console.error('Failed to fetch reviews:', error);
+        } finally {
+          setReviewsLoading(false);
+        }
+      };
+      fetchReviews();
+    }
+  }, [showReviewModal, product.productCode, reviewCount, reviews.length]);
 
   // SOLD OUT 상태 조회
   useEffect(() => {
@@ -489,12 +512,11 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
     try {
       const response = await fetch('/api/auth/me', { credentials: 'include' });
       const data = await response.json();
-      // user1~user10: 상품 설명 즉석 수정 가능
+      // user1~user10: 상품 설명 즉석 수정 가능 (크루즈몰 관리자)
       const adminUser = data.ok && data.user && data.user.role === 'admin' &&
         data.user.phone && /^user(1[0]|[1-9])$/.test(data.user.phone);
-      // 01024958013: 관리자 패널 접근 가능
-      const superAdmin = data.ok && data.user && data.user.role === 'admin' &&
-        data.user.phone === '01024958013';
+      // 모든 admin role 사용자: 관리자 기능 접근 가능 (SOLD OUT 등)
+      const superAdmin = data.ok && data.user && data.user.role === 'admin';
 
       setIsAdminUser(!!adminUser);
       setIsSuperAdmin(!!superAdmin);
@@ -927,13 +949,13 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                           <span className="text-xl md:text-2xl font-bold text-[#051C2C]">{rating.toFixed(1)}</span>
                         </div>
                         {reviewCount > 0 ? (
-                          <Link
-                            href={appendPartnerQuery(`/products/${product.productCode}/reviews`)}
+                          <button
+                            onClick={() => setShowReviewModal(true)}
                             className="text-base md:text-lg text-gray-600 font-semibold hover:text-blue-600 transition-colors cursor-pointer"
                             style={{ wordBreak: 'keep-all' }}
                           >
                             리뷰 {reviewCount.toLocaleString('ko-KR')}개
-                          </Link>
+                          </button>
                         ) : (
                           <span className="text-base md:text-lg text-gray-600 font-semibold">
                             리뷰 {reviewCount.toLocaleString('ko-KR')}개
@@ -2614,56 +2636,48 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             </div>
 
             <div className="p-6">
-              {reviewCount > 0 ? (
+              {reviewsLoading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">리뷰를 불러오는 중...</p>
+                </div>
+              ) : reviews.length > 0 ? (
                 <div className="space-y-4">
-                  {/* 샘플 리뷰 생성 (실제 리뷰가 없을 때 미리보기용) */}
-                  {Array.from({ length: Math.min(reviewCount, 5) }).map((_, index) => {
-                    // 평균 별점에 맞춰 샘플 리뷰 생성
-                    const sampleRatings = [
-                      Math.max(1, Math.min(5, Math.round(rating))),
-                      Math.max(1, Math.min(5, Math.round(rating) + (index % 2 === 0 ? 1 : -1))),
-                      Math.max(1, Math.min(5, Math.round(rating))),
-                    ];
-                    const sampleRating = sampleRatings[index % 3];
-                    const sampleNames = ['김**', '이**', '박**', '최**', '정**'];
-                    const sampleComments = [
-                      '크루즈 여행이 정말 만족스러웠습니다. 객실도 깨끗하고 식사도 훌륭했어요!',
-                      '일정이 알차게 구성되어 있어서 좋았습니다. 다음에도 또 이용하고 싶어요.',
-                      '가이드 분이 친절하시고 설명도 자세해서 여행이 더욱 즐거웠습니다.',
-                      '가격 대비 만족도가 높았습니다. 추천합니다!',
-                      '크루즈 시설이 깨끗하고 편안해서 좋았습니다.',
-                    ];
-
-                    return (
-                      <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-800">{sampleNames[index % sampleNames.length]}</span>
-                            <div className="flex items-center gap-1">
-                              {Array.from({ length: 5 }).map((_, starIndex) => (
-                                <FiStar
-                                  key={starIndex}
-                                  className={starIndex < sampleRating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
-                                  size={16}
-                                />
-                              ))}
-                            </div>
+                  {reviews.map((review) => (
+                    <div key={review.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-xs">
+                            {review.authorName.charAt(0)}
                           </div>
-                          <span className="text-sm text-gray-500">
-                            {new Date(Date.now() - (index + 1) * 7 * 24 * 60 * 60 * 1000).toLocaleDateString('ko-KR')}
-                          </span>
+                          <span className="font-semibold text-gray-800">{review.authorName}</span>
+                          <div className="flex items-center gap-0.5">
+                            {Array.from({ length: 5 }).map((_, starIndex) => (
+                              <FiStar
+                                key={starIndex}
+                                className={starIndex < review.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                                size={14}
+                              />
+                            ))}
+                          </div>
                         </div>
-                        <p className="text-gray-700 text-sm leading-relaxed">
-                          {sampleComments[index % sampleComments.length]}
-                        </p>
+                        <span className="text-sm text-gray-500">
+                          {new Date(review.createdAt).toLocaleDateString('ko-KR')}
+                        </span>
                       </div>
-                    );
-                  })}
-                  {reviewCount > 5 && (
-                    <div className="text-center py-4 text-gray-500">
-                      외 {reviewCount - 5}개의 리뷰가 더 있습니다.
+                      <p className="text-gray-700 text-sm leading-relaxed">
+                        {review.content}
+                      </p>
                     </div>
-                  )}
+                  ))}
+                </div>
+              ) : reviewCount > 0 ? (
+                <div className="text-center py-12">
+                  <FiStar className="text-amber-500 fill-amber-500 mx-auto mb-4" size={48} />
+                  <p className="text-lg text-gray-600 mb-2">리뷰를 불러올 수 없습니다.</p>
+                  <p className="text-sm text-gray-500">
+                    잠시 후 다시 시도해 주세요.
+                  </p>
                 </div>
               ) : (
                 <div className="text-center py-12">

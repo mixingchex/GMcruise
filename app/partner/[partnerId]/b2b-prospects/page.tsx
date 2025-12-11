@@ -612,6 +612,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                         <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-40">고객 정보</th>
                                         <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">상태</th>
                                         <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">담당 판매원</th>
+                                        <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">문의/노트</th>
                                         <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">등록일시</th>
                                         <th className="px-3 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">관리</th>
                                     </tr>
@@ -619,7 +620,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                 <tbody className="divide-y divide-gray-200">
                                     {loadingB2B ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                                 <div className="flex justify-center mb-2">
                                                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
                                                 </div>
@@ -628,7 +629,7 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                         </tr>
                                     ) : filteredProspects.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                            <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                                 데이터가 없습니다.
                                             </td>
                                         </tr>
@@ -687,6 +688,16 @@ export default function PartnerB2BProspectsPage({ params }: { params: { partnerI
                                                             </span>
                                                         )}
                                                     </div>
+                                                </td>
+                                                <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500" title={prospect.notes || ''}>
+                                                    {prospect.notes ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <FiMessageSquare className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                                            <span>{new Date(prospect.createdAt).toLocaleDateString('ko-KR')}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-3 py-4 whitespace-nowrap text-xs text-gray-500">
                                                     <div className="flex items-center gap-1">

@@ -41,14 +41,30 @@ export default function PricingTableEditor({
     try {
       // 도착일 계산: 출발일 + nights
       const departure = new Date(departureDate + 'T00:00:00');
+
+      // 유효한 날짜인지 확인
+      if (isNaN(departure.getTime())) {
+        console.warn('[PricingTableEditor] Invalid departure date:', departureDate);
+        return null;
+      }
+
       const arrival = new Date(departure);
-      arrival.setDate(arrival.getDate() + nights);
+      // nights가 유효한 숫자인지 확인
+      const validNights = typeof nights === 'number' && !isNaN(nights) ? nights : 0;
+      arrival.setDate(arrival.getDate() + validNights);
+
+      // 도착일이 유효한지 확인
+      if (isNaN(arrival.getTime())) {
+        console.warn('[PricingTableEditor] Invalid arrival date calculation');
+        return null;
+      }
 
       const arrivalYear = arrival.getFullYear();
       const arrivalMonth = arrival.getMonth();
       const arrivalDay = arrival.getDate();
 
       const formatDate = (date: Date) => {
+        if (isNaN(date.getTime())) return '날짜오류';
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
@@ -186,12 +202,20 @@ export default function PricingTableEditor({
             <p className="text-sm text-gray-600 mt-1">
               도착일 기준: {(() => {
                 const departure = new Date(departureDate + 'T00:00:00');
+                if (isNaN(departure.getTime())) return '날짜오류';
                 const arrival = new Date(departure);
-                arrival.setDate(arrival.getDate() + nights);
+                const validNights = typeof nights === 'number' && !isNaN(nights) ? nights : 0;
+                arrival.setDate(arrival.getDate() + validNights);
+                if (isNaN(arrival.getTime())) return '날짜오류';
                 return arrival.toLocaleDateString('ko-KR');
               })()}
               <span className="text-gray-400 ml-2">
-                (출발 {new Date(departureDate).toLocaleDateString('ko-KR')} + {nights}박)
+                {(() => {
+                  const departure = new Date(departureDate + 'T00:00:00');
+                  if (isNaN(departure.getTime())) return '(출발일 오류)';
+                  const validNights = typeof nights === 'number' && !isNaN(nights) ? nights : 0;
+                  return `(출발 ${departure.toLocaleDateString('ko-KR')} + ${validNights}박)`;
+                })()}
               </span>
             </p>
           )}

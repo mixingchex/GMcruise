@@ -12,6 +12,7 @@ import ProductDetailEditor, { ContentBlock } from '@/components/admin/ProductDet
 import IncludedExcludedEditor from '@/components/admin/IncludedExcludedEditor';
 import EnhancedItineraryEditor, { EnhancedItineraryDay } from '@/components/admin/EnhancedItineraryEditor';
 import PricingTableEditor, { PricingRow } from '@/components/admin/PricingTableEditor';
+import PeriodPricingEditor from '@/components/admin/PeriodPricingEditor';
 import RefundPolicyEditor from '@/components/admin/RefundPolicyEditor';
 import ProductTagsSelector from '@/components/admin/ProductTagsSelector';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
@@ -2217,6 +2218,25 @@ export default function ProductEditPage() {
             departureDate={departureDate || undefined}
             nights={formData.nights || 0}
           />
+        </div>
+
+        {/* 기간별 가격 관리 */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-800">6-1. 기간별 가격 관리</h2>
+            <span className="text-sm text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+              할인 행사 & 수당 자동 연동
+            </span>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            판매 기간에 따라 다른 가격을 설정하고, 최고가 대비 할인율을 자동으로 계산합니다.
+            수당은 판매가-입금가를 기준으로 자동 계산됩니다.
+          </p>
+          {productCode && (
+            <PeriodPricingEditor
+              productCode={productCode as string}
+            />
+          )}
         </div>
 
         {/* 환불/취소 규정 */}
