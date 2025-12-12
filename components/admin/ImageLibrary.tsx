@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 
 import { useState, useEffect, useRef } from 'react';
 import { FiUpload, FiCopy, FiCheck, FiFolder, FiFolderPlus, FiTrash2, FiSearch, FiImage, FiCode, FiX, FiArrowLeft, FiDownload, FiEdit2 } from 'react-icons/fi';
-import { showSuccess, showError } from '@/components/ui/Toast';
+import { showSuccess, showError, showWarning } from '@/components/ui/Toast';
 import Image from 'next/image';
 
 interface ImageItem {
@@ -522,9 +522,18 @@ export default function ImageLibrary({
             }
         });
 
-        await Promise.all(uploadPromises);
+        const results = await Promise.allSettled(uploadPromises);
+        const successCount = results.filter(r => r.status === 'fulfilled' && r.value !== null).length;
+        const failCount = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value === null)).length;
+
         setIsUploading(false);
         loadImages(); // 목록 새로고침
+
+        if (successCount > 0 && failCount === 0) {
+            showSuccess(`${successCount}개 파일 업로드 완료!`);
+        } else if (successCount > 0 && failCount > 0) {
+            showWarning(`업로드 완료: ${successCount}개 성공, ${failCount}개 실패`);
+        }
     };
 
     const copyToClipboard = async (text: string, type: string) => {
@@ -551,6 +560,9 @@ export default function ImageLibrary({
     const loadCruisePhotos = async () => {
         try {
             setCruiseIsLoading(true);
+            // 폴더 변경 시 이전 이미지 즉시 초기화 (이미지가 따라다니는 버그 방지)
+            setCruiseImages([]);
+
             const response = await fetch(`/api/admin/cruise-photos?folder=${encodeURIComponent(cruiseCurrentPath)}`, {
                 credentials: 'include'
             });
@@ -721,7 +733,13 @@ export default function ImageLibrary({
                             이미지 라이브러리
                         </button>
                         <button
-                            onClick={() => setActiveTab('cruise')}
+                            onClick={() => {
+                                // 크루즈 탭 전환 시 상태 초기화
+                                setCruiseImages([]);
+                                setCruiseFolders([]);
+                                setCruiseCurrentPath('');
+                                setActiveTab('cruise');
+                            }}
                             className={`px-4 py-2 font-medium transition-colors ${activeTab === 'cruise'
                                 ? 'text-blue-600 border-b-2 border-blue-600'
                                 : 'text-gray-600 hover:text-gray-800'
@@ -1003,77 +1021,93 @@ export default function ImageLibrary({
                                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                                 <p className="text-gray-600">크루즈정보사진 목록을 불러오는 중...</p>
                             </div>
-                        ) : (<>
-                            <div className="flex gap-2">
-                                {canManageFolders && (
-                                    <button
-                                        onClick={() => setShowNewFolderInput(true)}
-                                        className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-900"
-                                    >
-                                        <FiFolderPlus className="text-lg" />
-                                        <span className="hidden sm:inline">새 폴더</span>
-                                    </button>
-                                )}
-                                <div className="relative">
-                                    <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                                    <input
-                                        type="text"
-                                        placeholder="폴더 검색..."
-                                        value={cruiseFolderSearch}
-                                        onChange={(e) => setCruiseFolderSearch(e.target.value)}
-                                        className="pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
-                                </div>
-                            </div>
-                            <div className="space-y-1 max-h-[60vh] overflow-y-auto">
-                                {filteredCruiseFolders.map((folder) => (
-                                    <button
-                                        key={folder.path}
-                                        onClick={() => setCruiseCurrentPath(folder.path)}
-                                        className="w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                        <FiFolder className="w-4 h-4 text-gray-400" />
-                                        <span className="truncate">{folder.name}</span>
-                                    </button>
-                                ))}
-                            </div>
-                        </>)}
-
-                        {/* 이미지 그리드 */}
-                        <div className="flex-1">
-                            {filteredCruiseImages.length === 0 ? (
-                                <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
-                                    <FiImage className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                                    <p className="text-gray-600 text-lg">이미지가 없습니다.</p>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                    {filteredCruiseImages.map((image) => (
-                                        <div
-                                            key={image.url}
-                                            className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                                            onClick={() => setSelectedCruiseImage(image)}
-                                        >
-                                            <div className="aspect-square relative bg-gray-100">
-                                                <Image
-                                                    src={image.url}
-                                                    alt={image.name}
-                                                    fill
-                                                    className="object-cover"
-                                                    sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                                                />
-                                            </div>
-                                            <div className="p-3">
-                                                <p className="text-sm font-medium text-gray-800 truncate" title={image.name}>
-                                                    {image.name}
-                                                </p>
-                                                <p className="text-xs text-gray-500 mt-1">{formatFileSize(image.size)}</p>
-                                            </div>
+                        ) : (
+                            <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-300px)] min-h-[500px]">
+                                {/* 왼쪽 사이드바: 폴더 목록 */}
+                                <div className="w-full md:w-64 flex-shrink-0 flex flex-col border-r pr-4">
+                                    <div className="flex flex-col gap-2 mb-4">
+                                        {canManageFolders && (
+                                            <button
+                                                onClick={() => setShowNewFolderInput(true)}
+                                                className="flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-600 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-900 w-full"
+                                            >
+                                                <FiFolderPlus className="text-lg" />
+                                                <span>새 폴더</span>
+                                            </button>
+                                        )}
+                                        <div className="relative">
+                                            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                            <input
+                                                type="text"
+                                                placeholder="폴더 검색..."
+                                                value={cruiseFolderSearch}
+                                                onChange={(e) => setCruiseFolderSearch(e.target.value)}
+                                                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            />
                                         </div>
-                                    ))}
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto space-y-1">
+                                        {filteredCruiseFolders.length === 0 ? (
+                                            <p className="text-sm text-gray-500 text-center py-4">폴더가 없습니다.</p>
+                                        ) : (
+                                            filteredCruiseFolders.map((folder) => (
+                                                <button
+                                                    key={folder.path}
+                                                    onClick={() => setCruiseCurrentPath(folder.path)}
+                                                    className={`w-full text-left px-3 py-2 text-sm rounded-lg flex items-center gap-2 transition-colors ${cruiseCurrentPath === folder.path
+                                                            ? 'bg-blue-50 text-blue-700 font-medium'
+                                                            : 'hover:bg-gray-100 text-gray-700'
+                                                        }`}
+                                                >
+                                                    <FiFolder className={`w-4 h-4 ${cruiseCurrentPath === folder.path ? 'text-blue-500' : 'text-gray-400'}`} />
+                                                    <span className="truncate">{folder.name}</span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+
+                                {/* 오른쪽 메인: 이미지 그리드 */}
+                                <div className="flex-1 flex flex-col overflow-hidden">
+                                    <div className="flex-1 overflow-y-auto p-1">
+                                        {filteredCruiseImages.length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-gray-200 rounded-lg">
+                                                <FiImage className="w-12 h-12 text-gray-300 mb-3" />
+                                                <p className="text-gray-500 font-medium">이미지가 없습니다.</p>
+                                                <p className="text-gray-400 text-sm mt-1">좌측에서 폴더를 선택해주세요.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                                {filteredCruiseImages.map((image) => (
+                                                    <div
+                                                        key={image.url}
+                                                        className="bg-white rounded-lg shadow-sm border overflow-hidden hover:shadow-md transition-shadow cursor-pointer group"
+                                                        onClick={() => setSelectedCruiseImage(image)}
+                                                    >
+                                                        <div className="aspect-square relative bg-gray-100">
+                                                            <Image
+                                                                src={image.url}
+                                                                alt={image.name}
+                                                                fill
+                                                                className="object-cover transition-transform group-hover:scale-105"
+                                                                sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                                                            />
+                                                        </div>
+                                                        <div className="p-3">
+                                                            <p className="text-sm font-medium text-gray-800 truncate" title={image.name}>
+                                                                {image.name}
+                                                            </p>
+                                                            <p className="text-xs text-gray-500 mt-1">{formatFileSize(image.size)}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
 
                         {/* 크루즈정보사진 상세 모달 */}
