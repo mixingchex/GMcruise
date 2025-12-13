@@ -1,9 +1,9 @@
 import prisma from '@/lib/prisma';
-import { google } from 'googleapis';
-import { getGoogleAuth } from '@/lib/google-drive';
 import * as XLSX from 'xlsx';
-import { uploadFileToDrive, findOrCreateFolder } from '@/lib/google-drive';
 import dayjs from 'dayjs';
+
+// google-drive와 googleapis는 동적 임포트로 사용 (빌드 시 메모리 절약)
+// init.ts → layout.tsx 체인에서 googleapis 로드 방지
 
 /**
  * 구글 스프레드시트 백업 스케줄러
@@ -30,12 +30,13 @@ interface SpreadsheetBackupLog {
 }
 
 /**
- * 구글 시트 API 클라이언트 생성
+ * 구글 시트 API 클라이언트 생성 (동적 임포트 사용)
  */
-/**
- * 구글 시트 API 클라이언트 생성
- */
-function getSheetsClient() {
+async function getSheetsClient() {
+  // googleapis와 google-drive 모두 동적 임포트
+  const { google } = await import('googleapis');
+  const { getGoogleAuth } = await import('@/lib/google-drive');
+
   const auth = getGoogleAuth([
     'https://www.googleapis.com/auth/spreadsheets.readonly',
     'https://www.googleapis.com/auth/drive.file',
@@ -50,7 +51,7 @@ function getSheetsClient() {
 async function spreadsheetToExcelBuffer(
   spreadsheetId: string
 ): Promise<Buffer> {
-  const sheets = getSheetsClient();
+  const sheets = await getSheetsClient();
 
   // 스프레드시트 메타데이터 가져오기
   const spreadsheet = await sheets.spreadsheets.get({
@@ -115,8 +116,11 @@ async function backupSpreadsheet(
   productCode?: string
 ): Promise<SpreadsheetBackupResult> {
   try {
+    // 동적 임포트
+    const { uploadFileToDrive } = await import('@/lib/google-drive');
+
     // 스프레드시트 메타데이터 가져오기
-    const sheets = getSheetsClient();
+    const sheets = await getSheetsClient();
     const spreadsheet = await sheets.spreadsheets.get({
       spreadsheetId,
     });
@@ -183,6 +187,9 @@ export async function runSpreadsheetBackup(): Promise<SpreadsheetBackupLog> {
   console.log('[Spreadsheet Backup] Starting backup...');
 
   try {
+    // 동적 임포트
+    const { findOrCreateFolder } = await import('@/lib/google-drive');
+
     // 백업 폴더 생성 또는 찾기
     const today = dayjs().format('YYYY-MM-DD');
     const monthFolder = dayjs().format('YYYY-MM');
@@ -362,4 +369,3 @@ export function startSpreadsheetBackupScheduler() {
     '📊 [Spreadsheet Backup Scheduler] Started - Will run daily at 12:00 AM KST'
   );
 }
-
