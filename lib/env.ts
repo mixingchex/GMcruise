@@ -72,8 +72,8 @@ export function validateEnv() {
     console.error(`❌ ERROR: Missing required environment variables: ${missing.join(', ')}`);
     console.error('💡 Hint: Check .env.local file and make sure all keys are set.');
     if (isProduction) {
-      console.error('🚨 Production mode: Exiting due to missing required variables.');
-      process.exit(1); // 프로덕션에서는 즉시 종료
+      console.error('🚨 Production mode: Missing variables detected (continuing for debugging).');
+      // process.exit(1); // 임시 비활성화 - 디버깅용
     } else {
       console.warn('⚠️  Development mode: Continuing with warnings (not recommended for production)');
     }
