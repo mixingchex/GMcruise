@@ -219,15 +219,61 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 수당 계산
+    // 수당 계산 - CommissionTier에서 수당 정보 가져오기
     const netRevenue = saleAmount - (costAmount || 0);
+
+    // CommissionTier 매핑 (상품에 등록된 수당 설정 사용)
+    let tier: {
+      cabinType?: string | null;
+      saleAmount?: number | null;
+      costAmount?: number | null;
+      hqShareAmount?: number | null;
+      branchShareAmount?: number | null;
+      salesShareAmount?: number | null;
+      overrideAmount?: number | null;
+      currency?: string | null;
+    } | undefined = undefined;
+
+    if (affiliateProductId) {
+      const affiliateProduct = await prisma.affiliateProduct.findUnique({
+        where: { id: affiliateProductId },
+        include: {
+          AffiliateCommissionTier: {
+            where: {
+              OR: [
+                { cabinType: cabinType || undefined },
+                { cabinType: null },
+              ],
+            },
+            orderBy: { cabinType: 'desc' }, // cabinType이 있는 것 우선
+            take: 1,
+          },
+        },
+      });
+
+      const commissionTier = affiliateProduct?.AffiliateCommissionTier?.[0];
+      if (commissionTier) {
+        tier = {
+          cabinType: commissionTier.cabinType,
+          saleAmount: commissionTier.saleAmount,
+          costAmount: commissionTier.costAmount,
+          hqShareAmount: commissionTier.hqShareAmount,
+          branchShareAmount: commissionTier.branchShareAmount,
+          salesShareAmount: commissionTier.salesShareAmount,
+          overrideAmount: commissionTier.overrideAmount,
+          currency: commissionTier.currency,
+        };
+      }
+    }
+
     const breakdown = generateLedgerEntries({
       saleId: 0, // 임시값, 나중에 업데이트
       saleAmount,
       costAmount: costAmount || 0,
+      tier, // 상품에 등록된 수당 설정 전달
       managerProfileId: finalManagerId ?? undefined,
       agentProfileId: finalAgentId ?? undefined,
-      currency: 'KRW',
+      currency: tier?.currency || 'KRW',
       metadata: metadata || {},
     });
 

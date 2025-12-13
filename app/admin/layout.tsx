@@ -196,6 +196,7 @@ function AdminLayoutContent({
     // 시스템 설정
     { href: '/admin/system/status', label: '시스템 상태', icon: '🛡️', section: 'system' },
     { href: '/admin/system/google-drive', label: 'Google Drive 설정', icon: '☁️', section: 'system' },
+    { href: '/admin/finance', label: '재무 자동화', icon: '💰', section: 'system' },
     { href: '/admin/test-dashboard', label: '백업/명세서/문서동기화', icon: '🔧', section: 'system' },
     { href: '/admin/seo', label: 'SEO 관리', icon: '🔍', section: 'system' },
     { href: '/admin/settings', label: '관리자 정보', icon: '⚙️', section: 'system' },

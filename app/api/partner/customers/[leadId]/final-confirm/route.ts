@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { uploadFileToDrive, findOrCreateFolder } from '@/lib/google-drive';
+import { requirePartnerContext, getPartnerLead, PartnerApiError } from '@/app/api/partner/_utils';
 
 /**
  * 파트너가 고객의 최종확인요청을 제출하는 API
@@ -15,32 +15,18 @@ export async function POST(
   { params }: { params: { leadId: string } }
 ) {
   try {
-    const sessionUser = await getSessionUser();
-    if (!sessionUser?.id) {
-      return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
-    }
+    // 파트너 인증 및 프로필 확인
+    const { profile, sessionUser } = await requirePartnerContext();
 
     const leadId = parseInt(params.leadId, 10);
     if (isNaN(leadId)) {
       return NextResponse.json({ ok: false, error: '잘못된 고객 ID입니다.' }, { status: 400 });
     }
 
-    // 파트너 프로필 확인
-    const profile = await prisma.affiliateProfile.findFirst({
-      where: { userId: sessionUser.id },
-      select: {
-        id: true,
-        type: true,
-        displayName: true,
-        legalName: true,
-      },
-    });
+    // AffiliateLead 조회 (소유권 검증 포함)
+    const baseLead = await getPartnerLead(profile.id, leadId, {}, profile.type);
 
-    if (!profile) {
-      return NextResponse.json({ ok: false, error: '파트너 권한이 없습니다.' }, { status: 403 });
-    }
-
-    // AffiliateLead 조회
+    // 추가 정보 조회 (AffiliateSale, Reservation)
     const lead = await prisma.affiliateLead.findUnique({
       where: { id: leadId },
       include: {
@@ -145,6 +131,9 @@ export async function POST(
 
   } catch (error: any) {
     console.error('[Final Confirm] Error:', error);
+    if (error instanceof PartnerApiError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
+    }
     return NextResponse.json(
       { ok: false, error: error.message || '서버 오류가 발생했습니다.' },
       { status: 500 }
@@ -158,15 +147,16 @@ export async function GET(
   { params }: { params: { leadId: string } }
 ) {
   try {
-    const sessionUser = await getSessionUser();
-    if (!sessionUser?.id) {
-      return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
-    }
+    // 파트너 인증 및 프로필 확인
+    const { profile } = await requirePartnerContext();
 
     const leadId = parseInt(params.leadId, 10);
     if (isNaN(leadId)) {
       return NextResponse.json({ ok: false, error: '잘못된 고객 ID입니다.' }, { status: 400 });
     }
+
+    // 소유권 검증
+    await getPartnerLead(profile.id, leadId, {}, profile.type);
 
     // AffiliateLead와 연결된 예약 조회
     const lead = await prisma.affiliateLead.findUnique({
@@ -216,6 +206,9 @@ export async function GET(
 
   } catch (error: any) {
     console.error('[Final Confirm GET] Error:', error);
+    if (error instanceof PartnerApiError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
+    }
     return NextResponse.json(
       { ok: false, error: error.message || '서버 오류가 발생했습니다.' },
       { status: 500 }

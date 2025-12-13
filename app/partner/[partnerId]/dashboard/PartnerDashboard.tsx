@@ -33,6 +33,7 @@ import {
   FiGlobe,
   FiImage,
   FiMail,
+  FiSettings,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 import CompressorModal from '@/components/common/CompressorModal';
@@ -2483,6 +2484,24 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">나의 계약서<br />보기</span>
               </Link>
             )}
+
+            {/* 나의 판매 실적 */}
+            <Link
+              href={`${partnerBase}/sales`}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-amber-50 to-orange-100 p-4 text-center transition-all hover:from-amber-100 hover:to-orange-200 hover:shadow-lg md:p-6"
+            >
+              <FiTrendingUp className="text-2xl text-amber-600 md:text-3xl" />
+              <span className="text-xs font-semibold text-amber-700 md:text-sm">나의<br />판매 실적</span>
+            </Link>
+
+            {/* 설정 */}
+            <Link
+              href={`${partnerBase}/settings`}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
+            >
+              <FiSettings className="text-2xl text-slate-600 md:text-3xl" />
+              <span className="text-xs font-semibold text-slate-700 md:text-sm">설정</span>
+            </Link>
           </div>
         </section>
 

@@ -7,10 +7,17 @@ import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
+import {
+  detectAdvisorType,
+  getAdvisorPrompt,
+  getAdvisorName,
+  DISCLAIMER,
+  type AdvisorType
+} from '@/lib/prompts/legal-advisor';
 
 export async function POST(req: Request) {
   try {
-    const { prompt } = await req.json();
+    const { prompt, useAdvisor, context } = await req.json();
     const apiKey = process.env.GEMINI_API_KEY;
     const model = resolveGeminiModelName();
 
@@ -19,6 +26,61 @@ export async function POST(req: Request) {
     }
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ ok: false, error: 'prompt required' }, { status: 400 });
+    }
+
+    // AI 고문 모드 처리
+    if (useAdvisor) {
+      const advisorType = detectAdvisorType(prompt);
+      const advisorPrompt = getAdvisorPrompt(advisorType);
+      const advisorName = getAdvisorName(advisorType);
+
+      const fullPrompt = `${advisorPrompt}
+
+${context ? `**추가 컨텍스트:**\n${context}\n\n` : ''}**질문:**
+${prompt}
+
+**${advisorName} 답변:**`;
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: fullPrompt }] }],
+          generationConfig: {
+            temperature: 0.3, // 더 정확한 답변을 위해 낮은 온도
+            topP: 0.9,
+            maxOutputTokens: 2048,
+            topK: 40,
+          },
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        console.error('[API /ask] Advisor mode - Gemini API error:', data.error);
+        return NextResponse.json(
+          { ok: false, error: data.error.message || 'AI 고문 응답 생성 중 오류가 발생했습니다' },
+          { status: 500 }
+        );
+      }
+
+      const text =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
+        '죄송해요. 답변을 생성하지 못했어요. 다시 시도해주세요.';
+
+      // 면책 조항 추가
+      const answerWithDisclaimer = `${text}\n${DISCLAIMER}`;
+
+      return NextResponse.json({
+        ok: true,
+        text: answerWithDisclaimer,
+        answer: answerWithDisclaimer,
+        advisorType,
+        advisorName,
+      });
     }
 
     // 사용자 정보 및 여행 정보 가져오기

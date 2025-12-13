@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiCopy, FiCheck, FiEye, FiEyeOff, FiSave, FiEdit2, FiPlus, FiTrash2, FiX } from 'react-icons/fi';
+import { FiCopy, FiCheck, FiEye, FiEyeOff, FiSave, FiEdit2, FiPlus, FiTrash2, FiX, FiMessageSquare } from 'react-icons/fi';
+import AIAdvisorModal from '@/components/admin/AIAdvisorModal';
 
 type KakaoApiManager = {
   id: string;
@@ -160,6 +161,7 @@ export default function AdminSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showAIAdvisor, setShowAIAdvisor] = useState(false);
 
   // 각 카테고리별 편집 상태
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
@@ -1131,7 +1133,20 @@ export default function AdminSettingsPage() {
             각 카테고리별로 개별 수정 및 저장이 가능합니다
           </p>
         </div>
+        <button
+          onClick={() => setShowAIAdvisor(true)}
+          className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+        >
+          <FiMessageSquare className="w-5 h-5" />
+          <span>AI 고문</span>
+        </button>
       </div>
+
+      {/* AI 고문 모달 */}
+      <AIAdvisorModal
+        isOpen={showAIAdvisor}
+        onClose={() => setShowAIAdvisor(false)}
+      />
 
       {/* 회사 정보 */}
       <div className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-lg border-2 border-gray-100 p-6">

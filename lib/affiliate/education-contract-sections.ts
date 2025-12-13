@@ -648,3 +648,60 @@ export const EDUCATION_CONTRACT_SECTIONS: Record<string, Array<{ title: string; 
     },
   ],
 };
+
+// 개인정보보호 교육 섹션
+export interface PrivacyEducationSection {
+  articleNumber: number;
+  title: string;
+  keyPoints: string[];
+  legalReference?: string;
+}
+
+export const PRIVACY_EDUCATION_SECTIONS: PrivacyEducationSection[] = [
+  {
+    articleNumber: 5,
+    title: '개인정보 보호 의무',
+    keyPoints: [
+      '개인정보보호법 제23조, 제24조, 제29조 준수 필수',
+      '암호화 및 접근 권한 관리 (TLS 1.2, AES-256)',
+      '개인정보 유출 시 24시간 이내 통보 의무',
+      '개인정보 처리 기록 최소 3년 보관',
+      '전자파일 파기 시 덮어쓰기 3회 이상',
+      '종이문서 파기 시 세단기 파쇄 필수',
+    ],
+    legalReference: '개인정보보호법 제23조, 제24조, 제29조, 제34조',
+  },
+];
+
+// 개인정보보호 컴플라이언스 체크리스트
+export interface PrivacyComplianceCheckItem {
+  id: string;
+  category: string;
+  item: string;
+  required: boolean;
+}
+
+export const PRIVACY_COMPLIANCE_CHECKLIST: PrivacyComplianceCheckItem[] = [
+  // 법적 근거
+  { id: 'legal-1', category: '법적 근거', item: '개인정보보호법 제23조 (민감정보 처리 제한) 준수', required: true },
+  { id: 'legal-2', category: '법적 근거', item: '개인정보보호법 제24조 (고유식별정보 처리 제한) 준수', required: true },
+  { id: 'legal-3', category: '법적 근거', item: '개인정보보호법 제29조 (안전조치 의무) 준수', required: true },
+
+  // 안전조치
+  { id: 'security-1', category: '안전조치', item: 'TLS 1.2 이상 암호화 프로토콜 사용 확인', required: true },
+  { id: 'security-2', category: '안전조치', item: 'AES-256 방식 데이터 암호화 적용 확인', required: true },
+  { id: 'security-3', category: '안전조치', item: '접속 기록 1년 이상 보관 확인', required: true },
+  { id: 'security-4', category: '안전조치', item: '최소 인원으로 접근 권한 제한', required: true },
+
+  // 파기 절차
+  { id: 'disposal-1', category: '파기 절차', item: '전자파일 덮어쓰기 3회 이상 수행', required: true },
+  { id: 'disposal-2', category: '파기 절차', item: '종이문서 세단기 파쇄 (2mm x 15mm 이하)', required: true },
+
+  // 유출 대응
+  { id: 'breach-1', category: '유출 대응', item: '24시간 이내 통보 체계 구축', required: true },
+  { id: 'breach-2', category: '유출 대응', item: '정보주체 통지 절차 수립', required: true },
+
+  // 기록 관리
+  { id: 'record-1', category: '기록 관리', item: '개인정보 처리 기록 3년 이상 보관', required: true },
+  { id: 'record-2', category: '기록 관리', item: '동의 내역 및 처리 이력 관리', required: false },
+];
