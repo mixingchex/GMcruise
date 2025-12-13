@@ -154,8 +154,9 @@ const nextConfig = {
       ],
     },
     // googleapis 패키지 전체를 Vercel 서버리스 함수에 포함 (./docs 모듈 누락 해결)
+    // 모든 라우트에 적용 (lib/init.ts → spreadsheetBackup.ts가 top-level에서 googleapis 임포트)
     outputFileTracingIncludes: {
-      '/api/**': ['./node_modules/googleapis/**/*'],
+      '/**': ['./node_modules/googleapis/**/*'],
     },
   },
 
