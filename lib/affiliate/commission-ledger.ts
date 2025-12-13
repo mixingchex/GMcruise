@@ -84,7 +84,7 @@ export async function syncSaleCommissionLedgers(
     withholdingRate: agentWithholding,
     managerWithholdingRate: managerWithholding,
     currency,
-    includeHqNet: options.includeHq ?? false,
+    includeHqNet: options.includeHq ?? true,
     metadata,
   });
 

@@ -351,6 +351,7 @@ export async function POST(req: NextRequest) {
           ...entry,
           updatedAt: new Date(),
         })),
+        skipDuplicates: true, // 중복 방지
       });
     }
 

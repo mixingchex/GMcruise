@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   FiPlus,
   FiTrash2,
@@ -75,11 +75,7 @@ export default function PeriodPricingEditor({
   const [showMaxPriceModal, setShowMaxPriceModal] = useState(false);
 
   // 데이터 로드
-  useEffect(() => {
-    fetchData();
-  }, [productCode]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const res = await fetch(`/api/admin/products/${productCode}/price-periods`);
@@ -102,7 +98,11 @@ export default function PeriodPricingEditor({
     } finally {
       setLoading(false);
     }
-  };
+  }, [productCode]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // 새 기간 추가
   const handleAddPeriod = () => {

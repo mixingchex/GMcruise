@@ -12,6 +12,7 @@ import {
 import Link from 'next/link';
 import { showSuccess, showError, showWarning, showInfo } from '@/components/ui/Toast';
 import { FunnelShareModal } from '@/components/partner/FunnelShareModal';
+import ImageLibraryModal from '@/components/partner/ImageLibraryModal';
 
 // 탭 타입 (SMS, 이메일만)
 type TabType = 'instant' | 'scheduled' | 'history';
@@ -39,7 +40,7 @@ interface CustomerGroup {
   id: number;
   name: string;
   color?: string | null;
-  _count: { leads: number };
+  count: number; // API에서 count로 반환
 }
 
 // 예약 메시지 타입
@@ -61,7 +62,7 @@ interface ScheduledMessage {
   targetGroup?: {
     id: number;
     name: string;
-    _count: { leads: number };
+    _count: { members: number };
   } | null;
   createdAt: string;
 }
@@ -185,6 +186,7 @@ export default function PartnerMessageCenterPage() {
   // 이메일 추가 옵션
   const [emailImages, setEmailImages] = useState<Array<{ id: string; url: string; name: string }>>([]);
   const [emailButtons, setEmailButtons] = useState<Array<{ id: string; label: string; url: string }>>([]);
+  const [showImageLibrary, setShowImageLibrary] = useState(false);
 
   // 템플릿 변수
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -283,10 +285,15 @@ export default function PartnerMessageCenterPage() {
   // 상품 목록 로드
   const loadProducts = useCallback(async () => {
     try {
-      const res = await fetch('/api/partner/products', { credentials: 'include' });
+      const res = await fetch('/api/partner/products/active', { credentials: 'include' });
       const data = await res.json();
       if (data.ok) {
-        setProducts(data.products || []);
+        // 상품 목록을 productCode와 label 형식으로 변환
+        const formattedProducts = (data.products || []).map((p: any) => ({
+          productCode: p.productCode,
+          label: `${p.packageName || p.cruiseLine} (${p.productCode})`
+        }));
+        setProducts(formattedProducts);
       }
     } catch (error) {
       console.error('상품 목록 로드 실패:', error);
@@ -883,7 +890,7 @@ export default function PartnerMessageCenterPage() {
                       <option value="">그룹을 선택하세요</option>
                       {customerGroups.map(group => (
                         <option key={group.id} value={group.id}>
-                          {group.name} ({group._count.leads}명)
+                          {group.name} ({group.count}명)
                         </option>
                       ))}
                     </select>
@@ -1098,31 +1105,30 @@ export default function PartnerMessageCenterPage() {
                     <div className="space-y-4 pt-4 border-t border-gray-200">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          이미지 추가 (선택, 최대 5개)
+                          📷 이미지 추가 (선택, 최대 5개)
                         </label>
                         {emailImages.length < 5 && (
                           <button
-                            onClick={() => {
-                              const url = prompt('이미지 URL을 입력하세요:');
-                              if (url) {
-                                setEmailImages([...emailImages, { id: Date.now().toString(), url, name: '이미지' }]);
-                              }
-                            }}
-                            className="px-4 py-2 border border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700"
+                            onClick={() => setShowImageLibrary(true)}
+                            className="flex items-center gap-2 px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                           >
-                            <FiPlus className="inline mr-1" /> 이미지 추가
+                            <FiPlus size={18} /> 이미지 라이브러리에서 선택
                           </button>
                         )}
                         {emailImages.length > 0 && (
-                          <div className="mt-2 space-y-1">
-                            {emailImages.map((img, i) => (
-                              <div key={img.id} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg text-sm">
-                                <span className="truncate">{img.url}</span>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {emailImages.map((img) => (
+                              <div key={img.id} className="relative group">
+                                <img
+                                  src={img.url}
+                                  alt={img.name}
+                                  className="w-20 h-20 object-cover rounded-lg border"
+                                />
                                 <button
-                                  onClick={() => setEmailImages(emailImages.filter((_, idx) => idx !== i))}
-                                  className="text-red-500 hover:text-red-700"
+                                  onClick={() => setEmailImages(emailImages.filter(i => i.id !== img.id))}
+                                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                 >
-                                  <FiX />
+                                  ×
                                 </button>
                               </div>
                             ))}
@@ -1327,14 +1333,14 @@ export default function PartnerMessageCenterPage() {
                   <h2 className="text-xl font-bold text-gray-900">내 퍼널 메시지</h2>
                   <div className="flex gap-2">
                     <Link
-                      href={`/partner/${partnerId}/message-center/scheduled/sms/new`}
+                      href={`/partner/${partnerId}/message-center/scheduled/new/sms`}
                       className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center gap-2"
                     >
                       <FiSmartphone className="w-4 h-4" />
                       퍼널문자 만들기
                     </Link>
                     <Link
-                      href={`/partner/${partnerId}/message-center/scheduled/email/new`}
+                      href={`/partner/${partnerId}/message-center/scheduled/new/email`}
                       className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
                     >
                       <FiMail className="w-4 h-4" />
@@ -1354,14 +1360,14 @@ export default function PartnerMessageCenterPage() {
                     <p className="text-gray-500 mb-4">등록된 퍼널 메시지가 없습니다.</p>
                     <div className="flex gap-3 justify-center">
                       <Link
-                        href={`/partner/${partnerId}/message-center/scheduled/sms/new`}
+                        href={`/partner/${partnerId}/message-center/scheduled/new/sms`}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
                       >
                         <FiSmartphone className="w-4 h-4" />
                         퍼널문자 만들기
                       </Link>
                       <Link
-                        href={`/partner/${partnerId}/message-center/scheduled/email/new`}
+                        href={`/partner/${partnerId}/message-center/scheduled/new/email`}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                       >
                         <FiMail className="w-4 h-4" />
@@ -1397,7 +1403,7 @@ export default function PartnerMessageCenterPage() {
                             </div>
                             <p className="text-sm text-gray-600 mb-2">
                               {msg.stages.length}단계 |
-                              {msg.targetGroup ? ` 대상: ${msg.targetGroup.name} (${msg.targetGroup._count.leads}명)` : ' 대상 미지정'}
+                              {msg.targetGroup ? ` 대상: ${msg.targetGroup.name} (${msg.targetGroup._count.members}명)` : ' 대상 미지정'}
                             </p>
                             <div className="flex flex-wrap gap-2">
                               {msg.stages.slice(0, 3).map(stage => (
@@ -1904,6 +1910,22 @@ export default function PartnerMessageCenterPage() {
           }}
         />
       )}
+
+      {/* 이미지 라이브러리 모달 */}
+      <ImageLibraryModal
+        isOpen={showImageLibrary}
+        onClose={() => setShowImageLibrary(false)}
+        onSelect={(imageUrl) => {
+          if (emailImages.length < 5) {
+            setEmailImages([...emailImages, {
+              id: Date.now().toString(),
+              url: imageUrl,
+              name: '이미지'
+            }]);
+          }
+          setShowImageLibrary(false);
+        }}
+      />
     </div>
   );
 }

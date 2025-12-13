@@ -196,6 +196,22 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     approvedAt: string | null;
   }>>([]);
   const [loadingMySales, setLoadingMySales] = useState(false);
+
+  // 팀원 판매 현황 (대리점장용)
+  const [teamSales, setTeamSales] = useState<Array<{
+    id: number;
+    productCode: string | null;
+    saleAmount: number;
+    status: string;
+    saleDate: string | null;
+    agentName: string | null;
+    agentId: number | null;
+    customerName: string | null;
+    branchCommission: number;
+    salesCommission: number;
+    overrideCommission: number;
+  }>>([]);
+  const [loadingTeamSales, setLoadingTeamSales] = useState(false);
   const [showSalesConfirmationModal, setShowSalesConfirmationModal] = useState(false);
   const [selectedSaleForConfirmation, setSelectedSaleForConfirmation] = useState<{
     id: number;
@@ -700,6 +716,43 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     }
   };
 
+  // 팀원 판매 현황 로드 (대리점장용)
+  const loadTeamSales = useCallback(async () => {
+    if (!isBranchManager) return;
+
+    try {
+      setLoadingTeamSales(true);
+      const res = await fetch('/api/partner/sales', {
+        credentials: 'include',
+      });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        // 팀원들의 판매만 필터링 (본인 판매 제외)
+        const teamOnlySales = (json.sales || [])
+          .filter((sale: any) => sale.agentId && sale.agentId !== json.profileId)
+          .map((sale: any) => ({
+            id: sale.id,
+            productCode: sale.productCode,
+            saleAmount: sale.saleAmount || 0,
+            status: sale.status,
+            saleDate: sale.saleDate,
+            agentName: sale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile?.displayName ||
+                       sale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile?.User?.name || '알 수 없음',
+            agentId: sale.agentId,
+            customerName: sale.AffiliateLead?.customerName || null,
+            branchCommission: sale.branchCommission || 0,
+            salesCommission: sale.salesCommission || 0,
+            overrideCommission: sale.overrideCommission || 0,
+          }));
+        setTeamSales(teamOnlySales);
+      }
+    } catch (error) {
+      console.error('[PartnerDashboard] Failed to load team sales:', error);
+    } finally {
+      setLoadingTeamSales(false);
+    }
+  }, [isBranchManager]);
+
   // 판매원별 DB 현황 로드
   const loadAgentDbStats = useCallback(async () => {
     if (!isBranchManager) return;
@@ -771,10 +824,11 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     if (isBranchManager) {
       loadContracts();
       loadAgentDbStats();
+      loadTeamSales(); // 팀원 판매 현황 로드
       loadPurchasedReservations(); // 구매고객 목록 로드
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isBranchManager, loadMyContract, loadAgentDbStats, loadPurchasedReservations]);
+  }, [isBranchManager, loadMyContract, loadAgentDbStats, loadTeamSales, loadPurchasedReservations]);
 
   // 선택된 달이 변경되면 데이터 다시 로드
   useEffect(() => {
@@ -3229,6 +3283,104 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                 </div>
               )}
             </section>
+
+            {/* 팀원 판매 현황 (대리점장만) */}
+            {isBranchManager && (
+              <section className="rounded-2xl bg-white p-4 shadow-lg md:rounded-3xl md:p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
+                    <FiUsers className="text-purple-600" />
+                    팀원 판매 현황
+                  </h2>
+                  <button
+                    onClick={loadTeamSales}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-200"
+                  >
+                    <FiRefreshCw className="text-base" />
+                    새로고침
+                  </button>
+                </div>
+                {loadingTeamSales ? (
+                  <div className="py-8 text-center text-sm text-gray-500">
+                    팀원 판매 현황을 불러오는 중입니다...
+                  </div>
+                ) : teamSales.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-gray-500">
+                    팀원 판매 내역이 없습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {teamSales.map((sale) => {
+                      const getStatusLabel = () => {
+                        switch (sale.status) {
+                          case 'PENDING': return { label: '확정 대기', color: 'text-gray-600', bg: 'bg-gray-100' };
+                          case 'PENDING_APPROVAL': return { label: '승인 심사중', color: 'text-yellow-700', bg: 'bg-yellow-100' };
+                          case 'APPROVED': return { label: '승인 완료', color: 'text-green-700', bg: 'bg-green-100' };
+                          case 'REJECTED': return { label: '승인 거부', color: 'text-red-700', bg: 'bg-red-100' };
+                          case 'CONFIRMED': return { label: '구매 확정', color: 'text-blue-700', bg: 'bg-blue-100' };
+                          default: return { label: sale.status, color: 'text-gray-600', bg: 'bg-gray-100' };
+                        }
+                      };
+                      const statusInfo = getStatusLabel();
+                      return (
+                        <div
+                          key={sale.id}
+                          className="rounded-lg border border-purple-200 p-4 hover:border-purple-400 hover:shadow-md transition-all bg-purple-50/30"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold bg-purple-100 text-purple-700">
+                                  <FiUser className="text-xs" />
+                                  {sale.agentName}
+                                </span>
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${statusInfo.color} ${statusInfo.bg}`}>
+                                  {statusInfo.label}
+                                </span>
+                              </div>
+                              <div className="font-semibold text-gray-900 mb-1">
+                                {sale.productCode || '상품 코드 없음'}
+                                {sale.customerName && (
+                                  <span className="ml-2 text-sm text-gray-500 font-normal">
+                                    (고객: {sale.customerName})
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                                <span className="font-semibold text-green-600">
+                                  {formatCurrency(sale.saleAmount)}
+                                </span>
+                                {sale.saleDate && (
+                                  <span>
+                                    <FiClock className="inline mr-1" />
+                                    {new Date(sale.saleDate).toLocaleDateString('ko-KR')}
+                                  </span>
+                                )}
+                                {sale.overrideCommission > 0 && (
+                                  <span className="text-purple-600 font-medium">
+                                    오버라이드: {formatCurrency(sale.overrideCommission)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {teamSales.length > 0 && (
+                  <div className="mt-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-purple-700 font-medium">총 팀원 판매: {teamSales.length}건</span>
+                      <span className="text-purple-700 font-semibold">
+                        총 오버라이드 수당: {formatCurrency(teamSales.reduce((sum, s) => sum + s.overrideCommission, 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </section>
+            )}
 
             {/* 계약서 관리 (대리점장만) */}
             {isBranchManager && (

@@ -5808,7 +5808,7 @@ export default function PartnerCustomersClient({
               >
                 <option value="">판매원을 선택하세요</option>
                 {partner.teamAgents?.map((agent) => (
-                  <option key={agent.agentId} value={agent.agentId}>
+                  <option key={agent.id} value={agent.id}>
                     {agent.displayName} ({agent.affiliateCode})
                   </option>
                 ))}

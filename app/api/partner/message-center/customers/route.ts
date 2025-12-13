@@ -104,11 +104,11 @@ export async function GET(req: NextRequest) {
         id: true,
         customerName: true,
         customerPhone: true,
-        email: true,
         source: true,
         createdAt: true,
         groupId: true,
         agentId: true,
+        metadata: true, // 이메일은 metadata에 저장될 수 있음
         AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
           select: {
             id: true,
@@ -126,18 +126,22 @@ export async function GET(req: NextRequest) {
       take: 500,
     });
 
-    const customerList: CustomerData[] = customers.map((c) => ({
-      id: c.id,
-      name: c.customerName,
-      phone: c.customerPhone,
-      email: c.email || null,
-      source: c.source,
-      createdAt: c.createdAt,
-      groupId: c.groupId,
-      groupName: c.PartnerCustomerGroup?.name || null,
-      agentName: c.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || null,
-      agentId: c.agentId,
-    }));
+    const customerList: CustomerData[] = customers.map((c) => {
+      // metadata에서 이메일 추출 시도
+      const metadata = c.metadata as { email?: string } | null;
+      return {
+        id: c.id,
+        name: c.customerName,
+        phone: c.customerPhone,
+        email: metadata?.email || null,
+        source: c.source,
+        createdAt: c.createdAt,
+        groupId: c.groupId,
+        groupName: c.PartnerCustomerGroup?.name || null,
+        agentName: c.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || null,
+        agentId: c.agentId,
+      };
+    });
 
     // 그룹 목록도 함께 반환
     const groups = await prisma.partnerCustomerGroup.findMany({

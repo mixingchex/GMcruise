@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FiSearch, FiFolder, FiArrowLeft, FiX, FiImage, FiCheck } from 'react-icons/fi';
 import { showError } from '@/components/ui/Toast';
 import { getProxyImageUrl } from '@/lib/utils';
@@ -45,17 +45,7 @@ export default function ImageLibraryModal({ isOpen, onClose, onSelect }: ImageLi
     const [cruiseFolders, setCruiseFolders] = useState<FolderItem[]>([]);
     const [cruiseCurrentPath, setCruiseCurrentPath] = useState('');
 
-    useEffect(() => {
-        if (isOpen) {
-            if (activeTab === 'library') {
-                loadImages();
-            } else {
-                loadCruisePhotos();
-            }
-        }
-    }, [isOpen, activeTab, currentFolderId, cruiseCurrentPath]);
-
-    const loadImages = async () => {
+    const loadImages = useCallback(async () => {
         try {
             setIsLoading(true);
             const url = currentFolderId
@@ -77,9 +67,9 @@ export default function ImageLibraryModal({ isOpen, onClose, onSelect }: ImageLi
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currentFolderId]);
 
-    const loadCruisePhotos = async () => {
+    const loadCruisePhotos = useCallback(async () => {
         try {
             setIsLoading(true);
             // 폴더 변경 시 이전 이미지 즉시 초기화 (이미지가 따라다니는 버그 방지)
@@ -100,7 +90,17 @@ export default function ImageLibraryModal({ isOpen, onClose, onSelect }: ImageLi
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [cruiseCurrentPath]);
+
+    useEffect(() => {
+        if (isOpen) {
+            if (activeTab === 'library') {
+                loadImages();
+            } else {
+                loadCruisePhotos();
+            }
+        }
+    }, [isOpen, activeTab, loadImages, loadCruisePhotos]);
 
     // Navigation handlers
     const navigateToFolder = (folder: FolderItem) => {

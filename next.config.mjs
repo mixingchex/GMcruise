@@ -292,6 +292,16 @@ const nextConfig = {
         protocol: 'https',
         hostname: '**.kakaocdn.net',
       },
+      // Unsplash 이미지
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      // Dicebear 아바타
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com',
+      },
     ],
   },
   

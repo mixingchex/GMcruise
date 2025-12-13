@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiSave, FiEdit2, FiEye, FiEyeOff, FiCopy, FiCheck, FiKey } from 'react-icons/fi';
-import { useParams } from 'next/navigation';
+import { FiSave, FiEdit2, FiEye, FiEyeOff, FiCopy, FiCheck, FiKey, FiArrowLeft } from 'react-icons/fi';
+import { useParams, useRouter } from 'next/navigation';
 import { showSuccess, showError } from '@/components/ui/Toast';
 
 type SmsConfig = {
@@ -25,14 +25,15 @@ type EmailConfig = {
 export default function PartnerSettingsPage() {
   const params = useParams();
   const partnerId = params.partnerId as string;
+  const router = useRouter();
 
   const [smsConfig, setSmsConfig] = useState<SmsConfig | null>(null);
   const [isLoadingSmsConfig, setIsLoadingSmsConfig] = useState(false);
   const [isEditingSmsConfig, setIsEditingSmsConfig] = useState(false);
   const [editableSmsConfig, setEditableSmsConfig] = useState<Partial<SmsConfig>>({});
   const [showApiKey, setShowApiKey] = useState(false);
-  const [showKakaoSenderKey, setShowKakaoSenderKey] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [serverIp, setServerIp] = useState<string | null>(null);
 
   // 비밀번호 변경 관련 상태
   const [isEditingPassword, setIsEditingPassword] = useState(false);
@@ -53,7 +54,22 @@ export default function PartnerSettingsPage() {
   useEffect(() => {
     loadSmsConfig();
     loadEmailConfig();
+    loadServerIp();
   }, []);
+
+  const loadServerIp = async () => {
+    try {
+      const response = await fetch('/api/partner/settings/server-ip', {
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok && data.serverIp) {
+        setServerIp(data.serverIp);
+      }
+    } catch (error) {
+      console.error('Failed to load server IP:', error);
+    }
+  };
 
   const loadSmsConfig = async () => {
     try {
@@ -204,7 +220,16 @@ export default function PartnerSettingsPage() {
   return (
     <div className="space-y-6 p-6">
       <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">⚙️ 설정</h1>
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-3xl font-bold text-gray-800">⚙️ 설정</h1>
+          <button
+            onClick={() => router.push(`/partner/${partnerId}/dashboard`)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+          >
+            <FiArrowLeft className="w-5 h-5" />
+            <span>대시보드로 돌아가기</span>
+          </button>
+        </div>
         <p className="text-gray-600">계정 설정과 SMS API 설정을 관리하세요</p>
       </div>
 
@@ -420,7 +445,7 @@ export default function PartnerSettingsPage() {
                       value={editableSmsConfig.apiKey || ''}
                       onChange={(e) => setEditableSmsConfig({ ...editableSmsConfig, apiKey: e.target.value })}
                       className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="API 키를 입력하세요"
+                      placeholder="예: abc123xyz456789 (알리고에서 발급받은 API 키)"
                     />
                     <button
                       onClick={() => setShowApiKey(!showApiKey)}
@@ -462,7 +487,7 @@ export default function PartnerSettingsPage() {
                     value={editableSmsConfig.userId || ''}
                     onChange={(e) => setEditableSmsConfig({ ...editableSmsConfig, userId: e.target.value })}
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="사용자 ID를 입력하세요"
+                    placeholder="예: myuserid (알리고 계정 아이디)"
                   />
                 ) : (
                   <span className="text-lg font-medium text-gray-800">{smsConfig?.userId || 'N/A'}</span>
@@ -485,7 +510,7 @@ export default function PartnerSettingsPage() {
                     value={editableSmsConfig.senderPhone || ''}
                     onChange={(e) => setEditableSmsConfig({ ...editableSmsConfig, senderPhone: e.target.value })}
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="발신번호를 입력하세요"
+                    placeholder="예: 010-1234-5678 (사전등록된 발신번호)"
                   />
                 ) : (
                   <span className="text-lg font-medium text-gray-800">{smsConfig?.senderPhone || 'N/A'}</span>
@@ -497,72 +522,6 @@ export default function PartnerSettingsPage() {
               >
                 {copiedField === 'smsSenderPhone' ? <FiCheck size={18} /> : <FiCopy size={18} />}
                 {copiedField === 'smsSenderPhone' ? '복사됨' : '복사'}
-              </button>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
-              <div className="flex-1">
-                <label className="text-sm font-semibold text-gray-600 mb-1 block">카카오 채널 ID</label>
-                {isEditingSmsConfig ? (
-                  <input
-                    type="text"
-                    value={editableSmsConfig.kakaoChannelId || ''}
-                    onChange={(e) => setEditableSmsConfig({ ...editableSmsConfig, kakaoChannelId: e.target.value })}
-                    className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="카카오 채널 ID를 입력하세요"
-                  />
-                ) : (
-                  <span className="text-lg font-medium text-gray-800">{smsConfig?.kakaoChannelId || 'N/A'}</span>
-                )}
-              </div>
-              <button
-                onClick={() => copyToClipboard(smsConfig?.kakaoChannelId || '', 'smsKakaoChannelId')}
-                className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                {copiedField === 'smsKakaoChannelId' ? <FiCheck size={18} /> : <FiCopy size={18} />}
-                {copiedField === 'smsKakaoChannelId' ? '복사됨' : '복사'}
-              </button>
-            </div>
-            <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
-              <div className="flex-1">
-                <label className="text-sm font-semibold text-gray-600 mb-1 block">카카오 채널 Senderkey</label>
-                {isEditingSmsConfig ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type={showKakaoSenderKey ? 'text' : 'password'}
-                      value={editableSmsConfig.kakaoSenderKey || ''}
-                      onChange={(e) => setEditableSmsConfig({ ...editableSmsConfig, kakaoSenderKey: e.target.value })}
-                      className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="카카오 채널 Senderkey를 입력하세요"
-                    />
-                    <button
-                      onClick={() => setShowKakaoSenderKey(!showKakaoSenderKey)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title={showKakaoSenderKey ? '숨기기' : '보기'}
-                    >
-                      {showKakaoSenderKey ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-mono text-gray-800">
-                      {maskSensitiveInfo(smsConfig?.kakaoSenderKey || '', showKakaoSenderKey)}
-                    </span>
-                    <button
-                      onClick={() => setShowKakaoSenderKey(!showKakaoSenderKey)}
-                      className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                      title={showKakaoSenderKey ? '숨기기' : '보기'}
-                    >
-                      {showKakaoSenderKey ? <FiEyeOff size={18} /> : <FiEye size={18} />}
-                    </button>
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => copyToClipboard(smsConfig?.kakaoSenderKey || '', 'smsKakaoSenderKey')}
-                className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-              >
-                {copiedField === 'smsKakaoSenderKey' ? <FiCheck size={18} /> : <FiCopy size={18} />}
-                {copiedField === 'smsKakaoSenderKey' ? '복사됨' : '복사'}
               </button>
             </div>
             <div className="flex items-center justify-between p-4 bg-white rounded-lg border-2 border-gray-200">
@@ -602,6 +561,36 @@ export default function PartnerSettingsPage() {
                 개인 계정은 <strong>하루 누적 500건</strong>만 전송 가능합니다.
                 <br />
                 500건 이상 전송을 원하신다면 <a href="https://smartsms.aligo.in" target="_blank" rel="noopener noreferrer" className="text-orange-700 underline font-semibold hover:text-orange-900">알리고문자</a>에서 <strong>사업자 전환</strong> 후 사용 가능합니다.
+              </p>
+            </div>
+            {/* 본사 서버 IP 안내 */}
+            <div className="mt-3 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+              <p className="text-sm text-blue-800 mb-3">
+                <strong>🔒 알리고 IP 설정 필수!</strong>
+                <br />
+                알리고 API를 사용하려면 <a href="https://smartsms.aligo.in" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline font-semibold hover:text-blue-900">알리고 관리자 페이지</a>에서 아래 IP를 <strong>&quot;발신 IP&quot;</strong>에 등록해야 합니다.
+              </p>
+              {serverIp ? (
+                <div className="flex items-center gap-3 bg-white p-3 rounded-lg border-2 border-blue-200">
+                  <span className="text-sm font-medium text-gray-600">본사 고정 IP:</span>
+                  <code className="px-3 py-1.5 bg-blue-100 text-blue-900 font-mono text-lg font-bold rounded">
+                    {serverIp}
+                  </code>
+                  <button
+                    onClick={() => copyToClipboard(serverIp, 'serverIp')}
+                    className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 text-sm font-semibold"
+                  >
+                    {copiedField === 'serverIp' ? <FiCheck size={16} /> : <FiCopy size={16} />}
+                    {copiedField === 'serverIp' ? '복사됨!' : 'IP 복사'}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-white p-3 rounded-lg border-2 border-gray-200">
+                  <span className="text-gray-500">서버 IP를 불러오는 중...</span>
+                </div>
+              )}
+              <p className="text-xs text-blue-600 mt-2">
+                ※ 위 IP를 등록하지 않으면 문자 발송이 차단됩니다. 알리고 사이트 → 환경설정 → IP관리에서 등록하세요.
               </p>
             </div>
           </div>
@@ -667,7 +656,7 @@ export default function PartnerSettingsPage() {
                     value={editableEmailConfig.senderName || ''}
                     onChange={(e) => setEditableEmailConfig({ ...editableEmailConfig, senderName: e.target.value })}
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="발신자 이름 (비워두면 계약서상 이름 사용)"
+                    placeholder="예: 홍길동 (비워두면 계약서상 이름 사용)"
                   />
                 ) : (
                   <span className="text-lg font-medium text-gray-800">
@@ -687,7 +676,7 @@ export default function PartnerSettingsPage() {
                     value={editableEmailConfig.senderEmail || ''}
                     onChange={(e) => setEditableEmailConfig({ ...editableEmailConfig, senderEmail: e.target.value })}
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="example@email.com (필수)"
+                    placeholder="예: myemail@gmail.com (고객 회신을 받을 이메일)"
                   />
                 ) : (
                   <span className="text-lg font-medium text-gray-800">
@@ -715,7 +704,7 @@ export default function PartnerSettingsPage() {
                     value={editableEmailConfig.signature || ''}
                     onChange={(e) => setEditableEmailConfig({ ...editableEmailConfig, signature: e.target.value })}
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    placeholder="추가 서명 문구 (선택사항)"
+                    placeholder="예: 감사합니다. 홍길동 드림 (이메일 하단에 추가될 문구)"
                     rows={2}
                   />
                 ) : (

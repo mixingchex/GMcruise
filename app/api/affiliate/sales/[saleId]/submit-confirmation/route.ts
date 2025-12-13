@@ -117,7 +117,7 @@ export async function POST(
 
     if (sale.status === 'PENDING_APPROVAL') {
       return NextResponse.json(
-        { ok: false, error: '이미 승인 대기 중입니다' },
+        { ok: false, error: '이미 승인 대기 중입니다. 취소 후 다시 요청해주세요.' },
         { status: 400 }
       );
     }
@@ -127,6 +127,12 @@ export async function POST(
         { ok: false, error: '이미 승인된 판매입니다' },
         { status: 400 }
       );
+    }
+
+    // REJECTED 상태면 재요청 가능 (이전 거부 정보 초기화 예정)
+    const isResubmission = sale.status === 'REJECTED';
+    if (isResubmission) {
+      console.log(`[Submit Confirmation] Sale ${saleId}: 거부된 판매 재요청`);
     }
 
     // 5. 파일 업로드 처리
@@ -226,6 +232,13 @@ export async function POST(
       submittedById: user.id,
       submittedAt: new Date(),
     };
+
+    // 재요청인 경우 이전 거부 정보 초기화
+    if (isResubmission) {
+      updateData.rejectedById = null;
+      updateData.rejectedAt = null;
+      updateData.rejectionReason = null;
+    }
 
     // Google Drive 정보 저장 (우선)
     if (googleDriveFileId && googleDriveUrl) {

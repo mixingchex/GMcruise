@@ -194,6 +194,44 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '잘못된 요청입니다.' }, { status: 400 });
     }
 
+    // 조정 내역 조회
+    const existingAdjustment = await prisma.commissionAdjustment.findUnique({
+      where: { id },
+      include: { CommissionLedger: true },
+    });
+
+    if (!existingAdjustment) {
+      return NextResponse.json({ ok: false, message: '조정 내역을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 이미 처리된 조정 내역은 수정 불가
+    if (existingAdjustment.status !== 'PENDING') {
+      return NextResponse.json({ ok: false, message: '이미 처리된 조정 내역입니다.' }, { status: 400 });
+    }
+
+    // 금액 검증 (승인 시)
+    if (status === 'APPROVED' && existingAdjustment.CommissionLedger) {
+      const MAX_ADJUSTMENT = 10_000_000; // 최대 1천만원
+      const adjustmentAmount = existingAdjustment.amount;
+
+      // 합리적 범위 검증
+      if (Math.abs(adjustmentAmount) > MAX_ADJUSTMENT) {
+        return NextResponse.json({
+          ok: false,
+          message: `조정 금액이 허용 범위를 초과합니다 (최대 ${MAX_ADJUSTMENT.toLocaleString()}원)`
+        }, { status: 400 });
+      }
+
+      // 최종 금액이 음수가 되지 않도록 검증
+      const finalAmount = existingAdjustment.CommissionLedger.amount + adjustmentAmount;
+      if (finalAmount < 0) {
+        return NextResponse.json({
+          ok: false,
+          message: '조정 후 금액이 음수가 됩니다. 조정 금액을 확인해주세요.'
+        }, { status: 400 });
+      }
+    }
+
     const adjustment = await prisma.commissionAdjustment.update({
       where: { id },
       data: {
@@ -207,12 +245,22 @@ export async function PATCH(req: NextRequest) {
     });
 
     // 승인된 경우 수수료 원장 업데이트
-    if (status === 'APPROVED') {
+    if (status === 'APPROVED' && adjustment.CommissionLedger) {
+      const newAmount = adjustment.CommissionLedger.amount + adjustment.amount;
       await prisma.commissionLedger.update({
         where: { id: adjustment.ledgerId },
         data: {
-          amount: adjustment.CommissionLedger.amount + adjustment.amount,
+          amount: Math.round(newAmount), // 정수로 변환 (소수점 조작 방지)
         },
+      });
+
+      console.log('[Commission Adjustment]', {
+        adjustmentId: adjustment.id,
+        ledgerId: adjustment.ledgerId,
+        originalAmount: adjustment.CommissionLedger.amount,
+        adjustmentAmount: adjustment.amount,
+        finalAmount: newAmount,
+        approvedBy: sess.User.id,
       });
     }
 
