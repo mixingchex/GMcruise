@@ -12,6 +12,8 @@ interface PageProps {
     amount?: string;
     sessionId?: string;
     partner?: string;
+    affiliate?: string;
+    agent?: string;
   };
 }
 
@@ -22,7 +24,32 @@ export default async function ProductPaymentPage({ params, searchParams }: PageP
   const finalProductCode = resolvedParams.productCode?.toUpperCase();
   const amount = resolvedSearchParams.amount ? parseInt(resolvedSearchParams.amount) : null;
   const sessionId = resolvedSearchParams.sessionId;
-  const partnerId = resolvedSearchParams.partner;
+
+  // Support multiple URL parameters: 'partner', 'affiliate', 'agent'
+  const partnerParam = resolvedSearchParams.partner;
+  const affiliateParam = resolvedSearchParams.affiliate;
+  const agentParam = resolvedSearchParams.agent;
+
+  let partnerId: string | undefined = partnerParam;
+
+  // If affiliate or agent param is provided, we need to find the mallUserId from affiliateCode
+  if ((affiliateParam || agentParam) && !partnerParam) {
+    const codeToSearch = affiliateParam || agentParam;
+    const affiliateProfile = await prisma.affiliateProfile.findUnique({
+      where: { affiliateCode: codeToSearch },
+      select: {
+        User: {
+          select: {
+            mallUserId: true,
+          },
+        },
+      },
+    });
+
+    if (affiliateProfile?.User?.mallUserId) {
+      partnerId = affiliateProfile.User.mallUserId;
+    }
+  }
 
   try {
     // 상품 정보 가져오기 (요금표 포함)

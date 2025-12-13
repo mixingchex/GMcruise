@@ -26,7 +26,35 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
 
   const resolvedSearchParams = await searchParams;
 
-  const partnerId = typeof resolvedSearchParams.partner === 'string' ? resolvedSearchParams.partner : undefined;
+  // Support multiple URL parameters: 'partner', 'affiliate', 'agent'
+  const partnerParam = typeof resolvedSearchParams.partner === 'string' ? resolvedSearchParams.partner : undefined;
+  const affiliateParam = typeof resolvedSearchParams.affiliate === 'string' ? resolvedSearchParams.affiliate : undefined;
+  const agentParam = typeof resolvedSearchParams.agent === 'string' ? resolvedSearchParams.agent : undefined;
+
+  // partnerId can be mallUserId (partner param) or affiliateCode (affiliate/agent param)
+  let partnerId: string | undefined = partnerParam;
+  let affiliateCode: string | undefined = affiliateParam || agentParam;
+
+  // If affiliate or agent param is provided, we need to find the mallUserId from affiliateCode
+  if ((affiliateParam || agentParam) && !partnerParam) {
+    const codeToSearch = affiliateParam || agentParam;
+    const affiliateProfile = await prisma.affiliateProfile.findUnique({
+      where: { affiliateCode: codeToSearch },
+      select: {
+        affiliateCode: true,
+        User: {
+          select: {
+            mallUserId: true,
+          },
+        },
+      },
+    });
+
+    if (affiliateProfile?.User?.mallUserId) {
+      partnerId = affiliateProfile.User.mallUserId;
+      affiliateCode = affiliateProfile.affiliateCode;
+    }
+  }
 
 
 
@@ -94,19 +122,19 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
 
       {/* 파트너 트래킹 (URL에 파트너 ID가 있을 경우 작동) */}
 
-      {partnerId && <AffiliateTracker mallUserId={partnerId} />}
+      {partnerId && <AffiliateTracker mallUserId={partnerId} affiliateCode={affiliateCode} />}
 
 
 
       {/* 상품 상세 UI */}
 
-      <ProductDetail 
+      <ProductDetail
 
-        product={serializedProduct} 
+        product={serializedProduct}
 
         partnerId={partnerId}
 
-        hasUserTrip={hasUserTrip} 
+        hasUserTrip={hasUserTrip}
 
       />
 

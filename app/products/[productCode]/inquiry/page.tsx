@@ -11,17 +11,44 @@ interface PageProps {
   };
   searchParams: {
     partner?: string;
+    affiliate?: string;
+    agent?: string;
   };
 }
 
 export default async function InquiryPage({ params, searchParams }: PageProps) {
   const { productCode } = params;
-  const partnerId = searchParams?.partner || undefined;
+
+  // Support multiple URL parameters: 'partner', 'affiliate', 'agent'
+  const partnerParam = searchParams?.partner;
+  const affiliateParam = searchParams?.affiliate;
+  const agentParam = searchParams?.agent;
+
+  let partnerId: string | undefined = partnerParam;
+
+  // If affiliate or agent param is provided, we need to find the mallUserId from affiliateCode
+  const prisma = (await import('@/lib/prisma')).default;
+
+  if ((affiliateParam || agentParam) && !partnerParam) {
+    const codeToSearch = affiliateParam || agentParam;
+    const affiliateProfile = await prisma.affiliateProfile.findUnique({
+      where: { affiliateCode: codeToSearch },
+      select: {
+        User: {
+          select: {
+            mallUserId: true,
+          },
+        },
+      },
+    });
+
+    if (affiliateProfile?.User?.mallUserId) {
+      partnerId = affiliateProfile.User.mallUserId;
+    }
+  }
 
   // 상품 정보 조회
   try {
-    // 서버 컴포넌트에서 직접 Prisma 사용
-    const prisma = (await import('@/lib/prisma')).default;
     
     const product = await prisma.cruiseProduct.findUnique({
       where: { productCode },
@@ -65,13 +92,26 @@ export default async function InquiryPage({ params, searchParams }: PageProps) {
 
     const data = { ok: true, product };
 
+    // Build the back URL with the original query parameter
+    const getBackUrl = () => {
+      const baseUrl = `/products/${productCode}`;
+      if (affiliateParam) {
+        return `${baseUrl}?affiliate=${encodeURIComponent(affiliateParam)}`;
+      } else if (agentParam) {
+        return `${baseUrl}?agent=${encodeURIComponent(agentParam)}`;
+      } else if (partnerParam) {
+        return `${baseUrl}?partner=${encodeURIComponent(partnerParam)}`;
+      }
+      return baseUrl;
+    };
+
     return (
       <div className="min-h-screen bg-gray-50">
         {/* 상단 네비게이션 */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div className="container mx-auto px-4 py-4">
             <Link
-              href={partnerId ? `/products/${productCode}?partner=${encodeURIComponent(partnerId)}` : `/products/${productCode}`}
+              href={getBackUrl()}
               className="flex items-center gap-2 text-gray-700 hover:text-blue-600"
             >
               <span>←</span>
