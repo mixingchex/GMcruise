@@ -43,9 +43,9 @@ import SymbolPicker from '@/components/ui/SymbolPicker';
 import SmsConfigModal from '@/components/partner/SmsConfigModal';
 import CustomerStatusBadges from '@/components/CustomerStatusBadges';
 // CustomerNoteModal 삭제됨 - 고객 상세 패널의 상담기록으로 통합
+// SharedCustomerDetailModal 삭제됨 - DB 전달 기능은 기존 패널에 통합
 import ProductInquiryCustomerTable from '@/components/admin/ProductInquiryCustomerTable';
 import FinalConfirmSection from '@/components/partner/FinalConfirmSection';
-import SharedCustomerDetailModal from '@/components/shared/SharedCustomerDetailModal';
 
 type LeadStatusOption = {
   value: string;
@@ -565,9 +565,11 @@ export default function PartnerCustomersClient({
   const [showSmsModal, setShowSmsModal] = useState(false);
   const [smsMethod, setSmsMethod] = useState<'aligo' | 'link'>('aligo');
   // CustomerNoteModal 관련 state 삭제 - 상담기록 패널로 통합됨
-  // 공통 고객 상세 모달 상태
-  const [showSharedDetailModal, setShowSharedDetailModal] = useState(false);
-  const [sharedDetailLeadId, setSharedDetailLeadId] = useState<number | null>(null);
+  // DB 전달 모달 상태 (통합 상세 모달 제거 후 통합)
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferTargetLeadId, setTransferTargetLeadId] = useState<number | null>(null);
+  const [transferTargetAgentId, setTransferTargetAgentId] = useState<number | null>(null);
+  const [transferring, setTransferring] = useState(false);
   const [smsRecipientMode, setSmsRecipientMode] = useState<'customer' | 'custom'>('customer'); // 고객 선택 또는 직접 번호 입력
   const [customPhoneNumber, setCustomPhoneNumber] = useState(''); // 직접 입력한 번호
   const [aligoConfig, setAligoConfig] = useState({
@@ -3506,18 +3508,18 @@ export default function PartnerCustomersClient({
                       {deletingLead ? '삭제 중...' : '고객 삭제'}
                     </button>
                   )}
-                {/* 통합 상세 보기 버튼 */}
-                {selectedLeadId && (
+                {/* DB 전달 버튼 (대리점장만 표시) */}
+                {selectedLeadId && partner.type === 'BRANCH_MANAGER' && partner.teamAgents && partner.teamAgents.length > 0 && (
                   <button
                     type="button"
                     onClick={() => {
-                      setSharedDetailLeadId(selectedLeadId);
-                      setShowSharedDetailModal(true);
+                      setTransferTargetLeadId(selectedLeadId);
+                      setShowTransferModal(true);
                     }}
                     className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
                   >
-                    <FiExternalLink />
-                    통합 상세
+                    <FiSend />
+                    DB 전달
                   </button>
                 )}
               </div>
@@ -5767,62 +5769,104 @@ export default function PartnerCustomersClient({
 
       {/* CustomerNoteModal 삭제됨 - 고객 상세 패널의 상담기록으로 통합 */}
 
-      {/* 공통 고객 상세 모달 */}
-      {sharedDetailLeadId && (
-        <SharedCustomerDetailModal
-          leadId={sharedDetailLeadId}
-          isOpen={showSharedDetailModal}
-          onClose={() => {
-            setShowSharedDetailModal(false);
-            setSharedDetailLeadId(null);
-          }}
-          viewerType={partner.type === 'BRANCH_MANAGER' ? 'BRANCH_MANAGER' : 'SALES_AGENT'}
-          viewerProfileId={partner.profileId}
-          teamAgents={partner.teamAgents}
-          onCustomerUpdate={() => fetchCustomers(currentPage)}
-          onTransfer={async (leadId, targetType, targetProfileId) => {
-            try {
-              const res = await fetch('/api/shared/customers/transfer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ leadIds: [leadId], targetType, targetProfileId }),
-              });
-              const json = await res.json();
-              if (res.ok && json.ok) {
-                showSuccess(json.message);
-                setShowSharedDetailModal(false);
-                setSharedDetailLeadId(null);
-                fetchCustomers(currentPage);
-              } else {
-                showError(json.message || 'DB 전달에 실패했습니다.');
-              }
-            } catch (error) {
-              showError('DB 전달 중 오류가 발생했습니다.');
+      {/* DB 전달 모달 (대리점장 전용) */}
+      {showTransferModal && transferTargetLeadId && (
+        <div
+          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowTransferModal(false);
+              setTransferTargetLeadId(null);
+              setTransferTargetAgentId(null);
             }
           }}
-          onRecall={async (leadId) => {
-            try {
-              const res = await fetch('/api/shared/customers/recall', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ leadIds: [leadId] }),
-              });
-              const json = await res.json();
-              if (res.ok && json.ok) {
-                showSuccess(json.message);
-                setShowSharedDetailModal(false);
-                setSharedDetailLeadId(null);
-                fetchCustomers(currentPage);
-              } else {
-                showError(json.message || 'DB 회수에 실패했습니다.');
-              }
-            } catch (error) {
-              showError('DB 회수 중 오류가 발생했습니다.');
-            }
-          }}
-        />
+        >
+          <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowTransferModal(false);
+                setTransferTargetLeadId(null);
+                setTransferTargetAgentId(null);
+              }}
+              className="absolute right-4 top-4 rounded-lg p-2 text-gray-400 hover:bg-gray-100"
+            >
+              <FiX className="h-5 w-5" />
+            </button>
+
+            <h3 className="text-xl font-bold text-gray-900 mb-4">DB 전달</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              선택한 고객을 판매원에게 전달합니다.
+            </p>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">전달할 판매원 선택</label>
+              <select
+                value={transferTargetAgentId || ''}
+                onChange={(e) => setTransferTargetAgentId(e.target.value ? parseInt(e.target.value) : null)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="">판매원을 선택하세요</option>
+                {partner.teamAgents?.map((agent) => (
+                  <option key={agent.agentId} value={agent.agentId}>
+                    {agent.displayName} ({agent.affiliateCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowTransferModal(false);
+                  setTransferTargetLeadId(null);
+                  setTransferTargetAgentId(null);
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                disabled={!transferTargetAgentId || transferring}
+                onClick={async () => {
+                  if (!transferTargetAgentId || !transferTargetLeadId) return;
+                  setTransferring(true);
+                  try {
+                    const res = await fetch('/api/shared/customers/transfer', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        leadIds: [transferTargetLeadId],
+                        targetType: 'SALES_AGENT',
+                        targetProfileId: transferTargetAgentId,
+                      }),
+                    });
+                    const json = await res.json();
+                    if (res.ok && json.ok) {
+                      showSuccess(json.message || 'DB 전달이 완료되었습니다.');
+                      setShowTransferModal(false);
+                      setTransferTargetLeadId(null);
+                      setTransferTargetAgentId(null);
+                      fetchCustomers(currentPage);
+                    } else {
+                      showError(json.message || 'DB 전달에 실패했습니다.');
+                    }
+                  } catch (error) {
+                    showError('DB 전달 중 오류가 발생했습니다.');
+                  } finally {
+                    setTransferring(false);
+                  }
+                }}
+                className="flex-1 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {transferring ? '전달 중...' : '전달하기'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 이메일 보내기 모달 */}

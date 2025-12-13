@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
       model: modelName,
       generationConfig: {
         temperature: 0, // 가장 낮은 temperature로 일관성 있는 OCR 결과
-        maxOutputTokens: 800, // 더 긴 응답을 위한 토큰 증가
+        maxOutputTokens: 2048, // 응답이 잘리지 않도록 토큰 대폭 증가
         topP: 0.95,
         topK: 40,
       }
@@ -149,7 +149,7 @@ Key rules:
       );
     }
 
-    // JSON 파싱 (개선된 에러 처리)
+    // JSON 파싱 (개선된 에러 처리 + 잘린 JSON 복구)
     let passportData;
     try {
       // 1. 마크다운 코드 블록 제거 (```json ... ``` 또는 ``` ... ```)
@@ -158,13 +158,19 @@ Key rules:
 
       // 2. JSON 객체 추출
       const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        passportData = JSON.parse(jsonMatch[0]);
-      } else {
-        passportData = JSON.parse(cleanedText);
+      let jsonStr = jsonMatch ? jsonMatch[0] : cleanedText;
+
+      // 3. 잘린 JSON 복구 시도
+      try {
+        passportData = JSON.parse(jsonStr);
+      } catch (firstParseError) {
+        console.log('[Passport Scan] 첫 번째 파싱 실패, JSON 복구 시도...');
+        jsonStr = repairTruncatedJson(jsonStr);
+        passportData = JSON.parse(jsonStr);
+        console.log('[Passport Scan] JSON 복구 성공');
       }
 
-      // 3. 필수 필드 검증
+      // 4. 필수 필드 검증
       if (typeof passportData !== 'object' || passportData === null) {
         throw new Error('Invalid JSON structure');
       }
@@ -174,15 +180,22 @@ Key rules:
       console.error('[Passport Scan] JSON 파싱 실패:', parseError.message);
       console.error('[Passport Scan] 원본 응답:', text);
 
-      return NextResponse.json(
-        {
-          ok: false,
-          error: '여권 정보를 읽을 수 없습니다. 여권의 정보면(사진이 있는 면)을 더 선명하게 촬영해주세요.\n\n💡 팁:\n- 밝은 곳에서 촬영하세요\n- 여권을 평평하게 놓고 정면에서 촬영하세요\n- 반사광이 없도록 주의하세요\n- 모든 텍스트가 보이도록 전체를 촬영하세요',
-          rawResponse: text,
-          technicalError: parseError.message
-        },
-        { status: 400 }
-      );
+      // 마지막 수단: 정규식으로 개별 필드 추출 시도
+      const extractedData = extractPassportFieldsManually(text);
+      if (extractedData && (extractedData.passportNo || extractedData.engSurname)) {
+        console.log('[Passport Scan] 정규식 추출 성공:', extractedData);
+        passportData = extractedData;
+      } else {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: '여권 정보를 읽을 수 없습니다. 여권의 정보면(사진이 있는 면)을 더 선명하게 촬영해주세요.\n\n💡 팁:\n- 밝은 곳에서 촬영하세요\n- 여권을 평평하게 놓고 정면에서 촬영하세요\n- 반사광이 없도록 주의하세요\n- 모든 텍스트가 보이도록 전체를 촬영하세요',
+            rawResponse: text,
+            technicalError: parseError.message
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // 데이터 검증 및 정규화
@@ -272,4 +285,56 @@ function normalizeDate(dateStr: string | null | undefined): string {
   }
 
   return dateStr;
+}
+
+// 잘린 JSON 복구 함수
+function repairTruncatedJson(jsonStr: string): string {
+  let repaired = jsonStr.trim();
+
+  // 1. 마지막에 잘린 값 처리 (예: "2017- 로 끝나는 경우)
+  // 열린 따옴표가 있으면 닫기
+  const quoteCount = (repaired.match(/"/g) || []).length;
+  if (quoteCount % 2 !== 0) {
+    // 마지막 미완성 값을 빈 문자열로 대체
+    repaired = repaired.replace(/:\s*"[^"]*$/, ': ""');
+  }
+
+  // 2. 마지막 쉼표 제거 (있으면)
+  repaired = repaired.replace(/,\s*$/, '');
+
+  // 3. 닫는 중괄호 추가 (없으면)
+  const openBraces = (repaired.match(/\{/g) || []).length;
+  const closeBraces = (repaired.match(/\}/g) || []).length;
+  for (let i = 0; i < openBraces - closeBraces; i++) {
+    repaired += '}';
+  }
+
+  // 4. 닫는 대괄호 추가 (없으면)
+  const openBrackets = (repaired.match(/\[/g) || []).length;
+  const closeBrackets = (repaired.match(/\]/g) || []).length;
+  for (let i = 0; i < openBrackets - closeBrackets; i++) {
+    repaired += ']';
+  }
+
+  return repaired;
+}
+
+// 정규식으로 여권 필드 직접 추출 (JSON 파싱 실패 시 백업)
+function extractPassportFieldsManually(text: string): any {
+  const extractField = (pattern: RegExp): string => {
+    const match = text.match(pattern);
+    return match ? match[1].trim() : '';
+  };
+
+  return {
+    korName: extractField(/"korName"\s*:\s*"([^"]*)"/),
+    engSurname: extractField(/"engSurname"\s*:\s*"([^"]*)"/),
+    engGivenName: extractField(/"engGivenName"\s*:\s*"([^"]*)"/),
+    passportNo: extractField(/"passportNo"\s*:\s*"([^"]*)"/),
+    nationality: extractField(/"nationality"\s*:\s*"([^"]*)"/),
+    sex: extractField(/"sex"\s*:\s*"([^"]*)"/),
+    dateOfBirth: extractField(/"dateOfBirth"\s*:\s*"([^"]*)"/),
+    dateOfIssue: extractField(/"dateOfIssue"\s*:\s*"([^"]*)"/),
+    passportExpiryDate: extractField(/"passportExpiryDate"\s*:\s*"([^"]*)"/),
+  };
 }
