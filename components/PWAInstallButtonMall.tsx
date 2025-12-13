@@ -185,11 +185,11 @@ export default function PWAInstallButtonMall() {
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">2</span>
-                  <span>스크롤하여 <strong>"홈 화면에 추가"</strong> 선택</span>
+                  <span>스크롤하여 <strong>&quot;홈 화면에 추가&quot;</strong> 선택</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold">3</span>
-                  <span><strong>"추가"</strong> 버튼 클릭</span>
+                  <span><strong>&quot;추가&quot;</strong> 버튼 클릭</span>
                 </li>
               </ol>
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin } from '@/lib/auth/requireAdmin';
+import { requireAdmin, AdminAuthError } from '@/lib/auth/requireAdmin';
 import { google } from 'googleapis';
 import { formatDetailAmount, formatPercent } from '@/lib/margin-calculator';
 
@@ -121,8 +121,7 @@ function generateReportContent(record: any): string {
 // POST: 구글 드라이브 백업
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAdmin(request);
-    if (authResult instanceof NextResponse) return authResult;
+    await requireAdmin();
 
     const body = await request.json();
     const { year, month } = body;

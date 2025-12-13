@@ -292,14 +292,14 @@ export default function SimpleItineraryBuilder({
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
           💡 <strong>사용 방법:</strong> 일정 추가 버튼을 클릭하여 각 Day의 기항지와 입/출항 시간을 입력하세요.
-          해상(종일항해) 등 항구 없는 날은 입/출항 시간에 "-"를 입력하면 됩니다.
+          해상(종일항해) 등 항구 없는 날은 입/출항 시간에 &quot;-&quot;를 입력하면 됩니다.
         </p>
       </div>
 
       {/* 저장되는 데이터 구조 안내 (개발용) */}
       {process.env.NODE_ENV === 'development' && days.length > 0 && (
         <div className="bg-gray-800 text-green-400 rounded-lg p-4 text-xs font-mono">
-          <div className="text-gray-400 mb-2">// 저장되는 itineraryPattern JSON</div>
+          <div className="text-gray-400 mb-2">{/* 저장되는 itineraryPattern JSON */}</div>
           <pre className="whitespace-pre-wrap">{JSON.stringify(days, null, 2)}</pre>
         </div>
       )}

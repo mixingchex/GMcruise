@@ -1667,15 +1667,15 @@ export default function PartnerMessageCenterPage() {
                     <h4 className="font-bold text-gray-900 mb-2">1단계: 알리고 회원가입</h4>
                     <ol className="list-decimal list-inside space-y-1 text-gray-600">
                       <li><a href="https://smartsms.aligo.in" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">알리고 홈페이지</a> 접속</li>
-                      <li>우측 상단 "회원가입" 클릭</li>
+                      <li>우측 상단 &quot;회원가입&quot; 클릭</li>
                       <li>사업자 정보 입력 후 가입 완료</li>
                     </ol>
                   </div>
                   <div className="bg-white rounded-lg p-4 shadow-sm">
                     <h4 className="font-bold text-gray-900 mb-2">2단계: API Key 발급</h4>
                     <ol className="list-decimal list-inside space-y-1 text-gray-600">
-                      <li>로그인 후 "문자보내기" → "API 연동"</li>
-                      <li>"API Key 발급/관리" 메뉴 클릭</li>
+                      <li>로그인 후 &quot;문자보내기&quot; → &quot;API 연동&quot;</li>
+                      <li>&quot;API Key 발급/관리&quot; 메뉴 클릭</li>
                       <li>API Key 생성 후 복사</li>
                       <li>User ID는 알리고 로그인 아이디입니다</li>
                     </ol>
@@ -1683,7 +1683,7 @@ export default function PartnerMessageCenterPage() {
                   <div className="bg-white rounded-lg p-4 shadow-sm">
                     <h4 className="font-bold text-gray-900 mb-2">3단계: 발신번호 등록</h4>
                     <ol className="list-decimal list-inside space-y-1 text-gray-600">
-                      <li>"발신번호 관리" 메뉴 접속</li>
+                      <li>&quot;발신번호 관리&quot; 메뉴 접속</li>
                       <li>휴대폰 또는 사업자 전화번호 등록</li>
                       <li>인증 절차 완료 (문자 인증 또는 서류 제출)</li>
                       <li>승인 완료 후 발신번호로 사용 가능</li>
@@ -1695,8 +1695,8 @@ export default function PartnerMessageCenterPage() {
                       알리고는 등록된 IP에서만 API 호출이 가능합니다.
                     </p>
                     <ol className="list-decimal list-inside space-y-1 text-amber-700">
-                      <li>로그인 후 "문자API" → "인증정보" 메뉴 접속</li>
-                      <li>"발송서버 IP" 항목에 아래 IP 등록</li>
+                      <li>로그인 후 &quot;문자API&quot; → &quot;인증정보&quot; 메뉴 접속</li>
+                      <li>&quot;발송서버 IP&quot; 항목에 아래 IP 등록</li>
                     </ol>
                     <div className="mt-3 p-3 bg-white rounded border-2 border-amber-400">
                       <p className="text-xs text-amber-600 mb-1">크루즈가이드 서버 IP (복사해서 등록)</p>
@@ -1810,7 +1810,7 @@ export default function PartnerMessageCenterPage() {
                       <p><span className="text-gray-500">제목:</span> <span className="text-gray-900">크루즈 여행 안내</span></p>
                     </div>
                     <p className="text-blue-700 text-xs mt-2">
-                      수신자가 "답장"을 클릭하면 발신자 이메일로 회신됩니다.
+                      수신자가 &quot;답장&quot;을 클릭하면 발신자 이메일로 회신됩니다.
                     </p>
                   </div>
                   <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">

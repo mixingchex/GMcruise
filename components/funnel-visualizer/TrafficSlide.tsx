@@ -142,7 +142,7 @@ export const TrafficSlide: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-bold text-slate-800">핵심 목표</h3>
                   <p className="text-slate-600 mt-1 leading-relaxed">
-                    크루즈 여행을 꿈꾸는 잠재 고객을 우리 <span className="font-bold text-blue-600">'크루즈닷' 페이지</span>로 유입시키는 것
+                    크루즈 여행을 꿈꾸는 잠재 고객을 우리 <span className="font-bold text-blue-600">&apos;크루즈닷&apos; 페이지</span>로 유입시키는 것
                   </p>
                 </div>
               </div>
@@ -199,7 +199,7 @@ export const TrafficSlide: React.FC = () => {
               <div className={`overflow-hidden transition-all duration-500 ease-in-out ${expandedSection === 'strategy' ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="p-5 pt-0 pl-[5.5rem]">
                    <p className="text-slate-700 font-medium">
-                     "고객이 스스로 찾아오게 만드는 시스템"
+                     &quot;고객이 스스로 찾아오게 만드는 시스템&quot;
                    </p>
                    <ul className="list-disc list-inside mt-2 text-sm text-slate-500 space-y-1">
                      <li>SNS를 통한 강력한 퍼스널 브랜딩 지원</li>

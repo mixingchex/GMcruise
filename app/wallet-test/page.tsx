@@ -206,7 +206,7 @@ export default function WalletPage() {
                     </ul>
                     <div className="mt-4 p-4 bg-green-50 rounded-lg border-2 border-green-200">
                       <p className="text-base md:text-lg text-green-800 leading-relaxed">
-                        <span className="font-bold">예시:</span> 점심 식사 5,000엔을 "식사" 카테고리로 기록하면, 자동으로 원화로 변환되어 총 지출에 반영됩니다.
+                        <span className="font-bold">예시:</span> 점심 식사 5,000엔을 &quot;식사&quot; 카테고리로 기록하면, 자동으로 원화로 변환되어 총 지출에 반영됩니다.
                       </p>
                     </div>
                   </div>

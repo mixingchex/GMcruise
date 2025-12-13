@@ -55,7 +55,7 @@ export const RetentionSlide: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 leading-tight">
             퍼널의 완성: 끝이 아닌 새로운 여행
             <span className="block text-xl md:text-2xl font-normal text-slate-500 mt-1">
-              "한 번 고객을 평생 여행 친구로"
+              &quot;한 번 고객을 평생 여행 친구로&quot;
             </span>
           </h1>
         </header>

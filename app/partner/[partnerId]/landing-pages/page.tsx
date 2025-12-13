@@ -1192,7 +1192,7 @@ export default function PartnerLandingPagesPage() {
             </div>
 
             <div className="text-sm text-gray-500 mt-3">
-              ※ 공유된 랜딩페이지는 대리점장 대시보드의 "대리점장 보너스" 카테고리에 나타납니다. 보너스 공유는 최대 10개까지 가능합니다.
+              ※ 공유된 랜딩페이지는 대리점장 대시보드의 &quot;대리점장 보너스&quot; 카테고리에 나타납니다. 보너스 공유는 최대 10개까지 가능합니다.
             </div>
 
             <div className="mt-6 flex items-center gap-3">

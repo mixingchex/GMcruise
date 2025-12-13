@@ -803,7 +803,7 @@ export default function TranslatorPage() {
                 </ul>
                 <div className="bg-blue-50 rounded-lg p-3 mb-6">
                   <p className="text-sm text-blue-800">
-                    <span className="font-bold">예시:</span> "화장실이 어디에요?"라고 말하면 자동 번역됩니다.
+                    <span className="font-bold">예시:</span> &quot;화장실이 어디에요?&quot;라고 말하면 자동 번역됩니다.
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -838,7 +838,7 @@ export default function TranslatorPage() {
                 <ul className="text-left space-y-3 text-base md:text-lg text-gray-600 mb-6 bg-green-50 rounded-lg p-5 leading-relaxed">
                   <li className="flex items-start gap-3">
                     <span className="text-green-600 font-bold text-xl flex-shrink-0">•</span>
-                    <span>상단의 "📷 사진으로 번역" 버튼을 클릭하세요</span>
+                    <span>상단의 &quot;📷 사진으로 번역&quot; 버튼을 클릭하세요</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-green-600 font-bold text-xl flex-shrink-0">•</span>

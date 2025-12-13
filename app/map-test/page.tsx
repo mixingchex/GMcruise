@@ -1118,7 +1118,7 @@ export default function MapPage() {
                 <ul className="text-left space-y-3 text-base md:text-lg text-gray-600 mb-6 bg-green-50 rounded-lg p-5 leading-relaxed">
                   <li className="flex items-start gap-3">
                     <span className="text-green-600 font-bold text-xl flex-shrink-0">•</span>
-                    <span>"+ 새로운 여행 추가" 버튼을 클릭하세요</span>
+                    <span>&quot;+ 새로운 여행 추가&quot; 버튼을 클릭하세요</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <span className="text-green-600 font-bold text-xl flex-shrink-0">•</span>

@@ -189,16 +189,16 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* 알림 목록 드롭다운 */}
+      {/* 알림 목록 모달 */}
       {isOpen && (
         <>
           {/* 배경 클릭 시 닫기 */}
           <div
-            className="fixed inset-0 z-[9998] bg-black/20 backdrop-blur-sm"
+            className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
           />
-          {/* 알림 패널 */}
-          <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl shadow-slate-900/20 border border-slate-200 z-[9999] max-h-[80vh] flex flex-col overflow-hidden">
+          {/* 알림 패널 - 화면 중앙 고정 모달 */}
+          <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-white rounded-2xl shadow-2xl shadow-slate-900/20 border border-slate-200 z-[9999] max-h-[80vh] flex flex-col overflow-hidden">
             {/* 헤더 */}
             <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
               <h3 className="text-base font-bold text-slate-900">알림</h3>

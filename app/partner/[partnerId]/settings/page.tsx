@@ -338,7 +338,7 @@ export default function PartnerSettingsPage() {
         ) : (
           <div className="p-4 bg-white rounded-lg border-2 border-gray-200">
             <p className="text-gray-600">
-              비밀번호를 변경하려면 "수정하기" 버튼을 클릭하세요.
+              비밀번호를 변경하려면 &quot;수정하기&quot; 버튼을 클릭하세요.
             </p>
           </div>
         )}

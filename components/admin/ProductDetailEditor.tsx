@@ -1059,7 +1059,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
                       <div className="text-sm space-y-2">
                         <p>💡 이미지를 추가하려면:</p>
                         <ol className="list-decimal list-inside space-y-1 text-left max-w-md mx-auto">
-                          <li>Google Drive에서 설정한 "상품" 폴더로 이동</li>
+                          <li>Google Drive에서 설정한 &quot;상품&quot; 폴더로 이동</li>
                           <li>이미지 파일을 업로드</li>
                           <li>이 페이지를 새로고침하거나 다시 선택</li>
                         </ol>

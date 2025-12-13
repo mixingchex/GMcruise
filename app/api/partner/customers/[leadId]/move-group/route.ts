@@ -114,20 +114,30 @@ export async function POST(
       },
     });
 
-    // 새 그룹으로 이동한 경우 퍼널 메시지 자동 예약
+    // 새 그룹으로 이동한 경우 퍼널 메시지 자동 예약 (실패해도 메인 작업에 영향 없음)
+    let funnelScheduled = 0;
+    let funnelError: string | undefined = undefined;
     if (newGroupId && newGroupId !== previousGroupId) {
-      await schedulePartnerFunnelMessages({
-        leadId,
-        groupId: newGroupId,
-        profileId: profile.id,
-        userId: sessionUser.id,
-      });
+      try {
+        const result = await schedulePartnerFunnelMessages({
+          leadId,
+          groupId: newGroupId,
+          profileId: profile.id,
+          userId: sessionUser.id,
+        });
+        funnelScheduled = result.scheduled;
+        funnelError = result.error;
+      } catch (err: any) {
+        console.error('[MoveGroup] Funnel scheduling failed (non-blocking):', err);
+        funnelError = err?.message || 'Funnel scheduling failed';
+      }
     }
 
     return NextResponse.json({
       ok: true,
       customer: updatedLead,
-      funnelScheduled: newGroupId && newGroupId !== previousGroupId,
+      funnelScheduled: funnelScheduled > 0,
+      funnelError,
     });
   } catch (error: any) {
     console.error('[MoveGroup] POST error:', error);

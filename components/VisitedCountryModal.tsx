@@ -210,11 +210,11 @@ export default function VisitedCountryModal({
                 <div className="space-y-2 text-xs text-blue-800">
                   <p className="flex items-start gap-2">
                     <span className="font-bold">1단계:</span>
-                    <span>오른쪽 아래 "나의 크루즈 여행 기록" 패널에서<br />"새로운 여행 추가하기" 버튼을 누르세요</span>
+                    <span>오른쪽 아래 &quot;나의 크루즈 여행 기록&quot; 패널에서<br />&quot;새로운 여행 추가하기&quot; 버튼을 누르세요</span>
                   </p>
                   <p className="flex items-start gap-2">
                     <span className="font-bold">2단계:</span>
-                    <span>여행 정보를 입력할 때<br />"여행지"에 이 국가를 포함해주세요</span>
+                    <span>여행 정보를 입력할 때<br />&quot;여행지&quot;에 이 국가를 포함해주세요</span>
                   </p>
                   <p className="flex items-start gap-2">
                     <span className="font-bold">3단계:</span>
@@ -226,7 +226,7 @@ export default function VisitedCountryModal({
               {/* 직접 색칠하기 안내 */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-left">
                 <p className="text-xs text-yellow-800">
-                  <span className="font-semibold">💡 팁:</span> 지금 바로 이 국가를 색칠하고 싶으시다면, 왼쪽 패널의 "방문 국가 색칠하기"에서 직접 색상을 선택할 수 있습니다.
+                  <span className="font-semibold">💡 팁:</span> 지금 바로 이 국가를 색칠하고 싶으시다면, 왼쪽 패널의 &quot;방문 국가 색칠하기&quot;에서 직접 색상을 선택할 수 있습니다.
                 </p>
               </div>
             </div>

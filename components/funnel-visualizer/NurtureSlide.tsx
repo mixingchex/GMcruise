@@ -57,7 +57,7 @@ export const NurtureSlide: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 leading-tight">
             신뢰 쌓기 (Nurturing)
             <span className="block text-xl md:text-2xl font-normal text-slate-500 mt-1">
-              "챗봇 크루즈닷AI로 신뢰 형성"
+              &quot;챗봇 크루즈닷AI로 신뢰 형성&quot;
             </span>
           </h1>
         </header>

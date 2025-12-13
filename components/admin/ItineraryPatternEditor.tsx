@@ -319,7 +319,7 @@ export default function ItineraryPatternEditor({ value, onChange }: Props) {
                           </span>
                         </label>
                         <p className="text-xs text-gray-500 mt-1 ml-7">
-                          체크하면 아래 필드가 표시되며, 브리핑의 "내일 예정" 정보에 자동 반영됩니다.
+                          체크하면 아래 필드가 표시되며, 브리핑의 &quot;내일 예정&quot; 정보에 자동 반영됩니다.
                         </p>
                       </div>
 

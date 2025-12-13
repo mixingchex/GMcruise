@@ -49,7 +49,7 @@ export const ConversionSlide: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 leading-tight">
             고객 만들기 (Conversion)
             <span className="block text-xl md:text-2xl font-normal text-slate-500 mt-1">
-              "크루즈닷과 함께라면 예약은 확신이 됩니다"
+              &quot;크루즈닷과 함께라면 예약은 확신이 됩니다&quot;
             </span>
           </h1>
         </header>

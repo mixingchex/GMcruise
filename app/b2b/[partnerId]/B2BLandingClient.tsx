@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Script from 'next/script';
 import { FiArrowRight, FiX } from 'react-icons/fi';
 import MiniClassViewer from '@/components/funnel-visualizer/MiniClassViewer';
 
@@ -345,7 +346,7 @@ export default function B2BLandingClient({ partnerId, initialTemplate }: B2BLand
             {headStyles && <div dangerouslySetInnerHTML={{ __html: headStyles }} />}
 
             {/* Tailwind CDN */}
-            <script src="https://cdn.tailwindcss.com" />
+            <Script src="https://cdn.tailwindcss.com" strategy="beforeInteractive" />
 
             {/* Render Template Parts with Mini Class Viewer */}
             {parts.map((part, index) => {

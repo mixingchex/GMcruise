@@ -538,7 +538,7 @@ export default function B2BProspectsPage() {
                             <span className="text-sm font-semibold text-green-800">본사 B2B 유입 랜딩페이지</span>
                             <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">소스: B2B_LANDING_ADMIN</span>
                         </div>
-                        <p className="text-xs text-green-600 mb-3">이 링크를 통해 유입된 고객은 '본사 B2B 유입'으로 분류됩니다.</p>
+                        <p className="text-xs text-green-600 mb-3">이 링크를 통해 유입된 고객은 &apos;본사 B2B 유입&apos;으로 분류됩니다.</p>
                         <div className="flex items-center gap-2 p-2 bg-white rounded border border-green-200 mb-3">
                             <code className="flex-1 text-xs text-gray-600 truncate">{b2bLandingUrl || '로딩 중...'}</code>
                         </div>

@@ -4296,13 +4296,13 @@ export default function PartnerCustomersClient({
                             <div>
                               <p className="font-semibold mb-1">3️⃣ API 키 발급</p>
                               <p className="text-xs text-blue-800">• 알리고 관리자 페이지 → API 관리</p>
-                              <p className="text-xs text-blue-800">• "API 키 발급" 클릭</p>
+                              <p className="text-xs text-blue-800">• &quot;API 키 발급&quot; 클릭</p>
                               <p className="text-xs text-blue-800">• 발급된 API 키 복사 (아래 입력란에 붙여넣기)</p>
                             </div>
                             <div>
                               <p className="font-semibold mb-1">4️⃣ 정보 입력</p>
                               <p className="text-xs text-blue-800">• 아래 입력란에 알리고에서 받은 정보 입력</p>
-                              <p className="text-xs text-blue-800">• "설정 저장하기" 클릭 (다음에도 사용 가능)</p>
+                              <p className="text-xs text-blue-800">• &quot;설정 저장하기&quot; 클릭 (다음에도 사용 가능)</p>
                             </div>
                           </div>
                           <div className="mt-4 p-3 bg-slate-100 rounded-lg">
@@ -4395,7 +4395,7 @@ export default function PartnerCustomersClient({
                         <p className="font-semibold text-xs mb-1">📝 사용 방법:</p>
                         <ol className="list-decimal list-inside space-y-1 text-xs text-emerald-800">
                           <li>아래 문자 내용을 확인하세요 (링크가 자동 포함됩니다)</li>
-                          <li>"문자 보내기" 버튼을 클릭하면 문자 앱이 열립니다</li>
+                          <li>&quot;문자 보내기&quot; 버튼을 클릭하면 문자 앱이 열립니다</li>
                           <li>문자 앱에서 고객에게 전송하세요</li>
                           <li>고객이 링크를 클릭하면 본사로 여권 정보가 전송됩니다</li>
                         </ol>

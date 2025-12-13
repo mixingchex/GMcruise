@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin } from '@/lib/auth/requireAdmin';
+import { requireAdmin, AdminAuthError } from '@/lib/auth/requireAdmin';
 
 // GET: 월별 기록 조회
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireAdmin(request);
-    if (authResult instanceof NextResponse) return authResult;
+    await requireAdmin();
 
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year');
@@ -43,8 +42,7 @@ export async function GET(request: NextRequest) {
 // POST: 월별 기록 저장
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireAdmin(request);
-    if (authResult instanceof NextResponse) return authResult;
+    await requireAdmin();
 
     const body = await request.json();
     const { year, month, sales, commission, fixedCosts, variableCosts, result, budget } = body;
