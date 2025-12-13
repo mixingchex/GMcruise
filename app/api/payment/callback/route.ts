@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { isPaymentSuccess } from '@/lib/welcomepay';
+import { isPaymentSuccess, getWelcomePayConfig } from '@/lib/welcomepay';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.cruisedot.co.kr';
 
@@ -143,7 +143,8 @@ export async function POST(request: NextRequest) {
 
     const approvalData = new URLSearchParams();
     approvalData.append('P_TID', P_TID);
-    approvalData.append('P_MID', 'wpcrdot200');
+    const pgConfig = getWelcomePayConfig();
+    approvalData.append('P_MID', pgConfig.mid);
 
     console.log('[Callback v12.0] 승인 요청 전송:', P_REQ_URL);
 
