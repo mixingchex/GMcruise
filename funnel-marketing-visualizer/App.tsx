@@ -28,7 +28,7 @@ const App: React.FC = () => {
           <div className="bg-blue-600 p-2 rounded-lg text-white">
             <Anchor size={20} />
           </div>
-          <span className="font-black text-xl text-slate-800 tracking-tight">Cruise Guide Genie</span>
+          <span className="font-black text-xl text-slate-800 tracking-tight">CruiseDot AI Guide</span>
           <span className="hidden md:inline-block ml-4 px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-xs font-bold border border-blue-100">
             Education Mode
           </span>

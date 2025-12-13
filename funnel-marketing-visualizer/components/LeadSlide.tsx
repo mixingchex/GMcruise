@@ -53,30 +53,30 @@ export const LeadSlide: React.FC = () => {
       color: "bg-slate-500",
       content: (
         <div className="space-y-4 text-slate-700">
-          <p className="font-medium text-lg">"크루즈 여행, 궁금하긴 한데 너무 비싸지 않을까?"</p>
+          <p className="font-medium text-lg">&quot;크루즈 여행, 궁금하긴 한데 너무 비싸지 않을까?&quot;</p>
           <p>아직 우리 서비스를 신뢰하지 않으며, 구경만 하고 나갈 확률이 높은 상태입니다. 이들을 붙잡아야 합니다.</p>
         </div>
       )
     },
     magnet: {
-      title: "AI 가이드 지니 활용 (Lead Magnet)",
+      title: "크루즈닷AI 가이드 활용 (Lead Magnet)",
       color: "bg-indigo-500",
       content: (
         <div className="space-y-4 text-slate-700">
-          <p className="text-lg font-bold text-indigo-600">"크루즈 가이드 지니 3일 체험권"</p>
+          <p className="text-lg font-bold text-indigo-600">&quot;크루즈닷AI 가이드 3일 체험권&quot;</p>
           <div className="space-y-3">
             <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-lg">
                <div className="p-2 bg-indigo-100 text-indigo-600 rounded"><Bot size={20} /></div>
                <div>
-                 <span className="font-bold block">크루즈 가이드 지니 AI</span>
-                 <span className="text-sm text-slate-500">"나만의 AI 크루즈 비서를 3일간 무료로 체험해보세요."</span>
+                 <span className="font-bold block">크루즈닷AI 가이드</span>
+                 <span className="text-sm text-slate-500">&quot;나만의 AI 크루즈 비서를 3일간 무료로 체험해보세요.&quot;</span>
                </div>
             </div>
             <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-lg">
                <div className="p-2 bg-indigo-100 text-indigo-600 rounded"><Sparkles size={20} /></div>
                <div>
                  <span className="font-bold block">맞춤형 여행 설계</span>
-                 <span className="text-sm text-slate-500">"가고 싶은 여행지를 말하면 AI가 최적의 코스를 추천합니다."</span>
+                 <span className="text-sm text-slate-500">&quot;가고 싶은 여행지를 말하면 AI가 최적의 코스를 추천합니다.&quot;</span>
                </div>
             </div>
           </div>
@@ -91,7 +91,7 @@ export const LeadSlide: React.FC = () => {
           <p>이제 우리는 고객의 <span className="font-bold text-blue-600">연락처</span>를 확보하고 AI 체험을 시작하게 했습니다.</p>
           <p className="text-sm text-slate-500">고객이 AI를 체험하는 동안 우리는 지속적으로 가치를 증명할 수 있습니다.</p>
           <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm mt-2">
-            ✅ <strong>결과:</strong> 익명의 방문자가 '지니 사용자'로 전환됨
+            ✅ <strong>결과:</strong> 익명의 방문자가 &apos;크루즈닷AI 사용자&apos;로 전환됨
           </div>
         </div>
       )
@@ -117,7 +117,7 @@ export const LeadSlide: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 leading-tight">
             연락처 확보하기
             <span className="block text-xl md:text-2xl font-normal text-slate-500 mt-1">
-              "AI 가이드 지니 3일 체험권 받고 시작하세요"
+              &quot;크루즈닷AI 가이드 3일 체험권 받고 시작하세요&quot;
             </span>
           </h1>
         </header>
@@ -161,13 +161,13 @@ export const LeadSlide: React.FC = () => {
                 <div className="w-28 h-28 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-2xl shadow-xl flex items-center justify-center text-white transform transition-all duration-500 group-hover:rotate-6 group-hover:scale-110">
                   <div className="text-center">
                     <Bot size={32} className="mx-auto mb-1 animate-bounce" />
-                    <span className="text-xs font-bold">Genie AI<br/>3일 체험</span>
+                    <span className="text-xs font-bold">CruiseDot AI<br/>3일 체험</span>
                   </div>
                 </div>
                 
                 {/* Tooltip hint */}
                 <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-3 rounded-full whitespace-nowrap z-20">
-                  클릭해서 'AI 리드 마그넷' 확인하기
+                  클릭해서 &apos;AI 리드 마그넷&apos; 확인하기
                 </div>
               </div>
 

@@ -24,7 +24,7 @@ const CONTENT_MAP: Record<string, { type: 'video' | 'website'; url: string; titl
     type: 'video',
     url: 'https://www.youtube.com/embed/-p_6G69MgyQ?si=ZkPQIXJbBuylXFQB',
     title: '2단계: 리드 확보 (Lead Gen)',
-    description: 'AI 가이드 지니 3일 체험권으로 연락처 확보하기'
+    description: '크루즈닷AI 가이드 3일 체험권으로 연락처 확보하기'
   },
   [FunnelStageId.NURTURE]: {
     type: 'video',
@@ -81,7 +81,7 @@ export const FunnelSlide: React.FC = () => {
         <header className="p-8 pb-4 text-center border-b border-slate-100">
           <div className="inline-flex items-center space-x-2 bg-blue-50 px-3 py-1 rounded-full mb-4 border border-blue-100">
             <Anchor size={14} className="text-blue-600 animate-pulse" />
-            <span className="text-xs font-semibold text-blue-800 uppercase tracking-wider">Cruise Guide Genie Strategy</span>
+            <span className="text-xs font-semibold text-blue-800 uppercase tracking-wider">CruiseDot AI Guide Strategy</span>
           </div>
           <h1 className="text-3xl md:text-5xl font-black text-slate-800 tracking-tight leading-tight">
             퍼널 마케팅 구조 <span className="text-blue-300 font-light hidden md:inline">|</span> 
@@ -146,16 +146,16 @@ export const FunnelSlide: React.FC = () => {
                   const isActive = activeStage === item.id;
                   const Icon = item.icon;
                   
-                  // Contextual descriptions for Cruise Guide Genie
+                  // Contextual descriptions for CruiseDot AI Guide
                   let contextualTitle = item.title;
                   let contextualDesc = item.description;
 
                   if (item.id === 'awareness') {
                     contextualDesc = "여행을 꿈꾸는 사람들을 '크루즈닷' 페이지로 유입시키기";
                   } else if (item.id === 'lead') {
-                    contextualDesc = "크루즈 가이드 지니 3일 체험을 제공하고 연락처 확보";
+                    contextualDesc = "크루즈닷AI 가이드 3일 체험을 제공하고 연락처 확보";
                   } else if (item.id === 'nurture') {
-                    contextualDesc = "챗봇 지니 AI로 궁금한 정보를 직관적으로 해결해주며 신뢰 쌓기";
+                    contextualDesc = "크루즈닷AI로 궁금한 정보를 직관적으로 해결해주며 신뢰 쌓기";
                   } else if (item.id === 'conversion') {
                     contextualDesc = "3일간 AI와 함께 여행을 준비하며 예약 유도하기";
                   } else if (item.id === 'retention') {
@@ -214,7 +214,7 @@ export const FunnelSlide: React.FC = () => {
         <div className="p-6 text-center text-slate-400 text-sm border-t border-slate-100 bg-slate-50/50">
           <p className="flex items-center justify-center gap-2">
             <MessageCircleHeart size={16} /> 
-            <span>단계를 클릭하여 지니(Genie) 교육 영상을 시청하세요.</span>
+            <span>단계를 클릭하여 크루즈닷AI 교육 영상을 시청하세요.</span>
           </p>
         </div>
 

@@ -33,7 +33,7 @@ export const RetentionSlide: React.FC = () => {
       title: "여행 친구 추천 (Referral)",
       icon: Users,
       color: "text-purple-500",
-      desc: "\"친구에게 10만원 할인 쿠폰을 선물하세요.\" 만족한 고객을 우리 지니(Genie)의 홍보대사로 만듭니다."
+      desc: "\"친구에게 10만원 할인 쿠폰을 선물하세요.\" 만족한 고객을 크루즈닷AI의 홍보대사로 만듭니다."
     }
   };
 
@@ -53,7 +53,7 @@ export const RetentionSlide: React.FC = () => {
           <h1 className="text-3xl md:text-4xl font-black text-slate-800 leading-tight">
             퍼널의 완성: 끝이 아닌 새로운 여행
             <span className="block text-xl md:text-2xl font-normal text-slate-500 mt-1">
-              "한 번 고객을 평생 여행 친구로"
+              &quot;한 번 고객을 평생 여행 친구로&quot;
             </span>
           </h1>
         </header>
