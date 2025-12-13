@@ -154,12 +154,13 @@ export default function MessageCenterPage() {
   const [customerSearch, setCustomerSearch] = useState('');
 
   // 수동 입력 수신자
-  const [manualRecipients, setManualRecipients] = useState<Array<{ name: string; phone: string }>>([]);
+  const [manualRecipients, setManualRecipients] = useState<Array<{ name: string; phone?: string; email?: string }>>([]);
   const [newManualName, setNewManualName] = useState('');
   const [newManualPhone, setNewManualPhone] = useState('');
+  const [newManualEmail, setNewManualEmail] = useState('');
 
   // 엑셀 업로드 수신자
-  const [excelRecipients, setExcelRecipients] = useState<Array<{ name: string; phone: string }>>([]);
+  const [excelRecipients, setExcelRecipients] = useState<Array<{ name: string; phone?: string; email?: string }>>([]);
 
   // 상품 선택 (템플릿 변수용)
   const [selectedProduct, setSelectedProduct] = useState('');
@@ -276,13 +277,27 @@ export default function MessageCenterPage() {
 
   // 수동 수신자 추가
   const handleAddManualRecipient = () => {
-    if (!newManualName.trim() || !newManualPhone.trim()) {
-      showWarning('이름과 전화번호를 모두 입력해주세요.');
-      return;
+    if (sendMethod === 'email') {
+      if (!newManualName.trim() || !newManualEmail.trim()) {
+        showWarning('이름과 이메일을 모두 입력해주세요.');
+        return;
+      }
+      if (!newManualEmail.includes('@')) {
+        showWarning('올바른 이메일 형식을 입력해주세요.');
+        return;
+      }
+      setManualRecipients([...manualRecipients, { name: newManualName.trim(), email: newManualEmail.trim() }]);
+      setNewManualName('');
+      setNewManualEmail('');
+    } else {
+      if (!newManualName.trim() || !newManualPhone.trim()) {
+        showWarning('이름과 전화번호를 모두 입력해주세요.');
+        return;
+      }
+      setManualRecipients([...manualRecipients, { name: newManualName.trim(), phone: newManualPhone.trim() }]);
+      setNewManualName('');
+      setNewManualPhone('');
     }
-    setManualRecipients([...manualRecipients, { name: newManualName.trim(), phone: newManualPhone.trim() }]);
-    setNewManualName('');
-    setNewManualPhone('');
   };
 
   // 수동 수신자 삭제
@@ -292,7 +307,24 @@ export default function MessageCenterPage() {
 
   // 엑셀 양식 다운로드 (개선된 버전)
   const handleDownloadExcelTemplate = () => {
-    const csvContent = `이름,전화번호
+    let csvContent = '';
+    let fileName = '';
+
+    if (sendMethod === 'email') {
+      csvContent = `이름,이메일
+홍길동,hong@example.com
+김철수,kim@example.com
+박영희,park@example.com
+
+=== 작성 안내 ===
+1. 이름: 한글 또는 영문으로 입력
+2. 이메일: 올바른 이메일 형식으로 입력
+   - 예시: hong@example.com
+3. 첫 번째 줄(이름,이메일)은 삭제하지 마세요
+4. 예시 데이터는 삭제 후 실제 데이터를 입력하세요`;
+      fileName = '이메일_수신자_양식.csv';
+    } else {
+      csvContent = `이름,전화번호
 홍길동,01012345678
 김철수,01098765432
 박영희,01011112222
@@ -305,11 +337,14 @@ export default function MessageCenterPage() {
    - 예시: 01012345678
 3. 첫 번째 줄(이름,전화번호)은 삭제하지 마세요
 4. 예시 데이터는 삭제 후 실제 데이터를 입력하세요`;
+      fileName = 'SMS_수신자_양식.csv';
+    }
+
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'SMS_수신자_양식.csv';
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -323,15 +358,24 @@ export default function MessageCenterPage() {
     reader.onload = (event) => {
       const text = event.target?.result as string;
       const lines = text.split('\n');
-      const recipients: Array<{ name: string; phone: string }> = [];
+      const recipients: Array<{ name: string; phone?: string; email?: string }> = [];
 
-      // 헤더 찾기 (이름, 전화번호 포함된 줄)
+      // 헤더 찾기
       let startIdx = 0;
+      const isEmailMode = sendMethod === 'email';
+
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i].toLowerCase();
-        if (line.includes('이름') && line.includes('전화')) {
-          startIdx = i + 1;
-          break;
+        if (isEmailMode) {
+          if (line.includes('이름') && line.includes('이메일')) {
+            startIdx = i + 1;
+            break;
+          }
+        } else {
+          if (line.includes('이름') && line.includes('전화')) {
+            startIdx = i + 1;
+            break;
+          }
         }
       }
 
@@ -344,17 +388,26 @@ export default function MessageCenterPage() {
         const parts = line.split(/[,\t]/).map(s => s.trim().replace(/"/g, ''));
         if (parts.length >= 2) {
           const name = parts[0];
-          const phone = parts[1].replace(/[^0-9]/g, '');
 
-          // 유효성 검사: 이름이 있고, 전화번호가 10-11자리
-          if (name && phone && phone.length >= 10 && phone.length <= 11) {
-            recipients.push({ name, phone });
+          if (isEmailMode) {
+            const email = parts[1];
+            // 유효성 검사: 이름이 있고, 이메일 형식이 맞는지
+            if (name && email && email.includes('@')) {
+              recipients.push({ name, email });
+            }
+          } else {
+            const phone = parts[1].replace(/[^0-9]/g, '');
+            // 유효성 검사: 이름이 있고, 전화번호가 10-11자리
+            if (name && phone && phone.length >= 10 && phone.length <= 11) {
+              recipients.push({ name, phone });
+            }
           }
         }
       }
 
       if (recipients.length === 0) {
-        showError('유효한 수신자를 찾을 수 없습니다. 양식을 확인해주세요. (첫 번째 열: 이름, 두 번째 열: 전화번호)');
+        const fieldName = isEmailMode ? '이메일' : '전화번호';
+        showError(`유효한 수신자를 찾을 수 없습니다. 양식을 확인해주세요. (첫 번째 열: 이름, 두 번째 열: ${fieldName})`);
         return;
       }
 
@@ -1208,14 +1261,29 @@ export default function MessageCenterPage() {
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                  <input
-                    type="tel"
-                    value={newManualPhone}
-                    onChange={(e) => setNewManualPhone(e.target.value)}
-                    placeholder="01012345678"
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
+                  {sendMethod === 'email' ? (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                      <input
+                        type="email"
+                        value={newManualEmail}
+                        onChange={(e) => setNewManualEmail(e.target.value)}
+                        placeholder="example@email.com"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
+                      <input
+                        type="tel"
+                        value={newManualPhone}
+                        onChange={(e) => setNewManualPhone(e.target.value)}
+                        placeholder="01012345678"
+                        className="w-full px-3 py-2 border rounded-lg text-sm"
+                      />
+                    </>
+                  )}
                 </div>
                 <button
                   onClick={handleAddManualRecipient}
@@ -1234,13 +1302,13 @@ export default function MessageCenterPage() {
                   <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
                     {manualRecipients.map((r, idx) => (
                       <span key={`manual-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 bg-white border rounded text-sm">
-                        {r.name} ({r.phone})
+                        {r.name} ({r.email || r.phone})
                         <button onClick={() => handleRemoveManualRecipient(idx)} className="text-red-500 hover:text-red-700">×</button>
                       </span>
                     ))}
                     {excelRecipients.map((r, idx) => (
                       <span key={`excel-${idx}`} className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-sm">
-                        {r.name} ({r.phone})
+                        {r.name} ({r.email || r.phone})
                       </span>
                     ))}
                   </div>
