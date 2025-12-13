@@ -911,14 +911,16 @@ export default function ImageLibrary({
                                                         </div>
                                                     ) : (
                                                         // 일반 폴더 표시 모드
-                                                        <button
-                                                            onClick={() => navigateToFolder(folder)}
-                                                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border hover:bg-blue-50 hover:border-blue-300 transition-all text-left w-full"
-                                                        >
-                                                            <FiFolder className="w-8 h-8 text-yellow-500 flex-shrink-0" />
-                                                            <span className="text-sm font-medium text-gray-700 break-words flex-1">
-                                                                {folder.name}
-                                                            </span>
+                                                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border hover:bg-blue-50 hover:border-blue-300 transition-all text-left w-full">
+                                                            <button
+                                                                onClick={() => navigateToFolder(folder)}
+                                                                className="flex items-center gap-3 flex-1"
+                                                            >
+                                                                <FiFolder className="w-8 h-8 text-yellow-500 flex-shrink-0" />
+                                                                <span className="text-sm font-medium text-gray-700 break-words flex-1">
+                                                                    {folder.name}
+                                                                </span>
+                                                            </button>
                                                             {/* 수정 버튼 - 관리자/대리점장만 호버 시 표시 */}
                                                             {canManageFolders && (
                                                                 <button
@@ -929,7 +931,7 @@ export default function ImageLibrary({
                                                                     <FiEdit2 className="w-4 h-4" />
                                                                 </button>
                                                             )}
-                                                        </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             ))}
