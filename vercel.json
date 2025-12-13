@@ -1,32 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/drive-sync",
-      "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/database-backup",
-      "schedule": "0 18 * * *"
-    },
-    {
-      "path": "/api/cron/payslip-sender",
-      "schedule": "0 0 1 * *"
-    },
-    {
-      "path": "/api/cron/expire-trips",
+      "path": "/api/cron/daily-all",
       "schedule": "0 15 * * *"
-    },
-    {
-      "path": "/api/cron/cleanup-messages",
-      "schedule": "0 17 * * *"
-    },
-    {
-      "path": "/api/cron/excel-backup",
-      "schedule": "0 16 * * *"
-    },
-    {
-      "path": "/api/cron/community-bot",
-      "schedule": "0 9 * * *"
     }
   ]
 }
