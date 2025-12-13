@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 
     // 2. Drive Sync (계약서, 문서, 여행정보, 리드, 판매, 정산, 이미지)
     try {
-      const { syncContracts, syncDocuments, syncLeads, syncSales, syncSettlements } = await import('@/lib/drive-sync');
+      const { syncContracts, syncDocuments, syncLeads, syncSales, syncSettlements, syncAllActiveTripsApis } = await import('@/lib/drive-sync');
       const { syncImageCache } = await import('@/lib/image-cache-sync');
       const { processApisSyncQueue } = await import('@/lib/apis-sync-queue');
 
@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
           syncLeads(),
           syncSales(),
           syncSettlements(),
+          syncAllActiveTripsApis(),
         ]);
         return 'All synced';
       }));
@@ -79,7 +80,7 @@ export async function GET(request: NextRequest) {
       results.push({ name: 'excel-backup', success: false, error: e.message });
     }
 
-    // 4. Expire Trips (만료된 여행 - 직접 구현)
+    // 4. Expire Trips (만료된 여행 - 기존 로직 완전 이식)
     results.push(await runTask('expire-trips', async () => {
       const oneDayAgo = new Date();
       oneDayAgo.setDate(oneDayAgo.getDate() - 1);
@@ -87,20 +88,34 @@ export async function GET(request: NextRequest) {
       const usersToLock = await prisma.user.findMany({
         where: {
           currentTripEndDate: { lt: oneDayAgo },
-          passwordHash: '3800',
+          password: '3800',
           isLocked: false,
         },
-        select: { id: true, username: true },
+        select: { id: true, username: true, password: true },
       });
 
       for (const user of usersToLock) {
+        // 사용자 잠금 업데이트
         await prisma.user.update({
           where: { id: user.id },
           data: {
             isLocked: true,
-            passwordHash: '8300',
+            lockedAt: new Date(),
+            lockedReason: '여행 종료 1일 후 자동 잠금',
+            password: '8300',
             currentTripEndDate: null,
             onboarded: false,
+            loginCount: 0,
+          },
+        });
+
+        // PasswordEvent 기록
+        await prisma.passwordEvent.create({
+          data: {
+            userId: user.id,
+            from: user.password || '3800',
+            to: '8300',
+            reason: '여행 종료 1일 후 자동 잠금',
           },
         });
       }
@@ -115,10 +130,10 @@ export async function GET(request: NextRequest) {
 
       const messageTypes = ['team-dashboard', 'agent-manager', 'manager-agent', 'manager-manager'];
 
-      const messagesToDelete = await prisma.message.findMany({
+      const messagesToDelete = await prisma.adminMessage.findMany({
         where: {
           createdAt: { lt: thirtyDaysAgo },
-          type: { in: messageTypes },
+          messageType: { in: messageTypes },
         },
         select: { id: true },
       });
@@ -129,7 +144,7 @@ export async function GET(request: NextRequest) {
         await prisma.userMessageRead.deleteMany({
           where: { messageId: { in: messageIds } },
         });
-        await prisma.message.deleteMany({
+        await prisma.adminMessage.deleteMany({
           where: { id: { in: messageIds } },
         });
       }
@@ -141,8 +156,8 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     if (now.getDate() === 1) {
       try {
-        const { sendMonthlyPayslips } = await import('@/lib/scheduler/payslipSender');
-        results.push(await runTask('payslip-sender', sendMonthlyPayslips));
+        const { sendApprovedPayslips } = await import('@/lib/scheduler/payslipSender');
+        results.push(await runTask('payslip-sender', sendApprovedPayslips));
       } catch (e: any) {
         results.push({ name: 'payslip-sender', success: false, error: e.message });
       }
