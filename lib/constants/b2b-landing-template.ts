@@ -289,7 +289,7 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
                 <h2 class="section-title"><span class="text-cyan-400">경쟁사는 흉내조차 낼 수 없습니다.</span><br>왜 '마비즈'여야 하는가?</h2>
                 <p class="text-lg text-center text-gray-300 mb-12">우리는 당신이 '진짜 전문가'가 될 수 있도록<br>업계 유일의 독점적인 기술을 지원합니다.</p>
                 
-                <h3 class="text-2xl font-bold text-white text-center mb-4">1. 고객이 엄지척 하는 <span class="text-yellow-400">AI 세일즈 챗봇</span> '지니'</h3>
+                <h3 class="text-2xl font-bold text-white text-center mb-4">1. 고객이 엄지척 하는 <span class="text-yellow-400">AI 세일즈 챗봇</span> '크루즈닷AI'</h3>
                 <div class="video-container shadow-2xl mb-12">
                     <iframe src="https://www.youtube-nocookie.com/embed/-p_6G69MgyQ?autoplay=1&amp;mute=1&amp;loop=1&amp;playlist=-p_6G69MgyQ&amp;modestbranding=1&amp;iv_load_policy=3&amp;controls=0" title="크루즈 AI 가이드 시스템" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="" loading="lazy"></iframe>
                 </div>
@@ -302,7 +302,7 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
                     </div>
                     <div>
                         <h3 class="text-2xl font-bold text-white text-center mb-4">3. <span class="text-yellow-400">AI 세일즈 챗봇</span> 지원</h3>
-                        <img src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763271257_8093.png" alt="크루즈 가이드 지니 세일즈 챗봇" loading="lazy">
+                        <img src="https://leadgeny.kr/data/file/smarteditor2/2025-11-16/354def09d2ee2d48ff812a59a1f2c00b_1763271257_8093.png" alt="크루즈닷AI 세일즈 챗봇" loading="lazy">
                         <p class="text-center text-gray-300 mt-4">24시간 고객을 응대하는 AI 챗봇이 당신의 영업사원이 되어 수익을 극대화합니다.</p>
                     </div>
                     <!-- NEW ITEM 1 -->
@@ -332,7 +332,7 @@ export const DEFAULT_B2B_LANDING_TEMPLATE = `<!DOCTYPE html>
                     <div class="bg-dark-card p-6 rounded-lg border border-dark-border flex items-center">
                         <span class="text-3xl mr-4">🤖</span>
                         <div>
-                            <h3 class="text-lg font-bold text-white">판매원 챗봇 AI (지니) 지원</h3>
+                            <h3 class="text-lg font-bold text-white">판매원 챗봇 AI (크루즈닷AI) 지원</h3>
                             <p class="text-sm text-gray-400">24시간 나를 대신해 고객을 응대하는 AI 비서</p>
                         </div>
                     </div>

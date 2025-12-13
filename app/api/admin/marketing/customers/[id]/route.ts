@@ -30,7 +30,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return NextResponse.json({ 
@@ -91,7 +92,8 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return NextResponse.json({ 

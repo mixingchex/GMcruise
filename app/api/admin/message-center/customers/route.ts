@@ -8,7 +8,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) return null;
 
     const session = await prisma.session.findUnique({
@@ -35,6 +36,8 @@ interface CustomerData {
   source: string | null;
   createdAt: Date;
   type: 'lead' | 'user' | 'b2b';
+  agentName?: string | null;
+  agentId?: number | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -69,6 +72,13 @@ export async function GET(req: NextRequest) {
               customerPhone: true,
               source: true,
               createdAt: true,
+              agentId: true,
+              AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                },
+              },
             },
             orderBy: { createdAt: 'desc' },
             take: 500,
@@ -105,7 +115,9 @@ export async function GET(req: NextRequest) {
               email: null,
               source: l.source,
               createdAt: l.createdAt,
-              type: 'lead' as const
+              type: 'lead' as const,
+              agentId: l.agentId,
+              agentName: l.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || null,
             })),
             ...trialUsers.map(u => ({
               id: u.id,
@@ -114,7 +126,9 @@ export async function GET(req: NextRequest) {
               email: u.email,
               source: u.customerSource,
               createdAt: u.createdAt,
-              type: 'user' as const
+              type: 'user' as const,
+              agentId: null,
+              agentName: null,
             })),
           ];
         } catch (e) {
@@ -137,6 +151,13 @@ export async function GET(req: NextRequest) {
                   customerPhone: true,
                   source: true,
                   createdAt: true,
+                  agentId: true,
+                  AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+                    select: {
+                      id: true,
+                      displayName: true,
+                    },
+                  },
                 },
               },
             },
@@ -160,7 +181,9 @@ export async function GET(req: NextRequest) {
               email: null,
               source: sale.lead!.source,
               createdAt: sale.lead!.createdAt,
-              type: 'lead' as const
+              type: 'lead' as const,
+              agentId: sale.lead!.agentId,
+              agentName: sale.lead!.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || null,
             }));
         } catch (e) {
           console.error('[Customers] Purchased error:', e);
@@ -196,6 +219,8 @@ export async function GET(req: NextRequest) {
             source: u.customerSource || 'mall',
             createdAt: u.createdAt,
             type: 'user' as const,
+            agentId: null,
+            agentName: null,
           }));
         } catch (e) {
           console.error('[Customers] Mall error:', e);
@@ -218,6 +243,13 @@ export async function GET(req: NextRequest) {
               customerPhone: true,
               source: true,
               createdAt: true,
+              agentId: true,
+              AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                },
+              },
             },
             orderBy: { createdAt: 'desc' },
             take: 500,
@@ -255,7 +287,9 @@ export async function GET(req: NextRequest) {
               email: null,
               source: l.source,
               createdAt: l.createdAt,
-              type: 'lead' as const
+              type: 'lead' as const,
+              agentId: l.agentId,
+              agentName: l.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || null,
             })),
             ...b2bProspects.map(p => ({
               id: p.id,
@@ -265,6 +299,8 @@ export async function GET(req: NextRequest) {
               source: p.source || 'B2B',
               createdAt: p.createdAt,
               type: 'b2b' as const,
+              agentId: null,
+              agentName: null,
             })),
           ];
         } catch (e) {
@@ -282,6 +318,13 @@ export async function GET(req: NextRequest) {
               customerPhone: true,
               source: true,
               createdAt: true,
+              agentId: true,
+              AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                },
+              },
             },
             orderBy: { createdAt: 'desc' },
             take: 500,
@@ -296,7 +339,9 @@ export async function GET(req: NextRequest) {
             email: null,
             source: l.source,
             createdAt: l.createdAt,
-            type: 'lead' as const
+            type: 'lead' as const,
+            agentId: l.agentId,
+            agentName: l.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || null,
           }));
         } catch (e) {
           console.error('[Customers] Landing error:', e);
@@ -333,6 +378,13 @@ export async function GET(req: NextRequest) {
               customerPhone: true,
               source: true,
               createdAt: true,
+              agentId: true,
+              AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile: {
+                select: {
+                  id: true,
+                  displayName: true,
+                },
+              },
             },
             orderBy: { createdAt: 'desc' },
             take: 300,
@@ -349,6 +401,8 @@ export async function GET(req: NextRequest) {
               source: u.customerSource || u.role || 'user',
               createdAt: u.createdAt,
               type: 'user' as const,
+              agentId: null,
+              agentName: null,
             })),
             ...allLeads.map(l => ({
               id: l.id,
@@ -357,7 +411,9 @@ export async function GET(req: NextRequest) {
               email: null,
               source: l.source,
               createdAt: l.createdAt,
-              type: 'lead' as const
+              type: 'lead' as const,
+              agentId: l.agentId,
+              agentName: l.AffiliateProfile_AffiliateLead_agentIdToAffiliateProfile?.displayName || null,
             })),
           ];
         } catch (e) {
@@ -378,6 +434,8 @@ export async function GET(req: NextRequest) {
         source: c.source,
         createdAt: c.createdAt,
         type: c.type,
+        agentId: c.agentId || null,
+        agentName: c.agentName || null,
       })),
       total: customers.length,
     });

@@ -4,6 +4,20 @@
 import nodemailer from 'nodemailer';
 import { logger } from './logger';
 
+/**
+ * HTML 이스케이프 함수 - XSS 방지
+ * 사용자 입력 값을 HTML 템플릿에 삽입할 때 사용
+ */
+export function escapeHtml(text: string | null | undefined): string {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // 이메일 전송 설정
 const getEmailTransporter = () => {
   const smtpHost = process.env.EMAIL_SMTP_HOST || 'smtp.gmail.com';
@@ -141,15 +155,15 @@ export async function sendPasswordResetEmail(
               <div class="title">비밀번호 찾기 결과</div>
             </div>
             
-            <p>안녕하세요, <strong>${userName}</strong>님.</p>
-            
+            <p>안녕하세요, <strong>${escapeHtml(userName)}</strong>님.</p>
+
             <p>크루즈닷 비밀번호 찾기 요청이 접수되었습니다.</p>
-            
+
             <div class="content">
               <p>회원님의 비밀번호는 아래와 같습니다:</p>
-              
+
               <div class="password-box">
-                <div class="password">${password}</div>
+                <div class="password">${escapeHtml(password)}</div>
               </div>
             </div>
             
@@ -400,31 +414,31 @@ export async function sendInquiryNotificationEmail(
               </div>
               <div class="info-row">
                 <div class="info-label">고객명:</div>
-                <div class="info-value"><strong>${inquiryData.customerName}</strong></div>
+                <div class="info-value"><strong>${escapeHtml(inquiryData.customerName)}</strong></div>
               </div>
               <div class="info-row">
                 <div class="info-label">연락처:</div>
-                <div class="info-value">${inquiryData.customerPhone}</div>
+                <div class="info-value">${escapeHtml(inquiryData.customerPhone)}</div>
               </div>
               ${inquiryData.passportNumber ? `
               <div class="info-row">
                 <div class="info-label">여권번호:</div>
-                <div class="info-value">${inquiryData.passportNumber}</div>
+                <div class="info-value">${escapeHtml(inquiryData.passportNumber)}</div>
               </div>
               ` : ''}
               <div class="info-row">
                 <div class="info-label">상품코드:</div>
-                <div class="info-value">${inquiryData.productCode}</div>
+                <div class="info-value">${escapeHtml(inquiryData.productCode)}</div>
               </div>
               <div class="info-row">
                 <div class="info-label">상품명:</div>
-                <div class="info-value">${inquiryData.productName}</div>
+                <div class="info-value">${escapeHtml(inquiryData.productName)}</div>
               </div>
               ${inquiryData.message ? `
               <div class="info-row">
                 <div class="info-label">문의내용:</div>
                 <div class="info-value">
-                  <div class="message-box">${inquiryData.message}</div>
+                  <div class="message-box">${escapeHtml(inquiryData.message)}</div>
                 </div>
               </div>
               ` : ''}
@@ -667,29 +681,29 @@ export async function sendRefundNotificationEmail(
               </div>
               <div class="info-row">
                 <div class="info-label">고객명:</div>
-                <div class="info-value">${refundData.customerName}</div>
+                <div class="info-value">${escapeHtml(refundData.customerName)}</div>
               </div>
               ${refundData.customerPhone ? `
               <div class="info-row">
                 <div class="info-label">연락처:</div>
-                <div class="info-value">${refundData.customerPhone}</div>
+                <div class="info-value">${escapeHtml(refundData.customerPhone)}</div>
               </div>
               ` : ''}
               ${refundData.managerName ? `
               <div class="info-row">
                 <div class="info-label">대리점장:</div>
-                <div class="info-value">${refundData.managerName}</div>
+                <div class="info-value">${escapeHtml(refundData.managerName)}</div>
               </div>
               ` : ''}
               ${refundData.agentName ? `
               <div class="info-row">
                 <div class="info-label">판매원:</div>
-                <div class="info-value">${refundData.agentName}</div>
+                <div class="info-value">${escapeHtml(refundData.agentName)}</div>
               </div>
               ` : ''}
               <div class="info-row">
                 <div class="info-label">처리자:</div>
-                <div class="info-value">${refundData.refundedBy}</div>
+                <div class="info-value">${escapeHtml(refundData.refundedBy)}</div>
               </div>
               <div class="info-row">
                 <div class="info-label">처리 시간:</div>
@@ -699,7 +713,7 @@ export async function sendRefundNotificationEmail(
               <div class="info-row">
                 <div class="info-label">비고:</div>
                 <div class="info-value">
-                  <div class="notes-box">${refundData.notes}</div>
+                  <div class="notes-box">${escapeHtml(refundData.notes)}</div>
                 </div>
               </div>
               ` : ''}

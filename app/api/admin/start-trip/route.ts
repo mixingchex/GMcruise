@@ -16,18 +16,34 @@ const SESSION_COOKIE = 'cg.sid.v2';
 export async function POST(req: Request) {
   try {
     // 관리자 인증 확인
-    const sessionId = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sessionId) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
     }
 
     const session = await prisma.session.findUnique({
       where: { id: sessionId },
-      include: { User: true },  // ✅ 대문자 U로 변경
+      select: {
+        expiresAt: true,
+        User: {
+          select: {
+            id: true,
+            role: true,
+            name: true,
+          }
+        }
+      },
     });
 
-    if (!session || session.User.role !== 'admin') {  // ✅ 대문자 U로 변경
+    if (!session || !session.User || session.User.role !== 'admin') {
       return NextResponse.json({ ok: false, error: '관리자 권한이 필요합니다.' }, { status: 403 });
+    }
+
+    // 🔒 세션 만료 검증
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+      return NextResponse.json({ ok: false, error: '세션이 만료되었습니다.' }, { status: 401 });
     }
 
     const { userId, endDate } = await req.json();

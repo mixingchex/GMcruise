@@ -9,11 +9,12 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // 관리자 권한 확인
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
+
     if (!sid) {
       console.log('[Scheduled Messages] No session cookie found');
-      console.log('[Scheduled Messages] Available cookies:', cookies().getAll().map(c => c.name));
+      console.log('[Scheduled Messages] Available cookies:', cookieStore.getAll().map(c => c.name));
       return null;
     }
     
@@ -153,13 +154,13 @@ export async function POST(req: NextRequest) {
     
     if (!admin) {
       console.log('[Scheduled Messages POST] 인증 실패 - 403 반환');
-      const cookieStore = cookies();
+      const cookieStore = await cookies();
       const allCookies = cookieStore.getAll();
       console.log('[Scheduled Messages POST] Available cookies:', allCookies.map(c => ({ name: c.name, hasValue: !!c.value })));
       console.log('[Scheduled Messages POST] Session cookie value:', cookieStore.get(SESSION_COOKIE)?.value ? 'exists' : 'missing');
-      
-      return NextResponse.json({ 
-        ok: false, 
+
+      return NextResponse.json({
+        ok: false,
         error: '인증이 필요합니다. 관리자로 다시 로그인해주세요.',
         debug: process.env.NODE_ENV === 'development' ? {
           message: '세션 쿠키를 확인해주세요. 다시 로그인해주세요.',

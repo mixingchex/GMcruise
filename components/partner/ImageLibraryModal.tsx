@@ -82,6 +82,9 @@ export default function ImageLibraryModal({ isOpen, onClose, onSelect }: ImageLi
     const loadCruisePhotos = async () => {
         try {
             setIsLoading(true);
+            // 폴더 변경 시 이전 이미지 즉시 초기화 (이미지가 따라다니는 버그 방지)
+            setCruiseImages([]);
+
             const response = await fetch(`/api/admin/cruise-photos?folder=${encodeURIComponent(cruiseCurrentPath)}`);
             const data = await response.json();
 
@@ -162,7 +165,14 @@ export default function ImageLibraryModal({ isOpen, onClose, onSelect }: ImageLi
                         기본 라이브러리
                     </button>
                     <button
-                        onClick={() => { setActiveTab('cruise'); setSearchQuery(''); }}
+                        onClick={() => {
+                            // 크루즈 탭 전환 시 상태 초기화
+                            setCruiseImages([]);
+                            setCruiseFolders([]);
+                            setCruiseCurrentPath('');
+                            setActiveTab('cruise');
+                            setSearchQuery('');
+                        }}
                         className={`flex-1 py-3 font-medium text-sm transition-colors ${activeTab === 'cruise'
                             ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
                             : 'text-gray-600 hover:bg-gray-50'

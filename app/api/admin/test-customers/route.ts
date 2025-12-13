@@ -45,7 +45,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 export async function GET(req: NextRequest) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       console.log('[Admin Test Customers] No session cookie found');

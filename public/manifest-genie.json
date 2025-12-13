@@ -1,7 +1,7 @@
 {
-  "name": "크루즈가이드 지니",
-  "short_name": "크루즈지니",
-  "description": "AI 가이드 지니와 함께하는 특별한 크루즈 여행",
+  "name": "크루즈닷AI",
+  "short_name": "크루즈닷AI",
+  "description": "AI와 함께하는 특별한 크루즈 여행",
   "start_url": "/chat?utm_source=pwa&utm_medium=home_screen",
   "scope": "/",
   "display": "standalone",
@@ -30,9 +30,9 @@
   ],
   "shortcuts": [
     {
-      "name": "크루즈가이드 지니",
-      "short_name": "지니",
-      "description": "크루즈가이드 지니 채팅 화면으로 이동",
+      "name": "크루즈닷AI",
+      "short_name": "크루즈닷AI",
+      "description": "크루즈닷AI 채팅 화면으로 이동",
       "url": "/chat?utm_source=pwa&utm_medium=shortcut",
       "icons": [
         {
@@ -43,4 +43,3 @@
     }
   ]
 }
-

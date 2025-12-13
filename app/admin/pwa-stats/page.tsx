@@ -123,7 +123,7 @@ export default function PWAStatsPage() {
   }
 
   const pieData = [
-    { name: '크루즈가이드 지니', value: statsData.summary.genie - statsData.summary.both },
+    { name: '크루즈닷AI', value: statsData.summary.genie - statsData.summary.both },
     { name: '크루즈몰', value: statsData.summary.mall - statsData.summary.both },
     { name: '둘 다 설치', value: statsData.summary.both },
   ].filter(item => item.value > 0);
@@ -138,7 +138,7 @@ export default function PWAStatsPage() {
             PWA 바탕화면 추가 통계
           </h1>
           <p className="text-lg text-gray-600 font-medium">
-            크루즈가이드 지니와 크루즈몰 바탕화면 추가 현황을 확인하세요
+            크루즈닷AI와 크루즈몰 바탕화면 추가 현황을 확인하세요
           </p>
         </div>
         <div className="flex items-center gap-4">
@@ -159,7 +159,7 @@ export default function PWAStatsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">크루즈가이드 지니</h3>
+            <h3 className="text-lg font-semibold">크루즈닷AI</h3>
             <FiSmartphone className="w-6 h-6" />
           </div>
           <p className="text-4xl font-bold mb-1">{statsData.summary.genie}</p>
@@ -206,7 +206,7 @@ export default function PWAStatsPage() {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Bar dataKey="genie" fill="#EC4899" name="크루즈가이드 지니" />
+              <Bar dataKey="genie" fill="#EC4899" name="크루즈닷AI" />
               <Bar dataKey="mall" fill="#3B82F6" name="크루즈몰" />
             </BarChart>
           </ResponsiveContainer>
@@ -252,7 +252,7 @@ export default function PWAStatsPage() {
               <tr className="border-b-2 border-gray-200">
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">이름</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">이메일</th>
-                <th className="px-4 py-3 text-left font-semibold text-gray-700">크루즈가이드 지니</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">크루즈닷AI</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">크루즈몰</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-700">가입일</th>
               </tr>

@@ -57,7 +57,8 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
 
     if (!auth.authorized) {
@@ -124,7 +125,8 @@ export async function POST(req: Request) {
 export async function PUT(req: Request) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
 
     if (!auth.authorized) {
@@ -193,7 +195,8 @@ export async function PUT(req: Request) {
 export async function DELETE(req: Request) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
 
     if (!auth.authorized) {

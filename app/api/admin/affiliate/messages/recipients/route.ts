@@ -45,7 +45,8 @@ async function checkAffiliateAuth(sid: string | undefined): Promise<{
 // GET: 메시지를 보낼 수 있는 수신자 목록 조회
 export async function GET(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });

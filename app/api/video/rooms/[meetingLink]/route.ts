@@ -85,7 +85,8 @@ export async function GET(
     }
 
     // 호스트 여부 확인 (세션 기반)
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     let isHost = false;
     if (sid) {
       try {

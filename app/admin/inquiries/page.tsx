@@ -93,7 +93,7 @@ export default function InquiriesPage() {
       return;
     }
 
-    if (!confirm('구매를 확정하시겠습니까? 크루즈 가이드 지니가 자동으로 활성화됩니다.')) {
+    if (!confirm('구매를 확정하시겠습니까? 크루즈닷AI가 자동으로 활성화됩니다.')) {
       return;
     }
 

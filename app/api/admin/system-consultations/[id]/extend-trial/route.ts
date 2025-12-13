@@ -16,7 +16,8 @@ export async function POST(
         // 인증 확인
         let sessionUser: { id: number; role: string | null } | null = null;
         try {
-            const sid = cookies().get('cg.sid.v2')?.value;
+            const cookieStore = await cookies();
+    const sid = cookieStore.get('cg.sid.v2')?.value;
             if (sid) {
                 const sess = await prisma.session.findUnique({
                     where: { id: sid },

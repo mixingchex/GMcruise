@@ -24,7 +24,7 @@ async function setupSeoConfig() {
       googleAnalyticsId: 'G-SH8PSWE0ZN',
       
       // 소셜 미디어 링크
-      youtubeUrl: 'https://www.youtube.com/@cruisedotgini',
+      youtubeUrl: 'https://www.youtube.com/@cruisedoAI',
       naverBlogUrl: 'https://blog.naver.com/mastermpnica',
       kakaoChannelUrl: 'https://pf.kakao.com/_CzxgPn/friend',
       instagramUrl: 'https://www.instagram.com/bizmonica/',

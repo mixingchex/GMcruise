@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiLock, FiUnlock, FiKey, FiLogOut, FiArrowLeft, FiRefreshCw, FiTrash2, FiBarChart2, FiFileText, FiX, FiPlus, FiEdit, FiLink, FiCopy } from 'react-icons/fi';
+import { FiLock, FiUnlock, FiKey, FiLogOut, FiArrowLeft, FiRefreshCw, FiTrash2, FiBarChart2, FiFileText, FiX, FiPlus, FiEdit, FiLink, FiCopy, FiMessageSquare, FiSend, FiLoader } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
@@ -107,6 +107,11 @@ export default function CustomerDetailPage() {
   }>>([]);
   const [showAffiliationHistory, setShowAffiliationHistory] = useState(false);
 
+  // SMS 모달 상태
+  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [smsContent, setSmsContent] = useState('');
+  const [sendingSms, setSendingSms] = useState(false);
+
   // 사용자 정보 로드
   const loadUserData = async () => {
     try {
@@ -174,6 +179,50 @@ export default function CustomerDetailPage() {
       router.push('/admin/customers');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // SMS 발송 함수
+  const handleSendSms = async () => {
+    if (!user || !user.phone) {
+      showError('고객 전화번호가 없습니다.');
+      return;
+    }
+    if (!smsContent.trim()) {
+      showError('메시지 내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSendingSms(true);
+      const res = await fetch('/api/admin/messages/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: '',
+          content: smsContent,
+          recipients: [
+            {
+              name: user.name || '고객',
+              phone: user.phone,
+            },
+          ],
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || json.message || '문자 발송에 실패했습니다.');
+      }
+
+      showSuccess('문자가 성공적으로 발송되었습니다!');
+      setShowSmsModal(false);
+      setSmsContent('');
+    } catch (error: any) {
+      console.error('[CustomerDetail] SMS send error', error);
+      showError(error.message || '문자 발송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingSms(false);
     }
   };
 
@@ -841,7 +890,7 @@ export default function CustomerDetailPage() {
 
   // 특정 여행에 온보딩 추가하기
   const handleAddOnboardingToTrip = async (tripId: number) => {
-    if (!confirm('이 여행에 온보딩을 추가하시겠습니까? (크루즈 가이드 지니 활성화)')) {
+    if (!confirm('이 여행에 온보딩을 추가하시겠습니까? (크루즈닷AI 활성화)')) {
       return;
     }
 
@@ -1219,8 +1268,8 @@ export default function CustomerDetailPage() {
                 <p>총 대화 횟수: {analytics.AI_채팅_사용?.총_대화_횟수 || 0}회</p>
                 <p>총 메시지 수: {analytics.AI_채팅_사용?.총_메시지_수 || 0}개</p>
                 <div className="mt-2 space-y-1">
-                  <p className="text-sm">• 지니야 가자: {analytics.AI_채팅_사용?.지니야_가자_검색?.총_횟수 || 0}회</p>
-                  <p className="text-sm">• 지니야 보여줘: {analytics.AI_채팅_사용?.지니야_보여줘_검색?.총_횟수 || 0}회</p>
+                  <p className="text-sm">• 크루즈닷AI 가자: {analytics.AI_채팅_사용?.지니야_가자_검색?.총_횟수 || 0}회</p>
+                  <p className="text-sm">• 크루즈닷AI 보여줘: {analytics.AI_채팅_사용?.지니야_보여줘_검색?.총_횟수 || 0}회</p>
                   <p className="text-sm">• 일반 검색: {analytics.AI_채팅_사용?.일반_검색?.총_횟수 || 0}회</p>
                 </div>
               </div>
@@ -2083,6 +2132,24 @@ export default function CustomerDetailPage() {
                   </button>
                 </div>
               </div>
+
+              {/* 문자 보내기 */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  빠른 메시지
+                </label>
+                <button
+                  onClick={() => setShowSmsModal(true)}
+                  disabled={!user.phone}
+                  className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FiMessageSquare size={18} />
+                  문자 보내기
+                </button>
+                {!user.phone && (
+                  <p className="mt-1 text-xs text-gray-500">* 전화번호가 없어 문자를 보낼 수 없습니다.</p>
+                )}
+              </div>
             </div>
 
             {/* 세션 관리 카드 */}
@@ -2326,6 +2393,81 @@ export default function CustomerDetailPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SMS 보내기 모달 */}
+      {showSmsModal && user && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <FiMessageSquare className="text-emerald-600" />
+                문자 보내기
+              </h3>
+              <button
+                onClick={() => {
+                  setShowSmsModal(false);
+                  setSmsContent('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">받는 사람:</span>{' '}
+                  {user.name || '고객'} ({user.phone})
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  메시지 내용
+                </label>
+                <textarea
+                  value={smsContent}
+                  onChange={(e) => setSmsContent(e.target.value)}
+                  rows={5}
+                  placeholder="문자 내용을 입력하세요..."
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {smsContent.length}자 / 90자 이상이면 LMS로 발송됩니다
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                onClick={() => {
+                  setShowSmsModal(false);
+                  setSmsContent('');
+                }}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+                disabled={sendingSms}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSendSms}
+                disabled={sendingSms || !smsContent.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:bg-emerald-300"
+              >
+                {sendingSms ? (
+                  <>
+                    <FiLoader className="animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <FiSend />
+                    발송하기
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

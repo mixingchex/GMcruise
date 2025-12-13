@@ -55,7 +55,8 @@ async function writeSettingsFile(data: any): Promise<void> {
  */
 export async function GET(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {
@@ -82,7 +83,8 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {

@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiAlertCircle, FiClock, FiRefreshCw, FiArrowRight } from 'react-icons/fi';
+import TaxAlertWidget from '@/components/admin/TaxAlertWidget';
+import TaxCalculatorWidget from '@/components/admin/TaxCalculatorWidget';
+import MarginCalculatorWidget from '@/components/admin/MarginCalculatorWidget';
 
 // 성능 최적화: 차트 컴포넌트를 별도 파일로 분리하여 동적 임포트
 import dynamic from 'next/dynamic';
@@ -257,7 +260,7 @@ export default function AdminDashboard() {
       value: dashboardData.users.total,
       icon: '👥',
       color: 'bg-blue-500',
-      subtitle: `지니AI: ${dashboardData.users.genieUsers || 0} | 크루즈몰: ${dashboardData.users.mallUsers || 0}`,
+      subtitle: `크루즈닷AI: ${dashboardData.users.genieUsers || 0} | 크루즈몰: ${dashboardData.users.mallUsers || 0}`,
       source: 'all',
       sourceLabel: '전체',
     },
@@ -268,7 +271,7 @@ export default function AdminDashboard() {
       color: 'bg-green-500',
       subtitle: `진행중: ${dashboardData.trips.inProgress} | 예정: ${dashboardData.trips.upcoming}`,
       source: 'genie',
-      sourceLabel: '지니AI 가이드',
+      sourceLabel: '크루즈닷AI 가이드',
     },
     {
       title: '구매 고객 수',
@@ -280,7 +283,7 @@ export default function AdminDashboard() {
       sourceLabel: '어필리에이트',
     },
     {
-      title: '지니3일체험 유입',
+      title: '크루즈닷AI 3일체험 유입',
       value: dashboardData.trialLeads || 0,
       icon: '🎯',
       color: 'bg-orange-500',
@@ -323,7 +326,7 @@ export default function AdminDashboard() {
         value: dashboardData.pwaInstalls.genie + dashboardData.pwaInstalls.mall - dashboardData.pwaInstalls.both,
         icon: '📲',
         color: 'bg-indigo-500',
-        subtitle: `지니: ${dashboardData.pwaInstalls.genie} | 몰: ${dashboardData.pwaInstalls.mall}`,
+        subtitle: `크루즈닷AI: ${dashboardData.pwaInstalls.genie} | 몰: ${dashboardData.pwaInstalls.mall}`,
         source: 'all',
         sourceLabel: '전체',
       },
@@ -439,6 +442,16 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* 세무 알림 & 세금 계산기 위젯 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <TaxAlertWidget />
+        <TaxCalculatorWidget />
+      </div>
+
+      {/* 본사 마진 계산기 */}
+      <div className="mb-6">
+        <MarginCalculatorWidget />
+      </div>
 
       {/* 최근 유입 고객 & 최근 판매 상품 */}
       {dashboardData && (
@@ -658,7 +671,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h2 className="text-lg font-bold text-slate-900">진행 중인 여행</h2>
-                <span className="text-xs font-medium text-slate-500">지니AI 가이드</span>
+                <span className="text-xs font-medium text-slate-500">크루즈닷AI 가이드</span>
               </div>
             </div>
             <button

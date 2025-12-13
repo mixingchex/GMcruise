@@ -26,7 +26,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 // DELETE: 랜딩페이지 일괄 삭제
 export async function DELETE(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다' }, { status: 401 });
     }

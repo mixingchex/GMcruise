@@ -317,29 +317,32 @@ const nextConfig = {
         headers: [
           // Content Security Policy (XSS 방지)
           { key: 'Content-Security-Policy', value: prodCsp },
-          
+
+          // X-DNS-Prefetch-Control (DNS prefetching 제어)
+          { key: 'X-DNS-Prefetch-Control', value: 'on' },
+
           // X-Frame-Options (Clickjacking 방지)
           { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-          
+
           // X-Content-Type-Options (MIME 타입 스니핑 방지)
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          
+
           // X-XSS-Protection (레거시 브라우저 XSS 필터 활성화)
           { key: 'X-XSS-Protection', value: '1; mode=block' },
-          
+
           // Referrer-Policy (리퍼러 정보 제어 - YouTube embed를 위해 조정)
           { key: 'Referrer-Policy', value: 'origin-when-cross-origin' },
-          
+
           // Permissions-Policy (브라우저 기능 제어)
-          { 
-            key: 'Permissions-Policy', 
-            value: 'camera=(self), microphone=(self), geolocation=(self), interest-cohort=()' 
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(self), geolocation=(self), interest-cohort=()'
           },
-          
+
           // Strict-Transport-Security (HTTPS 강제)
-          { 
-            key: 'Strict-Transport-Security', 
-            value: 'max-age=31536000; includeSubDomains; preload' 
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains; preload'
           },
         ],
       },

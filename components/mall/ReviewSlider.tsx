@@ -127,7 +127,7 @@ export default function ReviewSlider() {
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }).map((_, index) => (
       <FiStar
-        key={index}
+        key={`star-${rating}-${index}`}
         className={index < rating ? 'text-[#D4AF37] fill-[#D4AF37]' : 'text-gray-300'}
         size={24}
       />

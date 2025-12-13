@@ -9,6 +9,7 @@ type SmsConfigData = {
     apiKey: string;
     userId: string;
     senderPhone: string;
+    ipAddress: string; // 알리고 API 허용 IP
     kakaoSenderKey: string;
     kakaoChannelId: string;
     isActive: boolean;
@@ -28,6 +29,7 @@ export default function SmsConfigModal({ isOpen, onClose, onSuccess }: SmsConfig
         apiKey: '',
         userId: '',
         senderPhone: '',
+        ipAddress: '',
         kakaoSenderKey: '',
         kakaoChannelId: '',
         isActive: true,
@@ -52,6 +54,7 @@ export default function SmsConfigModal({ isOpen, onClose, onSuccess }: SmsConfig
                     apiKey: data.config.apiKey || '',
                     userId: data.config.userId || '',
                     senderPhone: data.config.senderPhone || '',
+                    ipAddress: data.config.ipAddress || '',
                     kakaoSenderKey: data.config.kakaoSenderKey || '',
                     kakaoChannelId: data.config.kakaoChannelId || '',
                     isActive: data.config.isActive !== undefined ? data.config.isActive : true,
@@ -225,6 +228,23 @@ export default function SmsConfigModal({ isOpen, onClose, onSuccess }: SmsConfig
                         />
                         <p className="text-xs text-gray-500 mt-1">
                             💡 Aligo에 등록된 발신번호와 정확히 일치해야 합니다.
+                        </p>
+                    </div>
+
+                    {/* 허용 IP 주소 */}
+                    <div>
+                        <label className="block text-base font-semibold text-gray-700 mb-2">
+                            허용 IP 주소 <span className="text-gray-500 text-sm">(선택사항)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.ipAddress}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, ipAddress: e.target.value }))}
+                            placeholder="예: 123.123.123.123 (서버 IP 주소)"
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                            💡 Aligo에서 API 호출을 허용할 IP 주소입니다. 설정하지 않으면 시스템 기본값이 사용됩니다.
                         </p>
                     </div>
 

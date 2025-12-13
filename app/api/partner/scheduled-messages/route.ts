@@ -423,6 +423,30 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // PartnerCustomerGroup에 퍼널 ID 추가 (고객그룹-퍼널 연결)
+    if (metadata.partnerGroupId) {
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: metadata.partnerGroupId },
+        select: { funnelSmsIds: true, funnelEmailIds: true },
+      });
+
+      if (partnerGroup) {
+        const fieldToUpdate = sendMethod === 'sms' ? 'funnelSmsIds' : 'funnelEmailIds';
+        const currentIds = (partnerGroup[fieldToUpdate] as number[]) || [];
+
+        // 중복 방지
+        if (!currentIds.includes(scheduledMessage.id)) {
+          await prisma.partnerCustomerGroup.update({
+            where: { id: metadata.partnerGroupId },
+            data: {
+              [fieldToUpdate]: [...currentIds, scheduledMessage.id],
+            },
+          });
+          console.log(`[Partner Scheduled Messages POST] 퍼널 ID ${scheduledMessage.id}가 고객그룹 ${metadata.partnerGroupId}의 ${fieldToUpdate}에 추가됨`);
+        }
+      }
+    }
+
     // targetGroup 조회 (metadata에 partnerGroupId가 있는 경우)
     let targetGroup = null;
     if (scheduledMessage.CustomerGroup) {

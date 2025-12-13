@@ -59,6 +59,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '필수 정보가 누락되었습니다.' }, { status: 400 });
     }
 
+    // 🔒 결제 금액 검증: DB에 저장된 금액과 비교
+    if (merchant_uid) {
+      const existingPayment = await prisma.payment.findFirst({
+        where: { orderId: merchant_uid },
+        select: { amount: true },
+      });
+
+      if (existingPayment && existingPayment.amount !== amount) {
+        console.error('[Payment Webhook] 금액 불일치 탐지:', {
+          expected: existingPayment.amount,
+          received: amount,
+          orderId: merchant_uid,
+        });
+        return NextResponse.json({
+          ok: false,
+          message: '결제 금액이 일치하지 않습니다. 관리자에게 문의하세요.'
+        }, { status: 400 });
+      }
+    }
+
     // 🔒 중복 호출 방지: 이미 처리된 주문인지 확인
     const existingSale = await prisma.affiliateSale.findFirst({
       where: { externalOrderCode: merchant_uid },

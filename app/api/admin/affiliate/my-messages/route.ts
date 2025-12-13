@@ -9,7 +9,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // 관리자/판매원/대리점장 권한 확인 및 사용자 정보 반환
 async function checkAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return null;

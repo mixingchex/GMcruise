@@ -1,9 +1,11 @@
 // components/mall/ProductCard.tsx
 'use client';
 
+import { useState } from 'react';
 import { FiStar } from 'react-icons/fi';
 import Link from 'next/link';
 import { PRODUCT_TAGS } from '@/components/admin/ProductTagsSelector';
+import ProductReviewsModal from './ProductReviewsModal';
 
 interface ProductCardProps {
   product: {
@@ -38,6 +40,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, partnerId }: ProductCardProps) {
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   // 가격 포맷팅
   const formatPrice = (price: number | null) => {
@@ -126,6 +129,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
     : `/products/${product.productCode}`;
 
   return (
+    <>
     <Link
       href={targetHref}
       className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-gray-100 hover:border-[#D4AF37] group h-full flex flex-col cursor-pointer hover:-translate-y-1 block no-underline"
@@ -166,16 +170,16 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         )}
         {/* 딱지들 - 썸네일 왼쪽 위에 표시 (더 작고 세련되게) */}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
-          {classificationBadges.map((badge, index) => (
+          {classificationBadges.map((badge) => (
             <div
-              key={`${badge.label}-${index}`}
+              key={badge.label}
               className={`${badge.color} text-white px-2.5 py-1 rounded-md text-xs font-bold shadow-md backdrop-blur-sm bg-opacity-95`}
             >
               {badge.label}
             </div>
           ))}
           {/* 추가 딱지들 (layout에서 가져오기) */}
-          {layout?.badges && Array.isArray(layout.badges) && layout.badges.map((badge: string, index: number) => {
+          {layout?.badges && Array.isArray(layout.badges) && layout.badges.map((badge: string) => {
             const badgeConfig: Record<string, { label: string; color: string }> = {
               'event': { label: '이벤트', color: 'bg-purple-500' },
               'theme': { label: '테마', color: 'bg-pink-500' },
@@ -186,7 +190,7 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
             const config = badgeConfig[badge];
             if (!config) return null;
             return (
-              <div key={index} className={`${config.color} text-white px-2.5 py-1 rounded-md text-xs font-bold shadow-md backdrop-blur-sm bg-opacity-95`}>
+              <div key={badge} className={`${config.color} text-white px-2.5 py-1 rounded-md text-xs font-bold shadow-md backdrop-blur-sm bg-opacity-95`}>
                 {config.label}
               </div>
             );
@@ -252,10 +256,10 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
               type="button"
               className="text-xs md:text-sm text-gray-500 font-medium hover:text-[#D4AF37] transition-colors text-left bg-transparent border-0 p-0 cursor-pointer"
               onClick={(e) => {
-                // 리뷰 링크 클릭 시 상품 상세 페이지로 이동하지 않도록
+                // 리뷰 클릭 시 모달로 표시 (새 창 이동 대신)
                 e.stopPropagation();
                 e.preventDefault();
-                window.location.href = `/products/${product.productCode}/reviews`;
+                setShowReviewModal(true);
               }}
             >
               크루즈 여행 리뷰 {reviewCount.toLocaleString('ko-KR')}개
@@ -307,6 +311,19 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         </div>
       </div>
     </Link>
+
+    {/* 리뷰 모달 */}
+    <ProductReviewsModal
+      isOpen={showReviewModal}
+      onClose={() => setShowReviewModal(false)}
+      productCode={product.productCode}
+      productName={product.packageName}
+      cruiseLine={product.cruiseLine}
+      shipName={product.shipName}
+      rating={rating}
+      reviewCount={reviewCount}
+    />
+    </>
   );
 }
 

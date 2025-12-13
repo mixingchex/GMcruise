@@ -28,7 +28,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ isAdmin: boole
 // POST: 공지사항 발송 (전체 관리자/대리점장/판매원 대상)
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
     
     if (!auth.isAdmin || !auth.userId) {

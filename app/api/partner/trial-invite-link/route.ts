@@ -154,7 +154,8 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return NextResponse.json(

@@ -989,7 +989,7 @@ export default function AdminUserDetailPage() {
 
   // 특정 여행에 온보딩 추가하기
   const handleAddOnboardingToTrip = async (tripId: number) => {
-    if (!confirm('이 여행에 온보딩을 추가하시겠습니까? (크루즈 가이드 지니 활성화)')) {
+    if (!confirm('이 여행에 온보딩을 추가하시겠습니까? (크루즈닷AI 활성화)')) {
       return;
     }
 
@@ -1884,7 +1884,7 @@ export default function AdminUserDetailPage() {
                   온보딩 추가
                 </button>
                 <p className="mt-1 text-xs text-gray-500">
-                  크루즈 가이드 지니에 온보딩 정보를 추가하여 활성화할 수 있습니다.
+                  크루즈닷AI에 온보딩 정보를 추가하여 활성화할 수 있습니다.
                 </p>
               </div>
 
@@ -1906,7 +1906,7 @@ export default function AdminUserDetailPage() {
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">지니 상태</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">크루즈닷AI 상태</label>
                   <select
                     value={editForm.genieStatus || ''}
                     onChange={(e) => setEditForm((prev) => ({ ...prev, genieStatus: e.target.value as EditFormState['genieStatus'] || null }))}
@@ -2071,7 +2071,7 @@ export default function AdminUserDetailPage() {
               {/* 크루즈몰 사용자인 경우 연동된 크루즈가이드 정보 표시 */}
               {user.role === 'community' && user.linkedGenieUser && (
                 <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-                  <p className="text-sm font-semibold text-blue-700">🔗 연동된 크루즈가이드 지니 정보</p>
+                  <p className="text-sm font-semibold text-blue-700">🔗 연동된 크루즈닷AI 정보</p>
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-2">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-blue-600 font-semibold">✓ 연동 완료</span>
@@ -2114,7 +2114,7 @@ export default function AdminUserDetailPage() {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <p className="text-sm text-gray-600">
-                      연동된 크루즈가이드 지니 정보가 없습니다.
+                      연동된 크루즈닷AI 정보가 없습니다.
                     </p>
                   </div>
                 </div>
@@ -2134,7 +2134,7 @@ export default function AdminUserDetailPage() {
                 <div className="mt-4 pt-4 border-t border-gray-200">
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <p className="text-sm text-gray-600">
-                      연동된 크루즈가이드 지니 정보가 없습니다.
+                      연동된 크루즈닷AI 정보가 없습니다.
                     </p>
                   </div>
                 </div>

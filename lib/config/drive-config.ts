@@ -30,6 +30,7 @@ export const DRIVE_CONFIG_KEYS = {
     ROOT: 'google_drive_root_folder_id',
     CASHFLOW: 'google_drive_cashflow_folder_id', // 판매원별 수당 엑셀
     TOTALCASH: 'google_drive_totalcash_folder_id', // 거래처용 월별 엑셀
+    BACKUP_LOGS: 'google_drive_backup_logs_folder_id', // 백업 로그
 } as const;
 
 export type DriveConfigKey = keyof typeof DRIVE_CONFIG_KEYS;
@@ -64,6 +65,7 @@ export const DEFAULTS: Record<DriveConfigKey, string> = {
     ROOT: '0AJVz1C-KYWR0Uk9PVA',
     CASHFLOW: '1kv9XlTFLh8QqTlDvakwaxB_LtTQxv6Hx', // 판매원별 수당 엑셀
     TOTALCASH: '1GC4hwjkVNqUmBGhaE5PmldoMr0WUEkGo', // 거래처용 월별 엑셀
+    BACKUP_LOGS: '1u3ntHUQHR1AQYqXBsZVdDhGV6eIOLkE6', // 백업 로그 (Leads_Backup과 동일)
 };
 
 // Env Var Mapping
@@ -96,6 +98,7 @@ export const ENV_MAPPING: Record<DriveConfigKey, string | undefined> = {
     ROOT: process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID,
     CASHFLOW: process.env.GOOGLE_DRIVE_CASHFLOW_FOLDER_ID,
     TOTALCASH: process.env.GOOGLE_DRIVE_TOTALCASH_FOLDER_ID,
+    BACKUP_LOGS: process.env.GOOGLE_DRIVE_BACKUP_LOGS_FOLDER_ID,
 };
 
 export async function getDriveFolderId(key: DriveConfigKey): Promise<string> {
@@ -145,8 +148,9 @@ export async function getAllDriveConfigs() {
 
         if (dbConfig?.configValue) {
             result[key] = { value: dbConfig.configValue, source: 'DB' };
-        } else if (process.env[ENV_MAPPING[key]]) {
-            result[key] = { value: process.env[ENV_MAPPING[key]]!, source: 'ENV' };
+        } else if (ENV_MAPPING[key]) {
+            // ENV_MAPPING[key]는 이미 환경변수 값이므로 직접 사용
+            result[key] = { value: ENV_MAPPING[key]!, source: 'ENV' };
         } else {
             result[key] = { value: DEFAULTS[key], source: 'DEFAULT' };
         }

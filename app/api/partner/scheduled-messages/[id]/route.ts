@@ -232,6 +232,67 @@ export async function PUT(
       },
     });
 
+    // 고객그룹 연결 동기화 (그룹 변경 또는 sendMethod 변경 시)
+    const existingMetadata = existingMessage.metadata as Record<string, any> | null;
+    const oldPartnerGroupId = existingMetadata?.partnerGroupId;
+    const newPartnerGroupId = metadata.partnerGroupId;
+    const oldSendMethod = existingMessage.sendMethod;
+    const newSendMethod = sendMethod;
+
+    // sendMethod가 변경되었거나 그룹이 변경된 경우 동기화
+    const groupChanged = oldPartnerGroupId !== newPartnerGroupId;
+    const sendMethodChanged = oldSendMethod !== newSendMethod;
+
+    if (groupChanged || sendMethodChanged) {
+      const oldFieldToUpdate = oldSendMethod === 'sms' ? 'funnelSmsIds' : 'funnelEmailIds';
+      const newFieldToUpdate = newSendMethod === 'sms' ? 'funnelSmsIds' : 'funnelEmailIds';
+
+      // 이전 그룹에서 퍼널 ID 제거
+      if (oldPartnerGroupId) {
+        const oldGroup = await prisma.partnerCustomerGroup.findUnique({
+          where: { id: oldPartnerGroupId },
+          select: { funnelSmsIds: true, funnelEmailIds: true },
+        });
+
+        if (oldGroup) {
+          const oldIds = (oldGroup[oldFieldToUpdate] as number[]) || [];
+          const updatedOldIds = oldIds.filter(fid => fid !== id);
+
+          if (oldIds.length !== updatedOldIds.length) {
+            await prisma.partnerCustomerGroup.update({
+              where: { id: oldPartnerGroupId },
+              data: {
+                [oldFieldToUpdate]: updatedOldIds,
+              },
+            });
+            console.log(`[Partner Scheduled Messages PUT] 퍼널 ID ${id}가 이전 고객그룹 ${oldPartnerGroupId}의 ${oldFieldToUpdate}에서 제거됨`);
+          }
+        }
+      }
+
+      // 새 그룹에 퍼널 ID 추가
+      if (newPartnerGroupId) {
+        const newGroup = await prisma.partnerCustomerGroup.findUnique({
+          where: { id: newPartnerGroupId },
+          select: { funnelSmsIds: true, funnelEmailIds: true },
+        });
+
+        if (newGroup) {
+          const newIds = (newGroup[newFieldToUpdate] as number[]) || [];
+
+          if (!newIds.includes(id)) {
+            await prisma.partnerCustomerGroup.update({
+              where: { id: newPartnerGroupId },
+              data: {
+                [newFieldToUpdate]: [...newIds, id],
+              },
+            });
+            console.log(`[Partner Scheduled Messages PUT] 퍼널 ID ${id}가 새 고객그룹 ${newPartnerGroupId}의 ${newFieldToUpdate}에 추가됨`);
+          }
+        }
+      }
+    }
+
     // targetGroup 조회 (metadata에 partnerGroupId가 있는 경우)
     let targetGroup = null;
     if (updatedMessage.CustomerGroup) {
@@ -317,6 +378,31 @@ export async function DELETE(
 
     if (!existingMessage) {
       return NextResponse.json({ ok: false, error: 'Message not found or unauthorized' }, { status: 404 });
+    }
+
+    // 삭제 전에 고객그룹에서 퍼널 ID 제거 (고객그룹-퍼널 연결 동기화)
+    const existingMetadata = existingMessage.metadata as Record<string, any> | null;
+    if (existingMetadata?.partnerGroupId) {
+      const partnerGroup = await prisma.partnerCustomerGroup.findUnique({
+        where: { id: existingMetadata.partnerGroupId },
+        select: { funnelSmsIds: true, funnelEmailIds: true },
+      });
+
+      if (partnerGroup) {
+        const fieldToUpdate = existingMessage.sendMethod === 'sms' ? 'funnelSmsIds' : 'funnelEmailIds';
+        const currentIds = (partnerGroup[fieldToUpdate] as number[]) || [];
+        const updatedIds = currentIds.filter(fid => fid !== id);
+
+        if (currentIds.length !== updatedIds.length) {
+          await prisma.partnerCustomerGroup.update({
+            where: { id: existingMetadata.partnerGroupId },
+            data: {
+              [fieldToUpdate]: updatedIds,
+            },
+          });
+          console.log(`[Partner Scheduled Messages DELETE] 퍼널 ID ${id}가 고객그룹 ${existingMetadata.partnerGroupId}의 ${fieldToUpdate}에서 제거됨`);
+        }
+      }
     }
 
     // 예약 메시지 삭제 (Cascade로 단계도 자동 삭제됨)

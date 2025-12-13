@@ -135,7 +135,7 @@ export default function AffiliateCustomersPage() {
       case 'REFUNDED':
         return '환불';
       case 'TEST_GUIDE':
-        return '지니가이드 체험중';
+        return '크루즈닷AI체험중';
       default:
         return status;
     }
@@ -188,7 +188,7 @@ export default function AffiliateCustomersPage() {
               <option value="IN_PROGRESS">진행중</option>
               <option value="PURCHASED">구매완료</option>
               <option value="REFUNDED">환불</option>
-              <option value="TEST_GUIDE">지니가이드 체험중</option>
+              <option value="TEST_GUIDE">크루즈닷AI체험중</option>
             </select>
           </div>
         </div>

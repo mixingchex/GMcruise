@@ -18,7 +18,7 @@ const SESSION_COOKIE = 'cg.sid.v2';
 export async function POST(req: Request) {
   try {
     // Rate Limiting 체크
-    const headersList = headers();
+    const headersList = await headers();
     const clientIp = getClientIpFromRequest(req, headersList);
     const rateLimitKey = `community-login:${clientIp}`;
     
@@ -119,7 +119,8 @@ export async function POST(req: Request) {
     });
 
     // 쿠키 심기
-    cookies().set(SESSION_COOKIE, session.id, {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE, session.id, {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',

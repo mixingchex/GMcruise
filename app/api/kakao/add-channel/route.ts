@@ -9,7 +9,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // 사용자 인증 확인
 async function getCurrentUser() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return null;

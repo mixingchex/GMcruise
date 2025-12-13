@@ -37,7 +37,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 // GET: Cron 작업 상태 확인
 export async function GET() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!(await checkAdminAuth(sid))) {
       return NextResponse.json({ ok: false, error: '관리자 권한이 필요합니다.' }, { status: 403 });
     }
@@ -106,7 +107,8 @@ export async function GET() {
 // POST: Cron 작업 등록/삭제
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!(await checkAdminAuth(sid))) {
       return NextResponse.json({ ok: false, error: '관리자 권한이 필요합니다.' }, { status: 403 });
     }

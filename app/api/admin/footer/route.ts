@@ -12,7 +12,8 @@ const FOOTER_DATA_FILE = path.join(process.cwd(), 'data', 'footer-data.json');
 // 관리자 권한 확인
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) return null;
 
     const session = await prisma.session.findUnique({
@@ -72,7 +73,7 @@ async function readFooterData(): Promise<any> {
       },
       genieButton: {
         enabled: true,
-        name: '🎉 크루즈 지니 AI 3일 무료체험',
+        name: '🎉 크루즈닷AI 3일 무료체험',
         link: '/login-test',
         icon: null,
         gradient: 'from-purple-600 to-pink-600',

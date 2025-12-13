@@ -50,7 +50,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
           select: { id: true, displayName: true, type: true },
         })
       : [];
-    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+    const profileMap = new Map<number, { id: number; displayName: string | null; type: string }>(
+      profiles.map((p) => [p.id, p])
+    );
 
     const consultationNotes = notes.map((note) => {
       const profile = note.createdByProfileId ? profileMap.get(note.createdByProfileId) : null;

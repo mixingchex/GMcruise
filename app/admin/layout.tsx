@@ -199,7 +199,7 @@ function AdminLayoutContent({
     { href: '/admin/test-dashboard', label: '백업/명세서/문서동기화', icon: '🔧', section: 'system' },
     { href: '/admin/seo', label: 'SEO 관리', icon: '🔍', section: 'system' },
     { href: '/admin/settings', label: '관리자 정보', icon: '⚙️', section: 'system' },
-    { href: '/admin/chat-bot', label: 'AI 지니 채팅봇', icon: '🤖' },
+    { href: '/admin/chat-bot', label: '크루즈닷AI 채팅봇', icon: '🤖' },
     { href: '/admin/community', label: '커뮤니티 관리', icon: '💬' },
   ];
 

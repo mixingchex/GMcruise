@@ -21,7 +21,8 @@ const ALLOWED_DOCUMENT_TYPES = ['application/pdf', 'application/msword', 'applic
 
 // 관리자 권한 확인
 async function checkAdminAuth() {
-  const sid = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sid) return null;
 
   try {

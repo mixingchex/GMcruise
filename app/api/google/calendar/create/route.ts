@@ -10,7 +10,8 @@ import { getGoogleDriveAuth } from '@/lib/google/drive';
 // 구글 캘린더에 미팅 예약 생성
 export async function POST(request: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
     }

@@ -9,7 +9,7 @@ import { productInclude, serializeProduct, toSafeInt, parseLayoutPricing } from 
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
-// 관리자 권한 확인
+// 관리자 권한 확인 (세션 만료 검증 포함)
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
   if (!sid) return false;
 
@@ -23,7 +23,15 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
       },
     });
 
-    return session?.User.role === 'admin';
+    if (!session?.User) return false;
+
+    // 세션 만료 검증
+    if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+      console.log('[Admin Affiliate Products] Session expired');
+      return false;
+    }
+
+    return session.User.role === 'admin';
   } catch (error) {
     console.error('[Admin Affiliate Products] Auth check error:', error);
     return false;
@@ -83,7 +91,8 @@ function validateBody(body: CreateAffiliateProductBody) {
 export async function GET() {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {
@@ -195,7 +204,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {

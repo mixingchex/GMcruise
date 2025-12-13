@@ -28,7 +28,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 
 export async function GET(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid || !(await checkAdminAuth(sid))) {
       return NextResponse.json({ 
@@ -147,7 +148,8 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid || !(await checkAdminAuth(sid))) {
       return NextResponse.json({ 
@@ -237,7 +239,8 @@ export async function POST(req: NextRequest) {
 // 일괄 삭제 API
 export async function DELETE(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid || !(await checkAdminAuth(sid))) {
       return NextResponse.json({ 

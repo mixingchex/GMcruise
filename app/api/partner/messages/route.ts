@@ -11,12 +11,18 @@ async function checkAuth() {
     try {
         // Dev-only: Allow impersonation for testing
         if (process.env.NODE_ENV === 'development') {
-            const headers = require('next/headers').headers();
-            const testUserId = headers.get('X-Test-User-Id');
+            const { headers } = require('next/headers');
+            const headersList = await headers();
+            const testUserId = headersList.get('X-Test-User-Id');
             if (testUserId) {
                 const user = await prisma.user.findUnique({
                     where: { id: parseInt(testUserId) },
-                    include: { AffiliateProfile: true },
+                    select: {
+                        id: true,
+                        role: true,
+                        name: true,
+                        AffiliateProfile: true,
+                    },
                 });
                 if (user) {
                     return {
@@ -29,14 +35,18 @@ async function checkAuth() {
             }
         }
 
-        const sid = cookies().get(SESSION_COOKIE)?.value;
+        const cookieStore = await cookies();
+        const sid = cookieStore.get(SESSION_COOKIE)?.value;
         if (!sid) return null;
 
         const session = await prisma.session.findUnique({
             where: { id: sid },
             include: {
                 User: {
-                    include: {
+                    select: {
+                        id: true,
+                        role: true,
+                        name: true,
                         AffiliateProfile: true,
                     },
                 },
@@ -44,6 +54,12 @@ async function checkAuth() {
         });
 
         if (!session || !session.User) return null;
+
+        // 세션 만료 검증
+        if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+            console.log('[Partner Messages] Session expired');
+            return null;
+        }
         // Allow admin, manager, agent, OR anyone with an affiliate profile (e.g. community role acting as partner)
         if (!['admin', 'manager', 'agent'].includes(session.User.role) && !session.User.AffiliateProfile) return null;
 

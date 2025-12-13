@@ -40,7 +40,8 @@ export async function PATCH(
   { params }: { params: Promise<{ userId: string; noteId: string }> }
 ) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
 
     if (!auth.isAdmin || !auth.userId) {
@@ -138,7 +139,8 @@ export async function DELETE(
   { params }: { params: Promise<{ userId: string; noteId: string }> }
 ) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
     
     if (!auth.isAdmin || !auth.userId) {

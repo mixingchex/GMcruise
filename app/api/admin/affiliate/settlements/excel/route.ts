@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
     // 관리자 권한 확인
     const { cookies } = await import('next/headers');
     const SESSION_COOKIE = 'cg.sid.v2';
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return NextResponse.json(

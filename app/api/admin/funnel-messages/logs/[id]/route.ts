@@ -9,7 +9,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // 관리자 권한 확인
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return null;
@@ -109,7 +110,9 @@ export async function GET(
             select: { id: true, customerName: true, customerPhone: true },
           })
         : [];
-      const leadMap = new Map(leads.map(l => [l.id, l]));
+      const leadMap = new Map<number, { id: number; customerName: string | null; customerPhone: string | null }>(
+        leads.map(l => [l.id, l])
+      );
 
       recipients = paginatedLogs.map((log) => {
         const details = log.details as any;
@@ -132,7 +135,9 @@ export async function GET(
             select: { id: true, name: true, phone: true },
           })
         : [];
-      const userMap = new Map(users.map(u => [u.id, u]));
+      const userMap = new Map<number, { id: number; name: string | null; phone: string | null }>(
+        users.map(u => [u.id, u])
+      );
 
       recipients = paginatedLogs.map((log) => {
         const details = log.details as any;

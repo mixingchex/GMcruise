@@ -10,7 +10,8 @@ import prisma from '@/lib/prisma';
 const SESSION_COOKIE = 'cg.sid.v2';
 
 async function getCurrentUser() {
-  const sid = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sid) return null;
 
   try {

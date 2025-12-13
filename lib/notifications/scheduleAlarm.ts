@@ -239,7 +239,7 @@ function checkAndTriggerAlarms(): void {
 
 function triggerAlarm(alarm: AlarmSchedule): void {
   try {
-    const notification = new Notification('🚢 크루즈 가이드 지니', {
+    const notification = new Notification('🚢 크루즈닷AI', {
       body: `${alarm.time} - ${alarm.title}`,
       icon: '/images/ai-cruise-logo.png',
       badge: '/images/ai-cruise-logo.png',

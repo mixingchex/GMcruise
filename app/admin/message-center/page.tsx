@@ -8,6 +8,7 @@ import {
   FiEye, FiPhone, FiUser, FiBarChart2
 } from 'react-icons/fi';
 import { SiKakaotalk } from 'react-icons/si';
+import { showSuccess, showError, showWarning, showInfo } from '@/components/ui/Toast';
 
 // 탭 타입
 type TabType = 'instant' | 'scheduled' | 'history';
@@ -143,6 +144,8 @@ export default function MessageCenterPage() {
     source: string | null;
     createdAt: string;
     selected?: boolean;
+    agentId?: number | null;
+    agentName?: string | null;
   }
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
@@ -274,7 +277,7 @@ export default function MessageCenterPage() {
   // 수동 수신자 추가
   const handleAddManualRecipient = () => {
     if (!newManualName.trim() || !newManualPhone.trim()) {
-      alert('이름과 전화번호를 모두 입력해주세요.');
+      showWarning('이름과 전화번호를 모두 입력해주세요.');
       return;
     }
     setManualRecipients([...manualRecipients, { name: newManualName.trim(), phone: newManualPhone.trim() }]);
@@ -351,12 +354,12 @@ export default function MessageCenterPage() {
       }
 
       if (recipients.length === 0) {
-        alert('유효한 수신자를 찾을 수 없습니다. 양식을 확인해주세요.\n\n- 첫 번째 열: 이름\n- 두 번째 열: 전화번호 (숫자만)');
+        showError('유효한 수신자를 찾을 수 없습니다. 양식을 확인해주세요. (첫 번째 열: 이름, 두 번째 열: 전화번호)');
         return;
       }
 
       setExcelRecipients(recipients);
-      alert(`${recipients.length}명의 수신자를 불러왔습니다.`);
+      showSuccess(`${recipients.length}명의 수신자를 불러왔습니다.`);
     };
     reader.readAsText(file, 'UTF-8');
     e.target.value = ''; // 리셋
@@ -520,7 +523,7 @@ export default function MessageCenterPage() {
   // 즉시 발송 처리
   const handleInstantSend = async () => {
     if (!title.trim() || !content.trim()) {
-      alert('제목과 내용을 모두 입력해주세요.');
+      showWarning('제목과 내용을 모두 입력해주세요.');
       return;
     }
 
@@ -528,7 +531,7 @@ export default function MessageCenterPage() {
     const totalRecipients = selectedCustomers.size + manualRecipients.length + excelRecipients.length;
 
     if (totalRecipients === 0) {
-      alert('발송 대상을 선택해주세요. 고객 목록에서 선택하거나, 수동으로 수신자를 추가해주세요.');
+      showWarning('발송 대상을 선택해주세요. 고객 목록에서 선택하거나, 수동으로 수신자를 추가해주세요.');
       return;
     }
 
@@ -641,15 +644,15 @@ export default function MessageCenterPage() {
           sent: data.result?.sent || data.sentCount || data.totalSent || 1,
           failed: data.result?.failed || data.failedCount || 0,
         });
-        alert(`발송 완료! (성공: ${data.result?.sent || data.sentCount || data.totalSent || 1}건)`);
+        showSuccess(`발송 완료! (성공: ${data.result?.sent || data.sentCount || data.totalSent || 1}건)`);
         setTitle('');
         setContent('');
       } else {
-        alert(data.error || '발송에 실패했습니다.');
+        showError(data.error || '발송에 실패했습니다.');
       }
     } catch (error) {
       console.error('발송 오류:', error);
-      alert('발송 중 오류가 발생했습니다.');
+      showError('발송 중 오류가 발생했습니다.');
     } finally {
       setIsSending(false);
     }
@@ -666,13 +669,13 @@ export default function MessageCenterPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        alert('삭제되었습니다.');
+        showSuccess('삭제되었습니다.');
         loadScheduledMessages();
       } else {
-        alert(data.error || '삭제에 실패했습니다.');
+        showError(data.error || '삭제에 실패했습니다.');
       }
     } catch (error) {
-      alert('삭제 중 오류가 발생했습니다.');
+      showError('삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -695,7 +698,7 @@ export default function MessageCenterPage() {
       if (data.ok && data.spreadsheetUrl) {
         // 새 탭에서 스프레드시트 열기
         window.open(data.spreadsheetUrl, '_blank');
-        alert('구글 스프레드시트로 내보내기 완료!');
+        showSuccess('구글 스프레드시트로 내보내기 완료!');
       } else if (data.ok && data.blob) {
         // 로컬 다운로드
         const blob = new Blob([data.blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -715,7 +718,7 @@ export default function MessageCenterPage() {
         a.download = `메시지발송내역_${new Date().toISOString().split('T')[0]}.csv`;
         a.click();
         URL.revokeObjectURL(url);
-        alert('CSV 파일로 다운로드 완료!');
+        showSuccess('CSV 파일로 다운로드 완료!');
       }
     } catch (error) {
       console.error('내보내기 오류:', error);
@@ -728,7 +731,7 @@ export default function MessageCenterPage() {
       a.download = `메시지발송내역_${new Date().toISOString().split('T')[0]}.csv`;
       a.click();
       URL.revokeObjectURL(url);
-      alert('CSV 파일로 다운로드 완료!');
+      showSuccess('CSV 파일로 다운로드 완료!');
     } finally {
       setIsExporting(false);
     }
@@ -1012,7 +1015,7 @@ export default function MessageCenterPage() {
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 {[
-                  { value: 'trial', label: '3일 무료체험', icon: '🎁', count: targetCounts.trial, desc: '지니 3일 무료체험 고객' },
+                  { value: 'trial', label: '3일 무료체험', icon: '🎁', count: targetCounts.trial, desc: '크루즈닷AI 3일 무료체험 고객' },
                   { value: 'purchased', label: '구매고객', icon: '💳', count: targetCounts.purchased, desc: '상품 구매 완료 고객' },
                   { value: 'mall', label: '크루즈몰고객', icon: '🛒', count: targetCounts.mall, desc: '크루즈몰 가입 고객' },
                   { value: 'b2b', label: 'B2B유입', icon: '🏢', count: targetCounts.b2b, desc: 'B2B 랜딩페이지 유입' },
@@ -1112,6 +1115,7 @@ export default function MessageCenterPage() {
                           <th className="px-3 py-2 text-left">이름</th>
                           <th className="px-3 py-2 text-left">전화번호</th>
                           <th className="px-3 py-2 text-left">이메일</th>
+                          <th className="px-3 py-2 text-left">담당자</th>
                           <th className="px-3 py-2 text-left">유입경로</th>
                         </tr>
                       </thead>
@@ -1130,13 +1134,20 @@ export default function MessageCenterPage() {
                             <td className="px-3 py-2">{customer.phone || '-'}</td>
                             <td className="px-3 py-2 text-gray-500 truncate max-w-[150px]">{customer.email || '-'}</td>
                             <td className="px-3 py-2">
+                              {customer.agentName ? (
+                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{customer.agentName}</span>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
                               <span className="px-2 py-0.5 bg-gray-100 rounded text-xs">{customer.source || '-'}</span>
                             </td>
                           </tr>
                         ))}
                         {filteredCustomers.length === 0 && (
                           <tr>
-                            <td colSpan={5} className="px-3 py-8 text-center text-gray-400">
+                            <td colSpan={6} className="px-3 py-8 text-center text-gray-400">
                               {isLoadingCustomers ? '로딩 중...' : '해당 그룹에 고객이 없습니다'}
                             </td>
                           </tr>
@@ -1257,22 +1268,22 @@ export default function MessageCenterPage() {
                 <div className="text-sm font-semibold text-blue-800 mb-2">📝 클릭하면 내용에 자동 삽입됩니다</div>
                 <div className="flex flex-wrap gap-2 text-xs">
                   <button
-                    onClick={() => setContent(content + '{{이름}}')}
+                    onClick={() => setContent(content + '{이름}')}
                     className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 font-medium transition-colors"
                   >
-                    {'{{이름}}'} <span className="text-gray-500">수신자 이름</span>
+                    {'{이름}'} <span className="text-gray-500">수신자 이름</span>
                   </button>
                   <button
-                    onClick={() => setContent(content + '{{연락처}}')}
+                    onClick={() => setContent(content + '{연락처}')}
                     className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 font-medium transition-colors"
                   >
-                    {'{{연락처}}'} <span className="text-gray-500">수신자 연락처</span>
+                    {'{연락처}'} <span className="text-gray-500">수신자 연락처</span>
                   </button>
                   <button
-                    onClick={() => setContent(content + '{{상품명}}')}
+                    onClick={() => setContent(content + '{상품명}')}
                     className="px-3 py-1.5 bg-white border border-blue-300 rounded-lg hover:bg-blue-100 font-medium transition-colors"
                   >
-                    {'{{상품명}}'} <span className="text-gray-500">선택한 상품</span>
+                    {'{상품명}'} <span className="text-gray-500">선택한 상품</span>
                   </button>
                   <button
                     onClick={() => setContent(content + '{링크}')}
@@ -1369,7 +1380,7 @@ export default function MessageCenterPage() {
                   <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder={`안녕하세요, {{이름}}님!\n\n{{상품명}} 상품을 추천드립니다.\n\n자세한 내용은 아래 링크를 확인해주세요.\n{링크}`}
+                    placeholder={`안녕하세요, {이름}님!\n\n{상품명} 상품을 추천드립니다.\n\n자세한 내용은 아래 링크를 확인해주세요.\n{링크}`}
                     rows={8}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                     maxLength={1000}

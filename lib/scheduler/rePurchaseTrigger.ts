@@ -15,7 +15,7 @@ async function checkTripEnds() {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
 
-    // 오늘 종료된 여행 찾기
+    // 오늘 종료된 여행 찾기 (Reservation을 통해 User 조회)
     const endedTrips = await prisma.trip.findMany({
       where: {
         status: 'Completed',
@@ -24,8 +24,10 @@ async function checkTripEnds() {
         },
       },
       include: {
-        User: {  // ✅ 대문자 U로 변경
-          select: { id: true },
+        Reservation: {
+          select: {
+            mainUserId: true,
+          },
         },
       },
     });
@@ -34,23 +36,29 @@ async function checkTripEnds() {
 
     let created = 0;
     for (const trip of endedTrips) {
-      try {
-        // 이미 트리거가 있는지 확인
-        const existing = await prisma.rePurchaseTrigger.findFirst({
-          where: {
-            userId: trip.User.id,  // ✅ 대문자 U로 변경
-            lastTripEndDate: new Date(trip.endDate),
-            triggerType: 'grace_period_end',
-          },
-        });
+      // 각 예약의 사용자에 대해 트리거 생성
+      const userIds = trip.Reservation.map(r => r.mainUserId);
+      const uniqueUserIds = [...new Set(userIds)] as number[];
 
-        if (!existing) {
-          await createTripEndTrigger(trip.User.id, new Date(trip.endDate));  // ✅ 대문자 U로 변경
-          created++;
-          console.log(`[RePurchase Trigger] Created trigger for user ${trip.User.id}, trip ${trip.id}`);  // ✅ 대문자 U로 변경
+      for (const userId of uniqueUserIds) {
+        try {
+          // 이미 트리거가 있는지 확인
+          const existing = await prisma.rePurchaseTrigger.findFirst({
+            where: {
+              userId,
+              lastTripEndDate: trip.endDate ? new Date(trip.endDate) : undefined,
+              triggerType: 'grace_period_end',
+            },
+          });
+
+          if (!existing && trip.endDate) {
+            await createTripEndTrigger(userId, new Date(trip.endDate));
+            created++;
+            console.log(`[RePurchase Trigger] Created trigger for user ${userId}, trip ${trip.id}`);
+          }
+        } catch (error) {
+          console.error(`[RePurchase Trigger] Error creating trigger for trip ${trip.id}, user ${userId}:`, error);
         }
-      } catch (error) {
-        console.error(`[RePurchase Trigger] Error creating trigger for trip ${trip.id}:`, error);
       }
     }
 
@@ -83,8 +91,10 @@ async function checkGracePeriodEnds() {
         },
       },
       include: {
-        User: {  // ✅ 대문자 U로 변경
-          select: { id: true },
+        Reservation: {
+          select: {
+            mainUserId: true,
+          },
         },
       },
     });
@@ -93,23 +103,29 @@ async function checkGracePeriodEnds() {
 
     let created = 0;
     for (const trip of endedTrips) {
-      try {
-        // 이미 트리거가 있는지 확인
-        const existing = await prisma.rePurchaseTrigger.findFirst({
-          where: {
-            userId: trip.User.id,  // ✅ 대문자 U로 변경
-            lastTripEndDate: new Date(trip.endDate),
-            triggerType: 'grace_period_end',
-          },
-        });
+      // 각 예약의 사용자에 대해 트리거 생성
+      const userIds = trip.Reservation.map(r => r.mainUserId);
+      const uniqueUserIds = [...new Set(userIds)] as number[];
 
-        if (!existing) {
-          await createGracePeriodEndTrigger(trip.User.id, new Date(trip.endDate));  // ✅ 대문자 U로 변경
-          created++;
-          console.log(`[RePurchase Trigger] Created grace period trigger for user ${trip.User.id}, trip ${trip.id}`);  // ✅ 대문자 U로 변경
+      for (const userId of uniqueUserIds) {
+        try {
+          // 이미 트리거가 있는지 확인
+          const existing = await prisma.rePurchaseTrigger.findFirst({
+            where: {
+              userId,
+              lastTripEndDate: trip.endDate ? new Date(trip.endDate) : undefined,
+              triggerType: 'grace_period_end',
+            },
+          });
+
+          if (!existing && trip.endDate) {
+            await createGracePeriodEndTrigger(userId, new Date(trip.endDate));
+            created++;
+            console.log(`[RePurchase Trigger] Created grace period trigger for user ${userId}, trip ${trip.id}`);
+          }
+        } catch (error) {
+          console.error(`[RePurchase Trigger] Error creating grace period trigger for trip ${trip.id}, user ${userId}:`, error);
         }
-      } catch (error) {
-        console.error(`[RePurchase Trigger] Error creating grace period trigger for trip ${trip.id}:`, error);
       }
     }
 

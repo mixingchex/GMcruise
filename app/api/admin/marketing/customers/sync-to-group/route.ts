@@ -28,7 +28,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 // 마케팅 고객을 기존 고객 그룹에 동기화
 export async function POST(req: Request) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return NextResponse.json({

@@ -19,8 +19,9 @@ export interface TestModeInfo {
  * 기존 코드 수정 없이 별도로 구현
  */
 export async function checkTestMode(): Promise<TestModeInfo> {
-  const sessionId = cookies().get(SESSION_COOKIE)?.value;
-  
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+
   if (!sessionId) {
     return {
       isTestMode: false,

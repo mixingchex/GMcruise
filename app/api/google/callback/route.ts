@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 세션 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.redirect(
         `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/admin/dashboard?error=no_session`

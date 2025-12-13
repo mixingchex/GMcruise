@@ -109,7 +109,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
   // 리뷰 데이터 가져오기 (모달 열릴 때)
   useEffect(() => {
-    if (showReviewModal && reviewCount > 0 && reviews.length === 0) {
+    if (showReviewModal && reviews.length === 0) {
       const fetchReviews = async () => {
         setReviewsLoading(true);
         try {
@@ -126,7 +126,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
       };
       fetchReviews();
     }
-  }, [showReviewModal, product.productCode, reviewCount, reviews.length]);
+  }, [showReviewModal, product.productCode, reviews.length]);
 
   // SOLD OUT 상태 조회
   useEffect(() => {
@@ -914,9 +914,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                     {/* 추천 키워드 (마케팅 태그) - 상품 제목 위에 표시 */}
                     {recommendedKeywords.length > 0 && (
                       <div className="mb-3 flex flex-wrap gap-2">
-                        {recommendedKeywords.map((keyword: string, index: number) => (
+                        {recommendedKeywords.map((keyword: string) => (
                           <span
-                            key={index}
+                            key={keyword}
                             className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-md text-sm md:text-base font-semibold shadow-sm"
                             style={{ wordBreak: 'keep-all', lineHeight: '1.3' }}
                           >
@@ -1257,7 +1257,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             {/* 방문 국가 (파란색 버튼) - 상품 설명 위에 표시 */}
             {finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
               <div className="mb-5 md:mb-6 flex flex-wrap gap-2">
-                {finalDestination.map((countryCode: string, index: number) => {
+                {finalDestination.map((countryCode: string) => {
                   const countryNames: Record<string, string> = {
                     'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
                     'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
@@ -1267,7 +1267,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                   const countryName = countryNames[countryCode] || countryCode;
                   return (
                     <span
-                      key={index}
+                      key={countryCode}
                       className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                       style={{ wordBreak: 'keep-all' }}
                     >
@@ -1611,7 +1611,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 {editingField === 'included' ? (
                   <div className="space-y-3">
                     {includedItems.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div key={`included-edit-${index}-${item.slice(0, 20)}`} className="flex items-center gap-2">
                         <input
                           type="text"
                           value={item}
@@ -1661,7 +1661,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 ) : (
                   <div className="space-y-2.5">
                     {includedItems.map((item, index) => (
-                      <div key={index} className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 hover:border-emerald-300 transition-colors">
+                      <div key={`included-${index}-${item.slice(0, 20)}`} className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 hover:border-emerald-300 transition-colors">
                         <div className="flex items-start gap-2.5" style={{ wordBreak: 'keep-all', lineHeight: '1.6' }}>
                           <span className="text-emerald-500 mt-0.5 flex-shrink-0 text-lg font-bold">✓</span>
                           <span className="text-sm md:text-base flex-1">{item}</span>
@@ -1692,7 +1692,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 {editingField === 'excluded' ? (
                   <div className="space-y-3">
                     {excludedItems.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                      <div key={`excluded-edit-${index}-${item.slice(0, 20)}`} className="flex items-center gap-2">
                         <input
                           type="text"
                           value={item}
@@ -1742,7 +1742,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 ) : (
                   <div className="space-y-2.5">
                     {excludedItems.map((item, index) => (
-                      <div key={index} className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 hover:border-rose-300 transition-colors">
+                      <div key={`excluded-${index}-${item.slice(0, 20)}`} className="bg-white rounded-lg p-3 md:p-4 border border-gray-200 hover:border-rose-300 transition-colors">
                         <div className="flex items-start gap-2.5" style={{ wordBreak: 'keep-all', lineHeight: '1.6' }}>
                           <span className="text-rose-500 mt-0.5 flex-shrink-0 text-lg font-bold">✗</span>
                           <span className="text-sm md:text-base flex-1">{item}</span>
@@ -2092,7 +2092,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                       <div className="space-y-3">
                         {itinerary.map((day: any, index: number) => (
                           <div
-                            key={index}
+                            key={`itinerary-${day.day || index}-${day.location || index}`}
                             className="bg-white rounded-lg p-4 border-l-4 border-blue-500 shadow-sm"
                           >
                             <div className="flex items-center justify-between mb-2">
@@ -2292,7 +2292,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 ) : (
                   <div className="whitespace-pre-line">
                     {priceTableNote.split('\n').map((line, index) => (
-                      <p key={index}>{line}</p>
+                      <p key={`price-note-${index}-${line.slice(0, 20)}`}>{line}</p>
                     ))}
                   </div>
                 )}
@@ -2305,7 +2305,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">환불/취소 규정</h2>
                 <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-line">
                   {refundPolicy.split('\n').map((line, index) => (
-                    <p key={index} className="mb-2">{line}</p>
+                    <p key={`refund-${index}-${line.slice(0, 20)}`} className="mb-2">{line}</p>
                   ))}
                 </div>
               </div>
@@ -2328,7 +2328,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               {editingField === 'bookingInfo' ? (
                 <div className="space-y-3">
                   {bookingInfo.map((item, index) => (
-                    <div key={index} className="flex items-start gap-2">
+                    <div key={`booking-edit-${index}-${item.slice(0, 20)}`} className="flex items-start gap-2">
                       <span className="text-blue-600 font-bold mt-2">•</span>
                       <textarea
                         value={item}
@@ -2383,7 +2383,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               ) : (
                 <div className="space-y-3 text-gray-700">
                   {bookingInfo.map((item, index) => (
-                    <div key={index} className="flex items-start gap-3 bg-gray-50 rounded-lg p-4 border border-gray-200" style={{ wordBreak: 'keep-all', lineHeight: '1.6' }}>
+                    <div key={`booking-${index}-${item.slice(0, 20)}`} className="flex items-start gap-3 bg-gray-50 rounded-lg p-4 border border-gray-200" style={{ wordBreak: 'keep-all', lineHeight: '1.6' }}>
                       <span className="text-blue-600 font-bold mt-0.5 flex-shrink-0 text-base">•</span>
                       <span className="text-sm md:text-base flex-1">{item}</span>
                     </div>

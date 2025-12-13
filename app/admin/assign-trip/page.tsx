@@ -541,7 +541,7 @@ export default function AssignTripPage() {
       const data = await response.json();
 
       if (response.ok && data.ok) {
-        showSuccess('여행이 배정되었습니다! 크루즈 가이드 지니가 활성화되었습니다.');
+        showSuccess('여행이 배정되었습니다! 크루즈닷AI가 활성화되었습니다.');
         // 폼 초기화
         setSelectedPurchaseUserId(null);
         setSelectedGenieUserId(null);
@@ -775,7 +775,7 @@ export default function AssignTripPage() {
                               <div className="font-semibold text-gray-900">
                                 {user.name || '이름 없음'}
                                 <span className="ml-2 text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
-                                  지니 가이드
+                                  크루즈닷AI 가이드
                                 </span>
                               </div>
                               <div className="text-sm text-gray-600 mt-1">
@@ -1196,7 +1196,7 @@ export default function AssignTripPage() {
             <p className="text-sm text-blue-800 font-semibold mb-2">⚠️ 여행 배정 완료 시:</p>
             <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
               <li>비밀번호가 3800으로 변경됩니다</li>
-              <li>크루즈 가이드 지니가 활성화됩니다</li>
+              <li>크루즈닷AI가 활성화됩니다</li>
               <li>여행 횟수가 2회 이상이면 재구매로 자동 체크됩니다</li>
               <li>크루즈몰 사용자의 경우 나의정보에서도 확인할 수 있습니다</li>
             </ul>

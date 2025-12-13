@@ -215,7 +215,7 @@ export default function ChatBotInsightsPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                📊 AI 지니 채팅봇(구매) 대시보드
+                📊 크루즈닷AI 채팅봇(구매) 대시보드
               </h1>
               <p className="text-gray-600">
                 전환율, 질문별 이탈률, 선택 비율을 한눈에 확인하세요.

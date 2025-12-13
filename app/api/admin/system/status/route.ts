@@ -20,7 +20,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json(
         { ok: false, error: '로그인이 필요합니다.' },

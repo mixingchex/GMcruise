@@ -26,7 +26,7 @@ const classificationOptions = [
   { value: 'popular', label: '인기 크루즈' },
   { value: 'recommended', label: '추천 크루즈' },
   { value: 'premium', label: '프리미엄 크루즈' },
-  { value: 'genie', label: '지니패키지 크루즈' },
+  { value: 'genie', label: '크루즈닷AI패키지' },
   { value: 'domestic', label: '국내출발 크루즈' },
   { value: 'japan', label: '일본 크루즈' },
   { value: 'budget', label: '알뜰 크루즈' },

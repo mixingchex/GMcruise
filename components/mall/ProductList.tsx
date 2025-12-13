@@ -900,9 +900,9 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                       {popularBanner.title}
                     </h2>
                     <div className="flex flex-wrap gap-4 text-base md:text-lg">
-                      {popularBanner.buttons.slice(0, 3).map((button, index) => (
+                      {popularBanner.buttons.slice(0, 3).map((button) => (
                         <span
-                          key={index}
+                          key={button.text}
                           className="bg-white/95 text-gray-900 px-6 py-3 rounded-full font-black shadow-2xl border-3 border-white text-lg md:text-xl whitespace-nowrap"
                         >
                           <span className="text-green-600 mr-2">{button.icon}</span> {button.text}
@@ -1163,9 +1163,9 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                   {recommendedBanner.title}
                 </h2>
                 <div className="flex flex-wrap gap-4 text-base md:text-lg">
-                  {recommendedBanner.buttons.slice(0, 3).map((button, index) => (
+                  {recommendedBanner.buttons.slice(0, 3).map((button) => (
                     <span
-                      key={index}
+                      key={button.text}
                       className="bg-white/95 text-gray-900 px-6 py-3 rounded-full font-black shadow-2xl border-3 border-white text-lg md:text-xl whitespace-nowrap"
                     >
                       <span className="text-green-600 mr-2">{button.icon}</span> {button.text}
@@ -1307,7 +1307,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         </div>
       )}
 
-      {/* 지니패키지 크루즈 섹션 */}
+      {/* 크루즈닷AI패키지 섹션 */}
       {filters.type === 'all' && filters.region === 'all' && geniePackProducts.length > 0 && (
         <div id="geniepack-cruises" className="mb-12">
           <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">크루즈닷패키지 크루즈</h3>

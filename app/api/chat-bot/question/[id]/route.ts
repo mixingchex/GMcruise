@@ -70,9 +70,9 @@ const SOLUTION_VIDEOS = [
     description: '100만원 이상의 가성비를 아낄 수 있는 방법을 알려드려요!',
   },
   {
-    title: '크루즈닷 가이드 지니 AI와 걱정없이 가는 방법',
+    title: '크루즈닷AI와 걱정없이 가는 방법',
     url: 'https://youtu.be/-p_6G69MgyQ?si=L8m9s-aN-kIzDMKy',
-    description: '크루즈닷 지니 AI와 함께하면 모든 걱정이 사라져요!',
+    description: '크루즈닷AI와 함께하면 모든 걱정이 사라져요!',
   },
   {
     title: '크루즈닷이 그래서 함께 한다면?',

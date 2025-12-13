@@ -13,7 +13,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 
 // 세션에서 사용자 정보 가져오기
 async function getCurrentUser() {
-  const sid = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sid) return null;
 
   try {

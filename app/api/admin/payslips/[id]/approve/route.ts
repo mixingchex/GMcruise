@@ -16,7 +16,8 @@ export async function POST(
 ) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return NextResponse.json(

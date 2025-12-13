@@ -9,15 +9,17 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // 관리자 권한 확인
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
-    
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
+
     if (!sid) {
       return null;
     }
 
     const session = await prisma.session.findUnique({
       where: { id: sid },
-      include: {
+      select: {
+        expiresAt: true,
         User: {
           select: { id: true, role: true, name: true },
         },
@@ -25,6 +27,12 @@ async function checkAdminAuth() {
     });
 
     if (!session || !session.User || session.User.role !== 'admin') {
+      return null;
+    }
+
+    // 🔒 세션 만료 검증
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
       return null;
     }
 

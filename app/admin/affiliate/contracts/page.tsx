@@ -1512,20 +1512,21 @@ export default function AdminAffiliateContractsPage() {
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">검토일</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">재계약 갱신일</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">검토자</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">녹음 보관</th>
                   <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">액션</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {isLoading && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="px-4 py-6 text-center text-sm text-gray-500">
                       계약 목록을 불러오는 중입니다...
                     </td>
                   </tr>
                 )}
                 {!isLoading && contracts.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-gray-500">
+                    <td colSpan={9} className="px-4 py-10 text-center text-sm text-gray-500">
                       계약 신청 내역이 없습니다.
                     </td>
                   </tr>
@@ -1797,6 +1798,55 @@ export default function AdminAffiliateContractsPage() {
                       </td>
                       <td className="px-4 py-4 text-sm text-gray-600">
                         {contract.reviewer?.name || '-'}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col gap-1">
+                          <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800">
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                try {
+                                  const formData = new FormData();
+                                  formData.append('file', file);
+                                  const res = await fetch(`/api/admin/affiliate/contracts/${contract.id}/upload-voice`, {
+                                    method: 'POST',
+                                    body: formData,
+                                  });
+                                  const json = await res.json();
+                                  if (!res.ok || !json.ok) {
+                                    throw new Error(json.message || '업로드 실패');
+                                  }
+                                  showSuccess('녹음 파일이 업로드되었습니다.');
+                                  loadContracts();
+                                } catch (error: any) {
+                                  showError(error.message || '업로드 중 오류가 발생했습니다.');
+                                }
+                              }}
+                            />
+                            <FiSend className="w-3 h-3" /> 녹음 업로드
+                          </label>
+                          {contract.metadata?.voiceRecordings?.length > 0 && (
+                            <div className="mt-1 space-y-1">
+                              {(contract.metadata.voiceRecordings as any[]).map((rec: any, idx: number) => (
+                                <a
+                                  key={rec.id || idx}
+                                  href={rec.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                                  title={`${rec.uploadedBy} - ${new Date(rec.uploadedAt).toLocaleString('ko-KR')}`}
+                                >
+                                  <FiFileText className="w-3 h-3 flex-shrink-0" />
+                                  <span className="truncate max-w-[80px]">{rec.name}</span>
+                                </a>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">

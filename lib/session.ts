@@ -27,12 +27,13 @@ export type Trip = {
   userId: number;
 };
 
-export function getSessionCookie() {
-  return cookies().get(SESSION_COOKIE)?.value || '';
+export async function getSessionCookie() {
+  const cookieStore = await cookies();
+  return cookieStore.get(SESSION_COOKIE)?.value || '';
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
-  const sessionId = getSessionCookie();
+  const sessionId = await getSessionCookie();
   if (!sessionId) return null;
 
   try {

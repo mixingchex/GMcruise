@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
     try {
         // Admin check
-        const sid = cookies().get('cg.sid.v2')?.value;
+        const cookieStore = await cookies();
+    const sid = cookieStore.get('cg.sid.v2')?.value;
         if (!sid) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
 
         const session = await prisma.session.findUnique({
@@ -41,7 +42,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         // Admin check
-        const sid = cookies().get('cg.sid.v2')?.value;
+        const cookieStore = await cookies();
+    const sid = cookieStore.get('cg.sid.v2')?.value;
         if (!sid) return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
 
         const session = await prisma.session.findUnique({

@@ -24,6 +24,9 @@ import {
   FiImage,
   FiLink,
   FiCopy,
+  FiMessageSquare,
+  FiSend,
+  FiLoader,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
@@ -131,7 +134,7 @@ const STATUS_OPTIONS = [
   { value: 'PURCHASED', label: '구매완료' },
   { value: 'REFUNDED', label: '환불' },
   { value: 'CLOSED', label: '종료' },
-  { value: 'TEST_GUIDE', label: '지니가이드 체험중' },
+  { value: 'TEST_GUIDE', label: '크루즈닷AI체험중' },
 ];
 
 const INTERACTION_TYPES = [
@@ -169,6 +172,11 @@ export default function CustomerDetailPage() {
     saleId: null,
   });
   const [productEndDates, setProductEndDates] = useState<Record<string, string | null>>({});
+
+  // SMS 모달 상태
+  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [smsContent, setSmsContent] = useState('');
+  const [sendingSms, setSendingSms] = useState(false);
 
   // 편집 폼 상태
   const [editForm, setEditForm] = useState({
@@ -330,6 +338,50 @@ export default function CustomerDetailPage() {
       showError(error.message || '카드 계산 완료 처리 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // SMS 발송 함수
+  const handleSendSms = async () => {
+    if (!lead || !lead.customerPhone) {
+      showError('고객 전화번호가 없습니다.');
+      return;
+    }
+    if (!smsContent.trim()) {
+      showError('메시지 내용을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setSendingSms(true);
+      const res = await fetch('/api/admin/messages/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: '',
+          content: smsContent,
+          recipients: [
+            {
+              name: lead.customerName || '고객',
+              phone: lead.customerPhone,
+            },
+          ],
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || json.message || '문자 발송에 실패했습니다.');
+      }
+
+      showSuccess('문자가 성공적으로 발송되었습니다!');
+      setShowSmsModal(false);
+      setSmsContent('');
+    } catch (error: any) {
+      console.error('[CustomerDetail] SMS send error', error);
+      showError(error.message || '문자 발송 중 오류가 발생했습니다.');
+    } finally {
+      setSendingSms(false);
     }
   };
 
@@ -801,6 +853,24 @@ export default function CustomerDetailPage() {
           </div>
         </div >
       </section >
+
+      {/* 빠른 액션 */}
+      <section className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">빠른 액션</h2>
+        <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => setShowSmsModal(true)}
+            disabled={!lead?.customerPhone}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            <FiMessageSquare />
+            문자 보내기
+          </button>
+        </div>
+        {!lead?.customerPhone && (
+          <p className="mt-2 text-sm text-gray-500">* 고객 전화번호가 등록되어 있어야 문자를 보낼 수 있습니다.</p>
+        )}
+      </section>
 
       {/* 상호작용 기록 */}
       < section className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6" >
@@ -1364,6 +1434,81 @@ export default function CustomerDetailPage() {
           </div>
         )
       }
+
+      {/* SMS 보내기 모달 */}
+      {showSmsModal && lead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <FiMessageSquare className="text-emerald-600" />
+                문자 보내기
+              </h3>
+              <button
+                onClick={() => {
+                  setShowSmsModal(false);
+                  setSmsContent('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-sm text-gray-600">
+                  <span className="font-semibold">받는 사람:</span>{' '}
+                  {lead.customerName || '고객'} ({lead.customerPhone})
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  메시지 내용
+                </label>
+                <textarea
+                  value={smsContent}
+                  onChange={(e) => setSmsContent(e.target.value)}
+                  rows={5}
+                  placeholder="문자 내용을 입력하세요..."
+                  className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  {smsContent.length}자 / 90자 이상이면 LMS로 발송됩니다
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                onClick={() => {
+                  setShowSmsModal(false);
+                  setSmsContent('');
+                }}
+                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+                disabled={sendingSms}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSendSms}
+                disabled={sendingSms || !smsContent.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:bg-emerald-300"
+              >
+                {sendingSms ? (
+                  <>
+                    <FiLoader className="animate-spin" />
+                    발송 중...
+                  </>
+                ) : (
+                  <>
+                    <FiSend />
+                    발송하기
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }

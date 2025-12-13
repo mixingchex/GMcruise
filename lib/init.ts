@@ -4,6 +4,12 @@
  */
 
 import { startProactiveEngine } from './scheduler/proactiveEngine';
+import { startPartnerFunnelSender } from './scheduler/partnerFunnelSender';
+import { startScheduledMessageSender } from './scheduler/scheduledMessageSender';
+import { startAffiliateLinkCleanupScheduler } from './scheduler/affiliateLinkCleanup';
+import { startSpreadsheetBackupScheduler } from './scheduler/spreadsheetBackup';
+import { startTripStatusScheduler } from './scheduler/tripStatusUpdater';
+import { startRePurchaseTriggerScheduler } from './scheduler/rePurchaseTrigger';
 
 let initialized = false;
 
@@ -18,6 +24,16 @@ export async function initializeApp() {
 
     // Proactive Engine 시작
     startProactiveEngine();
+
+    // 메시지 스케줄러 시작
+    startPartnerFunnelSender();
+    startScheduledMessageSender();
+
+    // 정리 및 유지보수 스케줄러 시작
+    startAffiliateLinkCleanupScheduler();
+    startSpreadsheetBackupScheduler();
+    startTripStatusScheduler();
+    startRePurchaseTriggerScheduler();
 
     initialized = true;
     console.log('[Init] 애플리케이션 초기화 완료 ✓');

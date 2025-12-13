@@ -1,5 +1,5 @@
 // app/admin/chat-bot/page.tsx
-// AI 지니 채팅봇(구매) 관리
+// 크루즈닷AI 채팅봇(구매) 관리
 
 'use client';
 
@@ -265,7 +265,7 @@ export default function ChatBotManagementPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                🤖 AI 지니 채팅봇(구매) 관리
+                🤖 크루즈닷AI 채팅봇(구매) 관리
               </h1>
               <p className="text-gray-600">
                 SPIN 기반 상담 플로우와 질문을 관리합니다.

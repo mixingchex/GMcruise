@@ -4,13 +4,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import nodemailer from 'nodemailer';
+import { backupEmailWithImages } from '@/lib/message-backup';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
 // 관리자 권한 확인
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       console.log('[Send Email] No session cookie found');
@@ -267,10 +269,21 @@ export async function POST(req: NextRequest) {
 
     for (const user of targetUsers) {
       try {
-        // 템플릿 변수 치환 (각 수신자마다 개별 적용)
+        // 템플릿 변수 치환 (각 수신자마다 개별 적용) - null 안전 처리
         const userPhone = (user as any).phone || '';
-        const personalizedTitle = replaceTemplateVariables(title, user.name, userPhone, productName || '', linkUrl || '');
-        const personalizedContent = replaceTemplateVariables(content, user.name, userPhone, productName || '', linkUrl || '');
+        const safeTitle = title ?? '';
+        const safeContent = content ?? '';
+        const safeName = user.name ?? '고객';
+        const safeProductName = productName ?? '';
+        const safeLinkUrl = linkUrl ?? '';
+
+        const personalizedTitle = replaceTemplateVariables(safeTitle, safeName, userPhone, safeProductName, safeLinkUrl);
+        const personalizedContent = replaceTemplateVariables(safeContent, safeName, userPhone, safeProductName, safeLinkUrl);
+
+        // 치환 결과 유효성 검사
+        if (!personalizedTitle || !personalizedContent) {
+          console.warn(`[SendEmail] 템플릿 치환 결과가 비어있음 - user: ${user.email}`);
+        }
 
         // HTML 형식으로 변환 (줄바꿈 처리)
         const htmlContent = personalizedContent
@@ -336,6 +349,21 @@ export async function POST(req: NextRequest) {
       console.error('[Send Email] 메시지 기록 실패:', error);
       // 메시지 기록 실패해도 이메일 발송은 성공했으므로 계속 진행
     }
+
+    // Google Drive 이미지 백업 + Spreadsheet 백업 (비동기, 실패해도 메인 응답에 영향 없음)
+    backupEmailWithImages({
+      sentAt: new Date(),
+      senderName: admin.name || '관리자',
+      senderType: 'ADMIN',
+      messageType: 'EMAIL',
+      subject: title,
+      content: content,
+      recipients: targetUsers.map((u) => ({ name: u.name, email: u.email })),
+      recipientCount: targetUsers.length,
+      status: failCount === 0 ? 'SENT' : failCount === targetUsers.length ? 'FAILED' : 'PARTIAL',
+      successCount,
+      failCount,
+    }, images).catch((err) => console.error('[Admin Email Backup] 백업 실패:', err));
 
     return NextResponse.json({
       ok: true,

@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
 /**
  * 구글 스프레드시트에 메시지 발송 내역 백업 (자동화용)
  */
-export async function backupMessagesToSheet(): Promise<{
+async function backupMessagesToSheet(): Promise<{
   ok: boolean;
   totalCount: number;
   error?: string;

@@ -49,7 +49,7 @@ interface Product {
   isMainProduct?: boolean; // 주력 상품 여부
   isPopular?: boolean; // 인기 크루즈
   isRecommended?: boolean; // 추천 크루즈
-  isGeniePack?: boolean; // 지니패키지 여부
+  isGeniePack?: boolean; // 크루즈닷AI패키지 여부
   startDate?: Date | string | null;
   endDate?: Date | string | null;
   recommendedKeywords?: string[] | any; // 추천 키워드 배열
@@ -112,7 +112,7 @@ export default function ProductsManagementPage() {
   const [refundPolicy, setRefundPolicy] = useState<string>('');
   const [flightInfo, setFlightInfo] = useState<FlightInfo | null>(null);
 
-  // 8. 문의 옵션 (결제하기, 전화상담, AI 지니 채팅봇) - 각각 활성화/비활성화 가능
+  // 8. 문의 옵션 (결제하기, 전화상담, 크루즈닷AI 채팅봇) - 각각 활성화/비활성화 가능
   const [contactOptions, setContactOptions] = useState<{
     payment: boolean;
     phoneCall: boolean;
@@ -120,7 +120,7 @@ export default function ProductsManagementPage() {
   }>({
     payment: false,
     phoneCall: false,
-    aiChatbot: true, // 기본값: AI 지니 채팅봇만 활성화
+    aiChatbot: true, // 기본값: 크루즈닷AI 채팅봇만 활성화
   });
 
   // 추천 키워드 목록 (실제 검색량이 많은 키워드 50개 - 구글/네이버 검색량 기준)
@@ -161,7 +161,7 @@ export default function ProductsManagementPage() {
     isPopular: false, // 인기 크루즈
     isRecommended: false, // 추천 크루즈
     isPremium: false, // 프리미엄 크루즈 (수동 등록 폼과 동일)
-    isGeniePack: false, // 지니패키지 크루즈 (수동 등록 폼과 동일)
+    isGeniePack: false, // 크루즈닷AI패키지 (수동 등록 폼과 동일)
     isDomestic: false, // 국내출발 크루즈 (수동 등록 폼과 동일)
     isJapan: false, // 일본 크루즈 (수동 등록 폼과 동일)
     isBudget: false, // 알뜰 크루즈 (수동 등록 폼과 동일)
@@ -883,7 +883,7 @@ export default function ProductsManagementPage() {
     setContactOptions({
       payment: false,
       phoneCall: false,
-      aiChatbot: true, // 기본값: AI 지니 채팅봇만 활성화
+      aiChatbot: true, // 기본값: 크루즈닷AI 채팅봇만 활성화
     });
     setIsModalOpen(true);
   };
@@ -3121,7 +3121,7 @@ export default function ProductsManagementPage() {
                               onChange={(e) => setFormData({ ...formData, isGeniePack: e.target.checked })}
                               className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700">지니패키지 크루즈</span>
+                            <span className="text-sm text-gray-700">크루즈닷AI패키지</span>
                           </label>
                           <label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -3490,15 +3490,15 @@ export default function ProductsManagementPage() {
                             <div className="font-semibold text-gray-800 flex items-center gap-2">
                               <img
                                 src="/images/ai-cruise-logo.png"
-                                alt="AI 지니"
+                                alt="크루즈닷AI"
                                 className="w-5 h-5 object-contain"
                                 onError={(e) => {
                                   (e.target as HTMLImageElement).style.display = 'none';
                                 }}
                               />
-                              AI 지니 채팅봇
+                              크루즈닷AI 채팅봇
                             </div>
-                            <div className="text-sm text-gray-600">AI 지니 채팅봇을 통해 실시간으로 상담을 받을 수 있습니다.</div>
+                            <div className="text-sm text-gray-600">크루즈닷AI 채팅봇을 통해 실시간으로 상담을 받을 수 있습니다.</div>
                           </div>
                         </label>
                       </div>

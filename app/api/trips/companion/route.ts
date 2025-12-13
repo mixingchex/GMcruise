@@ -12,7 +12,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, message: 'UNAUTHORIZED' }, { status: 401 });
     }

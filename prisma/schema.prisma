@@ -259,6 +259,7 @@ model AffiliateLead {
   @@index([nextActionAt])
   @@index([status])
   @@index([updatedAt])
+  @@index([managerId, status, updatedAt])
 }
 
 model AffiliateLedger {
@@ -480,6 +481,11 @@ model AffiliateProfile {
   PartnerEmailConfig                                              PartnerEmailConfig?
   SharedLandingPage                                               SharedLandingPage[]
 
+  // 퍼널 공유 관계
+  ownedFunnels   FunnelMessage[]      @relation("FunnelOwner")
+  sentShares     FunnelMessageShare[] @relation("SentShares")
+  receivedShares FunnelMessageShare[] @relation("ReceivedShares")
+
   @@index([displayName])
   @@index([nickname])
   @@index([type, status])
@@ -501,6 +507,8 @@ model AffiliateRelation {
 
   @@unique([managerId, agentId])
   @@index([agentId, status])
+  // 대리점장 팀원 조회 최적화 인덱스
+  @@index([managerId, status])
 }
 
 model AffiliateSale {
@@ -825,6 +833,9 @@ model CommissionLedger {
   @@index([isSettled, createdAt])
   @@index([profileId, isSettled])
   @@index([saleId])
+  // 팀 명세서 조회 최적화 인덱스
+  @@index([profileId, settlementId])
+  @@index([profileId, createdAt])
 }
 
 model CommunityComment {
@@ -871,8 +882,8 @@ model CommunityPost {
 }
 
 model CruiseProduct {
-  id                 Int                 @id @default(autoincrement())
-  productCode        String              @unique
+  id                 Int                  @id @default(autoincrement())
+  productCode        String               @unique
   cruiseLine         String
   shipName           String
   packageName        String
@@ -880,27 +891,27 @@ model CruiseProduct {
   days               Int
   itineraryPattern   Json
   basePrice          Int?
-  maxPrice           Int?                // 최고가 (정가) - 할인율 계산 기준
+  maxPrice           Int? // 최고가 (정가) - 할인율 계산 기준
   description        String?
   source             String?
   category           String?
   tags               Json?
-  isPopular          Boolean             @default(false)
-  isRecommended      Boolean             @default(false)
-  isPremium          Boolean             @default(false)
-  isGeniePack        Boolean             @default(false)
-  isDomestic         Boolean             @default(false)
-  isJapan            Boolean             @default(false)
-  isBudget           Boolean             @default(false)
-  isUrgent           Boolean             @default(false)
-  isMainProduct      Boolean             @default(false)
-  saleStatus         String              @default("판매중")
+  isPopular          Boolean              @default(false)
+  isRecommended      Boolean              @default(false)
+  isPremium          Boolean              @default(false)
+  isGeniePack        Boolean              @default(false)
+  isDomestic         Boolean              @default(false)
+  isJapan            Boolean              @default(false)
+  isBudget           Boolean              @default(false)
+  isUrgent           Boolean              @default(false)
+  isMainProduct      Boolean              @default(false)
+  saleStatus         String               @default("판매중")
   startDate          DateTime?
   endDate            DateTime?
   // 항공 정보
   airlineName        String?
   airlineCode        String?
-  createdAt          DateTime            @default(now())
+  createdAt          DateTime             @default(now())
   updatedAt          DateTime
   AffiliateProduct   AffiliateProduct[]
   MallProductContent MallProductContent?
@@ -927,15 +938,15 @@ model CruiseProduct {
 
 // 상품별 객실 타입 최고가 (정가)
 model ProductMaxPrice {
-  id              Int           @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   cruiseProductId Int
-  cabinType       String        // 객실 타입 (발코니, 오션뷰, 인사이드 등)
-  maxPrice        Int           // 최고가 (정가)
-  currency        String        @default("KRW")
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  cabinType       String // 객실 타입 (발코니, 오션뷰, 인사이드 등)
+  maxPrice        Int // 최고가 (정가)
+  currency        String   @default("KRW")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  CruiseProduct   CruiseProduct @relation(fields: [cruiseProductId], references: [id], onDelete: Cascade)
+  CruiseProduct CruiseProduct @relation(fields: [cruiseProductId], references: [id], onDelete: Cascade)
 
   @@unique([cruiseProductId, cabinType])
   @@index([cruiseProductId])
@@ -943,15 +954,15 @@ model ProductMaxPrice {
 
 // 기간별 가격 설정
 model ProductPricePeriod {
-  id              Int                 @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   cruiseProductId Int
-  name            String              // 기간명 (예: "조기예약 할인", "성수기 가격")
-  startDate       DateTime            // 기간 시작일
-  endDate         DateTime            // 기간 종료일
-  isActive        Boolean             @default(true)
-  metadata        Json?               // 추가 메타데이터
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  name            String // 기간명 (예: "조기예약 할인", "성수기 가격")
+  startDate       DateTime // 기간 시작일
+  endDate         DateTime // 기간 종료일
+  isActive        Boolean  @default(true)
+  metadata        Json? // 추가 메타데이터
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   CruiseProduct     CruiseProduct       @relation(fields: [cruiseProductId], references: [id], onDelete: Cascade)
   ProductCabinPrice ProductCabinPrice[]
@@ -963,19 +974,19 @@ model ProductPricePeriod {
 
 // 기간별 객실 가격 (판매가 + 입금가)
 model ProductCabinPrice {
-  id                   Int                @id @default(autoincrement())
+  id                   Int      @id @default(autoincrement())
   productPricePeriodId Int
-  cabinType            String             // 객실 타입 (발코니, 오션뷰, 인사이드 등)
-  fareCategory         String             // 요금 카테고리 (adult, adult3rd, child2to11, infantUnder2)
-  fareLabel            String?            // 표시용 라벨
-  saleAmount           Int                // 판매가
-  costAmount           Int                // 입금가 (원가)
-  netRevenue           Int?               // 순매출 (saleAmount - costAmount)
-  currency             String             @default("KRW")
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  cabinType            String // 객실 타입 (발코니, 오션뷰, 인사이드 등)
+  fareCategory         String // 요금 카테고리 (adult, adult3rd, child2to11, infantUnder2)
+  fareLabel            String? // 표시용 라벨
+  saleAmount           Int // 판매가
+  costAmount           Int // 입금가 (원가)
+  netRevenue           Int? // 순매출 (saleAmount - costAmount)
+  currency             String   @default("KRW")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  ProductPricePeriod   ProductPricePeriod @relation(fields: [productPricePeriodId], references: [id], onDelete: Cascade)
+  ProductPricePeriod ProductPricePeriod @relation(fields: [productPricePeriodId], references: [id], onDelete: Cascade)
 
   @@unique([productPricePeriodId, cabinType, fareCategory])
   @@index([productPricePeriodId])
@@ -1084,9 +1095,9 @@ model CustomerNote {
   // 상담기록 확장 필드
   consultedAt                        DateTime? // 실제 상담 일시
   nextActionDate                     DateTime? // 다음 조치 알람 날짜
-  nextActionNote                     String?   // 다음 조치 메모
-  statusAfter                        String?   // 상담 후 고객 상태
-  audioFileUrl                       String?   // 녹음 파일 URL
+  nextActionNote                     String? // 다음 조치 메모
+  statusAfter                        String? // 상담 후 고객 상태
+  audioFileUrl                       String? // 녹음 파일 URL
   createdAt                          DateTime  @default(now())
   updatedAt                          DateTime
   User_CustomerNote_createdByToUser  User      @relation("CustomerNote_createdByToUser", fields: [createdBy], references: [id])
@@ -1222,29 +1233,48 @@ model FunnelConversion {
 }
 
 model FunnelMessage {
-  id                 Int                  @id @default(autoincrement())
-  adminId            Int
-  groupId            Int?
-  messageType        String
-  title              String
-  category           String?
-  groupName          String?
-  description        String?
-  senderPhone        String?
-  senderEmail        String?
-  sendTime           String?
-  optOutNumber       String?
-  autoAddOptOut      Boolean              @default(true)
-  isActive           Boolean              @default(true)
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime
+  id            Int      @id @default(autoincrement())
+  adminId       Int
+  groupId       Int?
+  messageType   String
+  title         String
+  category      String?
+  groupName     String?
+  description   String?
+  senderPhone   String?
+  senderEmail   String?
+  sendTime      String?
+  optOutNumber  String?
+  autoAddOptOut Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime
+
+  // 공유/복제 관련 필드
+  isTemplate     Boolean @default(false) // 공유 가능 템플릿 여부
+  sourceId       Int? // 복제된 경우 원본 ID
+  ownerProfileId Int? // 소유자 프로필 ID (파트너인 경우)
+
   User               User                 @relation(fields: [adminId], references: [id])
   CustomerGroup      CustomerGroup?       @relation(fields: [groupId], references: [id])
   FunnelMessageStage FunnelMessageStage[]
 
+  // 공유 관계
+  shares FunnelMessageShare[] @relation("SharedFunnel")
+
+  // 복제 관계 (자기 참조)
+  sourceFunnel  FunnelMessage?  @relation("FunnelClones", fields: [sourceId], references: [id], onDelete: SetNull)
+  clonedFunnels FunnelMessage[] @relation("FunnelClones")
+
+  // 소유자 프로필 (파트너)
+  ownerProfile AffiliateProfile? @relation("FunnelOwner", fields: [ownerProfileId], references: [id], onDelete: SetNull)
+
   @@index([adminId, createdAt])
   @@index([groupId])
   @@index([messageType, isActive])
+  @@index([isTemplate])
+  @@index([sourceId])
+  @@index([ownerProfileId])
 }
 
 model FunnelMessageStage {
@@ -1262,6 +1292,41 @@ model FunnelMessageStage {
 
   @@index([funnelMessageId, order])
   @@index([funnelMessageId, stageNumber])
+}
+
+// ============================================================================
+// 퍼널 메시지 공유
+// 관리자/대리점장/판매원 간 퍼널 공유 관리
+// ============================================================================
+model FunnelMessageShare {
+  id Int @id @default(autoincrement())
+
+  // 공유된 퍼널
+  funnelMessageId Int
+  funnelMessage   FunnelMessage @relation("SharedFunnel", fields: [funnelMessageId], references: [id], onDelete: Cascade)
+
+  // 공유 대상 설정
+  shareType       String // ALL, BRANCH_MANAGER, SALES_AGENT, SPECIFIC
+  targetProfileId Int? // SPECIFIC인 경우 특정 프로필 ID
+  targetProfile   AffiliateProfile? @relation("ReceivedShares", fields: [targetProfileId], references: [id], onDelete: Cascade)
+
+  // 공유자 정보
+  sharedByProfileId Int? // 파트너가 공유한 경우
+  sharedByProfile   AffiliateProfile? @relation("SentShares", fields: [sharedByProfileId], references: [id], onDelete: SetNull)
+  sharedByAdminId   Int? // 관리자가 공유한 경우
+  sharedByAdmin     User?             @relation("AdminShares", fields: [sharedByAdminId], references: [id], onDelete: SetNull)
+
+  // 상태
+  status String @default("ACTIVE") // ACTIVE, REVOKED
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  revokedAt DateTime?
+
+  @@index([funnelMessageId])
+  @@index([targetProfileId])
+  @@index([sharedByProfileId])
+  @@index([shareType, status])
 }
 
 model FunnelStage {
@@ -1861,9 +1926,9 @@ model PartnerSmsConfig {
 model PartnerEmailConfig {
   id               Int              @id @default(autoincrement())
   profileId        Int              @unique
-  senderName       String?          // 발신자 이름 (없으면 계약서상 이름 사용)
-  senderEmail      String           // 발신자 이메일 (회신받을 이메일)
-  signature        String?          // 서명 (추가 서명 문구)
+  senderName       String? // 발신자 이름 (없으면 계약서상 이름 사용)
+  senderEmail      String // 발신자 이메일 (회신받을 이메일)
+  signature        String? // 서명 (추가 서명 문구)
   isActive         Boolean          @default(true)
   metadata         Json?
   createdAt        DateTime         @default(now())
@@ -1877,9 +1942,9 @@ model PartnerEmailConfig {
 model AffiliateEmailConfig {
   id               Int              @id @default(autoincrement())
   profileId        Int              @unique
-  senderName       String?          // 발신자 이름 (없으면 계약서상 이름 사용)
-  senderEmail      String           // 발신자 이메일 (회신받을 이메일)
-  signature        String?          // 서명 (추가 서명 문구)
+  senderName       String? // 발신자 이름 (없으면 계약서상 이름 사용)
+  senderEmail      String // 발신자 이메일 (회신받을 이메일)
+  signature        String? // 서명 (추가 서명 문구)
   isActive         Boolean          @default(true)
   metadata         Json?
   createdAt        DateTime         @default(now())
@@ -1893,9 +1958,9 @@ model AffiliateEmailConfig {
 model AdminEmailConfig {
   id          Int      @id @default(autoincrement())
   adminId     Int      @unique
-  senderName  String?  // 발신자 이름
-  senderEmail String   // 발신자 이메일 (회신받을 이메일)
-  signature   String?  // 서명 (추가 서명 문구)
+  senderName  String? // 발신자 이름
+  senderEmail String // 발신자 이메일 (회신받을 이메일)
+  signature   String? // 서명 (추가 서명 문구)
   isActive    Boolean  @default(true)
   metadata    Json?
   createdAt   DateTime @default(now())
@@ -2021,31 +2086,31 @@ model Payment {
 }
 
 model PayAppPayment {
-  id              Int          @id @default(autoincrement())
-  orderId         String       @unique
-  mulNo           String?      @unique // PayApp 결제요청번호
-  landingPageId   Int
-  productName     String
-  amount          Int
-  customerName    String
-  customerPhone   String
-  customerEmail   String?
-  status          String       @default("pending") // pending, requested, paid, cancelled, refunded, partial_refunded
-  payType         String?      // 1:신용카드, 2:휴대전화, 6:계좌이체, 7:가상계좌 등
-  payUrl          String?      // 결제 페이지 URL
-  cstUrl          String?      // 매출전표 URL
-  cardName        String?      // 카드사명
-  paidAt          DateTime?
-  cancelledAt     DateTime?
-  refundedAt      DateTime?
-  refundAmount    Int?         // 환불 금액 (부분환불 시)
-  refundReason    String?
-  var1            String?      // 임의변수1
-  var2            String?      // 임의변수2
-  metadata        Json?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  LandingPage     LandingPage  @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  id            Int         @id @default(autoincrement())
+  orderId       String      @unique
+  mulNo         String?     @unique // PayApp 결제요청번호
+  landingPageId Int
+  productName   String
+  amount        Int
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  status        String      @default("pending") // pending, requested, paid, cancelled, refunded, partial_refunded
+  payType       String? // 1:신용카드, 2:휴대전화, 6:계좌이체, 7:가상계좌 등
+  payUrl        String? // 결제 페이지 URL
+  cstUrl        String? // 매출전표 URL
+  cardName      String? // 카드사명
+  paidAt        DateTime?
+  cancelledAt   DateTime?
+  refundedAt    DateTime?
+  refundAmount  Int? // 환불 금액 (부분환불 시)
+  refundReason  String?
+  var1          String? // 임의변수1
+  var2          String? // 임의변수2
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  LandingPage   LandingPage @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
 
   @@index([landingPageId])
   @@index([mulNo])
@@ -2166,42 +2231,42 @@ model RepeatPurchase {
 }
 
 model Reservation {
-  id                Int            @id @default(autoincrement())
-  tripId            Int
-  mainUserId        Int
-  totalPeople       Int
-  cabinType         String?
-  paymentDate       DateTime?
-  paymentMethod     String?
-  paymentAmount     Float?
-  agentName         String?
-  remarks           String?
-  passportGroupLink String?
-  passportStatus    String         @default("PENDING")
-  affiliateSaleId   Int?
-  createdAt         DateTime       @default(now())
-  pnrStatus         String         @default("PENDING")
-  status            String         @default("CONFIRMED")
-  updatedAt         DateTime       @default(now()) @updatedAt
+  id                          Int            @id @default(autoincrement())
+  tripId                      Int
+  mainUserId                  Int
+  totalPeople                 Int
+  cabinType                   String?
+  paymentDate                 DateTime?
+  paymentMethod               String?
+  paymentAmount               Float?
+  agentName                   String?
+  remarks                     String?
+  passportGroupLink           String?
+  passportStatus              String         @default("PENDING")
+  affiliateSaleId             Int?
+  createdAt                   DateTime       @default(now())
+  pnrStatus                   String         @default("PENDING")
+  status                      String         @default("CONFIRMED")
+  updatedAt                   DateTime       @default(now()) @updatedAt
   // 항공 정보
-  airlineName       String?
-  airlineCode       String?
+  airlineName                 String?
+  airlineCode                 String?
   // 최종확인 관련
-  finalConfirmStatus    String     @default("PENDING")
-  finalConfirmRequestedAt DateTime?
-  finalConfirmRequestedById Int?
-  finalConfirmApprovedAt DateTime?
-  finalConfirmApprovedById Int?
-  finalConfirmRejectedAt DateTime?
-  finalConfirmRejectedById Int?
+  finalConfirmStatus          String         @default("PENDING")
+  finalConfirmRequestedAt     DateTime?
+  finalConfirmRequestedById   Int?
+  finalConfirmApprovedAt      DateTime?
+  finalConfirmApprovedById    Int?
+  finalConfirmRejectedAt      DateTime?
+  finalConfirmRejectedById    Int?
   finalConfirmRejectionReason String?
-  finalConfirmAudioUrl  String?
-  finalConfirmAudioDriveUrl String?
-  lastModifiedByName    String?
-  AffiliateSale     AffiliateSale? @relation(fields: [affiliateSaleId], references: [id])
-  User              User           @relation(fields: [mainUserId], references: [id])
-  Trip              Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  Traveler          Traveler[]
+  finalConfirmAudioUrl        String?
+  finalConfirmAudioDriveUrl   String?
+  lastModifiedByName          String?
+  AffiliateSale               AffiliateSale? @relation(fields: [affiliateSaleId], references: [id])
+  User                        User           @relation(fields: [mainUserId], references: [id])
+  Trip                        Trip           @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  Traveler                    Traveler[]
 
   @@index([mainUserId])
   @@index([passportStatus])
@@ -2209,6 +2274,7 @@ model Reservation {
   @@index([status])
   @@index([pnrStatus])
   @@index([finalConfirmStatus])
+  @@index([affiliateSaleId, createdAt])
 }
 
 model ScheduledMessage {
@@ -2411,21 +2477,21 @@ model SystemConsultation {
 
 // 시스템 상담 문의에 대한 상담기록 (콜녹음, 메모 등)
 model SystemConsultationNote {
-  id                   Int                @id @default(autoincrement())
-  consultationId       Int
-  content              String             @db.Text // 상담 내용/메모
-  consultedAt          DateTime?          // 상담 일시
-  audioFileUrl         String?            // 콜녹음 Google Drive 링크
-  createdByName        String?            // 작성자 이름
-  createdByType        String?            // 'ADMIN' | 'BRANCH_MANAGER' | 'SALES_AGENT'
-  createdByProfileId   Int?               // AffiliateProfile ID
-  nextActionDate       DateTime?          // 다음 조치 예정일
-  nextActionNote       String?            // 다음 조치 메모
-  statusAfter          String?            // 상담 후 변경된 상태
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime
+  id                 Int       @id @default(autoincrement())
+  consultationId     Int
+  content            String    @db.Text // 상담 내용/메모
+  consultedAt        DateTime? // 상담 일시
+  audioFileUrl       String? // 콜녹음 Google Drive 링크
+  createdByName      String? // 작성자 이름
+  createdByType      String? // 'ADMIN' | 'BRANCH_MANAGER' | 'SALES_AGENT'
+  createdByProfileId Int? // AffiliateProfile ID
+  nextActionDate     DateTime? // 다음 조치 예정일
+  nextActionNote     String? // 다음 조치 메모
+  statusAfter        String? // 상담 후 변경된 상태
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime
 
-  SystemConsultation   SystemConsultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  SystemConsultation SystemConsultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
 
   @@index([consultationId])
   @@index([createdAt])
@@ -2575,6 +2641,7 @@ model User {
   EmailAddressBook                                              EmailAddressBook[]
   FeatureUsage                                                  FeatureUsage[]
   FunnelMessage                                                 FunnelMessage[]
+  FunnelMessageShare                                            FunnelMessageShare[]      @relation("AdminShares")
   LandingPage                                                   LandingPage[]
   LandingPageFunnel                                             LandingPageFunnel[]
   LandingPageRegistration                                       LandingPageRegistration[]
@@ -2607,6 +2674,9 @@ model User {
   UserSchedule                                                  UserSchedule[]
   UserTrip                                                      UserTrip[]
   VisitedCountry                                                VisitedCountry[]
+  B2BProspect                                                   B2BProspect[]
+  SmsLog                                                        SmsLog[]
+  EmailLog                                                      EmailLog[]
 
   @@index([createdAt])
   @@index([customerSource])
@@ -2625,6 +2695,9 @@ model User {
   @@index([role, updatedAt])
   @@index([testModeStartedAt])
   @@index([customerStatus, customerSource, createdAt], map: "idx_user_customer_status_source_created")
+  @@index([genieStatus])
+  @@index([pwaMallInstalledAt])
+  @@index([mallNickname])
 }
 
 model UserActivity {
@@ -2765,15 +2838,15 @@ model VisitedCountry {
 model ImageCache {
   id           Int      @id @default(autoincrement())
   driveFileId  String   @unique // 구글 드라이브 파일 ID
-  path         String   // 파일 경로 (예: /크루즈정보사진/MSC벨리시마/...)
-  fileName     String   // 파일명
-  folder       String   // 폴더 경로
-  title        String   // 검색용 제목 (파일명에서 확장자 제거)
+  path         String // 파일 경로 (예: /크루즈정보사진/MSC벨리시마/...)
+  fileName     String // 파일명
+  folder       String // 폴더 경로
+  title        String // 검색용 제목 (파일명에서 확장자 제거)
   tags         String[] // 검색용 태그
-  mimeType     String?  // MIME 타입
-  fileSize     Int?     // 파일 크기 (bytes)
-  driveUrl     String?  // 구글 드라이브 직접 URL
-  thumbnailUrl String?  // 썸네일 URL
+  mimeType     String? // MIME 타입
+  fileSize     Int? // 파일 크기 (bytes)
+  driveUrl     String? // 구글 드라이브 직접 URL
+  thumbnailUrl String? // 썸네일 URL
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   syncedAt     DateTime @default(now()) // 마지막 동기화 시간
@@ -2781,4 +2854,127 @@ model ImageCache {
   @@index([folder])
   @@index([title])
   @@index([syncedAt])
+}
+
+// ============================================================================
+// B2B 잠재 고객 관리
+// 기업 고객/단체 예약 문의 관리용
+// ============================================================================
+model B2BProspect {
+  id            Int      @id @default(autoincrement())
+  companyName   String // 회사명
+  contactName   String // 담당자 이름
+  email         String? // 이메일
+  phone         String? // 전화번호
+  position      String? // 직책
+  groupSize     Int? // 예상 단체 인원
+  tripType      String? // 여행 유형 (워크샵, 인센티브, 단체 등)
+  budget        String? // 예산 범위
+  preferredDate String? // 희망 여행 시기
+  destination   String? // 희망 목적지
+  source        String? // 유입 경로
+  status        String   @default("NEW") // NEW, CONTACTED, NEGOTIATING, WON, LOST
+  notes         String? // 비고
+  assignedTo    Int? // 담당자 ID
+  metadata      Json? // 추가 정보
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  User          User?    @relation(fields: [assignedTo], references: [id])
+
+  @@index([status])
+  @@index([companyName])
+  @@index([assignedTo])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// SMS 발송 로그
+// SMS 발송 이력 관리 및 통계용
+// ============================================================================
+model SmsLog {
+  id             Int       @id @default(autoincrement())
+  senderId       Int // 발송자 ID
+  senderType     String // ADMIN, BRANCH_MANAGER, SALES_AGENT
+  recipientId    Int? // 수신자 ID (회원인 경우)
+  recipientPhone String // 수신자 전화번호
+  recipientName  String? // 수신자 이름
+  content        String // 메시지 내용
+  messageType    String    @default("SMS") // SMS, LMS, MMS
+  status         String    @default("PENDING") // PENDING, SENT, FAILED, DELIVERED
+  provider       String? // 발송 API (aligo 등)
+  msgId          String? // 발송 API 메시지 ID
+  errorCode      String? // 에러 코드
+  errorMessage   String? // 에러 메시지
+  groupId        Int? // 그룹 발송 ID
+  metadata       Json? // 추가 정보
+  sentAt         DateTime? // 실제 발송 시간
+  createdAt      DateTime  @default(now())
+  User           User      @relation(fields: [senderId], references: [id])
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([recipientPhone])
+  @@index([status])
+  @@index([sentAt])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// 이메일 발송 로그
+// 이메일 발송 이력 관리 및 통계용
+// ============================================================================
+model EmailLog {
+  id             Int       @id @default(autoincrement())
+  senderId       Int // 발송자 ID
+  senderType     String // ADMIN, BRANCH_MANAGER, SALES_AGENT
+  recipientId    Int? // 수신자 ID (회원인 경우)
+  recipientEmail String // 수신자 이메일
+  recipientName  String? // 수신자 이름
+  subject        String // 제목
+  content        String // 내용 (요약 또는 전체)
+  templateId     String? // 템플릿 ID
+  status         String    @default("PENDING") // PENDING, SENT, FAILED, DELIVERED, OPENED, CLICKED
+  provider       String? // 발송 API (nodemailer 등)
+  messageId      String? // 발송 API 메시지 ID
+  errorCode      String? // 에러 코드
+  errorMessage   String? // 에러 메시지
+  groupId        Int? // 그룹 발송 ID
+  openedAt       DateTime? // 열람 시간
+  clickedAt      DateTime? // 클릭 시간
+  imageUrls      String[] // 첨부 이미지 URL
+  metadata       Json? // 추가 정보
+  sentAt         DateTime? // 실제 발송 시간
+  createdAt      DateTime  @default(now())
+  User           User      @relation(fields: [senderId], references: [id])
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([recipientEmail])
+  @@index([status])
+  @@index([sentAt])
+  @@index([createdAt])
+}
+
+// ============================================================================
+// 재무 기록 (월별 손익계산서)
+// 본사 마진/손익 월별 기록 및 구글 드라이브 백업용
+// ============================================================================
+model FinanceRecord {
+  id                Int       @id @default(autoincrement())
+  year              Int // 연도
+  month             Int // 월 (1-12)
+  salesData         Json // 매출 데이터 (totalSales, salesCount, refundAmount, refundCount)
+  commissionData    Json // 수당 데이터 (salesAgentCommission, mentorCommission, ...)
+  fixedCostsData    Json // 고정비 데이터 (officeRent, electricity, ...)
+  variableCostsData Json // 변동비 데이터 (marketingCost, salesCost, ...)
+  resultData        Json // 계산 결과 (netSales, grossProfit, netProfit, ...)
+  budgetData        Json? // 예산 목표 (salesTarget, profitTarget)
+  backedUpAt        DateTime? // 구글 드라이브 백업 시간
+  backupFileId      String? // 구글 드라이브 파일 ID
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([year, month])
+  @@index([year, month])
+  @@index([createdAt])
 }

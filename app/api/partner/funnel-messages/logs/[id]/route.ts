@@ -87,7 +87,9 @@ export async function GET(
         })
       : [];
 
-    const leadMap = new Map(leads.map(l => [l.id, l]));
+    const leadMap = new Map<number, { id: number; customerName: string | null; customerPhone: string | null }>(
+      leads.map(l => [l.id, l])
+    );
 
     // 그룹, 퍼널 정보 조회
     const [group, funnel] = await Promise.all([

@@ -13,7 +13,8 @@ import prisma from '@/lib/prisma';
 export async function GET(req: NextRequest) {
   try {
     // 인증 확인
-    const sid = cookies().get('cg.sid.v2')?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get('cg.sid.v2')?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
     }
@@ -171,7 +172,8 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     // 인증 확인
-    const sid = cookies().get('cg.sid.v2')?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get('cg.sid.v2')?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
     }

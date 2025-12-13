@@ -772,6 +772,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
       loadAgentDbStats();
       loadPurchasedReservations(); // 구매고객 목록 로드
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBranchManager, loadMyContract, loadAgentDbStats, loadPurchasedReservations]);
 
   // 선택된 달이 변경되면 데이터 다시 로드
@@ -2198,30 +2199,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               </Link>
             )}
 
-            {/* 예약 메시지 관리 */}
-            {subscriptionInfo ? (
-              <button
-                onClick={() => {
-                  const message = getFeatureRestrictionMessageClient('scheduled-messages', subscriptionInfo);
-                  setRestrictionMessage(message);
-                  setShowFeatureRestrictionModal(true);
-                }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
-              >
-                <FiClock className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">예약 메시지<br />관리</span>
-              </button>
-            ) : (
-              <Link
-                href={`${partnerBase}/scheduled-messages`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
-              >
-                <FiClock className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">예약 메시지<br />관리</span>
-              </Link>
-            )}
-
-            {/* 문자 보내기 */}
+            {/* 메시지 센터 (문자, 이메일, 예약발송 통합) */}
             {subscriptionInfo ? (
               <button
                 onClick={() => {
@@ -2229,41 +2207,18 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                   setRestrictionMessage(message);
                   setShowFeatureRestrictionModal(true);
                 }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-4 text-center text-white shadow-md transition-all hover:from-blue-600 hover:to-indigo-700 hover:shadow-lg md:p-6"
               >
-                <FiMessageSquare className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">문자 보내기</span>
+                <FiSend className="text-2xl md:text-3xl" />
+                <span className="text-xs font-semibold md:text-sm">메시지 센터</span>
               </button>
             ) : (
               <Link
-                href={`${partnerBase}/customers?action=sms`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
+                href={`${partnerBase}/message-center`}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 p-4 text-center text-white shadow-md transition-all hover:from-blue-600 hover:to-indigo-700 hover:shadow-lg md:p-6"
               >
-                <FiMessageSquare className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">문자 보내기</span>
-              </Link>
-            )}
-
-            {/* 이메일 보내기 */}
-            {subscriptionInfo ? (
-              <button
-                onClick={() => {
-                  const message = getFeatureRestrictionMessageClient('email-send', subscriptionInfo);
-                  setRestrictionMessage(message);
-                  setShowFeatureRestrictionModal(true);
-                }}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
-              >
-                <FiMail className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">이메일 보내기</span>
-              </button>
-            ) : (
-              <Link
-                href={`${partnerBase}/customers?action=email`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
-              >
-                <FiMail className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">이메일 보내기</span>
+                <FiSend className="text-2xl md:text-3xl" />
+                <span className="text-xs font-semibold md:text-sm">메시지 센터</span>
               </Link>
             )}
 
@@ -2405,6 +2360,30 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               >
                 <FiTrendingUp className="text-2xl text-slate-600 md:text-3xl" />
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">팀 관리</span>
+              </Link>
+            ) : null}
+
+            {/* 팀원 명세서 (대리점장 전용) */}
+            {subscriptionInfo ? (
+              <button
+                onClick={() => {
+                  const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
+                  setRestrictionMessage(message);
+                  setShowFeatureRestrictionModal(true);
+                }}
+                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-teal-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-2 ring-emerald-400 ring-offset-2' : ''
+                  }`}
+              >
+                <FiDollarSign className="text-2xl text-emerald-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-emerald-700 md:text-sm">팀원 명세서</span>
+              </button>
+            ) : isBranchManager ? (
+              <Link
+                href={`${partnerBase}/team-statements`}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-100 p-4 text-center transition-all hover:from-emerald-100 hover:to-teal-200 hover:shadow-lg md:p-6"
+              >
+                <FiDollarSign className="text-2xl text-emerald-600 md:text-3xl" />
+                <span className="text-xs font-semibold text-emerald-700 md:text-sm">팀원 명세서</span>
               </Link>
             ) : null}
 
@@ -3802,7 +3781,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
             <div className="bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-white rounded-t-2xl">
               <h2 className="text-2xl font-bold">크루즈가이드 동행인 등록</h2>
               <p className="text-sm text-white/90 mt-1">
-                등록된 동행인은 비밀번호 3800으로 크루즈 가이드 지니에 로그인할 수 있습니다.
+                등록된 동행인은 비밀번호 3800으로 크루즈닷AI에 로그인할 수 있습니다.
               </p>
             </div>
 
@@ -3974,7 +3953,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <p className="text-xs text-blue-800">
-                  <strong>💡 안내:</strong> 등록된 동행인은 이름과 전화번호, 비밀번호 <strong>3800</strong>으로 크루즈 가이드 지니에 로그인할 수 있습니다.
+                  <strong>💡 안내:</strong> 등록된 동행인은 이름과 전화번호, 비밀번호 <strong>3800</strong>으로 크루즈닷AI에 로그인할 수 있습니다.
                   <br />
                   비밀번호는 동행인에게 구두로 전달해주세요.
                 </p>

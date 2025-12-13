@@ -85,20 +85,20 @@ async function generateIcon(outputPath, size, backgroundColor, name) {
   }
 }
 
-// 크루즈가이드 지니 아이콘 생성 (핑크색 배경)
-console.log('🎨 크루즈가이드 지니 아이콘 생성 중...');
+// 크루즈닷AI 아이콘 생성 (핑크색 배경)
+console.log('🎨 크루즈닷AI 아이콘 생성 중...');
 await generateIcon(
   join(iconsDir, 'genie-icon-192.png'),
   192,
   '#FFB6C1', // 핑크색
-  '크루즈가이드 지니 192x192'
+  '크루즈닷AI 192x192'
 );
 
 await generateIcon(
   join(iconsDir, 'genie-icon-512.png'),
   512,
   '#FFB6C1', // 핑크색
-  '크루즈가이드 지니 512x512'
+  '크루즈닷AI 512x512'
 );
 
 // 크루즈몰 아이콘 생성 (흰색 배경)
@@ -119,8 +119,8 @@ await generateIcon(
 
 console.log('\n✨ 모든 아이콘 생성 완료!');
 console.log('\n생성된 파일:');
-console.log('  - /public/icons/genie-icon-192.png (크루즈가이드 지니, 핑크 배경)');
-console.log('  - /public/icons/genie-icon-512.png (크루즈가이드 지니, 핑크 배경)');
+console.log('  - /public/icons/genie-icon-192.png (크루즈닷AI, 핑크 배경)');
+console.log('  - /public/icons/genie-icon-512.png (크루즈닷AI, 핑크 배경)');
 console.log('  - /public/icons/mall-icon-192.png (크루즈몰, 흰색 배경)');
 console.log('  - /public/icons/mall-icon-512.png (크루즈몰, 흰색 배경)');
 

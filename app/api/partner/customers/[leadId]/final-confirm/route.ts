@@ -104,7 +104,7 @@ export async function POST(
         });
 
         if (uploadResult.ok && uploadResult.fileId) {
-          audioUrl = uploadResult.fileUrl || null;
+          audioUrl = (uploadResult as any).fileUrl || uploadResult.url || null;
           audioDriveUrl = `https://drive.google.com/file/d/${uploadResult.fileId}/view`;
         }
       } catch (uploadError) {

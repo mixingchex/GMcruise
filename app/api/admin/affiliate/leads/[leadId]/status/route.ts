@@ -9,7 +9,7 @@ import prisma from '@/lib/prisma';
 
 /**
  * PUT: 고객 상태 변경
- * - 구매상태, 환불, 소통중, 3일지니가이드 체험중 등 상태 관리
+ * - 구매상태, 환불, 소통중, 크루즈닷AI체험중 등 상태 관리
  */
 export async function PUT(
   req: NextRequest,

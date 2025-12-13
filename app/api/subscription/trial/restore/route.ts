@@ -104,7 +104,8 @@ export async function POST(req: Request) {
     });
 
     // 쿠키 설정
-    cookies().set(SESSION_COOKIE, session.id, {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE, session.id, {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',

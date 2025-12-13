@@ -694,9 +694,9 @@ export default function FooterEditPage() {
         </div>
       </div>
 
-      {/* 크루즈 지니 AI 버튼 */}
+      {/* 크루즈닷AI 버튼 */}
       <div className="bg-white rounded-xl shadow-lg border-2 border-gray-100 p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">크루즈 지니 AI 버튼</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-4">크루즈닷AI 버튼</h2>
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <input

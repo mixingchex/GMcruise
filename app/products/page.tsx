@@ -104,7 +104,7 @@ export default function ProductsPage() {
             <h2 className="text-2xl font-bold text-gray-900">크루즈닷 TV</h2>
             <span className="text-sm text-gray-500">인기영상</span>
             <a
-              href="https://www.youtube.com/@cruisedotgini"
+              href="https://www.youtube.com/@cruisedoAI"
               target="_blank"
               rel="noopener noreferrer"
               className="ml-auto text-sm text-blue-600 hover:text-blue-700 font-medium"

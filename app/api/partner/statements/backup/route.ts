@@ -42,7 +42,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '필수 파라미터가 없습니다.' }, { status: 400 });
     }
 
-    // 관리자 또는 본인 확인
+    // profileId 유효성 검증
+    const targetProfileId = parseInt(profileId, 10);
+    if (isNaN(targetProfileId) || targetProfileId <= 0) {
+      return NextResponse.json({ ok: false, message: '잘못된 프로필 ID입니다.' }, { status: 400 });
+    }
+
+    // 관리자 또는 본인/관리자 확인 (대리점장의 팀원 포함)
     const dbUser = await prisma.user.findUnique({
       where: { id: sessionUser.id },
       select: { role: true },
@@ -50,12 +56,33 @@ export async function POST(req: NextRequest) {
     const isAdmin = dbUser?.role === 'admin';
 
     if (!isAdmin) {
+      // 본인 프로필 확인
       const partnerProfile = await prisma.affiliateProfile.findFirst({
-        where: { userId: sessionUser.id },
-        select: { id: true },
+        where: { userId: sessionUser.id, status: 'ACTIVE' },
+        select: { id: true, type: true },
       });
 
-      if (!partnerProfile || partnerProfile.id !== parseInt(profileId, 10)) {
+      if (!partnerProfile) {
+        return NextResponse.json({ ok: false, message: '파트너 프로필이 없습니다.' }, { status: 403 });
+      }
+
+      // 본인인 경우 허용
+      if (partnerProfile.id === targetProfileId) {
+        // 본인 명세서 접근 허용
+      }
+      // 대리점장인 경우 팀원 확인
+      else if (partnerProfile.type === 'BRANCH_MANAGER') {
+        const isTeamMember = await prisma.affiliateRelation.findFirst({
+          where: {
+            managerId: partnerProfile.id,
+            agentId: targetProfileId,
+            status: 'ACTIVE',
+          },
+        });
+        if (!isTeamMember) {
+          return NextResponse.json({ ok: false, message: '팀원이 아닙니다.' }, { status: 403 });
+        }
+      } else {
         return NextResponse.json({ ok: false, message: '권한이 없습니다.' }, { status: 403 });
       }
     }

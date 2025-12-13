@@ -121,6 +121,19 @@ function generatePurchaseConfirmationTemplate(data: {
   responsibleName: string;
   responsibleRole: '대리점장' | '판매원';
   orderCode: string;
+  // 상품 상세 정보
+  productDetails?: {
+    nights?: number;
+    days?: number;
+    cruiseLine?: string;
+    shipName?: string;
+    hasEscort?: boolean;
+    hasLocalGuide?: boolean;
+    hasCruisedotStaff?: boolean;
+    hasTravelInsurance?: boolean;
+    included?: string[];
+    excluded?: string[];
+  };
 }) {
   const formattedAmount = data.saleAmount.toLocaleString('ko-KR');
   const formattedDate = new Date(data.saleDate).toLocaleDateString('ko-KR', {
@@ -129,17 +142,29 @@ function generatePurchaseConfirmationTemplate(data: {
     day: 'numeric',
   });
 
+  // 여행기간 문자열
+  const travelPeriod = data.productDetails?.nights
+    ? `${data.productDetails.nights}박 ${data.productDetails.days || data.productDetails.nights + 1}일`
+    : '';
+
   // SMS/카카오톡용 간단한 템플릿
   const smsTemplate = `[구매확인서]
 
 ${data.customerName}님, 구매해주셔서 감사합니다!
 
 📦 상품: ${data.productName || data.productCode}
+${data.productDetails?.cruiseLine ? `🚢 크루즈회사: ${data.productDetails.cruiseLine}` : ''}
+${data.productDetails?.shipName ? `⛴️ 선박명: ${data.productDetails.shipName}` : ''}
+${travelPeriod ? `📆 여행기간: ${travelPeriod}` : ''}
 💰 결제금액: ${formattedAmount}원
 📅 구매일자: ${formattedDate}
 📋 주문번호: ${data.orderCode}
 ${data.headcount ? `👥 인원수: ${data.headcount}명` : ''}
 ${data.cabinType ? `🛏️ 객실타입: ${data.cabinType}` : ''}
+${data.productDetails?.hasEscort ? `✅ 인솔자 포함` : ''}
+${data.productDetails?.hasLocalGuide ? `✅ 가이드 포함` : ''}
+${data.productDetails?.hasCruisedotStaff ? `✅ 크루즈닷 전용스탭 포함` : ''}
+${data.productDetails?.hasTravelInsurance ? `✅ 여행자보험 포함` : ''}
 
 담당 ${data.responsibleRole}: ${data.responsibleName}
 
@@ -180,6 +205,10 @@ ${data.cabinType ? `🛏️ 객실타입: ${data.cabinType}` : ''}
           <span class="label">상품명</span>
           <span class="value">${data.productName || data.productCode}</span>
         </div>
+        ${data.productDetails?.cruiseLine ? `<div class="info-row"><span class="label">크루즈회사</span><span class="value">${data.productDetails.cruiseLine}</span></div>` : ''}
+        ${data.productDetails?.shipName ? `<div class="info-row"><span class="label">선박명</span><span class="value">${data.productDetails.shipName}</span></div>` : ''}
+        ${travelPeriod ? `<div class="info-row"><span class="label">여행기간</span><span class="value">${travelPeriod}</span></div>` : ''}
+        ${data.cabinType ? `<div class="info-row"><span class="label">객실타입</span><span class="value">${data.cabinType}</span></div>` : ''}
         <div class="info-row">
           <span class="label">결제금액</span>
           <span class="value"><strong>${formattedAmount}원</strong></span>
@@ -193,13 +222,37 @@ ${data.cabinType ? `🛏️ 객실타입: ${data.cabinType}` : ''}
           <span class="value">${data.orderCode}</span>
         </div>
         ${data.headcount ? `<div class="info-row"><span class="label">인원수</span><span class="value">${data.headcount}명</span></div>` : ''}
-        ${data.cabinType ? `<div class="info-row"><span class="label">객실타입</span><span class="value">${data.cabinType}</span></div>` : ''}
         ${data.fareCategory ? `<div class="info-row"><span class="label">요금카테고리</span><span class="value">${data.fareCategory}</span></div>` : ''}
         <div class="info-row">
           <span class="label">담당 ${data.responsibleRole}</span>
           <span class="value">${data.responsibleName}</span>
         </div>
       </div>
+
+      ${(data.productDetails?.hasEscort || data.productDetails?.hasLocalGuide || data.productDetails?.hasCruisedotStaff || data.productDetails?.hasTravelInsurance) ? `
+      <div class="info-box" style="border-left-color: #22c55e;">
+        <div style="font-weight: bold; margin-bottom: 10px;">서비스 안내</div>
+        ${data.productDetails?.hasEscort ? `<div class="info-row"><span class="label">인솔자</span><span class="value" style="color: #22c55e;">✓ 포함</span></div>` : ''}
+        ${data.productDetails?.hasLocalGuide ? `<div class="info-row"><span class="label">가이드</span><span class="value" style="color: #22c55e;">✓ 포함</span></div>` : ''}
+        ${data.productDetails?.hasCruisedotStaff ? `<div class="info-row"><span class="label">크루즈닷 전용스탭</span><span class="value" style="color: #22c55e;">✓ 포함</span></div>` : ''}
+        ${data.productDetails?.hasTravelInsurance ? `<div class="info-row"><span class="label">여행자보험</span><span class="value" style="color: #22c55e;">✓ 포함</span></div>` : ''}
+      </div>` : ''}
+
+      ${data.productDetails?.included && data.productDetails.included.length > 0 ? `
+      <div class="info-box" style="border-left-color: #22c55e;">
+        <div style="font-weight: bold; margin-bottom: 10px;">✅ 포함사항</div>
+        <ul style="margin: 0; padding-left: 20px; color: #555;">
+          ${data.productDetails.included.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+      </div>` : ''}
+
+      ${data.productDetails?.excluded && data.productDetails.excluded.length > 0 ? `
+      <div class="info-box" style="border-left-color: #ef4444;">
+        <div style="font-weight: bold; margin-bottom: 10px;">❌ 불포함사항</div>
+        <ul style="margin: 0; padding-left: 20px; color: #555;">
+          ${data.productDetails.excluded.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+      </div>` : ''}
       
       <p>추가 문의사항이 있으시면 언제든지 연락주세요.</p>
       <p>즐거운 여행 되세요! 🛳️</p>
@@ -270,6 +323,37 @@ export async function sendPurchaseConfirmation(saleId: number, pngBuffer?: Buffe
       return { success: false, error: 'Sale not found' };
     }
 
+    // CruiseProduct와 MallProductContent 조회
+    let cruiseProduct: {
+      nights: number | null;
+      cruiseLine: string | null;
+      shipName: string | null;
+    } | null = null;
+    let mallContent: { layout?: any } | null = null;
+
+    if (sale.productCode) {
+      [cruiseProduct, mallContent] = await Promise.all([
+        prisma.cruiseProduct.findUnique({
+          where: { productCode: sale.productCode },
+          select: { nights: true, cruiseLine: true, shipName: true },
+        }),
+        prisma.mallProductContent.findUnique({
+          where: { productCode: sale.productCode },
+          select: { layout: true },
+        }),
+      ]);
+    }
+
+    // MallProductContent의 layout에서 상세 정보 추출
+    const layout = mallContent?.layout as {
+      hasEscort?: boolean;
+      hasLocalGuide?: boolean;
+      hasCruisedotStaff?: boolean;
+      hasTravelInsurance?: boolean;
+      included?: string[];
+      excluded?: string[];
+    } | null;
+
     // 담당자 정보 결정 (판매원 우선, 없으면 대리점장)
     const agent = sale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile;
     const manager = sale.AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile;
@@ -301,6 +385,19 @@ export async function sendPurchaseConfirmation(saleId: number, pngBuffer?: Buffe
       responsibleName,
       responsibleRole: responsibleRole as '대리점장' | '판매원',
       orderCode: sale.externalOrderCode || `ORDER-${sale.id}`,
+      // 상품 상세 정보
+      productDetails: cruiseProduct ? {
+        nights: cruiseProduct.nights || undefined,
+        days: cruiseProduct.nights ? cruiseProduct.nights + 1 : undefined,
+        cruiseLine: cruiseProduct.cruiseLine || undefined,
+        shipName: cruiseProduct.shipName || undefined,
+        hasEscort: layout?.hasEscort,
+        hasLocalGuide: layout?.hasLocalGuide,
+        hasCruisedotStaff: layout?.hasCruisedotStaff,
+        hasTravelInsurance: layout?.hasTravelInsurance,
+        included: layout?.included,
+        excluded: layout?.excluded,
+      } : undefined,
     });
 
     const results: any = {

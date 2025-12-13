@@ -35,7 +35,7 @@ export async function GET(
       where: { id: sessionUser.id },
       include: {
         AffiliateProfile: {
-          select: { id: true, type: true, managerId: true },
+          select: { id: true, type: true },
         },
       },
     });
@@ -102,10 +102,11 @@ export async function GET(
         if (lead.managerId === profile.id || lead.agentId) {
           // 판매원이 있는 경우, 해당 판매원이 내 소속인지 확인
           if (lead.agentId) {
-            const agentProfile = await prisma.affiliateProfile.findFirst({
-              where: { id: lead.agentId, managerId: profile.id },
+            // AffiliateRelation 테이블에서 대리점장-판매원 관계 확인
+            const agentRelation = await prisma.affiliateRelation.findFirst({
+              where: { agentId: lead.agentId, managerId: profile.id, status: 'ACTIVE' },
             });
-            hasAccess = lead.managerId === profile.id || !!agentProfile;
+            hasAccess = lead.managerId === profile.id || !!agentRelation;
           } else {
             hasAccess = lead.managerId === profile.id;
           }
@@ -233,7 +234,7 @@ export async function PATCH(
       where: { id: sessionUser.id },
       include: {
         AffiliateProfile: {
-          select: { id: true, type: true, managerId: true },
+          select: { id: true, type: true },
         },
       },
     });
@@ -263,10 +264,11 @@ export async function PATCH(
         if (existingLead.managerId === profile.id) {
           hasAccess = true;
         } else if (existingLead.agentId) {
-          const agentProfile = await prisma.affiliateProfile.findFirst({
-            where: { id: existingLead.agentId, managerId: profile.id },
+          // AffiliateRelation 테이블에서 대리점장-판매원 관계 확인
+          const agentRelation = await prisma.affiliateRelation.findFirst({
+            where: { agentId: existingLead.agentId, managerId: profile.id, status: 'ACTIVE' },
           });
-          hasAccess = !!agentProfile;
+          hasAccess = !!agentRelation;
         }
       } else if (profile.type === 'SALES_AGENT') {
         hasAccess = existingLead.agentId === profile.id;

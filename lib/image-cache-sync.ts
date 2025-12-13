@@ -143,9 +143,10 @@ export async function syncImageCache(): Promise<{
     }
 
     // 현재 DB에 있는 모든 driveFileId 가져오기
-    const existingIds = new Set(
+    const existingIds = new Set<string>(
       (await prisma.imageCache.findMany({ select: { driveFileId: true } }))
         .map(item => item.driveFileId)
+        .filter((id): id is string => id !== null)
     );
 
     // 드라이브에서 가져온 파일 ID 세트

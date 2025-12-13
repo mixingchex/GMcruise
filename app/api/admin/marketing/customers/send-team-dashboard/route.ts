@@ -28,7 +28,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ id: number; na
 
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return NextResponse.json({ 

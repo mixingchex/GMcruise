@@ -357,7 +357,7 @@ export default function HomeClientPage() {
         </section>
       )}
 
-      {/* 크루즈닷 지니 쇼츠 (통계 바로 아래) */}
+      {/* 크루즈닷AI 쇼츠 (통계 바로 아래) */}
       {pageConfig?.youtubeShorts?.enabled !== false && (
         <section className="container mx-auto px-4 py-12 bg-white">
           <div className="text-center mb-8">
@@ -410,7 +410,7 @@ export default function HomeClientPage() {
 
           {/* 유튜브 구독하기 (Solid Red) */}
           <a
-            href="https://www.youtube.com/@cruisedotgini?sub_confirmation=1"
+            href="https://www.youtube.com/@cruisedoAI?sub_confirmation=1"
             target="_blank"
             rel="noopener noreferrer"
             className="group relative overflow-hidden rounded-xl bg-[#E50914] p-8 shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
@@ -435,7 +435,7 @@ export default function HomeClientPage() {
 
 
 
-      {/* 크루즈닷 지니 영상 */}
+      {/* 크루즈닷AI 영상 */}
       {pageConfig?.youtubeVideos?.enabled !== false && (
         <section className="container mx-auto px-4 py-12 bg-gray-50">
           <div className="text-center mb-8">

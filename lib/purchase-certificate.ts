@@ -32,6 +32,14 @@ interface PurchaseCertificateData {
     shipName?: string;
     destinations?: string[];
     flightIncluded?: boolean;
+    // 추가 상세 정보
+    hasEscort?: boolean;           // 인솔자
+    hasLocalGuide?: boolean;       // 가이드
+    hasCruisedotStaff?: boolean;   // 크루즈닷 전용스탭
+    hasTravelInsurance?: boolean;  // 여행자보험
+    included?: string[];           // 포함사항
+    excluded?: string[];           // 불포함사항
+    cabinType?: string;            // 결제한 객실
   };
 }
 
@@ -225,6 +233,11 @@ function generateEmailHtml(data: PurchaseCertificateData): string {
           <span class="label">여행기간</span>
           <span class="value">${data.productDetails.nights}박 ${data.productDetails.days || data.productDetails.nights + 1}일</span>
         </div>` : ''}
+        ${data.productDetails?.cabinType ? `
+        <div class="info-row">
+          <span class="label">객실타입</span>
+          <span class="value">${data.productDetails.cabinType}</span>
+        </div>` : ''}
         <div class="info-row">
           <span class="label">결제금액</span>
           <span class="value amount">${formattedAmount}원</span>
@@ -238,6 +251,48 @@ function generateEmailHtml(data: PurchaseCertificateData): string {
           <span class="value">${data.orderId}</span>
         </div>
       </div>
+
+      ${(data.productDetails?.hasEscort !== undefined || data.productDetails?.hasLocalGuide !== undefined ||
+         data.productDetails?.hasCruisedotStaff !== undefined || data.productDetails?.hasTravelInsurance !== undefined) ? `
+      <div class="info-box" style="margin-top: 16px;">
+        <div style="font-weight: 600; color: #1e293b; margin-bottom: 12px; font-size: 15px;">서비스 안내</div>
+        ${data.productDetails?.hasEscort ? `
+        <div class="info-row">
+          <span class="label">인솔자</span>
+          <span class="value" style="color: #22c55e;">✓ 포함</span>
+        </div>` : ''}
+        ${data.productDetails?.hasLocalGuide ? `
+        <div class="info-row">
+          <span class="label">가이드</span>
+          <span class="value" style="color: #22c55e;">✓ 포함</span>
+        </div>` : ''}
+        ${data.productDetails?.hasCruisedotStaff ? `
+        <div class="info-row">
+          <span class="label">크루즈닷 전용스탭</span>
+          <span class="value" style="color: #22c55e;">✓ 포함</span>
+        </div>` : ''}
+        ${data.productDetails?.hasTravelInsurance ? `
+        <div class="info-row">
+          <span class="label">여행자보험</span>
+          <span class="value" style="color: #22c55e;">✓ 포함</span>
+        </div>` : ''}
+      </div>` : ''}
+
+      ${data.productDetails?.included && data.productDetails.included.length > 0 ? `
+      <div class="info-box" style="margin-top: 16px; border-left-color: #22c55e;">
+        <div style="font-weight: 600; color: #1e293b; margin-bottom: 12px; font-size: 15px;">✅ 포함사항</div>
+        <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.8;">
+          ${data.productDetails.included.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+      </div>` : ''}
+
+      ${data.productDetails?.excluded && data.productDetails.excluded.length > 0 ? `
+      <div class="info-box" style="margin-top: 16px; border-left-color: #ef4444;">
+        <div style="font-weight: 600; color: #1e293b; margin-bottom: 12px; font-size: 15px;">❌ 불포함사항</div>
+        <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.8;">
+          ${data.productDetails.excluded.map(item => `<li>${item}</li>`).join('')}
+        </ul>
+      </div>` : ''}
 
       <div class="certificate-notice">
         <p>&#128206; 첨부된 구매확인증서 이미지를 확인해 주세요.</p>
@@ -468,6 +523,7 @@ export async function sendCertificateOnPaymentComplete(paymentId: number): Promi
               include: {
                 CruiseProduct: {
                   select: {
+                    productCode: true,
                     cruiseLine: true,
                     shipName: true,
                     nights: true,
@@ -492,6 +548,16 @@ export async function sendCertificateOnPaymentComplete(paymentId: number): Promi
       },
     });
 
+    // MallProductContent에서 상세 정보 조회
+    const productCode = payment?.Reservation?.Trip?.CruiseProduct?.productCode || payment?.Reservation?.Trip?.productCode;
+    let mallContent: { layout?: any } | null = null;
+    if (productCode) {
+      mallContent = await prisma.mallProductContent.findUnique({
+        where: { productCode },
+        select: { layout: true },
+      });
+    }
+
     if (!payment) {
       return { ok: false, error: '결제 정보를 찾을 수 없습니다.' };
     }
@@ -506,6 +572,19 @@ export async function sendCertificateOnPaymentComplete(paymentId: number): Promi
     const agent = sale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile;
     const manager = sale?.AffiliateProfile_AffiliateSale_managerIdToAffiliateProfile;
     const responsibleProfile = agent || manager;
+
+    // MallProductContent의 layout에서 상세 정보 추출
+    const layout = mallContent?.layout as {
+      hasEscort?: boolean;
+      hasLocalGuide?: boolean;
+      hasCruisedotStaff?: boolean;
+      hasTravelInsurance?: boolean;
+      included?: string[];
+      excluded?: string[];
+    } | null;
+
+    // 객실 타입 (Reservation 또는 AffiliateSale에서)
+    const cabinType = reservation?.cabinType || sale?.cabinType || undefined;
 
     // 구매확인서 데이터 구성
     const certData: PurchaseCertificateData = {
@@ -529,6 +608,14 @@ export async function sendCertificateOnPaymentComplete(paymentId: number): Promi
         shipName: product.shipName || undefined,
         destinations: product.destinations as string[] || undefined,
         flightIncluded: product.flightIncluded || undefined,
+        // MallProductContent에서 가져온 상세 정보
+        hasEscort: layout?.hasEscort,
+        hasLocalGuide: layout?.hasLocalGuide,
+        hasCruisedotStaff: layout?.hasCruisedotStaff,
+        hasTravelInsurance: layout?.hasTravelInsurance,
+        included: layout?.included,
+        excluded: layout?.excluded,
+        cabinType,
       } : undefined,
     };
 
@@ -608,6 +695,29 @@ export async function sendCertificateForSale(saleId: number): Promise<SendResult
     const trip = reservation?.Trip;
     const cruiseProduct = trip?.CruiseProduct;
 
+    // MallProductContent에서 상세 정보 조회
+    const saleProductCode = sale.productCode || product?.productCode;
+    let mallContent: { layout?: any } | null = null;
+    if (saleProductCode) {
+      mallContent = await prisma.mallProductContent.findUnique({
+        where: { productCode: saleProductCode },
+        select: { layout: true },
+      });
+    }
+
+    // MallProductContent의 layout에서 상세 정보 추출
+    const layout = mallContent?.layout as {
+      hasEscort?: boolean;
+      hasLocalGuide?: boolean;
+      hasCruisedotStaff?: boolean;
+      hasTravelInsurance?: boolean;
+      included?: string[];
+      excluded?: string[];
+    } | null;
+
+    // 객실 타입 (AffiliateSale 또는 Reservation에서)
+    const cabinType = sale.cabinType || reservation?.cabinType || undefined;
+
     // 이메일 주소 찾기 (여러 소스에서)
     const customerEmail = user?.email ||
       (lead?.metadata as any)?.customerEmail ||
@@ -634,6 +744,14 @@ export async function sendCertificateForSale(saleId: number): Promise<SendResult
         shipName: cruiseProduct.shipName || undefined,
         destinations: cruiseProduct.destinations as string[] || undefined,
         flightIncluded: cruiseProduct.flightIncluded || undefined,
+        // MallProductContent에서 가져온 상세 정보
+        hasEscort: layout?.hasEscort,
+        hasLocalGuide: layout?.hasLocalGuide,
+        hasCruisedotStaff: layout?.hasCruisedotStaff,
+        hasTravelInsurance: layout?.hasTravelInsurance,
+        included: layout?.included,
+        excluded: layout?.excluded,
+        cabinType,
       } : undefined,
     };
 

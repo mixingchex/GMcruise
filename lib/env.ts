@@ -40,23 +40,34 @@ const optionalEnvVars = [
 
 export function validateEnv() {
   const isProduction = process.env.NODE_ENV === 'production';
-  
+  const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build';
+
+  // 빌드 단계에서는 환경변수 검증 건너뛰기 (실제 서버 실행 시에만 검증)
+  if (isBuildPhase) {
+    console.log('🔧 Build phase detected: Skipping environment variable validation.');
+    return;
+  }
+
   // 기본 필수 변수
   const requiredEnvVars = [
     'GEMINI_API_KEY',
     'DATABASE_URL',
+    'NEXTAUTH_SECRET',  // 인증 시크릿 키
+    'NEXTAUTH_URL',     // 인증 URL
   ];
-  
+
   // 프로덕션에서만 필수인 변수 (결제 기능 사용 시)
   const productionRequiredEnvVars = isProduction ? [
     'PG_SIGNKEY',
     'PG_MID_AUTH',
     'NEXT_PUBLIC_BASE_URL',
+    'EMAIL_SMTP_USER',      // 이메일 발송 계정
+    'EMAIL_SMTP_PASSWORD',  // 이메일 발송 비밀번호
   ] : [];
-  
+
   const allRequired = [...requiredEnvVars, ...productionRequiredEnvVars];
   const missing = allRequired.filter(key => !process.env[key]);
-  
+
   if (missing.length > 0) {
     console.error(`❌ ERROR: Missing required environment variables: ${missing.join(', ')}`);
     console.error('💡 Hint: Check .env.local file and make sure all keys are set.');

@@ -11,7 +11,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // GET: 다이어리 기록 조회
 export async function GET(req: Request) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, message: 'UNAUTHORIZED' }, { status: 401 });
     }
@@ -73,7 +74,8 @@ export async function GET(req: Request) {
 // POST: 다이어리 기록 작성
 export async function POST(req: Request) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, message: 'UNAUTHORIZED' }, { status: 401 });
     }

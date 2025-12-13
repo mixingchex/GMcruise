@@ -25,7 +25,7 @@ export default function YouTubePage() {
               {/* 채널 링크 */}
               <div className="text-center">
                 <a
-                  href="https://www.youtube.com/@cruisedot"
+                  href="https://www.youtube.com/@cruisedoAI"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-block px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors"

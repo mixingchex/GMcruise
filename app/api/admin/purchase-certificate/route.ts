@@ -11,7 +11,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 
 // 관리자 권한 확인 헬퍼
 async function checkAdminAuth(): Promise<{ ok: boolean; userId?: number; error?: string }> {
-  const sid = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sid) {
     return { ok: false, error: '로그인이 필요합니다.' };
   }

@@ -38,11 +38,12 @@ export async function POST(
       });
     } else if (profile.type === 'BRANCH_MANAGER') {
       // 대리점장: 본인 고객 + 소속 판매원 고객
-      const agents = await prisma.affiliateProfile.findMany({
-        where: { managerId: profile.id },
-        select: { id: true },
+      // AffiliateRelation 테이블에서 대리점장-판매원 관계 조회
+      const agentRelations = await prisma.affiliateRelation.findMany({
+        where: { managerId: profile.id, status: 'ACTIVE' },
+        select: { agentId: true },
       });
-      const agentIds = agents.map((a) => a.id);
+      const agentIds = agentRelations.map((r) => r.agentId);
 
       lead = await prisma.affiliateLead.findFirst({
         where: {

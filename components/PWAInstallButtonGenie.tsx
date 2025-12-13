@@ -57,7 +57,7 @@ export default function PWAInstallButtonGenie() {
         await deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
-          console.log('크루즈가이드 지니 PWA 설치 완료 - 바로 채팅 화면으로 이동');
+          console.log('크루즈닷AI PWA 설치 완료 - 바로 채팅 화면으로 이동');
           // PWA 설치 추적 API 호출
           try {
             await fetch('/api/pwa/install', {
@@ -72,7 +72,7 @@ export default function PWAInstallButtonGenie() {
           // 설치 완료 후 채팅 페이지로 이동
           window.location.href = '/chat?utm_source=pwa&utm_medium=home_screen';
         } else {
-          console.log('크루즈가이드 지니 PWA 설치 취소됨');
+          console.log('크루즈닷AI PWA 설치 취소됨');
         }
       } catch (error: any) {
         console.error('[PWA Install Genie] 설치 오류:', error);
@@ -115,7 +115,7 @@ export default function PWAInstallButtonGenie() {
         await promptEvent.prompt();
         const { outcome } = await promptEvent.userChoice;
         if (outcome === 'accepted') {
-          console.log('크루즈가이드 지니 PWA 설치 완료 - 바로 채팅 화면으로 이동');
+          console.log('크루즈닷AI PWA 설치 완료 - 바로 채팅 화면으로 이동');
           // PWA 설치 추적 API 호출
           try {
             await fetch('/api/pwa/install', {
@@ -129,7 +129,7 @@ export default function PWAInstallButtonGenie() {
           }
           window.location.href = '/chat?utm_source=pwa&utm_medium=home_screen';
         } else {
-          console.log('크루즈가이드 지니 PWA 설치 취소됨');
+          console.log('크루즈닷AI PWA 설치 취소됨');
         }
       } catch (error: any) {
         console.error('[PWA Install Genie] 설치 오류:', error);

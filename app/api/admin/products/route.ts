@@ -35,7 +35,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 export async function GET(req: NextRequest) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {
@@ -108,7 +109,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {
@@ -370,7 +372,8 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {
@@ -478,7 +481,8 @@ export async function PUT(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {

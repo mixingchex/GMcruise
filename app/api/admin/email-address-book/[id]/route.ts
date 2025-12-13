@@ -7,7 +7,8 @@ import prisma from '@/lib/prisma';
 
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) return null;
 
     const session = await prisma.session.findUnique({

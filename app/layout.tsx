@@ -72,7 +72,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   // SEO 전역 설정에서 소셜 미디어 링크, 연락처 정보, Google Search Console verification 가져오기
-  let socialLinks: string[] = ['https://www.youtube.com/@cruisedotgini'];
+  let socialLinks: string[] = ['https://www.youtube.com/@cruisedoAI'];
   let contactPhone = '010-3289-3800';
   let googleSearchConsoleVerification: string | null = null;
   
@@ -94,7 +94,7 @@ export default async function RootLayout({
       
       // 소셜 링크가 없으면 기본값 사용
       if (socialLinks.length === 0) {
-        socialLinks = ['https://www.youtube.com/@cruisedotgini'];
+        socialLinks = ['https://www.youtube.com/@cruisedoAI'];
       }
       
       // 연락처 정보

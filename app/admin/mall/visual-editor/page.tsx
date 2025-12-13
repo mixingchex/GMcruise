@@ -286,7 +286,7 @@ export default function VisualEditorPage() {
     hero: {
       videoUrl: '/videos/hero-video.mp4',
       logoUrl: '/images/ai-cruise-logo.png', // 기본 로고
-      title: '크루즈닷 AI 지니',
+      title: '크루즈닷AI',
       subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
       buttons: [
         { text: '지금 시작하기', link: '/login', backgroundColor: '#ffffff', textColor: '#1e40af' },
@@ -299,7 +299,7 @@ export default function VisualEditorPage() {
       layout: 'horizontal',
       buttons: [
         { enabled: true, type: 'kakao', text: '카카오톡 상담', link: '', size: 'medium', backgroundColor: '#FEE500', textColor: '#000000' },
-        { enabled: true, type: 'youtube', text: '유튜브 구독하기', link: 'https://www.youtube.com/@cruisedot', size: 'medium', backgroundColor: '#FF0000', textColor: '#FFFFFF' },
+        { enabled: true, type: 'youtube', text: '유튜브 구독하기', link: 'https://www.youtube.com/@cruisedoAI', size: 'medium', backgroundColor: '#FF0000', textColor: '#FFFFFF' },
       ],
     },
     videoBanner: {
@@ -345,18 +345,18 @@ export default function VisualEditorPage() {
     },
     youtubeShorts: {
       enabled: true,
-      title: '🎬 크루즈닷 지니 TV - Shorts',
+      title: '🎬 크루즈닷AI TV - Shorts',
       description: '크루즈 여행의 모든 순간을 Shorts로 만나보세요',
     },
     youtubeVideos: {
       enabled: true,
-      title: '📺 크루즈닷 지니 TV - 영상',
+      title: '📺 크루즈닷AI TV - 영상',
       description: '크루즈 여행의 특별한 영상을 만나보세요',
     },
     youtubeLive: {
       enabled: true,
       title: '📡 라이브 방송',
-      description: '지금 이 순간, 크루즈닷 지니와 함께하세요',
+      description: '지금 이 순간, 크루즈닷AI와 함께하세요',
     },
     productList: {
       enabled: true,

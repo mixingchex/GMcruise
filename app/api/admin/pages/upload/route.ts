@@ -13,7 +13,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // 관리자 권한 확인
 async function checkAdminAuth(): Promise<boolean> {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) return false;
 
     const session = await prisma.session.findUnique({

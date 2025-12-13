@@ -289,7 +289,7 @@ function DesktopPreview({ config, user }: { config: any; user: any }) {
         <section className="container mx-auto px-4 py-12 bg-white">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {config.youtubeShorts?.title || '🎬 크루즈닷 지니 쇼츠'}
+              {config.youtubeShorts?.title || '🎬 크루즈닷AI 쇼츠'}
             </h2>
             <p className="text-gray-600 text-lg">
               {config.youtubeShorts?.description || '크루즈 여행의 모든 순간을 Shorts로 만나보세요'}
@@ -311,7 +311,7 @@ function DesktopPreview({ config, user }: { config: any; user: any }) {
         <section className="container mx-auto px-4 py-12 bg-gray-50">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {config.youtubeVideos?.title || '📺 크루즈닷 지니 영상'}
+              {config.youtubeVideos?.title || '📺 크루즈닷AI 영상'}
             </h2>
             <p className="text-gray-600 text-lg">
               {config.youtubeVideos?.description || '크루즈 여행의 특별한 영상을 만나보세요'}
@@ -329,7 +329,7 @@ function DesktopPreview({ config, user }: { config: any; user: any }) {
               {config.youtubeLive?.title || '📡 라이브 방송'}
             </h2>
             <p className="text-gray-600 text-lg">
-              {config.youtubeLive?.description || '지금 이 순간, 크루즈닷 지니와 함께하세요'}
+              {config.youtubeLive?.description || '지금 이 순간, 크루즈닷AI와 함께하세요'}
             </p>
           </div>
           <YoutubeLiveSection />

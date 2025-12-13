@@ -6,10 +6,11 @@ import { SESSION_COOKIE } from '@/lib/session';
 import prisma from '@/lib/prisma';
 
 export async function POST() {
+  const cookieStore = await cookies();
   try {
     // 세션 쿠키 가져오기
-    const sessionId = cookies().get(SESSION_COOKIE)?.value;
-    
+    const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
+
     // 데이터베이스에서 세션 삭제
     if (sessionId) {
       try {
@@ -22,15 +23,15 @@ export async function POST() {
         console.error('[Logout] Error deleting session from DB:', error);
       }
     }
-    
+
     // 쿠키 삭제
-    cookies().delete(SESSION_COOKIE);
-    
+    cookieStore.delete(SESSION_COOKIE);
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Logout] Error:', error);
     // 쿠키는 삭제 시도
-    cookies().delete(SESSION_COOKIE);
+    cookieStore.delete(SESSION_COOKIE);
     return NextResponse.json({ ok: true }); // 에러가 있어도 로그아웃은 성공 처리
   }
 } 

@@ -1998,7 +1998,7 @@ export default function AdminSettingsPage() {
                     value={isEditingSeoGlobalConfig ? (editableSeoGlobalConfig.defaultSiteDescription || '') : (seoGlobalConfig?.defaultSiteDescription || '')}
                     onChange={(e) => setEditableSeoGlobalConfig({ ...editableSeoGlobalConfig, defaultSiteDescription: e.target.value })}
                     disabled={!isEditingSeoGlobalConfig}
-                    placeholder="AI 가이드 지니와 함께하는 특별한 크루즈 여행"
+                    placeholder="크루즈닷AI와 함께하는 특별한 크루즈 여행"
                     rows={3}
                     className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 disabled:bg-gray-100"
                   />

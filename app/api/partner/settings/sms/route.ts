@@ -34,12 +34,17 @@ export async function GET(req: NextRequest) {
           apiKey: '',
           userId: '',
           senderPhone: '',
+          ipAddress: '',
           kakaoSenderKey: '',
           kakaoChannelId: '',
           isActive: false,
         },
       });
     }
+
+    // metadata에서 ipAddress 추출
+    const metadata = config.metadata as { ipAddress?: string } | null;
+    const ipAddress = metadata?.ipAddress || '';
 
     return NextResponse.json({
       ok: true,
@@ -48,6 +53,7 @@ export async function GET(req: NextRequest) {
         apiKey: config.apiKey,
         userId: config.userId,
         senderPhone: config.senderPhone,
+        ipAddress,
         kakaoSenderKey: config.kakaoSenderKey || '',
         kakaoChannelId: config.kakaoChannelId || '',
         isActive: config.isActive,
@@ -70,7 +76,10 @@ export async function POST(req: NextRequest) {
   try {
     const { profile } = await requirePartnerContext();
     const body = await req.json();
-    const { provider, apiKey, userId, senderPhone, kakaoSenderKey, kakaoChannelId, isActive } = body;
+    const { provider, apiKey, userId, senderPhone, ipAddress, kakaoSenderKey, kakaoChannelId, isActive } = body;
+
+    // metadata에 ipAddress 저장
+    const metadata = ipAddress ? { ipAddress } : null;
 
     // 필수 필드 검증
     if (!provider || !apiKey || !userId || !senderPhone) {
@@ -97,6 +106,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            metadata,
             updatedAt: new Date(),
           },
         });
@@ -111,6 +121,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            metadata,
             updatedAt: new Date(),
           },
         });
@@ -132,6 +143,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            metadata,
             updatedAt: new Date(),
           },
         });
@@ -146,6 +158,7 @@ export async function POST(req: NextRequest) {
             kakaoSenderKey: kakaoSenderKey || null,
             kakaoChannelId: kakaoChannelId || null,
             isActive: isActive !== undefined ? isActive : true,
+            metadata,
             updatedAt: new Date(),
           },
         });

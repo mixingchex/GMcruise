@@ -435,9 +435,9 @@ export default function PromotionBannerCarousel() {
       {/* 인디케이터 - 세련된 디자인 */}
       {banners.length > 1 && (
         <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex gap-3 items-center">
-          {banners.map((_, index) => (
+          {banners.map((banner, index) => (
             <button
-              key={index}
+              key={banner.id}
               onClick={() => goToSlide(index)}
               className={`h-3 rounded-full transition-all duration-300 ${index === currentIndex
                 ? 'w-10 bg-white shadow-[0_4px_12px_rgba(255,255,255,0.5)]'

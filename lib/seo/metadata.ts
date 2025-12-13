@@ -75,7 +75,7 @@ export async function generateMetadata(
 
   // SEO 설정이 있으면 우선 사용, 없으면 기본값 사용
   const title = seoConfig?.title || defaults?.title || '크루즈 가이드 - AI 여행 도우미';
-  const description = seoConfig?.description || defaults?.description || 'AI 가이드 지니와 함께하는 특별한 크루즈 여행';
+  const description = seoConfig?.description || defaults?.description || '크루즈닷AI와 함께하는 특별한 크루즈 여행';
   const ogTitle = seoConfig?.ogTitle || seoConfig?.title || defaults?.title || title;
   const ogDescription = seoConfig?.ogDescription || seoConfig?.description || defaults?.description || description;
   const ogImage = seoConfig?.ogImage || defaults?.image || `${baseUrl}/images/ai-cruise-logo.png`;
@@ -151,7 +151,7 @@ export async function generateStructuredData(
         name: '크루즈 가이드',
         alternateName: 'Cruise Guide',
         url: baseUrl,
-        description: 'AI 가이드 지니와 함께하는 특별한 크루즈 여행',
+        description: '크루즈닷AI와 함께하는 특별한 크루즈 여행',
         publisher: {
           '@type': 'Organization',
           name: '크루즈닷',
@@ -178,7 +178,7 @@ export async function generateStructuredData(
         alternateName: 'CruiseDot',
         url: baseUrl,
         logo: `${baseUrl}/images/ai-cruise-logo.png`,
-        description: 'AI 가이드 지니와 함께하는 특별한 크루즈 여행',
+        description: '크루즈닷AI와 함께하는 특별한 크루즈 여행',
         contactPoint: {
           '@type': 'ContactPoint',
           telephone: '010-3289-3800',
@@ -187,7 +187,7 @@ export async function generateStructuredData(
           availableLanguage: 'Korean'
         },
         sameAs: [
-          'https://www.youtube.com/@cruisedotgini'
+          'https://www.youtube.com/@cruisedoAI'
         ],
       };
 

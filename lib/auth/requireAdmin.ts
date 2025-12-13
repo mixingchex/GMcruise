@@ -22,14 +22,16 @@ export class AdminAuthError extends Error {
 }
 
 export async function requireAdmin(): Promise<AdminContext> {
-  const sessionId = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sessionId) {
     throw new AdminAuthError('관리자 로그인이 필요합니다.', 401);
   }
 
   const session = await prisma.session.findUnique({
     where: { id: sessionId },
-    include: {
+    select: {
+      expiresAt: true,
       User: {
         select: {
           id: true,
@@ -44,6 +46,12 @@ export async function requireAdmin(): Promise<AdminContext> {
 
   if (!session?.User) {
     throw new AdminAuthError('세션 정보를 확인할 수 없습니다.', 401);
+  }
+
+  // 세션 만료 검증
+  if (session.expiresAt && session.expiresAt < new Date()) {
+    await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+    throw new AdminAuthError('세션이 만료되었습니다. 다시 로그인해주세요.', 401);
   }
 
   if (session.User.role !== 'admin') {

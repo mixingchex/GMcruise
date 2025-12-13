@@ -105,7 +105,7 @@ export default function NewProductPage() {
   });
   const [isManualProductCode, setIsManualProductCode] = useState(false); // 수동 입력 모드
 
-  // 8. 문의 옵션 (결제하기, 전화상담, AI 지니 채팅봇) - 각각 활성화/비활성화 가능
+  // 8. 문의 옵션 (결제하기, 전화상담, 크루즈닷AI 채팅봇) - 각각 활성화/비활성화 가능
   const [contactOptions, setContactOptions] = useState<{
     payment: boolean;
     phoneCall: boolean;
@@ -113,7 +113,7 @@ export default function NewProductPage() {
   }>({
     payment: false,
     phoneCall: false,
-    aiChatbot: true, // 기본값: AI 지니 채팅봇만 활성화
+    aiChatbot: true, // 기본값: 크루즈닷AI 채팅봇만 활성화
   });
 
   // 추천 키워드 목록 (실제 검색량이 많은 키워드 50개 - 구글/네이버 검색량 기준)
@@ -1594,7 +1594,7 @@ export default function NewProductPage() {
                     onChange={(e) => setFormData({ ...formData, isGeniePack: e.target.checked })}
                     className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                   />
-                  <span className="text-sm text-gray-700">지니패키지 크루즈</span>
+                  <span className="text-sm text-gray-700">크루즈닷AI패키지</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -1873,15 +1873,15 @@ export default function NewProductPage() {
                 <div className="font-semibold text-gray-800 flex items-center gap-2">
                   <img 
                     src="/images/ai-cruise-logo.png" 
-                    alt="AI 지니" 
+                    alt="크루즈닷AI" 
                     className="w-5 h-5 object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
-                  AI 지니 채팅봇
+                  크루즈닷AI 채팅봇
                 </div>
-                <div className="text-sm text-gray-600">AI 지니 채팅봇을 통해 실시간으로 상담을 받을 수 있습니다.</div>
+                <div className="text-sm text-gray-600">크루즈닷AI 채팅봇을 통해 실시간으로 상담을 받을 수 있습니다.</div>
               </div>
             </label>
           </div>

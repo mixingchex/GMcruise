@@ -27,7 +27,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 // 모든 고객을 보여주되, customerSource가 'group'인 고객도 포함 (고객 그룹 관리에서 추가한 고객)
 export async function GET(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다' }, { status: 401 });
     }

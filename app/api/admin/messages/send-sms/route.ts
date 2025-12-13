@@ -3,13 +3,15 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
+import { backupSmsLog } from '@/lib/message-backup';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
 // 관리자 권한 확인
 async function checkAdminAuth() {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return null;
@@ -298,6 +300,20 @@ export async function POST(req: NextRequest) {
     } catch (error) {
       console.error('[Send SMS] 메시지 기록 실패:', error);
     }
+
+    // Google Spreadsheet 백업 (비동기, 실패해도 메인 응답에 영향 없음)
+    backupSmsLog({
+      sentAt: new Date(),
+      senderName: admin.name || '관리자',
+      senderType: 'ADMIN',
+      messageType: 'SMS',
+      content: `${title}\n\n${content}`,
+      recipients: targetUsers.map((u) => ({ name: u.name, phone: u.phone })),
+      recipientCount: targetUsers.length,
+      status: failCount === 0 ? 'SENT' : failCount === targetUsers.length ? 'FAILED' : 'PARTIAL',
+      successCount,
+      failCount,
+    }).catch((err) => console.error('[Admin SMS Backup] 스프레드시트 백업 실패:', err));
 
     return NextResponse.json({
       ok: true,

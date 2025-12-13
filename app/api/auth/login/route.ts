@@ -18,7 +18,7 @@ const TEST_MODE_PASSWORDS = ['1101']; // 테스트 모드는 1101만 허용
 export async function POST(req: Request) {
   try {
     // Rate Limiting 체크
-    const headersList = headers();
+    const headersList = await headers();
     const clientIp = getClientIpFromRequest(req, headersList);
     const rateLimitKey = `login:${clientIp}`;
 
@@ -448,7 +448,8 @@ export async function POST(req: Request) {
         );
       }
 
-      cookies().set(SESSION_COOKIE, session.id, {
+      const cookieStore = await cookies();
+      cookieStore.set(SESSION_COOKIE, session.id, {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
@@ -1093,7 +1094,8 @@ export async function POST(req: Request) {
           select: { id: true, csrfToken: true },
         });
 
-        cookies().set(SESSION_COOKIE, session.id, {
+        const cookieStore = await cookies();
+        cookieStore.set(SESSION_COOKIE, session.id, {
           httpOnly: true,
           sameSite: 'lax',
           path: '/',
@@ -1265,7 +1267,8 @@ export async function POST(req: Request) {
         });
 
         // 쿠키 심기
-        cookies().set(SESSION_COOKIE, session.id, {
+        const cookieStore = await cookies();
+        cookieStore.set(SESSION_COOKIE, session.id, {
           httpOnly: true,
           sameSite: 'lax',
           path: '/',
@@ -1466,7 +1469,8 @@ export async function POST(req: Request) {
         ]);
 
         // 쿠키 설정
-        cookies().set(SESSION_COOKIE, session.id, {
+        const cookieStore = await cookies();
+        cookieStore.set(SESSION_COOKIE, session.id, {
           httpOnly: true,
           sameSite: 'lax',
           path: '/',
@@ -1591,7 +1595,8 @@ export async function POST(req: Request) {
         });
 
         // 쿠키 심기
-        cookies().set(SESSION_COOKIE, session.id, {
+        const cookieStore = await cookies();
+        cookieStore.set(SESSION_COOKIE, session.id, {
           httpOnly: true,
           sameSite: 'lax',
           path: '/',
@@ -2030,7 +2035,8 @@ export async function POST(req: Request) {
         });
 
         // 쿠키 심기
-        cookies().set(SESSION_COOKIE, session.id, {
+        const cookieStore = await cookies();
+        cookieStore.set(SESSION_COOKIE, session.id, {
           httpOnly: true,
           sameSite: 'lax',
           path: '/',
@@ -2161,7 +2167,8 @@ export async function POST(req: Request) {
         select: { id: true, csrfToken: true },
       });
 
-      cookies().set(SESSION_COOKIE, session.id, {
+      const cookieStore = await cookies();
+      cookieStore.set(SESSION_COOKIE, session.id, {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
@@ -2308,7 +2315,8 @@ export async function POST(req: Request) {
     });
 
     // 7) 쿠키 심기
-    cookies().set(SESSION_COOKIE, session.id, {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE, session.id, {
       httpOnly: true,
       sameSite: 'lax',
       path: '/',

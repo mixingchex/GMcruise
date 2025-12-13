@@ -9,7 +9,7 @@ import { cookies } from 'next/headers';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
-// 관리자 권한 확인
+// 관리자 권한 확인 (세션 만료 검증 포함)
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
   if (!sid) {
     console.log('[Admin Affiliate Links] No session ID');
@@ -31,6 +31,12 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
       return false;
     }
 
+    // 세션 만료 검증
+    if (session.expiresAt && new Date(session.expiresAt) < new Date()) {
+      console.log('[Admin Affiliate Links] Session expired');
+      return false;
+    }
+
     const isAdmin = session.User.role === 'admin';
     console.log('[Admin Affiliate Links] Auth check:', { userId: session.userId, role: session.User.role, isAdmin });
     return isAdmin;
@@ -44,7 +50,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
 export async function GET(req: NextRequest) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return NextResponse.json({ 
@@ -174,7 +181,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // 관리자 권한 확인
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     
     if (!sid) {
       return NextResponse.json({ 

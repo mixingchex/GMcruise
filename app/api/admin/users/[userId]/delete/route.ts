@@ -36,7 +36,8 @@ export async function DELETE(
   console.log('[Delete User] Params:', JSON.stringify(params));
   
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     console.log('[Delete User] Session ID:', sid ? `${sid.substring(0, 10)}...` : 'MISSING');
     
     if (!sid) {

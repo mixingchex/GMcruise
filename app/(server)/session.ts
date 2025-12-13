@@ -6,7 +6,8 @@ import prisma from '@/lib/prisma';
 export const SESSION_COOKIE = 'cg.sid.v2';
 
 export async function getServerSession(): Promise<{ userId: number } | null> {
-  const sessionId = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sessionId) return null;
 
   // 데이터베이스에서 세션 조회

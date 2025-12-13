@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import ComplianceCheckPanel from '@/components/admin/ComplianceCheckPanel';
+import { checkContractCompliance } from '@/lib/legal-compliance';
 
 interface ContractSection {
   id: string;
@@ -558,6 +560,19 @@ export default function ContractTemplatesPage() {
                   💾 저장하기
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* 법률 컴플라이언스 체크 */}
+          {editingTemplate && (
+            <div className="p-4 lg:p-6 border-t border-gray-200">
+              <ComplianceCheckPanel
+                results={checkContractCompliance({
+                  contractType: selectedType,
+                  sections: editingTemplate.sections,
+                })}
+                title="계약서 법률 체크"
+              />
             </div>
           )}
 

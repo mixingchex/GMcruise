@@ -10,7 +10,8 @@ import { cookies } from 'next/headers';
 const SESSION_COOKIE = 'cg.sid.v2';
 
 async function checkAdminAuth() {
-  const sessionId = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sessionId) {
     return null;
   }

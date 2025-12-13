@@ -12,16 +12,16 @@ import { runFullCustomerBackup } from '@/lib/google/customer-backup';
  */
 export async function POST(req: NextRequest) {
   try {
-    const auth = await checkAdminAuth(req);
+    const auth = await checkAdminAuth();
 
-    if (!auth.ok) {
+    if (!auth.isAdmin) {
       return NextResponse.json(
         { ok: false, error: '관리자 권한이 필요합니다.' },
         { status: 401 }
       );
     }
 
-    console.log('[Customer Backup API] Manual backup requested by:', auth.userId);
+    console.log('[Customer Backup API] Manual backup requested by:', auth.user?.id);
 
     // 고객 백업 실행
     const result = await runFullCustomerBackup();
@@ -57,9 +57,9 @@ export async function POST(req: NextRequest) {
  */
 export async function GET(req: NextRequest) {
   try {
-    const auth = await checkAdminAuth(req);
+    const auth = await checkAdminAuth();
 
-    if (!auth.ok) {
+    if (!auth.isAdmin) {
       return NextResponse.json(
         { ok: false, error: '관리자 권한이 필요합니다.' },
         { status: 401 }

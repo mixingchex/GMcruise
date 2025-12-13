@@ -52,10 +52,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: '파일이 없습니다.' }, { status: 400 });
     }
 
+    // 🔒 파일 크기 제한 (50MB)
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({
+        ok: false,
+        message: `파일 크기가 너무 큽니다. (최대 50MB, 현재 ${Math.round(file.size / 1024 / 1024)}MB)`
+      }, { status: 400 });
+    }
+
     // 이미지 파일만 허용
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ ok: false, message: '이미지 파일만 업로드 가능합니다.' }, { status: 400 });
+    }
+
+    // 🔒 파일 확장자 검증 (MIME 타입과 확장자 일치 확인)
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const fileExt = path.extname(file.name).toLowerCase();
+    if (!allowedExtensions.includes(fileExt)) {
+      return NextResponse.json({ ok: false, message: '허용되지 않는 파일 확장자입니다.' }, { status: 400 });
     }
 
     // 파일명 정리 (특수문자 제거)

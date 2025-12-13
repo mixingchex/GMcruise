@@ -64,7 +64,8 @@ export async function GET(
   try {
     const { productCode } = await params;
     console.log('[Admin Products Detail GET] Request received for productCode:', productCode);
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     console.log('[Admin Products Detail GET] Session cookie:', sid ? sid.substring(0, 10) + '...' : 'not found');
 
     const isAdmin = await checkAdminAuth(sid);
@@ -184,7 +185,8 @@ export async function PUT(
 ) {
   try {
     const { productCode: productCodeParam } = await params;
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {

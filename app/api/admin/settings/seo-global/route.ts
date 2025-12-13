@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       config = await prisma.seoGlobalConfig.create({
         data: {
           defaultSiteName: '크루즈 가이드',
-          defaultSiteDescription: 'AI 가이드 지니와 함께하는 특별한 크루즈 여행',
+          defaultSiteDescription: '크루즈닷AI와 함께하는 특별한 크루즈 여행',
         },
       });
     }

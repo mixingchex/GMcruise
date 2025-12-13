@@ -286,13 +286,14 @@ export async function GET(req: Request) {
     });
   } catch (error: any) {
     console.error('[PUBLIC REVIEWS] Error:', error);
-    // 에러 발생 시 샘플 데이터 반환
+    // 에러 발생 시 샘플 데이터 반환 (fallback)
     return NextResponse.json({
-      ok: true,
+      ok: false,
+      error: 'Failed to fetch reviews',
       reviews: SAMPLE_REVIEWS.map(review => ({
         ...review,
         images: review.images || []
       }))
-    });
+    }, { status: 500 });
   }
 }

@@ -42,8 +42,9 @@ export async function withAuth<T = any>(
   return async (req: NextRequest): Promise<NextResponse<T>> => {
     try {
       // 세션 쿠키 확인
-      const sid = cookies().get(SESSION_COOKIE)?.value;
-      
+      const cookieStore = await cookies();
+      const sid = cookieStore.get(SESSION_COOKIE)?.value;
+
       if (!sid) {
         if (options.required !== false) {
           return errorResponse('인증이 필요합니다. 다시 로그인해 주세요.', 401) as NextResponse<T>;
@@ -55,7 +56,8 @@ export async function withAuth<T = any>(
       // 세션에서 사용자 정보 조회
       const session = await prisma.session.findUnique({
         where: { id: sid },
-        include: {
+        select: {
+          expiresAt: true,
           User: {
             select: {
               id: true,
@@ -73,6 +75,12 @@ export async function withAuth<T = any>(
           return errorResponse('인증이 필요합니다. 다시 로그인해 주세요.', 401) as NextResponse<T>;
         }
         return handler(req, null as any);
+      }
+
+      // 🔒 세션 만료 검증
+      if (session.expiresAt && session.expiresAt < new Date()) {
+        await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+        return errorResponse('세션이 만료되었습니다. 다시 로그인해 주세요.', 401) as NextResponse<T>;
       }
 
       const user: ApiUser = {

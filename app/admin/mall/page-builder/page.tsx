@@ -240,7 +240,7 @@ export default function PageBuilderPage() {
           title: '인기 크루즈',
           buttons: [
             { text: '프리미엄 서비스 보장', icon: '✓' },
-            { text: '지니 AI 가이드 서비스 지원', icon: '✓' },
+            { text: '크루즈닷AI 가이드 서비스 지원', icon: '✓' },
             { text: '확실한 출발 100%', icon: '✓' },
           ],
           rightBadge: { topText: '신뢰할 수 있는', bottomText: '한국 여행사' },

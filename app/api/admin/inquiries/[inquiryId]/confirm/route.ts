@@ -16,7 +16,8 @@ const SESSION_COOKIE = 'cg.sid.v2';
  * - tripCount >= 2이면 RePurchaseTrigger 생성 및 converted: true 설정
  */
 async function checkAdminAuth() {
-  const sessionId = cookies().get(SESSION_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const sessionId = cookieStore.get(SESSION_COOKIE)?.value;
   if (!sessionId) {
     return null;
   }

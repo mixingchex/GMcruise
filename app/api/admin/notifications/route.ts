@@ -37,7 +37,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ isAdmin: boole
 // GET: 알림 목록 조회 (읽지 않은 알림만)
 export async function GET(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
     
     if (!auth.isAdmin || !auth.userId) {
@@ -120,7 +121,8 @@ export async function GET(req: NextRequest) {
 // POST: 알림 읽음 처리
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const auth = await checkAdminAuth(sid);
     
     if (!auth.isAdmin || !auth.userId) {

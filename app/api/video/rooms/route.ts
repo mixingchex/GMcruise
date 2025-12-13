@@ -11,7 +11,8 @@ import { nanoid } from 'nanoid';
 // 미팅 방 생성
 export async function POST(request: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
     }
@@ -187,7 +188,8 @@ export async function POST(request: NextRequest) {
 // 미팅 방 목록 조회
 export async function GET(request: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) {
       return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
     }

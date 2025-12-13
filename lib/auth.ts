@@ -16,16 +16,27 @@ export type SessionUser = {
 export async function getSessionUser(): Promise<SessionUser | null> {
   try {
     const cookieStore = await cookies();
-    const sid = cookieStore.get(SESSION_COOKIE)?.value; // 프로젝트 세션 쿠키 키
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     if (!sid) return null;
 
     const sess = await prisma.session.findUnique({
       where: { id: sid },
-      select: { User: { select: { id: true, name: true, phone: true, onboarded: true, role: true } } },
+      select: {
+        expiresAt: true,
+        User: { select: { id: true, name: true, phone: true, onboarded: true, role: true } }
+      },
     });
 
-    const u = sess?.User;
-    return u ? { id: u.id, name: u.name, phone: u.phone, onboarded: !!u.onboarded, role: u.role } : null;
+    if (!sess?.User) return null;
+
+    // 세션 만료 확인
+    if (sess.expiresAt && sess.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+      return null;
+    }
+
+    const u = sess.User;
+    return { id: u.id, name: u.name, phone: u.phone, onboarded: !!u.onboarded, role: u.role };
   } catch (error: any) {
     console.error('[getSessionUser] Error:', error);
     return null;
@@ -65,7 +76,8 @@ export type AdminAuthResult = {
  */
 export async function checkAdminAuth(): Promise<AdminAuthResult> {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return { isAdmin: false, user: null, error: 'No session' };
@@ -74,6 +86,7 @@ export async function checkAdminAuth(): Promise<AdminAuthResult> {
     const session = await prisma.session.findUnique({
       where: { id: sid },
       select: {
+        expiresAt: true,
         User: {
           select: { id: true, name: true, role: true },
         },
@@ -82,6 +95,12 @@ export async function checkAdminAuth(): Promise<AdminAuthResult> {
 
     if (!session?.User) {
       return { isAdmin: false, user: null, error: 'Invalid session' };
+    }
+
+    // 세션 만료 확인
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+      return { isAdmin: false, user: null, error: 'Session expired' };
     }
 
     const user = session.User;
@@ -134,7 +153,8 @@ export async function requireAdminAuth(): Promise<AdminUser> {
  */
 export async function checkAdminOrAffiliateAuth(): Promise<AdminAuthResult> {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
     if (!sid) {
       return { isAdmin: false, user: null, error: 'No session' };
@@ -143,6 +163,7 @@ export async function checkAdminOrAffiliateAuth(): Promise<AdminAuthResult> {
     const session = await prisma.session.findUnique({
       where: { id: sid },
       select: {
+        expiresAt: true,
         User: {
           select: { id: true, name: true, role: true },
         },
@@ -151,6 +172,12 @@ export async function checkAdminOrAffiliateAuth(): Promise<AdminAuthResult> {
 
     if (!session?.User) {
       return { isAdmin: false, user: null, error: 'Invalid session' };
+    }
+
+    // 세션 만료 확인
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+      return { isAdmin: false, user: null, error: 'Session expired' };
     }
 
     const user = session.User;

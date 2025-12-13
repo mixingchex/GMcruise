@@ -30,7 +30,8 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ id: number } |
 // POST: 고객 그룹 관리에서 고객 직접 생성
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const admin = await checkAdminAuth(sid);
     
     if (!admin) {

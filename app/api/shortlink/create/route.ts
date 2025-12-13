@@ -67,7 +67,8 @@ function generateShortCode(length: number = 6): string {
  */
 export async function POST(req: NextRequest) {
   try {
-    const sid = cookies().get(SESSION_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {

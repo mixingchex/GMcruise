@@ -34,6 +34,7 @@ import {
   FiCloud,
   FiDownload,
   FiFile,
+  FiImage,
 } from 'react-icons/fi';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
@@ -153,6 +154,7 @@ type PartnerCustomer = {
   customerStatus?: string | null;
   customerSource?: string | null; // 고객 출처 추가 (명확한 구분용)
   mallUserId?: string | null;
+  totalTripCount?: number;
   // 전화상담 고객용 추가 정보
   userId?: number | null;
   cruiseName?: string | null;
@@ -602,7 +604,7 @@ export default function PartnerCustomersClient({
   // 치환 기능 - 선택된 상품 ID (상품 목록은 기존 activeProducts 사용)
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
 
-  // 치환 함수 - 메시지에서 {{이름}}, {{연락처}}, {{상품명}} 치환
+  // 치환 함수 - 메시지에서 {이름}, {연락처}, {상품명} 치환
   const applySubstitution = useCallback((text: string) => {
     let result = text;
     // 이름 치환
@@ -3585,14 +3587,6 @@ export default function PartnerCustomersClient({
                           <label className="block text-xs font-bold text-slate-700 mb-2">연락처</label>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-slate-900 bg-slate-50 px-3 py-2 rounded-lg flex-1">{selectedLead.customerPhone ?? '연락처 미입력'}</span>
-                            {selectedLead.customerPhone ? (
-                              <a
-                                href={`tel:${selectedLead.customerPhone.replace(/[^0-9]/g, '')}`}
-                                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors shadow-sm"
-                              >
-                                <FiPhone /> 전화걸기
-                              </a>
-                            ) : null}
                           </div>
                         </div>
                         <div>
@@ -3757,35 +3751,41 @@ export default function PartnerCustomersClient({
                         )}
                       </div>
 
-                      {/* 문자 보내기 버튼 */}
-                      <div className="mt-4">
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!selectedLead && selectedLeadId) {
-                              await loadLeadDetail(selectedLeadId);
-                            }
-                            setShowSmsModal(true);
-                          }}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-emerald-700 transition-colors"
-                        >
-                          <FiMessageSquare />
-                          문자 보내기
-                        </button>
-                      </div>
-
-                      {/* 이메일 보내기 버튼 */}
-                      <div className="mt-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setShowEmailModal(true);
-                          }}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white shadow-lg hover:bg-indigo-700 transition-colors"
-                        >
-                          <FiSend />
-                          이메일 보내기
-                        </button>
+                      {/* 빠른 메시지 섹션 */}
+                      <div className="mt-6 pt-4 border-t border-slate-200">
+                        <label className="block text-sm font-bold text-slate-700 mb-3">
+                          빠른 메시지
+                        </label>
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!selectedLead && selectedLeadId) {
+                                await loadLeadDetail(selectedLeadId);
+                              }
+                              setShowSmsModal(true);
+                            }}
+                            disabled={!selectedLead?.customerPhone}
+                            className="w-full px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <FiMessageSquare size={18} />
+                            문자 보내기
+                          </button>
+                          {!selectedLead?.customerPhone && (
+                            <p className="text-xs text-slate-500">* 전화번호가 없어 문자를 보낼 수 없습니다.</p>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowEmailModal(true);
+                            }}
+                            className="w-full px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 flex items-center justify-center gap-2 transition-colors"
+                          >
+                            <FiSend size={18} />
+                            이메일 보내기
+                          </button>
+                          <p className="text-xs text-slate-500">* 이메일 주소를 직접 입력하여 발송합니다.</p>
+                        </div>
                       </div>
                     </div>
 
@@ -4415,26 +4415,26 @@ export default function PartnerCustomersClient({
                     <div className="flex flex-wrap gap-2 mb-3">
                       <button
                         type="button"
-                        onClick={() => setSmsMessage(smsMessage + '{{이름}}')}
+                        onClick={() => setSmsMessage(smsMessage + '{이름}')}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
                       >
-                        <span>{{이름}}</span>
+                        <span>{'{이름}'}</span>
                         <span className="text-amber-500">→ {selectedLead?.customerName || '고객명'}</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSmsMessage(smsMessage + '{{연락처}}')}
+                        onClick={() => setSmsMessage(smsMessage + '{연락처}')}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
                       >
-                        <span>{{연락처}}</span>
+                        <span>{'{연락처}'}</span>
                         <span className="text-amber-500">→ {selectedLead?.customerPhone || '연락처'}</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSmsMessage(smsMessage + '{{상품명}}')}
+                        onClick={() => setSmsMessage(smsMessage + '{상품명}')}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
                       >
-                        <span>{{상품명}}</span>
+                        <span>{'{상품명}'}</span>
                         <span className="text-amber-500">→ {selectedProductId ? activeProducts.find(p => p.id === selectedProductId)?.packageName || '상품명' : '상품 선택 필요'}</span>
                       </button>
                     </div>
@@ -4447,7 +4447,7 @@ export default function PartnerCustomersClient({
                         className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
                         disabled={loadingProducts}
                       >
-                        <option value="">상품을 선택하세요 ({{상품명}} 치환용)</option>
+                        <option value="">{'상품을 선택하세요 ({상품명} 치환용)'}</option>
                         {activeProducts.map((product) => (
                           <option key={product.id} value={product.id}>
                             {product.packageName} ({product.cruiseLine} - {product.shipName})
@@ -4492,13 +4492,13 @@ export default function PartnerCustomersClient({
                   value={smsMessage}
                   onChange={(e) => setSmsMessage(e.target.value)}
                   placeholder={smsMethod === 'link'
-                    ? `안녕하세요 {{이름}}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n[링크가 자동으로 포함됩니다]`
-                    : '안녕하세요 {{이름}}님. {{상품명}} 상품에 관심 가져주셔서 감사합니다.'}
+                    ? `안녕하세요 {이름}님. 여권 정보를 업로드해주시기 바랍니다. 아래 링크를 클릭해주세요.\n\n[링크가 자동으로 포함됩니다]`
+                    : '안녕하세요 {이름}님. {상품명} 상품에 관심 가져주셔서 감사합니다.'}
                   rows={6}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
                 {/* 미리보기 */}
-                {smsMessage && (smsMessage.includes('{{이름}}') || smsMessage.includes('{{연락처}}') || smsMessage.includes('{{상품명}}')) && (
+                {smsMessage && (smsMessage.includes('{이름}') || smsMessage.includes('{연락처}') || smsMessage.includes('{상품명}')) && (
                   <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <p className="text-xs font-semibold text-gray-600 mb-1">📱 발송될 메시지 미리보기:</p>
                     <p className="text-sm text-gray-800 whitespace-pre-wrap">{applySubstitution(smsMessage)}</p>
@@ -4507,7 +4507,7 @@ export default function PartnerCustomersClient({
                 <p className="mt-1 text-xs text-gray-500">
                   {smsMethod === 'link'
                     ? '링크는 자동으로 문자 내용 끝에 추가됩니다.'
-                    : '치환 태그({{이름}}, {{연락처}}, {{상품명}})를 사용하면 발송 시 자동 치환됩니다.'}
+                    : '치환 태그({이름}, {연락처}, {상품명})를 사용하면 발송 시 자동 치환됩니다.'}
                 </p>
               </div>
             </div>
@@ -5905,7 +5905,7 @@ export default function PartnerCustomersClient({
                   type="text"
                   value={emailTitle}
                   onChange={(e) => setEmailTitle(e.target.value)}
-                  placeholder="{{이름}}님께 드리는 특별한 크루즈 여행 안내"
+                  placeholder="{이름}님께 드리는 특별한 크루즈 여행 안내"
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
@@ -5920,26 +5920,26 @@ export default function PartnerCustomersClient({
                     <div className="flex flex-wrap gap-2 mb-3">
                       <button
                         type="button"
-                        onClick={() => setEmailContent(emailContent + '{{이름}}')}
+                        onClick={() => setEmailContent(emailContent + '{이름}')}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
                       >
-                        <span>{{이름}}</span>
+                        <span>{'{이름}'}</span>
                         <span className="text-amber-500">→ {selectedLead?.customerName || '고객명'}</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEmailContent(emailContent + '{{연락처}}')}
+                        onClick={() => setEmailContent(emailContent + '{연락처}')}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
                       >
-                        <span>{{연락처}}</span>
+                        <span>{'{연락처}'}</span>
                         <span className="text-amber-500">→ {selectedLead?.customerPhone || '연락처'}</span>
                       </button>
                       <button
                         type="button"
-                        onClick={() => setEmailContent(emailContent + '{{상품명}}')}
+                        onClick={() => setEmailContent(emailContent + '{상품명}')}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-semibold text-amber-700 hover:bg-amber-100 transition-colors"
                       >
-                        <span>{{상품명}}</span>
+                        <span>{'{상품명}'}</span>
                         <span className="text-amber-500">→ {selectedProductId ? activeProducts.find(p => p.id === selectedProductId)?.packageName || '상품명' : '상품 선택 필요'}</span>
                       </button>
                     </div>
@@ -5952,7 +5952,7 @@ export default function PartnerCustomersClient({
                         className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-100"
                         disabled={loadingProducts}
                       >
-                        <option value="">상품을 선택하세요 ({{상품명}} 치환용)</option>
+                        <option value="">{'상품을 선택하세요 ({상품명} 치환용)'}</option>
                         {activeProducts.map((product) => (
                           <option key={product.id} value={product.id}>
                             {product.packageName} ({product.cruiseLine} - {product.shipName})
@@ -5972,12 +5972,12 @@ export default function PartnerCustomersClient({
                 <textarea
                   value={emailContent}
                   onChange={(e) => setEmailContent(e.target.value)}
-                  placeholder="안녕하세요 {{이름}}님,&#10;&#10;{{상품명}} 상품에 관심을 가져주셔서 감사합니다.&#10;&#10;자세한 문의사항이 있으시면 연락 주세요."
+                  placeholder="안녕하세요 {이름}님,&#10;&#10;{상품명} 상품에 관심을 가져주셔서 감사합니다.&#10;&#10;자세한 문의사항이 있으시면 연락 주세요."
                   rows={8}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
                 />
                 {/* 미리보기 */}
-                {emailContent && (emailContent.includes('{{이름}}') || emailContent.includes('{{연락처}}') || emailContent.includes('{{상품명}}')) && (
+                {emailContent && (emailContent.includes('{이름}') || emailContent.includes('{연락처}') || emailContent.includes('{상품명}')) && (
                   <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <p className="text-xs font-semibold text-gray-600 mb-1">📧 발송될 내용 미리보기:</p>
                     <p className="text-sm text-gray-800 whitespace-pre-wrap">{applySubstitution(emailContent)}</p>

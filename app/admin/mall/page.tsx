@@ -33,7 +33,7 @@ export default function MallManagementPage() {
             <h2 className="text-xl font-bold text-gray-800">여행 배정</h2>
           </div>
           <p className="text-gray-600 text-sm">
-            고객에게 구매한 크루즈 상품을 배정합니다. 배정하면 지니 AI 가이드를 사용할 수 있습니다.
+            고객에게 구매한 크루즈 상품을 배정합니다. 배정하면 크루즈닷AI 가이드를 사용할 수 있습니다.
           </p>
         </Link>
 
