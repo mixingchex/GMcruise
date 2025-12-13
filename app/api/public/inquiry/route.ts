@@ -190,7 +190,22 @@ export async function POST(req: NextRequest) {
     // AffiliateLead 생성 (모든 전화상담 문의 누적 기록 - 본사/대리점장/판매원 모두)
     // 중복 상관없이 항상 새로 생성하여 백업
     try {
+      // 자동 생성된 AffiliateLink 찾기 (통계 추적용)
+      let linkId: number | null = null;
+      if (affiliateCode && productCode) {
+        const autoLinkCode = `AUTO-${productCode}-${affiliateCode}`;
+        const affiliateLink = await prisma.affiliateLink.findUnique({
+          where: { code: autoLinkCode },
+          select: { id: true },
+        });
+        if (affiliateLink) {
+          linkId = affiliateLink.id;
+          console.log('[Public Inquiry API] 자동 생성 링크 연결:', { autoLinkCode, linkId });
+        }
+      }
+
       const leadData = {
+        linkId: linkId, // 자동 생성 링크와 연결 (통계 추적용)
         managerId: managerId || null,
         agentId: agentId || null,
         customerName: customerName,
@@ -209,6 +224,7 @@ export async function POST(req: NextRequest) {
           actualName: customerName, // 실제 이름 저장
           actualPhone: customerPhone, // 실제 연락처 저장
           channel: managerId || agentId ? '파트너' : '본사', // 채널 정보
+          linkCode: linkId ? `AUTO-${productCode}-${affiliateCode}` : null, // 링크 코드 기록
         },
         updatedAt: new Date(), // 필수 필드
       };

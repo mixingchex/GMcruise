@@ -62,14 +62,35 @@ type ShareLinks = {
   landing: string | null;
 };
 
+type ProductLink = {
+  id: string | number;
+  code: string;
+  title: string | null;
+  productCode: string;
+  status: string;
+  url: string;
+  product: {
+    id: number;
+    productCode: string;
+    title: string;
+  };
+  isAutoLink: boolean;
+  _count?: {
+    leads: number;
+    sales: number;
+  };
+};
+
 export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProps) {
   const [shareLinks, setShareLinks] = useState<ShareLinks | null>(null);
   const [links, setLinks] = useState<AffiliateLink[]>([]);
+  const [productLinks, setProductLinks] = useState<ProductLink[]>([]);
   const [validLinks, setValidLinks] = useState<Set<string>>(new Set()); // 유효한 링크 URL 저장
   const [isLoading, setIsLoading] = useState(true);
   const [isValidating, setIsValidating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [productSearchTerm, setProductSearchTerm] = useState('');
 
   useEffect(() => {
     loadLinks();
@@ -121,7 +142,16 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
       return { ...link, url: fullUrl };
     });
     setLinks(linksWithFullUrl);
-    
+
+    // 상품별 자동 링크 설정
+    if (json.productLinks) {
+      const productLinksWithFullUrl = json.productLinks.map((link: ProductLink) => ({
+        ...link,
+        url: `${window.location.origin}${link.url}`,
+      }));
+      setProductLinks(productLinksWithFullUrl);
+    }
+
     // 링크 유효성 검사 (비동기, 백그라운드에서 실행)
     validateLinks(linksWithFullUrl);
     } catch (error: any) {
@@ -248,6 +278,19 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
         );
     }
   };
+
+  // 상품 링크 필터링
+  const filteredProductLinks = productLinks.filter((link) => {
+    if (productSearchTerm) {
+      const term = productSearchTerm.toLowerCase();
+      return (
+        link.productCode?.toLowerCase().includes(term) ||
+        link.title?.toLowerCase().includes(term) ||
+        link.product?.title?.toLowerCase().includes(term)
+      );
+    }
+    return true;
+  });
 
   const filteredLinks = links.filter((link) => {
     // 검색어 필터
@@ -512,6 +555,129 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+
+        {/* 상품별 자동 판매 링크 */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-blue-50">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="text-2xl">🛍️</span>
+                  상품별 판매 링크
+                </h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  모든 활성 상품에 대한 나의 판매 링크입니다. 복사하여 고객에게 공유하세요.
+                </p>
+              </div>
+              <div className="text-sm font-medium text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">
+                {productLinks.length}개 상품
+              </div>
+            </div>
+          </div>
+
+          {/* 상품 검색 */}
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <div className="relative max-w-md">
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={productSearchTerm}
+                onChange={(e) => setProductSearchTerm(e.target.value)}
+                placeholder="상품명, 상품코드로 검색..."
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-300 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-100 text-sm"
+              />
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-500">로딩 중...</div>
+          ) : filteredProductLinks.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              {productSearchTerm ? (
+                <p>검색 결과가 없습니다.</p>
+              ) : (
+                <>
+                  <p className="mb-2">활성 상품이 없습니다.</p>
+                  <p className="text-sm text-gray-400">새로운 상품이 등록되면 자동으로 나타납니다.</p>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+              {filteredProductLinks.map((link) => (
+                <div
+                  key={link.id}
+                  className="px-6 py-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                          <FiCheckCircle className="text-xs" />
+                          자동 링크
+                        </span>
+                        <span className="text-xs text-gray-400 font-mono">
+                          {link.productCode}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-semibold text-gray-900 truncate mb-1">
+                        {link.title || link.product?.title || '상품명 없음'}
+                      </h3>
+                      <div className="text-xs text-gray-500 font-mono break-all line-clamp-1">
+                        {link.url}
+                      </div>
+                    </div>
+                    {/* 통계 표시 (DB 저장된 자동 링크용) */}
+                    {(link._count?.leads > 0 || link._count?.sales > 0) && (
+                      <div className="flex flex-col items-end text-xs text-gray-600 mr-2">
+                        <span>리드: <span className="font-semibold text-blue-600">{link._count?.leads || 0}</span></span>
+                        <span>판매: <span className="font-semibold text-emerald-600">{link._count?.sales || 0}</span></span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button
+                        onClick={() => copyToClipboard(link.url)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        title="링크 복사"
+                      >
+                        <FiCopy />
+                        복사
+                      </button>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition-colors"
+                        title="상품 페이지 열기"
+                      >
+                        <FiExternalLink />
+                        열기
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 전체 복사 버튼 */}
+          {filteredProductLinks.length > 0 && (
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => {
+                  const allLinks = filteredProductLinks
+                    .map((link) => `[${link.title || link.productCode}]\n${link.url}`)
+                    .join('\n\n');
+                  copyToClipboard(allLinks);
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+              >
+                <FiCopy />
+                전체 링크 복사 ({filteredProductLinks.length}개)
+              </button>
             </div>
           )}
         </div>
