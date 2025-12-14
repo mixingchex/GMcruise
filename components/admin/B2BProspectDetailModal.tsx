@@ -42,6 +42,7 @@ interface ConsultationNote {
   createdByName: string;
   createdByLabel: string;
   createdAt: string;
+  isOwn?: boolean; // 본인 작성 여부
 }
 
 interface TrialMetadata {
@@ -1056,17 +1057,19 @@ export default function B2BProspectDetailModal({ prospectId, prospectType, isOpe
                                 >
                                   상세 보기
                                 </button>
-                                {/* 삭제 버튼 */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteConsultation(note.id);
-                                  }}
-                                  disabled={isDeletingConsultation === note.id}
-                                  className="px-3 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
-                                >
-                                  {isDeletingConsultation === note.id ? '삭제 중...' : '삭제'}
-                                </button>
+                                {/* 삭제 버튼 - 본인이 작성한 경우만 표시 */}
+                                {note.isOwn && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteConsultation(note.id);
+                                    }}
+                                    disabled={isDeletingConsultation === note.id}
+                                    className="px-3 py-1 bg-red-500 text-white rounded text-xs font-medium hover:bg-red-600 disabled:opacity-50 transition-colors"
+                                  >
+                                    {isDeletingConsultation === note.id ? '삭제 중...' : '삭제'}
+                                  </button>
+                                )}
                                 <div className="text-xs text-gray-400 ml-1">
                                   등록: {new Date(note.createdAt).toLocaleString('ko-KR')}
                                 </div>

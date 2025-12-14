@@ -116,6 +116,7 @@ export async function GET(
             interaction.AffiliateProfile?.type === 'SALES_AGENT' ? '판매원' : '본사',
           createdByName: interaction.AffiliateProfile?.displayName || interaction.User?.name || '관리자',
           createdAt: interaction.occurredAt.toISOString(),
+          isOwn: interaction.User?.id === sessionUser.id, // 본인 작성 여부
         };
       }),
       // CustomerNote → 통합 포맷
@@ -132,6 +133,7 @@ export async function GET(
           note.createdByType === 'SALES_AGENT' ? '판매원' : '본사',
         createdByName: note.createdByName || '관리자',
         createdAt: note.createdAt.toISOString(),
+        isOwn: note.createdBy === sessionUser.id, // 본인 작성 여부
       })),
     ]
       // 중복 제거 (동일 내용+시간 기준)

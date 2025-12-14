@@ -29,7 +29,7 @@ export async function GET(
 ) {
   let resolvedParams: { leadId: string } = { leadId: 'unknown' };
   try {
-    const { profile } = await requirePartnerContext({ includeManagedAgents: true });
+    const { profile, sessionUser } = await requirePartnerContext({ includeManagedAgents: true });
     resolvedParams = await params;
     const leadId = parseLeadId(resolvedParams.leadId);
 
@@ -122,6 +122,7 @@ export async function GET(
             interaction.AffiliateProfile?.type === 'SALES_AGENT' ? '판매원' : '본사',
           createdByName: interaction.AffiliateProfile?.displayName || interaction.User?.name || '알 수 없음',
           createdAt: interaction.occurredAt.toISOString(), // AffiliateInteraction에 createdAt이 없어서 occurredAt 사용
+          isOwn: interaction.User?.id === sessionUser.id, // 본인 작성 여부
         };
       }),
       // CustomerNote → 통합 포맷
@@ -138,6 +139,7 @@ export async function GET(
           note.createdByType === 'SALES_AGENT' ? '판매원' : '본사',
         createdByName: note.createdByName || '관리자',
         createdAt: note.createdAt.toISOString(),
+        isOwn: note.createdBy === sessionUser.id, // 본인 작성 여부
       })),
     ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
