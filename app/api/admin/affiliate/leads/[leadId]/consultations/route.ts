@@ -81,7 +81,13 @@ export async function GET(
 
       if (user) {
         customerNotes = await prisma.customerNote.findMany({
-          where: { customerId: user.id },
+          where: {
+            customerId: user.id,
+            metadata: {
+              path: ['leadId'],
+              equals: leadId,
+            },
+          },
           orderBy: { createdAt: 'desc' },
         });
       }
@@ -298,6 +304,7 @@ export async function POST(
             statusAfter: statusAfter || null,
             audioFileUrl: audioFileUrl || null,
             isInternal: false,
+            metadata: { leadId }, // leadId 추가 (상담기록 필터링용)
             updatedAt: new Date(),
           },
         });
