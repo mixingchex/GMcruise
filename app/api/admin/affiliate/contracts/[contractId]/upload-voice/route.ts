@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import * as fs from 'fs';
 import * as path from 'path';
+import { uploadAffiliateInfoFile } from '@/lib/google-drive-affiliate-info';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -55,6 +56,84 @@ function sanitizeFileName(fileName: string): string {
     .substring(0, 255); // 파일명 길이 제한
 }
 
+// 매직 바이트를 사용한 실제 파일 형식 검증
+function validateAudioFile(uint8Array: Uint8Array, mimeType: string): boolean {
+  if (uint8Array.length < 12) {
+    return false; // 최소 12바이트 필요 (M4A ftyp 확인용)
+  }
+
+  // MP3: ID3v2 태그 (49 44 33 = "ID3")
+  const isMP3_ID3 =
+    uint8Array[0] === 0x49 &&
+    uint8Array[1] === 0x44 &&
+    uint8Array[2] === 0x33;
+
+  // MP3: 프레임 동기화 바이트 (FF FB, FF F3, FF F2)
+  const isMP3_Frame =
+    uint8Array[0] === 0xff &&
+    (uint8Array[1] === 0xfb || uint8Array[1] === 0xf3 || uint8Array[1] === 0xf2);
+
+  const isMP3 = isMP3_ID3 || isMP3_Frame;
+
+  // WAV: RIFF 헤더 (52 49 46 46 = "RIFF") + WAVE (offset 8-11)
+  const isWAV =
+    uint8Array[0] === 0x52 &&
+    uint8Array[1] === 0x49 &&
+    uint8Array[2] === 0x46 &&
+    uint8Array[3] === 0x46 &&
+    uint8Array[8] === 0x57 && // 'W'
+    uint8Array[9] === 0x41 && // 'A'
+    uint8Array[10] === 0x56 && // 'V'
+    uint8Array[11] === 0x45; // 'E'
+
+  // M4A: ftyp box (offset 4-7: 66 74 79 70 = "ftyp")
+  const isM4A_ftyp =
+    uint8Array[4] === 0x66 &&
+    uint8Array[5] === 0x74 &&
+    uint8Array[6] === 0x79 &&
+    uint8Array[7] === 0x70;
+
+  // M4A brand 확인 (offset 8-11)
+  const m4aBrand = isM4A_ftyp
+    ? String.fromCharCode(uint8Array[8], uint8Array[9], uint8Array[10], uint8Array[11])
+    : '';
+  const isM4A = isM4A_ftyp && (m4aBrand === 'M4A ' || m4aBrand === 'M4B ' || m4aBrand === 'mp42');
+
+  // WebM: EBML 헤더 (1A 45 DF A3)
+  const isWebM =
+    uint8Array[0] === 0x1a &&
+    uint8Array[1] === 0x45 &&
+    uint8Array[2] === 0xdf &&
+    uint8Array[3] === 0xa3;
+
+  // OGG: OggS 헤더 (4F 67 67 53 = "OggS")
+  const isOgg =
+    uint8Array[0] === 0x4f &&
+    uint8Array[1] === 0x67 &&
+    uint8Array[2] === 0x67 &&
+    uint8Array[3] === 0x53;
+
+  // MIME 타입과 매직 바이트 매칭 확인
+  if (mimeType.includes('mp3') || mimeType.includes('mpeg')) {
+    return isMP3;
+  }
+  if (mimeType.includes('wav')) {
+    return isWAV;
+  }
+  if (mimeType.includes('m4a') || mimeType.includes('x-m4a')) {
+    return isM4A;
+  }
+  if (mimeType.includes('webm')) {
+    return isWebM;
+  }
+  if (mimeType.includes('ogg')) {
+    return isOgg;
+  }
+
+  // MIME 타입이 명확하지 않은 경우, 매직 바이트 중 하나라도 일치하면 허용
+  return isMP3 || isWAV || isM4A || isWebM || isOgg;
+}
+
 /**
  * POST: 음성 파일 업로드
  */
@@ -77,6 +156,14 @@ export async function POST(
     // 2. 계약서 존재 확인
     const contract = await prisma.affiliateContract.findUnique({
       where: { id: contractId },
+      select: {
+        id: true,
+        metadata: true,
+        invitedByProfileId: true,
+        User_AffiliateContract_invitedByProfileIdToUser: {
+          select: { name: true }
+        }
+      }
     });
 
     if (!contract) {
@@ -88,9 +175,10 @@ export async function POST(
 
     // 3. FormData에서 파일 추출
     const formData = await req.formData();
-    const file = formData.get('file') as File | null;
+    const file = formData.get('file');
 
-    if (!file) {
+    // 타입 가드: File 객체인지 확인
+    if (!file || !(file instanceof File)) {
       return NextResponse.json(
         { ok: false, error: '파일을 업로드해주세요' },
         { status: 400 }
@@ -137,13 +225,28 @@ export async function POST(
       );
     }
 
-    // 7. 파일명 sanitize (경로 조작 방지)
+    // 7. 매직 바이트 검증 (파일 실제 내용 검증)
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    if (!validateAudioFile(uint8Array, file.type)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: '유효하지 않은 음성 파일입니다. 파일이 손상되었거나 형식이 올바르지 않습니다.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // 8. 파일명 sanitize (경로 조작 방지)
     const sanitizedFileName = sanitizeFileName(file.name);
     const finalFileName = sanitizedFileName || 'voice_' + Date.now() + '.' + ext;
 
     // ========== 보안 검증 종료 ==========
 
-    // 8. 파일 저장 디렉토리 설정
+    // 9. 파일 저장 디렉토리 설정
     const uploadDir = path.join(
       process.cwd(),
       'public',
@@ -158,50 +261,126 @@ export async function POST(
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    // 9. 파일 저장 경로
+    // 10. 파일 저장 경로
     const timestamp = Date.now();
     const uniqueFileName = timestamp + '_' + finalFileName;
     const filePath = path.join(uploadDir, uniqueFileName);
 
-    // 10. 파일 버퍼 읽기 및 저장
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    fs.writeFileSync(filePath, buffer);
+    // 11. 파일 저장 및 DB 업데이트 (트랜잭션으로 원자성 보장)
+    let tempFilePath = '';
+    let driveUrl: string | null = null;
+    let driveFileId: string | null = null;
 
-    // 11. DB에 파일 정보 저장
-    const fileUrl = '/uploads/affiliate/contracts/' + contractId + '/' + uniqueFileName;
+    try {
+      // 11-1. 파일 먼저 저장
+      fs.writeFileSync(filePath, buffer);
+      tempFilePath = filePath;
 
-    const updatedContract = await prisma.affiliateContract.update({
-      where: { id: contractId },
-      data: {
-        voiceRecordingUrl: fileUrl,
-        updatedAt: new Date(),
-      },
-    });
+      // 11-2. Google Drive에 백업 (선택적, 실패해도 계속 진행)
+      if (contract.invitedByProfileId) {
+        try {
+          const driveResult = await uploadAffiliateInfoFile(
+            contract.invitedByProfileId,
+            buffer,
+            uniqueFileName,
+            file.type,
+            'audio'
+          );
 
-    // 12. 업로드 로그 기록
-    console.log('[Voice Upload Success]', {
-      contractId,
-      fileName: uniqueFileName,
-      size: file.size,
-      type: file.type,
-      uploadedBy: admin.id,
-      adminName: admin.name,
-    });
+          if (driveResult.ok && driveResult.url) {
+            driveUrl = driveResult.url;
+            driveFileId = driveResult.fileId || null;
+            console.log('[Voice Upload] Google Drive 백업 성공:', driveUrl);
+          } else {
+            console.warn('[Voice Upload] Google Drive 백업 실패:', driveResult.error);
+          }
+        } catch (driveError) {
+          console.error('[Voice Upload] Google Drive 백업 에러:', driveError);
+          // Drive 백업 실패는 전체 업로드를 막지 않음
+        }
+      }
 
-    return NextResponse.json({
-      ok: true,
-      data: {
-        url: fileUrl,
+      // 11-3. DB 업데이트 (트랜잭션)
+      const fileUrl = '/uploads/affiliate/contracts/' + contractId + '/' + uniqueFileName;
+
+      const updatedContract = await prisma.$transaction(async (tx) => {
+        // 계약서 재확인 (트랜잭션 내에서)
+        const verifyContract = await tx.affiliateContract.findUnique({
+          where: { id: contractId },
+          select: { id: true, metadata: true },
+        });
+
+        if (!verifyContract) {
+          throw new Error('Contract not found');
+        }
+
+        const metadata = (verifyContract.metadata || {}) as any;
+        const voiceRecordings = metadata.voiceRecordings || [];
+
+        const newRecording = {
+          id: driveFileId || uniqueFileName,
+          url: fileUrl,
+          driveUrl: driveUrl || null,
+          name: file.name,
+          uploadedBy: admin.name || '관리자',
+          uploadedByRole: 'ADMIN',
+          uploadedAt: new Date().toISOString(),
+        };
+
+        voiceRecordings.push(newRecording);
+
+        return await tx.affiliateContract.update({
+          where: { id: contractId },
+          data: {
+            metadata: {
+              ...metadata,
+              voiceRecordings,
+            },
+            updatedAt: new Date(),
+          },
+        });
+      });
+
+      // 11-4. 업로드 로그 기록
+      console.log('[Voice Upload Success]', {
+        contractId,
         fileName: uniqueFileName,
         size: file.size,
         type: file.type,
-        contract: {
-          id: updatedContract.id,
-          voiceRecordingUrl: updatedContract.voiceRecordingUrl,
+        uploadedBy: admin.id,
+        adminName: admin.name,
+        driveUrl,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        data: {
+          url: fileUrl,
+          driveUrl,
+          fileName: uniqueFileName,
+          size: file.size,
+          type: file.type,
+          contract: {
+            id: updatedContract.id,
+            voiceRecordings: (updatedContract.metadata as any)?.voiceRecordings || [],
+          },
         },
-      },
-    });
+      });
+
+    } catch (uploadError: any) {
+      // DB 업데이트 실패 시 파일 정리 (orphan 파일 방지)
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        try {
+          fs.unlinkSync(tempFilePath);
+          console.log('[Voice Upload] 파일 정리 완료:', tempFilePath);
+        } catch (cleanupError) {
+          console.error('[Voice Upload] 파일 정리 실패:', cleanupError);
+        }
+      }
+
+      // 에러 재발생
+      throw uploadError;
+    }
   } catch (error: any) {
     console.error('[Voice Upload Error]:', error);
 

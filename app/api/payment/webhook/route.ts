@@ -366,8 +366,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 🎯 Reservation 생성 (PNR/여권 정보 입력을 위해 필요)
+    // 🔴 CRITICAL: Reservation 생성 (PNR/여권 정보 입력을 위해 필요)
+    // 실패 시 수동 환불 필요함을 DB에 기록
     let reservationId: number | null = null;
+    let reservationFailed = false;
     try {
       // 1. 총 인원 수 계산
       const totalGuests = metadata?.totalGuests || roomSelections.reduce((sum: number, sel: any) => {
@@ -497,9 +499,59 @@ export async function POST(req: NextRequest) {
         totalGuests,
       });
     } catch (reservationError) {
-      console.error('[Payment Webhook] Reservation 생성 실패:', reservationError);
-      // Reservation 생성 실패해도 결제 처리는 성공으로 처리
-      // 나중에 관리자가 수동으로 생성 가능
+      console.error('[Payment Webhook] 🔴 CRITICAL: Reservation 생성 실패:', reservationError);
+      reservationFailed = true;
+
+      // 🔴 CRITICAL: 결제는 완료되었지만 예약 생성 실패 - 수동 환불 필요
+      // 트랜잭션으로 Sale과 Payment 업데이트 (원자성 보장)
+      try {
+        await prisma.$transaction(async (tx) => {
+          // Sale 메타데이터에 실패 기록
+          await tx.affiliateSale.update({
+            where: { id: sale.id },
+            data: {
+              metadata: {
+                ...(sale.metadata as any || {}),
+                reservationFailed: true,
+                reservationFailureReason: reservationError instanceof Error ? reservationError.message : String(reservationError),
+                reservationFailedAt: new Date().toISOString(),
+                requiresManualRefund: true, // 🔴 수동 환불 필요 플래그
+              },
+            },
+          });
+
+          // Payment 상태를 failed로 업데이트하여 추적 가능하게 함
+          await tx.payment.updateMany({
+            where: { orderId: merchant_uid },
+            data: {
+              status: 'failed',
+              metadata: {
+                reservationFailed: true,
+                requiresManualRefund: true,
+                failureReason: reservationError instanceof Error ? reservationError.message : String(reservationError),
+              },
+            },
+          });
+        });
+
+        console.log('[Payment Webhook] ✅ Reservation 실패 정보 DB 기록 완료 (트랜잭션)');
+      } catch (txError) {
+        console.error('[Payment Webhook] ❌ Reservation 실패 정보 DB 기록 실패:', txError);
+        // DB 기록 실패해도 관리자 알림은 로그에 남김
+      }
+
+      // 🔴 관리자 알림 (이메일/텔레그램 등)
+      // TODO: 실제 알림 시스템 구현 필요
+      console.error('[Payment Webhook] 🚨 ADMIN ACTION REQUIRED:', {
+        saleId: sale.id,
+        merchant_uid,
+        imp_uid,
+        amount,
+        customerName,
+        customerPhone,
+        error: reservationError instanceof Error ? reservationError.message : String(reservationError),
+        action: 'MANUAL_REFUND_REQUIRED',
+      });
     }
 
     // Lead 상태 업데이트 또는 생성
@@ -880,6 +932,9 @@ export async function POST(req: NextRequest) {
       ok: true,
       saleId: sale.id,
       reservationId: reservationId,
+      // 🔴 예약 생성 실패 시 경고
+      reservationFailed: reservationFailed,
+      warning: reservationFailed ? 'MANUAL_REFUND_REQUIRED: 결제는 완료되었으나 예약 생성에 실패했습니다. 관리자에게 문의하세요.' : null,
       // [v11.0] callback에서 확인할 수 있는 실적 정보
       affiliateSaleCreated: true,
       commissionCreated: ledgerResult.ledgerEntries.length > 0,
@@ -889,7 +944,9 @@ export async function POST(req: NextRequest) {
         affiliateMallUserId: affiliateMallUserId || null,
         affiliateCode: affiliateCode || null,
       },
-      message: '결제 완료 및 어필리에이트 판매가 기록되었습니다.',
+      message: reservationFailed
+        ? '결제는 완료되었으나 예약 생성에 실패했습니다. 관리자가 확인 후 처리할 예정입니다.'
+        : '결제 완료 및 어필리에이트 판매가 기록되었습니다.',
     });
   } catch (error) {
     console.error('[Payment Webhook] Error:', error);

@@ -325,6 +325,7 @@ export default function LinksPage() {
         showSuccess('링크가 수정되었습니다.');
         setIsEditModalOpen(false);
         setSelectedLink(null);
+        setStatusFilter('all'); // 모든 링크 보기로 변경
         loadLinks();
       } catch (error: any) {
         console.error('[Links] Update error', error);
@@ -361,6 +362,7 @@ export default function LinksPage() {
       showSuccess('링크가 수정되었습니다.');
       setIsEditModalOpen(false);
       setSelectedLink(null);
+      setStatusFilter('all'); // 모든 링크 보기로 변경
       loadLinks();
     } catch (error: any) {
       console.error('[Links] Update error', error);
@@ -520,6 +522,7 @@ export default function LinksPage() {
         setShowLinksModal(true);
         
         showSuccess(`${generatedLinks.length}개의 링크가 생성되어 클립보드에 복사되었습니다.`);
+        setStatusFilter('all'); // 모든 링크 보기로 변경
         loadLinks(); // 링크 목록 새로고침
       } catch (error: any) {
         console.error('[Links] Create error', error);
@@ -606,8 +609,10 @@ export default function LinksPage() {
       // 링크 목록을 모달로 표시
       setGeneratedLinks(generatedLinks);
       setShowLinksModal(true);
-      
+
       showSuccess(`${generatedLinks.length}개의 링크가 생성되어 클립보드에 복사되었습니다.`);
+      setStatusFilter('all'); // 모든 링크 보기로 변경
+      loadLinks(); // 링크 목록 새로고침
     } catch (error: any) {
       console.error('[Links] Create error', error);
       showError(error.message || '링크 생성 중 오류가 발생했습니다.');
@@ -635,6 +640,7 @@ export default function LinksPage() {
       setIsReissueModalOpen(false);
       setSelectedLink(null);
       setReissueExpiresAt('');
+      setStatusFilter('all'); // 모든 링크 보기로 변경
       loadLinks();
     } catch (error: any) {
       console.error('[Links] Reissue error', error);

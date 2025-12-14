@@ -2978,3 +2978,69 @@ model FinanceRecord {
   @@index([year, month])
   @@index([createdAt])
 }
+
+// ============================================================================
+// 파트너 예약 메시지 발송
+// 문자/이메일 예약 발송 기능 (Partner Scheduled Messages)
+// ============================================================================
+
+// 파트너 예약 메시지
+model PartnerScheduledMessage {
+  id          String   @id @default(cuid())
+  partnerId   String   // Partner/AffiliateProfile ID
+
+  type        PartnerMessageType // SMS or EMAIL
+  subject     String?  // 이메일 제목 (이메일인 경우)
+  content     String   @db.Text
+
+  scheduledAt DateTime // 발송 예정 시간
+  sentAt      DateTime? // 실제 발송 시간
+
+  status      PartnerScheduledMessageStatus @default(PENDING)
+
+  createdBy   String
+  createdAt   DateTime @default(now())
+  cancelledBy String?
+  cancelledAt DateTime?
+
+  recipients  PartnerScheduledMessageRecipient[]
+  
+  @@index([partnerId, status, scheduledAt])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+// 파트너 예약 메시지 수신자
+model PartnerScheduledMessageRecipient {
+  id                 String                   @id @default(cuid())
+  scheduledMessageId String
+  scheduledMessage   PartnerScheduledMessage @relation(fields: [scheduledMessageId], references: [id], onDelete: Cascade)
+  
+  customerId         String // AffiliateLead ID
+  customerName       String // 고객 이름 (스냅샷)
+  customerPhone      String? // 전화번호 (스냅샷)
+  customerEmail      String? // 이메일 (스냅샷)
+  
+  sent               Boolean          @default(false)
+  sentAt             DateTime?
+  error              String?          @db.Text
+  
+  createdAt          DateTime         @default(now())
+  
+  @@index([scheduledMessageId])
+  @@index([customerId])
+  @@unique([scheduledMessageId, customerId])
+}
+
+enum PartnerMessageType {
+  SMS
+  EMAIL
+}
+
+enum PartnerScheduledMessageStatus {
+  PENDING    // 발송 대기
+  SENDING    // 발송 중
+  SENT       // 발송 완료
+  FAILED     // 발송 실패
+  CANCELLED  // 취소됨
+}

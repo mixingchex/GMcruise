@@ -10,6 +10,9 @@ import { startAffiliateLinkCleanupScheduler } from './scheduler/affiliateLinkCle
 import { startSpreadsheetBackupScheduler } from './scheduler/spreadsheetBackup';
 import { startTripStatusScheduler } from './scheduler/tripStatusUpdater';
 import { startRePurchaseTriggerScheduler } from './scheduler/rePurchaseTrigger';
+import { startLifecycleManager } from './scheduler/lifecycleManager';
+import { startDatabaseBackupScheduler } from './scheduler/databaseBackup';
+import { startPayslipSenderScheduler } from './scheduler/payslipSender';
 
 let initialized = false;
 
@@ -28,12 +31,17 @@ export async function initializeApp() {
     // 메시지 스케줄러 시작
     startPartnerFunnelSender();
     startScheduledMessageSender();
+    startPayslipSenderScheduler();
 
     // 정리 및 유지보수 스케줄러 시작
     startAffiliateLinkCleanupScheduler();
     startSpreadsheetBackupScheduler();
     startTripStatusScheduler();
     startRePurchaseTriggerScheduler();
+    startLifecycleManager();
+
+    // 백업 스케줄러 시작
+    startDatabaseBackupScheduler();
 
     initialized = true;
     console.log('[Init] 애플리케이션 초기화 완료 ✓');

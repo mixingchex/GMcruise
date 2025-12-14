@@ -778,30 +778,12 @@ export default function MyContractClient({ partnerId }: { partnerId: string }) {
                     {/* 저장된 녹음 파일 목록 */}
                     {(contract as any).metadata?.voiceRecordings?.length > 0 ? (
                       <div className="mt-4">
-                        <p className="text-sm font-semibold text-slate-700 mb-2">
-                          저장된 녹음 파일 ({(contract as any).metadata.voiceRecordings.length}개)
-                        </p>
-                        <div className="space-y-2">
-                          {(contract as any).metadata.voiceRecordings.map((rec: any, idx: number) => (
-                            <a
-                              key={rec.id || idx}
-                              href={rec.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
-                            >
-                              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                <FiFileText className="w-5 h-5 text-purple-600" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-slate-900 truncate">{rec.name}</p>
-                                <p className="text-xs text-slate-500">
-                                  {rec.uploadedBy} • {new Date(rec.uploadedAt).toLocaleString('ko-KR')}
-                                </p>
-                              </div>
-                              <FiExternalLink className="w-4 h-4 text-slate-400" />
-                            </a>
-                          ))}
+                        {/* 판매원/대리점장 자신의 계약: 음성녹음보관 표시만 */}
+                        <div className="flex items-center gap-2 p-4 rounded-xl bg-green-50 border border-green-200">
+                          <FiLock className="w-5 h-5 text-green-600" />
+                          <p className="text-sm font-semibold text-green-700">
+                            음성녹음보관 ({(contract as any).metadata.voiceRecordings.length}개 파일)
+                          </p>
                         </div>
                       </div>
                     ) : (

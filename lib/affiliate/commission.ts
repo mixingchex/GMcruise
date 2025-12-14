@@ -103,11 +103,40 @@ export function calculateCommissionBreakdown(input: CommissionCalculationInput):
     coerceAmount(input.overrideCommission ?? tier?.overrideAmount ?? 0),
   );
 
+  // 🔴 CRITICAL VALIDATION: Total commissions must not exceed net revenue
+  const totalCommissions = branchCommission + salesCommission + overrideCommission;
+  if (totalCommissions > netRevenue) {
+    const error = new Error(
+      `Commission configuration error: Total commissions (${totalCommissions.toLocaleString()}) exceed net revenue (${netRevenue.toLocaleString()}). ` +
+      `Breakdown: Branch=${branchCommission.toLocaleString()}, Sales=${salesCommission.toLocaleString()}, Override=${overrideCommission.toLocaleString()}`
+    );
+    console.error('[Commission Validation Failed]', {
+      saleAmount,
+      costAmount,
+      netRevenue,
+      branchCommission,
+      salesCommission,
+      overrideCommission,
+      totalCommissions,
+      excess: totalCommissions - netRevenue,
+    });
+    throw error;
+  }
+
   const includeHq = input.includeHqNet ?? true;
   const hqNetCandidate = includeHq
     ? roundAmount(coerceAmount(tier?.hqShareAmount ?? netRevenue - branchCommission - salesCommission - overrideCommission))
     : 0;
   const hqNet = Math.max(hqNetCandidate, 0);
+
+  // 🟡 WARNING: If hqNet was clamped to 0, log a warning (shouldn't happen after validation above)
+  if (includeHq && hqNetCandidate < 0) {
+    console.warn('[Commission Warning] HQ net was negative and clamped to 0. This should not happen after validation.', {
+      hqNetCandidate,
+      netRevenue,
+      totalCommissions,
+    });
+  }
 
   const withholdingRate = resolveWithholdingRate(input.withholdingRate);
   const managerWithholdingRate = resolveWithholdingRate(
