@@ -1,5 +1,7 @@
 // scripts/check-env.js
 // 환경 변수 확인 스크립트
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config();
 
 const requiredEnvVars = [
   'DATABASE_URL',

@@ -883,7 +883,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     }
   }, [customerTab, loadInquiryCustomers]);
 
-  const loadContracts = async () => {
+  const loadContracts = useCallback(async () => {
     if (!isBranchManager) {
       console.log('[PartnerDashboard] Not a branch manager, skipping loadContracts');
       return;
@@ -909,7 +909,7 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     } finally {
       setLoadingContracts(false);
     }
-  };
+  }, [isBranchManager]);
 
   // 구매고객관리 핸들러 함수들
   const handleOpenPassportModal = (reservation: any) => {
@@ -2367,30 +2367,6 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
               >
                 <FiLayers className="text-2xl text-slate-600 md:text-3xl" />
                 <span className="text-xs font-semibold text-slate-700 md:text-sm">랜딩페이지<br />관리</span>
-              </Link>
-            ) : null}
-
-            {/* 판매원별 DB 관리 */}
-            {subscriptionInfo ? (
-              <button
-                onClick={() => {
-                  const message = getFeatureRestrictionMessageClient('team-management', subscriptionInfo);
-                  setRestrictionMessage(message);
-                  setShowFeatureRestrictionModal(true);
-                }}
-                className={`flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6 ${canUseFeatureClient('team-management', subscriptionInfo) ? 'ring-2 ring-slate-400 ring-offset-2' : ''
-                  }`}
-              >
-                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">판매원별<br />DB 관리</span>
-              </button>
-            ) : isBranchManager ? (
-              <Link
-                href={`${partnerBase}/customers`}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl bg-slate-100 p-4 text-center transition-all hover:bg-slate-200 hover:shadow-lg md:p-6"
-              >
-                <FiUsers className="text-2xl text-slate-600 md:text-3xl" />
-                <span className="text-xs font-semibold text-slate-700 md:text-sm">판매원별<br />DB 관리</span>
               </Link>
             ) : null}
 

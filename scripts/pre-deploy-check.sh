@@ -1,5 +1,6 @@
 #!/bin/bash
 # scripts/pre-deploy-check.sh
+set -o pipefail
 # 배포 전 자동 체크 스크립트
 
 echo "🚀 배포 전 체크 시작..."

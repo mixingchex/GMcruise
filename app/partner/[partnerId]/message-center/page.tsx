@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { showSuccess, showError, showWarning, showInfo } from '@/components/ui/Toast';
 import { FunnelShareModal } from '@/components/partner/FunnelShareModal';
 import ImageLibraryModal from '@/components/partner/ImageLibraryModal';
+import { isSafeUrl } from '@/lib/utils/url-safety';
 
 // 탭 타입 (SMS, 이메일만)
 type TabType = 'instant' | 'scheduled' | 'history';
@@ -624,6 +625,7 @@ export default function PartnerMessageCenterPage() {
       .replace(/\{상품명\}/g, productLabel);
   };
 
+
   // 즉시 발송
   const handleInstantSend = async () => {
     // 설정 확인
@@ -1228,16 +1230,34 @@ export default function PartnerMessageCenterPage() {
                           {applyMessageVariables(content || '내용을 입력하세요', { name: '홍길동' })}
                         </p>
                         {emailImages.length > 0 && (
-                          <div className="mt-2 text-xs text-gray-500">
-                            + 이미지 {emailImages.length}개
+                          <div className="mt-3 space-y-2">
+                            {emailImages.map((img) => (
+                              <img
+                                key={img.id}
+                                src={img.url}
+                                alt={img.name}
+                                className="w-full max-h-32 object-contain rounded-lg border"
+                              />
+                            ))}
                           </div>
                         )}
                         {emailButtons.filter(b => b.label && b.url).length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
+                          <div className="mt-3 flex flex-wrap gap-2">
                             {emailButtons.filter(b => b.label && b.url).map(btn => (
-                              <span key={btn.id} className="px-2 py-1 bg-blue-600 text-white text-xs rounded">
+                              <a
+                                key={btn.id}
+                                href={isSafeUrl(btn.url) ? btn.url : '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-block px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                                onClick={(e) => {
+                                  if (!isSafeUrl(btn.url)) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                              >
                                 {btn.label}
-                              </span>
+                              </a>
                             ))}
                           </div>
                         )}

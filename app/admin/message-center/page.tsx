@@ -9,6 +9,7 @@ import {
 } from 'react-icons/fi';
 import { SiKakaotalk } from 'react-icons/si';
 import { showSuccess, showError, showWarning, showInfo } from '@/components/ui/Toast';
+import { isSafeUrl } from '@/lib/utils/url-safety';
 
 // 탭 타입
 type TabType = 'instant' | 'scheduled' | 'history';
@@ -64,7 +65,7 @@ interface ScheduledMessage {
   targetGroup?: {
     id: number;
     name: string;
-    _count: { members: number };
+    _count?: { members?: number; CustomerGroupMember?: number };
   } | null;
   createdAt: string;
 }
@@ -113,7 +114,7 @@ export default function MessageCenterPage() {
   });
 
   // 고객 그룹 목록
-  const [customerGroups, setCustomerGroups] = useState<Array<{ id: number; name: string; _count: { members: number } }>>([]);
+  const [customerGroups, setCustomerGroups] = useState<Array<{ id: number; name: string; _count: { members?: number; CustomerGroupMember?: number } }>>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
   // 엑셀 백업 상태
@@ -487,6 +488,7 @@ export default function MessageCenterPage() {
       .replace(/\{\{상품명\}\}/g, selectedProduct || '크루즈 상품')
       .replace(/\{링크\}/g, linkUrl || '');
   };
+
 
   // 예약 메시지 로드
   const loadScheduledMessages = useCallback(async () => {
@@ -1112,7 +1114,7 @@ export default function MessageCenterPage() {
                     <option value="">고객 그룹 선택...</option>
                     {customerGroups.map((group) => (
                       <option key={group.id} value={group.id}>
-                        {group.name} ({group._count.members}명)
+                        {group.name} ({group._count?.members ?? group._count?.CustomerGroupMember ?? 0}명)
                       </option>
                     ))}
                   </select>
@@ -1621,6 +1623,43 @@ export default function MessageCenterPage() {
                   <p className="text-sm text-gray-700 whitespace-pre-wrap">
                     {applyMessageVariables(content || '내용을 입력해주세요...', { name: '홍길동', phone: '01012345678' })}
                   </p>
+
+                  {/* 이메일 이미지 미리보기 */}
+                  {sendMethod === 'email' && emailImages.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {emailImages.map((img) => (
+                        <img
+                          key={img.id}
+                          src={img.url}
+                          alt={img.name}
+                          className="w-full max-h-48 object-contain rounded-lg border"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* 이메일 버튼 미리보기 */}
+                  {sendMethod === 'email' && emailButtons.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {emailButtons.filter(btn => btn.label).map((btn) => (
+                        <a
+                          key={btn.id}
+                          href={isSafeUrl(btn.url) ? btn.url : '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                          onClick={(e) => {
+                            if (!isSafeUrl(btn.url)) {
+                              e.preventDefault();
+                            }
+                          }}
+                        >
+                          {btn.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+
                   {senderName && (
                     <p className="text-xs text-gray-500 mt-3 pt-2 border-t">
                       발신: {senderName} {senderPhone && `(${senderPhone})`}
@@ -1731,7 +1770,7 @@ export default function MessageCenterPage() {
                         </span>
                         {msg.targetGroup && (
                           <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-semibold">
-                            👥 {msg.targetGroup.name} ({msg.targetGroup._count.members}명)
+                            👥 {msg.targetGroup.name} ({msg.targetGroup._count?.members ?? msg.targetGroup._count?.CustomerGroupMember ?? 0}명)
                           </span>
                         )}
                         <span className={`px-2 py-1 rounded text-xs font-semibold ${

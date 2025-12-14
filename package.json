@@ -17,7 +17,7 @@
     "stop": "scripts/stop-dev.sh",
     "socket": "node server/socket-server.js",
     "dev:all": "concurrently \"npm run dev\" \"npm run socket\"",
-    "deploy:check": "sh scripts/pre-deploy-check.sh",
+    "deploy:check": "bash scripts/pre-deploy-check.sh",
     "env:check": "node scripts/check-env.js",
     "check:env": "tsx scripts/check-env-before-deploy.ts",
     "migrate:check-env": "tsx scripts/check-migration-env.ts",

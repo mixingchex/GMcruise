@@ -102,7 +102,10 @@ export async function POST(req: Request) {
 
       // TODO: 실제 이메일 전송 기능 구현
       // 현재는 성공 응답만 반환
-      console.log(`[FIND PASSWORD] 비밀번호 전송: ${user.email || email}로 비밀번호 ${password} 전송`);
+      console.log('[FIND PASSWORD] 비밀번호 전송 완료:', {
+        email: user.email || email,
+        timestamp: new Date().toISOString()
+      });
 
       return NextResponse.json({
         ok: true,

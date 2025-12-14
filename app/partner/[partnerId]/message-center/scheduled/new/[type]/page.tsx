@@ -16,7 +16,8 @@ type FunnelStage = {
 interface CustomerGroup {
   id: number;
   name: string;
-  _count: { leads: number };
+  leadCount?: number;
+  _count?: { leads?: number; members?: number };
 }
 
 export default function NewScheduledMessagePage() {
@@ -286,7 +287,7 @@ export default function NewScheduledMessagePage() {
                   <option value="">그룹을 선택하세요 (선택사항)</option>
                   {customerGroups.map((group) => (
                     <option key={group.id} value={group.id}>
-                      {group.name} ({group._count.leads}명)
+                      {group.name} ({group.leadCount ?? group._count?.leads ?? group._count?.members ?? 0}명)
                     </option>
                   ))}
                 </select>
