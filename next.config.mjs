@@ -52,16 +52,16 @@ const prodCsp = [
 const nextConfig = {
   // 성능 최적화: 응답 압축 활성화
   compress: true,
-  
+
   // 성능 최적화: X-Powered-By 헤더 제거 (보안 및 성능)
   poweredByHeader: false,
-  
+
   // 성능 최적화: 정적 페이지 생성 시간 제한 증가 (대규모 데이터용)
   staticPageGenerationTimeout: 180,
-  
+
   // 성능 최적화: 소스맵 비활성화 (프로덕션 빌드 크기 감소)
   productionBrowserSourceMaps: false,
-  
+
   // TypeScript 타입 체크 무시 (임시)
   typescript: {
     ignoreBuildErrors: true,
@@ -157,6 +157,7 @@ const nextConfig = {
     // API 라우트에만 적용 (메모리 절약)
     outputFileTracingIncludes: {
       '/api/**': ['./node_modules/googleapis/**/*'],
+      '/**/*': ['./node_modules/googleapis/**/*'], // 모든 페이지에 포함 (안전빵)
     },
   },
 
@@ -184,7 +185,7 @@ const nextConfig = {
 
   // ⚠️ outputFileTracingExcludes는 Next.js 14에서 deprecated되었거나 문제를 일으킬 수 있음
   // 큰 정적 파일들은 자동으로 제외되므로 명시적 설정 불필요
-  
+
   // React Flow를 외부 패키지로 처리하여 SSR 문제 방지
   webpack: (config, { isServer, dev }) => {
     if (!isServer) {
@@ -193,49 +194,49 @@ const nextConfig = {
         fs: false,
       };
     }
-    
-//     // 프로덕션 빌드 시 console.log/warn/debug/info 제거 (에러는 유지)
-//     if (!dev && config.optimization && config.optimization.minimizer) {
-//       
-//       // 기존 minimizer 찾기
-//       const terserIndex = config.optimization.minimizer.findIndex(
-//         (plugin) => plugin.constructor.name === 'TerserPlugin'
-//       );
-//       
-//       if (terserIndex !== -1) {
-//         // 기존 TerserPlugin 설정 수정
-//         const existingTerser = config.optimization.minimizer[terserIndex];
-//         existingTerser.options = {
-//           ...existingTerser.options,
-//           terserOptions: {
-//             ...existingTerser.options?.terserOptions,
-//             compress: {
-//               ...existingTerser.options?.terserOptions?.compress,
-//               drop_console: true, // console.log/warn/debug/info 제거
-//               drop_debugger: true, // debugger 제거
-//               pure_funcs: ['console.log', 'console.warn', 'console.debug', 'console.info'],
-//             },
-//           },
-//         };
-//       } else {
-//         // TerserPlugin이 없으면 추가
-//         config.optimization.minimizer.push(
-//           new TerserPlugin({
-//             terserOptions: {
-//               compress: {
-//                 drop_console: true,
-//                 drop_debugger: true,
-//                 pure_funcs: ['console.log', 'console.warn', 'console.debug', 'console.info'],
-//               },
-//             },
-//           })
-//         );
-//       }
-//     }
-    
+
+    //     // 프로덕션 빌드 시 console.log/warn/debug/info 제거 (에러는 유지)
+    //     if (!dev && config.optimization && config.optimization.minimizer) {
+    //       
+    //       // 기존 minimizer 찾기
+    //       const terserIndex = config.optimization.minimizer.findIndex(
+    //         (plugin) => plugin.constructor.name === 'TerserPlugin'
+    //       );
+    //       
+    //       if (terserIndex !== -1) {
+    //         // 기존 TerserPlugin 설정 수정
+    //         const existingTerser = config.optimization.minimizer[terserIndex];
+    //         existingTerser.options = {
+    //           ...existingTerser.options,
+    //           terserOptions: {
+    //             ...existingTerser.options?.terserOptions,
+    //             compress: {
+    //               ...existingTerser.options?.terserOptions?.compress,
+    //               drop_console: true, // console.log/warn/debug/info 제거
+    //               drop_debugger: true, // debugger 제거
+    //               pure_funcs: ['console.log', 'console.warn', 'console.debug', 'console.info'],
+    //             },
+    //           },
+    //         };
+    //       } else {
+    //         // TerserPlugin이 없으면 추가
+    //         config.optimization.minimizer.push(
+    //           new TerserPlugin({
+    //             terserOptions: {
+    //               compress: {
+    //                 drop_console: true,
+    //                 drop_debugger: true,
+    //                 pure_funcs: ['console.log', 'console.warn', 'console.debug', 'console.info'],
+    //               },
+    //             },
+    //           })
+    //         );
+    //       }
+    //     }
+
     return config;
   },
-  
+
   // 이미지 최적화 설정 (작업자 C - 성능 개선)
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -304,7 +305,7 @@ const nextConfig = {
       },
     ],
   },
-  
+
   async headers() {
     // 개발 환경에서는 보안 헤더를 완전히 비활성화하여 디버깅 가능하도록 함
     if (isDev) {
@@ -320,7 +321,7 @@ const nextConfig = {
         },
       ];
     }
-    
+
     // 프로덕션 환경에서는 보안 헤더 유지
     return [
       {
