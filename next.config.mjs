@@ -155,10 +155,10 @@ const nextConfig = {
     },
     // googleapis 패키지 전체를 Vercel 서버리스 함수에 포함 (./docs 모듈 누락 해결)
     // API 라우트에만 적용 (메모리 절약)
-    outputFileTracingIncludes: {
-      '/api/**': ['./node_modules/googleapis/**/*'],
-      '/': ['./node_modules/googleapis/**/*'], // 메인 페이지에서 발생하는 런타임 에러 해결
-    },
+    // outputFileTracingIncludes: {
+    //   '/api/**': ['./node_modules/googleapis/**/*'],
+    //   '/': ['./node_modules/googleapis/**/*'], // 메인 페이지에서 발생하는 런타임 에러 해결
+    // },
   },
 
   // Vercel에서 네이티브 바이너리 패키지 정상 작동을 위해 필요 (deprecated 경고 무시)
