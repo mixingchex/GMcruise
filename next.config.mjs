@@ -157,7 +157,7 @@ const nextConfig = {
     // API 라우트에만 적용 (메모리 절약)
     outputFileTracingIncludes: {
       '/api/**': ['./node_modules/googleapis/**/*'],
-      '/**/*': ['./node_modules/googleapis/**/*'], // 모든 페이지에 포함 (안전빵)
+      '/': ['./node_modules/googleapis/**/*'], // 메인 페이지에서 발생하는 런타임 에러 해결
     },
   },
 
