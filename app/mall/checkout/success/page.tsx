@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -16,11 +16,22 @@ interface ReservationInfo {
   paymentAmount: number | null;
 }
 
-export default function CheckoutSuccessPage() {
+function Loading() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-lg text-gray-800">로딩 중...</p>
+      </div>
+    </div>
+  );
+}
+
+function CheckoutSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reservationId = searchParams.get('reservationId');
-  
+
   const [reservation, setReservation] = useState<ReservationInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -80,14 +91,7 @@ export default function CheckoutSuccessPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-800">로딩 중...</p>
-        </div>
-      </div>
-    );
+    return <Loading />;
   }
 
   if (!reservation) {
@@ -225,3 +229,10 @@ export default function CheckoutSuccessPage() {
   );
 }
 
+export default function CheckoutSuccessPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <CheckoutSuccessContent />
+    </Suspense>
+  );
+}
