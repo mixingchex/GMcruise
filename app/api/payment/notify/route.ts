@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { log, error } from '@/lib/logger-wrapper';
 import { isPaymentSuccess } from '@/lib/welcomepay';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
       P_VACT_BANK_CODE = body.P_VACT_BANK_CODE || '';
     }
 
-    console.log('[Payment Notify] 수신:', {
+    log('[Payment Notify] 수신:', {
       P_STATUS,
       P_RMESG1,
       P_TID,
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!P_OID) {
-      console.error('[Payment Notify] 주문번호 없음');
+      error('[Payment Notify] 주문번호 없음');
       return new Response('OK', { status: 200 });
     }
 
@@ -96,13 +97,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (!payment) {
-      console.error('[Payment Notify] 결제 정보 없음:', P_OID);
+      error('[Payment Notify] 결제 정보 없음:', P_OID);
       return new Response('OK', { status: 200 });
     }
 
     // 이미 완료된 결제는 스킵
     if (payment.status === 'completed') {
-      console.log('[Payment Notify] 이미 완료된 결제:', P_OID);
+      log('[Payment Notify] 이미 완료된 결제:', P_OID);
       return new Response('OK', { status: 200 });
     }
 
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
             },
           },
         });
-        console.log('[Payment Notify] 가상계좌 발급:', {
+        log('[Payment Notify] 가상계좌 발급:', {
           orderId: P_OID,
           vbankNum: P_VACT_NUM,
           vbankDate: P_VACT_DATE,
@@ -173,10 +174,10 @@ export async function POST(req: NextRequest) {
             }),
           });
         } catch (webhookError) {
-          console.error('[Payment Notify] Webhook 호출 실패:', webhookError);
+          error('[Payment Notify] Webhook 호출 실패:', webhookError);
         }
 
-        console.log('[Payment Notify] 결제 완료:', {
+        log('[Payment Notify] 결제 완료:', {
           orderId: P_OID,
           tid: P_TID,
           amount: P_AMT,
@@ -193,7 +194,7 @@ export async function POST(req: NextRequest) {
           pgTransactionId: P_TID || undefined,
         },
       });
-      console.log('[Payment Notify] 결제 실패:', {
+      log('[Payment Notify] 결제 실패:', {
         orderId: P_OID,
         reason: P_RMESG1,
       });
@@ -202,7 +203,7 @@ export async function POST(req: NextRequest) {
     // 웰컴페이먼츠에 OK 응답 (반드시 OK 문자열 반환)
     return new Response('OK', { status: 200 });
   } catch (error) {
-    console.error('[Payment Notify] Error:', error);
+    error('[Payment Notify] Error:', error);
     // 에러가 발생해도 OK 응답 (재시도 방지)
     return new Response('OK', { status: 200 });
   }

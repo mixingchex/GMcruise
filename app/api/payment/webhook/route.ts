@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { generateLedgerEntries, calculateCommissionBreakdown } from '@/lib/affiliate/commission';
 import { notifyCommissionTierMissing } from '@/lib/affiliate/admin-notifications';
+import { log, error, warn } from '@/lib/logger-wrapper';
 
 /**
  * POST: 결제 완료 웹훅
@@ -35,8 +36,8 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // [v11.0] 디버그 로그
-    console.log('[Payment Webhook v11.0] ===== 요청 수신 =====');
-    console.log('[Payment Webhook v11.0] 기본 정보:', {
+    log('[Payment Webhook v11.0] ===== 요청 수신 =====');
+    log('[Payment Webhook v11.0] 기본 정보:', {
       imp_uid,
       merchant_uid,
       status,
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
       productCode,
       customerName,
     });
-    console.log('[Payment Webhook v11.0] 파트너 정보 (직접 전달):', {
+    log('[Payment Webhook v11.0] 파트너 정보 (직접 전달):', {
       directAffiliateCode: directAffiliateCode || '(empty)',
       directAffiliateUserId: directAffiliateUserId || '(empty)',
       _partnerSource: _partnerSource || '(unknown)',
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (existingPayment && existingPayment.amount !== amount) {
-        console.error('[Payment Webhook] 금액 불일치 탐지:', {
+        error('[Payment Webhook] 금액 불일치 탐지:', {
           expected: existingPayment.amount,
           received: amount,
           orderId: merchant_uid,
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingSale) {
-      console.log(`[Payment Webhook] ⚠️ 이미 처리된 주문입니다: ${merchant_uid} (saleId: ${existingSale.id})`);
+      log(`[Payment Webhook] ⚠️ 이미 처리된 주문입니다: ${merchant_uid} (saleId: ${existingSale.id})`);
       return NextResponse.json({
         ok: true,
         message: '이미 처리된 주문입니다.',
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
     const affiliateMallUserId = directAffiliateUserId || cookies.get('affiliate_mall_user_id')?.value || metadata?.partnerId || null;
     const leadId = metadata?.leadId || null;
 
-    console.log('[Payment Webhook v11.0] 최종 파트너 정보:', {
+    log('[Payment Webhook v11.0] 최종 파트너 정보:', {
       affiliateCode: affiliateCode || 'NONE',
       affiliateMallUserId: affiliateMallUserId || 'NONE',
       leadId: leadId || 'NONE',
@@ -244,14 +245,14 @@ export async function POST(req: NextRequest) {
       });
 
       if (commissionTier) {
-        console.log('[Payment Webhook] CommissionTier 찾음:', {
+        log('[Payment Webhook] CommissionTier 찾음:', {
           productCode,
           cabinType: determinedCabinType,
           branchShare: commissionTier.branchShareAmount,
           salesShare: commissionTier.salesShareAmount,
         });
       } else {
-        console.warn('[Payment Webhook] CommissionTier를 찾을 수 없음:', {
+        warn('[Payment Webhook] CommissionTier를 찾을 수 없음:', {
           productCode,
           affiliateProductId,
           cabinType: determinedCabinType,
@@ -266,7 +267,7 @@ export async function POST(req: NextRequest) {
             affiliateProductId,
             fareCategory
           ).catch((err) => {
-            console.error('[Payment Webhook] 알림 전송 실패:', err);
+            error('[Payment Webhook] 알림 전송 실패:', err);
           });
         }
       }
@@ -492,14 +493,14 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      console.log('[Payment Webhook] Reservation 생성 완료:', {
+      log('[Payment Webhook] Reservation 생성 완료:', {
         reservationId: reservation.id,
         tripId: trip.id,
         userId,
         totalGuests,
       });
     } catch (reservationError) {
-      console.error('[Payment Webhook] 🔴 CRITICAL: Reservation 생성 실패:', reservationError);
+      error('[Payment Webhook] 🔴 CRITICAL: Reservation 생성 실패:', reservationError);
       reservationFailed = true;
 
       // 🔴 CRITICAL: 결제는 완료되었지만 예약 생성 실패 - 수동 환불 필요
@@ -534,15 +535,15 @@ export async function POST(req: NextRequest) {
           });
         });
 
-        console.log('[Payment Webhook] ✅ Reservation 실패 정보 DB 기록 완료 (트랜잭션)');
+        log('[Payment Webhook] ✅ Reservation 실패 정보 DB 기록 완료 (트랜잭션)');
       } catch (txError) {
-        console.error('[Payment Webhook] ❌ Reservation 실패 정보 DB 기록 실패:', txError);
+        error('[Payment Webhook] ❌ Reservation 실패 정보 DB 기록 실패:', txError);
         // DB 기록 실패해도 관리자 알림은 로그에 남김
       }
 
       // 🔴 관리자 알림 (이메일/텔레그램 등)
       // TODO: 실제 알림 시스템 구현 필요
-      console.error('[Payment Webhook] 🚨 ADMIN ACTION REQUIRED:', {
+      error('[Payment Webhook] 🚨 ADMIN ACTION REQUIRED:', {
         saleId: sale.id,
         merchant_uid,
         imp_uid,
@@ -640,7 +641,7 @@ export async function POST(req: NextRequest) {
 
         // 3일 체험 사용자인 경우 자동 승인
         if (user && user.testModeStartedAt && user.customerStatus !== 'active' && user.customerStatus !== 'package') {
-          console.log('[Payment Webhook] 자동 승인 처리:', {
+          log('[Payment Webhook] 자동 승인 처리:', {
             userId: user.id,
             name: user.name,
             phone: normalizedPhone,
@@ -655,7 +656,7 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          console.log('[Payment Webhook] 일반 크루즈 가이드 자동 승인 완료:', {
+          log('[Payment Webhook] 일반 크루즈 가이드 자동 승인 완료:', {
             userId: user.id,
             name: user.name,
             phone: normalizedPhone,
@@ -665,15 +666,15 @@ export async function POST(req: NextRequest) {
     }
 
     // [v11.0] 실적 생성 완료 로그
-    console.log('[Payment Webhook v11.0] ===== 실적 저장 완료 =====');
-    console.log('[Payment Webhook v11.0] AffiliateSale:', {
+    log('[Payment Webhook v11.0] ===== 실적 저장 완료 =====');
+    log('[Payment Webhook v11.0] AffiliateSale:', {
       saleId: sale.id,
       managerId: managerId || 'NONE',
       agentId: agentId || 'NONE',
       amount,
       status: 'CONFIRMED',
     });
-    console.log('[Payment Webhook v11.0] CommissionLedger:', {
+    log('[Payment Webhook v11.0] CommissionLedger:', {
       entriesCreated: ledgerResult.ledgerEntries.length,
       managerProfileId: managerId || 'NONE',
       agentProfileId: agentId || 'NONE',
@@ -681,9 +682,9 @@ export async function POST(req: NextRequest) {
 
     // 파트너 확인 로그
     if (managerId || agentId) {
-      console.log(`[Payment Webhook v11.0] ✅ 파트너 실적 저장 성공! affiliateMallUserId: ${affiliateMallUserId}`);
+      log(`[Payment Webhook v11.0] ✅ 파트너 실적 저장 성공! affiliateMallUserId: ${affiliateMallUserId}`);
     } else {
-      console.log('[Payment Webhook v11.0] ⚠️ 파트너 없음 - 실적은 저장되었으나 수당 배정 없음');
+      log('[Payment Webhook v11.0] ⚠️ 파트너 없음 - 실적은 저장되었으나 수당 배정 없음');
     }
 
     // Google 스프레드시트 백업 및 자동화 + 구매확인서 발송 (비동기 실행)
@@ -775,7 +776,7 @@ export async function POST(req: NextRequest) {
             amount: amount,
             lastEditor: 'System',
             lastEditTime: kstDate,
-          }).catch(err => console.error('[Automation] Legacy Sheet Backup Error:', err));
+          }).catch(err => error('[Automation] Legacy Sheet Backup Error:', err));
 
           // 2. 새로운 자동화: Drive 폴더 및 APIS 시트 생성
           if (productName && departureDate) {
@@ -810,9 +811,9 @@ export async function POST(req: NextRequest) {
                 orderId: merchant_uid
               });
 
-              console.log('[Automation] Drive & Sheet setup completed');
+              log('[Automation] Drive & Sheet setup completed');
             } catch (driveError) {
-              console.error('[Automation] Drive/Sheet Error:', driveError);
+              error('[Automation] Drive/Sheet Error:', driveError);
             }
           }
 
@@ -878,8 +879,8 @@ export async function POST(req: NextRequest) {
             // Drive에 PNG 업로드 (비동기, 실패해도 진행)
             const pngFilename = `구매확인증서_${customerName || '고객'}_${isoDate}.png`;
             uploadCertificateToDrive(pngBuffer, pngFilename)
-              .then(fileId => console.log(`[Automation] Certificate uploaded to Drive: ${fileId}`))
-              .catch(err => console.error('[Automation] Certificate upload failed:', err));
+              .then(fileId => log(`[Automation] Certificate uploaded to Drive: ${fileId}`))
+              .catch(err => error('[Automation] Certificate upload failed:', err));
 
             // 승인 요청 생성 (자동 승인 상태로)
             // User 찾기 (customerPhone 기준)
@@ -915,15 +916,15 @@ export async function POST(req: NextRequest) {
 
             // 이메일 발송 (PNG 첨부) - 파트너 유무와 관계없이 항상 발송
             await sendPurchaseConfirmation(sale.id, pngBuffer);
-            console.log('[Automation] Purchase Confirmation with PNG sent');
+            log('[Automation] Purchase Confirmation with PNG sent');
           } catch (certError) {
-            console.error('[Automation] Certificate Generation/Send Error:', certError);
+            error('[Automation] Certificate Generation/Send Error:', certError);
             // PNG 생성 실패시 기존 텍스트 이메일이라도 보내도록 fallback
             await sendPurchaseConfirmation(sale.id);
           }
 
         } catch (error) {
-          console.error('[Automation] Async Task Error:', error);
+          error('[Automation] Async Task Error:', error);
         }
       })();
 
@@ -949,7 +950,7 @@ export async function POST(req: NextRequest) {
         : '결제 완료 및 어필리에이트 판매가 기록되었습니다.',
     });
   } catch (error) {
-    console.error('[Payment Webhook] Error:', error);
+    error('[Payment Webhook] Error:', error);
     return NextResponse.json(
       { ok: false, message: '결제 처리 중 오류가 발생했습니다.' },
       { status: 500 }

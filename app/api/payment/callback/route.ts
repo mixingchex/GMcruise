@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { isPaymentSuccess, getWelcomePayConfig } from '@/lib/welcomepay';
+import { log, error } from '@/lib/logger-wrapper';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.cruisedot.co.kr';
 
@@ -27,7 +28,7 @@ async function executeAutomation(params: {
 
   try {
     // [Step 1] Webhook 호출 → AffiliateSale 실적 생성
-    console.log('[Automation] ===== Webhook 호출 시작 =====');
+    log('[Automation] ===== Webhook 호출 시작 =====');
 
     // Payment에서 메타데이터 조회
     const payment = await prisma.payment.findUnique({
@@ -58,7 +59,7 @@ async function executeAutomation(params: {
 
     const webhookResult = await webhookResponse.json();
 
-    console.log('[Automation] Webhook 결과:', {
+    log('[Automation] Webhook 결과:', {
       ok: webhookResult.ok,
       saleId: webhookResult.saleId || null,
       affiliateSaleCreated: webhookResult.affiliateSaleCreated || false,
@@ -69,12 +70,12 @@ async function executeAutomation(params: {
     // (webhook/route.ts 참조: ensureTripFolder, ensureApisSheet, sendPurchaseConfirmation)
 
     if (webhookResult.affiliateSaleCreated) {
-      console.log(`[Automation] ✅ 어필리에이트 실적 저장 완료! 파트너: ${partnerId}`);
+      log(`[Automation] ✅ 어필리에이트 실적 저장 완료! 파트너: ${partnerId}`);
     }
 
     return webhookResult;
   } catch (error) {
-    console.error('[Automation] 실행 실패:', error);
+    error('[Automation] 실행 실패:', error);
     return { ok: false, error: String(error) };
   }
 }
@@ -117,16 +118,16 @@ export async function POST(request: NextRequest) {
     const notiPartnerId = notiParams.get('partnerId') || '';
     const notiProductCode = notiParams.get('productCode') || '';
 
-    console.log('[Callback v12.0] ===== 데이터 수신 =====');
-    console.log('[Callback v12.0] 기본:', { P_STATUS, P_TID, P_OID, P_AMT, P_TYPE });
-    console.log('[Callback v12.0] PC(merchantData):', { raw: merchantData || '(empty)', partnerId: merchantPartnerId });
-    console.log('[Callback v12.0] Mobile(P_NOTI):', { raw: P_NOTI || '(empty)', partnerId: notiPartnerId });
+    log('[Callback v12.0] ===== 데이터 수신 =====');
+    log('[Callback v12.0] 기본:', { P_STATUS, P_TID, P_OID, P_AMT, P_TYPE });
+    log('[Callback v12.0] PC(merchantData):', { raw: merchantData || '(empty)', partnerId: merchantPartnerId });
+    log('[Callback v12.0] Mobile(P_NOTI):', { raw: P_NOTI || '(empty)', partnerId: notiPartnerId });
 
     // ============================================
     // [Step 3] 인증 실패 시 바로 실패 페이지로
     // ============================================
     if (P_STATUS !== '00') {
-      console.log('[Callback v12.0] 인증 실패:', P_RMESG1);
+      log('[Callback v12.0] 인증 실패:', P_RMESG1);
       return NextResponse.redirect(
         new URL(`/payment/failed?message=${encodeURIComponent(P_RMESG1 || 'AuthFailed')}`, request.url),
         303
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
     // [Step 4] 인증 성공 → PG사로 승인 요청 (Server-to-Server)
     // ============================================
     if (!P_REQ_URL || !P_TID) {
-      console.error('[Callback v12.0] Missing P_REQ_URL or P_TID');
+      error('[Callback v12.0] Missing P_REQ_URL or P_TID');
       return NextResponse.redirect(new URL('/payment/failed?message=InvalidRequest', request.url), 303);
     }
 
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
     const pgConfig = getWelcomePayConfig();
     approvalData.append('P_MID', pgConfig.mid);
 
-    console.log('[Callback v12.0] 승인 요청 전송:', P_REQ_URL);
+    log('[Callback v12.0] 승인 요청 전송:', P_REQ_URL);
 
     const approvalRes = await fetch(P_REQ_URL, {
       method: 'POST',
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
     });
 
     const approvalText = await approvalRes.text();
-    console.log('[Callback v12.0] 승인 응답:', approvalText.substring(0, 500));
+    log('[Callback v12.0] 승인 응답:', approvalText.substring(0, 500));
 
     // 승인 결과 파싱
     const approvalParams = new URLSearchParams(approvalText);
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
     // [Step 5] 승인 실패 처리
     // ============================================
     if (!isPaymentSuccess(finalStatus)) {
-      console.log('[Callback v12.0] 승인 실패:', finalMsg);
+      log('[Callback v12.0] 승인 실패:', finalMsg);
 
       if (finalOid) {
         await prisma.payment.updateMany({
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest) {
     // ============================================
     // [Step 6] 승인 성공! 3중 파트너 정보 복구
     // ============================================
-    console.log('[Callback v12.0] ===== 승인 성공, 파트너 복구 시작 =====');
+    log('[Callback v12.0] ===== 승인 성공, 파트너 복구 시작 =====');
 
     // 6-1. DB에서 원본 주문 정보 조회 (3순위 비상 복구용)
     const payment = await prisma.payment.findUnique({
@@ -212,14 +213,14 @@ export async function POST(request: NextRequest) {
     if (!finalPartnerId && payment?.affiliateMallUserId) {
       finalPartnerId = payment.affiliateMallUserId;
       partnerSource = 'DB(비상복구)';
-      console.log('[Callback v12.0] 파트너 정보 유실 → DB 복구 성공:', finalPartnerId);
+      log('[Callback v12.0] 파트너 정보 유실 → DB 복구 성공:', finalPartnerId);
     }
     if (!finalProductCode && payment?.productCode) {
       finalProductCode = payment.productCode;
     }
 
-    console.log('[Callback v12.0] ===== 파트너 정보 최종 결과 =====');
-    console.log('[Callback v12.0] 최종:', {
+    log('[Callback v12.0] ===== 파트너 정보 최종 결과 =====');
+    log('[Callback v12.0] 최종:', {
       partnerId: finalPartnerId || 'NONE ⚠️',
       productCode: finalProductCode || 'NONE',
       source: partnerSource,
@@ -229,7 +230,7 @@ export async function POST(request: NextRequest) {
     // [Step 7] Payment DB 상태 업데이트
     // ============================================
     if (!payment) {
-      console.error('[Callback v12.0] ⚠️ Payment not found in DB:', finalOid);
+      error('[Callback v12.0] ⚠️ Payment not found in DB:', finalOid);
       // 결제 정보 없어도 PG 승인은 됐으므로 성공 페이지로
       return NextResponse.redirect(
         new URL(`/payment/success?orderId=${finalOid}&tid=${finalTid}`, request.url),
@@ -239,7 +240,7 @@ export async function POST(request: NextRequest) {
 
     // 이미 완료된 결제는 스킵 (중복 처리 방지)
     if (payment.status === 'completed') {
-      console.log('[Callback v12.0] Already completed:', finalOid);
+      log('[Callback v12.0] Already completed:', finalOid);
       return NextResponse.redirect(
         new URL(`/payment/success?orderId=${finalOid}&tid=${finalTid}`, request.url),
         303
@@ -265,7 +266,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('[Callback v12.0] ✅ Payment 상태 업데이트 완료');
+    log('[Callback v12.0] ✅ Payment 상태 업데이트 완료');
 
     // ============================================
     // [Step 8] 자동화 실행 (비동기)
@@ -273,7 +274,7 @@ export async function POST(request: NextRequest) {
     // - Google Drive 폴더/시트 생성
     // - 이메일 발송
     // ============================================
-    console.log('[Callback v12.0] ===== 자동화 실행 시작 =====');
+    log('[Callback v12.0] ===== 자동화 실행 시작 =====');
 
     // 자동화를 비동기로 실행 (리다이렉트 지연 방지)
     executeAutomation({
@@ -288,19 +289,19 @@ export async function POST(request: NextRequest) {
       partnerSource,
     }).then(result => {
       if (result.affiliateSaleCreated) {
-        console.log(`[Callback v12.0] ✅ 자동화 완료! 파트너: ${finalPartnerId}, 실적ID: ${result.saleId}`);
+        log(`[Callback v12.0] ✅ 자동화 완료! 파트너: ${finalPartnerId}, 실적ID: ${result.saleId}`);
       } else if (finalPartnerId) {
-        console.log(`[Callback v12.0] ⚠️ 파트너(${finalPartnerId}) 있으나 실적 저장 실패`);
+        log(`[Callback v12.0] ⚠️ 파트너(${finalPartnerId}) 있으나 실적 저장 실패`);
       }
     }).catch(err => {
-      console.error('[Callback v12.0] ⚠️ 자동화 실행 실패:', err);
+      error('[Callback v12.0] ⚠️ 자동화 실행 실패:', err);
     });
 
     // ============================================
     // [Step 9] 성공 페이지로 리다이렉트
     // ============================================
-    console.log('[Callback v12.0] ===== 결제 완료 =====');
-    console.log(`[Callback v12.0] 주문: ${finalOid}, 파트너: ${finalPartnerId || 'NONE'}, 출처: ${partnerSource}`);
+    log('[Callback v12.0] ===== 결제 완료 =====');
+    log(`[Callback v12.0] 주문: ${finalOid}, 파트너: ${finalPartnerId || 'NONE'}, 출처: ${partnerSource}`);
 
     return NextResponse.redirect(
       new URL(`/payment/success?orderId=${finalOid}&tid=${finalTid}`, request.url),
@@ -308,7 +309,7 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('[Callback v12.0 Error]', error);
+    error('[Callback v12.0 Error]', error);
     return NextResponse.redirect(
       new URL('/payment/failed?message=Server_Error', request.url),
       303
@@ -326,7 +327,7 @@ export async function GET(request: NextRequest) {
   const P_TID = searchParams.get('P_TID') || '';
   const P_OID = searchParams.get('P_OID') || '';
 
-  console.log('[Callback v12.0 GET] Received:', { P_STATUS, P_TID, P_OID });
+  log('[Callback v12.0 GET] Received:', { P_STATUS, P_TID, P_OID });
 
   if (P_STATUS === '00' && P_OID) {
     return NextResponse.redirect(

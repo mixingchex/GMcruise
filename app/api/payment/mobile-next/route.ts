@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { log, error } from '@/lib/logger-wrapper';
 import { isPaymentSuccess } from '@/lib/welcomepay';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     const P_REQ_URL = formData.get('P_REQ_URL') as string; // 승인 요청 URL
     const P_NOTI = formData.get('P_NOTI') as string;
 
-    console.log('[Mobile Next] 인증 결과:', {
+    log('[Mobile Next] 인증 결과:', {
       P_STATUS,
       P_RMESG1,
       P_TID,
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     // 인증 실패 시
     if (!isPaymentSuccess(P_STATUS)) {
-      console.error('[Mobile Next] 인증 실패:', P_RMESG1);
+      error('[Mobile Next] 인증 실패:', P_RMESG1);
 
       // 결제 정보 업데이트 (실패)
       if (P_OID) {
@@ -64,14 +65,14 @@ export async function POST(req: NextRequest) {
 
     // 승인 요청 (P_REQ_URL로 HTTP 요청)
     if (!P_REQ_URL) {
-      console.error('[Mobile Next] P_REQ_URL 없음');
+      error('[Mobile Next] P_REQ_URL 없음');
       return NextResponse.redirect(
         new URL(`/payment/failed?orderId=${P_OID}&error=${encodeURIComponent('승인 URL이 없습니다.')}`, BASE_URL),
         303
       );
     }
 
-    console.log('[Mobile Next] 승인 요청:', P_REQ_URL);
+    log('[Mobile Next] 승인 요청:', P_REQ_URL);
 
     // 승인 요청 파라미터
     const approvalParams = new URLSearchParams();
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
     });
 
     const responseText = await approvalResponse.text();
-    console.log('[Mobile Next] 승인 응답:', responseText);
+    log('[Mobile Next] 승인 응답:', responseText);
 
     // 응답 파싱 (URL 인코딩된 형식)
     const resultParams = new URLSearchParams(responseText);
@@ -101,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     // 승인 결과 확인
     if (!isPaymentSuccess(resultStatus || '')) {
-      console.error('[Mobile Next] 승인 실패:', resultMsg);
+      error('[Mobile Next] 승인 실패:', resultMsg);
 
       await prisma.payment.updateMany({
         where: { orderId: P_OID },
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 결제 성공 - DB 업데이트
-    console.log('[Mobile Next] 결제 성공:', {
+    log('[Mobile Next] 결제 성공:', {
       orderId: P_OID,
       tid: resultTid,
       amount: P_AMT,
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
           }),
         });
       } catch (webhookError) {
-        console.error('[Mobile Next] Webhook 호출 실패:', webhookError);
+        error('[Mobile Next] Webhook 호출 실패:', webhookError);
       }
     }
 
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest) {
       303
     );
   } catch (error) {
-    console.error('[Mobile Next] Error:', error);
+    error('[Mobile Next] Error:', error);
     return NextResponse.redirect(
       new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL),
       303

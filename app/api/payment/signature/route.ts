@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { generatePCSignature, generateMobileSignature, getWelcomePayConfig, getTimestamp } from '@/lib/welcomepay';
+import { log, error } from '@/lib/logger-wrapper';
 
 // PC/Mobile 결제용 서명 생성 API
 export async function POST(req: NextRequest) {
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
           timestamp
         );
 
-    console.log('[Payment Signature] Generated:', {
+    log('[Payment Signature] Generated:', {
       orderId,
       price,
       timestamp,
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
       signature: signatureData.signature,
     });
   } catch (error) {
-    console.error('[Payment Signature] Error:', error);
+    error('[Payment Signature] Error:', error);
     return NextResponse.json(
       { ok: false, error: '서명 생성 중 오류가 발생했습니다.' },
       { status: 500 }

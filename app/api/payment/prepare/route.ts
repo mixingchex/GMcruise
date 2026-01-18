@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { log, error } from '@/lib/logger-wrapper';
 import {
   getWelcomePayConfig,
   createMobilePaymentForm,
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     const isMobileParam = req.nextUrl.searchParams.get('isMobile');
     const isMobile = isMobileParam === 'true';
 
-    console.log('[Payment Prepare GET] orderId:', orderId, 'isMobile:', isMobile);
+    log('[Payment Prepare GET] orderId:', orderId, 'isMobile:', isMobile);
 
     if (!orderId) {
       return NextResponse.json(
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
     const returnUrl = `${BASE_URL}/api/payment/return`;
     const notiUrl = `${BASE_URL}/api/payment/notify`;
 
-    console.log('[Payment Prepare GET] Callback URLs:', {
+    log('[Payment Prepare GET] Callback URLs:', {
       BASE_URL,
       nextUrl,
       returnUrl,
@@ -104,16 +105,16 @@ export async function GET(req: NextRequest) {
       // Mobile용 폼 데이터 (EUC-KR, Form Submit 방식)
       formData = createMobilePaymentForm(config, paymentParams) as unknown as Record<string, string>;
       paymentUrl = getMobilePaymentUrl(config, 'CARD');
-      console.log('[Payment Prepare GET] Mobile form data generated');
-      console.log('[Payment Prepare GET] P_NEXT_URL:', formData.P_NEXT_URL);
+      log('[Payment Prepare GET] Mobile form data generated');
+      log('[Payment Prepare GET] P_NEXT_URL:', formData.P_NEXT_URL);
     } else {
       // PC용 폼 데이터 (UTF-8, Form Submit redirect 방식)
       formData = createPCPaymentForm(config, paymentParams) as unknown as Record<string, string>;
       paymentUrl = getPCPaymentUrl(config);
-      console.log('[Payment Prepare GET] PC form data generated');
+      log('[Payment Prepare GET] PC form data generated');
     }
-    console.log('[Payment Prepare GET] Payment URL:', paymentUrl);
-    console.log('[Payment Prepare GET] isMobile:', isMobile);
+    log('[Payment Prepare GET] Payment URL:', paymentUrl);
+    log('[Payment Prepare GET] isMobile:', isMobile);
 
     return NextResponse.json({
       ok: true,
@@ -132,7 +133,7 @@ export async function GET(req: NextRequest) {
       isMobile,
     });
   } catch (error) {
-    console.error('[Payment Prepare GET] Error:', error);
+    error('[Payment Prepare GET] Error:', error);
     return NextResponse.json(
       { ok: false, error: '결제 정보 조회 중 오류가 발생했습니다.' },
       { status: 500 }
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
       isMobile = false,
     } = body;
 
-    console.log('[Payment Prepare POST] orderId:', orderId, 'payMethod:', payMethod, 'isMobile:', isMobile);
+    log('[Payment Prepare POST] orderId:', orderId, 'payMethod:', payMethod, 'isMobile:', isMobile);
 
     if (!orderId) {
       return NextResponse.json(
@@ -201,7 +202,7 @@ export async function POST(req: NextRequest) {
     const returnUrl = `${BASE_URL}/api/payment/return`;
     const notiUrl = `${BASE_URL}/api/payment/notify`;
 
-    console.log('[Payment Prepare POST] Callback URLs:', {
+    log('[Payment Prepare POST] Callback URLs:', {
       BASE_URL,
       nextUrl,
       isMobile,
@@ -230,16 +231,16 @@ export async function POST(req: NextRequest) {
       // Mobile용 폼 데이터 (EUC-KR, Form Submit 방식)
       formData = createMobilePaymentForm(config, params) as unknown as Record<string, string>;
       paymentUrl = getMobilePaymentUrl(config, payMethod as PaymentMethod);
-      console.log('[Payment Prepare POST] Mobile form data generated');
-      console.log('[Payment Prepare POST] P_NEXT_URL:', formData.P_NEXT_URL);
+      log('[Payment Prepare POST] Mobile form data generated');
+      log('[Payment Prepare POST] P_NEXT_URL:', formData.P_NEXT_URL);
     } else {
       // PC용 폼 데이터 (UTF-8, Form Submit redirect 방식)
       formData = createPCPaymentForm(config, params) as unknown as Record<string, string>;
       paymentUrl = getPCPaymentUrl(config);
-      console.log('[Payment Prepare POST] PC form data generated');
+      log('[Payment Prepare POST] PC form data generated');
     }
-    console.log('[Payment Prepare POST] Payment URL:', paymentUrl);
-    console.log('[Payment Prepare POST] isMobile:', isMobile);
+    log('[Payment Prepare POST] Payment URL:', paymentUrl);
+    log('[Payment Prepare POST] isMobile:', isMobile);
 
     return NextResponse.json({
       ok: true,
@@ -248,7 +249,7 @@ export async function POST(req: NextRequest) {
       isMobile,
     });
   } catch (error) {
-    console.error('[Payment Prepare POST] Error:', error);
+    error('[Payment Prepare POST] Error:', error);
     return NextResponse.json(
       { ok: false, error: '결제 준비 중 오류가 발생했습니다.' },
       { status: 500 }

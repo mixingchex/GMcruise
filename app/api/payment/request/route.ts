@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { log, error } from '@/lib/logger-wrapper';
 import { getSessionUser } from '@/lib/auth';
 import { getWelcomePayConfig } from '@/lib/welcomepay';
 
@@ -148,7 +149,7 @@ export async function POST(req: NextRequest) {
     const checkoutUrl = `${BASE_URL}/payment/checkout?orderId=${orderId}`;
 
     // 디버깅: 결제 데이터 출력
-    console.log('[Payment Request] Payment Created:', {
+    log('[Payment Request] Payment Created:', {
       orderId,
       amount: parseInt(String(amount)),
       productName: finalProductName,
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     // 에러는 항상 로깅 (결제 오류는 중요)
-    console.error('[Payment Request] Error:', error);
+    error('[Payment Request] Error:', error);
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : '결제 요청 중 오류가 발생했습니다.' },
       { status: 500 }

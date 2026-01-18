@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { isPaymentSuccess, getWelcomePayConfig, generateApprovalSignature, getTimestamp } from '@/lib/welcomepay';
+import { log, error } from '@/lib/logger-wrapper';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
@@ -23,8 +24,8 @@ async function requestPaymentApproval(
   signature: string
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    console.log('[Payment Approval] Requesting approval to:', authUrl);
-    console.log('[Payment Approval] Params:', { mid, authToken: authToken.substring(0, 20) + '...', price, timestamp });
+    log('[Payment Approval] Requesting approval to:', authUrl);
+    log('[Payment Approval] Params:', { mid, authToken: authToken.substring(0, 20) + '...', price, timestamp });
 
     // URL 인코딩된 form data 생성
     const params = new URLSearchParams();
@@ -45,8 +46,8 @@ async function requestPaymentApproval(
     });
 
     const responseText = await response.text();
-    console.log('[Payment Approval] Response status:', response.status);
-    console.log('[Payment Approval] Response body:', responseText.substring(0, 500));
+    log('[Payment Approval] Response status:', response.status);
+    log('[Payment Approval] Response body:', responseText.substring(0, 500));
 
     // JSON 파싱 시도
     let data;
@@ -58,7 +59,7 @@ async function requestPaymentApproval(
       data = Object.fromEntries(urlParams.entries());
     }
 
-    console.log('[Payment Approval] Parsed data:', data);
+    log('[Payment Approval] Parsed data:', data);
 
     // 승인 결과 확인 (resultCode가 0000 또는 00이면 성공)
     const approvalResultCode = data.resultCode || data.P_STATUS;
@@ -72,7 +73,7 @@ async function requestPaymentApproval(
       };
     }
   } catch (error) {
-    console.error('[Payment Approval] Error:', error);
+    error('[Payment Approval] Error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : '승인 요청 중 오류 발생'
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
     const merchantPartnerId = merchantParams.get('partnerId') || '';
     const merchantProductCode = merchantParams.get('productCode') || '';
 
-    console.log('[Payment Return v12.0] 인증 결과 수신:', {
+    log('[Payment Return v12.0] 인증 결과 수신:', {
       // PC 파라미터
       resultCode,
       resultMsg,
@@ -138,11 +139,11 @@ export async function POST(req: NextRequest) {
 
     // === PC 결제: 2단계 승인 처리 (authToken이 있으면 PC 결제) ===
     if (authToken && authUrl) {
-      console.log('[Payment Return v12.0] PC 결제 감지 - 승인 API 호출 시작');
+      log('[Payment Return v12.0] PC 결제 감지 - 승인 API 호출 시작');
 
       // 인증 성공 확인
       if (!isPaymentSuccess(resultCode)) {
-        console.error('[Payment Return v12.0] PC 인증 실패:', resultCode, resultMsg);
+        error('[Payment Return v12.0] PC 인증 실패:', resultCode, resultMsg);
 
         // DB 업데이트 - 실패
         if (orderId) {
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
               failedAt: new Date(),
               failureReason: resultMsg || '인증 실패',
             },
-          }).catch(e => console.error('[Payment Return] DB update error:', e));
+          }).catch(e => error('[Payment Return] DB update error:', e));
         }
 
         return NextResponse.redirect(
@@ -171,12 +172,12 @@ export async function POST(req: NextRequest) {
         });
         if (payment) {
           paymentAmount = payment.amount;
-          console.log('[Payment Return v12.0] DB payment found:', { orderId, amount: paymentAmount });
+          log('[Payment Return v12.0] DB payment found:', { orderId, amount: paymentAmount });
         }
       }
 
       if (!paymentAmount) {
-        console.error('[Payment Return v12.0] 결제 정보를 찾을 수 없음:', orderId);
+        error('[Payment Return v12.0] 결제 정보를 찾을 수 없음:', orderId);
         return NextResponse.redirect(
           new URL(`/payment/failed?orderId=${orderId}&error=${encodeURIComponent('결제 정보를 찾을 수 없습니다.')}`, BASE_URL),
           303
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest) {
       const approvalTimestamp = getTimestamp();
       const approvalSignature = generateApprovalSignature(authToken, approvalTimestamp);
 
-      console.log('[Payment Return v12.0] 승인 API 서명 생성:', {
+      log('[Payment Return v12.0] 승인 API 서명 생성:', {
         authTokenPreview: authToken.substring(0, 30) + '...',
         timestamp: approvalTimestamp,
         signaturePreview: approvalSignature.substring(0, 20) + '...',
@@ -213,7 +214,7 @@ export async function POST(req: NextRequest) {
         const authDate = approvalData.authDate || approvalData.AuthDate || approvalData.P_AUTH_DT;
         const payMethod = approvalData.payMethod || approvalData.PayMethod || approvalData.P_TYPE;
 
-        console.log('[Payment Return v12.0] PC 승인 성공:', { tid, authCode, authDate, payMethod });
+        log('[Payment Return v12.0] PC 승인 성공:', { tid, authCode, authDate, payMethod });
 
         // DB 업데이트 - 성공
         if (payment) {
@@ -238,7 +239,7 @@ export async function POST(req: NextRequest) {
           const finalPartnerId = payment.affiliateMallUserId || merchantPartnerId || '';
           const finalProductCode = payment.productCode || merchantProductCode || '';
 
-          console.log('[Payment Return v12.0] DB + merchantData 병합:', {
+          log('[Payment Return v12.0] DB + merchantData 병합:', {
             orderId,
             db_affiliateMallUserId: payment.affiliateMallUserId || 'N/A',
             db_productCode: payment.productCode || 'N/A',
@@ -268,7 +269,7 @@ export async function POST(req: NextRequest) {
               }),
             });
           } catch (webhookError) {
-            console.error('[Payment Return v12.0] Webhook 호출 실패:', webhookError);
+            error('[Payment Return v12.0] Webhook 호출 실패:', webhookError);
           }
         }
 
@@ -278,7 +279,7 @@ export async function POST(req: NextRequest) {
         );
       } else {
         // 승인 실패
-        console.error('[Payment Return v12.0] PC 승인 실패:', approvalResult.error);
+        error('[Payment Return v12.0] PC 승인 실패:', approvalResult.error);
 
         // DB 업데이트 - 실패
         if (payment) {
@@ -296,7 +297,7 @@ export async function POST(req: NextRequest) {
         // 망취소도 승인요청과 동일한 signature 사용 (authToken + timestamp)
         if (netCancelUrl) {
           try {
-            console.log('[Payment Return v12.0] 망취소 요청:', netCancelUrl);
+            log('[Payment Return v12.0] 망취소 요청:', netCancelUrl);
             await fetch(netCancelUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -310,7 +311,7 @@ export async function POST(req: NextRequest) {
               }).toString(),
             });
           } catch (cancelError) {
-            console.error('[Payment Return v12.0] 망취소 실패:', cancelError);
+            error('[Payment Return v12.0] 망취소 실패:', cancelError);
           }
         }
 
@@ -322,7 +323,7 @@ export async function POST(req: NextRequest) {
     }
 
     // === 기존 로직: 모바일 또는 직접 결과 수신 (Legacy 호환) ===
-    console.log('[Payment Return v12.0] Legacy/Mobile 결제 처리');
+    log('[Payment Return v12.0] Legacy/Mobile 결제 처리');
 
     // 결과 파라미터 (기존 방식 호환)
     const legacyResultCode = resultCode || mobileResultCode;
@@ -365,7 +366,7 @@ export async function POST(req: NextRequest) {
           const finalPartnerId = payment.affiliateMallUserId || merchantPartnerId || '';
           const finalProductCode = payment.productCode || merchantProductCode || '';
 
-          console.log('[Payment Return v11.0] DB + merchantData 병합:', {
+          log('[Payment Return v11.0] DB + merchantData 병합:', {
             orderId,
             db_affiliateMallUserId: payment.affiliateMallUserId || 'N/A',
             db_productCode: payment.productCode || 'N/A',
@@ -396,7 +397,7 @@ export async function POST(req: NextRequest) {
               }),
             });
           } catch (webhookError) {
-            console.error('[Payment Return v11.0] Webhook 호출 실패:', webhookError);
+            error('[Payment Return v11.0] Webhook 호출 실패:', webhookError);
           }
         } else {
           await prisma.payment.update({
@@ -425,7 +426,7 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error) {
-    console.error('[Payment Return v12.0] Error:', error);
+    error('[Payment Return v12.0] Error:', error);
     return NextResponse.redirect(
       new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL),
       303
@@ -452,7 +453,7 @@ export async function GET(req: NextRequest) {
   const merchantPartnerId = merchantParams.get('partnerId') || '';
   const merchantProductCode = merchantParams.get('productCode') || '';
 
-  console.log('[Payment Return GET v11.0]:', {
+  log('[Payment Return GET v11.0]:', {
     resultCode,
     resultMsg,
     tid,
@@ -504,7 +505,7 @@ export async function GET(req: NextRequest) {
             }),
           });
         } catch (webhookError) {
-          console.error('[Payment Return GET v11.0] Webhook error:', webhookError);
+          error('[Payment Return GET v11.0] Webhook error:', webhookError);
         }
       } else {
         await prisma.payment.update({
