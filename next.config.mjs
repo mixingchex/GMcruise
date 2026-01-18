@@ -153,13 +153,10 @@ const nextConfig = {
         'tests/**',
       ],
     },
-    // googleapis 패키지를 Vercel 서버리스 함수에 선택적으로 포함 (./docs 모듈 누락 해결)
-    // 빌드 타임아웃 방지를 위해 계약서 완료 관련 라우트만 포함 (최소화)
+    // googleapis 패키지를 Vercel 서버리스 함수에 포함 (./docs 모듈 누락 해결)
+    // 모든 API 라우트에 포함 (동적 임포트 대응)
     outputFileTracingIncludes: {
-      // B2B 계약서 완료 - 파트너/어드민/어필리에이트 (상태 전환 정상 작동 필요)
-      '/api/partner/contracts/**': ['./node_modules/googleapis/**'],
-      '/api/admin/affiliate/contracts/**': ['./node_modules/googleapis/**'],
-      '/api/affiliate/contracts/**': ['./node_modules/googleapis/**'],
+      '/api/**': ['./node_modules/googleapis/**'],
     },
   },
 
