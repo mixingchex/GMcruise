@@ -164,11 +164,11 @@ export async function POST(req: NextRequest) {
       checkoutUrl, // 결제 체크아웃 페이지 URL
       message: '결제 요청이 생성되었습니다. checkoutUrl로 이동해주세요.',
     });
-  } catch (error) {
+  } catch (err) {
     // 에러는 항상 로깅 (결제 오류는 중요)
-    error('[Payment Request] Error:', error);
+    error('[Payment Request] Error:', err);
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : '결제 요청 중 오류가 발생했습니다.' },
+      { ok: false, error: err instanceof Error ? err.message : '결제 요청 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

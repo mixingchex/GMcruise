@@ -72,11 +72,11 @@ async function requestPaymentApproval(
         error: data.resultMsg || data.P_RMESG1 || '승인 실패'
       };
     }
-  } catch (error) {
-    error('[Payment Approval] Error:', error);
+  } catch (err) {
+    error('[Payment Approval] Error:', err);
     return {
       success: false,
-      error: error instanceof Error ? error.message : '승인 요청 중 오류 발생'
+      error: err instanceof Error ? err.message : '승인 요청 중 오류 발생'
     };
   }
 }
@@ -268,8 +268,8 @@ export async function POST(req: NextRequest) {
                 affiliateMallUserId: finalPartnerId,
               }),
             });
-          } catch (webhookError) {
-            error('[Payment Return v12.0] Webhook 호출 실패:', webhookError);
+          } catch (webhookErr) {
+            error('[Payment Return v12.0] Webhook 호출 실패:', webhookErr);
           }
         }
 
@@ -310,8 +310,8 @@ export async function POST(req: NextRequest) {
                 charset: 'UTF-8',
               }).toString(),
             });
-          } catch (cancelError) {
-            error('[Payment Return v12.0] 망취소 실패:', cancelError);
+          } catch (cancelErr) {
+            error('[Payment Return v12.0] 망취소 실패:', cancelErr);
           }
         }
 
@@ -396,8 +396,8 @@ export async function POST(req: NextRequest) {
                 affiliateMallUserId: finalPartnerId,
               }),
             });
-          } catch (webhookError) {
-            error('[Payment Return v11.0] Webhook 호출 실패:', webhookError);
+          } catch (webhookErr) {
+            error('[Payment Return v11.0] Webhook 호출 실패:', webhookErr);
           }
         } else {
           await prisma.payment.update({
@@ -425,8 +425,8 @@ export async function POST(req: NextRequest) {
         303
       );
     }
-  } catch (error) {
-    error('[Payment Return v12.0] Error:', error);
+  } catch (err) {
+    error('[Payment Return v12.0] Error:', err);
     return NextResponse.redirect(
       new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL),
       303
@@ -504,8 +504,8 @@ export async function GET(req: NextRequest) {
               affiliateMallUserId: finalPartnerId,
             }),
           });
-        } catch (webhookError) {
-          error('[Payment Return GET v11.0] Webhook error:', webhookError);
+        } catch (webhookErr) {
+          error('[Payment Return GET v11.0] Webhook error:', webhookErr);
         }
       } else {
         await prisma.payment.update({

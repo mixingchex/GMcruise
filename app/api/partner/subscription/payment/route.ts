@@ -7,6 +7,7 @@ import { NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { payappApiPost, getContractPrice, getContractGoodName } from '@/lib/payapp';
 import prisma from '@/lib/prisma';
+import { log, error } from '@/lib/logger-wrapper';
 
 export async function POST(req: Request) {
   try {
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/$/, '') || 'http://localhost:3000';
 
     if (!payappUserid || !payappLinkkey) {
-      console.error('[Subscription Payment] PayApp 설정 누락');
+      error('[Subscription Payment] PayApp 설정 누락');
       return NextResponse.json(
         { ok: false, message: 'PayApp 설정이 완료되지 않았습니다. 관리자 패널에서 PayApp 설정을 확인하고 저장해주세요.' },
         { status: 500 }
@@ -102,7 +103,7 @@ export async function POST(req: Request) {
       skip_cstpage: 'y', // 매출전표 페이지 이동 안함
     };
 
-    console.log('[Subscription Payment] 결제 요청 파라메터:', {
+    log('[Subscription Payment] 결제 요청 파라메터:', {
       cmd: params.cmd,
       userid: params.userid,
       goodname: params.goodname,
@@ -114,11 +115,11 @@ export async function POST(req: Request) {
 
     const result = await payappApiPost(params);
 
-    console.log('[Subscription Payment] PayApp 응답:', result);
+    log('[Subscription Payment] PayApp 응답:', result);
 
     if (result.state === '1') {
       // 결제 요청 성공
-      console.log('[Subscription Payment] 결제 요청 성공:', {
+      log('[Subscription Payment] 결제 요청 성공:', {
         mul_no: result.mul_no,
         payurl: result.payurl,
       });
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
       });
     } else {
       // 결제 요청 실패
-      console.error('[Subscription Payment] 결제 요청 실패:', {
+      error('[Subscription Payment] 결제 요청 실패:', {
         state: result.state,
         errorMessage: result.errorMessage,
         errno: result.errno,
@@ -144,12 +145,11 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-  } catch (error: any) {
-    console.error('[Subscription Payment] Error:', error);
+  } catch (err: any) {
+    error('[Subscription Payment] Error:', err);
     return NextResponse.json(
-      { ok: false, message: error?.message || '서버 오류가 발생했습니다.' },
+      { ok: false, message: err?.message || '서버 오류가 발생했습니다.' },
       { status: 500 }
     );
   }
 }
-

@@ -173,8 +173,8 @@ export async function POST(req: NextRequest) {
               affiliateMallUserId: payment.affiliateMallUserId,
             }),
           });
-        } catch (webhookError) {
-          error('[Payment Notify] Webhook 호출 실패:', webhookError);
+        } catch (webhookErr) {
+          error('[Payment Notify] Webhook 호출 실패:', webhookErr);
         }
 
         log('[Payment Notify] 결제 완료:', {
@@ -202,8 +202,8 @@ export async function POST(req: NextRequest) {
 
     // 웰컴페이먼츠에 OK 응답 (반드시 OK 문자열 반환)
     return new Response('OK', { status: 200 });
-  } catch (error) {
-    error('[Payment Notify] Error:', error);
+  } catch (err) {
+    error('[Payment Notify] Error:', err);
     // 에러가 발생해도 OK 응답 (재시도 방지)
     return new Response('OK', { status: 200 });
   }

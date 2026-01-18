@@ -266,8 +266,8 @@ export async function POST(req: NextRequest) {
             determinedCabinType || 'unknown',
             affiliateProductId,
             fareCategory
-          ).catch((err) => {
-            error('[Payment Webhook] 알림 전송 실패:', err);
+          ).catch((e) => {
+            error('[Payment Webhook] 알림 전송 실패:', e);
           });
         }
       }
@@ -499,8 +499,8 @@ export async function POST(req: NextRequest) {
         userId,
         totalGuests,
       });
-    } catch (reservationError) {
-      error('[Payment Webhook] 🔴 CRITICAL: Reservation 생성 실패:', reservationError);
+    } catch (err) {
+      error('[Payment Webhook] 🔴 CRITICAL: Reservation 생성 실패:', err);
       reservationFailed = true;
 
       // 🔴 CRITICAL: 결제는 완료되었지만 예약 생성 실패 - 수동 환불 필요
@@ -514,7 +514,7 @@ export async function POST(req: NextRequest) {
               metadata: {
                 ...(sale.metadata as any || {}),
                 reservationFailed: true,
-                reservationFailureReason: reservationError instanceof Error ? reservationError.message : String(reservationError),
+                reservationFailureReason: err instanceof Error ? err.message : String(err),
                 reservationFailedAt: new Date().toISOString(),
                 requiresManualRefund: true, // 🔴 수동 환불 필요 플래그
               },
@@ -529,15 +529,15 @@ export async function POST(req: NextRequest) {
               metadata: {
                 reservationFailed: true,
                 requiresManualRefund: true,
-                failureReason: reservationError instanceof Error ? reservationError.message : String(reservationError),
+                failureReason: err instanceof Error ? err.message : String(err),
               },
             },
           });
         });
 
         log('[Payment Webhook] ✅ Reservation 실패 정보 DB 기록 완료 (트랜잭션)');
-      } catch (txError) {
-        error('[Payment Webhook] ❌ Reservation 실패 정보 DB 기록 실패:', txError);
+      } catch (txErr) {
+        error('[Payment Webhook] ❌ Reservation 실패 정보 DB 기록 실패:', txErr);
         // DB 기록 실패해도 관리자 알림은 로그에 남김
       }
 
@@ -550,7 +550,7 @@ export async function POST(req: NextRequest) {
         amount,
         customerName,
         customerPhone,
-        error: reservationError instanceof Error ? reservationError.message : String(reservationError),
+        error: err instanceof Error ? err.message : String(err),
         action: 'MANUAL_REFUND_REQUIRED',
       });
     }
@@ -917,14 +917,14 @@ export async function POST(req: NextRequest) {
             // 이메일 발송 (PNG 첨부) - 파트너 유무와 관계없이 항상 발송
             await sendPurchaseConfirmation(sale.id, pngBuffer);
             log('[Automation] Purchase Confirmation with PNG sent');
-          } catch (certError) {
-            error('[Automation] Certificate Generation/Send Error:', certError);
+          } catch (certErr) {
+            error('[Automation] Certificate Generation/Send Error:', certErr);
             // PNG 생성 실패시 기존 텍스트 이메일이라도 보내도록 fallback
             await sendPurchaseConfirmation(sale.id);
           }
 
-        } catch (error) {
-          error('[Automation] Async Task Error:', error);
+        } catch (err) {
+          error('[Automation] Async Task Error:', err);
         }
       })();
 
@@ -949,8 +949,8 @@ export async function POST(req: NextRequest) {
         ? '결제는 완료되었으나 예약 생성에 실패했습니다. 관리자가 확인 후 처리할 예정입니다.'
         : '결제 완료 및 어필리에이트 판매가 기록되었습니다.',
     });
-  } catch (error) {
-    error('[Payment Webhook] Error:', error);
+  } catch (err) {
+    error('[Payment Webhook] Error:', err);
     return NextResponse.json(
       { ok: false, message: '결제 처리 중 오류가 발생했습니다.' },
       { status: 500 }

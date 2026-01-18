@@ -169,8 +169,8 @@ export async function POST(req: NextRequest) {
             affiliateMallUserId: payment.affiliateMallUserId,
           }),
         });
-      } catch (webhookError) {
-        error('[Mobile Next] Webhook 호출 실패:', webhookError);
+      } catch (webhookErr) {
+        error('[Mobile Next] Webhook 호출 실패:', webhookErr);
       }
     }
 
@@ -179,8 +179,8 @@ export async function POST(req: NextRequest) {
       new URL(`/payment/success?orderId=${P_OID}`, BASE_URL),
       303
     );
-  } catch (error) {
-    error('[Mobile Next] Error:', error);
+  } catch (err) {
+    error('[Mobile Next] Error:', err);
     return NextResponse.redirect(
       new URL(`/payment/failed?error=${encodeURIComponent('결제 처리 중 오류가 발생했습니다.')}`, BASE_URL),
       303

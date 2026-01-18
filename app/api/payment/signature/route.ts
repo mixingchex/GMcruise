@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
       mKey: signatureData.mkey,
       signature: signatureData.signature,
     });
-  } catch (error) {
-    error('[Payment Signature] Error:', error);
+  } catch (err) {
+    error('[Payment Signature] Error:', err);
     return NextResponse.json(
       { ok: false, error: '서명 생성 중 오류가 발생했습니다.' },
       { status: 500 }

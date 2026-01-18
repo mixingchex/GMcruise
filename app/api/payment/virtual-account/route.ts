@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
       resultCode: '0000',
       resultMsg: 'OK',
     });
-  } catch (error) {
-    error('[Virtual Account Notification] Error:', error);
+  } catch (err) {
+    error('[Virtual Account Notification] Error:', err);
     return NextResponse.json(
       { resultCode: '9999', resultMsg: 'ERROR' },
       { status: 500 }

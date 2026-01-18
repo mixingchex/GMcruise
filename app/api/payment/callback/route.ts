@@ -74,9 +74,9 @@ async function executeAutomation(params: {
     }
 
     return webhookResult;
-  } catch (error) {
-    error('[Automation] 실행 실패:', error);
-    return { ok: false, error: String(error) };
+  } catch (err) {
+    error('[Automation] 실행 실패:', err);
+    return { ok: false, error: String(err) };
   }
 }
 
@@ -293,8 +293,8 @@ export async function POST(request: NextRequest) {
       } else if (finalPartnerId) {
         log(`[Callback v12.0] ⚠️ 파트너(${finalPartnerId}) 있으나 실적 저장 실패`);
       }
-    }).catch(err => {
-      error('[Callback v12.0] ⚠️ 자동화 실행 실패:', err);
+    }).catch(e => {
+      error('[Callback v12.0] ⚠️ 자동화 실행 실패:', e);
     });
 
     // ============================================
@@ -308,8 +308,8 @@ export async function POST(request: NextRequest) {
       303
     );
 
-  } catch (error) {
-    error('[Callback v12.0 Error]', error);
+  } catch (err) {
+    error('[Callback v12.0 Error]', err);
     return NextResponse.redirect(
       new URL('/payment/failed?message=Server_Error', request.url),
       303

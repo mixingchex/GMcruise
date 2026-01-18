@@ -132,8 +132,8 @@ export async function GET(req: NextRequest) {
       paymentUrl,
       isMobile,
     });
-  } catch (error) {
-    error('[Payment Prepare GET] Error:', error);
+  } catch (err) {
+    error('[Payment Prepare GET] Error:', err);
     return NextResponse.json(
       { ok: false, error: '결제 정보 조회 중 오류가 발생했습니다.' },
       { status: 500 }
@@ -248,8 +248,8 @@ export async function POST(req: NextRequest) {
       paymentUrl,
       isMobile,
     });
-  } catch (error) {
-    error('[Payment Prepare POST] Error:', error);
+  } catch (err) {
+    error('[Payment Prepare POST] Error:', err);
     return NextResponse.json(
       { ok: false, error: '결제 준비 중 오류가 발생했습니다.' },
       { status: 500 }
