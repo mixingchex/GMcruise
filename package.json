@@ -6,8 +6,8 @@
   "scripts": {
     "images:build": "node scripts/gen-image-manifest.mjs",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
-    "dev": "scripts/dev-freeport.sh",
-    "dev:test": "scripts/dev-test.sh",
+    "dev": "bash scripts/dev-freeport.sh",
+    "dev:test": "bash scripts/dev-test.sh",
     "build": "prisma generate && npm run images:build && npm run pwa:icons && NODE_OPTIONS='--max-old-space-size=8192' next build",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

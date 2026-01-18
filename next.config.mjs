@@ -153,12 +153,14 @@ const nextConfig = {
         'tests/**',
       ],
     },
-    // googleapis 패키지 전체를 Vercel 서버리스 함수에 포함 (./docs 모듈 누락 해결)
-    // API 라우트에만 적용 (메모리 절약)
-    // outputFileTracingIncludes: {
-    //   '/api/**': ['./node_modules/googleapis/**/*'],
-    //   '/': ['./node_modules/googleapis/**/*'], // 메인 페이지에서 발생하는 런타임 에러 해결
-    // },
+    // googleapis 패키지를 Vercel 서버리스 함수에 선택적으로 포함 (./docs 모듈 누락 해결)
+    // 빌드 타임아웃 방지를 위해 계약서 완료 관련 라우트만 포함 (최소화)
+    outputFileTracingIncludes: {
+      // B2B 계약서 완료 - 파트너/어드민/어필리에이트 (상태 전환 정상 작동 필요)
+      '/api/partner/contracts/**': ['./node_modules/googleapis/**'],
+      '/api/admin/affiliate/contracts/**': ['./node_modules/googleapis/**'],
+      '/api/affiliate/contracts/**': ['./node_modules/googleapis/**'],
+    },
   },
 
   // Vercel에서 네이티브 바이너리 패키지 정상 작동을 위해 필요 (deprecated 경고 무시)
