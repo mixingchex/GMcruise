@@ -95,3 +95,6 @@ next-env.d.ts
 cruisedot-478810-79ba5282a938.json
 # Google Cloud Service Account Keys
 cruisedot-*.json
+
+# Winston logs
+logs/

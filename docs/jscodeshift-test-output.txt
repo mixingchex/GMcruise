@@ -1,0 +1,78 @@
+Processing 1 files... 
+Spawning 1 workers...
+Running in dry mode, no files will be written! 
+Sending 1 files to free worker...
+import logger from '@/lib/logger-v2';
+// Sample file to test jscodeshift transformation
+// This file intentionally uses console.* for testing migration
+
+export function testFunction() {
+  logger.info('This is a test log');
+  logger.error('This is a test error');
+  logger.warn('This is a test warning');
+  logger.debug('This is a test debug');
+  logger.info('This is a test info');
+
+  logger.info('Multiple args:', { key: 'value' }, 123);
+
+  const data = { user: 'test' };
+  logger.info('[Test] Prefixed log:', data);
+}
+
+export async function paymentWebhookSimulation() {
+  try {
+    logger.info('[Payment] Processing webhook');
+
+    const result = await processPayment();
+
+    if (!result.success) {
+      logger.error('[Payment] Webhook processing failed:', result.error);
+      return;
+    }
+
+    logger.info('[Payment] Webhook processed successfully:', result.data);
+  } catch (error) {
+    logger.error('[Payment] Exception in webhook:', error);
+  }
+}
+
+function processPayment() {
+  logger.debug('[Payment] Debug: Starting payment processing');
+  logger.warn('[Payment] Warning: This is a test warning');
+
+  return Promise.resolve({
+    success: true,
+    data: { orderId: '12345' }
+  });
+}
+
+// Edge cases
+export const EdgeCases = {
+  nestedConsole: () => {
+    if (true) {
+      logger.info('Nested log');
+      if (false) {
+        logger.error('Double nested error');
+      }
+    }
+  },
+
+  templateLiterals: () => {
+    const userId = 123;
+    const action = 'login';
+    logger.info(`[Auth] User ${userId} performed ${action}`);
+  },
+
+  objectSpread: () => {
+    const context = { requestId: 'abc', userId: 456 };
+    logger.info('[API]', { ...context, action: 'request' });
+  }
+};
+
+All done. 
+Results: 
+0 errors
+0 unmodified
+0 skipped
+1 ok
+Time elapsed: 5.158seconds 

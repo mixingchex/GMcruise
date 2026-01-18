@@ -1,0 +1,18 @@
+# Temporarily allow console in scripts during migration
+scripts/**/*.ts
+scripts/**/*.js
+
+# Test files (can keep console.log for debugging)
+**/*.test.ts
+**/*.spec.ts
+__tests__/**
+
+# Build outputs
+.next/
+node_modules/
+build/
+dist/
+
+# Backups
+**/*.backup
+_backup/
