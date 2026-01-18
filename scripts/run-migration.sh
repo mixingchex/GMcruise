@@ -1,46 +1,24 @@
 #!/bin/bash
 
-# Console to Winston Migration Script
-# Phase 1 Week 1: Automated migration of console statements
-#
-# IMPORTANT: This script will modify files. Always review changes before committing.
-# Use --dry flag to preview changes without modifying files.
-
-set -e  # Exit on error
-
-echo "🚀 Starting console.log → Winston logger migration"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🚀 Console → Logger Wrapper 마이그레이션 시작"
+echo ""
+echo "⚠️  주의: 이 스크립트는 console.log를 logger wrapper로 변환합니다"
+echo "변환 후 USE_WINSTON=false 상태에서는 기존과 동일하게 작동합니다"
 echo ""
 
-# Check if jscodeshift is installed
-if ! command -v jscodeshift &> /dev/null; then
-  echo "❌ Error: jscodeshift is not installed"
-  echo "Run: pnpm add -D jscodeshift @types/jscodeshift"
-  exit 1
-fi
-
-# Parse arguments
+# Dry run 옵션 확인
 DRY_RUN=""
-if [[ "$1" == "--dry" ]] || [[ "$1" == "-d" ]]; then
-  DRY_RUN="--dry"
-  echo "🔍 DRY RUN MODE - No files will be modified"
-  echo ""
-fi
-
-# Tier 1: Payment APIs (CRITICAL - 9 files)
-echo "📦 Tier 1: Payment APIs (CRITICAL)"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-if [[ -z "$DRY_RUN" ]]; then
-  read -p "⚠️  WARNING: This will modify PAYMENT-CRITICAL code. Continue? (yes/no): " confirm
-  if [[ "$confirm" != "yes" ]]; then
-    echo "❌ Migration cancelled"
-    exit 0
-  fi
+if [ "$1" == "--dry" ]; then
+  DRY_RUN="--dry --print"
+  echo "📋 DRY RUN 모드 (실제 파일 변경 없음)"
+else
+  echo "⚠️  실제 파일이 변경됩니다!"
+  echo "계속하려면 Enter를 누르세요 (취소: Ctrl+C)"
+  read
 fi
 
 echo ""
-echo "Processing payment APIs..."
+echo "📦 Tier 1: Payment APIs (126개 console 문)"
 npx jscodeshift -t scripts/migrate-console-to-winston.js \
   "app/api/payment/**/*.ts" \
   --parser=tsx \
@@ -48,46 +26,10 @@ npx jscodeshift -t scripts/migrate-console-to-winston.js \
   $DRY_RUN
 
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ 마이그레이션 완료!"
 echo ""
-
-# Tier 1: Auth API (1 file)
-echo "📦 Tier 1: Auth API"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-if [[ -f "app/api/auth/login/route.ts" ]]; then
-  npx jscodeshift -t scripts/migrate-console-to-winston.js \
-    "app/api/auth/login/route.ts" \
-    --parser=tsx \
-    $DRY_RUN
-else
-  echo "⚠️  app/api/auth/login/route.ts not found"
-fi
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-if [[ -n "$DRY_RUN" ]]; then
-  echo "✅ Dry run complete!"
-  echo ""
-  echo "Next steps:"
-  echo "1. Review the output above"
-  echo "2. Run without --dry flag to apply changes"
-  echo "3. Test payment flows thoroughly"
-  echo "4. Commit changes"
-else
-  echo "✅ Tier 1 migration complete!"
-  echo ""
-  echo "Next steps:"
-  echo "1. Review changes: git diff"
-  echo "2. Test payment flows"
-  echo "3. Run: pnpm test:critical"
-  echo "4. Commit: git add . && git commit -m 'feat: migrate Tier 1 console to Winston logger'"
-  echo ""
-  echo "Tier 2 (Affiliate & Reservation APIs) can be migrated after validation."
-fi
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "다음 단계:"
+echo "1. git status로 변경사항 확인"
+echo "2. npm run build로 빌드 테스트"
+echo "3. USE_WINSTON=false로 기존 동작 확인"
+echo "4. USE_WINSTON=true로 Winston 동작 확인"
