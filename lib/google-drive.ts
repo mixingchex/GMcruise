@@ -279,20 +279,10 @@ export function optimizeDriveUrl(url: string, fileId?: string): string {
 export async function uploadFileToDrive(params: UploadParams): Promise<UploadResult> {
   const { folderId, fileName, mimeType = 'application/octet-stream', buffer, makePublic = false } = params;
 
-  // P2: 서버 측 WebP 변환 (이미지인 경우, GIF/WebP 제외 — 원본 해상도 유지)
-  let uploadBuffer = buffer;
-  let uploadMimeType = mimeType;
-  let uploadFileName = fileName;
-  if (mimeType.startsWith('image/') && mimeType !== 'image/gif' && mimeType !== 'image/webp') {
-    try {
-      const sharp = (await import('sharp')).default;
-      uploadBuffer = await sharp(buffer).webp({ quality: 82, effort: 3 }).toBuffer();
-      uploadMimeType = 'image/webp';
-      uploadFileName = fileName.replace(/\.[^.]+$/, '.webp');
-    } catch (err: unknown) {
-      console.warn('[GoogleDrive] Sharp WebP conversion failed, uploading original:', err instanceof Error ? err.message : String(err));
-    }
-  }
+  // 클라이언트(browser-image-compression)에서 이미 WebP 변환됨 — 서버 변환 불필요
+  const uploadBuffer = buffer;
+  const uploadMimeType = mimeType;
+  const uploadFileName = fileName;
 
   try {
     const drive = getDriveClient();
