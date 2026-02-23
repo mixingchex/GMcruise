@@ -279,12 +279,27 @@ export function optimizeDriveUrl(url: string, fileId?: string): string {
 export async function uploadFileToDrive(params: UploadParams): Promise<UploadResult> {
   const { folderId, fileName, mimeType = 'application/octet-stream', buffer, makePublic = false } = params;
 
+  // P2: 서버 측 WebP 변환 (이미지인 경우, GIF/WebP 제외 — 원본 해상도 유지)
+  let uploadBuffer = buffer;
+  let uploadMimeType = mimeType;
+  let uploadFileName = fileName;
+  if (mimeType.startsWith('image/') && mimeType !== 'image/gif' && mimeType !== 'image/webp') {
+    try {
+      const sharp = (await import('sharp')).default;
+      uploadBuffer = await sharp(buffer).webp({ quality: 82, effort: 3 }).toBuffer();
+      uploadMimeType = 'image/webp';
+      uploadFileName = fileName.replace(/\.[^.]+$/, '.webp');
+    } catch (err: unknown) {
+      console.warn('[GoogleDrive] Sharp WebP conversion failed, uploading original:', err instanceof Error ? err.message : String(err));
+    }
+  }
+
   try {
     const drive = getDriveClient();
 
     const requestBody: Record<string, any> = {
-      name: fileName,
-      mimeType,
+      name: uploadFileName,
+      mimeType: uploadMimeType,
     };
 
     // Shared Drive 사용 (서비스 계정 스토리지 할당량 문제 해결)
@@ -299,13 +314,13 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
 
     // Buffer를 Readable Stream으로 변환 (googleapis가 pipe 메서드를 기대함)
     const bufferStream = new Readable();
-    bufferStream.push(buffer);
+    bufferStream.push(uploadBuffer);
     bufferStream.push(null); // 스트림 종료
 
     const createOptions: any = {
       requestBody,
       media: {
-        mimeType,
+        mimeType: uploadMimeType,
         body: bufferStream,
       },
       fields: 'id, webViewLink, webContentLink',
@@ -319,37 +334,26 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       throw new Error('Google Drive 업로드에 실패했습니다 (fileId 없음).');
     }
 
-    // 권한 설정 (공개/비공개)
-    if (makePublic) {
+    // 권한 설정: anyone with link (공개 읽기)
+    // URL 반환 전 권한이 적용되어야 403 방지 — blocking await 필수
+    try {
       const permissionOptions: any = {
         fileId,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
-        supportsAllDrives: true,
+        requestBody: { role: 'reader', type: 'anyone' },
       };
-
-      await drive.permissions.create(permissionOptions);
-    } else {
-      // 기본적으로 'anyone with link'로 설정하여 관리자가 볼 수 있게 함
-      const permissionOptions: any = {
-        fileId,
-        requestBody: {
-          role: 'reader',
-          type: 'anyone',
-        },
-      };
-
       if (sharedDriveId && sharedDriveId !== 'root') {
         permissionOptions.supportsAllDrives = true;
       }
-
+      if (makePublic) {
+        permissionOptions.supportsAllDrives = true;
+      }
       await drive.permissions.create(permissionOptions);
+    } catch (permErr: unknown) {
+      console.warn('[GoogleDrive] Permission set failed (non-critical):', permErr);
     }
 
     // 이미지인지 확인
-    const isImage = mimeType?.startsWith('image/') || false;
+    const isImage = uploadMimeType?.startsWith('image/') || false;
 
     // 최적화된 URL 사용 (CDN 캐싱 최적화)
     const url = getDriveFileUrl(fileId, isImage);

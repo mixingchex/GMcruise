@@ -33,6 +33,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
     console.log('[System Extend Trial] Body:', body);
     const { days = 3, phone } = body;
 
+    if (!Number.isInteger(days) || days < 1 || days > 30) {
+      return NextResponse.json({ ok: false, error: '연장 기간은 1~30일 사이여야 합니다.' }, { status: 400 });
+    }
+
+
     // 시스템 상담 정보 조회
     const consultation = await prisma.systemConsultation.findUnique({
       where: { id: consultationId },

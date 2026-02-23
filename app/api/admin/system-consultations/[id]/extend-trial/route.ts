@@ -1,14 +1,20 @@
+export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 
+type RouteContext = {
+    params: Promise<{ id: string }>;
+};
+
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    context: RouteContext
 ) {
     try {
-        const consultationId = parseInt(params.id);
+        const resolvedParams = await context.params;
+        const consultationId = parseInt(resolvedParams.id);
         if (isNaN(consultationId)) {
             return NextResponse.json({ ok: false, message: '잘못된 요청입니다.' }, { status: 400 });
         }
@@ -64,7 +70,11 @@ export async function POST(
         }
 
         const body = await req.json();
-        const { days = 7 } = body;
+        const { days = 3 } = body; // 기본 3일 연장 (통일)
+
+        if (!Number.isInteger(days) || days < 1 || days > 30) {
+            return NextResponse.json({ ok: false, message: '연장 기간은 1~30일 사이여야 합니다.' }, { status: 400 });
+        }
 
         // 해당 연락처를 가진 AffiliateLead 찾기
         const lead = await prisma.affiliateLead.findFirst({

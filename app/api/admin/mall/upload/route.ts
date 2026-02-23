@@ -11,8 +11,42 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { getCache, setCache } from '@/lib/redis';
 
 const SESSION_COOKIE = 'cg.sid.v2';
+
+// ============================================================
+// Google Drive 폴더 ID 캐시 (Upstash Redis 우선, 인메모리 폴백)
+// Vercel 인스턴스 간 캐시 공유 → 매 업로드 ~0.5초 절감
+// ============================================================
+const _memFolderCache = new Map<string, { id: string; cachedAt: number }>();
+const _MEM_FOLDER_CACHE_TTL = 30 * 60 * 1000;
+
+async function _findOrCreateFolderCached(
+  name: string,
+  parentId: string,
+  fn: (n: string, p: string) => Promise<{ ok: boolean; folderId?: string }>
+): Promise<{ ok: boolean; folderId?: string }> {
+  const key = `drive:folder:${parentId}:${name}`;
+
+  // 1. Upstash Redis 조회 (Vercel 인스턴스 간 공유)
+  const redisCached = await getCache<string>(key);
+  if (redisCached) return { ok: true, folderId: redisCached };
+
+  // 2. 인메모리 폴백 (Redis 미설정 시)
+  const memHit = _memFolderCache.get(key);
+  if (memHit && Date.now() - memHit.cachedAt < _MEM_FOLDER_CACHE_TTL) {
+    return { ok: true, folderId: memHit.id };
+  }
+
+  // 3. Drive API 호출
+  const result = await fn(name, parentId);
+  if (result.ok && result.folderId) {
+    await setCache(key, result.folderId, 60 * 60 * 24); // 24시간 TTL
+    _memFolderCache.set(key, { id: result.folderId, cachedAt: Date.now() });
+  }
+  return result;
+}
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/ogg'];
@@ -164,7 +198,7 @@ export async function POST(req: NextRequest) {
           if (productsFolderId && productsFolderId !== 'root') {
             // 상품 코드별 폴더 생성 또는 찾기
             const { findOrCreateFolder, uploadFileToDrive } = await import('@/lib/google-drive');
-            const productFolderResult = await findOrCreateFolder(productCode, productsFolderId);
+            const productFolderResult = await _findOrCreateFolderCached(productCode, productsFolderId, findOrCreateFolder);
 
             if (productFolderResult.ok && productFolderResult.folderId) {
               // 파일명 생성 (카테고리와 파일명 사용)
@@ -308,7 +342,7 @@ export async function POST(req: NextRequest) {
       let uploadFolderId = targetFolderId;
       if (category) {
         const { findOrCreateFolder } = await import('@/lib/google-drive');
-        const categoryFolderResult = await findOrCreateFolder(category, targetFolderId);
+        const categoryFolderResult = await _findOrCreateFolderCached(category, targetFolderId, findOrCreateFolder);
         if (categoryFolderResult.ok && categoryFolderResult.folderId) {
           uploadFolderId = categoryFolderResult.folderId;
         }

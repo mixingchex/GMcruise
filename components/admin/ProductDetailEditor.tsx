@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { FiImage, FiVideo, FiFileText, FiX, FiChevronUp, FiChevronDown, FiTrash2, FiPlus, FiFolder, FiSearch } from 'react-icons/fi';
+import imageCompression from 'browser-image-compression';
 
 export type ContentBlock =
   | { type: 'image'; id: string; url: string; alt?: string }
@@ -46,6 +47,42 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   const [pendingUpload, setPendingUpload] = useState<{ index?: number; files?: FileList; file?: File; type: 'single' | 'multiple' } | null>(null);
   const [categoryInput, setCategoryInput] = useState('');
   const [filenameInput, setFilenameInput] = useState('');
+
+  // 업로드 진행 상태
+  const [uploadedCount, setUploadedCount] = useState(0);
+  const [totalUploadCount, setTotalUploadCount] = useState(0);
+
+  // 이미지 압축 (WebP 변환, 원본 해상도 유지 — 세로 10000px 이상 허용)
+  const validateAndCompressImage = async (file: File): Promise<File | null> => {
+    // 깨진 이미지 파일 검증
+    const ok = await new Promise<boolean>((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => { URL.revokeObjectURL(url); resolve(true); };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+      img.src = url;
+    });
+    if (!ok) return null;
+    // 20MB 초과 시 안내 (자동 압축 후 진행)
+    if (file.size > 20 * 1024 * 1024) {
+      alert(`"${file.name}" 파일 크기가 ${(file.size / 1024 / 1024).toFixed(1)}MB입니다.\n자동 압축되어 업로드됩니다.`);
+    }
+    try {
+      const blob = await imageCompression(file, {
+        maxSizeMB: 2,            // 2MB 이하로 압축 (세로 10000px도 여유있게 처리)
+        maxWidthOrHeight: 99999, // 리사이즈 비활성화 — 원본 해상도 유지
+        useWebWorker: true,
+        fileType: 'image/webp',  // WebP 변환 (PNG 대비 80~85% 용량 절감)
+        initialQuality: 0.85,
+      });
+      return new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), {
+        type: 'image/webp',
+        lastModified: file.lastModified,
+      });
+    } catch {
+      return file;
+    }
+  };
 
   const addBlock = (type: 'image' | 'video' | 'text') => {
     const newBlock: ContentBlock =
@@ -305,14 +342,16 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   const handleFileUpload = async (index: number, file: File, type: 'image' | 'video') => {
     // productCode가 있으면 자동으로 구글 드라이브 상품 폴더에 저장 (카테고리 모달 없이)
     if (type === 'image' && productCode) {
-      // 파일명에서 확장자 제거
+      const processed = await validateAndCompressImage(file);
+      if (!processed) return;
       const baseFilename = file.name.replace(/\.[^/.]+$/, '');
-      // 자동 카테고리: "상품이미지" 또는 기본값
       const autoCategory = '상품이미지';
-      await uploadFile(index, file, type, autoCategory, baseFilename);
+      await uploadFile(index, processed, type, autoCategory, baseFilename);
     } else if (type === 'image') {
+      const processed = await validateAndCompressImage(file);
+      if (!processed) return;
       // productCode가 없는 경우에만 카테고리 모달 표시 (하위 호환성)
-      setPendingUpload({ index, file, type: 'single', files: undefined });
+      setPendingUpload({ index, file: processed, type: 'single', files: undefined });
       setCategoryInput('');
       setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
       setShowCategoryModal(true);
@@ -389,71 +428,77 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
 
     try {
       const newBlocks: ContentBlock[] = [];
-      const uploadPromises: Promise<void>[] = [];
       let successCount = 0;
       let failCount = 0;
 
-      // 모든 파일을 병렬로 업로드
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (!file.type.startsWith('image/')) {
-          failCount++;
-          continue;
-        }
+      // 3개 병렬 업로드 (Google Drive API 안전 한도 내)
+      const CONCURRENCY = 3;
+      const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+      setTotalUploadCount(fileArray.length);
+      setUploadedCount(0);
 
-        const uploadPromise = (async () => {
+      const chunks: File[][] = [];
+      for (let i = 0; i < fileArray.length; i += CONCURRENCY) {
+        chunks.push(fileArray.slice(i, i + CONCURRENCY));
+      }
+
+      let chunkStartOffset = 0;
+      for (const chunk of chunks) {
+        const chunkOffset = chunkStartOffset;
+        chunkStartOffset += chunk.length;
+
+        const results = await Promise.all(chunk.map(async (file, chunkIdx) => {
+          const fileIndex = chunkOffset + chunkIdx; // 전역 인덱스 (중복 파일명 방지)
           try {
+            const processed = await validateAndCompressImage(file);
+            if (!processed) return null;
+
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', processed);
             formData.append('type', 'image');
             formData.append('category', category);
-            // 파일명에 번호 추가 (여러 파일인 경우)
-            const filename = files.length > 1 ? `${baseFilename}_${i + 1}` : baseFilename;
+            const filename = fileArray.length > 1 ? `${baseFilename}_${fileIndex + 1}` : baseFilename;
             formData.append('filename', filename);
-            // 상품 코드가 있으면 전달 (구글 드라이브 상품 폴더에 저장하기 위해)
-            if (productCode) {
-              formData.append('productCode', productCode);
-            }
+            if (productCode) formData.append('productCode', productCode);
 
             const res = await fetch('/api/admin/mall/upload', {
               method: 'POST',
               credentials: 'include',
-              body: formData
+              body: formData,
             });
 
             if (res.ok) {
               const data = await res.json();
               if (data.ok && data.url) {
-                const timestamp = Date.now();
-                const randomId = Math.random().toString(36).substring(2, 9);
-                newBlocks.push({
-                  type: 'image',
-                  id: `block-${timestamp}-${randomId}`,
+                return {
+                  type: 'image' as const,
+                  id: `block-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
                   url: data.url,
-                  alt: ''
-                });
-                successCount++;
-              } else {
-                failCount++;
-                console.error(`[Image Upload] Failed to upload ${file.name}:`, data);
+                  alt: '',
+                } as ContentBlock;
               }
+              console.error(`[Image Upload] Failed: ${file.name}`, data);
             } else {
-              failCount++;
               console.error(`[Image Upload] HTTP error for ${file.name}:`, res.status);
             }
           } catch (error) {
-            failCount++;
             console.error(`[Image Upload] Error uploading ${file.name}:`, error);
+          } finally {
+            setUploadedCount(prev => prev + 1); // 파일별 즉시 업데이트 (함수형 패턴)
           }
-        })();
+          return null;
+        }));
 
-        uploadPromises.push(uploadPromise);
+        for (const block of results) {
+          if (block) {
+            newBlocks.push(block);
+            successCount++;
+          } else {
+            failCount++;
+          }
+        }
       }
 
-      // 모든 업로드 완료 대기
-      await Promise.all(uploadPromises);
-
-      // 성공한 이미지 블록 추가
       if (newBlocks.length > 0) {
         onChange([...blocks, ...newBlocks]);
         const message = `${successCount}개의 이미지가 추가되었습니다.${failCount > 0 ? ` (${failCount}개 실패)` : ''}`;
@@ -464,6 +509,10 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
     } catch (error) {
       console.error('Failed to upload multiple images:', error);
       alert('이미지 업로드 중 오류가 발생했습니다.');
+    } finally {
+      // 예외/취소 여부와 무관하게 progress 초기화
+      setTotalUploadCount(0);
+      setUploadedCount(0);
     }
   };
 
@@ -549,6 +598,23 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
           <span className="text-sm font-medium">텍스트 추가</span>
         </button>
       </div>
+
+      {/* 업로드 진행률 표시 */}
+      {totalUploadCount > 0 && (
+        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between text-sm text-blue-700 mb-1.5">
+            <span>📤 이미지 업로드 중...</span>
+            <span className="font-semibold">{uploadedCount}/{totalUploadCount}장</span>
+          </div>
+          <div className="w-full bg-blue-100 rounded-full h-2">
+            <div
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              style={{ width: totalUploadCount > 0 ? `${(uploadedCount / totalUploadCount) * 100}%` : '0%' }}
+            />
+          </div>
+          <p className="text-xs text-blue-500 mt-1">잠시만 기다려주세요 — 업로드 완료 후 자동 적용됩니다</p>
+        </div>
+      )}
 
       {/* 블록 목록 */}
       <div className="space-y-4">

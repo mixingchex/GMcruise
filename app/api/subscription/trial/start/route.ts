@@ -55,7 +55,31 @@ export async function POST(req: NextRequest) {
     const trialEndDate = new Date(now);
     trialEndDate.setDate(trialEndDate.getDate() + 3);
 
-    // DB에 AffiliateLead로 저장 (중복 허용 - 매번 새 리드 생성)
+    // 중복 체험 방지: 동일 전화번호로 진행 중인 체험 확인
+    try {
+      const existingLead = await prisma.affiliateLead.findFirst({
+        where: { customerPhone: normalizedPhone },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, metadata: true },
+      });
+
+      if (existingLead?.metadata) {
+        const meta = existingLead.metadata as Record<string, unknown>;
+        const trialExpiresAt = meta.trialExpiresAt as string | undefined;
+        if (trialExpiresAt && new Date(trialExpiresAt) > now) {
+          const remainMs = new Date(trialExpiresAt).getTime() - now.getTime();
+          const remainHours = Math.ceil(remainMs / (1000 * 60 * 60));
+          return NextResponse.json(
+            { ok: false, error: `이미 무료 체험이 진행 중입니다. (${remainHours}시간 남음)` },
+            { status: 409 }
+          );
+        }
+      }
+    } catch (dupCheckErr) {
+      console.warn('[Subscription Trial] 중복 체험 확인 실패 (무시하고 진행):', dupCheckErr);
+    }
+
+    // DB에 AffiliateLead로 저장
     try {
       const createData: any = {
         customerName: name,

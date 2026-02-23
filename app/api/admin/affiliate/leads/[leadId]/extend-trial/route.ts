@@ -82,6 +82,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const body = await req.json();
         const { days = 3 } = body; // 기본 3일 연장
 
+        if (!Number.isInteger(days) || days < 1 || days > 30) {
+            return NextResponse.json({ ok: false, message: '연장 기간은 1~30일 사이여야 합니다.' }, { status: 400 });
+        }
+
         // B2B 대시보드 체험 정보는 AffiliateLead.metadata에 저장됨
         const currentMetadata = (lead.metadata as any) || {};
         const now = new Date();
