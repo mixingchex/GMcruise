@@ -238,9 +238,9 @@ export default function PromotionBannerCarousel() {
                   return;
                 }
 
-                // 첫 번째 배너(크루즈닷 지니 AI 출시)는 무조건 /login-test로 이동
+                // 첫 번째 배너(크루즈닷 지니 AI 출시)는 튜토리얼 모드로 이동
                 if (banner.id === 1) {
-                  window.open('/login-test', '_blank', 'noopener,noreferrer');
+                  window.location.href = '/login-test';
                   return;
                 }
 
@@ -364,13 +364,18 @@ export default function PromotionBannerCarousel() {
                       <>
                         <a
                           href={banner.link || '#'}
-                          target="_blank"
+                          target={banner.link?.startsWith('/') ? '_self' : '_blank'}
                           rel="noopener noreferrer"
                           onClick={(e) => {
                             if (banner.link && banner.link !== '#') {
-                              e.stopPropagation(); // 배너 클릭 이벤트와 충돌 방지
-                              window.open(banner.link, '_blank', 'noopener,noreferrer');
-                              e.preventDefault();
+                              e.stopPropagation();
+                              if (banner.link.startsWith('/')) {
+                                e.preventDefault();
+                                window.location.href = banner.link;
+                              } else {
+                                window.open(banner.link, '_blank', 'noopener,noreferrer');
+                                e.preventDefault();
+                              }
                             } else {
                               e.preventDefault();
                             }

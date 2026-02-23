@@ -178,6 +178,7 @@ export default function CruiseSearchBlock() {
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [allAvailableProducts, setAllAvailableProducts] = useState<Product[]>([]); // 모든 상품 데이터 (연관 검색어 생성용)
+  const autoSelectedRef = useRef(false); // 첫 번째 연관검색어 자동 선택 여부
 
   // 검색 가능한 드롭다운 상태
   const [cruiseSearchTerm, setCruiseSearchTerm] = useState('');
@@ -495,6 +496,16 @@ export default function CruiseSearchBlock() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCruiseLine, selectedRegion, isExpanded]);
+
+  // 연관검색어가 처음 로드되면 첫 번째 항목 자동 선택
+  useEffect(() => {
+    if (relatedSearchTerms.length > 0 && !autoSelectedRef.current) {
+      autoSelectedRef.current = true;
+      const first = relatedSearchTerms[0];
+      handleRelatedSearch(first.cruiseLine, first.region, first.keyword);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [relatedSearchTerms]);
 
   const searchProducts = async () => {
     setIsLoading(true);

@@ -209,11 +209,12 @@ export async function POST(req: NextRequest) {
           try {
             console.log(`[Partner Scheduled Messages Send] 발송: ${customer.name} (${customer.userId}) - ${stage.stageNumber}회차`);
 
-            // TODO: 실제 발송 로직 구현
-            // - SMS: sendMethod === 'sms' -> SMS API 호출
-            // - Email: sendMethod === 'email' -> 이메일 전송
-            // - Kakao: sendMethod === 'kakao' -> 카카오톡 API 호출
-            // - Cruise Guide: sendMethod === 'cruise-guide' -> 내부 메시지 전송
+            // NOTE: 실제 발송 로직 구현 필요 (See GitHub Issue #TBD)
+            // - SMS: sendMethod === 'sms' -> SMS API 통합
+            // - Email: sendMethod === 'email' -> SMTP 설정
+            // - Kakao: sendMethod === 'kakao' -> 카카오톡 API 연동
+            // - Cruise Guide: sendMethod === 'cruise-guide' -> 내부 메시지 시스템
+            console.log(`[Partner Scheduled Message] Simulated send: ${stage.title} to user ${customer.userId}`);
 
             // 발송 로그 기록
             await prisma.scheduledMessageLog.create({

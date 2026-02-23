@@ -4,7 +4,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiCalendar, FiClock, FiMapPin } from 'react-icons/fi';
+
 
 export interface FlightInfo {
   travelPeriod: {
@@ -34,6 +34,12 @@ export interface FlightInfo {
     type: '직항' | '경유';
   };
   aircraftType?: string; // 비행기 정보 (추가)
+  // 항공 유형 (기본값: 'roundtrip', 하위 호환성 유지)
+  flightType?: 'roundtrip' | 'oneway' | 'none';
+  // flightType === 'none' 전용 — 현지 크루즈 탑승 정보
+  cruiseEmbarkPort?: string;
+  cruiseDisembarkPort?: string;
+  selfArrangeNote?: string;
 }
 
 interface FlightInfoEditorProps {
@@ -116,6 +122,37 @@ export default function FlightInfoEditor({
     const newInfo = { ...localFlightInfo, ...updates };
     setLocalFlightInfo(newInfo);
     onChange(newInfo);
+  };
+
+  // 항공 유형 (기존 데이터 하위 호환: flightType 없으면 'roundtrip')
+  const flightType = localFlightInfo.flightType || 'roundtrip';
+
+  // 항공 유형 변경 — 유형에 따른 관련 항공 정보 초기화 (고객 혼란 방지)
+  const handleFlightTypeChange = (newType: 'roundtrip' | 'oneway' | 'none') => {
+    if (newType === 'none') {
+      // 항공없음: 출발/귀국 모든 필드(date 포함) 초기화
+      const emptyFlight = { from: '', to: '', date: '', time: '', arrivalTime: '', flightNumber: '', duration: '', type: '직항' as const };
+      const updated: FlightInfo = {
+        ...localFlightInfo,
+        flightType: 'none',
+        departure: { ...localFlightInfo.departure, ...emptyFlight },
+        return: { ...localFlightInfo.return, ...emptyFlight },
+      };
+      setLocalFlightInfo(updated);
+      onChange(updated);
+    } else if (newType === 'oneway') {
+      // 편도: 귀국 필드 초기화 (DB에 stale 왕복 데이터 잔존 방지)
+      const emptyReturn = { from: '', to: '', date: '', time: '', arrivalTime: '', flightNumber: '', duration: '', type: '직항' as const };
+      const updated: FlightInfo = {
+        ...localFlightInfo,
+        flightType: 'oneway',
+        return: { ...localFlightInfo.return, ...emptyReturn },
+      };
+      setLocalFlightInfo(updated);
+      onChange(updated);
+    } else {
+      updateFlightInfo({ flightType: newType });
+    }
   };
 
   // 공항별 UTC 오프셋 (시간 단위, 한국은 UTC+9)
@@ -319,32 +356,6 @@ export default function FlightInfoEditor({
     return `${year}년 ${month}월 ${day}일 (${dayOfWeek})`;
   };
 
-  // 항공없음 - 국내출발도착 (출국 + 귀국 모두)
-  const setNoFlightBoth = () => {
-    const updated = {
-      ...localFlightInfo,
-      departure: {
-        ...localFlightInfo.departure,
-        from: '국내항',
-        to: '국내항',
-        flightNumber: '🚢 항공없음',
-        duration: '-',
-        type: '직항' as const,
-      },
-      return: {
-        ...localFlightInfo.return,
-        from: '국내항',
-        to: '국내항',
-        flightNumber: '🚢 항공없음',
-        duration: '-',
-        type: '직항' as const,
-      },
-      aircraftType: '🚢 크루즈 국내출발/도착 (항공 이용 없음)',
-    };
-    setLocalFlightInfo(updated);
-    onChange(updated);
-  };
-
   // 항공없음 - 국내출발 (출국만)
   const setNoFlightDeparture = () => {
     const updated = {
@@ -386,16 +397,62 @@ export default function FlightInfoEditor({
           <span className="text-2xl">✈️</span>
           <h3 className="text-lg font-bold text-gray-800">항공 정보</h3>
         </div>
-        {/* 항공없음 버튼 */}
-        <button
-          type="button"
-          onClick={setNoFlightBoth}
-          className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg hover:from-cyan-600 hover:to-blue-600 transition-all shadow-md hover:shadow-lg flex items-center gap-2 text-sm font-semibold"
-        >
-          <span className="text-lg">🚢</span>
-          항공없음 국내출발도착!
-        </button>
       </div>
+
+      {/* 항공 유형 선택 드롭다운 */}
+      <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <label className="block text-sm font-bold text-gray-700 mb-2">
+          항공 유형 <span className="text-red-500">*</span>
+        </label>
+        <select
+          value={flightType}
+          onChange={(e) => handleFlightTypeChange(e.target.value as 'roundtrip' | 'oneway' | 'none')}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="roundtrip">✈️ 왕복 항공 포함</option>
+          <option value="oneway">✈️ 편도 항공 포함</option>
+          <option value="none">🚢 항공권 없음 (현지 크루즈 탑승)</option>
+        </select>
+      </div>
+
+      {/* 항공권 없음 전용 — 현지 크루즈 탑승 정보 */}
+      {flightType === 'none' && (
+        <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg space-y-3">
+          <p className="text-sm font-bold text-amber-800">
+            ⚠️ 항공권 없음 — 고객이 항공을 개별 준비하고 현지 크루즈 터미널에서 탑승합니다
+          </p>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">크루즈 탑승 항구</label>
+            <input
+              type="text"
+              placeholder="예: 홍콩 카이탁 크루즈 터미널"
+              value={localFlightInfo.cruiseEmbarkPort || ''}
+              onChange={(e) => updateFlightInfo({ cruiseEmbarkPort: e.target.value })}
+              className="w-full border border-amber-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">크루즈 하선 항구</label>
+            <input
+              type="text"
+              placeholder="예: 싱가포르 마리나 베이 크루즈 센터"
+              value={localFlightInfo.cruiseDisembarkPort || ''}
+              onChange={(e) => updateFlightInfo({ cruiseDisembarkPort: e.target.value })}
+              className="w-full border border-amber-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">고객 안내 문구</label>
+            <textarea
+              placeholder="예: 항공은 개별 준비. 홍콩 카이탁 크루즈 터미널 09:00 집합 예정"
+              value={localFlightInfo.selfArrangeNote || ''}
+              onChange={(e) => updateFlightInfo({ selfArrangeNote: e.target.value })}
+              className="w-full border border-amber-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400"
+              rows={3}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 여행기간 */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -448,8 +505,8 @@ export default function FlightInfoEditor({
         </div>
       </div>
 
-      {/* 출국 */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
+      {/* 출국 + 귀국 — 항공권 있음(roundtrip / oneway)일 때만 표시 */}
+      {flightType !== 'none' && <div className="bg-white p-4 rounded-lg border border-gray-200">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
             <span className="text-lg">✈️</span>
@@ -661,10 +718,10 @@ export default function FlightInfoEditor({
           </div>
         </div>
         )}
-      </div>
+      </div>}
 
-      {/* 귀국 */}
-      <div className="bg-white p-4 rounded-lg border border-gray-200">
+      {/* 귀국 — 왕복 항공 선택 시만 표시 */}
+      {flightType === 'roundtrip' && <div className="bg-white p-4 rounded-lg border border-gray-200">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
             <span className="text-lg">✈️</span>
@@ -876,7 +933,7 @@ export default function FlightInfoEditor({
           </div>
         </div>
         )}
-      </div>
+      </div>}
 
       {/* 비행기 정보 */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">

@@ -243,7 +243,14 @@ export async function POST(req: NextRequest) {
       // AffiliateLead 생성 실패해도 문의는 정상 처리
     }
 
-    // TODO: 관리자에게 알림 전송 (이메일, SMS, 푸시 알림 등)
+    // NOTE: 관리자 알림 시스템 구현 필요 (See GitHub Issue #TBD)
+    // 임시: 로그에만 기록
+    console.log('[Public Inquiry] New inquiry received:', {
+      inquiryId: inquiry.id,
+      customerName,
+      productCode,
+      timestamp: new Date().toISOString()
+    });
 
     return NextResponse.json({
       ok: true,

@@ -59,13 +59,14 @@ const DESTINATION_LANGUAGE_MAP: Record<string, { code: string; name: string; fla
 
 type ConversationItem = {
   id: string;
-  from: { flag: string; name: string; code?: string }; // 언어 코드 추가
-  to: { flag: string; name: string; code?: string }; // 언어 코드 추가
+  from: { flag: string; name: string; code?: string };
+  to: { flag: string; name: string; code?: string };
   source: string;
   translated: string;
-  pronunciation?: string; // 한국어 발음 표시 (한국어 입력 시 또는 외국어를 한국어 발음으로)
+  pronunciation?: string;
   when: string;
   kind: 'speech' | 'photo';
+  isError?: boolean;
 };
 
 type UserData = {
@@ -147,7 +148,14 @@ export default function TranslatorPage() {
   const [items, setItems] = useState<ConversationItem[]>([]);
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) setItems(JSON.parse(saved));
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setItems(parsed);
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
   }, []);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -155,6 +163,8 @@ export default function TranslatorPage() {
 
   // 음성 인식 객체
   const recRef = useRef<SpeechRecognition | null>(null);
+  const isProcessingRef = useRef(false); // race condition 방지
+  const interimTextRef = useRef(''); // stale closure 방지용 ref
   const [listening, setListening] = useState<'none' | 'pressing' | 'recording'>('none');
   const [preview, setPreview] = useState('');
   const [finalText, setFinalText] = useState(''); // 최종 확정된 텍스트
@@ -251,6 +261,11 @@ export default function TranslatorPage() {
     };
 
     recRef.current = recog;
+
+    return () => {
+      try { recog.abort(); } catch { }
+      recRef.current = null;
+    };
   }, []);
 
   // 외국어를 한국어 발음으로 변환하는 함수 (캐시 포함, 재시도 로직 추가)
@@ -529,6 +544,7 @@ export default function TranslatorPage() {
         // 상태 업데이트 - 인식 과정을 실시간으로 표시
         setFinalText(newFinalText.trim());
         setInterimText(newInterimText);
+        interimTextRef.current = newInterimText; // stale closure 방지
 
         // 프리뷰 텍스트 업데이트 (최종 + 중간 합쳐서)
         const displayText = (newFinalText.trim() + ' ' + newInterimText).trim();
@@ -599,8 +615,8 @@ export default function TranslatorPage() {
       // 손을 떼면 stopListening 호출에서 번역/추가
       (r as any).__translatePair = { from, to };
       (r as any).__acc = () => {
-        // 최종 텍스트와 중간 텍스트를 합쳐서 반환
-        const combined = (accumulatedFinalText + ' ' + (interimText || '')).trim();
+        // ref를 사용해 stale closure 문제 방지
+        const combined = (accumulatedFinalText + ' ' + (interimTextRef.current || '')).trim();
         return combined || accumulatedFinalText.trim();
       };
 
@@ -628,8 +644,11 @@ export default function TranslatorPage() {
   }
 
   async function stopPressToTalk() {
+    if (isProcessingRef.current) return; // 중복 실행 방지
+    isProcessingRef.current = true;
+
     const r: any = recRef.current;
-    if (!r) return;
+    if (!r) { isProcessingRef.current = false; return; }
     try {
       r.stop();
     } catch { }
@@ -645,25 +664,33 @@ export default function TranslatorPage() {
     setFinalText('');
     setInterimText('');
 
-    if (!pair || !finalAcc) return;
+    if (!pair || !finalAcc) { isProcessingRef.current = false; return; }
 
-    const { translated } = await translateText(finalAcc, pair.from.name, pair.to.name);
+    try {
+      const { translated, isError } = await translateText(finalAcc, pair.from.name, pair.to.name);
 
-    // 발음 생성 제거 - 번역 속도 개선을 위해
-    const newItem = {
-      id: Date.now().toString(),
-      from: { flag: pair.from.flag, name: pair.from.name, code: pair.from.code },
-      to: { flag: pair.to.flag, name: pair.to.name, code: pair.to.code },
-      source: finalAcc,
-      translated,
-      when: new Date().toLocaleTimeString('ko-KR'),
-      kind: 'speech' as const,
-    };
+      const newItem = {
+        id: Date.now().toString(),
+        from: { flag: pair.from.flag, name: pair.from.name, code: pair.from.code },
+        to: { flag: pair.to.flag, name: pair.to.name, code: pair.to.code },
+        source: finalAcc,
+        translated,
+        when: new Date().toLocaleTimeString('ko-KR'),
+        kind: 'speech' as const,
+        isError,
+      };
 
-    setItems((prev) => [newItem, ...prev]);
+      setItems((prev) => [newItem, ...prev]);
 
-    // 들려주는 쪽은 목적 언어
-    speak(translated, pair.to.code);
+      // 에러 메시지는 TTS로 읽지 않음
+      if (!isError) {
+        speak(translated, pair.to.code);
+      }
+    } catch (error) {
+      console.error('[stopPressToTalk] Unexpected error:', error);
+    } finally {
+      isProcessingRef.current = false; // 예외 여부와 무관하게 항상 해제
+    }
   }
 
 
@@ -1133,8 +1160,8 @@ export default function TranslatorPage() {
             )}
 
             {items.map((it) => (
-              <div key={it.id} className="rounded-xl border-2 bg-white p-5 md:p-6 shadow-md">
-                <div className="text-sm md:text-base text-gray-500 mb-3 font-semibold">{it.when} · {it.kind === 'photo' ? '📸 사진' : '🎤 음성'}</div>
+              <div key={it.id} className={`rounded-xl border-2 p-5 md:p-6 shadow-md ${it.isError ? 'bg-red-50 border-red-200' : 'bg-white'}`}>
+                <div className="text-sm md:text-base text-gray-500 mb-3 font-semibold">{it.when} · {it.kind === 'photo' ? '📸 사진' : '🎤 음성'}{it.isError && <span className="ml-2 text-red-500">⚠️ 번역 오류</span>}</div>
                 {/* 사진 번역 기능 제거됨 */}
                 {it.kind === 'photo' ? null : (
                   /* 음성 번역: 원본 + 번역 함께 표시 */

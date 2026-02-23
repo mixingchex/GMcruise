@@ -72,7 +72,26 @@ export async function GET(req: NextRequest) {
       })),
     });
 
-    const activeTrip = allTrips[0] || null;
+    // 오늘 활성 여행 우선, 다음 예정 여행, 최신 여행 순으로 선택
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const activeTrip =
+      allTrips.find(t => {
+        if (!t.startDate) return false;
+        const s = new Date(t.startDate);
+        s.setHours(0, 0, 0, 0);
+        const e = t.endDate ? new Date(t.endDate) : null;
+        if (e) e.setHours(23, 59, 59, 999);
+        return s <= todayMidnight && (!e || todayMidnight <= e);
+      }) ||
+      allTrips.find(t => {
+        if (!t.startDate) return false;
+        const s = new Date(t.startDate);
+        s.setHours(0, 0, 0, 0);
+        return s > todayMidnight;
+      }) ||
+      allTrips[0] ||
+      null;
 
     console.log('[Briefing API] 사용자 Trip 조회 결과:', {
       userId: user.id,
@@ -614,14 +633,40 @@ export async function GET(req: NextRequest) {
       'TR': 'Europe/Istanbul', // UTC+3
     };
 
-    // 각 국가별 날씨 및 시간 정보 생성
-    const weathers = Array.from(uniqueCountries.entries())
-      .map(([countryCode, location]) => {
-        // 해당 국가의 현재 시간 계산
+    // 국가별 날씨 쿼리용 대표 도시 (WeatherAPI.com)
+    const COUNTRY_DEFAULT_CITY: Record<string, string> = {
+      'JP': 'Tokyo', 'CN': 'Shanghai', 'HK': 'Hong Kong', 'TW': 'Taipei',
+      'MO': 'Macau', 'KR': 'Seoul', 'US': 'New York', 'CA': 'Toronto',
+      'MX': 'Mexico City', 'BR': 'Rio de Janeiro', 'AR': 'Buenos Aires',
+      'GB': 'London', 'FR': 'Paris', 'DE': 'Berlin', 'IT': 'Rome',
+      'ES': 'Barcelona', 'GR': 'Athens', 'TH': 'Bangkok', 'VN': 'Ho Chi Minh City',
+      'PH': 'Manila', 'SG': 'Singapore', 'MY': 'Kuala Lumpur', 'ID': 'Bali',
+      'AU': 'Sydney', 'NZ': 'Auckland', 'RU': 'Moscow', 'AE': 'Dubai',
+      'TR': 'Istanbul',
+    };
+
+    // WeatherAPI 아이콘 코드 → 이모지 변환
+    function getWeatherIcon(code: number, isDay: number): string {
+      if (code === 1000) return isDay ? '☀️' : '🌙';
+      if (code <= 1009) return '⛅';
+      if (code <= 1030) return '🌫️';
+      if (code <= 1087) return '⛈️';
+      if (code <= 1135) return '🌫️';
+      if (code <= 1147) return '❄️';
+      if (code <= 1201) return '🌧️';
+      if (code <= 1225) return '❄️';
+      if (code <= 1237) return '🌨️';
+      if (code <= 1282) return '⛈️';
+      return '🌥️';
+    }
+
+    // 각 국가별 날씨 및 시간 정보 생성 (WeatherAPI.com 무료 플랜: 현재날씨 무료)
+    const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
+    const weathers = await Promise.all(
+      Array.from(uniqueCountries.entries()).map(async ([countryCode, location]) => {
         const timezone = COUNTRY_TIMEZONES[countryCode] || 'UTC';
         const now = new Date();
-        
-        // 시간대별로 포맷팅 (24시간 형식, HH:MM)
+
         let timeString = '';
         try {
           const formatter = new Intl.DateTimeFormat('ko-KR', {
@@ -633,19 +678,43 @@ export async function GET(req: NextRequest) {
           timeString = formatter.format(now);
         } catch (error) {
           console.error(`[Briefing API] Error formatting time for ${countryCode}:`, error);
-          timeString = ''; // 오류 시 빈 문자열
         }
-        
+
+        let temp = 20;
+        let condition = '맑음';
+        let icon = '☀️';
+
+        if (WEATHER_API_KEY) {
+          try {
+            const cityQuery = COUNTRY_DEFAULT_CITY[countryCode] || countryCode;
+            const weatherRes = await fetch(
+              `https://api.weatherapi.com/v1/current.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(cityQuery)}&lang=ko`,
+              { next: { revalidate: 1800 } } // 30분 캐시
+            );
+            if (weatherRes.ok) {
+              const wd = await weatherRes.json();
+              temp = Math.round(wd.current.temp_c);
+              condition = wd.current.condition.text;
+              icon = getWeatherIcon(wd.current.condition.code, wd.current.is_day);
+            } else {
+              console.warn(`[Briefing API] WeatherAPI error for ${countryCode}: ${weatherRes.status}`);
+            }
+          } catch (e) {
+            console.warn(`[Briefing API] WeatherAPI fetch failed for ${countryCode}:`, e);
+          }
+        }
+
         return {
-          country: COUNTRY_NAMES[countryCode] || countryCode, // 한글 국가명 사용
-          countryCode, // 원본 국가 코드도 유지 (모달에서 사용)
+          country: COUNTRY_NAMES[countryCode] || countryCode,
+          countryCode,
           location,
-          temp: Math.floor(Math.random() * 10) + 20, // 20-30도 랜덤 (실제 API 연동 시 교체)
-          condition: ['맑음', '구름 조금', '흐림', '비'][Math.floor(Math.random() * 4)],
-          icon: ['☀️', '⛅', '☁️', '🌧️'][Math.floor(Math.random() * 4)],
-          time: timeString, // 현재 시간 추가 (예: "14:30")
+          temp,
+          condition,
+          icon,
+          time: timeString,
         };
-      });
+      })
+    );
 
     console.log('[Briefing API] Weathers array:', weathers);
 

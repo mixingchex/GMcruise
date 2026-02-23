@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/auth';
 import { handleShowPhotos } from './handlers/photos';
 import { handleDirections } from './handlers/directions';
 import { handleKeywordSearch } from './handlers/keyword-search';
@@ -77,6 +78,10 @@ export async function POST(req: NextRequest) {
 
     // translate 모드: 번역 처리
     if (mode === 'translate') {
+      const user = await getSessionUser();
+      if (!user) {
+        return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+      }
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
       if (!apiKey) {
@@ -89,6 +94,14 @@ export async function POST(req: NextRequest) {
       const genAI = new GoogleGenerativeAI(apiKey);
       const modelName = resolveGeminiModelName();
       const model = genAI.getGenerativeModel({ model: modelName });
+
+      // 입력 길이 제한 (prompt injection 방어)
+      if (text.length > 2000) {
+        return NextResponse.json(
+          { ok: false, error: '번역 텍스트가 너무 깁니다. (최대 2000자)' },
+          { status: 400 }
+        );
+      }
 
       // from과 to가 없으면 에러
       if (!from || !to) {
@@ -114,8 +127,10 @@ CRITICAL RULES:
 Source language: ${from}
 Target language: ${to}
 
-Text to translate:
-"${text}"
+Text to translate (between <<<START>>> and <<<END>>> markers):
+<<<START>>>
+${text}
+<<<END>>>
 
 Now translate and output ONLY the translation in ${to} (no labels, no explanations, just the translation):`;
 
@@ -221,7 +236,7 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
       } catch (error: any) {
         console.error('[Translation API] Error:', error);
         return NextResponse.json(
-          { ok: false, error: error.message || 'Translation failed' },
+          { ok: false, error: '번역 중 오류가 발생했습니다.' },
           { status: 500 }
         );
       }

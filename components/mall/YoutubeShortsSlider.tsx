@@ -29,7 +29,7 @@ export default function YoutubeShortsSlider() {
   const loadShorts = async () => {
     try {
       const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), 5000); // 5초 타임아웃
+      const timeoutId = setTimeout(() => abortController.abort(), 15000); // 15초 타임아웃
 
       const response = await fetch('/api/public/youtube/shorts?maxResults=10', {
         signal: abortController.signal,

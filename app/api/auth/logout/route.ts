@@ -26,12 +26,14 @@ export async function POST() {
 
     // 쿠키 삭제
     cookieStore.delete(SESSION_COOKIE);
+    cookieStore.delete('cg.mode');
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Logout] Error:', error);
     // 쿠키는 삭제 시도
     cookieStore.delete(SESSION_COOKIE);
+    cookieStore.delete('cg.mode');
     return NextResponse.json({ ok: true }); // 에러가 있어도 로그아웃은 성공 처리
   }
 } 

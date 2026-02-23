@@ -32,7 +32,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
     title: '크루즈닷AI',
     subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
     buttons: [
-      { text: '지금 시작하기', link: '/login', backgroundColor: '#2563eb', textColor: '#ffffff' }, // 파란색 - 로그인 (지니 AI)
+      { text: '지금 시작하기', link: '/login-test', backgroundColor: '#2563eb', textColor: '#ffffff' }, // 파란색 - 튜토리얼 모드
       { text: '라이브방송참여', link: '#live-broadcast', backgroundColor: '#dc2626', textColor: '#ffffff' }, // 빨간색 - 라이브 방송 섹션으로 이동
       { text: '상품 둘러보기', link: '#products', backgroundColor: '#eab308', textColor: '#000000' }, // 노란색 - 상품 섹션으로 이동
     ],
@@ -74,7 +74,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
   return (
     <div
       className="relative text-white py-12 sm:py-16 md:py-20 lg:py-24 overflow-hidden cursor-pointer min-h-[500px] sm:min-h-[600px] md:min-h-[700px] flex items-center"
-      onClick={() => window.open('/login', '_blank')}
+      onClick={() => window.location.href = '/login-test'}
     >
       {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
@@ -218,9 +218,9 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
                       }
                     }
                   } else if (btn.text === '지금 시작하기') {
-                    // 지금 시작하기 버튼은 새 창으로 열기
+                    // 지금 시작하기 버튼 → 튜토리얼 모드
                     e.preventDefault();
-                    window.open(btn.link || '/login', '_blank');
+                    window.location.href = '/login-test';
                   } else {
                     // 기타 버튼은 기존 동작
                     window.location.href = btn.link || '/login';

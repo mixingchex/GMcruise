@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       );
     }
 
-    let { phone, password, name, mode, trialCode, affiliateCode, managerCode } = await req.json();
+    let { phone, password, name, mode, trialCode, affiliateCode } = await req.json();
 
     // 입력값 앞뒤 공백 제거
     phone = phone?.trim() || '';
@@ -428,7 +428,7 @@ export async function POST(req: Request) {
 
       console.log('[Partner Login] 세션 생성 시도:', { userId: affiliateUser.id, mallUserId: affiliateUser.mallUserId });
 
-      let session;
+      let session: { id: string; csrfToken: string };
       try {
         session = await prisma.session.create({
           data: {
@@ -491,7 +491,6 @@ export async function POST(req: Request) {
     const isTestModePassword = TEST_MODE_PASSWORDS.includes(password);
     const isNotCruiseMallUser = !phone || !/^user(1[0]|[1-9])$/i.test(phone.trim());
     if (mode !== 'admin' && isTestModePassword && isNotCruiseMallUser) {
-      const inputTestPassword = password;
       const normalizedTestPassword = '1101';
       console.log('[Login] 테스트 모드 로그인 시도 (3일 체험):', { name: name || '없음', phone: phone || '없음', password: '***' });
 
@@ -501,16 +500,17 @@ export async function POST(req: Request) {
         // 3일 체험 로그인: 비밀번호 1101만 맞으면 무조건 로그인 가능 (가벼운 인증)
         // 전화번호로 기존 사용자 찾기 (모든 역할 검색)
         // 중요: 이미 존재하는 파트너/관리자 계정과 충돌 방지
-        let testUser = await prisma.user.findFirst({
+        // 버그 방지: phone이 비어있으면 검색하지 않음 (undefined → Prisma 필터 무시 → 첫 번째 유저 반환 방지)
+        let testUser = phone ? await prisma.user.findFirst({
           where: {
-            phone: phone || undefined,
+            phone,
           },
           include: {
             AffiliateProfile: {
               select: { id: true, status: true }
             }
           }
-        });
+        }) : null;
 
         // 이미 존재하는 사용자가 파트너이거나 관리자인 경우, 테스트 모드 로그인 차단
         if (testUser) {
@@ -608,22 +608,38 @@ export async function POST(req: Request) {
             }
           }
         } else {
-          // 기존 사용자: 이름/전화번호/비밀번호 업데이트 (입력한 값으로 업데이트, 중복이면 수정)
-          // 비밀번호를 1101로 업데이트하여 무조건 로그인 가능하게 함
-          // 비밀번호 1101로 로그인하면 무조건 무료체험 사용자로 전환 (유료 고객 상태 무시)
+          // 기존 사용자: 이름/전화번호/비밀번호 업데이트 (입력한 값으로 업데이트)
+          // 1101로 로그인하면 만료 여부와 관계없이 체험기간 항상 리셋
+          const resetNow = new Date();
+          const isAlreadyExpired = testUser.customerStatus === 'test-locked' || (() => {
+            if (!testUser.testModeStartedAt) return false;
+            const end = new Date(testUser.testModeStartedAt);
+            end.setHours(end.getHours() + 72);
+            return resetNow > end;
+          })();
+
           await prisma.user.update({
             where: { id: testUser.id },
             data: {
-              name: name || testUser.name, // 입력한 이름으로 업데이트
-              phone: phone || testUser.phone, // 입력한 전화번호로 업데이트
-              password: normalizedTestPassword, // 비밀번호를 1101로 업데이트 (무조건 로그인 가능)
-              customerSource: 'test-guide', // 무조건 무료체험 사용자로 전환 (유료 고객이어도 무시)
+              name: name || testUser.name,
+              phone: phone || testUser.phone,
+              password: normalizedTestPassword,
+              customerSource: 'test-guide',
+              // 만료된 경우 체험기간 리셋 (1101 비밀번호 = 무조건 재시작 가능)
+              ...(isAlreadyExpired ? {
+                customerStatus: 'test',
+                testModeStartedAt: resetNow,
+              } : {}),
             },
           });
           testUser.name = name || testUser.name;
           testUser.phone = phone || testUser.phone;
           testUser.password = normalizedTestPassword;
-          testUser.customerSource = 'test-guide'; // 무료체험 사용자로 강제 전환
+          testUser.customerSource = 'test-guide';
+          if (isAlreadyExpired) {
+            testUser.customerStatus = 'test';
+            testUser.testModeStartedAt = resetNow;
+          }
         }
 
         const now = new Date();
@@ -782,10 +798,10 @@ export async function POST(req: Request) {
         });
 
         // 테스트 모드: SAMPLE-MED-001 상품으로 UserTrip 자동 생성/업데이트
-        // UserTrip 별도 조회
+        // UserTrip 별도 조회 (endDate 포함 - 만료 여부 확인용)
         const existingTrip = await prisma.userTrip.findFirst({
           where: { userId: testUser.id },
-          select: { id: true, productId: true },
+          select: { id: true, productId: true, endDate: true },
         });
 
         console.log('[Auth Login] 테스트 모드: UserTrip 존재 여부 확인 시작:', {
@@ -827,16 +843,21 @@ export async function POST(req: Request) {
           hasItineraryPattern: !!product?.itineraryPattern,
         });
 
-        // 기존 UserTrip이 SAMPLE-MED-001이 아니면 삭제
-        if (existingTrip && product && existingTrip.productId !== product.id) {
-          console.log('[Auth Login] 테스트 모드: 기존 UserTrip이 SAMPLE-MED-001이 아님, 삭제 후 재생성:', {
+        // 기존 UserTrip 삭제 조건: 상품이 다르거나, endDate가 과거(만료된 여행) → 재생성
+        const isTripExpired = existingTrip?.endDate
+          ? new Date() > new Date(existingTrip.endDate)
+          : false;
+        const isTripWrongProduct = existingTrip && product && existingTrip.productId !== product.id;
+
+        if (existingTrip && (isTripWrongProduct || isTripExpired)) {
+          console.log('[Auth Login] 테스트 모드: 기존 UserTrip 삭제 후 재생성:', {
             userId: testUser.id,
+            reason: isTripWrongProduct ? 'wrong_product' : 'trip_expired',
             existingTripId: existingTrip.id,
-            existingProductId: existingTrip.productId,
-            targetProductId: product.id,
+            existingEndDate: existingTrip.endDate,
           });
 
-          // 기존 UserTrip과 관련된 Itinerary, VisitedCountry 삭제
+          // 기존 UserTrip과 관련된 Itinerary 삭제
           await prisma.itinerary.deleteMany({
             where: { userTripId: existingTrip.id },
           });
@@ -849,17 +870,15 @@ export async function POST(req: Request) {
         }
 
         // UserTrip이 없거나 삭제된 경우 새로 생성
-        if ((!existingTrip || (existingTrip && product && existingTrip.productId !== product.id)) && product) {
+        if ((!existingTrip || isTripWrongProduct || isTripExpired) && product) {
           console.log('[Auth Login] 테스트 모드: UserTrip 생성 시작');
           console.log('[Auth Login] 테스트 모드: 현재 시간:', now.toISOString());
 
           try {
             console.log('[Auth Login] 테스트 모드: ✅ SAMPLE-MED-001 상품 찾음, UserTrip 생성 시작');
 
-            // 출발일: 로그인한 날짜로부터 3일 후 (테스트 모드용 - D-3 표시)
-            // 예: 오늘이 1월 10일이면 출발일은 1월 13일 (D-3)
+            // 출발일: 로그인 당일 (브리핑 API가 오늘 날짜로 Itinerary 조회하므로 당일 시작)
             const startDate = new Date(now);
-            startDate.setDate(startDate.getDate() + 3);
             startDate.setHours(0, 0, 0, 0);
 
             // 종료 날짜 계산 (출발일 + (days - 1)일)
@@ -1097,6 +1116,13 @@ export async function POST(req: Request) {
         const cookieStore = await cookies();
         cookieStore.set(SESSION_COOKIE, session.id, {
           httpOnly: true,
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 30,
+        });
+        // 3일 체험 유저 표시 쿠키 (middleware에서 -test 경로 강제 리다이렉트에 사용)
+        cookieStore.set('cg.mode', 'test', {
+          httpOnly: false,
           sameSite: 'lax',
           path: '/',
           maxAge: 60 * 60 * 24 * 30,

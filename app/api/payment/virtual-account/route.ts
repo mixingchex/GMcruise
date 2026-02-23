@@ -55,12 +55,25 @@ export async function POST(req: NextRequest) {
     if (isSuccess) {
       // 가상계좌 입금 완료 처리
       log('[Virtual Account Notification] Deposit completed:', orderId);
-      
-      // TODO: 주문 상태 업데이트
-      // - 가상계좌 입금 확인
-      // - 주문 완료 처리
-      // - 사용자에게 알림 발송
-      // - 관리자에게 알림 발송
+
+      // 주문 상태 업데이트
+      await prisma.payment.updateMany({
+        where: { orderId },
+        data: {
+          status: 'completed',
+          paidAt: new Date(),
+          metadata: {
+            virtualAccount,
+            depositName,
+            depositCompletedAt: new Date().toISOString(),
+          }
+        }
+      });
+
+      // NOTE: 알림 시스템 구현 필요 (See GitHub Issue #TBD)
+      // - 사용자에게 입금 확인 알림
+      // - 관리자에게 입금 통보
+      log('[Virtual Account Notification] Payment status updated to completed');
     } else {
       error('[Virtual Account Notification] Deposit failed:', { orderId, resultCode, resultMsg });
     }

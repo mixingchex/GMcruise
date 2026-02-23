@@ -12,31 +12,36 @@ import { useEffect } from 'react';
  */
 export default function PaymentClosePage() {
   useEffect(() => {
-    console.log('[Payment Close] Page loaded - payment cancelled or closed');
+    console.log('[Payment Close] 결제창 닫힘');
 
-    // 부모창으로 메시지 전송 (팝업 모드인 경우)
-    if (window.opener) {
-      try {
-        window.opener.postMessage({ type: 'PAYMENT_CLOSED' }, '*');
-        window.close();
-      } catch (e) {
-        console.error('[Payment Close] Failed to close popup:', e);
-      }
-    }
-
-    // overlay 모드인 경우: 부모 프레임에 메시지 전송
-    if (window.parent !== window) {
+    // 1. overlay 모드: window.parent로 메시지 전송
+    if (window.parent && window.parent !== window) {
       try {
         window.parent.postMessage({ type: 'PAYMENT_CLOSED' }, '*');
       } catch (e) {
-        console.error('[Payment Close] Failed to notify parent:', e);
+        console.error('[Close] parent postMessage 실패', e);
       }
     }
 
-    // 3초 후 메인 페이지로 리다이렉트
+    // 2. 팝업 모드: window.opener로 메시지 전송
+    if (window.opener) {
+      try {
+        window.opener.postMessage({ type: 'PAYMENT_CLOSED' }, '*');
+        setTimeout(() => window.close(), 300);
+        return;
+      } catch (e) {
+        console.error('[Close] opener postMessage 실패', e);
+      }
+    }
+
+    // 3. 폴백: history.back() 또는 checkout 페이지로
     const timer = setTimeout(() => {
-      window.location.href = '/';
-    }, 3000);
+      if (document.referrer && document.referrer.includes('/payment/checkout')) {
+        window.history.back();
+      } else {
+        window.location.href = '/';
+      }
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, []);

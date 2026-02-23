@@ -21,6 +21,7 @@ function CheckoutContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [isSignatureLoaded, setIsSignatureLoaded] = useState(false);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
 
   // [상태] 결제 수단 선택 (기본값: 카드)
   // Card(신용카드), DirectBank(계좌이체), VBank(가상계좌), HPP(휴대폰)
@@ -73,11 +74,24 @@ function CheckoutContent() {
     // 웰컴페이먼츠 결제 콜백 함수 등록 (결제창 닫힘/실패 시 호출)
     window.INIStdPayClose = () => {
       console.log('[Checkout] INIStdPayClose called - 결제창 닫힘');
+      // 결제창 닫힘 시 로딩/처리 상태 복구
+      setIsPaymentProcessing(false);
     };
     window.INIStdPayFail = (data: any) => {
       console.error('[Checkout] INIStdPayFail called - 결제 실패:', data);
+      // 결제 실패 시 로딩/처리 상태 복구
+      setIsPaymentProcessing(false);
       alert('결제 오류: ' + JSON.stringify(data));
     };
+
+    // PAYMENT_CLOSED postMessage 수신 핸들러 (overlay/팝업 모드 공통)
+    const handlePaymentClosedMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PAYMENT_CLOSED') {
+        console.log('[Checkout] PAYMENT_CLOSED message received - 결제창 닫힘');
+        setIsPaymentProcessing(false);
+      }
+    };
+    window.addEventListener('message', handlePaymentClosedMessage);
 
     const userAgent = navigator.userAgent.toLowerCase();
     const mobile = /android|iphone|ipad|ipod/i.test(userAgent);
@@ -185,6 +199,10 @@ function CheckoutContent() {
           alert('결제 서명 요청 실패: ' + err.message);
         });
     }
+
+    return () => {
+      window.removeEventListener('message', handlePaymentClosedMessage);
+    };
   }, [orderId, price]);
 
   // ============================================
@@ -204,11 +222,14 @@ function CheckoutContent() {
       payMethod,
     });
 
+    setIsPaymentProcessing(true);
+
     if (isMobile) {
       // === Mobile: 동적 폼 생성 후 POST 전송 ===
       // 서명 데이터 확인 (필수!)
       if (!signature || !timestamp) {
         console.error('[Checkout Mobile] Missing signature data:', { signature: !!signature, timestamp: !!timestamp });
+        setIsPaymentProcessing(false);
         alert('결제 서명 데이터 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
       }
@@ -259,6 +280,7 @@ function CheckoutContent() {
       // === PC: Overlay 팝업 실행 ===
       if (typeof window.INIStdPay === 'undefined') {
         console.error('[Checkout] INIStdPay not loaded');
+        setIsPaymentProcessing(false);
         alert('결제 모듈 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
       }
@@ -266,6 +288,7 @@ function CheckoutContent() {
       // 서명 데이터 확인
       if (!signature || !mKey || !timestamp) {
         console.error('[Checkout] Missing signature data:', { signature: !!signature, mKey: !!mKey, timestamp: !!timestamp });
+        setIsPaymentProcessing(false);
         alert('결제 서명 데이터 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
       }
@@ -326,6 +349,7 @@ function CheckoutContent() {
             if (!signatureVal) missing.push('signature');
             if (!mKeyVal) missing.push('mKey');
             console.error('[Checkout] Missing required fields:', missing.join(', '));
+            setIsPaymentProcessing(false);
             alert('필수 결제 정보가 누락되었습니다: ' + missing.join(', '));
             return;
           }
@@ -334,10 +358,12 @@ function CheckoutContent() {
           console.log('[Checkout] INIStdPay.pay() called successfully');
         } catch (payError) {
           console.error('[Checkout] INIStdPay.pay() error:', payError);
+          setIsPaymentProcessing(false);
           alert('결제 호출 오류: ' + (payError instanceof Error ? payError.message : String(payError)));
         }
       } else {
         console.error('[Checkout] Form not found: SendPayForm_id');
+        setIsPaymentProcessing(false);
       }
     }
   };
@@ -422,10 +448,12 @@ function CheckoutContent() {
           {/* 결제하기 버튼 */}
           <button
             onClick={handlePayment}
-            disabled={!isMobile && (!isScriptLoaded || !isSignatureLoaded)}
+            disabled={isPaymentProcessing || (!isMobile && (!isScriptLoaded || !isSignatureLoaded))}
             className="w-full py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
           >
-            {!isMobile && (!isScriptLoaded || !isSignatureLoaded)
+            {isPaymentProcessing
+              ? '결제 진행 중...'
+              : !isMobile && (!isScriptLoaded || !isSignatureLoaded)
               ? '결제 준비 중...'
               : `${parseInt(price).toLocaleString()}원 결제하기`}
           </button>
@@ -465,7 +493,7 @@ function CheckoutContent() {
           <input type="hidden" name="charset" value="UTF-8" />
 
           {/* 결제 옵션 */}
-          <input type="hidden" name="acceptmethod" value="HPP(1):below1000" />
+          <input type="hidden" name="acceptmethod" value="HPP(1):below1000:NOINT(3:6:12)" />
 
           {/* URL 설정 (필수) */}
           <input type="hidden" name="returnUrl" value="https://www.cruisedot.co.kr/api/payment/return" />

@@ -100,10 +100,11 @@ export async function POST(req: Request) {
         );
       }
 
-      // TODO: 실제 이메일 전송 기능 구현
-      // 현재는 성공 응답만 반환
-      console.log('[FIND PASSWORD] 비밀번호 전송 완료:', {
+      // NOTE: 이메일 전송 기능 구현 필요 (See GitHub Issue #TBD)
+      // 임시: 로그에만 기록하고 성공 응답 반환
+      console.log('[FIND PASSWORD] 비밀번호 전송 시뮬레이션:', {
         email: user.email || email,
+        password: password ? '(exists)' : '(not found)',
         timestamp: new Date().toISOString()
       });
 

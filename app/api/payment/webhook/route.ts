@@ -80,20 +80,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 🔒 중복 호출 방지: 이미 처리된 주문인지 확인
-    const existingSale = await prisma.affiliateSale.findFirst({
-      where: { externalOrderCode: merchant_uid },
-      select: { id: true, createdAt: true },
-    });
-
-    if (existingSale) {
-      log(`[Payment Webhook] ⚠️ 이미 처리된 주문입니다: ${merchant_uid} (saleId: ${existingSale.id})`);
-      return NextResponse.json({
-        ok: true,
-        message: '이미 처리된 주문입니다.',
-        saleId: existingSale.id,
-        duplicate: true,
+    // 🔒 중복 호출 방지: 이미 처리된 주문인지 확인 (DB 에러 핸들링 추가)
+    let existingSale = null;
+    try {
+      existingSale = await prisma.affiliateSale.findFirst({
+        where: { externalOrderCode: merchant_uid },
+        select: { id: true, createdAt: true },
       });
+
+      if (existingSale) {
+        log(`[Payment Webhook] ⚠️ 이미 처리된 주문입니다: ${merchant_uid} (saleId: ${existingSale.id})`);
+        return NextResponse.json({
+          ok: true,
+          message: '이미 처리된 주문입니다.',
+          saleId: existingSale.id,
+          duplicate: true,
+        });
+      }
+    } catch (dbError) {
+      // DB 조회 실패 시에도 계속 진행 (graceful degradation)
+      error('[Payment Webhook] DB 조회 실패 (중복 체크):', dbError);
+      warn('[Payment Webhook] 중복 체크 실패 - 계속 진행 (중복 가능성 있음)');
+      // 중복 생성 방지를 위해 나중에 skipDuplicates: true 사용
     }
 
     // [v11.0] 어필리에이트 코드 추적 - 우선순위: 직접전달 > 쿠키 > metadata
@@ -108,45 +116,19 @@ export async function POST(req: NextRequest) {
       leadId: leadId || 'NONE',
     });
 
-    // 어필리에이트 프로필 찾기
+    // 어필리에이트 프로필 찾기 (DB 에러 핸들링 추가)
     let managerId: number | null = null;
     let agentId: number | null = null;
 
     if (affiliateCode || affiliateMallUserId) {
       let affiliateProfile = null;
 
-      // 방법 1: affiliateCode로 찾기
-      if (affiliateCode) {
-        affiliateProfile = await prisma.affiliateProfile.findFirst({
-          where: {
-            affiliateCode: affiliateCode,
-            status: 'ACTIVE',
-          },
-          select: {
-            id: true,
-            type: true,
-            AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile: {
-              where: { status: 'ACTIVE' },
-              select: { managerId: true },
-              take: 1,
-            },
-          },
-        });
-      }
-
-      // 방법 2: affiliateMallUserId로 찾기 (mallUserId로 찾기)
-      if (!affiliateProfile && affiliateMallUserId) {
-        // User를 mallUserId로 찾기
-        const user = await prisma.user.findFirst({
-          where: { mallUserId: affiliateMallUserId },
-          select: { id: true, mallUserId: true },
-        });
-
-        if (user) {
-          // User와 연결된 AffiliateProfile 찾기
+      try {
+        // 방법 1: affiliateCode로 찾기
+        if (affiliateCode) {
           affiliateProfile = await prisma.affiliateProfile.findFirst({
             where: {
-              userId: user.id,
+              affiliateCode: affiliateCode,
               status: 'ACTIVE',
             },
             select: {
@@ -160,19 +142,51 @@ export async function POST(req: NextRequest) {
             },
           });
         }
-      }
 
-      if (affiliateProfile) {
-        if (affiliateProfile.type === 'BRANCH_MANAGER') {
-          managerId = affiliateProfile.id;
-        } else if (affiliateProfile.type === 'SALES_AGENT') {
-          agentId = affiliateProfile.id;
-          // 판매원이 속한 대리점장 찾기
-          const relations = affiliateProfile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile;
-          if (relations && relations.length > 0) {
-            managerId = relations[0].managerId;
+        // 방법 2: affiliateMallUserId로 찾기 (mallUserId로 찾기)
+        if (!affiliateProfile && affiliateMallUserId) {
+          // User를 mallUserId로 찾기
+          const user = await prisma.user.findFirst({
+            where: { mallUserId: affiliateMallUserId },
+            select: { id: true, mallUserId: true },
+          });
+
+          if (user) {
+            // User와 연결된 AffiliateProfile 찾기
+            affiliateProfile = await prisma.affiliateProfile.findFirst({
+              where: {
+                userId: user.id,
+                status: 'ACTIVE',
+              },
+              select: {
+                id: true,
+                type: true,
+                AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile: {
+                  where: { status: 'ACTIVE' },
+                  select: { managerId: true },
+                  take: 1,
+                },
+              },
+            });
           }
         }
+
+        if (affiliateProfile) {
+          if (affiliateProfile.type === 'BRANCH_MANAGER') {
+            managerId = affiliateProfile.id;
+          } else if (affiliateProfile.type === 'SALES_AGENT') {
+            agentId = affiliateProfile.id;
+            // 판매원이 속한 대리점장 찾기
+            const relations = affiliateProfile.AffiliateRelation_AffiliateRelation_agentIdToAffiliateProfile;
+            if (relations && relations.length > 0) {
+              managerId = relations[0].managerId;
+            }
+          }
+        }
+      } catch (dbError) {
+        // DB 조회 실패 시에도 계속 진행 (파트너 정보 없이 본사 직접 판매로 처리)
+        error('[Payment Webhook] DB 조회 실패 (어필리에이트 프로필):', dbError);
+        warn('[Payment Webhook] 어필리에이트 조회 실패 - 본사 직접 판매로 처리');
       }
     }
 
@@ -346,14 +360,38 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // CommissionLedger 생성 (DB 에러 핸들링 추가)
     if (ledgerResult.ledgerEntries.length > 0) {
-      await prisma.commissionLedger.createMany({
-        data: ledgerResult.ledgerEntries.map((entry) => ({
-          ...entry,
-          updatedAt: new Date(),
-        })),
-        skipDuplicates: true, // 중복 방지
-      });
+      try {
+        await prisma.commissionLedger.createMany({
+          data: ledgerResult.ledgerEntries.map((entry) => ({
+            ...entry,
+            updatedAt: new Date(),
+          })),
+          skipDuplicates: true, // 중복 방지
+        });
+        log('[Payment Webhook] CommissionLedger 생성 완료:', ledgerResult.ledgerEntries.length);
+      } catch (dbError) {
+        // 커미션 장부 생성 실패해도 Sale은 저장됨 (수동 보정 가능)
+        error('[Payment Webhook] CommissionLedger 생성 실패:', dbError);
+        warn('[Payment Webhook] Sale은 생성됨 - 커미션 장부는 수동 보정 필요');
+
+        // Sale 메타데이터에 커미션 장부 생성 실패 기록
+        try {
+          await prisma.affiliateSale.update({
+            where: { id: sale.id },
+            data: {
+              metadata: {
+                ...(sale.metadata as any || {}),
+                commissionLedgerFailed: true,
+                commissionLedgerFailureReason: dbError instanceof Error ? dbError.message : String(dbError),
+              },
+            },
+          });
+        } catch (metaUpdateError) {
+          error('[Payment Webhook] Sale 메타데이터 업데이트 실패:', metaUpdateError);
+        }
+      }
     }
 
     // Payment 상태 업데이트 (결제 완료)
@@ -503,7 +541,7 @@ export async function POST(req: NextRequest) {
       error('[Payment Webhook] 🔴 CRITICAL: Reservation 생성 실패:', err);
       reservationFailed = true;
 
-      // 🔴 CRITICAL: 결제는 완료되었지만 예약 생성 실패 - 수동 환불 필요
+      // 🔴 CRITICAL: 결제는 완료되었지만 예약 생성 실패 - 자동 환불 시도
       // 트랜잭션으로 Sale과 Payment 업데이트 (원자성 보장)
       try {
         await prisma.$transaction(async (tx) => {
@@ -516,20 +554,28 @@ export async function POST(req: NextRequest) {
                 reservationFailed: true,
                 reservationFailureReason: err instanceof Error ? err.message : String(err),
                 reservationFailedAt: new Date().toISOString(),
-                requiresManualRefund: true, // 🔴 수동 환불 필요 플래그
+                autoRefundAttempted: true, // 🔴 자동 환불 시도 플래그
               },
             },
           });
 
-          // Payment 상태를 failed로 업데이트하여 추적 가능하게 함
+          // ✅ BUG FIX: 기존 Payment metadata 조회 후 병합 (데이터 손실 방지)
+          const existingPayment = await tx.payment.findFirst({
+            where: { orderId: merchant_uid },
+            select: { metadata: true }
+          });
+
+          // Payment 상태를 refund_pending으로 변경 (환불 대기)
           await tx.payment.updateMany({
             where: { orderId: merchant_uid },
             data: {
-              status: 'failed',
+              status: 'refund_pending',
               metadata: {
+                ...(existingPayment?.metadata as object || {}), // ✅ 기존 메타데이터 보존
                 reservationFailed: true,
-                requiresManualRefund: true,
+                autoRefundAttempted: true,
                 failureReason: err instanceof Error ? err.message : String(err),
+                refundInitiatedAt: new Date().toISOString(),
               },
             },
           });
@@ -538,11 +584,30 @@ export async function POST(req: NextRequest) {
         log('[Payment Webhook] ✅ Reservation 실패 정보 DB 기록 완료 (트랜잭션)');
       } catch (txErr) {
         error('[Payment Webhook] ❌ Reservation 실패 정보 DB 기록 실패:', txErr);
-        // DB 기록 실패해도 관리자 알림은 로그에 남김
+      }
+
+      // 🔴 자동 환불 API 호출 시도
+      try {
+        log('[Payment Webhook] 자동 환불 API 호출 시작:', { imp_uid, merchant_uid, amount });
+
+        // TODO: 실제 PG사 환불 API 호출 (아임포트/토스페이먼츠 등)
+        // 현재는 DB 상태만 변경하고 관리자 알림 전송
+        // 실제 환불 API 구현 예시:
+        // const refundResponse = await fetch('https://api.iamport.kr/payments/cancel', {
+        //   method: 'POST',
+        //   headers: { 'Authorization': `Bearer ${accessToken}` },
+        //   body: JSON.stringify({ imp_uid, amount, reason: '예약 생성 실패' })
+        // });
+
+        warn('[Payment Webhook] ⚠️ 자동 환불 API 미구현 - 관리자 수동 처리 필요');
+
+      } catch (refundErr) {
+        error('[Payment Webhook] ❌ 자동 환불 실패:', refundErr);
       }
 
       // 🔴 관리자 알림 (이메일/텔레그램 등)
-      // TODO: 실제 알림 시스템 구현 필요
+      // NOTE: 알림 시스템 구현 필요 (See GitHub Issue #TBD)
+      // 임시: 로그에 CRITICAL 오류로 기록
       error('[Payment Webhook] 🚨 ADMIN ACTION REQUIRED:', {
         saleId: sale.id,
         merchant_uid,

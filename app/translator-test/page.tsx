@@ -34,13 +34,14 @@ const DESTINATION_LANGUAGE_MAP: Record<string, { code: string; name: string; fla
 
 type ConversationItem = {
   id: string;
-  from: { flag: string; name: string; code?: string }; // 언어 코드 추가
-  to: { flag: string; name: string; code?: string }; // 언어 코드 추가
+  from: { flag: string; name: string; code?: string };
+  to: { flag: string; name: string; code?: string };
   source: string;
   translated: string;
-  pronunciation?: string; // 한국어 발음 표시 (한국어 입력 시 또는 외국어를 한국어 발음으로)
+  pronunciation?: string;
   when: string;
   kind: 'speech' | 'photo';
+  isError?: boolean;
 };
 
 type UserData = {
@@ -136,7 +137,14 @@ export default function TranslatorPage() {
   const [items, setItems] = useState<ConversationItem[]>([]);
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) setItems(JSON.parse(saved));
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) setItems(parsed);
+      } catch {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
   }, []);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
@@ -144,6 +152,8 @@ export default function TranslatorPage() {
 
   // 음성 인식 객체
   const recRef = useRef<SpeechRecognition | null>(null);
+  const isProcessingRef = useRef(false); // race condition 방지
+  const interimTextRef = useRef(''); // stale closure 방지용 ref
   const [listening, setListening] = useState<'none' | 'pressing' | 'recording'>('none');
   const [preview, setPreview] = useState('');
   const [finalText, setFinalText] = useState(''); // 최종 확정된 텍스트
@@ -240,6 +250,11 @@ export default function TranslatorPage() {
     };
 
     recRef.current = recog;
+
+    return () => {
+      try { recog.abort(); } catch { }
+      recRef.current = null;
+    };
   }, []);
 
   // 외국어를 한국어 발음으로 변환하는 함수 (캐시 포함, 재시도 로직 추가)
@@ -359,16 +374,18 @@ export default function TranslatorPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: `Translate the following text from ${fromEnglish} to ${toEnglish}. Translate completely even if the text is long or partially unclear. Only provide the translation result in ${toEnglish}, no explanations:\n\n"${text}"\n\nTranslation in ${toEnglish}:`,
+          text, // 원문만 전달 (프롬프트 구성은 서버에서 처리)
           mode: 'translate',
-          from: fromEnglish, // 영어 언어 정보 전달
-          to: toEnglish, // 영어 언어 정보 전달
+          from: fromEnglish,
+          to: toEnglish,
         }),
       });
 
       if (!res.ok) {
         console.error('[Translation] API error:', res.status, res.statusText);
-        // API 오류 시 원문 반환 (부분 번역 시도 안 함)
+        if (res.status === 429) {
+          return { translated: '⏳ 번역 서버가 바쁩니다. 잠시 후 다시 시도해주세요.', pronunciation: '', isError: true };
+        }
         return { translated: text, pronunciation: '' };
       }
 
@@ -508,6 +525,7 @@ export default function TranslatorPage() {
         // 상태 업데이트 - 인식 과정을 실시간으로 표시
         setFinalText(newFinalText.trim());
         setInterimText(newInterimText);
+        interimTextRef.current = newInterimText; // stale closure 방지
 
         // 프리뷰 텍스트 업데이트 (최종 + 중간 합쳐서)
         const displayText = (newFinalText.trim() + ' ' + newInterimText).trim();
@@ -578,8 +596,8 @@ export default function TranslatorPage() {
       // 손을 떼면 stopListening 호출에서 번역/추가
       (r as any).__translatePair = { from, to };
       (r as any).__acc = () => {
-        // 최종 텍스트와 중간 텍스트를 합쳐서 반환
-        const combined = (accumulatedFinalText + ' ' + (interimText || '')).trim();
+        // ref를 사용해 stale closure 문제 방지
+        const combined = (accumulatedFinalText + ' ' + (interimTextRef.current || '')).trim();
         return combined || accumulatedFinalText.trim();
       };
 
@@ -607,8 +625,11 @@ export default function TranslatorPage() {
   }
 
   async function stopPressToTalk() {
+    if (isProcessingRef.current) return; // 중복 실행 방지
+    isProcessingRef.current = true;
+
     const r: any = recRef.current;
-    if (!r) return;
+    if (!r) { isProcessingRef.current = false; return; }
     try {
       r.stop();
     } catch { }
@@ -624,25 +645,33 @@ export default function TranslatorPage() {
     setFinalText('');
     setInterimText('');
 
-    if (!pair || !finalAcc) return;
+    if (!pair || !finalAcc) { isProcessingRef.current = false; return; }
 
-    const { translated } = await translateText(finalAcc, pair.from.name, pair.to.name);
+    try {
+      const { translated, isError } = await translateText(finalAcc, pair.from.name, pair.to.name);
 
-    // 발음 생성 제거 - 번역 속도 개선을 위해
-    const newItem = {
-      id: Date.now().toString(),
-      from: { flag: pair.from.flag, name: pair.from.name, code: pair.from.code },
-      to: { flag: pair.to.flag, name: pair.to.name, code: pair.to.code },
-      source: finalAcc,
-      translated,
-      when: new Date().toLocaleTimeString('ko-KR'),
-      kind: 'speech' as const,
-    };
+      const newItem = {
+        id: Date.now().toString(),
+        from: { flag: pair.from.flag, name: pair.from.name, code: pair.from.code },
+        to: { flag: pair.to.flag, name: pair.to.name, code: pair.to.code },
+        source: finalAcc,
+        translated,
+        when: new Date().toLocaleTimeString('ko-KR'),
+        kind: 'speech' as const,
+        isError,
+      };
 
-    setItems((prev) => [newItem, ...prev]);
+      setItems((prev) => [newItem, ...prev]);
 
-    // 들려주는 쪽은 목적 언어
-    speak(translated, pair.to.code);
+      // 에러 메시지는 TTS로 읽지 않음
+      if (!isError) {
+        speak(translated, pair.to.code);
+      }
+    } catch (error) {
+      console.error('[stopPressToTalk] Unexpected error:', error);
+    } finally {
+      isProcessingRef.current = false; // 예외 여부와 무관하게 항상 해제
+    }
   }
 
 
@@ -789,12 +818,12 @@ export default function TranslatorPage() {
                 <div className="text-6xl mb-4">🎤</div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-3">음성 번역</h3>
                 <p className="text-gray-700 mb-4">
-                  마이크 버튼을 길게 누르고 말하면 자동으로 번역됩니다.
+                  마이크 버튼을 한 번 누르고 말하면 자동으로 번역됩니다.
                 </p>
                 <ul className="text-left space-y-2 text-sm text-gray-600 mb-6 bg-blue-50 rounded-lg p-4">
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 font-bold">•</span>
-                    <span>말을 멈추면 자동으로 번역됩니다</span>
+                    <span>한 번 누르면 녹음 시작, 다시 누르면 번역됩니다</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 font-bold">•</span>
@@ -1190,8 +1219,8 @@ export default function TranslatorPage() {
             )}
 
             {items.map((it) => (
-              <div key={it.id} className="rounded-xl border bg-white p-4 shadow-sm">
-                <div className="text-xs text-gray-500 mb-2">{it.when} · {it.kind === 'photo' ? '📸 사진' : '🎤 음성'}</div>
+              <div key={it.id} className={`rounded-xl border p-4 shadow-sm ${it.isError ? 'bg-red-50 border-red-200' : 'bg-white'}`}>
+                <div className="text-xs text-gray-500 mb-2">{it.when} · {it.kind === 'photo' ? '📸 사진' : '🎤 음성'}{it.isError && <span className="ml-2 text-red-500">⚠️ 번역 오류</span>}</div>
                 {/* 사진 번역 기능 제거됨 */}
                 {it.kind === 'photo' ? null : (
                   /* 음성 번역: 원본 + 번역 함께 표시 */
@@ -1241,15 +1270,20 @@ export default function TranslatorPage() {
             {BTN_PAIRS.map((p) => (
               <button
                 key={p.label}
-                onMouseDown={() => startPressToTalk(p.from, p.to)}
-                onMouseUp={stopPressToTalk}
-                onTouchStart={() => startPressToTalk(p.from, p.to)}
-                onTouchEnd={stopPressToTalk}
+                onClick={async () => {
+                  if (listening !== 'none') {
+                    stopPressToTalk();
+                  } else {
+                    await startPressToTalk(p.from, p.to);
+                  }
+                }}
                 className={`
                 w-full px-4 py-4 rounded-xl text-lg font-bold shadow-lg
                 min-h-[80px]
                 ${listening === 'recording'
                     ? 'bg-gradient-to-r from-red-600 to-red-500 text-white animate-pulse'
+                    : listening === 'pressing'
+                    ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white'
                     : 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-700 hover:to-blue-600'
                   }
                 active:scale-95 transition-all
@@ -1257,11 +1291,11 @@ export default function TranslatorPage() {
               >
                 <div className="flex flex-col items-center gap-2">
                   <span className="text-3xl">
-                    {listening === 'recording' ? '🔴' : '🎤'}
+                    {listening === 'recording' ? '🔴' : listening === 'pressing' ? '⏳' : '🎤'}
                   </span>
                   <span className="text-lg">{p.label}</span>
                   <span className="text-xs font-normal opacity-90">
-                    (버튼을 꾹 누르고 말하세요)
+                    {listening === 'recording' ? '(다시 누르면 번역됩니다)' : '(한 번 누르고 말하세요)'}
                   </span>
                 </div>
               </button>

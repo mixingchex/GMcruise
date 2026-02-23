@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
       });
 
       // 2. 담당자 정보 찾기 (판매원/대리점장)
-      // TODO: 추후 AffiliateProfile 관계를 통해 담당자 찾기 로직 추가
-      // 현재는 Trip의 userId만 있으므로, 임시로 사용자 정보만 출력
+      // NOTE: AffiliateSale 관계를 통해 담당자 찾기 로직 구현 필요 (See GitHub Issue #TBD)
+      // 임시: Reservation의 affiliateSaleId를 통해 추적 가능
 
       return { reservation: updatedReservation };
     });
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     console.log('📧 관리자에게 알림 발송 필요');
     console.log('────────────────────────────────────────────');
 
-    // TODO: 실제 알림 발송 로직 구현
+    // NOTE: 알림 시스템 구현 필요 (See GitHub Issue #TBD)
     // - 담당자에게 SMS/알림톡 발송
     // - 관리자에게 이메일/알림 발송
 

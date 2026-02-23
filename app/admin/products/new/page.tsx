@@ -244,6 +244,7 @@ export default function NewProductPage() {
   // 자동저장 상태
   const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | null>(null);
   const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   // 자동저장 타이머
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -268,6 +269,7 @@ export default function NewProductPage() {
   const hasLocalGuideRef = useRef(hasLocalGuide);
   const hasCruisedotStaffRef = useRef(hasCruisedotStaff);
   const hasTravelInsuranceRef = useRef(hasTravelInsurance);
+  const contactOptionsRef = useRef(contactOptions);
 
   // ref 업데이트
   useEffect(() => {
@@ -290,6 +292,7 @@ export default function NewProductPage() {
     hasLocalGuideRef.current = hasLocalGuide;
     hasCruisedotStaffRef.current = hasCruisedotStaff;
     hasTravelInsuranceRef.current = hasTravelInsurance;
+    contactOptionsRef.current = contactOptions;
   });
 
   // 자동저장 함수 (ref 사용으로 dependency 없음)
@@ -318,11 +321,13 @@ export default function NewProductPage() {
         hasLocalGuide: hasLocalGuideRef.current,
         hasCruisedotStaff: hasCruisedotStaffRef.current,
         hasTravelInsurance: hasTravelInsuranceRef.current,
+        contactOptions: contactOptionsRef.current,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(draft));
       setTimeout(() => {
         setAutoSaveStatus('saved');
+        setLastSavedAt(new Date());
         setTimeout(() => setAutoSaveStatus(null), 2000);
       }, 300);
     } catch (error) {
@@ -394,6 +399,9 @@ export default function NewProductPage() {
         }
         if (draft.hasTravelInsurance !== undefined) {
           setHasTravelInsurance(draft.hasTravelInsurance);
+        }
+        if (draft.contactOptions !== undefined) {
+          setContactOptions(draft.contactOptions);
         }
         setTimeout(() => {
           setIsLoadingFromStorage(false);
@@ -503,6 +511,10 @@ export default function NewProductPage() {
     hasLocalGuide,
     hasCruisedotStaff,
     hasTravelInsurance,
+    flightInfoStr,
+    contactOptions.payment,
+    contactOptions.phoneCall,
+    contactOptions.aiChatbot,
     isLoadingFromStorage,
   ]);
 
@@ -780,11 +792,10 @@ export default function NewProductPage() {
           }
         }
 
-        // 저장 성공 시 자동저장 데이터 업데이트 (최신 상태로 동기화)
-        // 저장 후에도 계속 편집할 수 있으므로 자동저장 데이터 유지
-        setTimeout(() => {
-          saveToLocalStorage();
-        }, 500);
+        // 등록 성공 후 드래프트 삭제 및 저장 상태 초기화
+        localStorage.removeItem(AUTO_SAVE_KEY);
+        setLastSavedAt(null);
+        setAutoSaveStatus(null);
         showSuccess('상품이 등록되었습니다.');
         
         // 저장 성공 후 자동으로 미리보기 열기
@@ -888,6 +899,11 @@ export default function NewProductPage() {
                 )}
                 {autoSaveStatus === 'saved' && (
                   <p className="text-xs text-green-600 mt-1">✅ 자동저장 완료</p>
+                )}
+                {autoSaveStatus === null && lastSavedAt && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    💾 {lastSavedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} 저장됨
+                  </p>
                 )}
               </div>
             </div>

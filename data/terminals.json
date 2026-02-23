@@ -1122,12 +1122,44 @@
     "name": "Venice Cruise Terminal (Stazione Marittima)",
     "name_ko": "베네치아 크루즈 터미널",
     "keywords_ko": [
-      "베네치아"
+      "베네치아",
+      "베네치아 크루즈",
+      "베니스 터미널"
     ],
     "lat": 45.4359,
     "lng": 12.3099,
     "city": "Venice",
     "country": "Italy"
+  },
+  {
+    "id": "venice_marco_polo_airport",
+    "name": "Venice Marco Polo International Airport",
+    "name_ko": "베네치아 마르코 폴로 국제공항",
+    "keywords_ko": [
+      "베네치아 공항",
+      "마르코 폴로 공항",
+      "VCE",
+      "베니스 공항"
+    ],
+    "lat": 45.5053,
+    "lng": 12.3519,
+    "city": "Venice",
+    "country": "Italy"
+  },
+  {
+    "id": "ravenna_cruise_terminal",
+    "name": "Ravenna Cruise Terminal (Terminal Crociere Ravenna)",
+    "name_ko": "라벤나 크루즈 터미널",
+    "keywords_ko": [
+      "라벤나",
+      "라벤나 크루즈",
+      "라베나"
+    ],
+    "lat": 44.4827,
+    "lng": 12.2668,
+    "city": "Ravenna",
+    "country": "Italy",
+    "mapsUrl": "https://maps.app.goo.gl/hu467ScCjSCnmG8EA"
   },
   {
     "id": "genoa_cruise_terminal",
@@ -1248,5 +1280,25 @@
     "lng": -9.1185,
     "city": "Lisbon",
     "country": "Portugal"
+  },
+  {
+    "id": "santorini_port",
+    "name": "Santorini (Thira) Port",
+    "name_ko": "산토리니",
+    "keywords_ko": ["산토리니", "그리스 산토리니", "시라", "이아", "피라", "Santorini"],
+    "lat": 36.4172,
+    "lng": 25.4615,
+    "city": "Santorini",
+    "country": "Greece"
+  },
+  {
+    "id": "argostoli_port",
+    "name": "Argostoli Port (Kefalonia)",
+    "name_ko": "아르고스톨리",
+    "keywords_ko": ["아르고스톨리", "그리스 아르고스톨리", "케팔로니아", "케팔로니아섬", "Argostoli"],
+    "lat": 38.1732,
+    "lng": 20.4869,
+    "city": "Argostoli",
+    "country": "Greece"
   }
 ]

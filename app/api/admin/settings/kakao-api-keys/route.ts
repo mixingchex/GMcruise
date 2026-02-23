@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     const newApiKey = {
       id: `apikey_${Date.now()}`,
       identifier,
-      key: 'ykfcblofawtxt5b3gf7iyey30iufinqr', // 실제로는 알리고 API를 통해 발급받아야 함
+      key: process.env.ALIGO_API_KEY || '', // 환경변수에서 로드
       registeredAt: new Date().toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
     };
 

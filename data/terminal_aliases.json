@@ -57,8 +57,14 @@
   "제노바": "genoa",
   "사보나": "savona",
   "라스페치아": "la-spezia",
-  "베네치아": "venice-marghera",
-  "라벤나": "ravenna",
+  "베네치아": "venice_marittima",
+  "베네치아 크루즈": "venice_marittima",
+  "베네치아 공항": "venice_marco_polo_airport",
+  "마르코 폴로 공항": "venice_marco_polo_airport",
+  "VCE": "venice_marco_polo_airport",
+  "베니스 공항": "venice_marco_polo_airport",
+  "라벤나": "ravenna_cruise_terminal",
+  "라벤나 크루즈": "ravenna_cruise_terminal",
   "트리에스테": "trieste",
 
   "바르셀로나": "barcelona",
@@ -175,5 +181,16 @@
   "부산 크루즈 터미널": "busan-cruise",
   "부산 영도 크루즈터미널": "busan-cruise",
   "영도 크루즈터미널": "busan-cruise",
-  "영도 국제 크루즈터미널": "busan-cruise"
+  "영도 국제 크루즈터미널": "busan-cruise",
+
+  "산토리니": "santorini_port",
+  "그리스 산토리니": "santorini_port",
+  "시라": "santorini_port",
+  "피라": "santorini_port",
+  "이아": "santorini_port",
+
+  "아르고스톨리": "argostoli_port",
+  "그리스 아르고스톨리": "argostoli_port",
+  "케팔로니아": "argostoli_port",
+  "케팔로니아섬": "argostoli_port"
 } 

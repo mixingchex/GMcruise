@@ -34,7 +34,7 @@ export default function VideoModal({ videoId, isOpen, onClose }: VideoModalProps
 
   // YouTube embed URL 생성 (youtube-nocookie.com 사용으로 차단 방지)
   // youtube-nocookie.com은 쿠키를 사용하지 않아 더 안전하고 차단 가능성이 낮음
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&cc_load_policy=0&iv_load_policy=3&fs=1&origin=${encodeURIComponent(origin || 'http://localhost:3030')}`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&cc_load_policy=0&iv_load_policy=3&fs=1&origin=${encodeURIComponent(origin || 'http://localhost:3030')}`;
 
   return (
     <div

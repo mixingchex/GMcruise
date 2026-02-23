@@ -32,7 +32,14 @@ const PUBLIC = [
   '/_next',
 ];
 
-const PROTECTED = ['/chat', '/chat-test', '/onboarding', '/admin'];
+const PROTECTED = [
+  '/chat', '/chat-test', '/onboarding', '/admin',
+  '/profile', '/profile-test',
+  '/tools', '/tools-test',
+  '/checklist', '/checklist-test',
+  '/wallet', '/wallet-test',
+  '/translator', '/translator-test',
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -220,9 +227,33 @@ export async function middleware(req: NextRequest) {
     const sessionId = req.cookies.get('cg.sid.v2')?.value;
     if (!sessionId) {
       const url = req.nextUrl.clone();
-      url.pathname = '/login';
+      // 테스트 경로는 /login-test로, 일반 경로는 /login으로
+      const isTestPath = pathname.includes('-test') || pathname.startsWith('/chat-test');
+      url.pathname = isTestPath ? '/login-test' : '/login';
       url.searchParams.set('next', pathname + req.nextUrl.search);
       return NextResponse.redirect(url);
+    }
+
+    // 3일 체험 유저는 반드시 -test 경로로만 이동해야 함
+    const userMode = req.cookies.get('cg.mode')?.value;
+    if (userMode === 'test') {
+      const testPathMap = [
+        { regular: '/chat', test: '/chat-test' },
+        { regular: '/profile', test: '/profile-test' },
+        { regular: '/tools', test: '/tools-test' },
+        { regular: '/checklist', test: '/checklist-test' },
+        { regular: '/wallet', test: '/wallet-test' },
+        { regular: '/translator', test: '/translator-test' },
+      ];
+      const matched = testPathMap.find(({ regular, test }) =>
+        (pathname === regular || pathname.startsWith(regular + '/')) &&
+        !pathname.startsWith(test)
+      );
+      if (matched) {
+        const url = req.nextUrl.clone();
+        url.pathname = matched.test + pathname.slice(matched.regular.length);
+        return NextResponse.redirect(url);
+      }
     }
   }
   // 보안 헤더 추가

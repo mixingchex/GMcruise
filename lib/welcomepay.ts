@@ -446,8 +446,9 @@ export function createPCPaymentForm(
 
   // acceptmethod 구성 (PC용 옵션)
   const acceptOptions: string[] = [
+    'HPP(1)',            // 휴대폰 결제 옵션
     'below1000',         // 1000원 미만 결제 허용
-    'HPP(2)',           // 휴대폰 결제 옵션
+    'NOINT(3:6:12)',     // 3, 6, 12개월 무이자
   ];
 
   // 간편결제 설정
@@ -488,6 +489,7 @@ export function createPCPaymentForm(
   if (onlyEasypay) {
     form.only_easypay = onlyEasypay;
   }
+  // 무이자 할부는 acceptmethod의 NOINT(3:6:12)로 설정되므로 별도 nointerest 필드 불필요
 
   return form;
 }

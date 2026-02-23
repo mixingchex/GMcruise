@@ -436,7 +436,8 @@ export async function PUT(
     }
 
     // 현재는 확인 기능만 구현 (실제로는 별도 테이블에서 확인 상태 관리 필요)
-    // TODO: StatementConfirmation 테이블 생성 및 관리
+    // NOTE: StatementConfirmation 테이블 구조 설계 필요 (See GitHub Issue #TBD)
+    // 임시: confirmed 파라미터만 받고 별도 저장은 하지 않음
 
     return NextResponse.json({
       ok: true,

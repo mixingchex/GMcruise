@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
           });
 
           if (trialContract && trialContract.metadata) {
-            const metadata = trialContract.metadata as any;
-            const trialEndDate = metadata.trialEndDate ? new Date(metadata.trialEndDate) : null;
+            const metadata = trialContract.metadata as Record<string, unknown>;
+            const trialEndDate = metadata.trialEndDate ? new Date(metadata.trialEndDate as string) : null;
 
             // 체험 기간 중이면 결제 차단
             if (trialEndDate && new Date() < trialEndDate) {
@@ -72,9 +72,16 @@ export async function POST(req: NextRequest) {
     const finalPartnerId = partnerId || affiliateMallUserIdFromCookie || null;
 
     // 방 선택 정보 검증 (크루즈 상품의 경우에만 필수)
+    interface RoomSelection {
+      adult?: number;
+      adult3rd?: number;
+      child2to11?: number;
+      infantUnder2?: number;
+      roomType?: string;
+    }
     let totalGuests = 1; // 기본값: 1명
     if (roomSelections && Array.isArray(roomSelections) && roomSelections.length > 0) {
-      totalGuests = roomSelections.reduce((sum: number, selection: any) => {
+      totalGuests = roomSelections.reduce((sum: number, selection: RoomSelection) => {
         return sum + (selection.adult || 0) + (selection.adult3rd || 0) +
           (selection.child2to11 || 0) + (selection.infantUnder2 || 0);
       }, 0);
@@ -109,7 +116,15 @@ export async function POST(req: NextRequest) {
     const orderId = `${config.mid}_${Date.now()}`;
 
     // 어필리에이트 정보를 metadata에 포함
-    const metadata: any = {
+    interface PaymentMetadata {
+      productCode: string;
+      roomSelections: RoomSelection[];
+      totalGuests: number;
+      chatSessionId: string | null;
+      affiliateCode?: string;
+      partnerId?: string;
+    }
+    const metadata: PaymentMetadata = {
       productCode,
       roomSelections,
       totalGuests,
