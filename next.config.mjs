@@ -117,8 +117,9 @@ const nextConfig = {
         // PDF 라이브러리 제외
         'node_modules/pdf-lib/**',
         'node_modules/pdfjs-dist/**',
-        // 이미지 처리 라이브러리 제외 (sharp는 워터마크 기능에 필요하므로 유지)
-        // 'node_modules/sharp/**',  // sharp 포함 (워터마크 + 이미지 변환용)
+        // sharp vendor 바이너리 제외 (libvips ~120MB → 250MB 초과 방지)
+        // 워터마크/변환 기능은 try/catch로 graceful degradation 처리
+        'node_modules/sharp/vendor/**',
         'node_modules/canvas/**',
         // 암호화 라이브러리 제외
         'node_modules/bcryptjs/**',
