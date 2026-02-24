@@ -27,7 +27,8 @@ export interface EnhancedItineraryDay {
   scheduleEndTitle?: string; // 일정마무리 텍스트
   // 숙박
   accommodation?: string; // 숙박 어디에 텍스트
-  accommodationImage?: string; // 숙박 사진 첨부
+  accommodationImage?: string; // 숙박 사진 첨부 (하위 호환용 단일 이미지)
+  accommodationImages?: string[]; // 숙박 사진 여러 장
   // 식사
   breakfast?: '선상식' | '호텔식' | '현지식' | '정찬식' | '기내식' | '자유식' | '한식';
   lunch?: '선상식' | '호텔식' | '현지식' | '정찬식' | '기내식' | '자유식' | '한식';
@@ -231,8 +232,11 @@ export default function EnhancedItineraryEditor({
       setCruiseImages([]);
       setSearchTerm('');
     } else if (showAccommodationImagePicker !== null) {
-      // 숙박 사진에 설정
-      updateDay(showAccommodationImagePicker, { accommodationImage: imageUrl });
+      // 숙박 사진 배열에 추가
+      const targetDay = days.find(d => d.day === showAccommodationImagePicker);
+      updateDay(showAccommodationImagePicker, {
+        accommodationImages: [...(targetDay?.accommodationImages || []), imageUrl]
+      });
       setShowCruisePhotoModal(false);
       setShowAccommodationImagePicker(null);
       setSelectedFolder('');
@@ -825,7 +829,7 @@ export default function EnhancedItineraryEditor({
         if (data.ok) {
           const updatedDays = days.map(d =>
             d.day === dayNumber
-              ? { ...d, accommodationImage: data.url }
+              ? { ...d, accommodationImages: [...(d.accommodationImages || []), data.url] }
               : d
           );
           onChange(updatedDays);
@@ -1391,56 +1395,87 @@ export default function EnhancedItineraryEditor({
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             숙박 사진 첨부
                           </label>
-                          {day.accommodationImage ? (
-                            <div className="relative">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={day.accommodationImage}
-                                alt="숙박 사진"
-                                className="w-full h-64 object-cover rounded-lg border border-gray-300"
-                              />
-                              <button
-                                onClick={() => updateDay(day.day, { accommodationImage: '' })}
-                                className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
-                              >
-                                <FiX size={16} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => {
-                                  setShowAccommodationImagePicker(day.day);
-                                  setShowCruisePhotoModal(true);
-                                }}
-                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                              >
-                                <FiImage size={16} />
-                                크루즈정보사진에서 선택
-                              </button>
-                              <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm cursor-pointer">
-                                <FiUpload size={16} />
-                                파일 업로드
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={async (e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleAccommodationImageUpload(day.day, file);
-                                      // 같은 파일 다시 선택 가능하도록 리셋
-                                      setTimeout(() => {
-                                        if (e.target) {
-                                          e.target.value = '';
-                                        }
-                                      }, 100);
-                                    }
-                                  }}
-                                  className="hidden"
-                                />
-                              </label>
+                          {/* 여러 장 표시 */}
+                          {((day.accommodationImages && day.accommodationImages.length > 0) || day.accommodationImage) && (
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              {(day.accommodationImages || []).map((imgUrl, idx) => (
+                                <div key={idx} className="relative">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={imgUrl}
+                                    alt={`숙박 사진 ${idx + 1}`}
+                                    className="w-full h-40 object-cover rounded-lg border border-gray-300"
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      const newImages = [...(day.accommodationImages || [])];
+                                      newImages.splice(idx, 1);
+                                      updateDay(day.day, { accommodationImages: newImages });
+                                    }}
+                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
+                                  >
+                                    <FiX size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                              {/* 하위 호환: 기존 단일 이미지 */}
+                              {day.accommodationImage && !(day.accommodationImages && day.accommodationImages.length > 0) && (
+                                <div className="relative">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={day.accommodationImage}
+                                    alt="숙박 사진"
+                                    className="w-full h-40 object-cover rounded-lg border border-gray-300"
+                                  />
+                                  <button
+                                    onClick={() => updateDay(day.day, { accommodationImage: '' })}
+                                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
+                                  >
+                                    <FiX size={12} />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           )}
+                          {/* 사진 추가 버튼 (항상 표시) */}
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setShowAccommodationImagePicker(day.day);
+                                setShowCruisePhotoModal(true);
+                              }}
+                              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+                            >
+                              <FiImage size={16} />
+                              크루즈정보사진에서 선택
+                            </button>
+                            <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm cursor-pointer">
+                              <FiUpload size={16} />
+                              파일 업로드 (여러 장)
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                onChange={async (e) => {
+                                  const files = e.target.files;
+                                  if (!files || files.length === 0) return;
+                                  if (files.length === 1) {
+                                    // 단일 파일: 기존 카테고리 모달 경유
+                                    handleAccommodationImageUpload(day.day, files[0]);
+                                  } else {
+                                    // 여러 파일: 모달 없이 순차 직접 업로드
+                                    // (모달 방식은 pendingUpload state를 덮어써 마지막 파일만 처리되는 버그)
+                                    for (let i = 0; i < files.length; i++) {
+                                      const file = files[i];
+                                      await uploadAccommodationImage(day.day, file, '숙박', file.name.replace(/\.[^/.]+$/, ''));
+                                    }
+                                  }
+                                  setTimeout(() => { if (e.target) e.target.value = ''; }, 100);
+                                }}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -3,8 +3,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FiPlus, FiX, FiEdit2, FiChevronDown } from 'react-icons/fi';
+import { useState, useEffect, useRef } from 'react';
+import { FiPlus, FiX, FiEdit2, FiChevronDown, FiSave, FiFolder, FiTrash2 } from 'react-icons/fi';
 import suggestionsData from '@/data/included-excluded-suggestions.json';
 import {
   DndContext,
@@ -21,6 +21,36 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+
+// ---------- 세트 타입 ----------
+
+interface InclusionSet {
+  id: string;
+  name: string;
+  includes: string[];
+  excludes: string[];
+  createdAt: string;
+}
+
+const STORAGE_KEY = 'inclusionSets';
+
+function loadSets(): InclusionSet[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.sets)) return [];
+    return parsed.sets;
+  } catch {
+    return [];
+  }
+}
+
+function saveSets(sets: InclusionSet[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ sets }));
+}
+
+// ---------- SortableItem ----------
 
 interface IncludedExcludedEditorProps {
   included: string[];
@@ -137,6 +167,162 @@ function SortableItem({
   );
 }
 
+// ---------- SetToolbar (세트 저장/불러오기 툴바) ----------
+
+interface SetToolbarProps {
+  included: string[];
+  excluded: string[];
+  onLoad: (set: InclusionSet) => void;
+}
+
+function SetToolbar({ included, excluded, onLoad }: SetToolbarProps) {
+  const [sets, setSets] = useState<InclusionSet[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+    setSets(loadSets());
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDropdown]);
+
+  function handleSave() {
+    if (included.length === 0 && excluded.length === 0) {
+      alert('저장할 포함/불포함 항목이 없습니다.');
+      return;
+    }
+    const name = window.prompt('세트 이름을 입력하세요.\n예: 지중해 표준, 카리브해 기본', '');
+    if (!name || !name.trim()) return;
+
+    const newSet: InclusionSet = {
+      id: `set_${Date.now()}`,
+      name: name.trim(),
+      includes: [...included],
+      excludes: [...excluded],
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...sets, newSet];
+    saveSets(updated);
+    setSets(updated);
+    alert(`"${name.trim()}" 세트가 저장되었습니다.`);
+  }
+
+  function handleLoad(set: InclusionSet) {
+    const confirmed = window.confirm(
+      `"${set.name}" 세트를 불러오시겠습니까?\n현재 포함/불포함 항목이 모두 교체됩니다.`
+    );
+    if (!confirmed) return;
+    onLoad(set);
+    setShowDropdown(false);
+  }
+
+  function handleDelete(set: InclusionSet, e: React.MouseEvent) {
+    e.stopPropagation();
+    const confirmed = window.confirm(`"${set.name}" 세트를 삭제하시겠습니까?`);
+    if (!confirmed) return;
+    const updated = sets.filter((s) => s.id !== set.id);
+    saveSets(updated);
+    setSets(updated);
+  }
+
+  function formatDate(iso: string): string {
+    try {
+      return new Date(iso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  }
+
+  if (!isMounted) return null;
+
+  return (
+    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 mb-6 flex-wrap">
+      <span className="text-sm font-semibold text-gray-600 mr-1">포함/불포함 세트:</span>
+
+      {/* 현재 내용 세트로 저장 */}
+      <button
+        type="button"
+        onClick={handleSave}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+      >
+        <FiSave size={14} />
+        현재 내용 저장
+      </button>
+
+      {/* 세트 불러오기 드롭다운 */}
+      <div className="relative" ref={dropdownRef}>
+        <button
+          type="button"
+          onClick={() => setShowDropdown((prev) => !prev)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+        >
+          <FiFolder size={14} />
+          세트 불러오기
+          <FiChevronDown
+            size={14}
+            className={showDropdown ? 'rotate-180 transition-transform' : 'transition-transform'}
+          />
+        </button>
+
+        {showDropdown && (
+          <div className="absolute left-0 top-full mt-1 z-50 min-w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+            {sets.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                저장된 세트가 없습니다.
+              </div>
+            ) : (
+              <ul className="max-h-64 overflow-y-auto">
+                {sets.map((set) => (
+                  <li key={set.id} className="flex items-center group hover:bg-blue-50 transition-colors">
+                    <button
+                      type="button"
+                      onClick={() => handleLoad(set)}
+                      className="flex-1 flex flex-col min-w-0 px-4 py-2.5 text-left"
+                    >
+                      <span className="text-sm font-medium text-gray-800 truncate">{set.name}</span>
+                      <span className="text-xs text-gray-400">
+                        포함 {set.includes.length}개 · 불포함 {set.excludes.length}개 · {formatDate(set.createdAt)}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDelete(set, e)}
+                      className="mr-2 p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                      title="세트 삭제"
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      {(included.length > 0 || excluded.length > 0) && (
+        <span className="ml-auto text-xs text-gray-400">
+          현재: 포함 {included.length}개 · 불포함 {excluded.length}개
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ---------- 메인 컴포넌트 ----------
+
 export default function IncludedExcludedEditor({
   included,
   excluded,
@@ -228,6 +414,11 @@ export default function IncludedExcludedEditor({
     }
   };
 
+  // 세트 불러오기: 현재 포함/불포함 항목을 세트 내용으로 교체
+  const handleLoadSet = (set: InclusionSet) => {
+    onChange([...set.includes], [...set.excludes]);
+  };
+
   // 중복 텍스트 대비 인덱스 포함 고유 ID
   const includedIds = included.map((item, index) => `${item}::${index}`);
   const excludedIds = excluded.map((item, index) => `${item}::${index}`);
@@ -256,6 +447,13 @@ export default function IncludedExcludedEditor({
 
   return (
     <div className="space-y-8">
+      {/* 세트 저장/불러오기 툴바 */}
+      <SetToolbar
+        included={included}
+        excluded={excluded}
+        onLoad={handleLoadSet}
+      />
+
       {/* 포함 사항 */}
       <div className="space-y-4 bg-green-50 p-6 rounded-lg border-2 border-green-200">
         <div className="flex items-center justify-between mb-4">

@@ -277,7 +277,8 @@ export function optimizeDriveUrl(url: string, fileId?: string): string {
 }
 
 export async function uploadFileToDrive(params: UploadParams): Promise<UploadResult> {
-  const { folderId, fileName, mimeType = 'application/octet-stream', buffer, makePublic = false } = params;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { folderId, fileName, mimeType = 'application/octet-stream', buffer, makePublic: _makePublic = false } = params;
 
   // 클라이언트(browser-image-compression)에서 이미 WebP 변환됨 — 서버 변환 불필요
   const uploadBuffer = buffer;
@@ -330,13 +331,8 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       const permissionOptions: any = {
         fileId,
         requestBody: { role: 'reader', type: 'anyone' },
+        supportsAllDrives: true,
       };
-      if (sharedDriveId && sharedDriveId !== 'root') {
-        permissionOptions.supportsAllDrives = true;
-      }
-      if (makePublic) {
-        permissionOptions.supportsAllDrives = true;
-      }
       await drive.permissions.create(permissionOptions);
     } catch (permErr: unknown) {
       console.warn('[GoogleDrive] Permission set failed (non-critical):', permErr);

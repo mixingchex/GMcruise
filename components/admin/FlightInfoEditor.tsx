@@ -35,8 +35,9 @@ export interface FlightInfo {
   };
   aircraftType?: string; // 비행기 정보 (추가)
   // 항공 유형 (기본값: 'roundtrip', 하위 호환성 유지)
-  flightType?: 'roundtrip' | 'oneway' | 'none';
-  // flightType === 'none' 전용 — 현지 크루즈 탑승 정보
+  // none_domestic: 크루즈 국내출도착 (항공권 없음), none_local: 현지 크루즈 탑승 (항공권 미포함)
+  flightType?: 'roundtrip' | 'oneway' | 'none' | 'none_domestic' | 'none_local';
+  // flightType === 'none_domestic' | 'none_local' 전용 — 크루즈 탑승 정보
   cruiseEmbarkPort?: string;
   cruiseDisembarkPort?: string;
   selfArrangeNote?: string;
@@ -124,17 +125,19 @@ export default function FlightInfoEditor({
     onChange(newInfo);
   };
 
-  // 항공 유형 (기존 데이터 하위 호환: flightType 없으면 'roundtrip')
-  const flightType = localFlightInfo.flightType || 'roundtrip';
+  // 항공 유형 (기존 데이터 하위 호환: flightType 없으면 'roundtrip', 레거시 'none'은 'none_local'로 자동 마이그레이션)
+  const flightType = localFlightInfo.flightType === 'none'
+    ? 'none_local'
+    : (localFlightInfo.flightType || 'roundtrip');
 
   // 항공 유형 변경 — 유형에 따른 관련 항공 정보 초기화 (고객 혼란 방지)
-  const handleFlightTypeChange = (newType: 'roundtrip' | 'oneway' | 'none') => {
-    if (newType === 'none') {
+  const handleFlightTypeChange = (newType: 'roundtrip' | 'oneway' | 'none' | 'none_domestic' | 'none_local') => {
+    if (newType === 'none_domestic' || newType === 'none_local') {
       // 항공없음: 출발/귀국 모든 필드(date 포함) 초기화
       const emptyFlight = { from: '', to: '', date: '', time: '', arrivalTime: '', flightNumber: '', duration: '', type: '직항' as const };
       const updated: FlightInfo = {
         ...localFlightInfo,
-        flightType: 'none',
+        flightType: newType,
         departure: { ...localFlightInfo.departure, ...emptyFlight },
         return: { ...localFlightInfo.return, ...emptyFlight },
       };
@@ -406,20 +409,23 @@ export default function FlightInfoEditor({
         </label>
         <select
           value={flightType}
-          onChange={(e) => handleFlightTypeChange(e.target.value as 'roundtrip' | 'oneway' | 'none')}
+          onChange={(e) => handleFlightTypeChange(e.target.value as 'roundtrip' | 'oneway' | 'none' | 'none_domestic' | 'none_local')}
           className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           <option value="roundtrip">✈️ 왕복 항공 포함</option>
           <option value="oneway">✈️ 편도 항공 포함</option>
-          <option value="none">🚢 항공권 없음 (현지 크루즈 탑승)</option>
+          <option value="none_domestic">🚢 국내출발 크루즈</option>
+          <option value="none_local">✈️ 항공미포함 현지 크루즈 탑승</option>
         </select>
       </div>
 
       {/* 항공권 없음 전용 — 현지 크루즈 탑승 정보 */}
-      {flightType === 'none' && (
+      {(flightType === 'none_domestic' || flightType === 'none_local') && (
         <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg space-y-3">
           <p className="text-sm font-bold text-amber-800">
-            ⚠️ 항공권 없음 — 고객이 항공을 개별 준비하고 현지 크루즈 터미널에서 탑승합니다
+            {flightType === 'none_domestic'
+              ? '🚢 국내출발 크루즈 — 국내에서 직접 출발하여 현지 크루즈 터미널에서 탑승합니다'
+              : '✈️ 항공미포함 현지 크루즈 탑승 — 고객이 항공을 개별 준비하고 현지 크루즈 터미널에서 탑승합니다'}
           </p>
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">크루즈 탑승 항구</label>
@@ -466,12 +472,8 @@ export default function FlightInfoEditor({
               type="date"
               value={localFlightInfo.travelPeriod.startDate}
               onChange={(e) => {
-                const newPeriod = {
-                  ...localFlightInfo.travelPeriod,
-                  startDate: e.target.value,
-                };
-                updateFlightInfo({ travelPeriod: newPeriod });
                 updateFlightInfo({
+                  travelPeriod: { ...localFlightInfo.travelPeriod, startDate: e.target.value },
                   departure: { ...localFlightInfo.departure, date: e.target.value },
                 });
               }}
@@ -506,7 +508,7 @@ export default function FlightInfoEditor({
       </div>
 
       {/* 출국 + 귀국 — 항공권 있음(roundtrip / oneway)일 때만 표시 */}
-      {flightType !== 'none' && <div className="bg-white p-4 rounded-lg border border-gray-200">
+      {flightType !== 'none_domestic' && flightType !== 'none_local' && <div className="bg-white p-4 rounded-lg border border-gray-200">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-md font-semibold text-gray-800 flex items-center gap-2">
             <span className="text-lg">✈️</span>
@@ -550,8 +552,8 @@ export default function FlightInfoEditor({
         {localFlightInfo.departure.flightNumber?.includes('항공없음') ? (
           <div className="bg-cyan-50 border-2 border-cyan-200 rounded-lg p-6 text-center">
             <div className="text-4xl mb-2">🚢</div>
-            <p className="text-lg font-semibold text-cyan-700">항공없음 - 국내출발</p>
-            <p className="text-sm text-cyan-600 mt-1">크루즈 국내항 출발 (항공 이용 없음)</p>
+            <p className="text-lg font-semibold text-cyan-700">항공 미포함 - 국내출발</p>
+            <p className="text-sm text-cyan-600 mt-1">크루즈 국내항 출발 (항공 미포함)</p>
           </div>
         ) : (
         <div className="grid grid-cols-2 gap-4">
@@ -765,8 +767,8 @@ export default function FlightInfoEditor({
         {localFlightInfo.return.flightNumber?.includes('항공없음') ? (
           <div className="bg-purple-50 border-2 border-purple-200 rounded-lg p-6 text-center">
             <div className="text-4xl mb-2">🚢</div>
-            <p className="text-lg font-semibold text-purple-700">항공없음 - 국내도착</p>
-            <p className="text-sm text-purple-600 mt-1">크루즈 국내항 도착 (항공 이용 없음)</p>
+            <p className="text-lg font-semibold text-purple-700">항공 미포함 - 국내도착</p>
+            <p className="text-sm text-purple-600 mt-1">크루즈 국내항 도착 (항공 미포함)</p>
           </div>
         ) : (
         <div className="grid grid-cols-2 gap-4">

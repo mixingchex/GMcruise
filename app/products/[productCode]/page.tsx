@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 
 import prisma from '@/lib/prisma';
 
+export const revalidate = 3600; // 1시간 ISR 캐시 (매 요청 DB 쿼리 방지)
+
 import ProductDetail from '@/components/mall/ProductDetail';
 
 import AffiliateTracker from '@/components/affiliate/AffiliateTracker';

@@ -445,13 +445,27 @@ export default function NewProductPage() {
     };
   }, [saveToLocalStorage]);
 
-  // 페이지 로드 시 자동저장 복원 (한 번만 실행)
+  // 페이지 로드 시 자동저장 복원 여부 확인 (한 번만 실행)
   useEffect(() => {
-    const restored = loadFromLocalStorage();
-    if (restored) {
-      setTimeout(() => {
-        showSuccess('이전에 작성하던 내용을 불러왔습니다.');
-      }, 500);
+    try {
+      const saved = localStorage.getItem(AUTO_SAVE_KEY);
+      if (saved) {
+        const shouldRestore = window.confirm(
+          '이전에 작성하던 내용이 있습니다.\n\n[확인] 이전 내용 불러오기\n[취소] 새 양식으로 시작하기'
+        );
+        if (shouldRestore) {
+          loadFromLocalStorage();
+          setTimeout(() => {
+            showSuccess('이전에 작성하던 내용을 불러왔습니다.');
+          }, 500);
+        } else {
+          localStorage.removeItem(AUTO_SAVE_KEY);
+          setIsLoadingFromStorage(false);
+        }
+      }
+    } catch {
+      localStorage.removeItem(AUTO_SAVE_KEY);
+      setIsLoadingFromStorage(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 빈 배열로 한 번만 실행
@@ -528,6 +542,20 @@ export default function NewProductPage() {
       }
     }
   }, [formData.startDate, departureDate]);
+
+  // 시작가(basePrice) 변경 시 요금표 성인 가격 자동 연동
+  useEffect(() => {
+    const price = formData.basePrice ? parseInt(formData.basePrice.replace(/[^0-9]/g, ''), 10) : 0;
+    if (!price || price <= 0) return;
+    setPricingRows(prev => {
+      if (prev.length === 0) {
+        return [{ id: `row-${Date.now()}`, roomType: '기본', adult: price }];
+      }
+      return prev.map(row => row.adult ? row : { ...row, adult: price });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.basePrice]);
+
   useEffect(() => {
     if (!formData.productCode) {
       // 기본값으로 자동 생성

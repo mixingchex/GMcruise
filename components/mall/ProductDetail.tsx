@@ -785,12 +785,12 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
       : []);
 
   return (
-    <div className="container mx-auto px-3 md:px-6 py-4 md:py-8 bg-[#F5F7FA] min-h-screen">
+    <div className="container mx-auto px-3 sm:px-4 md:px-6 py-0 md:py-8 bg-[#F5F7FA] min-h-screen">
       <div className="max-w-7xl mx-auto w-full">
         {/* 이전으로 돌아가기 버튼 - 상단 */}
         <button
           onClick={() => router.back()}
-          className="mb-4 flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors"
+          className="mb-3 flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors px-4 pt-4 md:px-0 md:pt-0"
         >
           <FiChevronLeft size={20} />
           <span className="text-sm font-medium">이전으로 돌아가기</span>
@@ -798,7 +798,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
         {/* 메인 콘텐츠 영역 */}
         <div>
           {/* 상품 헤더 */}
-          <div className="bg-white rounded-3xl shadow-xl p-5 md:p-8 mb-6 md:mb-10 border border-gray-100">
+          <div className="bg-white md:rounded-2xl md:shadow-xl p-4 md:p-8 mb-0 md:mb-10 md:border md:border-gray-100">
             {/* 출처 배지 */}
             <div className="mb-4">
               {getSourceBadge()}
@@ -807,13 +807,13 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             {/* 상품 이미지/비디오 섹션 */}
             <div className="mb-6">
               {/* 메인 이미지/비디오 - 썸네일 우선 표시 */}
-              <div className="relative h-80 md:h-[500px] bg-gradient-to-br from-[#051C2C] to-[#0A2E46] rounded-2xl overflow-hidden mb-6 shadow-2xl">
+              <div className="relative h-[260px] sm:h-80 md:h-[500px] bg-gradient-to-br from-[#051C2C] to-[#0A2E46] md:rounded-2xl overflow-hidden mb-4 md:mb-6 md:shadow-2xl -mx-3 md:mx-0">
                 {mallContent?.thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={getProxyImageUrl(mallContent.thumbnail)}
                     alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 썸네일`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 ) : videos.length > 0 && selectedVideoIndex < videos.length ? (
                   <iframe
@@ -827,7 +827,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                   <img
                     src={getProxyImageUrl(images[selectedImageIndex])}
                     alt={`${product.cruiseLine} ${product.shipName} - ${product.packageName} 크루즈 여행 상품 썸네일`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
@@ -917,7 +917,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                         {recommendedKeywords.map((keyword: string) => (
                           <span
                             key={keyword}
-                            className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-md text-sm md:text-base font-semibold shadow-sm"
+                            className="px-3 py-1.5 bg-gradient-to-r from-[#051C2C] to-[#0A2E46] text-[#FDB931] rounded-md text-sm md:text-base font-semibold shadow-sm"
                             style={{ wordBreak: 'keep-all', lineHeight: '1.3' }}
                           >
                             {keyword}
@@ -941,7 +941,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                     <div className="flex flex-col gap-3 mt-4">
                       <div className="flex items-center gap-3 flex-wrap">
                         <div
-                          className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 cursor-pointer hover:bg-amber-100 transition-colors"
+                          className="flex items-center gap-1.5 bg-[#FDB931]/10 px-3 py-1.5 rounded-lg border border-[#FDB931]/30 cursor-pointer hover:bg-[#FDB931]/20 transition-colors"
                           onClick={() => setShowReviewModal(true)}
                           title="리뷰 보기"
                         >
@@ -1279,9 +1279,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             )}
 
             {/* 설명 */}
-            <div className="mb-5 md:mb-6 bg-white rounded-xl p-5 md:p-6 border border-gray-200 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl md:text-3xl font-bold text-[#051C2C]">상품 설명</h2>
+            <div className="mb-4 md:mb-6 bg-white md:rounded-xl p-4 md:p-6 md:border md:border-gray-200 md:shadow-sm border-t border-gray-100">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl md:text-2xl font-bold text-[#051C2C]">상품 설명</h2>
               </div>
               {editingField === 'description' ? (
                 <div className="space-y-2">
@@ -1336,11 +1336,24 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               )}
             </div>
 
+            {/* 항공 미포함 안내 */}
+            {!flightInfo && (
+              <div className="mb-4 md:mb-6 bg-white md:rounded-2xl p-4 md:p-6 md:border md:border-gray-200 md:shadow-sm border-t border-gray-100">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🚢</span>
+                  <div>
+                    <span className="text-lg font-bold text-gray-800">항공 미포함</span>
+                    <p className="text-sm text-gray-500 mt-0.5">본 상품은 항공권이 포함되지 않습니다. (크루즈 국내 출·도착)</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* 항공 정보 */}
             {flightInfo && (
-              <div className="mb-8 bg-white rounded-2xl p-6 md:p-8 border-2 border-gray-200 shadow-xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">항공여정</h2>
+              <div className="mb-6 bg-white md:rounded-2xl p-4 md:p-8 border border-gray-200 md:shadow-lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl md:text-2xl font-bold text-[#051C2C] mb-0">항공여정</h2>
                 </div>
 
                 {/* 비행기 정보 (가운데 정렬, 크게 표시) */}
@@ -1371,7 +1384,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 )}
 
                 {/* 출국 */}
-                {flightInfo.departure && (
+                {flightInfo.departure && !flightInfo.departure.flightNumber?.includes('항공없음') && (
                   <div className="mb-6 p-6 bg-white rounded-xl border-2 border-gray-300 shadow-md">
                     <h3 className="text-lg md:text-xl font-extrabold text-gray-900 mb-4">출국</h3>
                     <div className="space-y-4">
@@ -1396,7 +1409,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 )}
 
                 {/* 귀국 */}
-                {flightInfo.return && (
+                {flightInfo.return && !flightInfo.return.flightNumber?.includes('항공없음') && (
                   <div className="mb-6 p-6 bg-white rounded-xl border-2 border-gray-300 shadow-md">
                     <h3 className="text-lg md:text-xl font-extrabold text-gray-900 mb-4">귀국</h3>
                     <div className="space-y-4">
@@ -1424,8 +1437,8 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
             {/* 서비스 옵션 (항공여정 밑에 표시) */}
             {(hasEscort || hasLocalGuide || hasCruisedotStaff || hasTravelInsurance) && (
-              <div className="mb-8 bg-gradient-to-br from-white via-gray-50 to-white rounded-2xl p-6 md:p-8 border-2 border-gray-200 shadow-xl">
-                <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 mb-6">서비스 옵션</h2>
+              <div className="mb-4 md:mb-8 bg-white md:rounded-2xl p-4 md:p-8 md:border md:border-gray-200 md:shadow-md border-t border-gray-100">
+                <h2 className="text-xl md:text-2xl font-bold text-[#051C2C] mb-4 md:mb-6">서비스 옵션</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                   {hasEscort && (
                     <div className="flex items-center gap-4 p-4 bg-white rounded-xl border-2 border-gray-200 shadow-md hover:shadow-lg transition-all">
@@ -1472,7 +1485,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 {detailBlocks.map((block: any, index: number) => {
                   if (block.type === 'image') {
                     return (
-                      <div key={block.id || index} className="bg-white rounded-xl overflow-hidden shadow-md">
+                      <div key={block.id || index} className="bg-white md:rounded-xl overflow-hidden md:shadow-md -mx-3 md:mx-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={getProxyImageUrl(block.url)}
@@ -1590,9 +1603,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             )}
 
             {/* 포함/불포함 항목 */}
-            <div className="mb-5 md:mb-6 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+            <div className="mb-4 md:mb-6 grid grid-cols-1 md:grid-cols-2 gap-0 md:gap-5">
               {/* 포함 사항 */}
-              <div className="bg-white rounded-xl p-5 md:p-6 border border-gray-200 shadow-sm group relative">
+              <div className="bg-white md:rounded-xl p-4 md:p-6 md:border md:border-gray-200 md:shadow-sm border-t border-gray-100 group relative">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
                     <FiCheck className="text-emerald-500" size={20} />
@@ -1673,7 +1686,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               </div>
 
               {/* 불포함 사항 */}
-              <div className="bg-white rounded-xl p-5 md:p-6 border border-gray-200 shadow-sm group relative">
+              <div className="bg-white md:rounded-xl p-4 md:p-6 md:border md:border-gray-200 md:shadow-sm border-t border-gray-100 group relative">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg md:text-xl font-bold text-gray-900 flex items-center gap-2">
                     <FiX className="text-rose-500" size={20} />
@@ -1756,8 +1769,8 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
             {/* 향상된 여행일정 */}
             {enhancedItinerary && Array.isArray(enhancedItinerary) && enhancedItinerary.length > 0 && (
-              <div className="mb-5 md:mb-6 bg-white rounded-xl p-5 md:p-6 border border-gray-200 shadow-sm">
-                <h2 className="text-2xl md:text-3xl font-bold text-[#051C2C] mb-6">여행 일정</h2>
+              <div className="mb-4 md:mb-6 bg-white md:rounded-xl p-4 md:p-6 md:border md:border-gray-200 md:shadow-sm border-t border-gray-100">
+                <h2 className="text-xl md:text-2xl font-bold text-[#051C2C] mb-4">여행 일정</h2>
                 <div className="space-y-8">
                   {enhancedItinerary.map((day: any, index: number) => {
                     // 날짜 계산 (startDate 기준)
@@ -1884,7 +1897,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                           )}
 
                           {/* 숙박 */}
-                          {(day.accommodation || day.accommodationImage) && (
+                          {(day.accommodation || day.accommodationImage || (day.accommodationImages && day.accommodationImages.length > 0)) && (
                             <div className="space-y-4 pt-6 border-t-2 border-gray-200">
                               <div className="flex items-center gap-3 text-gray-800 bg-gray-50 rounded-xl p-4">
                                 <span className="text-2xl md:text-3xl">🛏️</span>
@@ -1892,7 +1905,21 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                                   <span className="font-extrabold text-lg md:text-xl" style={{ wordBreak: 'keep-all', lineHeight: '1.5' }}>{day.accommodation}</span>
                                 )}
                               </div>
-                              {day.accommodationImage && (
+                              {/* 여러 장 (새 필드) */}
+                              {(day.accommodationImages && day.accommodationImages.length > 0) ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-3xl">
+                                  {day.accommodationImages.map((imgUrl: string, idx: number) => (
+                                    <div key={idx} className="w-full">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img
+                                        src={imgUrl}
+                                        alt={`${product.cruiseLine} ${product.shipName} 크루즈 선박 객실 사진 ${idx + 1}`}
+                                        className="w-full h-auto object-cover rounded-xl border-2 border-gray-300 shadow-lg"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : day.accommodationImage ? (
                                 <div className="w-full">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img
@@ -1901,34 +1928,34 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                                     className="w-full max-w-3xl h-auto object-cover rounded-xl border-2 border-gray-300 shadow-lg"
                                   />
                                 </div>
-                              )}
+                              ) : null}
                             </div>
                           )}
 
                           {/* 식사 정보 */}
                           {(day.breakfast || day.lunch || day.dinner) && (
-                            <div className="flex flex-wrap items-center gap-4 text-gray-900 bg-yellow-50 rounded-xl p-4 border-2 border-yellow-200">
+                            <div className="flex flex-wrap items-center gap-4 text-gray-900 bg-[#051C2C]/5 rounded-xl p-4 border border-[#051C2C]/20">
                               <span className="text-2xl md:text-3xl">🍴</span>
                               <div className="flex flex-wrap gap-3 text-base md:text-lg font-extrabold">
                                 {day.breakfast && (
-                                  <span className="flex items-center gap-1 px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>
-                                    <span className="text-orange-500 text-sm md:text-base font-bold">아침</span>
+                                  <span className="flex items-center gap-1 px-3 py-1 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
+                                    <span className="text-[#051C2C] text-sm md:text-base font-bold">아침</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className="text-black">{day.breakfast}</span>
+                                    <span className="text-[#051C2C]">{day.breakfast}</span>
                                   </span>
                                 )}
                                 {day.lunch && (
-                                  <span className="flex items-center gap-1 px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>
-                                    <span className="text-green-600 text-sm md:text-base font-bold">점심</span>
+                                  <span className="flex items-center gap-1 px-3 py-1 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
+                                    <span className="text-[#051C2C] text-sm md:text-base font-bold">점심</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className="text-black">{day.lunch}</span>
+                                    <span className="text-[#051C2C]">{day.lunch}</span>
                                   </span>
                                 )}
                                 {day.dinner && (
-                                  <span className="flex items-center gap-1 px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>
-                                    <span className="text-blue-600 text-sm md:text-base font-bold">저녁</span>
+                                  <span className="flex items-center gap-1 px-3 py-1 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
+                                    <span className="text-[#051C2C] text-sm md:text-base font-bold">저녁</span>
                                     <span className="text-gray-300">|</span>
-                                    <span className="text-black">{day.dinner}</span>
+                                    <span className="text-[#051C2C]">{day.dinner}</span>
                                   </span>
                                 )}
                               </div>
@@ -2031,12 +2058,12 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                                     <div
                                       key={block.id || blockIdx}
                                       className={`rounded-lg p-4 ${isTip
-                                        ? 'bg-yellow-50 border-l-4 border-yellow-400'
+                                        ? 'bg-[#FDB931]/10 border-l-4 border-[#FDB931]/40'
                                         : 'bg-gray-50 border-l-4 border-gray-300'
                                         }`}
                                     >
                                       {isTip && (
-                                        <div className="font-bold text-yellow-800 mb-2 flex items-center gap-2">
+                                        <div className="font-bold text-[#051C2C] mb-2 flex items-center gap-2">
                                           <span>💡</span>
                                           <span>꿀팁</span>
                                         </div>
@@ -2157,14 +2184,14 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             )}
 
             {/* 요금표 */}
-            <div className="mb-6 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
+            <div className="mb-4 md:mb-6 bg-white md:rounded-2xl p-4 md:p-6 md:border md:border-gray-200 md:shadow-md border-t border-gray-100">
               {/* 실시간 조회수 마케팅 */}
-              <div className="flex items-center justify-center mb-4 py-2 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg border border-red-100">
+              <div className="flex items-center justify-center mb-4 py-2 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/10">
                 <LiveViewerCount />
               </div>
 
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-[#051C2C]">요금표</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl md:text-2xl font-bold text-[#051C2C]">요금표</h2>
                 {pricingRows && Array.isArray(pricingRows) && pricingRows.length > 0 && (
                   <button
                     onClick={() => setShowPricingModal(true)}
@@ -2319,8 +2346,8 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
             {/* 환불/취소 규정 */}
             {refundPolicy && refundPolicy.trim() !== '' && (
-              <div className="mb-6 bg-white rounded-lg p-6 border border-gray-200 shadow-sm">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">환불/취소 규정</h2>
+              <div className="mb-4 md:mb-6 bg-white md:rounded-xl p-4 md:p-6 md:border md:border-gray-200 md:shadow-sm border-t border-gray-100">
+                <h2 className="text-xl md:text-2xl font-bold text-[#051C2C] mb-4">환불/취소 규정</h2>
                 <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-line">
                   {refundPolicy.split('\n').map((line, index) => (
                     <p key={`refund-${index}-${line.slice(0, 20)}`} className="mb-2">{line}</p>
@@ -2410,47 +2437,57 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               )}
             </div>
 
-            {/* 모바일 하단 고정 버튼 여백 */}
-            <div className="h-24 md:hidden" />
+            {/* 하단 고정 버튼 여백 (모바일 + PC 공통) */}
+            <div className="h-24 md:h-32" />
 
-            {/* 구매 문의 버튼 — 모바일: 하단 고정, 데스크탑: 인라인 */}
+            {/* 구매 문의 버튼 — 모바일 + PC 모두 하단 고정 */}
+            {/* z-40: 모달(z-[9999])보다 낮아서 모달 열릴 때 배너가 뒤로 숨음 */}
             <div
-              className="fixed bottom-0 left-0 right-0 z-[9999] bg-white border-t-2 border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.2)] px-3 pt-3 md:static md:bg-transparent md:shadow-none md:border-t md:border-gray-200 md:mt-6 md:pt-5 md:px-0"
+              className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.2)] px-3 pt-3 md:px-6 md:pt-4"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
             >
               {(() => {
                 // 활성화된 버튼 개수 계산
                 const activeButtons = [
-                  contactOptions.payment && { type: 'payment', url: getPaymentUrl(), label: '구매하기', icon: '💳', color: 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] hover:from-[#E1A21E] hover:to-[#C68C12] text-[#051C2C]' },
-                  contactOptions.phoneCall && { type: 'phone', url: getInquiryUrl(), label: '상담신청', icon: '📞', color: 'bg-gradient-to-r from-[#051C2C] to-[#0A2E46] hover:from-[#0A2E46] hover:to-[#051C2C] text-white' },
-                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI상담', icon: '🤖', color: 'bg-gradient-to-r from-[#E50914] to-[#B20710] hover:from-[#B20710] hover:to-[#900000] text-white' },
+                  contactOptions.payment && { type: 'payment', url: getPaymentUrl(), label: '구매하기', icon: '₩', color: 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] hover:from-[#E1A21E] hover:to-[#C68C12] text-[#051C2C]' },
+                  contactOptions.phoneCall && { type: 'phone', url: getInquiryUrl(), label: '상담신청', icon: '☎', color: 'bg-gradient-to-r from-[#051C2C] to-[#0A2E46] hover:from-[#0A2E46] hover:to-[#051C2C] text-white' },
+                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI상담', icon: 'AI', color: 'bg-gradient-to-r from-[#0A2E46] to-[#051C2C] hover:from-[#051C2C] hover:to-[#0A2E46] text-[#FDB931]' },
                 ].filter(Boolean) as Array<{ type: string; url: string; label: string; icon: string; color: string }>;
 
                 const buttonCount = activeButtons.length;
 
                 // 버튼 개수에 따른 레이아웃 클래스 결정
-                // 모바일: 항상 가로 나열 (fixed bar), 데스크탑: 기존 유지
+                // 모바일 3개: 상단 2개 + 하단 1개(전폭) 레이아웃
                 let layoutClass = '';
                 if (buttonCount === 3) {
-                  layoutClass = 'grid grid-cols-3 gap-2 md:gap-3';
+                  // 3개: 모바일은 2+1 grid, PC는 3열
+                  layoutClass = 'grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4';
                 } else if (buttonCount === 2) {
-                  layoutClass = 'grid grid-cols-2 gap-2 md:gap-3';
+                  layoutClass = 'grid grid-cols-2 gap-2 md:gap-4';
                 } else {
-                  layoutClass = 'flex flex-col gap-2 md:gap-3';
+                  // 1개 버튼: 모바일 전폭, PC 가운데 정렬
+                  layoutClass = 'flex justify-center';
                 }
 
                 return (
-                  <div className={layoutClass}>
-                    {activeButtons.map((button) => (
-                      <Link
-                        key={button.type}
-                        href={button.url}
-                        className={`w-full px-2 md:px-5 py-3 md:py-4 ${button.color} font-bold text-center rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-1 md:gap-3 text-sm md:text-xl`}
-                      >
-                        <span className="text-base md:text-xl">{button.icon}</span>
-                        <span className="leading-tight">{button.label}</span>
-                      </Link>
-                    ))}
+                  // 버튼 폭을 페이지 콘텐츠(max-w-7xl)에 맞춤
+                  <div className="max-w-7xl mx-auto">
+                    <div className={layoutClass}>
+                      {activeButtons.map((button, idx) => (
+                        <Link
+                          key={button.type}
+                          href={button.url}
+                          className={`
+                            ${buttonCount === 3 && idx === 2 ? 'col-span-2 md:col-span-1' : ''}
+                            ${buttonCount === 1 ? 'w-full md:w-auto md:min-w-[280px]' : 'w-full'}
+                            px-3 md:px-6 py-3 md:py-4 ${button.color} font-bold text-center rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-1 md:gap-3 text-sm md:text-xl
+                          `.trim().replace(/\s+/g, ' ')}
+                        >
+                          <span className="text-base md:text-xl">{button.icon}</span>
+                          <span className="leading-tight">{button.label}</span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 );
               })()}
@@ -2643,7 +2680,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
           <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b-2 border-gray-300 px-6 py-4 flex items-center justify-between z-10 shadow-sm">
               <div className="flex items-center gap-3">
-                <FiStar className="text-amber-500 fill-amber-500" size={24} />
+                <FiStar className="text-[#FDB931] fill-[#FDB931]" size={24} />
                 <h3 className="text-2xl font-bold text-gray-900">
                   리뷰 {reviewCount > 0 ? `${reviewCount.toLocaleString('ko-KR')}개` : '미리보기'}
                 </h3>
@@ -2680,7 +2717,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                             {Array.from({ length: 5 }).map((_, starIndex) => (
                               <FiStar
                                 key={starIndex}
-                                className={starIndex < review.rating ? 'text-amber-500 fill-amber-500' : 'text-gray-300'}
+                                className={starIndex < review.rating ? 'text-[#FDB931] fill-[#FDB931]' : 'text-gray-300'}
                                 size={14}
                               />
                             ))}
@@ -2698,7 +2735,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 </div>
               ) : reviewCount > 0 ? (
                 <div className="text-center py-12">
-                  <FiStar className="text-amber-500 fill-amber-500 mx-auto mb-4" size={48} />
+                  <FiStar className="text-[#FDB931] fill-[#FDB931] mx-auto mb-4" size={48} />
                   <p className="text-lg text-gray-600 mb-2">리뷰를 불러올 수 없습니다.</p>
                   <p className="text-sm text-gray-500">
                     잠시 후 다시 시도해 주세요.
@@ -2706,7 +2743,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <FiStar className="text-amber-500 fill-amber-500 mx-auto mb-4" size={48} />
+                  <FiStar className="text-[#FDB931] fill-[#FDB931] mx-auto mb-4" size={48} />
                   <p className="text-lg text-gray-600 mb-2">아직 리뷰가 없습니다.</p>
                   <p className="text-sm text-gray-500">
                     평균 별점: {rating.toFixed(1)}점

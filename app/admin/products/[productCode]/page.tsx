@@ -424,6 +424,19 @@ export default function ProductEditPage() {
     isLoadingFromStorage,
   ]);
 
+  // 시작가(basePrice) 변경 시 요금표 성인 가격 자동 연동
+  useEffect(() => {
+    const price = formData.basePrice ? parseInt(formData.basePrice.replace(/[^0-9]/g, ''), 10) : 0;
+    if (!price || price <= 0) return;
+    setPricingRows(prev => {
+      if (prev.length === 0) {
+        return [{ id: `row-${Date.now()}`, roomType: '기본', adult: price }];
+      }
+      return prev.map(row => row.adult ? row : { ...row, adult: price });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.basePrice]);
+
   // 여행기간 선택에서 출발일이 변경되면 요금표 출발일에 자동 반영
   useEffect(() => {
     if (formData.startDate) {

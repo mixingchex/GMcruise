@@ -379,11 +379,7 @@ export async function POST(req: NextRequest) {
     console.error('[Mall Upload API] Error details:', error instanceof Error ? error.message : String(error));
     console.error('[Mall Upload API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      {
-        ok: false,
-        error: error instanceof Error ? error.message : '파일 업로드 중 오류가 발생했습니다.',
-        details: error instanceof Error ? error.stack : String(error)
-      },
+      { ok: false, error: '파일 업로드 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }
