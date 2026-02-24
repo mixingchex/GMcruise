@@ -331,10 +331,10 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
         aiChatbot: oldType === 'aiChatbot' || !oldType,
       };
     } else {
-      // 기본값: AI 지니 채팅봇만 활성화
+      // 기본값: 3개 버튼 모두 활성화
       return {
-        payment: false,
-        phoneCall: false,
+        payment: true,
+        phoneCall: true,
         aiChatbot: true,
       };
     }
@@ -465,7 +465,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const [bookingInfo, setBookingInfo] = useState<string[]>(
     layoutData?.bookingInfo || [
       '2인1실 기준 1인당 금액입니다. 1인 예약 시 정상가의 100% 싱글차지가 추가됩니다.',
-      '3/4인실 이용 시 3/4번째 고객 특가 요금이 적용됩니다.',
+      '3/4인실 이용 시 3/4번째 고객님은 매니저 필수 상담 하셔야 합니다.',
       '예약 후 상품가 전액 결제되면 예약이 확정됩니다.',
       '여권만료일 6개월 이상 남은 여권사본을 보내주세요.'
     ]
@@ -490,7 +490,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
     layoutData?.itineraryText || JSON.stringify(itinerary || [], null, 2)
   );
   const [priceTableNote, setPriceTableNote] = useState<string>(
-    layoutData?.priceTableNote || '• 위 요금은 2인1실 기준 1인당 금액입니다.\n• 1인 예약 시 정상가의 100% 싱글차지가 추가됩니다.\n• 3/4인실 이용 시 3/4번째 고객 특가 요금이 적용됩니다.'
+    layoutData?.priceTableNote || '• 위 요금은 2인1실 기준 1인당 금액입니다.\n• 1인 예약 시 정상가의 100% 싱글차지가 추가됩니다.\n• 3/4인실 이용 시 3/4번째 고객님은 매니저 필수 상담 하셔야 합니다.'
   );
 
   // 로그인 상태 확인
@@ -2299,7 +2299,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                       <button
                         onClick={() => {
                           setEditingField(null);
-                          setPriceTableNote(layoutData?.priceTableNote || '• 위 요금은 2인1실 기준 1인당 금액입니다.\n• 1인 예약 시 정상가의 100% 싱글차지가 추가됩니다.\n• 3/4인실 이용 시 3/4번째 고객 특가 요금이 적용됩니다.');
+                          setPriceTableNote(layoutData?.priceTableNote || '• 위 요금은 2인1실 기준 1인당 금액입니다.\n• 1인 예약 시 정상가의 100% 싱글차지가 추가됩니다.\n• 3/4인실 이용 시 3/4번째 고객님은 매니저 필수 상담 하셔야 합니다.');
                         }}
                         className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors"
                       >
@@ -2387,7 +2387,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                         setEditingField(null);
                         setBookingInfo(layoutData?.bookingInfo || [
                           '2인1실 기준 1인당 금액입니다. 1인 예약 시 정상가의 100% 싱글차지가 추가됩니다.',
-                          '3/4인실 이용 시 3/4번째 고객 특가 요금이 적용됩니다.',
+                          '3/4인실 이용 시 3/4번째 고객님은 매니저 필수 상담 하셔야 합니다.',
                           '예약 후 상품가 전액 결제되면 예약이 확정됩니다.',
                           '여권만료일 6개월 이상 남은 여권사본을 보내주세요.'
                         ]);
@@ -2414,7 +2414,10 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
             <div className="h-24 md:hidden" />
 
             {/* 구매 문의 버튼 — 모바일: 하단 고정, 데스크탑: 인라인 */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] p-3 md:static md:bg-transparent md:shadow-none md:border-t md:border-gray-200 md:mt-6 md:pt-5 md:p-0">
+            <div
+              className="fixed bottom-0 left-0 right-0 z-[9999] bg-white border-t-2 border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.2)] px-3 pt-3 md:static md:bg-transparent md:shadow-none md:border-t md:border-gray-200 md:mt-6 md:pt-5 md:px-0"
+              style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
+            >
               {(() => {
                 // 활성화된 버튼 개수 계산
                 const activeButtons = [
