@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { getCache, setCache } from '@/lib/redis';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -59,8 +60,8 @@ export async function GET() {
 
     if (!sid) {
       console.log('[Admin Dashboard] No session cookie found');
-      return NextResponse.json({ 
-        ok: false, 
+      return NextResponse.json({
+        ok: false,
         error: '인증이 필요합니다. 다시 로그인해 주세요.',
         details: 'No session cookie'
       }, { status: 403 });
@@ -70,11 +71,23 @@ export async function GET() {
 
     if (!isAdmin) {
       console.log('[Admin Dashboard] Admin check failed for session:', sid);
-      return NextResponse.json({ 
-        ok: false, 
+      return NextResponse.json({
+        ok: false,
         error: '인증이 필요합니다. 다시 로그인해 주세요.',
         details: 'Admin check failed'
       }, { status: 403 });
+    }
+
+    // Redis 캐시 확인 (5분 TTL)
+    const cacheKey = 'admin:dashboard:stats:v1';
+    const cached = await getCache<Record<string, unknown>>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+          'X-Cache': 'HIT',
+        },
+      });
     }
 
     // 1. 사용자 통계 (전체 - 크루즈몰 + 지니AI 가이드)
@@ -354,6 +367,8 @@ export async function GET() {
             },
           },
         },
+        take: 500,
+        orderBy: { createdAt: 'desc' },
       });
     } catch (productViewError: any) {
       console.error('[Admin Dashboard] Product views query error:', productViewError);
@@ -558,7 +573,7 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({
+    const responseData = {
       ok: true,
       dashboard: {
         users: {
@@ -663,12 +678,16 @@ export async function GET() {
           metadata: lead.metadata,
         })),
       },
-    }, {
+    };
+
+    // Redis에 5분 캐싱 (300초)
+    await setCache(cacheKey, responseData, 300);
+
+    return NextResponse.json(responseData, {
       // 성능 최적화: API 응답 캐싱 헤더 추가
       headers: {
         'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-        // s-maxage: CDN/프록시 캐시 시간 (60초) - 대시보드는 조금 더 길게
-        // stale-while-revalidate: 캐시 만료 후에도 120초간 오래된 데이터 제공
+        'X-Cache': 'MISS',
       },
     });
   } catch (error) {
