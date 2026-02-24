@@ -48,7 +48,9 @@ function CheckoutContent() {
   }, [searchParams]);
 
   const price = useMemo(() => {
-    return searchParams.get('price') || '1000';
+    const raw = searchParams.get('price') || '1000';
+    const num = parseInt(raw, 10);
+    return !isNaN(num) && num > 0 ? num.toString() : '1000';
   }, [searchParams]);
 
   const buyername = useMemo(() => {
@@ -62,7 +64,10 @@ function CheckoutContent() {
   // 추적 데이터 (파트너 실적용)
   const partnerId = searchParams.get('partnerId') || '';
   const productCode = searchParams.get('productCode') || '';
-  const merchantData = `partnerId=${partnerId}&productCode=${productCode}`;
+  const merchantDataParams = new URLSearchParams();
+  merchantDataParams.append('partnerId', partnerId);
+  merchantDataParams.append('productCode', productCode);
+  const merchantData = merchantDataParams.toString();
 
   // ============================================
   // 2. 초기화 (PC: 스크립트 로드 + 서명 생성 / Mobile: 바로 준비)
@@ -226,18 +231,26 @@ function CheckoutContent() {
 
     if (isMobile) {
       // === Mobile: 동적 폼 생성 후 POST 전송 ===
-      // 서명 데이터 확인 (필수!)
-      if (!signature || !timestamp) {
-        console.error('[Checkout Mobile] Missing signature data:', { signature: !!signature, timestamp: !!timestamp });
+      // 서명 데이터 확인 (필수!) - signature, timestamp, mKey 모두 체크
+      if (!signature || !timestamp || !mKey) {
+        console.error('[Checkout Mobile] Missing signature data:', { signature: !!signature, timestamp: !!timestamp, mKey: !!mKey });
         setIsPaymentProcessing(false);
         alert('결제 서명 데이터 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
       }
 
+      const mobilePathMap: Record<string, string> = {
+        'Card': '/smart/wcard/',
+        'DirectBank': '/smart/bank/',
+        'VBank': '/smart/vbank/',
+        'HPP': '/smart/mobile/',
+      };
+      const mobilePath = mobilePathMap[payMethod] || '/smart/wcard/';
+
       const form = document.createElement('form');
       form.method = 'POST';
       form.acceptCharset = 'euc-kr';
-      form.action = 'https://mobile.paywelcome.co.kr/smart/wcard/';
+      form.action = `https://mobile.paywelcome.co.kr${mobilePath}`;
 
       const params: Record<string, string> = {
         P_MID: 'wpcrdot200',
@@ -245,16 +258,23 @@ function CheckoutContent() {
         P_AMT: price,
         P_UNAME: buyername,
         P_GOODS: goodname,
+        P_MNAME: '크루즈가이드',
         P_MOBILE: buyertel,
         P_EMAIL: buyeremail,
         P_NEXT_URL: 'https://www.cruisedot.co.kr/api/payment/callback',
         P_NOTI_URL: 'https://www.cruisedot.co.kr/api/payment/notify',
-        P_HPP_METHOD: '1',
         P_CHARSET: 'utf8',
         P_NOTI: merchantData,
-        // 보안 필드 (필수!) - 웰컴페이먼츠 매뉴얼 v1.10.6 Page 13
+        // ISP/앱카드 옵션 (웰컴페이먼츠 모바일 권장 설정)
+        P_RESERVED: 'twotrs_isp=Y&block_isp=Y&twotrs_isp_noti=N&apprun_check=Y&',
+        // 모바일 할부 활성화 (00=일시불, 02/03/06/12개월)
+        P_QUOTABASE: '00:02:03:06:12',
+        // 보안 필드 (필수!) - 웰컴페이먼츠 매뉴얼 v1.10.13 Page 13
         P_TIMESTAMP: timestamp,
         P_SIGNATURE: signature,
+        P_MKEY: mKey,  // 서명 검증용 mKey (누락 시 모바일 결제 보안 검증 실패)
+        // 휴대폰 결제 과금방식 (1=통신사청구). 非HPP 수단에서는 PG가 무시하나 기존 동작 유지를 위해 포함
+        P_HPP_METHOD: '1',
       };
 
       console.log('[Checkout Mobile] Form params:', {
@@ -448,12 +468,12 @@ function CheckoutContent() {
           {/* 결제하기 버튼 */}
           <button
             onClick={handlePayment}
-            disabled={isPaymentProcessing || (!isMobile && (!isScriptLoaded || !isSignatureLoaded))}
-            className="w-full py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+            disabled={isPaymentProcessing || !isSignatureLoaded || (!isMobile && !isScriptLoaded)}
+            className="w-full py-4 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {isPaymentProcessing
               ? '결제 진행 중...'
-              : !isMobile && (!isScriptLoaded || !isSignatureLoaded)
+              : !isSignatureLoaded || (!isMobile && !isScriptLoaded)
               ? '결제 준비 중...'
               : `${parseInt(price).toLocaleString()}원 결제하기`}
           </button>
@@ -469,6 +489,12 @@ function CheckoutContent() {
         <form id="SendPayForm_id" name="SendPayForm_name" style={{ display: 'none' }}>
           {/* 필수 기본 필드 */}
           <input type="hidden" name="version" value="1.0" />
+          {/*
+            mid는 하드코딩됨 (client 컴포넌트에서 서버 env 직접 접근 불가).
+            이 값은 /api/payment/signature 에서 서명 생성 시 사용한 MID(getWelcomePayConfig().mid)와
+            반드시 일치해야 한다. 서버의 WELCOMEPAY_MID 기본값도 'wpcrdot200'이므로 일치함.
+            MID를 변경할 경우 서버의 WELCOMEPAY_MID 환경변수와 이 값을 동시에 변경해야 한다.
+          */}
           <input type="hidden" name="mid" value="wpcrdot200" />
           <input type="hidden" name="oid" value={signedOrderId || orderId} />
           <input type="hidden" name="goodname" value={goodname} />
@@ -492,8 +518,14 @@ function CheckoutContent() {
           <input type="hidden" name="payViewType" value="overlay" />
           <input type="hidden" name="charset" value="UTF-8" />
 
-          {/* 결제 옵션 */}
-          <input type="hidden" name="acceptmethod" value="HPP(1):below1000:NOINT(3:6:12)" />
+          {/* 결제 옵션 (매뉴얼 PC_Web_manual_v.1.10.13 기준)
+            - NOINT(2:3:6:12): 무이자 할부 개월수 (quotabase와 동일하게 유지)
+            - HPP(N) 제거: HPP는 '휴대폰 결제 상품유형'이므로 신용카드 결제에 불필요
+              (HPP(1)=컨텐츠, HPP(2)=실물 — 카드 결제 시 간섭 유발) */}
+          <input type="hidden" name="acceptmethod" value="NOINT(2:3:6:12)" />
+          {/* 할부 개월 드롭다운 활성화 (매뉴얼 형식: "2:3:4" 한 자리 숫자, 일시불은 기본 표시)
+            생략 시 일시불만 표시됨 */}
+          <input type="hidden" name="quotabase" value="2:3:6:12" />
 
           {/* URL 설정 (필수) */}
           <input type="hidden" name="returnUrl" value="https://www.cruisedot.co.kr/api/payment/return" />

@@ -68,7 +68,7 @@ export interface PaymentRequestParams {
   // 결제 옵션
   payMethod?: PaymentMethod;      // 결제 수단
   easyPayCodes?: EasyPayCode[];   // 간편결제 코드 (복수 선택 가능)
-  quotaBase?: string;             // 할부 개월 (예: "01:02:03:06:12")
+  quotaBase?: string;             // 할부 개월 (예: "00:02:03:06:12" — 00=일시불, 나머지는 개월수)
 
   // 세금 관련
   taxAmount?: number;    // 과세금액
@@ -283,9 +283,6 @@ export function generatePCSignature(
   const signString = `mKey=${mkey}&oid=${orderId}&price=${amount}&timestamp=${timestamp}`;
   const signature = sha256Hash(signString);
 
-  console.log('[generatePCSignature] signString (preview):', `mKey=${mkey.substring(0, 10)}...&oid=${orderId}&price=${amount}&timestamp=${timestamp}`);
-  console.log('[generatePCSignature] signature:', signature.substring(0, 20) + '...');
-
   return {
     mkey,
     timestamp,
@@ -313,9 +310,6 @@ export function generateApprovalSignature(
   // 승인요청용 signature 문자열: authToken, timestamp 순서
   const signString = `authToken=${authToken}&timestamp=${timestamp}`;
   const signature = sha256Hash(signString);
-
-  console.log('[generateApprovalSignature] signString length:', signString.length);
-  console.log('[generateApprovalSignature] signature:', signature.substring(0, 20) + '...');
 
   return signature;
 }
@@ -603,8 +597,6 @@ export function getWelcomePayConfig(): WelcomePayConfig {
   // 테스트 모드가 필요하면 환경변수 WELCOMEPAY_PRODUCTION=false 설정
   const isProduction = process.env.WELCOMEPAY_PRODUCTION !== 'false';
 
-  console.log('[WelcomePay Config] MID:', mid, 'isProduction:', isProduction);
-
   return {
     mid,
     signKey,
@@ -617,7 +609,7 @@ export function getWelcomePayConfig(): WelcomePayConfig {
  */
 export function getWelcomePayNonAuthConfig(): WelcomePayConfig {
   const mid = process.env.WELCOMEPAY_MID_NON_AUTH || process.env.PG_MID_NON_AUTH || 'welcometst';
-  const signKey = process.env.WELCOMEPAY_SIGNKEY_NON_AUTH || process.env.PG_SIGNKEY_NON_AUTH || 'QjZXWDZDRmxYUXJPYnMvelEvSjJ5QT09';
+  const signKey = process.env.WELCOMEPAY_SIGNKEY_NON_AUTH || process.env.PG_SIGNKEY_NON_AUTH || '';
   // 운영환경: WELCOMEPAY_PRODUCTION=true 일 때만 운영 URL 사용
   const isProduction = process.env.WELCOMEPAY_PRODUCTION === 'true';
 

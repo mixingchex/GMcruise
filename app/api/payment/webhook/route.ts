@@ -11,9 +11,25 @@ import { log, error, warn } from '@/lib/logger-wrapper';
 
 /**
  * POST: 결제 완료 웹훅
- * 외부 결제 시스템(아임포트, 토스페이먼츠 등)에서 결제 완료 시 호출
+ * 내부 callback 라우트에서만 호출되는 내부 전용 엔드포인트.
+ * WEBHOOK_SECRET 헤더 검증으로 외부 임의 호출을 차단한다.
  */
 export async function POST(req: NextRequest) {
+  // [보안] 내부 전용 비밀키 검증 (자동화 보호)
+  // INTERNAL_WEBHOOK_SECRET이 설정되면 → 엄격한 검증 (권장)
+  // 미설정이면 → 경고 후 통과 (하위호환, Vercel 환경변수 추가 시 자동 보안 강화)
+  const webhookSecret = process.env.INTERNAL_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const requestSecret = req.headers.get('x-internal-webhook-secret');
+    if (requestSecret !== webhookSecret) {
+      error('[Payment Webhook] Unauthorized request - invalid x-internal-webhook-secret');
+      return NextResponse.json({ ok: false, message: '인증되지 않은 요청입니다.' }, { status: 401 });
+    }
+  } else {
+    // TODO: Vercel에 INTERNAL_WEBHOOK_SECRET 환경변수 추가하면 자동으로 보안 모드로 전환
+    warn('[Payment Webhook] ⚠️ INTERNAL_WEBHOOK_SECRET 미설정 — 보안을 위해 Vercel 환경변수에 추가 권장');
+  }
+
   try {
     const body = await req.json();
     const {

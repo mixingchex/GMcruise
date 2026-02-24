@@ -53,7 +53,10 @@ async function executeAutomation(params: {
 
     const webhookResponse = await fetch(`${BASE_URL}/api/payment/webhook`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-webhook-secret': process.env.INTERNAL_WEBHOOK_SECRET || '',
+      },
       body: JSON.stringify(webhookPayload),
     });
 
@@ -139,6 +142,21 @@ export async function POST(request: NextRequest) {
     // ============================================
     if (!P_REQ_URL || !P_TID) {
       error('[Callback v12.0] Missing P_REQ_URL or P_TID');
+      return NextResponse.redirect(new URL('/payment/failed?message=InvalidRequest', request.url), 303);
+    }
+
+    // [보안] SSRF 방지: P_REQ_URL이 반드시 웰컴페이먼츠 도메인이어야 함
+    // 공격자가 임의의 P_REQ_URL을 삽입해 내부 서버나 메타데이터 서버를 호출하는 것을 차단
+    try {
+      const reqUrlObj = new URL(P_REQ_URL);
+      const isAllowed = reqUrlObj.hostname.endsWith('.paywelcome.co.kr') ||
+                        reqUrlObj.hostname === 'paywelcome.co.kr';
+      if (!isAllowed) {
+        error('[Callback v12.0] SSRF 차단: 허용되지 않은 P_REQ_URL 도메인:', reqUrlObj.hostname);
+        return NextResponse.redirect(new URL('/payment/failed?message=InvalidRequest', request.url), 303);
+      }
+    } catch {
+      error('[Callback v12.0] P_REQ_URL 파싱 오류:', P_REQ_URL);
       return NextResponse.redirect(new URL('/payment/failed?message=InvalidRequest', request.url), 303);
     }
 
@@ -238,18 +256,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 이미 완료된 결제는 스킵 (중복 처리 방지)
-    if (payment.status === 'completed') {
-      log('[Callback v12.0] Already completed:', finalOid);
+    // 대금 무결성 검증: PG에서 받은 금액이 DB 원본 금액과 일치하는지 확인
+    // (이미 completed인 경우도 금액은 같아야 하므로 atomic update 전에 검증)
+    const receivedAmt = parseInt(finalAmt);
+    if (payment.amount && !isNaN(receivedAmt) && receivedAmt !== payment.amount) {
+      error('[Callback v12.0] ⚠️ Amount mismatch:', {
+        expected: payment.amount,
+        received: receivedAmt,
+        orderId: finalOid,
+      });
       return NextResponse.redirect(
-        new URL(`/payment/success?orderId=${finalOid}&tid=${finalTid}`, request.url),
+        new URL(`/payment/failed?message=AmountMismatch&orderId=${finalOid}`, request.url),
         303
       );
     }
 
-    // Payment 상태 완료로 변경
-    await prisma.payment.update({
-      where: { orderId: finalOid },
+    // [Step 7] 원자적 Payment 상태 업데이트 (Race Condition 방지)
+    // updateMany + status 조건으로 '이미 완료'와 '지금 완료' 동시 처리
+    // status !== 'completed' 인 경우에만 업데이트하여 TOCTOU 제거
+    const updateResult = await prisma.payment.updateMany({
+      where: {
+        orderId: finalOid,
+        status: { not: 'completed' },
+      },
       data: {
         status: 'completed',
         paidAt: new Date(),
@@ -265,6 +294,15 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // updateMany가 0건을 업데이트했다면 이미 다른 요청이 처리한 것
+    if (updateResult.count === 0) {
+      log('[Callback v12.0] Already processed by concurrent request:', finalOid);
+      return NextResponse.redirect(
+        new URL(`/payment/success?orderId=${finalOid}&tid=${finalTid}`, request.url),
+        303
+      );
+    }
 
     log('[Callback v12.0] ✅ Payment 상태 업데이트 완료');
 
@@ -344,7 +382,9 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET 요청 처리 (일부 PG사는 GET으로 콜백을 보내는 경우가 있음)
+ * GET 요청 처리 (P_RETURN_URL로 리다이렉트된 경우 — 결과 표시용)
+ * 주의: 여기서 P_STATUS=00이어도 실제 결제 처리는 POST 핸들러에서 완료됨.
+ * DB에서 completed 상태를 확인해서만 성공 페이지 표시 (파라미터 조작 방어)
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -355,11 +395,23 @@ export async function GET(request: NextRequest) {
 
   log('[Callback v12.0 GET] Received:', { P_STATUS, P_TID, P_OID });
 
-  if (P_STATUS === '00' && P_OID) {
-    return NextResponse.redirect(
-      new URL(`/payment/success?orderId=${P_OID}&tid=${P_TID}`, request.url),
-      303
-    );
+  if (P_OID) {
+    // DB에서 실제 결제 완료 여부 확인 (URL 파라미터 조작 방어)
+    try {
+      const payment = await prisma.payment.findUnique({
+        where: { orderId: P_OID },
+        select: { status: true },
+      });
+
+      if (payment?.status === 'completed') {
+        return NextResponse.redirect(
+          new URL(`/payment/success?orderId=${P_OID}&tid=${P_TID}`, request.url),
+          303
+        );
+      }
+    } catch (err) {
+      error('[Callback v12.0 GET] DB 조회 오류:', err);
+    }
   }
 
   return NextResponse.redirect(
