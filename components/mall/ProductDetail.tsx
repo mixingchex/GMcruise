@@ -1910,9 +1910,27 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                             <div className="flex flex-wrap items-center gap-4 text-gray-900 bg-yellow-50 rounded-xl p-4 border-2 border-yellow-200">
                               <span className="text-2xl md:text-3xl">🍴</span>
                               <div className="flex flex-wrap gap-3 text-base md:text-lg font-extrabold">
-                                {day.breakfast && <span className="text-black px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>{day.breakfast}</span>}
-                                {day.lunch && <span className="text-black px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>{day.lunch}</span>}
-                                {day.dinner && <span className="text-black px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>{day.dinner}</span>}
+                                {day.breakfast && (
+                                  <span className="flex items-center gap-1 px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>
+                                    <span className="text-orange-500 text-sm md:text-base font-bold">아침</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-black">{day.breakfast}</span>
+                                  </span>
+                                )}
+                                {day.lunch && (
+                                  <span className="flex items-center gap-1 px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>
+                                    <span className="text-green-600 text-sm md:text-base font-bold">점심</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-black">{day.lunch}</span>
+                                  </span>
+                                )}
+                                {day.dinner && (
+                                  <span className="flex items-center gap-1 px-3 py-1 bg-white rounded-lg border-2 border-yellow-300" style={{ wordBreak: 'keep-all' }}>
+                                    <span className="text-blue-600 text-sm md:text-base font-bold">저녁</span>
+                                    <span className="text-gray-300">|</span>
+                                    <span className="text-black">{day.dinner}</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           )}
@@ -2392,38 +2410,42 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               )}
             </div>
 
-            {/* 구매 문의 버튼 */}
-            <div className="mt-6 pt-5 border-t border-gray-200">
+            {/* 모바일 하단 고정 버튼 여백 */}
+            <div className="h-24 md:hidden" />
+
+            {/* 구매 문의 버튼 — 모바일: 하단 고정, 데스크탑: 인라인 */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.15)] p-3 md:static md:bg-transparent md:shadow-none md:border-t md:border-gray-200 md:mt-6 md:pt-5 md:p-0">
               {(() => {
                 // 활성화된 버튼 개수 계산
                 const activeButtons = [
                   contactOptions.payment && { type: 'payment', url: getPaymentUrl(), label: '결제하기', icon: '💳', color: 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] hover:from-[#E1A21E] hover:to-[#C68C12] text-[#051C2C]' },
                   contactOptions.phoneCall && { type: 'phone', url: getInquiryUrl(), label: '전화상담', icon: '📞', color: 'bg-gradient-to-r from-[#051C2C] to-[#0A2E46] hover:from-[#0A2E46] hover:to-[#051C2C] text-white' },
-                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI 크루즈닷 채팅봇', icon: '🤖', color: 'bg-gradient-to-r from-[#E50914] to-[#B20710] hover:from-[#B20710] hover:to-[#900000] text-white' },
+                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI 크루즈닷', icon: '🤖', color: 'bg-gradient-to-r from-[#E50914] to-[#B20710] hover:from-[#B20710] hover:to-[#900000] text-white' },
                 ].filter(Boolean) as Array<{ type: string; url: string; label: string; icon: string; color: string }>;
 
                 const buttonCount = activeButtons.length;
 
                 // 버튼 개수에 따른 레이아웃 클래스 결정
+                // 모바일: 항상 가로 나열 (fixed bar), 데스크탑: 기존 유지
                 let layoutClass = '';
                 if (buttonCount === 3) {
-                  layoutClass = 'grid grid-cols-1 md:grid-cols-3 gap-3';
+                  layoutClass = 'grid grid-cols-3 gap-2 md:gap-3';
                 } else if (buttonCount === 2) {
-                  layoutClass = 'grid grid-cols-1 md:grid-cols-2 gap-3';
+                  layoutClass = 'grid grid-cols-2 gap-2 md:gap-3';
                 } else {
-                  layoutClass = 'flex flex-col gap-3';
+                  layoutClass = 'flex flex-col gap-2 md:gap-3';
                 }
 
                 return (
                   <div className={layoutClass}>
-                    {activeButtons.map((button, index) => (
+                    {activeButtons.map((button) => (
                       <Link
                         key={button.type}
                         href={button.url}
-                        className={`w-full px-5 py-4 ${button.color} font-bold text-center rounded-xl transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center justify-center gap-3 text-lg md:text-xl`}
+                        className={`w-full px-2 md:px-5 py-3 md:py-4 ${button.color} font-bold text-center rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-1 md:gap-3 text-sm md:text-xl`}
                       >
-                        <span className="text-xl">{button.icon}</span>
-                        <span>{button.label}</span>
+                        <span className="text-base md:text-xl">{button.icon}</span>
+                        <span className="leading-tight">{button.label}</span>
                       </Link>
                     ))}
                   </div>
