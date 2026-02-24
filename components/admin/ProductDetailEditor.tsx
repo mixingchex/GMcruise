@@ -42,12 +42,6 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   const [googleDriveImages, setGoogleDriveImages] = useState<Array<{ id: string; name: string; url: string; thumbnail?: string }>>([]);
   const [googleDriveSearchTerm, setGoogleDriveSearchTerm] = useState('');
 
-  // 이미지 업로드 카테고리 모달 상태
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [pendingUpload, setPendingUpload] = useState<{ index?: number; files?: FileList; file?: File; type: 'single' | 'multiple' } | null>(null);
-  const [categoryInput, setCategoryInput] = useState('');
-  const [filenameInput, setFilenameInput] = useState('');
-
   // 업로드 진행 상태
   const [uploadedCount, setUploadedCount] = useState(0);
   const [totalUploadCount, setTotalUploadCount] = useState(0);
@@ -340,23 +334,12 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
   );
 
   const handleFileUpload = async (index: number, file: File, type: 'image' | 'video') => {
-    // productCode가 있으면 자동으로 구글 드라이브 상품 폴더에 저장 (카테고리 모달 없이)
-    if (type === 'image' && productCode) {
+    if (type === 'image') {
       const processed = await validateAndCompressImage(file);
       if (!processed) return;
       const baseFilename = file.name.replace(/\.[^/.]+$/, '');
-      const autoCategory = '상품이미지';
-      await uploadFile(index, processed, type, autoCategory, baseFilename);
-    } else if (type === 'image') {
-      const processed = await validateAndCompressImage(file);
-      if (!processed) return;
-      // productCode가 없는 경우에만 카테고리 모달 표시 (하위 호환성)
-      setPendingUpload({ index, file: processed, type: 'single', files: undefined });
-      setCategoryInput('');
-      setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
-      setShowCategoryModal(true);
+      await uploadFile(index, processed, type, '상품이미지', baseFilename);
     } else {
-      // 비디오는 기존 방식대로 업로드
       await uploadFile(index, file, type);
     }
   };
@@ -392,31 +375,6 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
     } catch (error) {
       console.error('Failed to upload file:', error);
       alert('파일 업로드에 실패했습니다.');
-    }
-  };
-
-  const handleCategorySubmit = async () => {
-    if (!pendingUpload) return;
-
-    if (!categoryInput.trim() || !filenameInput.trim()) {
-      alert('카테고리와 파일명을 모두 입력해주세요.');
-      return;
-    }
-
-    if (pendingUpload.type === 'single' && pendingUpload.index !== undefined && pendingUpload.file) {
-      // 단일 파일 업로드
-      await uploadFile(pendingUpload.index, pendingUpload.file, 'image', categoryInput.trim(), filenameInput.trim());
-      setShowCategoryModal(false);
-      setPendingUpload(null);
-      setCategoryInput('');
-      setFilenameInput('');
-    } else if (pendingUpload.type === 'multiple' && pendingUpload.files) {
-      // 다중 파일 업로드
-      await handleMultipleImageUploadWithCategory(pendingUpload.files, categoryInput.trim(), filenameInput.trim());
-      setShowCategoryModal(false);
-      setPendingUpload(null);
-      setCategoryInput('');
-      setFilenameInput('');
     }
   };
 
@@ -538,17 +496,7 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
               const files = e.target.files;
               if (files && files.length > 0) {
                 console.log(`[Image Upload] Selected ${files.length} files`);
-                // productCode가 있으면 자동으로 구글 드라이브 상품 폴더에 저장 (카테고리 모달 없이)
-                if (productCode) {
-                  const autoCategory = '상품이미지';
-                  handleMultipleImageUploadWithCategory(files, autoCategory, '이미지');
-                } else {
-                  // productCode가 없는 경우에만 카테고리 모달 표시 (하위 호환성)
-                  setPendingUpload({ type: 'multiple', files });
-                  setCategoryInput('');
-                  setFilenameInput('');
-                  setShowCategoryModal(true);
-                }
+                handleMultipleImageUploadWithCategory(files, '상품이미지', '이미지');
                 // 같은 파일 다시 선택 가능하도록 리셋 (비동기로 처리)
                 setTimeout(() => {
                   if (e.target) {
@@ -1142,73 +1090,6 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
         </div>
       )}
 
-      {/* 카테고리 입력 모달 */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">
-              이미지 저장 위치 설정
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              [크루즈정보사진] 폴더에 저장할 카테고리와 파일명을 입력하세요.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  카테고리 (폴더명) *
-                </label>
-                <input
-                  type="text"
-                  value={categoryInput}
-                  onChange={(e) => setCategoryInput(e.target.value)}
-                  placeholder="예: 코스타세레나, MSC크루즈 등"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  파일명 *
-                </label>
-                <input
-                  type="text"
-                  value={filenameInput}
-                  onChange={(e) => setFilenameInput(e.target.value)}
-                  placeholder="예: 선박외관, 객실사진 등"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-                {pendingUpload?.type === 'multiple' && pendingUpload.files && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    {pendingUpload.files.length}개의 파일이 &quot;{filenameInput}_1&quot;, &quot;{filenameInput}_2&quot; 형식으로 저장됩니다.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCategoryModal(false);
-                  setPendingUpload(null);
-                  setCategoryInput('');
-                  setFilenameInput('');
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleCategorySubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

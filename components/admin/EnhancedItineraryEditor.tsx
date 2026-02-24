@@ -88,19 +88,6 @@ export default function EnhancedItineraryEditor({
   const [showAccommodationImagePicker, setShowAccommodationImagePicker] = useState<number | null>(null);
   const [showTourImagePicker, setShowTourImagePicker] = useState<number | null>(null);
 
-  // 이미지 업로드 카테고리 모달 상태
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [pendingUpload, setPendingUpload] = useState<{
-    dayNumber?: number;
-    blockIndex?: number;
-    file?: File;
-    files?: FileList;
-    type: 'single' | 'multiple' | 'tour' | 'accommodation';
-    uploadType: 'image' | 'video';
-  } | null>(null);
-  const [categoryInput, setCategoryInput] = useState('');
-  const [filenameInput, setFilenameInput] = useState('');
-
   // 여행 관련 이모티콘 60개
   const TRAVEL_EMOJIS = [
     '✈️', '🚢', '🏖️', '🌴', '🏝️', '🗺️', '🎒', '🧳', '📷', '🌅',
@@ -720,14 +707,10 @@ export default function EnhancedItineraryEditor({
   };
 
   const handleFileUpload = async (dayNumber: number, blockIndex: number, file: File, type: 'image' | 'video') => {
-    // 이미지인 경우 카테고리 모달 표시
     if (type === 'image') {
-      setPendingUpload({ dayNumber, blockIndex, file, type: 'single', uploadType: 'image' });
-      setCategoryInput('');
-      setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
-      setShowCategoryModal(true);
+      const baseFilename = file.name.replace(/\.[^/.]+$/, '');
+      await uploadFile(dayNumber, blockIndex, file, type, '일정이미지', baseFilename);
     } else {
-      // 비디오는 기존 방식대로 업로드
       await uploadFile(dayNumber, blockIndex, file, type);
     }
   };
@@ -763,17 +746,13 @@ export default function EnhancedItineraryEditor({
   };
 
   const handleTourImageUpload = async (dayNumber: number, file: File) => {
-    setPendingUpload({ dayNumber, file, type: 'tour', uploadType: 'image' });
-    setCategoryInput('');
-    setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
-    setShowCategoryModal(true);
+    const baseFilename = file.name.replace(/\.[^/.]+$/, '');
+    await uploadTourImage(dayNumber, file, '관광지이미지', baseFilename);
   };
 
   const handleAccommodationImageUpload = async (dayNumber: number, file: File) => {
-    setPendingUpload({ dayNumber, file, type: 'accommodation', uploadType: 'image' });
-    setCategoryInput('');
-    setFilenameInput(file.name.replace(/\.[^/.]+$/, ''));
-    setShowCategoryModal(true);
+    const baseFilename = file.name.replace(/\.[^/.]+$/, '');
+    await uploadAccommodationImage(dayNumber, file, '숙소이미지', baseFilename);
   };
 
   const uploadTourImage = async (dayNumber: number, file: File, category: string, filename: string) => {
@@ -838,55 +817,6 @@ export default function EnhancedItineraryEditor({
     } catch (error) {
       console.error('Failed to upload accommodation image:', error);
       alert('파일 업로드에 실패했습니다.');
-    }
-  };
-
-  const handleCategorySubmit = async () => {
-    if (!pendingUpload) return;
-
-    if (!categoryInput.trim() || !filenameInput.trim()) {
-      alert('카테고리와 파일명을 모두 입력해주세요.');
-      return;
-    }
-
-    if (pendingUpload.type === 'single' && pendingUpload.dayNumber !== undefined && pendingUpload.blockIndex !== undefined && pendingUpload.file) {
-      // 단일 블록 이미지 업로드
-      await uploadFile(
-        pendingUpload.dayNumber,
-        pendingUpload.blockIndex,
-        pendingUpload.file,
-        pendingUpload.uploadType,
-        categoryInput.trim(),
-        filenameInput.trim()
-      );
-      setShowCategoryModal(false);
-      setPendingUpload(null);
-      setCategoryInput('');
-      setFilenameInput('');
-    } else if (pendingUpload.type === 'tour' && pendingUpload.dayNumber !== undefined && pendingUpload.file) {
-      // 관광 이미지 업로드
-      await uploadTourImage(
-        pendingUpload.dayNumber,
-        pendingUpload.file,
-        categoryInput.trim(),
-        filenameInput.trim()
-      );
-      setShowCategoryModal(false);
-      setPendingUpload(null);
-      setCategoryInput('');
-      setFilenameInput('');
-    } else if (pendingUpload.type === 'accommodation' && pendingUpload.dayNumber !== undefined && pendingUpload.file) {
-      // 숙박 이미지 업로드
-      await uploadAccommodationImage(
-        pendingUpload.dayNumber,
-        pendingUpload.file,
-        categoryInput.trim(),
-        filenameInput.trim()
-      );
-      setShowCategoryModal(false);
-      setPendingUpload(null);
-      setCategoryInput('');
-      setFilenameInput('');
     }
   };
 
@@ -2069,68 +1999,6 @@ export default function EnhancedItineraryEditor({
         </div>
       )}
 
-      {/* 카테고리 입력 모달 */}
-      {showCategoryModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">
-              이미지 저장 위치 설정
-            </h3>
-            <p className="text-sm text-gray-600 mb-4">
-              [크루즈정보사진] 폴더에 저장할 카테고리와 파일명을 입력하세요.
-            </p>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  카테고리 (폴더명) *
-                </label>
-                <input
-                  type="text"
-                  value={categoryInput}
-                  onChange={(e) => setCategoryInput(e.target.value)}
-                  placeholder="예: 코스타세레나, MSC크루즈 등"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  autoFocus
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  파일명 *
-                </label>
-                <input
-                  type="text"
-                  value={filenameInput}
-                  onChange={(e) => setFilenameInput(e.target.value)}
-                  placeholder="예: 선박외관, 객실사진 등"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCategoryModal(false);
-                  setPendingUpload(null);
-                  setCategoryInput('');
-                  setFilenameInput('');
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                onClick={handleCategorySubmit}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                저장
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
