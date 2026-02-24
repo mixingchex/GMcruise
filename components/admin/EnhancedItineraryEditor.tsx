@@ -1463,11 +1463,42 @@ export default function EnhancedItineraryEditor({
                                     // 단일 파일: 기존 카테고리 모달 경유
                                     handleAccommodationImageUpload(day.day, files[0]);
                                   } else {
-                                    // 여러 파일: 모달 없이 순차 직접 업로드
-                                    // (모달 방식은 pendingUpload state를 덮어써 마지막 파일만 처리되는 버그)
+                                    // 여러 파일: URL 먼저 모두 수집 후 한 번에 상태 업데이트
+                                    // (uploadAccommodationImage를 루프에서 직접 호출하면 stale closure로
+                                    //  각 호출이 같은 days를 읽어 마지막 이미지만 살아남는 버그 발생)
+                                    const newUrls: string[] = [];
                                     for (let i = 0; i < files.length; i++) {
                                       const file = files[i];
-                                      await uploadAccommodationImage(day.day, file, '숙박', file.name.replace(/\.[^/.]+$/, ''));
+                                      try {
+                                        const fd = new FormData();
+                                        fd.append('file', file);
+                                        fd.append('type', 'image');
+                                        fd.append('category', '숙박');
+                                        fd.append('filename', file.name.replace(/\.[^/.]+$/, ''));
+                                        const res = await fetch('/api/admin/mall/upload', {
+                                          method: 'POST',
+                                          credentials: 'include',
+                                          body: fd,
+                                        });
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          if (data.ok && data.url) newUrls.push(data.url);
+                                        }
+                                      } catch (err) {
+                                        console.error('Failed to upload file:', err);
+                                      }
+                                    }
+                                    if (newUrls.length > 0) {
+                                      // days를 루프 종료 후 한 번만 읽어 stale closure 방지
+                                      const updatedDays = days.map(d =>
+                                        d.day === day.day
+                                          ? { ...d, accommodationImages: [...(d.accommodationImages || []), ...newUrls] }
+                                          : d
+                                      );
+                                      onChange(updatedDays);
+                                    }
+                                    if (newUrls.length < files.length) {
+                                      alert(`${files.length}개 중 ${newUrls.length}개 업로드 완료 (${files.length - newUrls.length}개 실패)`);
                                     }
                                   }
                                   setTimeout(() => { if (e.target) e.target.value = ''; }, 100);

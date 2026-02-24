@@ -6,9 +6,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs'; // Edge Runtime 금지 (파일 시스템 접근 필요)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getCache, setCache } from '@/lib/redis';
@@ -118,7 +115,6 @@ export async function POST(req: NextRequest) {
 
     // 파일 타입 검증
     let allowedTypes: string[] = [];
-    let uploadDir = '';
     let subDir = '';
 
     switch (type) {
@@ -272,38 +268,14 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (error) {
-        console.warn('[Image Upload] Google Drive upload failed, falling back to local storage:', error);
+        console.error('[Image Upload] Google Drive upload failed:', error);
       }
 
-      // Google Drive 업로드 실패 시 로컬 저장 (하위 호환성)
-      // 크루즈정보사진 원본 폴더 사용 (백업 폴더는 삭제되었으므로 원본만 사용)
-      // 전체 경로 구성: public/크루즈정보사진/[카테고리]/[하위폴더1]/[하위폴더2]/...
-      const pathParts = [process.cwd(), 'public', '크루즈정보사진', categoryDir, ...cleanSubFolders];
-      uploadDir = join(...pathParts);
-
-      // 디렉토리 생성 (하위 폴더까지 모두 생성)
-      if (!existsSync(uploadDir)) {
-        await mkdir(uploadDir, { recursive: true });
-      }
-
-      const filepath = join(uploadDir, finalFilename);
-      await writeFile(filepath, buffer);
-
-      // URL 생성 (하위 폴더 경로 포함)
-      const urlPath = cleanSubFolders.length > 0
-        ? `/크루즈정보사진/${categoryDir}/${cleanSubFolders.join('/')}/${finalFilename}`
-        : `/크루즈정보사진/${categoryDir}/${finalFilename}`;
-      const url = urlPath;
-
-      return NextResponse.json({
-        ok: true,
-        url,
-        filename: finalFilename,
-        size: file.size,
-        type: file.type,
-        category: categoryDir,
-        subPath: cleanSubFolders.length > 0 ? cleanSubFolders.join('/') : undefined,
-      });
+      // Vercel 서버리스 환경은 파일시스템 쓰기 불가 (read-only) → 로컬 폴백 없음
+      return NextResponse.json(
+        { ok: false, error: 'Google Drive 업로드에 실패했습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 500 }
+      );
     } else {
       // Google Drive에 직접 업로드 (기존 방식 대체)
       const bytes = await file.arrayBuffer();

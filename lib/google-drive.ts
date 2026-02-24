@@ -326,7 +326,7 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
     }
 
     // 권한 설정: anyone with link (공개 읽기)
-    // URL 반환 전 권한이 적용되어야 403 방지 — blocking await 필수
+    // 실패 시 업로드된 파일이 403으로 표시되지 않음 → critical
     try {
       const permissionOptions: any = {
         fileId,
@@ -335,7 +335,11 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       };
       await drive.permissions.create(permissionOptions);
     } catch (permErr: unknown) {
-      console.warn('[GoogleDrive] Permission set failed (non-critical):', permErr);
+      console.error('[GoogleDrive] Permission set FAILED — file will be inaccessible (403):', permErr);
+      return {
+        ok: false,
+        error: `파일 업로드 후 공개 권한 설정에 실패했습니다. 잠시 후 다시 시도해주세요. (fileId: ${fileId})`,
+      };
     }
 
     // 이미지인지 확인
