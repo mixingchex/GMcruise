@@ -2421,9 +2421,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               {(() => {
                 // 활성화된 버튼 개수 계산
                 const activeButtons = [
-                  contactOptions.payment && { type: 'payment', url: getPaymentUrl(), label: '결제하기', icon: '💳', color: 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] hover:from-[#E1A21E] hover:to-[#C68C12] text-[#051C2C]' },
-                  contactOptions.phoneCall && { type: 'phone', url: getInquiryUrl(), label: '전화상담', icon: '📞', color: 'bg-gradient-to-r from-[#051C2C] to-[#0A2E46] hover:from-[#0A2E46] hover:to-[#051C2C] text-white' },
-                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI 크루즈닷', icon: '🤖', color: 'bg-gradient-to-r from-[#E50914] to-[#B20710] hover:from-[#B20710] hover:to-[#900000] text-white' },
+                  contactOptions.payment && { type: 'payment', url: getPaymentUrl(), label: '구매하기', icon: '💳', color: 'bg-gradient-to-r from-[#FDB931] to-[#E1A21E] hover:from-[#E1A21E] hover:to-[#C68C12] text-[#051C2C]' },
+                  contactOptions.phoneCall && { type: 'phone', url: getInquiryUrl(), label: '상담신청', icon: '📞', color: 'bg-gradient-to-r from-[#051C2C] to-[#0A2E46] hover:from-[#0A2E46] hover:to-[#051C2C] text-white' },
+                  contactOptions.aiChatbot && { type: 'chatbot', url: getChatBotUrl(), label: 'AI상담', icon: '🤖', color: 'bg-gradient-to-r from-[#E50914] to-[#B20710] hover:from-[#B20710] hover:to-[#900000] text-white' },
                 ].filter(Boolean) as Array<{ type: string; url: string; label: string; icon: string; color: string }>;
 
                 const buttonCount = activeButtons.length;
