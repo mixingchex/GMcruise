@@ -336,9 +336,11 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       await drive.permissions.create(permissionOptions);
     } catch (permErr: unknown) {
       console.error('[GoogleDrive] Permission set FAILED — file will be inaccessible (403):', permErr);
+      // 접근 불가능한 고아 파일(orphan) 정리 — 실패해도 이미 에러 상황이므로 무시
+      try { await drive.files.delete({ fileId, supportsAllDrives: true }); } catch { /* ignore */ }
       return {
         ok: false,
-        error: `파일 업로드 후 공개 권한 설정에 실패했습니다. 잠시 후 다시 시도해주세요. (fileId: ${fileId})`,
+        error: `파일 업로드 후 공개 권한 설정에 실패했습니다. 잠시 후 다시 시도해주세요.`,
       };
     }
 

@@ -259,7 +259,7 @@ export async function POST(request: NextRequest) {
     // 대금 무결성 검증: PG에서 받은 금액이 DB 원본 금액과 일치하는지 확인
     // (이미 completed인 경우도 금액은 같아야 하므로 atomic update 전에 검증)
     const receivedAmt = parseInt(finalAmt);
-    if (payment.amount && !isNaN(receivedAmt) && receivedAmt !== payment.amount) {
+    if (payment.amount != null && !isNaN(receivedAmt) && receivedAmt !== payment.amount) {
       error('[Callback v12.0] ⚠️ Amount mismatch:', {
         expected: payment.amount,
         received: receivedAmt,
