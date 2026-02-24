@@ -69,11 +69,11 @@ export default function ProductDetailEditor({ blocks, onChange, productCode }: P
     }
     try {
       const blob = await imageCompression(file, {
-        maxSizeMB: 2,            // 2MB 이하로 압축 (세로 10000px도 여유있게 처리)
+        maxSizeMB: 3,            // 2→3MB (세로 긴 이미지 화질 보존)
         maxWidthOrHeight: 99999, // 리사이즈 비활성화 — 원본 해상도 유지
         useWebWorker: true,
         fileType: 'image/webp',  // WebP 변환 (PNG 대비 80~85% 용량 절감)
-        initialQuality: 0.85,
+        initialQuality: 0.90,    // 0.85→0.90 (과다 압축 방지)
       });
       return new File([blob], file.name.replace(/\.[^.]+$/, '.webp'), {
         type: 'image/webp',

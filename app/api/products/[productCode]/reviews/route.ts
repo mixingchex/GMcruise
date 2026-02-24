@@ -329,14 +329,23 @@ export async function GET(
         });
       }
 
-      // 새로운 리뷰 생성
+      // 새로운 리뷰 생성 (createMany로 단일 DB 트랜잭션)
       const ratings = generateRatings(rating, reviewCount);
       const reviewTemplates = generateReviewTemplates(product);
       const usedNicknames = new Set<string>();
-      const usedReviews = new Set<string>(); // 사용된 리뷰 텍스트 추적
-      
+      const usedReviews = new Set<string>();
+      const reviewsToCreate: {
+        productCode: string;
+        authorName: string;
+        rating: number;
+        content: string;
+        isApproved: boolean;
+        isDeleted: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+      }[] = [];
+
       for (let i = 0; i < reviewCount; i++) {
-        // 자연스러운 닉네임 생성 (중복 방지)
         let nickname = generateNaturalNickname();
         let attempts = 0;
         while (usedNicknames.has(nickname) && attempts < 100) {
@@ -345,36 +354,31 @@ export async function GET(
         }
         usedNicknames.add(nickname);
 
-        // 상품 정보 기반 리뷰 템플릿에서 랜덤 선택 (중복 방지)
         let reviewText = '';
         let reviewAttempts = 0;
         do {
           reviewText = reviewTemplates[Math.floor(Math.random() * reviewTemplates.length)];
           reviewAttempts++;
-          // 이모티콘을 20% 확률로만 추가
           if (Math.random() < 0.2 && !reviewText.includes('ㅎ') && !reviewText.includes('ㅋ') && !reviewText.includes('^')) {
             const emoticon = EMOTICONS[Math.floor(Math.random() * EMOTICONS.length)];
             reviewText = reviewText + ' ' + emoticon;
           }
         } while (usedReviews.has(reviewText) && reviewAttempts < 50);
-        
         usedReviews.add(reviewText);
 
-        // 리뷰 생성
-        const reviewDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000); // 최근 90일 내 랜덤 날짜
-        await prisma.cruiseReview.create({
-          data: {
-            productCode,
-            authorName: nickname,
-            rating: ratings[i],
-            content: reviewText,
-            isApproved: true,
-            isDeleted: false,
-            createdAt: reviewDate,
-            updatedAt: reviewDate,
-          },
+        const reviewDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000);
+        reviewsToCreate.push({
+          productCode,
+          authorName: nickname,
+          rating: ratings[i],
+          content: reviewText,
+          isApproved: true,
+          isDeleted: false,
+          createdAt: reviewDate,
+          updatedAt: reviewDate,
         });
       }
+      await prisma.cruiseReview.createMany({ data: reviewsToCreate });
 
       // 새로 생성된 리뷰 조회
       existingReviews = await prisma.cruiseReview.findMany({
@@ -393,12 +397,20 @@ export async function GET(
       // 상품 정보 기반 리뷰 템플릿 생성
       const reviewTemplates = generateReviewTemplates(product);
       
-      const newReviews = [];
       const usedNicknames = new Set(existingReviews.map(r => r.authorName));
-      const usedReviews = new Set(existingReviews.map(r => r.content)); // 기존 리뷰 텍스트 추적
-      
+      const usedReviews = new Set(existingReviews.map(r => r.content));
+      const newReviewsData: {
+        productCode: string;
+        authorName: string;
+        rating: number;
+        content: string;
+        isApproved: boolean;
+        isDeleted: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+      }[] = [];
+
       for (let i = 0; i < needCount; i++) {
-        // 자연스러운 닉네임 생성 (중복 방지)
         let nickname = generateNaturalNickname();
         let attempts = 0;
         while (usedNicknames.has(nickname) && attempts < 100) {
@@ -407,38 +419,31 @@ export async function GET(
         }
         usedNicknames.add(nickname);
 
-        // 상품 정보 기반 리뷰 템플릿에서 랜덤 선택 (중복 방지)
         let reviewText = '';
         let reviewAttempts = 0;
         do {
           reviewText = reviewTemplates[Math.floor(Math.random() * reviewTemplates.length)];
           reviewAttempts++;
-          // 이모티콘을 20% 확률로만 추가
           if (Math.random() < 0.2 && !reviewText.includes('ㅎ') && !reviewText.includes('ㅋ') && !reviewText.includes('^')) {
             const emoticon = EMOTICONS[Math.floor(Math.random() * EMOTICONS.length)];
             reviewText = reviewText + ' ' + emoticon;
           }
         } while (usedReviews.has(reviewText) && reviewAttempts < 50);
-        
         usedReviews.add(reviewText);
 
-        // 리뷰 생성
-        const reviewDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000); // 최근 90일 내 랜덤 날짜
-        const review = await prisma.cruiseReview.create({
-          data: {
-            productCode,
-            authorName: nickname,
-            rating: ratings[i],
-            content: reviewText,
-            isApproved: true,
-            isDeleted: false,
-            createdAt: reviewDate,
-            updatedAt: reviewDate,
-          },
+        const reviewDate = new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000);
+        newReviewsData.push({
+          productCode,
+          authorName: nickname,
+          rating: ratings[i],
+          content: reviewText,
+          isApproved: true,
+          isDeleted: false,
+          createdAt: reviewDate,
+          updatedAt: reviewDate,
         });
-
-        newReviews.push(review);
       }
+      await prisma.cruiseReview.createMany({ data: newReviewsData });
 
       // 새로 생성된 리뷰 조회
       existingReviews = await prisma.cruiseReview.findMany({

@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 // 상품 상세 조회 및 수정 API
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getCountryCode, getKoreanCountryName } from '@/lib/utils/countryMapping';
@@ -659,6 +660,14 @@ export async function PUT(
         updatedAt: new Date()
       }
     });
+
+    // 상세 페이지 캐시 무효화 (썸네일/이미지 변경 즉시 반영)
+    try {
+      revalidatePath(`/products/${targetProductCode}`);
+      revalidatePath(`/partner`, 'layout'); // 파트너 페이지 전체 레이아웃
+    } catch {
+      // revalidatePath 실패해도 저장은 성공
+    }
 
     return NextResponse.json({
       ok: true,
