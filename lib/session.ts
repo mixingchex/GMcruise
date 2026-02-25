@@ -94,6 +94,8 @@ export function setSession(res: NextResponse, payload: SessionPayload) {
     sameSite: 'lax',
     path: '/',
     maxAge: COOKIE_MAX_AGE,
+    secure: process.env.NODE_ENV === 'production',
+    domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
   });
   return res;
 }
