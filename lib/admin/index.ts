@@ -372,8 +372,10 @@ export * from '../vercel-api';
 // 이미지 관리
 // ============================================================================
 export * from '../photos-search';
-export * from '../image-cache-search';
-export * from '../image-cache-sync';
+// image-cache-search.ts와 image-cache-sync.ts 모두 searchImagesFromDB/getSubfoldersFromDB를 export
+// → image-cache-search.ts 버전 사용, sync는 syncImageCache만 export
+export { searchImagesFromDB, getSubfoldersFromDB } from '../image-cache-search';
+export { syncImageCache } from '../image-cache-sync';
 
 // ============================================================================
 // 뉴스 / 콘텐츠
