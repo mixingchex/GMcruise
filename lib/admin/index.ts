@@ -113,14 +113,14 @@ export {
   backupContractSignaturesToDrive,
   backupContractPDFToDrive,
   uploadAffiliateFileByType,
-} from '../google-drive-affiliate-info';
+} from './google-drive-affiliate-info';
 
-export { uploadCompanyLogo } from '../google-drive-company-logo';
+export { uploadCompanyLogo } from './google-drive-company-logo';
 
 export {
   backupImageToGoogleDrive,
   backupProductImages,
-} from '../google-drive-product-backup';
+} from './google-drive-product-backup';
 
 export {
   getGoogleDriveAuth,
@@ -232,8 +232,8 @@ export {
   recordCustomerJourney,
   getCustomerJourneyHistory,
   getCustomerCountByGroup,
-} from '../customer-journey';
-export type { CustomerGroup, TriggerType } from '../customer-journey';
+} from './customer-journey';
+export type { CustomerGroup, TriggerType } from './customer-journey';
 
 export { performanceMonitor, measureApi } from '../performance-monitor';
 
@@ -331,8 +331,8 @@ export {
   checkSettlementCompliance,
   getComplianceStatusColor,
   getCategoryLabel,
-} from '../legal-compliance';
-export type { ComplianceCheckResult } from '../legal-compliance';
+} from './legal-compliance';
+export type { ComplianceCheckResult } from './legal-compliance';
 
 // AI 법률/세무/노무 프롬프트
 export {
@@ -355,8 +355,8 @@ export {
   getClientInfo,
   AUDIT_ACTIONS,
   AUDIT_TARGET_TYPES,
-} from '../audit-logger';
-export type { AuditLogParams } from '../audit-logger';
+} from './audit-logger';
+export type { AuditLogParams } from './audit-logger';
 
 // ============================================================================
 // 파트너 인증
@@ -366,7 +366,7 @@ export { requirePartnerContext, PartnerApiError } from '../partner-auth';
 // ============================================================================
 // Vercel API
 // ============================================================================
-export * from '../vercel-api';
+export * from './vercel-api';
 
 // ============================================================================
 // 이미지 관리

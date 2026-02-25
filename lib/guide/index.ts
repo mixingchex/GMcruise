@@ -22,8 +22,8 @@ export type { SearchResult } from '../ai/ragSearch';
 // ============================================================================
 // TTS (Text-to-Speech)
 // ============================================================================
-export { default as tts, extractPlainText } from '../tts';
-export type { TTSOptions } from '../tts';
+export { default as tts, extractPlainText } from './tts';
+export type { TTSOptions } from './tts';
 
 // ============================================================================
 // 채팅봇
@@ -142,8 +142,8 @@ export * from '../terminals';
 // ============================================================================
 // 날씨
 // ============================================================================
-export { getWeatherForecast, getCurrentWeather } from '../weather';
-export type { WeatherForecast, WeatherResponse } from '../weather';
+export { getWeatherForecast, getCurrentWeather } from './weather';
+export type { WeatherForecast, WeatherResponse } from './weather';
 
 // ============================================================================
 // 크루즈 데이터
@@ -184,8 +184,8 @@ export * from '../date-utils';
 export { dday } from '../days';
 
 // lib/dday.ts — server-only: Server Component / API Route 전용
-export { getDdayMessage as getDdayMessageServer } from '../dday';
-export type { DdayParams } from '../dday';
+export { getDdayMessage as getDdayMessageServer } from './dday';
+export type { DdayParams } from './dday';
 
 // ============================================================================
 // 여행 유틸
@@ -213,10 +213,10 @@ export {
   hapticSuccess,
   hapticError,
   hapticWarning,
-} from '../haptic';
-export type { HapticType } from '../haptic';
+} from './haptic';
+export type { HapticType } from './haptic';
 
-export { useKeyboardHandler, setViewportHeight, useViewportHeight } from '../keyboard-handler';
+export { useKeyboardHandler, setViewportHeight, useViewportHeight } from './keyboard-handler';
 export { resolveMedia } from '../media';
 
 // ============================================================================
