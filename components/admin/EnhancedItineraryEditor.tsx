@@ -63,6 +63,9 @@ export default function EnhancedItineraryEditor({
   const [showGroupManager, setShowGroupManager] = useState(false);
   const [savedGroups, setSavedGroups] = useState<any[]>([]);
   const [newGroupName, setNewGroupName] = useState('');
+  const [nightsFilter, setNightsFilter] = useState<number | null>(null);
+  const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
   const [showCruisePhotoModal, setShowCruisePhotoModal] = useState(false);
   const [cruiseFolders, setCruiseFolders] = useState<string[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<string>('');
@@ -651,6 +654,10 @@ export default function EnhancedItineraryEditor({
       return;
     }
 
+    const dayCount = days.length;
+    const nightsCount = nights ?? (dayCount > 0 ? dayCount - 1 : 0);
+    const autoDesc = nightsCount > 0 ? `${nightsCount}박${dayCount}일` : `${dayCount}일 일정`;
+
     try {
       const res = await fetch('/api/admin/itinerary-groups', {
         method: 'POST',
@@ -658,7 +665,7 @@ export default function EnhancedItineraryEditor({
         credentials: 'include',
         body: JSON.stringify({
           name: newGroupName.trim(),
-          description: `${days.length}일 일정`,
+          description: autoDesc,
           itinerary: days
         })
       });
@@ -668,7 +675,6 @@ export default function EnhancedItineraryEditor({
         if (data.ok) {
           alert('그룹이 저장되었습니다.');
           setNewGroupName('');
-          setShowGroupManager(false);
           loadGroups();
         } else {
           alert(`저장 실패: ${data.error}`);
@@ -680,7 +686,48 @@ export default function EnhancedItineraryEditor({
     }
   };
 
+  const deleteGroup = async (groupId: number, groupName: string) => {
+    if (!confirm(`"${groupName}" 그룹을 삭제하시겠습니까?`)) return;
+    try {
+      const res = await fetch(`/api/admin/itinerary-groups/${groupId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      const data = await res.json();
+      if (data.ok) {
+        loadGroups();
+      } else {
+        alert(`삭제 실패: ${data.error}`);
+      }
+    } catch {
+      alert('삭제에 실패했습니다.');
+    }
+  };
+
+  const renameGroup = async (groupId: number) => {
+    if (!editingGroupName.trim()) return;
+    try {
+      const res = await fetch(`/api/admin/itinerary-groups/${groupId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: editingGroupName.trim() })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setEditingGroupId(null);
+        setEditingGroupName('');
+        loadGroups();
+      } else {
+        alert(`수정 실패: ${data.error}`);
+      }
+    } catch {
+      alert('수정에 실패했습니다.');
+    }
+  };
+
   const loadGroup = async (groupId: number) => {
+    if (days.length > 0 && !confirm('현재 일정이 불러온 그룹으로 교체됩니다. 계속하시겠습니까?')) return;
     try {
       const res = await fetch(`/api/admin/itinerary-groups/${groupId}`, {
         credentials: 'include'
@@ -695,8 +742,9 @@ export default function EnhancedItineraryEditor({
 
           if (Array.isArray(parsedItinerary)) {
             onChange(parsedItinerary);
-            alert('그룹이 불러와졌습니다.');
             setShowGroupManager(false);
+            setNightsFilter(null);
+            setEditingGroupId(null);
           }
         }
       }
@@ -864,81 +912,176 @@ export default function EnhancedItineraryEditor({
       </div>
 
       {/* 그룹 관리 모달 */}
-      {showGroupManager && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="p-6 border-b">
-              <div className="flex items-center justify-between">
+      {showGroupManager && (() => {
+        // 사용 가능한 nights 값 목록 (필터 탭용)
+        const availableNights = Array.from(new Set(savedGroups.map((g) => g.nights as number))).sort((a, b) => a - b);
+        const filtered = nightsFilter === null
+          ? savedGroups
+          : savedGroups.filter((g) => g.nights === nightsFilter);
+
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+              {/* 헤더 */}
+              <div className="p-5 border-b flex items-center justify-between flex-shrink-0">
                 <h3 className="text-xl font-bold text-gray-800">일정 그룹 관리</h3>
-                <button
-                  onClick={() => setShowGroupManager(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
+                <button onClick={() => setShowGroupManager(false)} className="text-gray-400 hover:text-gray-600">
                   <FiX size={24} />
                 </button>
               </div>
-            </div>
 
-            <div className="p-6 space-y-4">
-              {/* 저장된 그룹 목록 */}
-              <div>
-                <h4 className="font-semibold text-gray-700 mb-3">저장된 그룹 불러오기</h4>
-                {savedGroups.length === 0 ? (
-                  <p className="text-gray-500 text-sm">저장된 그룹이 없습니다.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {savedGroups.map((group) => (
-                      <div
-                        key={group.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                {/* 현재 일정 저장 */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-green-800 mb-2 flex items-center gap-2">
+                    <FiSave size={16} />
+                    현재 일정을 그룹으로 저장
+                    {days.length > 0 && (
+                      <span className="text-xs bg-green-200 text-green-700 px-2 py-0.5 rounded-full">
+                        {days.length > 1 ? `${days.length - 1}박${days.length}일` : `${days.length}일`}
+                      </span>
+                    )}
+                  </h4>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newGroupName}
+                      onChange={(e) => setNewGroupName(e.target.value)}
+                      placeholder="그룹 이름 입력 (예: 지중해 7박8일)"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm"
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveAsGroup(); }}
+                    />
+                    <button
+                      onClick={saveAsGroup}
+                      disabled={!newGroupName.trim() || days.length === 0}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm"
+                    >
+                      <FiSave size={16} />
+                      저장
+                    </button>
+                  </div>
+                </div>
+
+                {/* 저장된 그룹 불러오기 */}
+                <div>
+                  <h4 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <FiFolder size={16} />
+                    저장된 그룹 불러오기
+                    <span className="text-xs text-gray-400 font-normal">불러온 후 수정 가능</span>
+                  </h4>
+
+                  {/* 기간 필터 탭 */}
+                  {availableNights.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <button
+                        onClick={() => setNightsFilter(null)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${nightsFilter === null ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                       >
-                        <div>
-                          <p className="font-medium text-gray-800">{group.name}</p>
-                          {group.description && (
-                            <p className="text-sm text-gray-500">{group.description}</p>
+                        전체 ({savedGroups.length})
+                      </button>
+                      {availableNights.map((n) => {
+                        const count = savedGroups.filter((g) => g.nights === n).length;
+                        return (
+                          <button
+                            key={n}
+                            onClick={() => setNightsFilter(n)}
+                            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${nightsFilter === n ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                          >
+                            {n > 0 ? `${n}박${n + 1}일` : `당일`} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {filtered.length === 0 ? (
+                    <p className="text-gray-500 text-sm py-4 text-center">
+                      {savedGroups.length === 0 ? '저장된 그룹이 없습니다.' : '해당 기간의 그룹이 없습니다.'}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {filtered.map((group) => (
+                        <div
+                          key={group.id}
+                          className="p-3 bg-gray-50 rounded-lg border border-gray-200"
+                        >
+                          {editingGroupId === group.id ? (
+                            /* 이름 편집 모드 */
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={editingGroupName}
+                                onChange={(e) => setEditingGroupName(e.target.value)}
+                                className="flex-1 px-2 py-1 border border-blue-400 rounded text-sm focus:ring-2 focus:ring-blue-500"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') renameGroup(group.id);
+                                  if (e.key === 'Escape') { setEditingGroupId(null); setEditingGroupName(''); }
+                                }}
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => renameGroup(group.id)}
+                                className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                              >
+                                저장
+                              </button>
+                              <button
+                                onClick={() => { setEditingGroupId(null); setEditingGroupName(''); }}
+                                className="px-3 py-1 bg-gray-300 text-gray-700 rounded text-xs hover:bg-gray-400"
+                              >
+                                취소
+                              </button>
+                            </div>
+                          ) : (
+                            /* 일반 표시 모드 */
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="font-medium text-gray-800 text-sm">{group.name}</p>
+                                  {group.description && (
+                                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex-shrink-0">
+                                      {group.description}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {new Date(group.createdAt).toLocaleDateString('ko-KR')} 저장
+                                </p>
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => loadGroup(group.id)}
+                                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs font-medium"
+                                >
+                                  불러오기
+                                </button>
+                                <button
+                                  onClick={() => { setEditingGroupId(group.id); setEditingGroupName(group.name); }}
+                                  className="px-2 py-1.5 bg-gray-200 text-gray-600 rounded-lg hover:bg-gray-300 text-xs"
+                                  title="이름 수정"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => deleteGroup(group.id, group.name)}
+                                  className="px-2 py-1.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 text-xs"
+                                  title="삭제"
+                                >
+                                  <FiTrash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
                           )}
                         </div>
-                        <button
-                          onClick={() => loadGroup(group.id)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                        >
-                          불러오기
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* 새 그룹 저장 */}
-              <div className="border-t pt-4">
-                <h4 className="font-semibold text-gray-700 mb-3">현재 일정을 그룹으로 저장</h4>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newGroupName}
-                    onChange={(e) => setNewGroupName(e.target.value)}
-                    placeholder="그룹 이름 입력..."
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        saveAsGroup();
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={saveAsGroup}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                  >
-                    <FiSave size={18} />
-                    저장
-                  </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Day 목록 */}
       {days.length === 0 ? (
