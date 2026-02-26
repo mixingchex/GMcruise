@@ -5,32 +5,32 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/session';
+import { cookies } from 'next/headers';
+
+const SESSION_COOKIE = 'cg.sid.v2';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { productCode: string } }
+  { params }: { params: Promise<{ productCode: string }> }
 ) {
   try {
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json({ ok: false, message: 'Unauthorized' }, { status: 401 });
+    // SAVE-01: cg.sid.v2 쿠키 기반 인증 (메인 PUT과 동일한 방식)
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
+    if (!sid) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { role: true, phone: true },
+    const session = await prisma.session.findUnique({
+      where: { id: sid },
+      include: { User: { select: { role: true } } },
     });
-
-    // user1~user10 또는 01024958013만 수정 가능
-    const isAdminUser = dbUser?.role === 'admin' && dbUser.phone && /^user(1[0]|[1-9])$/.test(dbUser.phone);
-    const isSuperAdmin = dbUser?.role === 'admin' && dbUser.phone === '01024958013';
-
-    if (!isAdminUser && !isSuperAdmin) {
-      return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
+    if (session?.User.role !== 'admin') {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { productCode } = params;
+    // SAVE-02: Next.js 15 async params
+    const { productCode } = await params;
     const { layout } = await req.json();
 
     if (!layout) {
@@ -51,7 +51,7 @@ export async function PUT(
         : existingContent.layout;
       mergedLayout = {
         ...existingLayout,
-        ...layout, // 새로운 layout 데이터로 덮어쓰기
+        ...layout,
       };
     }
 
@@ -66,6 +66,7 @@ export async function PUT(
         productCode,
         layout: mergedLayout,
         isActive: true,
+        updatedAt: new Date(), // SAVE-03: create 시 updatedAt 명시
       },
     });
 
