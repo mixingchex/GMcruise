@@ -441,18 +441,21 @@ export async function POST(req: NextRequest) {
         // 기존 User 찾기
         let existingUser = await prisma.user.findFirst({
           where: { phone: normalizedPhone },
-          select: { id: true },
+          select: { id: true, customerStatus: true },
         });
 
         if (existingUser) {
           userId = existingUser.id;
-          // 이름 업데이트 (있는 경우)
-          if (customerName) {
-            await prisma.user.update({
-              where: { id: userId },
-              data: { name: customerName.trim() },
-            });
-          }
+          // C-A: 이름 업데이트 + customerStatus 재구매 시 active 보장 (package는 유지)
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              ...(customerName ? { name: customerName.trim() } : {}),
+              ...(existingUser.customerStatus !== 'package'
+                ? { customerStatus: 'active' }
+                : {}),
+            },
+          });
         } else {
           // 새 User 생성
           const newUser = await prisma.user.create({
@@ -583,6 +586,11 @@ export async function POST(req: NextRequest) {
             orderBy: { effectiveFrom: 'desc' },
           });
           resolvedStartDate = affProductForDate?.effectiveFrom ?? new Date();
+          if (!affProductForDate?.effectiveFrom) {
+            warn('[Payment Webhook] ⚠️ 상품 출발일 미설정 - 현재 날짜 사용 (CruiseProduct.startDate 또는 AffiliateProduct.effectiveFrom 설정 필요):', {
+              productCode,
+            });
+          }
         }
         const startDate = resolvedStartDate;
         const endDate = new Date(startDate);

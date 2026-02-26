@@ -46,16 +46,20 @@ export default function OnboardingPage() {
   const [onboardError, setOnboardError] = useState(false);
   const [onboardSaving, setOnboardSaving] = useState(false);
   useEffect(() => {
-    initOnboarding();
+    const controller = new AbortController();
+    initOnboarding(controller.signal);
+    return () => controller.abort();
   }, []);
 
-  const initOnboarding = async () => {
+  const initOnboarding = async (signal: AbortSignal) => {
     try {
       const [meRes, tripRes, portRes] = await Promise.all([
-        fetch('/api/auth/me', { credentials: 'include' }),
-        fetch('/api/trips/active', { credentials: 'include' }),
-        fetch('/api/itinerary/current', { credentials: 'include' }),
+        fetch('/api/auth/me', { credentials: 'include', signal }),
+        fetch('/api/trips/active', { credentials: 'include', signal }),
+        fetch('/api/itinerary/current', { credentials: 'include', signal }),
       ]);
+
+      if (signal.aborted) return;
 
       if (meRes.status === 401) { router.replace('/login'); return; }
 
@@ -90,10 +94,12 @@ export default function OnboardingPage() {
         }
         if (portData.isCruising) setIsCruising(true);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && (err as DOMException).name === 'AbortError') return;
       router.replace('/login');
       return;
     }
+    if (signal.aborted) return;
     setLoading(false);
   };
 
