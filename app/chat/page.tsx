@@ -3,9 +3,13 @@ import ChatInteractiveUI from './components/ChatInteractiveUI'; // 기존 컴포
 import TopBar from "./components/TopBar";
 import TripInfoBanner from '@/components/TripInfoBanner'; // TripInfoBanner 임포트
 import { checkTestMode, getCorrectPath } from '@/lib/test-mode';
+import { getSessionUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export default async function ChatPage() {
+  const user = await getSessionUser();
+  if (!user) redirect('/login');
+
   // 경로 보호: 테스트 모드 사용자는 /chat-test로 리다이렉트
   const testModeInfo = await checkTestMode();
   const correctPath = getCorrectPath('/chat', testModeInfo);
@@ -13,6 +17,8 @@ export default async function ChatPage() {
   if (correctPath !== '/chat') {
     redirect(correctPath);
   }
+
+  if (!user.onboarded) redirect('/onboarding');
 
   // 기존 크루즈 가이드 지니 AI (3800 로그인 사용자용)
   return (

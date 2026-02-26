@@ -43,6 +43,8 @@ export default function OnboardingPage() {
   const [hasTrip, setHasTrip] = useState(false);
   const [isCruising, setIsCruising] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [onboardError, setOnboardError] = useState(false);
+  const [onboardSaving, setOnboardSaving] = useState(false);
   useEffect(() => {
     initOnboarding();
   }, []);
@@ -62,14 +64,6 @@ export default function OnboardingPage() {
 
       // 이미 온보딩 완료된 유저는 채팅으로
       if (meData.user.onboarded) { router.replace('/chat'); return; }
-
-      // 온보딩 상태 자동 저장 (구매자는 자동으로 온보딩 완료 처리)
-      fetch('/api/auth/onboard', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({}),
-      }).catch(() => { /* 무시 */ });
 
       setUserName(meData.user.name);
 
@@ -104,18 +98,29 @@ export default function OnboardingPage() {
   };
 
   const handleComplete = async () => {
-    // onboard API가 fire-and-forget으로 실패했을 경우를 대비해 재시도
+    setOnboardSaving(true);
+    setOnboardError(false);
     try {
-      await fetch('/api/auth/onboard', {
+      const res = await fetch('/api/auth/onboard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({}),
       });
+      if (res.status === 401) {
+        router.replace('/login');
+        return;
+      }
+      if (!res.ok) {
+        setOnboardError(true);
+        setOnboardSaving(false);
+        return;
+      }
+      router.replace('/chat');
     } catch {
-      // 실패해도 채팅으로 이동 (다음 방문 시 재시도)
+      setOnboardError(true);
+      setOnboardSaving(false);
     }
-    router.replace('/chat');
   };
 
   if (loading) {
@@ -214,14 +219,21 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {onboardError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl p-3 text-center">
+            연결에 실패했습니다. 잠시 후 다시 시도해주세요.
+          </div>
+        )}
         <button
           onClick={handleComplete}
+          disabled={onboardSaving}
           className="w-full bg-[#FDB931] hover:bg-[#FDB931]/90 active:bg-[#FDB931]/80
                      text-[#051C2C] font-extrabold py-4 px-6 rounded-2xl shadow-xl
-                     transition-all duration-200 text-lg flex items-center justify-center gap-2"
+                     transition-all duration-200 text-lg flex items-center justify-center gap-2
+                     disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <FiMessageCircle size={22} />
-          <span>크루즈닷AI 가이드 시작하기</span>
+          <span>{onboardSaving ? '연결 중...' : '크루즈닷AI 가이드 시작하기'}</span>
         </button>
       </div>
     </div>
