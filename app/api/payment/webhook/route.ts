@@ -446,16 +446,13 @@ export async function POST(req: NextRequest) {
 
         if (existingUser) {
           userId = existingUser.id;
-          // C-A: 이름 업데이트 + customerStatus 재구매 시 active 보장 (package는 유지)
-          await prisma.user.update({
-            where: { id: userId },
-            data: {
-              ...(customerName ? { name: customerName.trim() } : {}),
-              ...(existingUser.customerStatus !== 'package'
-                ? { customerStatus: 'active' }
-                : {}),
-            },
-          });
+          // C-A: customerStatus만 업데이트 (이름 변경 금지 - 기존 유저 정보 보호)
+          if (existingUser.customerStatus !== 'package') {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { customerStatus: 'active' },
+            });
+          }
         } else {
           // 새 User 생성
           const newUser = await prisma.user.create({
@@ -596,23 +593,19 @@ export async function POST(req: NextRequest) {
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + (guideProduct?.days || 7));
 
-        // C-C: UserTrip 중복 체크 (동시 결제/재결제 시 중복 생성 방지)
-        const existingUserTrip = await prisma.userTrip.findFirst({
-          where: {
-            userId,
-            ...(guideProduct?.id ? { productId: guideProduct.id } : {}),
-            status: { not: 'Cancelled' },
-          },
-          select: { id: true },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        let userTripId: number;
-        if (existingUserTrip) {
-          userTripId = existingUserTrip.id;
-          log('[Payment Webhook] ✅ 기존 UserTrip 재사용:', { userTripId, userId, productCode });
-        } else {
-          const userTrip = await prisma.userTrip.create({
+        // CRITICAL-SEC-002: UserTrip $transaction (race condition 방지 — 동시 결제 시 중복 생성 방지)
+        const tripResult = await prisma.$transaction(async (tx) => {
+          const existing = await tx.userTrip.findFirst({
+            where: {
+              userId,
+              ...(guideProduct?.id ? { productId: guideProduct.id } : {}),
+              status: { not: 'Cancelled' },
+            },
+            select: { id: true },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (existing) return { id: existing.id, isNew: false };
+          const created = await tx.userTrip.create({
             data: {
               userId,
               productId: guideProduct?.id || null,
@@ -626,24 +619,38 @@ export async function POST(req: NextRequest) {
               updatedAt: new Date(),
             },
           });
-          userTripId = userTrip.id;
+          return { id: created.id, isNew: true };
+        });
+        const userTripId = tripResult.id;
+        if (tripResult.isNew) {
           log('[Payment Webhook] ✅ UserTrip 자동 생성 완료:', { userTripId, userId, productCode });
+        } else {
+          log('[Payment Webhook] ✅ 기존 UserTrip 재사용:', { userTripId, userId, productCode });
         }
 
-        // 5-C. itineraryPattern에서 Itinerary 레코드 자동 생성 (신규 UserTrip인 경우에만)
-        if (existingUserTrip) {
-          log('[Payment Webhook] 기존 UserTrip 재사용 - Itinerary 생성 스킵:', { userTripId });
+        // 5-C. Itinerary 자동 생성 (신규 UserTrip 또는 기존 UserTrip에 Itinerary가 없는 경우)
+        const pattern = guideProduct?.itineraryPattern;
+        if (!guideProduct) {
+          warn('[Payment Webhook] ⚠️ CruiseProduct 없음 - Itinerary 생성 스킵:', { productCode });
+        } else if (!Array.isArray(pattern) || pattern.length === 0) {
+          warn('[Payment Webhook] ⚠️ itineraryPattern 비어있음 - Itinerary 생성 스킵:', {
+            productCode,
+            guideProductId: guideProduct.id,
+          });
         } else {
-          const pattern = guideProduct?.itineraryPattern;
-          if (!guideProduct) {
-            warn('[Payment Webhook] ⚠️ CruiseProduct 없음 - Itinerary 생성 스킵:', { productCode });
-          } else if (!Array.isArray(pattern) || pattern.length === 0) {
-            warn('[Payment Webhook] ⚠️ itineraryPattern 비어있음 - Itinerary 생성 스킵:', {
-              productCode,
-              guideProductId: guideProduct.id,
-            });
+          // HIGH FIX: 기존 UserTrip 재사용 시 Itinerary가 이미 있으면 스킵 (없으면 생성)
+          let skipItinerary = false;
+          if (!tripResult.isNew) {
+            const existingCount = await prisma.itinerary.count({ where: { userTripId } });
+            if (existingCount > 0) {
+              log('[Payment Webhook] 기존 UserTrip - Itinerary 이미 존재, 생성 스킵:', { userTripId, existingCount });
+              skipItinerary = true;
+            } else {
+              log('[Payment Webhook] 기존 UserTrip - Itinerary 없음, 새로 생성:', { userTripId });
+            }
           }
-          if (guideProduct && Array.isArray(pattern) && pattern.length > 0) {
+
+          if (!skipItinerary) {
             const itineraryData = (pattern as Array<Record<string, unknown>>).map((p, idx) => {
               const date = new Date(startDate);
               date.setDate(date.getDate() + idx);
@@ -660,13 +667,8 @@ export async function POST(req: NextRequest) {
                 updatedAt: new Date(),
               };
             });
-
             await prisma.itinerary.createMany({ data: itineraryData });
-
-            log('[Payment Webhook] ✅ Itinerary 자동 생성 완료:', {
-              count: itineraryData.length,
-              userTripId,
-            });
+            log('[Payment Webhook] ✅ Itinerary 자동 생성 완료:', { count: itineraryData.length, userTripId });
           }
         }
       } catch (utErr) {
