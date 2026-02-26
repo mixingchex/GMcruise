@@ -743,7 +743,7 @@ export default function NewProductPage() {
           source: payload.source,
           category: payload.category,
           tags: selectedTags,
-          recommendedKeywords: recommendedKeywords, // 추천 키워드 추가
+          recommendedKeywords: recommendedKeywords,
           isPopular: payload.isPopular,
           isRecommended: payload.isRecommended,
           isPremium: payload.isPremium,
@@ -751,12 +751,34 @@ export default function NewProductPage() {
           isDomestic: payload.isDomestic,
           isJapan: payload.isJapan,
           isBudget: payload.isBudget,
-          saleStatus: '판매중', // 수동 등록 상품은 항상 판매중으로 설정
-          itineraryPattern: [],
+          saleStatus: '판매중',
+          itineraryPattern: (payload.itineraryDays || []).map((day: any) => ({
+            day: day.day,
+            type: (!day.arrivalLocation || day.arrivalLocation === '해상') ? 'sea' : 'PortVisit',
+            location: day.arrivalLocation || null,
+            country: day.arrivalCountry || null,
+            arrival: day.portArrivalTime || null,
+            departure: day.portDepartureTime || null,
+          })),
           startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
           endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
-          destination: selectedCountries.map(c => c.value), // 방문 국가 배열
-          contactOptions: contactOptions, // 8번: 문의 옵션 추가
+          destination: selectedCountries.map(c => c.value),
+          flightInfo: payload.flightInfo,
+          thumbnail: payload.thumbnail,
+          detailBlocks: payload.detailBlocks,
+          includedItems: payload.includedItems,
+          excludedItems: payload.excludedItems,
+          itineraryDays: payload.itineraryDays,
+          pricingRows: payload.pricingRows,
+          departureDate: payload.departureDate,
+          refundPolicy: payload.refundPolicy,
+          rating: payload.rating,
+          reviewCount: payload.reviewCount,
+          hasEscort: payload.hasEscort,
+          hasLocalGuide: payload.hasLocalGuide,
+          hasCruisedotStaff: payload.hasCruisedotStaff,
+          hasTravelInsurance: payload.hasTravelInsurance,
+          contactOptions: contactOptions,
         })
       });
 
