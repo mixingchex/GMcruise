@@ -89,8 +89,20 @@ export default function FlightInfoEditor({
         type: '직항',
       },
       aircraftType: '',
+      flightType: 'roundtrip',
+      cruiseEmbarkPort: '',
+      cruiseDisembarkPort: '',
+      selfArrangeNote: '',
     }
   );
+
+  // 외부 flightInfo prop이 변경될 때 localFlightInfo 동기화 (서버에서 로드 후 반영)
+  useEffect(() => {
+    if (flightInfo !== null && flightInfo !== undefined) {
+      setLocalFlightInfo({ ...flightInfo });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flightInfo]);
 
   // startDate, endDate, nights, days 변경 시 travelPeriod 자동 업데이트
   useEffect(() => {

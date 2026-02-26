@@ -34,6 +34,31 @@ const LANGUAGE_MAP: Record<string, { code: string; name: string; flag: string }>
   Russia: { code: 'ru-RU', name: '러시아어', flag: '🇷🇺' },
   US: { code: 'en-US', name: '영어', flag: '🇺🇸' },
   USA: { code: 'en-US', name: '영어', flag: '🇺🇸' },
+  // ISO 코드 기반 (itinerary.country가 ISO 코드로 저장되는 경우 대응)
+  GR: { code: 'el-GR', name: '그리스어', flag: '🇬🇷' },
+  HR: { code: 'hr-HR', name: '크로아티아어', flag: '🇭🇷' },
+  TR: { code: 'tr-TR', name: '튀르키예어', flag: '🇹🇷' },
+  NO: { code: 'nb-NO', name: '노르웨이어', flag: '🇳🇴' },
+  PT: { code: 'pt-PT', name: '포르투갈어', flag: '🇵🇹' },
+  ME: { code: 'sr-ME', name: '몬테네그로어', flag: '🇲🇪' },
+  AL: { code: 'sq-AL', name: '알바니아어', flag: '🇦🇱' },
+  IT: { code: 'it-IT', name: '이탈리아어', flag: '🇮🇹' },
+  ES: { code: 'es-ES', name: '스페인어', flag: '🇪🇸' },
+  FR: { code: 'fr-FR', name: '프랑스어', flag: '🇫🇷' },
+  JP: { code: 'ja-JP', name: '일본어', flag: '🇯🇵' },
+  CN: { code: 'zh-CN', name: '중국어', flag: '🇨🇳' },
+  HK: { code: 'zh-HK', name: '광둥어', flag: '🇭🇰' },
+  TH: { code: 'th-TH', name: '태국어', flag: '🇹🇭' },
+  VN: { code: 'vi-VN', name: '베트남어', flag: '🇻🇳' },
+  MY: { code: 'ms-MY', name: '말레이어', flag: '🇲🇾' },
+  // 한국어 이름 기반 (기존 미포함 국가만)
+  그리스: { code: 'el-GR', name: '그리스어', flag: '🇬🇷' },
+  크로아티아: { code: 'hr-HR', name: '크로아티아어', flag: '🇭🇷' },
+  튀르키예: { code: 'tr-TR', name: '튀르키예어', flag: '🇹🇷' },
+  노르웨이: { code: 'nb-NO', name: '노르웨이어', flag: '🇳🇴' },
+  포르투갈: { code: 'pt-PT', name: '포르투갈어', flag: '🇵🇹' },
+  몬테네그로: { code: 'sr-ME', name: '몬테네그로어', flag: '🇲🇪' },
+  알바니아: { code: 'sq-AL', name: '알바니아어', flag: '🇦🇱' },
 };
 
 const DEFAULT_LANG = { code: 'en-US', name: '영어', flag: '🇺🇸' };
