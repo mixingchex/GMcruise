@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { randomBytes } from 'crypto';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 // 관리자 권한 확인
 function requireAdmin(role?: string | null) {
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
 
     // 파트너 아이디 생성
     const partnerId = await generatePartnerId(partnerType);
+    const hashedPw = await hashPassword(SYSTEM_PASSWORDS.TRIAL);
 
     let user;
     let profile;
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
             phone: partnerId, // phone 필드를 파트너 ID로 사용
             email: email || null,
             mallUserId: partnerId,
-            password: '1101', // 관리자가 관리하는 기본 비밀번호
+            password: hashedPw,
             role: 'community',
           },
         });

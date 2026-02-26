@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 // 관리자 권한 확인
 async function checkAdminAuth() {
@@ -139,6 +140,8 @@ export async function DELETE(
       );
     }
 
+    const hashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
+
     // 비밀번호 이벤트 기록
     await prisma.passwordEvent.create({
       data: {
@@ -156,7 +159,7 @@ export async function DELETE(
         isLocked: false,
         lockedAt: null,
         lockedReason: null,
-        password: '3800', // 잠금 해제 시 비밀번호를 3800으로 변경하여 로그인 가능하게 함
+        password: hashedPw, // 잠금 해제 시 비밀번호를 3800으로 변경하여 로그인 가능하게 함
         customerStatus: 'active', // 고객 상태를 'active'로 변경
       },
     });

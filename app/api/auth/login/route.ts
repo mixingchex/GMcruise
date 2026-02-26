@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';                // ✅ default import (중요)
 import { cookies, headers } from 'next/headers';
 import { randomBytes } from 'crypto';
 import { generateCsrfToken } from '@/lib/csrf';
+import { hashPassword, verifyPassword, isBcryptHash, SYSTEM_PASSWORDS, PARTNER_DEFAULT_PASSWORDS } from '@/lib/password';
 import { checkRateLimit, RateLimitPolicies } from '@/lib/rate-limiter';
 import { getClientIpFromRequest } from '@/lib/ip-utils';
 import { authLogger, securityLogger, logger } from '@/lib/logger';
@@ -116,7 +117,7 @@ export async function POST(req: Request) {
             data: {
               mallUserId: newMallUserId,
               phone: newMallUserId,
-              password: password,
+              password: await hashPassword(password),
               name: isGest ? '정액제 판매원' : (isBoss ? '대리점장' : '판매원'),
               role: 'user',
               loginCount: 1,
@@ -179,26 +180,24 @@ export async function POST(req: Request) {
       const storedPassword = affiliateUser.password ?? '';
       let isPasswordValid = false;
 
-      // 파트너 기본 비밀번호 우선 체크 (1101, qwe1, zxc1)
-      // 파트너 로그인일 때는 기본 비밀번호를 무조건 허용
-      if (password === '1101' || password === 'qwe1' || password === 'zxc1') {
-        // 파트너 기본 비밀번호는 무조건 허용
+      // 파트너 기본 비밀번호 우선 체크 (1101, qwe1, zxc1) - 무조건 허용 (시스템 공유 비밀번호)
+      if ((PARTNER_DEFAULT_PASSWORDS as readonly string[]).includes(password)) {
         isPasswordValid = true;
-        console.log('[Partner Login] 파트너 기본 비밀번호 허용:', { phone: identifier, password });
       } else {
-        // 일반 비밀번호 검증
-        if (storedPassword.startsWith('$2')) {
+        // 일반 비밀번호 검증 (bcrypt Lazy Migration 지원)
+        const result = await verifyPassword(password, storedPassword);
+        isPasswordValid = result.valid;
+
+        // 평문 매칭 → 즉시 재해시 (Lazy Migration)
+        if (result.valid && result.needsRehash) {
           try {
-            const bcrypt = await import('bcryptjs');
-            isPasswordValid = await bcrypt.default.compare(password, storedPassword);
-            console.log('[Partner Login] bcrypt 비교 결과:', { phone: identifier, isValid: isPasswordValid });
-          } catch (compareError) {
-            console.warn('[Partner Login] bcrypt 비교 중 오류:', compareError);
-            isPasswordValid = false;
+            await prisma.user.update({
+              where: { id: affiliateUser.id },
+              data: { password: await hashPassword(password) },
+            });
+          } catch {
+            // 재해시 실패는 치명적이지 않음 - 다음 로그인 시 재시도
           }
-        } else if (storedPassword.length > 0) {
-          isPasswordValid = storedPassword === password;
-          console.log('[Partner Login] 평문 비밀번호 비교 결과:', { phone: identifier, isValid: isPasswordValid });
         }
       }
 
@@ -1701,7 +1700,7 @@ export async function POST(req: Request) {
             data: {
               name,
               phone: normalizedPhone, // 정규화된 전화번호 사용
-              password: '3800',
+              password: await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE),
               onboarded: false, // 온보딩 없이 채팅창에 들어갈 수 있도록 false로 설정
               loginCount: 1,
               role: 'user',
@@ -1737,27 +1736,25 @@ export async function POST(req: Request) {
           customerSource: userSource,
         });
 
-        // 크루즈가이드AI에서 3800으로 로그인하는 경우
-        // customerSource가 무엇이든 상관없이 이름과 전화번호가 일치하면 로그인 허용
-        // 단, 둘 다 이미 올바른 상태가 아닐 때만 업데이트 (웹훅 생성 유저 보호)
-        if (activeUser.password !== '3800' && userSource !== 'cruise-guide') {
-          console.log('[Login] 3800 비밀번호 및 customerSource 자동 업데이트:', {
-            userId: activeUser.id,
-            oldPassword: activeUser.password ? '***' : 'null',
-            oldCustomerSource: userSource,
-            newCustomerSource: 'cruise-guide',
-          });
-          // 비밀번호를 3800으로 업데이트하고 customerSource를 'cruise-guide'로 설정
+        // Lazy Migration: 평문 '3800'이 저장된 경우 bcrypt 해시로 업그레이드
+        // customerSource는 비어있을 때만 설정 (guide-purchase 보호)
+        const needsPasswordUpgrade = !isBcryptHash(activeUser.password || '');
+        const needsSourceUpdate = !userSource;
+
+        if (needsPasswordUpgrade || needsSourceUpdate) {
+          const upgradeData: Record<string, unknown> = {};
+          if (needsPasswordUpgrade) {
+            upgradeData.password = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
+          }
+          if (needsSourceUpdate) {
+            upgradeData.customerSource = 'cruise-guide';
+          }
           await prisma.user.update({
             where: { id: activeUser.id },
-            data: {
-              password: '3800',
-              customerSource: 'cruise-guide', // 크루즈 가이드 지니 AI로 전환
-            },
+            data: upgradeData,
           });
-          // 업데이트 후 activeUser 객체도 업데이트
-          activeUser.password = '3800';
-          activeUser.customerSource = 'cruise-guide';
+          if (needsPasswordUpgrade) activeUser.password = upgradeData.password as string;
+          if (needsSourceUpdate) activeUser.customerSource = 'cruise-guide';
         }
       }
 
@@ -2192,15 +2189,12 @@ export async function POST(req: Request) {
       });
     }
 
-    // 1) 기존 고객: 이름, 전화번호, 비밀번호, role(user) 4가지를 모두 확인
-    // 같은 전화번호로 여러 계정이 있어도 정확히 매칭되는 계정만 반환됨
-    // 비밀번호가 1101(테스트 모드), 3800이 아닌 경우에만 일반 로그인 처리
-    // (user1~user10은 위에서 이미 처리됨)
+    // 1) 기존 고객: 이름, 전화번호, role(user) 로 후보 조회 후 애플리케이션 레벨 비밀번호 검증
+    // (bcrypt 도입으로 Prisma where에 password를 포함할 수 없음)
     const existing = await prisma.user.findFirst({
       where: {
         phone,        // ✅ 전화번호 확인
         name,         // ✅ 이름 확인
-        password,     // ✅ 비밀번호 확인
         role: 'user', // ✅ 일반 사용자 확인 (admin 제외)
       },
       select: {
@@ -2214,36 +2208,46 @@ export async function POST(req: Request) {
       },
     });
 
-    // 이름, 전화번호, 비밀번호가 일치하지만 role이 admin인 경우
-    // (관리자 계정이 일반 로그인으로 접근하려는 경우)
+    // 관리자 계정 확인 (비밀번호 검증 전에 먼저 체크)
     if (!existing) {
-      // 관리자 계정인지 확인
       const adminCheck = await prisma.user.findFirst({
-        where: {
-          phone,
-          name,
-          password,
-          role: 'admin',
-        },
+        where: { phone, name, role: 'admin' },
+        select: { id: true, password: true },
       });
 
       if (adminCheck) {
-        console.log('[LOGIN] 관리자 계정으로 일반 사용자 로그인 시도:', { phone, name, userId: adminCheck.id });
-        return NextResponse.json({
-          ok: false,
-          error: '관리자 계정입니다. 관리자 로그인 페이지를 이용해주세요.'
-        }, { status: 403 });
+        const adminResult = await verifyPassword(password, adminCheck.password || '');
+        if (adminResult.valid) {
+          console.log('[LOGIN] 관리자 계정으로 일반 사용자 로그인 시도:', { phone, name, userId: adminCheck.id });
+          return NextResponse.json({
+            ok: false,
+            error: '관리자 계정입니다. 관리자 로그인 페이지를 이용해주세요.'
+          }, { status: 403 });
+        }
       }
     }
 
     let userId: number;
-    // 비밀번호 3800 = 크루즈 가이드 지니 (일반) → /chat으로 리다이렉트
-    // 비밀번호 1101 = 크루즈 가이드 지니 3일 체험 → /chat-test로 리다이렉트 (위에서 이미 처리됨)
     let next = '/chat';
 
     if (existing) {
-      // 기존 고객: 이미 4가지 조건(name, phone, password, role='user')을 모두 만족하는 계정
-      // 비밀번호는 where 조건에서 이미 확인했으므로 추가 검증 불필요
+      // 기존 고객: 비밀번호 애플리케이션 레벨 검증 (bcrypt Lazy Migration 지원)
+      const pwResult = await verifyPassword(password, existing.password || '');
+      if (!pwResult.valid) {
+        return NextResponse.json({ ok: false, error: '이름, 전화번호, 비밀번호를 확인해주세요.' }, { status: 401 });
+      }
+
+      // 평문 매칭 → 즉시 재해시 (Lazy Migration)
+      if (pwResult.needsRehash) {
+        try {
+          await prisma.user.update({
+            where: { id: existing.id },
+            data: { password: await hashPassword(password) },
+          });
+        } catch {
+          // 재해시 실패는 치명적이지 않음
+        }
+      }
 
       // @ts-ignore
       userId = existing.id as unknown as number;
@@ -2275,7 +2279,7 @@ export async function POST(req: Request) {
         data: {
           phone,
           name: name ?? null,
-          password,        // 3800 등 내부 정책값. 클라이언트에 표시 X
+          password: await hashPassword(password), // bcrypt 해시로 저장
           onboarded: false,
           loginCount: 1,   // 첫 로그인
           role: 'user',    // 명시적으로 user role 설정

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { hashPassword, isBcryptHash, SYSTEM_PASSWORDS } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -66,7 +67,8 @@ export async function POST(req: Request) {
     }
 
     // 비밀번호 이벤트 기록
-    if (user.password !== '3800') {
+    const needsUpgrade = !isBcryptHash(user.password || '');
+    if (needsUpgrade) {
       await prisma.passwordEvent.create({
         data: {
           userId: user.id,
@@ -77,11 +79,13 @@ export async function POST(req: Request) {
       });
     }
 
+    const hashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
+
     // 사용자 업데이트
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: '3800',
+        password: hashedPw,
         tripCount: { increment: 1 },
         currentTripEndDate: new Date(endDate),
         onboarded: false, // 새 여행이므로 온보딩 다시

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionUser } from '@/lib/auth';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 // 관리자 권한 확인
 async function checkAdminAuth() {
@@ -44,7 +45,8 @@ export async function POST(
     }
 
     const { newPassword } = await req.json();
-    const password = newPassword || '3800'; // 기본값 3800
+    const rawPassword = newPassword || SYSTEM_PASSWORDS.GUIDE_ACTIVE;
+    const hashedPw = await hashPassword(rawPassword);
 
     // 사용자 조회
     const user = await prisma.user.findUnique({
@@ -59,12 +61,12 @@ export async function POST(
       );
     }
 
-    // 비밀번호 이벤트 기록
+    // 비밀번호 이벤트 기록 (human-readable 값 유지)
     await prisma.passwordEvent.create({
       data: {
         userId: user.id,
         from: user.password,
-        to: password,
+        to: rawPassword,
         reason: `관리자 비밀번호 초기화 (관리자 ID: ${admin.id})`,
       },
     });
@@ -72,12 +74,12 @@ export async function POST(
     // 비밀번호 업데이트
     await prisma.user.update({
       where: { id: userId },
-      data: { password },
+      data: { password: hashedPw },
     });
 
     return NextResponse.json({
       ok: true,
-      message: `비밀번호가 ${password}로 초기화되었습니다.`,
+      message: `비밀번호가 ${rawPassword}로 초기화되었습니다.`,
     });
   } catch (error) {
     console.error('[Admin Reset Password] Error:', error);

@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';
 import { updateContractStatus } from '@/lib/affiliate/contract';
 import { profileInclude } from '@/app/api/admin/affiliate/profiles/shared';
 import { randomBytes } from 'crypto';
+import { hashPassword, isBcryptHash, SYSTEM_PASSWORDS } from '@/lib/password';
 
 function requireAdmin(role?: string | null) {
   if (role !== 'admin') {
@@ -205,12 +206,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
         expiresAt.setDate(expiresAt.getDate() + 60); // 60일 후
         const expiresAtStr = expiresAt.toISOString().split('T')[0]; // YYYY-MM-DD 형식
 
+        const newUserTrialHashedPw = await hashPassword(SYSTEM_PASSWORDS.TRIAL);
         const newUser = await prisma.user.create({
           data: {
             name: contract.name,
             phone: partnerId, // phone 필드에 user1, user2... 저장
             email: contract.email || undefined,
-            password: '1101', // 비밀번호 1101로 고정
+            password: newUserTrialHashedPw,
             role: 'community',
             customerSource: 'affiliate-contract-approval',
             customerStatus: 'pending',
@@ -258,9 +260,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
     if (userRecord.role !== 'community') {
       updateData.role = 'community';
     }
-    // 비밀번호가 1101이 아니면 1101로 설정
-    if (userRecord.password !== '1101') {
-      updateData.password = '1101';
+    // 비밀번호가 bcrypt 해시가 아니면 해시로 설정
+    if (!isBcryptHash(userRecord.password || '')) {
+      const trialHashedPw = await hashPassword(SYSTEM_PASSWORDS.TRIAL);
+      updateData.password = trialHashedPw;
       // 비밀번호 변경 이벤트 기록 (실패해도 계속 진행)
       try {
         await prisma.passwordEvent.create({

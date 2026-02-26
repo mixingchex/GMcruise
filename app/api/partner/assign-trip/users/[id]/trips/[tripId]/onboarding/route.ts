@@ -9,6 +9,7 @@ import {
 import { syncApisSpreadsheet } from '@/lib/google-sheets';
 import { getManagedUserIds } from '../../../../../_utils';
 import { logger } from '@/lib/logger';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 export async function POST(
   req: NextRequest,
@@ -245,7 +246,7 @@ export async function POST(
       updateData.totalTripCount = { increment: 1 };
     }
 
-    updateData.password = '3800';
+    updateData.password = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
 
     await prisma.user.update({
       where: { id: userId },

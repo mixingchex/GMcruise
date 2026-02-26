@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -133,6 +134,8 @@ export async function DELETE(
       return NextResponse.json({ ok: false, error: 'Account is not locked' }, { status: 400 });
     }
 
+    const hashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
+
     // 비밀번호 이벤트 기록
     await prisma.passwordEvent.create({
       data: {
@@ -149,7 +152,7 @@ export async function DELETE(
         isLocked: false,
         lockedAt: null,
         lockedReason: null,
-        password: '3800', // 잠금 해제 시 비밀번호를 3800으로 변경하여 로그인 가능하게 함
+        password: hashedPw, // 잠금 해제 시 비밀번호를 3800으로 변경하여 로그인 가능하게 함
         customerStatus: 'active', // 고객 상태를 'active'로 변경
       }
     });

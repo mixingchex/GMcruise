@@ -3,6 +3,7 @@ import { requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
 import { normalizePhone, isValidMobilePhone } from '@/lib/phone-utils';
 import { logger } from '@/lib/logger';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,11 +39,12 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date();
+    const hashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
     const user = await prisma.user.create({
       data: {
         name,
         phone: normalizedPhone,
-        password: '3800',
+        password: hashedPw,
         role: 'user',
         onboarded: false,
         loginCount: 0,

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 import {
   PartnerApiError,
   ensureValidLeadStatus,
@@ -879,12 +880,13 @@ export async function POST(req: NextRequest) {
       if (!userInfo) {
         console.log('[POST /api/partner/customers] Creating User for customer:', lead.customerPhone);
         try {
+          const trialHashedPw = await hashPassword(SYSTEM_PASSWORDS.TRIAL);
           const newUser = await prisma.user.create({
             data: {
               name: lead.customerName || null,
               phone: lead.customerPhone,
               email: null,
-              password: '1101', // 기본 비밀번호
+              password: trialHashedPw,
               role: 'user',
               customerSource: 'affiliate-manual',
               customerStatus: 'active',

@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 import { generateLedgerEntries, calculateCommissionBreakdown } from '@/lib/affiliate/commission';
 import { notifyCommissionTierMissing } from '@/lib/affiliate/admin-notifications';
 import { log, error, warn } from '@/lib/logger-wrapper';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 /**
  * POST: 결제 완료 웹훅
@@ -458,7 +459,7 @@ export async function POST(req: NextRequest) {
             data: {
               name: customerName?.trim() || '고객',
               phone: normalizedPhone,
-              password: '3800', // 크루즈가이드AI 초기 비밀번호
+              password: await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE),
               role: 'user',
               onboarded: false,
               customerSource: 'guide-purchase',
@@ -472,7 +473,7 @@ export async function POST(req: NextRequest) {
           data: {
             name: customerName?.trim() || '고객',
             phone: `temp_${Date.now()}`,
-            password: '0000',
+            password: await hashPassword(SYSTEM_PASSWORDS.TEMP),
             role: 'user',
             onboarded: false,
           },

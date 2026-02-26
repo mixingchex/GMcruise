@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 import { requireAdminUser } from '../_utils';
 import { logger } from '@/lib/logger';
 import { enqueueApisSync } from '@/lib/apis-sync-queue';
@@ -167,6 +168,7 @@ export async function POST(req: NextRequest) {
     const purchaserPhone = user.phone || '';
 
     // PassportSubmission 생성 및 Guest 등록
+    const guestHashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
     const result = await prisma.$transaction(async (tx) => {
       // 기존 미제출 submission이 있으면 삭제
       const existingSubmission = await tx.passportSubmission.findFirst({
@@ -264,7 +266,7 @@ export async function POST(req: NextRequest) {
                 data: {
                   name: guest.name,
                   phone: normalizedPhone,
-                  password: '3800',
+                  password: guestHashedPw,
                   role: 'user',
                   customerStatus: 'purchase_confirmed',
                   onboarded: false,

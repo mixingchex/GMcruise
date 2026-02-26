@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import * as XLSX from 'xlsx';
 import { scheduleAdminFunnelMessages } from '@/lib/funnel-scheduler';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
 
     // 엑셀 데이터 처리 (배치 처리로 성능 최적화 - N+1 쿼리 문제 해결)
     const batchSize = 100;
+    const hashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE); // 루프 외부에서 미리 계산
     
     // 1단계: 모든 행의 전화번호 정규화 및 유효성 검사
     const validRows: Array<{
@@ -222,7 +224,7 @@ export async function POST(req: NextRequest) {
           name: r.name,
           phone: r.phone,
           email: r.email,
-          password: '3800',
+          password: hashedPw,
           role: 'user' as const,
           customerStatus: 'active' as const,
           customerSource: 'group' as const, // 고객 그룹 관리에서 추가한 고객

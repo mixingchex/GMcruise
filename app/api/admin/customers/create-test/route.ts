@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -60,11 +61,12 @@ export async function POST(req: NextRequest) {
 
     // 테스트 고객 생성 (비밀번호 1101, customerStatus: 'test', testModeStartedAt: 현재 시간)
     const now = new Date();
+    const hashedPw = await hashPassword(SYSTEM_PASSWORDS.TRIAL);
     const user = await prisma.user.create({
       data: {
         name,
         phone,
-        password: '1101',
+        password: hashedPw,
         role: 'user',
         customerStatus: 'test',
         testModeStartedAt: now,

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { syncApisSpreadsheet } from '@/lib/google-sheets';
+import { hashPassword, isBcryptHash, SYSTEM_PASSWORDS } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -104,11 +105,12 @@ export async function POST(
 
       // 사용자가 없으면 생성
       if (!user) {
+        const newUserHashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
         user = await prisma.user.create({
           data: {
             name: inquiry.name,
             phone: inquiry.phone,
-            password: '3800',
+            password: newUserHashedPw,
             role: 'user',
             onboarded: false,
             tripCount: 0,
@@ -118,7 +120,7 @@ export async function POST(
     }
 
     // 비밀번호 이벤트 기록 (8300에서 3800으로 변경)
-    if (user.password !== '3800') {
+    if (!isBcryptHash(user.password || '')) {
       await prisma.passwordEvent.create({
         data: {
           userId: user.id,
@@ -129,11 +131,13 @@ export async function POST(
       });
     }
 
+    const confirmedHashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
+
     // 비밀번호를 3800으로 변경
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        password: '3800',
+        password: confirmedHashedPw,
         onboarded: false, // 새 여행이므로 온보딩 다시
         loginCount: 0,
       },

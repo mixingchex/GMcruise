@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { scheduleAdminFunnelMessages } from '@/lib/funnel-scheduler';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -82,12 +83,13 @@ export async function POST(req: NextRequest) {
     } else {
       // 새 고객 생성
       const now = new Date();
+      const hashedPw = await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE);
       const newUser = await prisma.user.create({
         data: {
           name: name.trim(),
           phone: normalizedPhone,
           email: email?.trim() || null,
-          password: '3800',
+          password: hashedPw,
           role: 'user',
           customerStatus: 'active',
           customerSource: 'group',
