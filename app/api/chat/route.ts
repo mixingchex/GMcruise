@@ -49,13 +49,14 @@ export async function POST(req: NextRequest) {
 
     // show 모드: 이미지 검색
     if (mode === 'show') {
-      const user = await getSessionUser().catch(() => null);
+      const user = await getSessionUser();
+      if (!user) {
+        return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
+      }
       let searchText = text;
-      if (user) {
-        const port = await getCurrentPort(user.id);
-        if (port?.location && !text.includes(port.location)) {
-          searchText = `${text} ${port.location}`;
-        }
+      const port = await getCurrentPort(user.id);
+      if (port?.location && !text.includes(port.location)) {
+        searchText = `${text} ${port.location}`;
       }
       const messages = await handleShowPhotos(searchText);
       return NextResponse.json({ ok: true, messages });
@@ -65,12 +66,12 @@ export async function POST(req: NextRequest) {
     if (mode === 'go') {
       let messages: ChatMessage[];
 
-      const user = await getSessionUser().catch(() => null);
-      let currentPortLocation: string | null = null;
-      if (user) {
-        const port = await getCurrentPort(user.id);
-        currentPortLocation = port?.location ?? null;
+      const user = await getSessionUser();
+      if (!user) {
+        return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
       }
+      const port = await getCurrentPort(user.id);
+      const currentPortLocation: string | null = port?.location ?? null;
 
       // 키워드 검색인지 확인 (맛집, 관광지, 카페 등)
       if (isKeywordSearch(text)) {

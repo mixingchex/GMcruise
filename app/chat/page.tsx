@@ -2,20 +2,19 @@
 import ChatInteractiveUI from './components/ChatInteractiveUI'; // 기존 컴포넌트
 import TopBar from "./components/TopBar";
 import TripInfoBanner from '@/components/TripInfoBanner'; // TripInfoBanner 임포트
-import { checkTestMode, getCorrectPath } from '@/lib/test-mode';
 import { getSessionUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import { checkTestMode, getCorrectPath } from '@/lib/test-mode';
 
 export default async function ChatPage() {
   const user = await getSessionUser();
   if (!user) redirect('/login');
 
-  // 경로 보호: 테스트 모드 사용자는 /chat-test로 리다이렉트
-  const testModeInfo = await checkTestMode();
-  const correctPath = getCorrectPath('/chat', testModeInfo);
-
-  if (correctPath !== '/chat') {
-    redirect(correctPath);
+  // 테스트 모드 사용자만 checkTestMode() 호출 (이중 DB 조회 방지)
+  if (user.customerStatus === 'test' || user.customerStatus === 'test-locked') {
+    const testModeInfo = await checkTestMode();
+    const correctPath = getCorrectPath('/chat', testModeInfo);
+    if (correctPath !== '/chat') redirect(correctPath);
   }
 
   if (!user.onboarded) redirect('/onboarding');

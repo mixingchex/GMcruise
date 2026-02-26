@@ -11,6 +11,7 @@ export type SessionUser = {
   phone: string | null;
   onboarded: boolean;
   role: string | null;
+  customerStatus: string | null;
 };
 
 export async function getSessionUser(): Promise<SessionUser | null> {
@@ -23,7 +24,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       where: { id: sid },
       select: {
         expiresAt: true,
-        User: { select: { id: true, name: true, phone: true, onboarded: true, role: true } }
+        User: { select: { id: true, name: true, phone: true, onboarded: true, role: true, customerStatus: true } }
       },
     });
 
@@ -36,7 +37,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     }
 
     const u = sess.User;
-    return { id: u.id, name: u.name, phone: u.phone, onboarded: !!u.onboarded, role: u.role };
+    return { id: u.id, name: u.name, phone: u.phone, onboarded: !!u.onboarded, role: u.role, customerStatus: u.customerStatus ?? null };
   } catch (error: any) {
     console.error('[getSessionUser] Error:', error);
     return null;

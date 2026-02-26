@@ -596,61 +596,78 @@ export async function POST(req: NextRequest) {
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + (guideProduct?.days || 7));
 
-        const userTrip = await prisma.userTrip.create({
-          data: {
+        // C-C: UserTrip 중복 체크 (동시 결제/재결제 시 중복 생성 방지)
+        const existingUserTrip = await prisma.userTrip.findFirst({
+          where: {
             userId,
-            productId: guideProduct?.id || null,
-            cruiseName: guideProduct?.packageName || guideProduct?.shipName || productCode,
-            destination: [],
-            startDate,
-            endDate,
-            nights: guideProduct?.nights || 0,
-            days: guideProduct?.days || 0,
-            status: 'Upcoming',
-            updatedAt: new Date(),
+            ...(guideProduct?.id ? { productId: guideProduct.id } : {}),
+            status: { not: 'Cancelled' },
           },
+          select: { id: true },
+          orderBy: { createdAt: 'desc' },
         });
 
-        log('[Payment Webhook] ✅ UserTrip 자동 생성 완료:', {
-          userTripId: userTrip.id,
-          userId,
-          productCode,
-        });
-
-        // 5-C. itineraryPattern에서 Itinerary 레코드 자동 생성
-        const pattern = guideProduct?.itineraryPattern;
-        if (!guideProduct) {
-          warn('[Payment Webhook] ⚠️ CruiseProduct 없음 - Itinerary 생성 스킵:', { productCode });
-        } else if (!Array.isArray(pattern) || pattern.length === 0) {
-          warn('[Payment Webhook] ⚠️ itineraryPattern 비어있음 - Itinerary 생성 스킵:', {
-            productCode,
-            guideProductId: guideProduct.id,
-          });
-        }
-        if (guideProduct && Array.isArray(pattern) && pattern.length > 0) {
-          const itineraryData = (pattern as Array<Record<string, unknown>>).map((p, idx) => {
-            const date = new Date(startDate);
-            date.setDate(date.getDate() + idx);
-            const isSea = !p.location || p.location === '해상' || p.type === 'sea';
-            return {
-              userTripId: userTrip.id,
-              day: typeof p.day === 'number' ? p.day : idx + 1,
-              date,
-              type: isSea ? 'sea' : (p.type as string) || 'PortVisit',
-              location: isSea ? null : (p.location as string) || null,
-              country: (p.country as string) || null,
-              arrival: (p.arrival as string) || null,
-              departure: (p.departure as string) || null,
+        let userTripId: number;
+        if (existingUserTrip) {
+          userTripId = existingUserTrip.id;
+          log('[Payment Webhook] ✅ 기존 UserTrip 재사용:', { userTripId, userId, productCode });
+        } else {
+          const userTrip = await prisma.userTrip.create({
+            data: {
+              userId,
+              productId: guideProduct?.id || null,
+              cruiseName: guideProduct?.packageName || guideProduct?.shipName || productCode,
+              destination: [],
+              startDate,
+              endDate,
+              nights: guideProduct?.nights || 0,
+              days: guideProduct?.days || 0,
+              status: 'Upcoming',
               updatedAt: new Date(),
-            };
+            },
           });
+          userTripId = userTrip.id;
+          log('[Payment Webhook] ✅ UserTrip 자동 생성 완료:', { userTripId, userId, productCode });
+        }
 
-          await prisma.itinerary.createMany({ data: itineraryData });
+        // 5-C. itineraryPattern에서 Itinerary 레코드 자동 생성 (신규 UserTrip인 경우에만)
+        if (existingUserTrip) {
+          log('[Payment Webhook] 기존 UserTrip 재사용 - Itinerary 생성 스킵:', { userTripId });
+        } else {
+          const pattern = guideProduct?.itineraryPattern;
+          if (!guideProduct) {
+            warn('[Payment Webhook] ⚠️ CruiseProduct 없음 - Itinerary 생성 스킵:', { productCode });
+          } else if (!Array.isArray(pattern) || pattern.length === 0) {
+            warn('[Payment Webhook] ⚠️ itineraryPattern 비어있음 - Itinerary 생성 스킵:', {
+              productCode,
+              guideProductId: guideProduct.id,
+            });
+          }
+          if (guideProduct && Array.isArray(pattern) && pattern.length > 0) {
+            const itineraryData = (pattern as Array<Record<string, unknown>>).map((p, idx) => {
+              const date = new Date(startDate);
+              date.setDate(date.getDate() + idx);
+              const isSea = !p.location || p.location === '해상' || p.type === 'sea';
+              return {
+                userTripId,
+                day: typeof p.day === 'number' ? p.day : idx + 1,
+                date,
+                type: isSea ? 'sea' : (p.type as string) || 'PortVisit',
+                location: isSea ? null : (p.location as string) || null,
+                country: (p.country as string) || null,
+                arrival: (p.arrival as string) || null,
+                departure: (p.departure as string) || null,
+                updatedAt: new Date(),
+              };
+            });
 
-          log('[Payment Webhook] ✅ Itinerary 자동 생성 완료:', {
-            count: itineraryData.length,
-            userTripId: userTrip.id,
-          });
+            await prisma.itinerary.createMany({ data: itineraryData });
+
+            log('[Payment Webhook] ✅ Itinerary 자동 생성 완료:', {
+              count: itineraryData.length,
+              userTripId,
+            });
+          }
         }
       } catch (utErr) {
         // UserTrip 생성 실패는 결제 취소 대상 아님 — 로그만 기록
