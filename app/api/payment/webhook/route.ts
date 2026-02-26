@@ -19,15 +19,14 @@ export async function POST(req: NextRequest) {
   // INTERNAL_WEBHOOK_SECRET이 설정되면 → 엄격한 검증 (권장)
   // 미설정이면 → 경고 후 통과 (하위호환, Vercel 환경변수 추가 시 자동 보안 강화)
   const webhookSecret = process.env.INTERNAL_WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const requestSecret = req.headers.get('x-internal-webhook-secret');
-    if (requestSecret !== webhookSecret) {
-      error('[Payment Webhook] Unauthorized request - invalid x-internal-webhook-secret');
-      return NextResponse.json({ ok: false, message: '인증되지 않은 요청입니다.' }, { status: 401 });
-    }
-  } else {
-    // TODO: Vercel에 INTERNAL_WEBHOOK_SECRET 환경변수 추가하면 자동으로 보안 모드로 전환
-    warn('[Payment Webhook] ⚠️ INTERNAL_WEBHOOK_SECRET 미설정 — 보안을 위해 Vercel 환경변수에 추가 권장');
+  if (!webhookSecret) {
+    error('[Payment Webhook] INTERNAL_WEBHOOK_SECRET 환경변수가 설정되지 않았습니다. 모든 요청 거부.');
+    return NextResponse.json({ ok: false, message: '서버 설정 오류' }, { status: 500 });
+  }
+  const requestSecret = req.headers.get('x-internal-webhook-secret');
+  if (requestSecret !== webhookSecret) {
+    error('[Payment Webhook] Unauthorized request - invalid x-internal-webhook-secret');
+    return NextResponse.json({ ok: false, message: '인증되지 않은 요청입니다.' }, { status: 401 });
   }
 
   try {
@@ -459,9 +458,10 @@ export async function POST(req: NextRequest) {
             data: {
               name: customerName?.trim() || '고객',
               phone: normalizedPhone,
-              password: normalizedPhone.slice(-4), // 전화번호 뒤 4자리
+              password: '3800', // 크루즈가이드AI 초기 비밀번호
               role: 'user',
               onboarded: false,
+              customerSource: 'guide-purchase',
             },
           });
           userId = newUser.id;

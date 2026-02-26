@@ -35,6 +35,7 @@ export async function GET() {
         email: true,
         phone: true,
         role: true,
+        onboarded: true,
         mallUserId: true,
         AffiliateProfile: {
           select: {
@@ -62,6 +63,7 @@ export async function GET() {
         phone: user.phone, // phone 필드 추가
         username: user.phone, // phone 필드에 username 저장 (하위 호환성)
         role: user.role,
+        onboarded: user.onboarded,
         mallUserId: user.mallUserId,
         affiliateProfile: user.AffiliateProfile ? {
           id: user.AffiliateProfile.id,

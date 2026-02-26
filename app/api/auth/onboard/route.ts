@@ -10,15 +10,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: 'NOT_LOGGED_IN' }, { status: 401 });
   }
 
-  const { name } = await req.json();
-  if (!name || name.trim() === '') {
-    return NextResponse.json({ ok: false, error: 'NAME_REQUIRED' }, { status: 400 });
-  }
+  const body = await req.json().catch(() => ({}));
+  const { name } = body;
 
-  // 유저 이름 업데이트 및 온보딩 상태 완료 처리
+  // 온보딩 완료 처리 (이름은 선택적으로 업데이트)
   await prisma.user.update({
     where: { id: user.id },
-    data: { name: name.trim(), onboarded: true },
+    data: {
+      ...(name && name.trim() ? { name: name.trim() } : {}),
+      onboarded: true,
+    },
   });
 
   return NextResponse.json({ ok: true });

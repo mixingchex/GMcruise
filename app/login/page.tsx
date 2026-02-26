@@ -147,12 +147,6 @@ function LoginPageContent() {
         console.log('[LOGIN] 비밀번호 1101 감지 - /chat-test로 강제 리다이렉트');
       }
       
-      // 온보딩으로 가려는 시도 차단 - 크루즈몰로 리다이렉트
-      if (next === '/onboarding' || next.startsWith('/onboarding')) {
-        console.warn('[LOGIN] 온보딩 리다이렉트 차단, 크루즈몰로 이동');
-        next = '/';
-      }
-      
       console.log('[LOGIN] Redirecting to:', next);
       router.push(next);
     } catch (error: any) {

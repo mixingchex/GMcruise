@@ -264,8 +264,9 @@ export default function ChecklistPage() {
         setError(`요청이 너무 많습니다. 잠시 후 다시 시도해주세요.`);
       }
 
-      // 429 오류가 아니면 기본 항목 표시 (인증 오류 시에도 기본 항목 표시)
-      if (!errorMessage.includes('너무 많') && !hasCreatedDefaultsRef.current) {
+      // 인증 오류와 429 오류가 아닌 경우에만 기본 항목 표시
+      const isAuthError = errorMessage.includes('인증');
+      if (!isAuthError && !errorMessage.includes('너무 많') && !hasCreatedDefaultsRef.current) {
         hasCreatedDefaultsRef.current = true;
         const defaultItems = getDefaultItems();
         setItems(defaultItems);

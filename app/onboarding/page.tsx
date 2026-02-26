@@ -2,19 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiAnchor, FiCalendar, FiCheckCircle } from 'react-icons/fi';
-
-interface UserInfo {
-  name: string | null;
-}
+import { FiAnchor, FiCalendar, FiMapPin, FiMessageCircle } from 'react-icons/fi';
 
 interface TripInfo {
   cruiseLine: string;
   shipName: string;
-  startDate: string;
+  startDate: string | null;
 }
 
-type OnboardingStep = 'loading' | 'step1' | 'step2' | 'done';
+interface PortInfo {
+  location: string | null;
+  country: string | null;
+  language: { code: string; name: string; flag: string } | null;
+}
 
 function calcDday(startDateStr: string): string {
   const today = new Date();
@@ -37,26 +37,22 @@ function formatDate(dateStr: string): string {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [step, setStep] = useState<OnboardingStep>('loading');
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
   const [tripInfo, setTripInfo] = useState<TripInfo | null>(null);
+  const [portInfo, setPortInfo] = useState<PortInfo | null>(null);
   const [hasTrip, setHasTrip] = useState(false);
-
+  const [isCruising, setIsCruising] = useState(false);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    try {
-      if (localStorage.getItem('onboardingDone') === 'true') {
-        router.replace('/my-trips');
-        return;
-      }
-    } catch { /* localStorage 접근 불가 무시 */ }
     initOnboarding();
-  }, [router]);
+  }, []);
 
   const initOnboarding = async () => {
     try {
-      const [meRes, tripRes] = await Promise.all([
+      const [meRes, tripRes, portRes] = await Promise.all([
         fetch('/api/auth/me', { credentials: 'include' }),
         fetch('/api/trips/active', { credentials: 'include' }),
+        fetch('/api/itinerary/current', { credentials: 'include' }),
       ]);
 
       if (meRes.status === 401) { router.replace('/login'); return; }
@@ -64,7 +60,18 @@ export default function OnboardingPage() {
       const meData = await meRes.json();
       if (!meData.ok || !meData.user) { router.replace('/login'); return; }
 
-      setUserInfo({ name: meData.user.name });
+      // 이미 온보딩 완료된 유저는 채팅으로
+      if (meData.user.onboarded) { router.replace('/chat'); return; }
+
+      // 온보딩 상태 자동 저장 (구매자는 자동으로 온보딩 완료 처리)
+      fetch('/api/auth/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      }).catch(() => { /* 무시 */ });
+
+      setUserName(meData.user.name);
 
       if (tripRes.ok) {
         const tripData = await tripRes.json();
@@ -78,69 +85,64 @@ export default function OnboardingPage() {
         }
       }
 
-      setStep('step1');
+      if (portRes.ok) {
+        const portData = await portRes.json();
+        if (portData.ok && portData.hasTrip && !portData.isCruising && portData.currentPort) {
+          setPortInfo({
+            location: portData.currentPort.location,
+            country: portData.currentPort.country,
+            language: portData.currentPort.language,
+          });
+        }
+        if (portData.isCruising) setIsCruising(true);
+      }
     } catch {
       router.replace('/login');
+      return;
     }
+    setLoading(false);
   };
 
-  const handleDone = () => {
-    try { localStorage.setItem('onboardingDone', 'true'); } catch { /* 무시 */ }
-    router.replace('/my-trips');
+  const handleComplete = () => {
+    router.replace('/chat');
   };
 
-  if (step === 'loading' || step === 'done') {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 text-base">잠시만 기다려주세요...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (step === 'step1') {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8 text-center">
-          <div className="flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mx-auto mb-6">
-            <FiAnchor size={32} className="text-blue-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">
-            크루즈가이드AI에<br />오신 것을 환영합니다!
-          </h1>
-          {userInfo?.name && (
-            <p className="text-blue-600 font-semibold text-lg mt-3 mb-2">{userInfo.name}님</p>
-          )}
-          <p className="text-gray-500 text-sm mt-2 mb-8 leading-relaxed">
-            크루즈 여행을 더 스마트하게 즐길 수 있도록<br />도와드리겠습니다.
-          </p>
-          <button
-            onClick={() => setStep('step2')}
-            className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 px-6 rounded-xl transition-colors text-base"
-          >
-            시작하기
-          </button>
-        </div>
+      <div className="min-h-screen bg-[#051C2C] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FDB931]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg p-8 text-center">
-        <div className="flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mx-auto mb-6">
-          <FiCheckCircle size={32} className="text-green-600" />
+    <div className="min-h-screen bg-[#051C2C] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm space-y-4">
+
+        {/* 환영 카드 */}
+        <div className="bg-white rounded-2xl shadow-2xl p-6 text-center">
+          <div className="flex items-center justify-center w-16 h-16 bg-[#FDB931]/20 rounded-full mx-auto mb-4">
+            <FiAnchor size={32} className="text-[#FDB931]" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-[#051C2C] mb-1 leading-tight">
+            크루즈가이드AI에<br />오신 것을 환영합니다!
+          </h1>
+          {userName && (
+            <p className="text-[#FDB931] font-bold text-lg mt-2">{userName}님</p>
+          )}
+          <p className="text-gray-500 text-sm mt-2 leading-relaxed">
+            크루즈 여행의 모든 것을<br />크루즈닷AI 가이드가 함께합니다.
+          </p>
         </div>
 
-        {hasTrip && tripInfo ? (
-          <>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">여행 일정이 등록되었습니다</h2>
-            <div className="mt-5 mb-4 bg-blue-50 rounded-xl p-4 text-left">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FiAnchor size={18} className="text-blue-600" />
+        {/* 여행 정보 카드 */}
+        {hasTrip && tripInfo && (
+          <div className="bg-white rounded-2xl shadow-xl p-5">
+            <h2 className="font-bold text-[#051C2C] text-base mb-3">📋 등록된 여행 일정</h2>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#051C2C]/10 rounded-lg flex-shrink-0">
+                  <FiAnchor size={16} className="text-[#051C2C]" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">크루즈</p>
@@ -150,34 +152,65 @@ export default function OnboardingPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <FiCalendar size={18} className="text-green-600" />
+                <div className="p-2 bg-[#FDB931]/20 rounded-lg flex-shrink-0">
+                  <FiCalendar size={16} className="text-[#FDB931]" />
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">출발 예정일</p>
-                  <p className="font-semibold text-gray-900 text-sm">{formatDate(tripInfo.startDate)}</p>
+                  <p className="font-semibold text-gray-900 text-sm">
+                    {tripInfo.startDate ? formatDate(tripInfo.startDate) : '일정 확인 중'}
+                  </p>
                 </div>
               </div>
             </div>
-            <div className="inline-block bg-blue-600 text-white font-bold text-2xl px-6 py-2 rounded-full mb-6">
-              {calcDday(tripInfo.startDate)}
+            {tripInfo.startDate && (
+              <div className="mt-4 text-center">
+                <span className="inline-block bg-[#051C2C] text-[#FDB931] font-extrabold text-xl px-6 py-2 rounded-full">
+                  {calcDday(tripInfo.startDate)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 오늘의 브리핑 */}
+        {portInfo?.location && (
+          <div className="bg-white rounded-2xl shadow-xl p-5">
+            <h2 className="font-bold text-[#051C2C] text-base mb-3">🗺️ 오늘의 브리핑</h2>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg flex-shrink-0">
+                <FiMapPin size={16} className="text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">오늘 기항지</p>
+                <p className="font-semibold text-gray-900 text-sm">
+                  {portInfo.location}{portInfo.country ? ` (${portInfo.country})` : ''}
+                </p>
+              </div>
             </div>
-            <p className="text-gray-500 text-sm mb-6">출발일이 가까워지면 더 많은 기능을 사용하실 수 있습니다.</p>
-          </>
-        ) : (
-          <>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">여행을 준비 중입니다</h2>
-            <p className="text-gray-500 text-sm mt-3 mb-6 leading-relaxed">
-              아직 등록된 여행 일정이 없습니다.<br />관리자가 여행을 배정하면 자동으로 표시됩니다.
-            </p>
-          </>
+            {portInfo.language && (
+              <p className="mt-3 text-sm text-gray-600 bg-gray-50 rounded-lg p-3 leading-relaxed">
+                💬 현지 언어: <span className="font-semibold">{portInfo.language.flag} {portInfo.language.name}</span>
+              </p>
+            )}
+          </div>
+        )}
+
+        {isCruising && !portInfo?.location && (
+          <div className="bg-white rounded-2xl shadow-xl p-5">
+            <h2 className="font-bold text-[#051C2C] text-base mb-2">🌊 오늘의 브리핑</h2>
+            <p className="text-sm text-gray-600">오늘은 항해 중입니다. 크루즈닷AI 가이드에게 궁금한 것을 물어보세요!</p>
+          </div>
         )}
 
         <button
-          onClick={handleDone}
-          className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3 px-6 rounded-xl transition-colors text-base"
+          onClick={handleComplete}
+          className="w-full bg-[#FDB931] hover:bg-[#FDB931]/90 active:bg-[#FDB931]/80
+                     text-[#051C2C] font-extrabold py-4 px-6 rounded-2xl shadow-xl
+                     transition-all duration-200 text-lg flex items-center justify-center gap-2"
         >
-          확인
+          <FiMessageCircle size={22} />
+          <span>크루즈닷AI 가이드 시작하기</span>
         </button>
       </div>
     </div>

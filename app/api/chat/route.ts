@@ -8,7 +8,7 @@ import { buildAllDirUrls } from '@/lib/maps';
 import type { ChatMessage } from '@/lib/chat-types';
 import prisma from '@/lib/prisma';
 
-async function getCurrentPort(userId: string): Promise<{ location: string | null; country: string | null } | null> {
+async function getCurrentPort(userId: number): Promise<{ location: string | null; country: string | null } | null> {
   try {
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
@@ -232,12 +232,6 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
           if ((cleanedTranslation.startsWith('"') && cleanedTranslation.endsWith('"')) ||
             (cleanedTranslation.startsWith("'") && cleanedTranslation.endsWith("'"))) {
             cleanedTranslation = cleanedTranslation.slice(1, -1).trim();
-          }
-
-          // 첫 줄만 추출 (여러 줄인 경우)
-          const firstLine = cleanedTranslation.split('\n')[0].trim();
-          if (firstLine && firstLine.length > 0) {
-            cleanedTranslation = firstLine;
           }
 
           const trimmedTranslated = cleanedTranslation.trim();

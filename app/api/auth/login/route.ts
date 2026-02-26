@@ -1819,27 +1819,13 @@ export async function POST(req: Request) {
         days: realProduct?.days,
       });
 
-      // UserTrip이 없거나 REAL-CRUISE-01이 아닌 경우 생성/재생성
-      if ((!existingUserTrip || (existingUserTrip && realProduct && existingUserTrip.productId !== realProduct.id)) && realProduct) {
-        console.log('[Login] 3800: UserTrip 생성 시작');
+      // UserTrip이 없는 경우에만 REAL-CRUISE-01 폴백으로 생성 (기존 UserTrip은 절대 삭제하지 않음)
+      // 웹훅에서 실제 구매 상품으로 생성된 UserTrip을 보호하기 위함
+      if (!existingUserTrip && realProduct) {
+        console.log('[Login] 3800: UserTrip 없음, 폴백 생성 시작');
 
         try {
           const now = new Date();
-
-          // 기존 UserTrip이 다른 상품이면 삭제
-          if (existingUserTrip && realProduct && existingUserTrip.productId !== realProduct.id) {
-            console.log('[Login] 3800: 기존 UserTrip이 REAL-CRUISE-01이 아님, 삭제 후 재생성');
-
-            await prisma.itinerary.deleteMany({
-              where: { userTripId: existingUserTrip.id },
-            });
-
-            await prisma.userTrip.delete({
-              where: { id: existingUserTrip.id },
-            });
-
-            console.log('[Login] 3800: ✅ 기존 UserTrip 삭제 완료');
-          }
 
           // 출발일: 오늘 + 30일 (D-30)
           const startDate = new Date(now);
@@ -1978,22 +1964,11 @@ export async function POST(req: Request) {
             });
           }
 
-          // 온보딩 완료 상태로 설정
-          console.log('[Login] 3800: 온보딩 완료 상태 설정 시작:', {
-            userId: activeUser.id,
-          });
-
           await prisma.user.update({
             where: { id: activeUser.id },
             data: {
-              onboarded: true,
               totalTripCount: { increment: 1 },
             },
-          });
-
-          console.log('[Login] 3800: ✅ 온보딩 완료 상태 설정 완료:', {
-            userId: activeUser.id,
-            onboarded: true,
           });
 
           console.log('[Login] 3800: Auto-created trip for user', activeUser.id, 'with product REAL-CRUISE-01', {
@@ -2023,19 +1998,12 @@ export async function POST(req: Request) {
           productId: existingUserTrip.productId,
         });
 
-        // 기존 UserTrip이 있으면 온보딩 완료 상태로 설정
-        await prisma.user.update({
-          where: { id: activeUser.id },
-          data: {
-            onboarded: true,
-          },
-        });
       } else if (!realProduct) {
         console.error('[Login] 3800: ❌ REAL-CRUISE-01 상품을 찾을 수 없습니다!');
         console.warn('[Login] 3800: REAL-CRUISE-01 product not found');
       }
 
-      const next = '/chat'; // 항상 채팅으로 이동
+      const next = activeUser.onboarded ? '/chat' : '/onboarding'; // 온보딩 완료 여부로 분기
       const userId = activeUser.id;
 
       try {

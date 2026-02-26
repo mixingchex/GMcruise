@@ -76,7 +76,12 @@ export default function DiaryPage() {
 
   useEffect(() => {
     if (isModalOpen && currentPort) {
-      setForm((prev) => ({ ...prev, countryName: currentPort.country, countryCode: '' }));
+      // currentPort.country는 ISO 국가 코드 (예: "GR", "JP")
+      setForm((prev) => ({
+        ...prev,
+        countryName: currentPort.location || currentPort.country,
+        countryCode: currentPort.country,
+      }));
     }
   }, [isModalOpen, currentPort]);
 
@@ -136,7 +141,7 @@ export default function DiaryPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          countryCode: form.countryCode || trimmedCountryName.toUpperCase().slice(0, 2),
+          countryCode: form.countryCode || 'UN',
           countryName: trimmedCountryName,
           title: trimmedTitle,
           content: trimmedContent,
