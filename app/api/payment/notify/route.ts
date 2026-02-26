@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma';
 import { log, error } from '@/lib/logger-wrapper';
 import { isPaymentSuccess } from '@/lib/welcomepay';
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.cruisedot.co.kr';
 
 /**
  * 웰컴페이먼츠 서버 간 노티(NOTI) 처리
@@ -156,9 +156,13 @@ export async function POST(req: NextRequest) {
 
         // 결제 완료 웹훅 호출 (어필리에이트 처리)
         try {
-          await fetch(`${BASE_URL}/api/payment/webhook`, {
+          const internalSecret = process.env.INTERNAL_WEBHOOK_SECRET;
+          const webhookRes = await fetch(`${BASE_URL}/api/payment/webhook`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'x-internal-webhook-secret': internalSecret ?? '',
+            },
             body: JSON.stringify({
               imp_uid: P_TID,
               merchant_uid: P_OID,
@@ -173,6 +177,12 @@ export async function POST(req: NextRequest) {
               affiliateMallUserId: payment.affiliateMallUserId,
             }),
           });
+          if (!webhookRes.ok) {
+            error('[Payment Notify] Webhook 응답 오류:', {
+              status: webhookRes.status,
+              orderId: P_OID,
+            });
+          }
         } catch (webhookErr) {
           error('[Payment Notify] Webhook 호출 실패:', webhookErr);
         }

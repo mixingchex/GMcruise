@@ -15,7 +15,7 @@ export async function GET() {
       return NextResponse.json({
         ok: false,
         user: null
-      });
+      }, { status: 401 });
     }
 
     // session.userId는 문자열이므로 정수로 변환
@@ -24,7 +24,7 @@ export async function GET() {
       return NextResponse.json({
         ok: false,
         user: null
-      });
+      }, { status: 401 });
     }
 
     const user = await prisma.user.findUnique({
@@ -51,7 +51,7 @@ export async function GET() {
       return NextResponse.json({
         ok: false,
         user: null
-      });
+      }, { status: 401 });
     }
 
     return NextResponse.json({

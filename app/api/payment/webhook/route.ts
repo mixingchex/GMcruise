@@ -463,6 +463,7 @@ export async function POST(req: NextRequest) {
               role: 'user',
               onboarded: false,
               customerSource: 'guide-purchase',
+              customerStatus: 'active',
             },
           });
           userId = newUser.id;
@@ -566,11 +567,24 @@ export async function POST(req: NextRequest) {
             nights: true,
             days: true,
             itineraryPattern: true,
+            startDate: true,
+            endDate: true,
           },
         });
 
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() + 1);
+        // C-02: startDate는 CruiseProduct.startDate 우선, 없으면 AffiliateProduct.effectiveFrom 조회
+        let resolvedStartDate: Date;
+        if (guideProduct?.startDate) {
+          resolvedStartDate = guideProduct.startDate;
+        } else {
+          const affProductForDate = await prisma.affiliateProduct.findFirst({
+            where: { productCode },
+            select: { effectiveFrom: true },
+            orderBy: { effectiveFrom: 'desc' },
+          });
+          resolvedStartDate = affProductForDate?.effectiveFrom ?? new Date();
+        }
+        const startDate = resolvedStartDate;
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + (guideProduct?.days || 7));
 
@@ -597,6 +611,14 @@ export async function POST(req: NextRequest) {
 
         // 5-C. itineraryPattern에서 Itinerary 레코드 자동 생성
         const pattern = guideProduct?.itineraryPattern;
+        if (!guideProduct) {
+          warn('[Payment Webhook] ⚠️ CruiseProduct 없음 - Itinerary 생성 스킵:', { productCode });
+        } else if (!Array.isArray(pattern) || pattern.length === 0) {
+          warn('[Payment Webhook] ⚠️ itineraryPattern 비어있음 - Itinerary 생성 스킵:', {
+            productCode,
+            guideProductId: guideProduct.id,
+          });
+        }
         if (guideProduct && Array.isArray(pattern) && pattern.length > 0) {
           const itineraryData = (pattern as Array<Record<string, unknown>>).map((p, idx) => {
             const date = new Date(startDate);
