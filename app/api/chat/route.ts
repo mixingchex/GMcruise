@@ -6,6 +6,29 @@ import { handleKeywordSearch } from './handlers/keyword-search';
 import { isKeywordSearch } from '@/app/api/chat/detect';
 import { buildAllDirUrls } from '@/lib/maps';
 import type { ChatMessage } from '@/lib/chat-types';
+import prisma from '@/lib/prisma';
+
+async function getCurrentPort(userId: string): Promise<{ location: string | null; country: string | null } | null> {
+  try {
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const activeTrip = await prisma.userTrip.findFirst({
+      where: { userId, startDate: { lte: todayEnd }, endDate: { gte: todayStart } },
+      orderBy: { startDate: 'desc' },
+    });
+    if (!activeTrip) return null;
+    const itinerary = await prisma.itinerary.findFirst({
+      where: { userTripId: activeTrip.id, date: { gte: todayStart, lte: todayEnd } },
+      orderBy: { date: 'asc' },
+    });
+    if (!itinerary) return null;
+    const isSea = !itinerary.type || ['sea', 'cruising'].includes(itinerary.type.toLowerCase());
+    if (isSea) return null;
+    return { location: itinerary.location, country: itinerary.country };
+  } catch {
+    return null;
+  }
+}
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
 
@@ -26,7 +49,15 @@ export async function POST(req: NextRequest) {
 
     // show 모드: 이미지 검색
     if (mode === 'show') {
-      const messages = await handleShowPhotos(text);
+      const user = await getSessionUser().catch(() => null);
+      let searchText = text;
+      if (user) {
+        const port = await getCurrentPort(user.id);
+        if (port?.location && !text.includes(port.location)) {
+          searchText = `${text} ${port.location}`;
+        }
+      }
+      const messages = await handleShowPhotos(searchText);
       return NextResponse.json({ ok: true, messages });
     }
 
@@ -34,9 +65,17 @@ export async function POST(req: NextRequest) {
     if (mode === 'go') {
       let messages: ChatMessage[];
 
+      const user = await getSessionUser().catch(() => null);
+      let currentPortLocation: string | null = null;
+      if (user) {
+        const port = await getCurrentPort(user.id);
+        currentPortLocation = port?.location ?? null;
+      }
+
       // 키워드 검색인지 확인 (맛집, 관광지, 카페 등)
       if (isKeywordSearch(text)) {
-        messages = handleKeywordSearch(text, from, to);
+        const effectiveFrom = from ?? currentPortLocation ?? undefined;
+        messages = handleKeywordSearch(text, effectiveFrom, to);
       } else if (from && to) {
         // from/to가 이미 파싱된 경우 직접 사용 (불필요한 변환 제거)
         const origin = { text: from };
@@ -69,8 +108,11 @@ export async function POST(req: NextRequest) {
           }
         ];
       } else {
-        // text에서 파싱 (resolveFromTo 사용)
-        messages = handleDirections(text);
+        // text에서 파싱 (현재 기항지가 있으면 컨텍스트로 활용)
+        const enriched = currentPortLocation && !text.includes(currentPortLocation)
+          ? `${currentPortLocation}에서 ${text}`
+          : text;
+        messages = handleDirections(enriched);
       }
 
       return NextResponse.json({ ok: true, messages });

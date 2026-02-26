@@ -578,7 +578,7 @@ export async function POST(req: NextRequest) {
             userId,
             productId: guideProduct?.id || null,
             cruiseName: guideProduct?.packageName || guideProduct?.shipName || productCode,
-            destination: JSON.stringify([]),
+            destination: [],
             startDate,
             endDate,
             nights: guideProduct?.nights || 0,

@@ -39,6 +39,8 @@ const PROTECTED = [
   '/checklist', '/checklist-test',
   '/wallet', '/wallet-test',
   '/translator', '/translator-test',
+  '/diary',
+  '/guide-profile',
 ];
 
 export async function middleware(req: NextRequest) {

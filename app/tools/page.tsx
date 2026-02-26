@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { FiCheckSquare, FiDollarSign, FiTool, FiMessageCircle } from 'react-icons/fi';
+import { FiCheckSquare, FiDollarSign, FiTool, FiMessageCircle, FiBook } from 'react-icons/fi';
 import { checkTestModeClient, getCorrectPath } from '@/lib/test-mode-client';
 import { useEffect } from 'react';
 
@@ -38,6 +38,22 @@ const tools = [
       '예산 관리 및 분석',
     ],
     example: '예: 식사, 쇼핑, 엔터테인먼트 등',
+  },
+  {
+    title: '여행 다이어리',
+    description: '기항지별 여행 일기를 기록하세요',
+    icon: FiBook,
+    href: '/diary',
+    color: 'bg-yellow-100',
+    iconColor: 'text-yellow-600',
+    hoverColor: 'hover:bg-yellow-50',
+    emoji: '📖',
+    features: [
+      '기항지별 여행 기록 작성',
+      '날짜별 타임라인 보기',
+      '국가별 필터로 쉽게 찾기',
+    ],
+    example: '예: 오늘 미코노스에서 느낀 것들...',
   },
 ];
 
