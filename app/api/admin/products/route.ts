@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
       hasLocalGuide,
       hasCruisedotStaff,
       hasTravelInsurance,
-      contactType, // 8번: 문의 옵션 (가격문의, 전화상담, AI 지니 채팅봇)
+      contactOptions, // 8번: 문의 옵션 (결제하기, 전화상담, 크루즈닷AI 채팅봇)
     } = await req.json();
 
     // 필수 필드 검증
@@ -234,23 +234,23 @@ export async function POST(req: NextRequest) {
     }
     
     if (detailBlocks !== undefined) {
-      layoutData.detailBlocks = detailBlocks || [];
+      layoutData.blocks = detailBlocks || [];
     }
     
     if (includedItems !== undefined) {
-      layoutData.includedItems = includedItems || [];
+      layoutData.included = includedItems || [];
     }
     
     if (excludedItems !== undefined) {
-      layoutData.excludedItems = excludedItems || [];
+      layoutData.excluded = excludedItems || [];
     }
     
     if (itineraryDays !== undefined) {
-      layoutData.itineraryDays = itineraryDays || [];
+      layoutData.itinerary = itineraryDays || [];
     }
     
     if (pricingRows !== undefined) {
-      layoutData.pricingRows = pricingRows || [];
+      layoutData.pricing = pricingRows || [];
     }
     
     if (departureDate !== undefined) {
@@ -290,8 +290,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 8번: 문의 옵션 저장
-    if (contactType !== undefined) {
-      layoutData.contactType = contactType || 'aiChatbot'; // 기본값: AI 지니 채팅봇
+    if (contactOptions !== undefined) {
+      layoutData.contactOptions = contactOptions;
     }
 
     // destination이 있으면 layout에 저장
@@ -301,15 +301,15 @@ export async function POST(req: NextRequest) {
 
     // 구글 드라이브에 이미지 백업 (로컬 이미지만)
     let finalThumbnail = thumbnail;
-    let finalDetailBlocks = layoutData.detailBlocks || [];
-    let finalItineraryDays = layoutData.itineraryDays || [];
+    let finalDetailBlocks = layoutData.blocks || [];
+    let finalItineraryDays = layoutData.itinerary || [];
     
     try {
       const backupResult = await backupProductImages(
         productCode,
         thumbnail,
-        detailBlocks !== undefined ? detailBlocks : layoutData.detailBlocks,
-        itineraryDays !== undefined ? itineraryDays : layoutData.itineraryDays
+        detailBlocks !== undefined ? detailBlocks : layoutData.blocks,
+        itineraryDays !== undefined ? itineraryDays : layoutData.itinerary
       );
       
       finalThumbnail = backupResult.thumbnail;
@@ -320,15 +320,15 @@ export async function POST(req: NextRequest) {
       
       // 백업된 블록을 layoutData에 반영
       if (detailBlocks !== undefined) {
-        layoutData.detailBlocks = finalDetailBlocks;
-      } else if (layoutData.detailBlocks) {
-        layoutData.detailBlocks = finalDetailBlocks;
+        layoutData.blocks = finalDetailBlocks;
+      } else if (layoutData.blocks) {
+        layoutData.blocks = finalDetailBlocks;
       }
       
       if (itineraryDays !== undefined && backupResult.itineraryDays) {
-        layoutData.itineraryDays = finalItineraryDays;
-      } else if (layoutData.itineraryDays && backupResult.itineraryDays) {
-        layoutData.itineraryDays = finalItineraryDays;
+        layoutData.itinerary = finalItineraryDays;
+      } else if (layoutData.itinerary && backupResult.itineraryDays) {
+        layoutData.itinerary = finalItineraryDays;
       }
       
       // 썸네일도 업데이트
