@@ -154,6 +154,15 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // from/to 언어 코드 화이트리스트 (prompt injection 방어)
+      const VALID_LANGS = new Set(['ko', 'en', 'ja', 'zh', 'th', 'vi', 'id', 'ms', 'fr', 'it', 'es', 'de', 'ru', 'ar', 'pt', 'nl', 'tr', 'pl', 'sv', 'da', 'fi', 'no']);
+      if (!VALID_LANGS.has(from) || !VALID_LANGS.has(to)) {
+        return NextResponse.json(
+          { ok: false, error: '지원하지 않는 언어입니다.' },
+          { status: 400 }
+        );
+      }
+
       // 번역 프롬프트 생성 (더 명확하고 강력한 지시사항)
       const prompt = `You are a professional translator. Translate the following text from ${from} to ${to}.
 
@@ -249,9 +258,12 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
               // 재시도 전에 프롬프트를 더 강화
               continue;
             } else {
-              // 최대 재시도 횟수 초과 - 원문 반환하되 경고
+              // 최대 재시도 횟수 초과 - 번역 실패 에러 반환
               console.error('[Translation] Failed after max attempts - translation same as original');
-              cleanedTranslation = trimmedOriginal; // 원문 반환
+              return NextResponse.json(
+                { ok: false, error: '번역에 실패했습니다. 다른 표현으로 다시 시도해주세요.' },
+                { status: 500 }
+              );
             }
           } else {
             // 번역 성공

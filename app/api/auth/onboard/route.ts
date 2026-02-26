@@ -14,13 +14,18 @@ export async function POST(req: Request) {
   const { name } = body;
 
   // 온보딩 완료 처리 (이름은 선택적으로 업데이트)
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      ...(name && name.trim() ? { name: name.trim() } : {}),
-      onboarded: true,
-    },
-  });
+  try {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        ...(name && name.trim() ? { name: name.trim() } : {}),
+        onboarded: true,
+      },
+    });
+  } catch (err: any) {
+    console.error('[AUTH ONBOARD] DB 업데이트 실패:', err?.message);
+    return NextResponse.json({ ok: false, error: 'ONBOARD_FAILED' }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true });
 }
