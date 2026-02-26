@@ -7,6 +7,16 @@ import { isKeywordSearch } from '@/app/api/chat/detect';
 import { buildAllDirUrls } from '@/lib/maps';
 import type { ChatMessage } from '@/lib/chat-types';
 import prisma from '@/lib/prisma';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
+
+// WQ-02: 검증 이슈 수정 - 모듈 레벨로 정의 (요청마다 재생성 방지)
+// 지원 언어 코드 화이트리스트 (prompt injection 방어)
+const VALID_LANGS = new Set([
+  'ko', 'en', 'ja', 'zh', 'th', 'vi', 'id', 'ms',
+  'fr', 'it', 'es', 'de', 'ru', 'ar', 'pt', 'nl',
+  'tr', 'pl', 'sv', 'da', 'fi', 'no',
+]);
 
 async function getCurrentPort(userId: number): Promise<{ location: string | null; country: string | null } | null> {
   try {
@@ -29,8 +39,6 @@ async function getCurrentPort(userId: number): Promise<{ location: string | null
     return null;
   }
 }
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { resolveGeminiModelName } from '@/lib/ai/geminiModel';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -47,12 +55,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // WQ-02: 공통 인증 (show/go/translate 모두 로그인 필요 → 최상단에서 1회만 처리)
+    const user = await getSessionUser();
+    if (!user) {
+      return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
     // show 모드: 이미지 검색
     if (mode === 'show') {
-      const user = await getSessionUser();
-      if (!user) {
-        return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
-      }
       let searchText = text;
       const port = await getCurrentPort(user.id);
       if (port?.location && !text.includes(port.location)) {
@@ -65,11 +75,6 @@ export async function POST(req: NextRequest) {
     // go 모드: 경로 안내
     if (mode === 'go') {
       let messages: ChatMessage[];
-
-      const user = await getSessionUser();
-      if (!user) {
-        return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
-      }
       const port = await getCurrentPort(user.id);
       const currentPortLocation: string | null = port?.location ?? null;
 
@@ -121,10 +126,6 @@ export async function POST(req: NextRequest) {
 
     // translate 모드: 번역 처리
     if (mode === 'translate') {
-      const user = await getSessionUser();
-      if (!user) {
-        return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-      }
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
       if (!apiKey) {
@@ -154,9 +155,10 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // from/to 언어 코드 화이트리스트 (prompt injection 방어)
-      const VALID_LANGS = new Set(['ko', 'en', 'ja', 'zh', 'th', 'vi', 'id', 'ms', 'fr', 'it', 'es', 'de', 'ru', 'ar', 'pt', 'nl', 'tr', 'pl', 'sv', 'da', 'fi', 'no']);
-      if (!VALID_LANGS.has(from) || !VALID_LANGS.has(to)) {
+      // from/to 화이트리스트 검증 (대소문자 무관 처리 + prompt injection 방어)
+      const normalizedFrom = String(from).toLowerCase();
+      const normalizedTo = String(to).toLowerCase();
+      if (!VALID_LANGS.has(normalizedFrom) || !VALID_LANGS.has(normalizedTo)) {
         return NextResponse.json(
           { ok: false, error: '지원하지 않는 언어입니다.' },
           { status: 400 }
@@ -164,27 +166,27 @@ export async function POST(req: NextRequest) {
       }
 
       // 번역 프롬프트 생성 (더 명확하고 강력한 지시사항)
-      const prompt = `You are a professional translator. Translate the following text from ${from} to ${to}.
+      const prompt = `You are a professional translator. Translate the following text from ${normalizedFrom} to ${normalizedTo}.
 
 CRITICAL RULES:
-1. Output ONLY the translated text in ${to}. Nothing else.
+1. Output ONLY the translated text in ${normalizedTo}. Nothing else.
 2. Do NOT include the original text.
 3. Do NOT add any explanations, prefixes, or suffixes.
 4. Do NOT write "Translation:" or "Result:" or any similar labels.
 5. Preserve all numbers, prices, currency symbols, and special characters exactly.
 6. Translate the entire text completely, even if it's long.
-7. If the text contains proper nouns (like "지니가이드", "지니가이드 3일체험"), translate them appropriately to ${to}.
+7. If the text contains proper nouns (like "지니가이드", "지니가이드 3일체험"), translate them appropriately to ${normalizedTo}.
 8. Maintain the same tone and style as the original.
 
-Source language: ${from}
-Target language: ${to}
+Source language: ${normalizedFrom}
+Target language: ${normalizedTo}
 
 Text to translate (between <<<START>>> and <<<END>>> markers):
 <<<START>>>
 ${text}
 <<<END>>>
 
-Now translate and output ONLY the translation in ${to} (no labels, no explanations, just the translation):`;
+Now translate and output ONLY the translation in ${normalizedTo} (no labels, no explanations, just the translation):`;
 
       try {
         // 번역 시도 (최대 3회 재시도, rate limit 포함)
@@ -212,7 +214,7 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
                 continue;
               } else {
                 // 최대 재시도 횟수 초과
-                console.error('[Translation] Rate limit - max retries exceeded');
+                console.warn('[Translation] Rate limit - max retries exceeded');
                 return NextResponse.json({
                   ok: false,
                   error: '번역 서버가 바쁩니다. 잠시 후 다시 시도해주세요.',
@@ -247,15 +249,14 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
           const trimmedTranslated = cleanedTranslation.trim();
 
           // 번역 결과가 원문과 동일한 경우 재시도 (단, 같은 언어 간 번역이 아닌 경우만)
-          if (trimmedTranslated === trimmedOriginal && trimmedOriginal.length > 3 && from !== to) {
+          if (trimmedTranslated === trimmedOriginal && trimmedOriginal.length > 3 && normalizedFrom !== normalizedTo) {
             console.warn(`[Translation] Attempt ${attempts}: Translation same as original, retrying...`, {
-              from,
-              to,
+              from: normalizedFrom,
+              to: normalizedTo,
               text: text.substring(0, 50)
             });
 
             if (attempts < maxAttempts) {
-              // 재시도 전에 프롬프트를 더 강화
               continue;
             } else {
               // 최대 재시도 횟수 초과 - 번역 실패 에러 반환
@@ -304,4 +305,3 @@ Now translate and output ONLY the translation in ${to} (no labels, no explanatio
     );
   }
 }
-

@@ -52,27 +52,41 @@ export default function OnboardingPage() {
   }, []);
 
   const initOnboarding = async (signal: AbortSignal) => {
+    // WQ-03: me(필수)와 trip/port(선택)를 분리 처리
+    // me API 실패 → 로그인 페이지, trip/port 실패 → 해당 정보 미표시 (온보딩 화면 유지)
+
+    // 1단계: 필수 인증 확인 (me API)
+    let meRes: Response;
     try {
-      const [meRes, tripRes, portRes] = await Promise.all([
-        fetch('/api/auth/me', { credentials: 'include', signal }),
-        fetch('/api/trips/active', { credentials: 'include', signal }),
-        fetch('/api/itinerary/current', { credentials: 'include', signal }),
-      ]);
+      meRes = await fetch('/api/auth/me', { credentials: 'include', signal });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      router.replace('/login');
+      return;
+    }
 
-      if (signal.aborted) return;
+    if (signal.aborted) return;
+    if (meRes.status === 401) { router.replace('/login'); return; }
 
-      if (meRes.status === 401) { router.replace('/login'); return; }
+    const meData = await meRes.json();
+    if (!meData.ok || !meData.user) { router.replace('/login'); return; }
 
-      const meData = await meRes.json();
-      if (!meData.ok || !meData.user) { router.replace('/login'); return; }
+    // 이미 온보딩 완료된 유저는 채팅으로
+    if (meData.user.onboarded) { router.replace('/chat'); return; }
 
-      // 이미 온보딩 완료된 유저는 채팅으로
-      if (meData.user.onboarded) { router.replace('/chat'); return; }
+    setUserName(meData.user.name);
 
-      setUserName(meData.user.name);
+    // 2단계: 선택적 데이터 (trip/port) — allSettled로 부분 실패 허용
+    const [tripResult, portResult] = await Promise.allSettled([
+      fetch('/api/trips/active', { credentials: 'include', signal }),
+      fetch('/api/itinerary/current', { credentials: 'include', signal }),
+    ]);
 
-      if (tripRes.ok) {
-        const tripData = await tripRes.json();
+    if (signal.aborted) return;
+
+    if (tripResult.status === 'fulfilled' && tripResult.value.ok) {
+      try {
+        const tripData = await tripResult.value.json();
         if (tripData.data) {
           setHasTrip(true);
           setTripInfo({
@@ -81,10 +95,12 @@ export default function OnboardingPage() {
             startDate: tripData.data.startDate,
           });
         }
-      }
+      } catch { /* JSON 파싱 실패 — 여행 정보 미표시 */ }
+    }
 
-      if (portRes.ok) {
-        const portData = await portRes.json();
+    if (portResult.status === 'fulfilled' && portResult.value.ok) {
+      try {
+        const portData = await portResult.value.json();
         if (portData.ok && portData.hasTrip && !portData.isCruising && portData.currentPort) {
           setPortInfo({
             location: portData.currentPort.location,
@@ -93,12 +109,9 @@ export default function OnboardingPage() {
           });
         }
         if (portData.isCruising) setIsCruising(true);
-      }
-    } catch (err) {
-      if (err instanceof DOMException && (err as DOMException).name === 'AbortError') return;
-      router.replace('/login');
-      return;
+      } catch { /* JSON 파싱 실패 — 포트 정보 미표시 */ }
     }
+
     if (signal.aborted) return;
     setLoading(false);
   };

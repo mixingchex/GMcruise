@@ -9,6 +9,7 @@ import { generateLedgerEntries, calculateCommissionBreakdown } from '@/lib/affil
 import { notifyCommissionTierMissing } from '@/lib/affiliate/admin-notifications';
 import { log, error, warn } from '@/lib/logger-wrapper';
 import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
+import { normalizePhone } from '@/lib/phone-utils';
 
 /**
  * POST: 결제 완료 웹훅
@@ -432,8 +433,8 @@ export async function POST(req: NextRequest) {
       }, 0) || 1;
 
       // 2. User 찾기 또는 생성 (customerPhone 기준)
-      const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
-      const normalizedPhone = customerPhone ? normalizePhone(customerPhone) : '';
+      // WQ-01: normalizePhone 공통 유틸 사용 (lib/phone-utils)
+      const normalizedPhone = normalizePhone(customerPhone) ?? '';
 
       let userId: number;
 
@@ -768,8 +769,7 @@ export async function POST(req: NextRequest) {
       updatedLeadId = Number(leadId);
     } else if (customerName && customerPhone && (managerId || agentId)) {
       // Lead가 없지만 고객 정보와 어필리에이트 정보가 있으면 새로 생성
-      const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
-      const normalizedPhone = normalizePhone(customerPhone);
+      const normalizedPhone = normalizePhone(customerPhone) ?? '';
 
       if (normalizedPhone.length >= 10) {
         // 기존 Lead 확인
@@ -825,8 +825,7 @@ export async function POST(req: NextRequest) {
 
     // 결제 완료 시 자동으로 일반 크루즈 가이드 승인 처리
     if (customerPhone) {
-      const normalizePhone = (phone: string) => phone.replace(/\D/g, '');
-      const normalizedPhone = normalizePhone(customerPhone);
+      const normalizedPhone = normalizePhone(customerPhone) ?? '';
 
       if (normalizedPhone.length >= 10) {
         // 전화번호로 User 찾기
