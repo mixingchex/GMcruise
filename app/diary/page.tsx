@@ -8,13 +8,13 @@ import { csrfFetch } from '@/lib/csrf-client';
 
 interface TravelDiaryEntry {
   id: number;
-  userId: string;
-  tripId: number | null;
+  userId: number;
+  userTripId: number | null;
   countryCode: string;
   countryName: string;
   title: string;
   content: string;
-  visitDate: string | null;
+  visitDate: string;
   createdAt: string;
   updatedAt: string;
 }

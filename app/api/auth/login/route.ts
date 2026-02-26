@@ -1688,7 +1688,6 @@ export async function POST(req: Request) {
       console.log('[Login] 3800 사용자 조회 결과:', {
         found: !!activeUser,
         userId: activeUser?.id,
-        passwordMatch: activeUser?.password === '3800',
         customerStatus: activeUser?.customerStatus,
         isLocked: activeUser?.isLocked,
       });
@@ -1736,13 +1735,12 @@ export async function POST(req: Request) {
         console.log('[Login] 3800 기존 사용자 확인:', {
           userId: activeUser.id,
           customerSource: userSource,
-          passwordMatch: activeUser.password === '3800',
         });
 
-        // 크루즈 가이드 지니 AI에서 3800으로 로그인하는 경우
+        // 크루즈가이드AI에서 3800으로 로그인하는 경우
         // customerSource가 무엇이든 상관없이 이름과 전화번호가 일치하면 로그인 허용
-        // 단, customerSource를 'cruise-guide'로 업데이트하고 비밀번호를 3800으로 설정
-        if (activeUser.password !== '3800' || userSource !== 'cruise-guide') {
+        // 단, 둘 다 이미 올바른 상태가 아닐 때만 업데이트 (웹훅 생성 유저 보호)
+        if (activeUser.password !== '3800' && userSource !== 'cruise-guide') {
           console.log('[Login] 3800 비밀번호 및 customerSource 자동 업데이트:', {
             userId: activeUser.id,
             oldPassword: activeUser.password ? '***' : 'null',

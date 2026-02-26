@@ -103,7 +103,18 @@ export default function OnboardingPage() {
     setLoading(false);
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    // onboard API가 fire-and-forget으로 실패했을 경우를 대비해 재시도
+    try {
+      await fetch('/api/auth/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+    } catch {
+      // 실패해도 채팅으로 이동 (다음 방문 시 재시도)
+    }
     router.replace('/chat');
   };
 
