@@ -594,19 +594,23 @@ export async function POST(req: NextRequest) {
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + (guideProduct?.days || 7));
 
-        // CRITICAL-SEC-002: UserTrip $transaction (race condition 방지 — 동시 결제 시 중복 생성 방지)
-        const tripResult = await prisma.$transaction(async (tx) => {
-          const existing = await tx.userTrip.findFirst({
-            where: {
-              userId,
-              ...(guideProduct?.id ? { productId: guideProduct.id } : {}),
-              status: { not: 'Cancelled' },
-            },
-            select: { id: true },
-            orderBy: { createdAt: 'desc' },
-          });
-          if (existing) return { id: existing.id, isNew: false };
-          const created = await tx.userTrip.create({
+        // P0-02: UserTrip 조회/생성 — async tx → 분리 쿼리 (pgBouncer 호환)
+        // externalOrderCode @unique가 이미 중복 결제를 차단하므로 tx 불필요
+        const existingUserTrip = await prisma.userTrip.findFirst({
+          where: {
+            userId,
+            ...(guideProduct?.id ? { productId: guideProduct.id } : {}),
+            status: { not: 'Cancelled' },
+          },
+          select: { id: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        let tripResult: { id: number; isNew: boolean };
+        if (existingUserTrip) {
+          tripResult = { id: existingUserTrip.id, isNew: false };
+          log('[Payment Webhook] ✅ 기존 UserTrip 재사용:', { userTripId: existingUserTrip.id, userId, productCode });
+        } else {
+          const createdUserTrip = await prisma.userTrip.create({
             data: {
               userId,
               productId: guideProduct?.id || null,
@@ -620,14 +624,10 @@ export async function POST(req: NextRequest) {
               updatedAt: new Date(),
             },
           });
-          return { id: created.id, isNew: true };
-        });
-        const userTripId = tripResult.id;
-        if (tripResult.isNew) {
-          log('[Payment Webhook] ✅ UserTrip 자동 생성 완료:', { userTripId, userId, productCode });
-        } else {
-          log('[Payment Webhook] ✅ 기존 UserTrip 재사용:', { userTripId, userId, productCode });
+          tripResult = { id: createdUserTrip.id, isNew: true };
+          log('[Payment Webhook] ✅ UserTrip 자동 생성 완료:', { userTripId: createdUserTrip.id, userId, productCode });
         }
+        const userTripId = tripResult.id;
 
         // 5-C. Itinerary 자동 생성 (신규 UserTrip 또는 기존 UserTrip에 Itinerary가 없는 경우)
         const pattern = guideProduct?.itineraryPattern;
@@ -683,42 +683,26 @@ export async function POST(req: NextRequest) {
       // 🔴 CRITICAL: 결제는 완료되었지만 예약 생성 실패 - 자동 환불 시도
       // 트랜잭션으로 Sale과 Payment 업데이트 (원자성 보장)
       try {
-        await prisma.$transaction(async (tx) => {
-          // Sale 메타데이터에 실패 기록
-          await tx.affiliateSale.update({
+        // P0-02: 환불 처리 — async tx → 배열 방식 (pgBouncer 호환)
+        // findFirst 제거: 조건부 updateMany(status: { not: 'completed' })로 안전하게 대체
+        await prisma.$transaction([
+          prisma.affiliateSale.update({
             where: { id: sale.id },
             data: {
               metadata: {
-                ...(sale.metadata as any || {}),
+                ...(sale.metadata as object ?? {}),
                 reservationFailed: true,
                 reservationFailureReason: err instanceof Error ? err.message : String(err),
                 reservationFailedAt: new Date().toISOString(),
-                autoRefundAttempted: true, // 🔴 자동 환불 시도 플래그
-              },
-            },
-          });
-
-          // ✅ BUG FIX: 기존 Payment metadata 조회 후 병합 (데이터 손실 방지)
-          const existingPayment = await tx.payment.findFirst({
-            where: { orderId: merchant_uid },
-            select: { metadata: true }
-          });
-
-          // Payment 상태를 refund_pending으로 변경 (환불 대기)
-          await tx.payment.updateMany({
-            where: { orderId: merchant_uid },
-            data: {
-              status: 'refund_pending',
-              metadata: {
-                ...(existingPayment?.metadata as object || {}), // ✅ 기존 메타데이터 보존
-                reservationFailed: true,
                 autoRefundAttempted: true,
-                failureReason: err instanceof Error ? err.message : String(err),
-                refundInitiatedAt: new Date().toISOString(),
               },
             },
-          });
-        });
+          }),
+          prisma.payment.updateMany({
+            where: { orderId: merchant_uid, status: { not: 'completed' } },
+            data: { status: 'refund_pending' },
+          }),
+        ]);
 
         log('[Payment Webhook] ✅ Reservation 실패 정보 DB 기록 완료 (트랜잭션)');
       } catch (txErr) {
