@@ -19,6 +19,7 @@
       },
       {
         "name": "홍콩 (Hong Kong)",
+        "code": "HK",
         "regions": []
       },
       {
@@ -39,6 +40,7 @@
       },
       {
         "name": "말레이시아 (Malaysia)",
+        "code": "MY",
         "regions": [
           "페낭 (Penang)",
           "랑카위 (Langkawi)"
@@ -66,6 +68,7 @@
       },
       {
         "name": "베트남 (Vietnam)",
+        "code": "VN",
         "regions": []
       },
       {
@@ -90,6 +93,7 @@
       },
       {
         "name": "싱가포르 (Singapore)",
+        "code": "SG",
         "regions": []
       },
       {
@@ -142,10 +146,12 @@
       },
       {
         "name": "인도네시아 (Indonesia)",
+        "code": "ID",
         "regions": []
       },
       {
         "name": "일본 (Japan)",
+        "code": "JP",
         "regions": [
           "홋카이도 (Hokkaido)",
           "도호쿠 지방 (Tohoku Region)",
@@ -208,6 +214,7 @@
       },
       {
         "name": "중국 (China)",
+        "code": "CN",
         "regions": []
       },
       {
@@ -236,6 +243,7 @@
       },
       {
         "name": "태국 (Thailand)",
+        "code": "TH",
         "regions": [
           "푸켓 (Phuket)"
         ]
@@ -263,9 +271,17 @@
     "countries": [
       {
         "name": "그리스 (Greece)",
+        "code": "GR",
         "regions": [
+          "산토리니 (Santorini)",
           "미코노스 (Mykonos)",
-          "아테네 (Athens)"
+          "아테네/피레우스 (Athens/Piraeus)",
+          "아테네 (Athens)",
+          "피레우스 (Piraeus)",
+          "로도스 (Rhodes)",
+          "코르푸 (Corfu)",
+          "아르고스톨리 (Argostoli)",
+          "헤라클리온 (Heraklion)"
         ]
       },
       {
@@ -274,6 +290,7 @@
       },
       {
         "name": "노르웨이 (Norway)",
+        "code": "NO",
         "regions": [
           "앤디콧암도스빙하 (Andenes)"
         ]
@@ -284,6 +301,7 @@
       },
       {
         "name": "독일 (Germany)",
+        "code": "DE",
         "regions": []
       },
       {
@@ -316,7 +334,10 @@
       },
       {
         "name": "몬테네그로 (Montenegro)",
-        "regions": []
+        "code": "ME",
+        "regions": [
+          "코토르 (Kotor)"
+        ]
       },
       {
         "name": "몰도바 (Moldova)",
@@ -368,6 +389,7 @@
       },
       {
         "name": "스페인 (Spain)",
+        "code": "ES",
         "regions": [
           "이비자 (Ibiza)",
           "바르셀로나 (Barcelona)"
@@ -395,7 +417,10 @@
       },
       {
         "name": "알바니아 (Albania)",
-        "regions": []
+        "code": "AL",
+        "regions": [
+          "사란다 (Saranda)"
+        ]
       },
       {
         "name": "에스토니아 (Estonia)",
@@ -415,11 +440,20 @@
       },
       {
         "name": "이탈리아 (Italy)",
+        "code": "IT",
         "regions": [
+          "나폴리 (Naples)",
+          "치비타베키아/로마 (Civitavecchia/Rome)",
+          "치비타베키아 (Civitavecchia)",
+          "로마 (Rome)",
+          "메시나/시칠리아 (Messina/Sicily)",
+          "메시나 (Messina)",
           "팔레르모 (Palermo)",
           "제노아 (Genoa)",
           "라벤나 (Ravenna)",
-          "베네치아 (Venice)"
+          "베네치아 (Venice)",
+          "트리에스테 (Trieste)",
+          "바리 (Bari)"
         ]
       },
       {
@@ -436,8 +470,11 @@
       },
       {
         "name": "크로아티아 (Croatia)",
+        "code": "HR",
         "regions": [
-          "스플리트 (Split)"
+          "두브로브니크 (Dubrovnik)",
+          "스플리트 (Split)",
+          "자다르 (Zadar)"
         ]
       },
       {
@@ -446,10 +483,16 @@
       },
       {
         "name": "튀르키예 (Türkiye)",
-        "regions": []
+        "code": "TR",
+        "regions": [
+          "이스탄불 (Istanbul)",
+          "쿠사다시 (Kusadasi)",
+          "보드룸 (Bodrum)"
+        ]
       },
       {
         "name": "포르투갈 (Portugal)",
+        "code": "PT",
         "regions": []
       },
       {
@@ -458,6 +501,7 @@
       },
       {
         "name": "프랑스 (France)",
+        "code": "FR",
         "regions": [
           "마르세유 (Marseille)"
         ]
@@ -694,12 +738,14 @@
     "countries": [
       {
         "name": "캐나다 (Canada)",
+        "code": "CA",
         "regions": [
           "빅토리아 (Victoria)"
         ]
       },
       {
         "name": "미국 (United States)",
+        "code": "US",
         "regions": [
           "시애틀 (Seattle)",
           "주노 (Juneau)",
