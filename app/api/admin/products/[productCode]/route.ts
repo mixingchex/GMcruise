@@ -376,14 +376,12 @@ export async function PUT(
       const updatedPattern = itineraryDays.map((dayInfo: any, index: number) => {
         const existingDay = currentPattern.find((d: any) => d.day === dayInfo.day) || {};
 
-        // 기항지 타입 결정
-        let type = existingDay.type || 'port';
-        if (dayInfo.arrivalLocation === '해상' || !dayInfo.arrivalLocation) {
+        // 기항지 타입 결정 (BUG-05: 해상 여부 먼저 체크, 1일차 강제 지정 제거)
+        let type: string;
+        if (!dayInfo.arrivalLocation || dayInfo.arrivalLocation === '해상') {
           type = 'sea';
-        } else if (dayInfo.day === 1) {
-          type = 'departure';
-        } else if (dayInfo.day === itineraryDays.length) {
-          type = 'arrival';
+        } else {
+          type = dayInfo.dayType || existingDay.type || 'PortVisit';
         }
 
         return {
@@ -392,6 +390,8 @@ export async function PUT(
           type,
           location: dayInfo.arrivalLocation || existingDay.location || null,
           country: dayInfo.arrivalCountry || existingDay.country || null,
+          currency: dayInfo.currency ?? existingDay.currency ?? null,
+          language: dayInfo.language ?? existingDay.language ?? null,
           arrival: dayInfo.portArrivalTime || existingDay.arrival || null,
           departure: dayInfo.portDepartureTime || existingDay.departure || null,
         };

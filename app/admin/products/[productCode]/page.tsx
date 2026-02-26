@@ -692,11 +692,11 @@ export default function ProductEditPage() {
           try {
             const parsedLayout = typeof layout === 'string' ? JSON.parse(layout) : layout;
             // 모든 필드를 명시적으로 로드 (없으면 빈 배열/값으로 설정)
-            setDetailBlocks(parsedLayout.blocks && Array.isArray(parsedLayout.blocks) ? parsedLayout.blocks : []);
-            setIncludedItems(parsedLayout.included && Array.isArray(parsedLayout.included) ? parsedLayout.included : []);
-            setExcludedItems(parsedLayout.excluded && Array.isArray(parsedLayout.excluded) ? parsedLayout.excluded : []);
-            setItineraryDays(parsedLayout.itinerary && Array.isArray(parsedLayout.itinerary) ? parsedLayout.itinerary : []);
-            setPricingRows(parsedLayout.pricing && Array.isArray(parsedLayout.pricing) ? parsedLayout.pricing : []);
+            setDetailBlocks(Array.isArray(parsedLayout.blocks) ? parsedLayout.blocks : (Array.isArray(parsedLayout.detailBlocks) ? parsedLayout.detailBlocks : []));
+            setIncludedItems(Array.isArray(parsedLayout.included) ? parsedLayout.included : (Array.isArray(parsedLayout.includedItems) ? parsedLayout.includedItems : []));
+            setExcludedItems(Array.isArray(parsedLayout.excluded) ? parsedLayout.excluded : (Array.isArray(parsedLayout.excludedItems) ? parsedLayout.excludedItems : []));
+            setItineraryDays(Array.isArray(parsedLayout.itinerary) ? parsedLayout.itinerary : (Array.isArray(parsedLayout.itineraryDays) ? parsedLayout.itineraryDays : []));
+            setPricingRows(Array.isArray(parsedLayout.pricing) ? parsedLayout.pricing : (Array.isArray(parsedLayout.pricingRows) ? parsedLayout.pricingRows : []));
             setDepartureDate(parsedLayout.departureDate || '');
             setRefundPolicy(parsedLayout.refundPolicy || '');
             setFlightInfo(parsedLayout.flightInfo || null);
@@ -1070,11 +1070,11 @@ export default function ProductEditPage() {
             if (layout) {
               try {
                 const parsedLayout = typeof layout === 'string' ? JSON.parse(layout) : layout;
-                setDetailBlocks(parsedLayout.blocks && Array.isArray(parsedLayout.blocks) ? parsedLayout.blocks : []);
-                setIncludedItems(parsedLayout.included && Array.isArray(parsedLayout.included) ? parsedLayout.included : []);
-                setExcludedItems(parsedLayout.excluded && Array.isArray(parsedLayout.excluded) ? parsedLayout.excluded : []);
-                setItineraryDays(parsedLayout.itinerary && Array.isArray(parsedLayout.itinerary) ? parsedLayout.itinerary : []);
-                setPricingRows(parsedLayout.pricing && Array.isArray(parsedLayout.pricing) ? parsedLayout.pricing : []);
+                setDetailBlocks(Array.isArray(parsedLayout.blocks) ? parsedLayout.blocks : (Array.isArray(parsedLayout.detailBlocks) ? parsedLayout.detailBlocks : []));
+                setIncludedItems(Array.isArray(parsedLayout.included) ? parsedLayout.included : (Array.isArray(parsedLayout.includedItems) ? parsedLayout.includedItems : []));
+                setExcludedItems(Array.isArray(parsedLayout.excluded) ? parsedLayout.excluded : (Array.isArray(parsedLayout.excludedItems) ? parsedLayout.excludedItems : []));
+                setItineraryDays(Array.isArray(parsedLayout.itinerary) ? parsedLayout.itinerary : (Array.isArray(parsedLayout.itineraryDays) ? parsedLayout.itineraryDays : []));
+                setPricingRows(Array.isArray(parsedLayout.pricing) ? parsedLayout.pricing : (Array.isArray(parsedLayout.pricingRows) ? parsedLayout.pricingRows : []));
                 setDepartureDate(parsedLayout.departureDate || '');
                 setRefundPolicy(parsedLayout.refundPolicy || '');
                 setFlightInfo(parsedLayout.flightInfo || null);
