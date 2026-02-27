@@ -253,7 +253,7 @@ export async function POST(req: NextRequest) {
           try {
             await fetch(`${BASE_URL}/api/payment/webhook`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-internal-webhook-secret': process.env.INTERNAL_WEBHOOK_SECRET || '' },
               body: JSON.stringify({
                 imp_uid: tid,
                 merchant_uid: orderId,
@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
           try {
             await fetch(`${BASE_URL}/api/payment/webhook`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'x-internal-webhook-secret': process.env.INTERNAL_WEBHOOK_SECRET || '' },
               body: JSON.stringify({
                 imp_uid: tid,
                 merchant_uid: orderId,
@@ -488,7 +488,7 @@ export async function GET(req: NextRequest) {
         try {
           await fetch(`${BASE_URL}/api/payment/webhook`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-internal-webhook-secret': process.env.INTERNAL_WEBHOOK_SECRET || '' },
             body: JSON.stringify({
               imp_uid: tid,
               merchant_uid: orderId,

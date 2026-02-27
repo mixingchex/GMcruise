@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300; // 5분 타임아웃
 

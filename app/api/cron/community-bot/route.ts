@@ -1,3 +1,4 @@
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // app/api/cron/community-bot/route.ts
@@ -923,9 +924,9 @@ export async function POST(req: Request) {
   try {
     // 보안: Cron 비밀 키 확인
     const authHeader = req.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET || 'your-secret-key-here';
-    
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ ok: false, error: '인증 실패' }, { status: 401 });
     }
 
