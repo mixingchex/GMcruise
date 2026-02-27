@@ -403,13 +403,6 @@ export default function ChecklistPage() {
       const errorMessage = err.message || '알 수 없는 오류';
       setError(`상태 변경 중 오류가 발생했습니다: ${errorMessage}`);
 
-      // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
-      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
-        // 짧은 딜레이 후 재시도 (무한 루프 방지)
-        setTimeout(() => {
-          loadItems(true).catch(console.error);
-        }, 1000);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -474,13 +467,6 @@ export default function ChecklistPage() {
       const errorMessage = err.message || '알 수 없는 오류';
       setError(`수정 중 오류가 발생했습니다: ${errorMessage}`);
 
-      // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
-      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
-        // 짧은 딜레이 후 재시도 (무한 루프 방지)
-        setTimeout(() => {
-          loadItems(true).catch(console.error);
-        }, 1000);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -599,13 +585,6 @@ export default function ChecklistPage() {
       const errorMessage = err.message || '알 수 없는 오류';
       setError(`삭제 중 오류가 발생했습니다: ${errorMessage}`);
 
-      // 401이나 429 오류가 아니고, 상태가 이미 롤백되지 않은 경우에만 다시 로드
-      if (!errorMessage.includes('인증') && !errorMessage.includes('너무 많')) {
-        // 짧은 딜레이 후 재시도 (무한 루프 방지)
-        setTimeout(() => {
-          loadItems(true).catch(console.error);
-        }, 1000);
-      }
     } finally {
       setIsLoading(false);
     }

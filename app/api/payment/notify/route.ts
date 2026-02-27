@@ -107,6 +107,17 @@ export async function POST(req: NextRequest) {
       return new Response('OK', { status: 200 });
     }
 
+    // 금액 검증: PG 노티 금액과 DB 저장 금액 비교
+    const receivedAmt = parseInt(P_AMT);
+    if (P_AMT && !isNaN(receivedAmt) && receivedAmt !== payment.amount) {
+      error('[Payment Notify] 금액 불일치 탐지:', {
+        orderId: P_OID,
+        expected: payment.amount,
+        received: receivedAmt,
+      });
+      return new Response('FAIL', { status: 200 });
+    }
+
     const isSuccess = isPaymentSuccess(P_STATUS);
 
     if (isSuccess) {

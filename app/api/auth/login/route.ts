@@ -541,7 +541,7 @@ export async function POST(req: Request) {
               data: {
                 name: name || '3일체험고객', // 이름이 없으면 기본값
                 phone: phone || `test-${Date.now()}`, // 전화번호가 없으면 임시값
-                password: normalizedTestPassword,
+                password: await hashPassword(normalizedTestPassword),
                 onboarded: false,
                 loginCount: 1,
                 role: 'user',
@@ -594,7 +594,7 @@ export async function POST(req: Request) {
                   data: {
                     name: name || testUser.name,
                     phone: phone || testUser.phone,
-                    password: normalizedTestPassword, // 비밀번호를 1101로 업데이트
+                    password: await hashPassword(normalizedTestPassword), // 비밀번호를 1101로 업데이트
                   },
                 });
                 testUser.name = name || testUser.name;
@@ -624,7 +624,7 @@ export async function POST(req: Request) {
             data: {
               name: name || testUser.name,
               phone: phone || testUser.phone,
-              password: normalizedTestPassword,
+              password: await hashPassword(normalizedTestPassword),
               customerSource: 'test-guide',
               // 만료된 경우 체험기간 리셋 (1101 비밀번호 = 무조건 재시작 가능)
               ...(isAlreadyExpired ? {
@@ -1402,7 +1402,7 @@ export async function POST(req: Request) {
               data: {
                 name: normalizedName,
                 phone: normalizedPhone,
-                password: password,
+                password: await hashPassword(password),
                 role: 'admin',
                 onboarded: true,
                 loginCount: 0,
@@ -1447,14 +1447,14 @@ export async function POST(req: Request) {
         }
 
         // 비밀번호 확인 (DB에 저장된 비밀번호도 확인)
-        const isPasswordValid = adminUser.password === password;
+        const { valid: isPasswordValid } = await verifyPassword(password, adminUser.password ?? '');
         console.log('[Admin Login] 비밀번호 확인:', { isValid: isPasswordValid });
 
         if (!isPasswordValid) {
-          // DB 비밀번호와 일치하지 않으면 업데이트
+          // DB 비밀번호와 일치하지 않으면 해시하여 업데이트
           await prisma.user.update({
             where: { id: adminUser.id },
-            data: { password: password },
+            data: { password: await hashPassword(password) },
           });
           console.log('[Admin Login] 비밀번호 업데이트 완료');
         }

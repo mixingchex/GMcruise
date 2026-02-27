@@ -596,15 +596,16 @@ export async function POST(req: NextRequest) {
 
         // P0-02: UserTrip 조회/생성 — async tx → 분리 쿼리 (pgBouncer 호환)
         // externalOrderCode @unique가 이미 중복 결제를 차단하므로 tx 불필요
-        const existingUserTrip = await prisma.userTrip.findFirst({
+        // guideProduct가 없으면 productId 조건 없이 기존 UserTrip 재사용 금지 (다른 상품 오염 방지)
+        const existingUserTrip = guideProduct?.id ? await prisma.userTrip.findFirst({
           where: {
             userId,
-            ...(guideProduct?.id ? { productId: guideProduct.id } : {}),
+            productId: guideProduct.id,
             status: { not: 'Cancelled' },
           },
           select: { id: true },
           orderBy: { createdAt: 'desc' },
-        });
+        }) : null;
         let tripResult: { id: number; isNew: boolean };
         if (existingUserTrip) {
           tripResult = { id: existingUserTrip.id, isNew: false };
@@ -699,7 +700,7 @@ export async function POST(req: NextRequest) {
             },
           }),
           prisma.payment.updateMany({
-            where: { orderId: merchant_uid, status: { not: 'completed' } },
+            where: { orderId: merchant_uid },
             data: { status: 'refund_pending' },
           }),
         ]);
@@ -746,11 +747,20 @@ export async function POST(req: NextRequest) {
     // Lead 상태 업데이트 또는 생성
     let updatedLeadId: number | null = null;
     if (leadId) {
-      await prisma.affiliateLead.update({
-        where: { id: Number(leadId) },
-        data: { status: 'PURCHASED' },
-      });
-      updatedLeadId = Number(leadId);
+      try {
+        await prisma.affiliateLead.update({
+          where: { id: Number(leadId) },
+          data: { status: 'PURCHASED' },
+        });
+        updatedLeadId = Number(leadId);
+      } catch (leadErr: any) {
+        // P2025: Lead가 삭제된 경우 등 — 결제 자체는 완료이므로 warn 후 계속
+        warn('[Payment Webhook] Lead 상태 업데이트 실패 (무시):', {
+          leadId,
+          code: leadErr?.code,
+          message: leadErr?.message,
+        });
+      }
     } else if (customerName && customerPhone && (managerId || agentId)) {
       // Lead가 없지만 고객 정보와 어필리에이트 정보가 있으면 새로 생성
       const normalizedPhone = normalizePhone(customerPhone) ?? '';

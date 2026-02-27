@@ -12,6 +12,9 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const { name } = body;
+  if (name !== undefined && typeof name !== 'string') {
+    return NextResponse.json({ ok: false, error: 'INVALID_NAME' }, { status: 400 });
+  }
 
   // 온보딩 완료 처리 (이름은 선택적으로 업데이트)
   try {
