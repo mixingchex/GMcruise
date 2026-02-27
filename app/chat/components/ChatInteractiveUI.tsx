@@ -141,7 +141,7 @@ export default function ChatInteractiveUI() {
             const trip = tripData.data;
             setTrip({
               cruiseName: trip.cruiseName || '크루즈 여행',
-              destination: trip.itineraries?.map((it: any) => it.country).join(', ') || '목적지 미정',
+              destination: trip.Itinerary?.filter((it: any) => it.country).map((it: any) => it.country).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(', ') || '목적지 미정',
               startDate: new Date(trip.startDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '부터',
               endDate: new Date(trip.endDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '까지',
             });
