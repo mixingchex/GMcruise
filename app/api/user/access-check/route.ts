@@ -86,11 +86,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 최신 여행 조회
+    // 최신 여행 조회 (취소/환불된 여행 제외)
     const latestTrip = await prisma.userTrip.findFirst({
-      where: { userId: user.id },
+      where: { userId: user.id, status: { not: 'Cancelled' } },
       orderBy: { endDate: 'desc' },
-      select: { endDate: true },
+      select: { endDate: true, status: true },
     });
 
     // 여행이 없으면 허용
