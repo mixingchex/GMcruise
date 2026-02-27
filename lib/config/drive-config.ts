@@ -1,5 +1,6 @@
 
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export const DRIVE_CONFIG_KEYS = {
     SIGNATURES: 'google_drive_signatures_folder_id',
@@ -111,22 +112,22 @@ export async function getDriveFolderId(key: DriveConfigKey): Promise<string> {
         });
 
         if (config?.configValue) {
-            console.log(`[DriveConfig] ${key} from DB: ${config.configValue}`);
+            logger.log(`[DriveConfig] ${key} from DB: ${config.configValue}`);
             return config.configValue;
         }
 
         // 2. Check Environment Variable (ENV_MAPPING already contains the value)
         const envValue = ENV_MAPPING[key];
         if (envValue) {
-            console.log(`[DriveConfig] ${key} from ENV: ${envValue}`);
+            logger.log(`[DriveConfig] ${key} from ENV: ${envValue}`);
             return envValue;
         }
 
         // 3. Return Default
-        console.log(`[DriveConfig] ${key} from DEFAULT: ${DEFAULTS[key]}`);
+        logger.log(`[DriveConfig] ${key} from DEFAULT: ${DEFAULTS[key]}`);
         return DEFAULTS[key];
     } catch (error) {
-        console.error(`[DriveConfig] Error fetching config for ${key}:`, error);
+        logger.error(`[DriveConfig] Error fetching config for ${key}:`, error);
         // Fallback to env or default even on DB error
         return ENV_MAPPING[key] || DEFAULTS[key];
     }

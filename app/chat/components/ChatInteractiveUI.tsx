@@ -104,6 +104,7 @@ export default function ChatInteractiveUI() {
     cruiseName: string;
     destination: string;
     startDate: string;
+    startDateIso: string;
     endDate: string;
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -154,6 +155,7 @@ export default function ChatInteractiveUI() {
             cruiseName: trip.cruiseName || '크루즈 여행',
             destination: trip.Itinerary?.filter((it: any) => it.country).map((it: any) => it.country).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(', ') || '목적지 미정',
             startDate: new Date(trip.startDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '부터',
+            startDateIso: trip.startDate,
             endDate: new Date(trip.endDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '까지',
           });
         }
@@ -200,7 +202,7 @@ export default function ChatInteractiveUI() {
 
   // D-Day 모달 로직 (trip 로드 후 실행)
   useEffect(() => {
-    if (!hasShownDdayModal || !trip) return;
+    if (hasShownDdayModal || !trip) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -215,7 +217,7 @@ export default function ChatInteractiveUI() {
       }
     };
 
-    const startDateObj = parseDate(trip.startDate);
+    const startDateObj = parseDate(trip.startDateIso);
 
     // 테스트 사용자(전혜선)인 경우 D-day 고정
     const TEST_USER_PHONE = '01024958013';
@@ -237,13 +239,13 @@ export default function ChatInteractiveUI() {
       if (ddayMessagesData?.messages?.[ddayKey]) {
         setDdayMessageData(ddayMessagesData.messages[ddayKey]);
         setShowDdayModal(true);
-        setHasShownDdayModal(false);
+        setHasShownDdayModal(true);
       }
     } else if (today.getTime() === startDateObj.getTime()) {
       if (ddayMessagesData?.messages?.["0"]) {
         setDdayMessageData(ddayMessagesData.messages["0"]);
         setShowDdayModal(true);
-        setHasShownDdayModal(false);
+        setHasShownDdayModal(true);
       }
     }
   }, [trip, hasShownDdayModal, userPhone, ddayMessagesData]);
@@ -323,8 +325,8 @@ export default function ChatInteractiveUI() {
         <DdayPushModal
           userId={"monica_user"} // 하드코딩된 사용자 ID 유지
           userName={userName}
-          trip={trip || { cruiseName: '크루즈 여행', destination: '목적지 미정', startDate: '시작일 미정', endDate: '종료일 미정' }}
-          message={{ d: getDdayMessage(trip?.startDate || '', trip?.endDate || '', userPhone), title: ddayMessageData.title, html: ddayMessageData.message }}
+          trip={trip || { cruiseName: '크루즈 여행', destination: '목적지 미정', startDate: '시작일 미정', startDateIso: '', endDate: '종료일 미정' }}
+          message={{ d: getDdayMessage(trip?.startDateIso || trip?.startDate || '', trip?.endDate || '', userPhone), title: ddayMessageData.title, html: ddayMessageData.message }}
           onClose={() => setShowDdayModal(false)}
         />
       )}

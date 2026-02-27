@@ -1041,7 +1041,7 @@ export default function TranslatorPage() {
                   {listening === 'recording' ? '🎤 인식 중...' : '⏳ 준비 중...'}
                 </span>
               </div>
-              <div className="text-center min-h-[80px] flex flex-col justify-center">
+              <div className="text-center min-h-[100px] md:min-h-[120px] flex flex-col justify-center">
                 {finalText || interimText ? (
                   <div className="space-y-3">
                     {/* 최종 확정된 텍스트 (검은색, 굵게) */}
