@@ -46,7 +46,7 @@ function LoginPageContent() {
       return;
     }
 
-    // 크루즈 가이드 지니 비밀번호 검증 (3800=구매고객용, 1101=3일체험)
+    // 크루즈닷AI 비밀번호 검증 (3800=구매고객용, 1101=3일체험)
     if (trimmedPassword !== '3800' && trimmedPassword !== '1101') {
       setError('비밀번호가 올바르지 않습니다. 비밀번호를 확인해주세요.');
       return;
@@ -145,6 +145,12 @@ function LoginPageContent() {
       if (trimmedPassword === '1101') {
         next = '/chat-test';
         console.log('[LOGIN] 비밀번호 1101 감지 - /chat-test로 강제 리다이렉트');
+      }
+      
+      // 온보딩으로 가려는 시도 차단 - 크루즈몰로 리다이렉트
+      if (next === '/onboarding' || next.startsWith('/onboarding')) {
+        console.warn('[LOGIN] 온보딩 리다이렉트 차단, 크루즈몰로 이동');
+        next = '/';
       }
       
       console.log('[LOGIN] Redirecting to:', next);
