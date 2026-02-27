@@ -1758,6 +1758,14 @@ export async function POST(req: Request) {
         }
       }
 
+      // 환불된 계정 로그인 차단
+      if (activeUser.customerStatus === 'refunded') {
+        return NextResponse.json({
+          ok: false,
+          error: '환불 처리된 계정입니다. 새로운 구매 후 이용 가능합니다.',
+        }, { status: 403 });
+      }
+
       console.log('[Login] 활성 고객 로그인:', { userId: activeUser.id, phone, name });
 
       try {

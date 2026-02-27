@@ -38,6 +38,17 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // 환불 처리된 계정 접근 차단
+    if (user.customerStatus === 'refunded') {
+      return NextResponse.json({
+        ok: true,
+        allowed: false,
+        status: 'refunded',
+        reason: 'refunded',
+        message: '환불 처리된 계정입니다. 새로운 구매 후 이용 가능합니다.',
+      });
+    }
+
     // 3일 체험 만료 체크 (72시간 = 3일)
     // customerStatus: 'test-locked' 상태이거나, testModeStartedAt 기준 72시간 경과 시 만료
     if (user.customerStatus === 'test-locked') {

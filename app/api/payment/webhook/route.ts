@@ -710,6 +710,33 @@ export async function POST(req: NextRequest) {
         error('[Payment Webhook] ❌ Reservation 실패 정보 DB 기록 실패:', txErr);
       }
 
+      // 환불 대상 사용자 크루즈가이드AI 접근 차단
+      // (userId는 try 블록 스코프라 catch에서 미접근 → customerPhone으로 재조회)
+      try {
+        const refundPhone = normalizePhone(customerPhone);
+        if (refundPhone) {
+          const refundedUser = await prisma.user.findFirst({
+            where: { phone: refundPhone },
+            select: { id: true },
+          });
+          if (refundedUser) {
+            await prisma.$transaction([
+              prisma.user.update({
+                where: { id: refundedUser.id },
+                data: { customerStatus: 'refunded' },
+              }),
+              prisma.userTrip.updateMany({
+                where: { userId: refundedUser.id, status: { not: 'Cancelled' } },
+                data: { status: 'Cancelled' },
+              }),
+            ]);
+            log('[Payment Webhook] ✅ 환불 처리로 인한 가이드AI 접근 차단:', { userId: refundedUser.id });
+          }
+        }
+      } catch (blockErr) {
+        error('[Payment Webhook] ❌ 환불 사용자 차단 실패 (환불 자체는 진행):', blockErr);
+      }
+
       // 🔴 자동 환불 API 호출 시도
       try {
         log('[Payment Webhook] 자동 환불 API 호출 시작:', { imp_uid, merchant_uid, amount });
