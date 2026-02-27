@@ -4,6 +4,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
+const COUNTRY_NAMES: Record<string, string> = {
+  'IT': '이탈리아', 'GR': '그리스', 'HR': '크로아티아',
+  'ES': '스페인', 'FR': '프랑스', 'DE': '독일', 'TR': '터키',
+  'PT': '포르투갈', 'ME': '몬테네그로', 'MT': '몰타',
+  'JP': '일본', 'KR': '한국', 'CN': '중국', 'SG': '싱가포르',
+  'TH': '태국', 'VN': '베트남', 'MY': '말레이시아', 'ID': '인도네시아',
+  'US': '미국', 'MX': '멕시코', 'BS': '바하마', 'BM': '버뮤다',
+  'NO': '노르웨이', 'IS': '아이슬란드', 'FI': '핀란드', 'SE': '스웨덴',
+  'EE': '에스토니아', 'LV': '라트비아', 'RU': '러시아',
+  'GB': '영국', 'NL': '네덜란드', 'BE': '벨기에', 'DK': '덴마크',
+};
+
 const LANGUAGE_MAP: Record<string, { code: string; name: string; flag: string }> = {
   일본: { code: 'ja-JP', name: '일본어', flag: '🇯🇵' },
   중국: { code: 'zh-CN', name: '중국어', flag: '🇨🇳' },
@@ -129,7 +141,7 @@ export async function GET(_req: NextRequest) {
       isCruising: false,
       currentPort: {
         location: itinerary.location,
-        country: itinerary.country,
+        country: itinerary.country ? (COUNTRY_NAMES[itinerary.country] || itinerary.country) : null,
         arrival: itinerary.arrival,
         departure: itinerary.departure,
         language,

@@ -122,49 +122,51 @@ export default function ChatInteractiveUI() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // 사용자 프로필 조회
-        const userResponse = await fetch('/api/user/profile', { credentials: 'include' });
+        // 4개 API 병렬 호출
+        const [userResponse, tripResponse, accessResponse, affiliateResponse] = await Promise.all([
+          fetch('/api/user/profile', { credentials: 'include' }),
+          fetch('/api/trips/active'),
+          fetch('/api/user/access-check', { credentials: 'include' }),
+          fetch('/api/user/affiliate-mall-url', { credentials: 'include' }),
+        ]);
+
         if (!userResponse.ok) throw new Error('Failed to load user profile');
-        const userData = await userResponse.json();
+
+        const [userData, tripData, accessData, affiliateData] = await Promise.all([
+          userResponse.json(),
+          tripResponse.ok ? tripResponse.json() : Promise.resolve(null),
+          accessResponse.ok ? accessResponse.json() : Promise.resolve(null),
+          affiliateResponse.ok ? affiliateResponse.json() : Promise.resolve(null),
+        ]);
+
+        // 사용자 프로필 처리
         setUserName(userData.user?.name || userData.data?.name || '');
         setUserId(userData.user?.id);
         setUserPhone(userData.user?.phone || userData.data?.phone || null);
-        
+
         // 결제 고객용이므로 테스트 모드 아님 (항상 false)
         setIsTestMode(false);
 
-        // 활성 여행 조회
-        const tripResponse = await fetch('/api/trips/active');
-        if (tripResponse.ok) {
-          const tripData = await tripResponse.json();
-          if (tripData.data) {
-            const trip = tripData.data;
-            setTrip({
-              cruiseName: trip.cruiseName || '크루즈 여행',
-              destination: trip.Itinerary?.filter((it: any) => it.country).map((it: any) => it.country).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(', ') || '목적지 미정',
-              startDate: new Date(trip.startDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '부터',
-              endDate: new Date(trip.endDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '까지',
-            });
-          }
+        // 활성 여행 처리
+        if (tripData?.data) {
+          const trip = tripData.data;
+          setTrip({
+            cruiseName: trip.cruiseName || '크루즈 여행',
+            destination: trip.Itinerary?.filter((it: any) => it.country).map((it: any) => it.country).filter((v: string, i: number, a: string[]) => a.indexOf(v) === i).join(', ') || '목적지 미정',
+            startDate: new Date(trip.startDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '부터',
+            endDate: new Date(trip.endDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '까지',
+          });
         }
-        
-        // 여행 종료 상태 확인
-        const accessResponse = await fetch('/api/user/access-check', { credentials: 'include' });
-        if (accessResponse.ok) {
-          const accessData = await accessResponse.json();
-          if (accessData.ok && accessData.status === 'expired') {
-            setTripExpired(true);
-            setExpiredMessage(accessData.message || '여행이 종료되었습니다. 새로운 여행을 등록해 주세요.');
-          }
+
+        // 여행 종료 상태 처리
+        if (accessData?.ok && accessData.status === 'expired') {
+          setTripExpired(true);
+          setExpiredMessage(accessData.message || '여행이 종료되었습니다. 새로운 여행을 등록해 주세요.');
         }
-        
-        // 어필리에이트 몰 URL 확인
-        const affiliateResponse = await fetch('/api/user/affiliate-mall-url', { credentials: 'include' });
-        if (affiliateResponse.ok) {
-          const affiliateData = await affiliateResponse.json();
-          if (affiliateData.ok && affiliateData.mallUrl) {
-            setAffiliateMallUrl(affiliateData.mallUrl);
-          }
+
+        // 어필리에이트 몰 URL 처리
+        if (affiliateData?.ok && affiliateData.mallUrl) {
+          setAffiliateMallUrl(affiliateData.mallUrl);
         }
       } catch (error) {
         console.error('Error loading user data:', error);
