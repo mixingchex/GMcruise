@@ -283,13 +283,13 @@ export default function Statistics() {
   return (
     <div className="space-y-6">
       {/* 총 지출 요약 */}
-      <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl shadow-lg p-8 text-white">
-        <div className="flex items-center gap-3 mb-3">
-          <FiTrendingUp className="w-8 h-8" />
-          <h2 className="text-2xl font-bold">총 지출</h2>
+      <div className="bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl shadow-lg p-5 md:p-8 text-white">
+        <div className="flex items-center gap-2 mb-2">
+          <FiTrendingUp className="w-5 h-5 md:w-8 md:h-8" />
+          <h2 className="text-base md:text-2xl font-bold">총 지출</h2>
         </div>
-        <p className="text-5xl font-bold mb-2">{totalExpense.toLocaleString()}원</p>
-        <p className="text-lg opacity-90">{expenses.length}건의 지출</p>
+        <p className="text-3xl md:text-5xl font-bold mb-1">{totalExpense.toLocaleString()}원</p>
+        <p className="text-sm md:text-lg opacity-90">{expenses.length}건의 지출</p>
       </div>
 
       {/* 예산 설정 및 관리 */}
@@ -317,17 +317,17 @@ export default function Statistics() {
                 value={budgetInput}
                 onChange={(e) => setBudgetInput(e.target.value)}
                 placeholder="예산 금액 입력 (원)"
-                className="flex-1 px-4 py-3 border-2 border-green-300 rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="flex-1 px-3 py-2.5 border-2 border-green-300 rounded-lg text-sm md:text-base font-semibold focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <button
                 onClick={saveBudget}
-                className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="px-3 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
               >
                 <FiCheckCircle className="w-5 h-5" />
               </button>
               <button
                 onClick={cancelEditBudget}
-                className="px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+                className="px-3 py-2.5 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
               >
                 <FiX className="w-5 h-5" />
               </button>
@@ -571,26 +571,26 @@ export default function Statistics() {
 
       {/* 예상 지출 및 평균 지출 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-gradient-to-r from-green-500 to-teal-500 rounded-xl shadow-lg p-6 text-white">
-          <h3 className="text-xl font-bold mb-3">💡 평균 일일 지출</h3>
-          <p className="text-4xl font-bold">
+        <div className="bg-gradient-to-r from-green-500 to-teal-500 rounded-xl shadow-lg p-4 md:p-6 text-white">
+          <h3 className="text-sm md:text-xl font-bold mb-1.5">💡 평균 일일 지출</h3>
+          <p className="text-2xl md:text-4xl font-bold">
             {dayStats.length > 0
               ? Math.round(averageDailyExpense).toLocaleString()
               : '0'}원
           </p>
-          <p className="text-base opacity-90 mt-2">
+          <p className="text-xs md:text-base opacity-90 mt-1">
             {dayStats.length}일 동안의 평균
           </p>
         </div>
 
-        <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg p-6 text-white">
-          <h3 className="text-xl font-bold mb-3">📊 예상 총 지출</h3>
-          <p className="text-4xl font-bold">
+        <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-xl shadow-lg p-4 md:p-6 text-white">
+          <h3 className="text-sm md:text-xl font-bold mb-1.5">📊 예상 총 지출</h3>
+          <p className="text-2xl md:text-4xl font-bold">
             {estimatedTotalExpense > 0
               ? Math.round(estimatedTotalExpense).toLocaleString()
               : '0'}원
           </p>
-          <p className="text-base opacity-90 mt-2">
+          <p className="text-xs md:text-base opacity-90 mt-1">
             Day {maxDay}까지 예상
           </p>
         </div>
