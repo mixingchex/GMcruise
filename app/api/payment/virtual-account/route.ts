@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
       depositName 
     });
 
-    // 서명 검증
-    const pgSignkey = process.env.PG_SIGNKEY;
+    // 서명 검증 (WELCOMEPAY_SIGNKEY 사용 — PG_SIGNKEY는 잘못된 변수명)
+    const pgSignkey = process.env.WELCOMEPAY_SIGNKEY;
     if (!pgSignkey) {
       return NextResponse.json(
         { ok: false, error: 'PG 설정 오류' },

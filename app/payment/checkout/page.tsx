@@ -258,24 +258,33 @@ function CheckoutContent() {
         P_AMT: price,
         P_UNAME: buyername,
         P_GOODS: goodname,
-        P_MNAME: '크루즈가이드',
+        P_MNAME: '크루즈닷',
         P_MOBILE: buyertel,
         P_EMAIL: buyeremail,
+        // P_NEXT_URL: 인증결과 수신 URL (모바일 2단계: 인증 완료 → 서버 승인 처리)
         P_NEXT_URL: 'https://www.cruisedot.co.kr/api/payment/callback',
+        // P_RETURN_URL: 결제 완료 후 사용자가 돌아올 페이지 (Mobile Web 매뉴얼 v1.10.6 p.11)
+        // 누락 시 결제 완료 후 빈 화면이 표시됨
+        P_RETURN_URL: 'https://www.cruisedot.co.kr/payment/success',
         P_NOTI_URL: 'https://www.cruisedot.co.kr/api/payment/notify',
         P_CHARSET: 'utf8',
         P_NOTI: merchantData,
-        // ISP/앱카드 옵션 (웰컴페이먼츠 모바일 권장 설정)
+        // ISP/앱카드 옵션 (웰컴페이먼츠 모바일 신용카드 필수옵션 - 매뉴얼 p.15)
         P_RESERVED: 'twotrs_isp=Y&block_isp=Y&twotrs_isp_noti=N&apprun_check=Y&',
-        // 모바일 할부 활성화 (00=일시불, 02/03/06/12개월)
-        P_QUOTABASE: '00:02:03:06:12',
-        // 보안 필드 (필수!) - 웰컴페이먼츠 매뉴얼 v1.10.13 Page 13
+        // 모바일 할부 활성화 (매뉴얼 v1.10.6 p.13: 01=일시불, 02=2개월, 00은 잘못된 값)
+        // 현대카드 1만원, 그 외 5만원 이상 시에만 동작
+        P_QUOTABASE: '01:02:03:06:12',
+        // 보안 필드 (필수!) - 웰컴페이먼츠 모바일 매뉴얼 p.13
         P_TIMESTAMP: timestamp,
         P_SIGNATURE: signature,
-        P_MKEY: mKey,  // 서명 검증용 mKey (누락 시 모바일 결제 보안 검증 실패)
-        // 휴대폰 결제 과금방식 (1=통신사청구). 非HPP 수단에서는 PG가 무시하나 기존 동작 유지를 위해 포함
-        P_HPP_METHOD: '1',
+        P_MKEY: mKey,
       };
+
+      // P_HPP_METHOD: 휴대폰 결제 시에만 포함 (매뉴얼 p.14: 컨텐츠=1, 실물=2, 빌링컨텐츠=4, 빌링실물=5)
+      // 크루즈 상품은 실물(여행상품)이므로 2 사용. 非HPP 결제 수단에는 포함하지 않음.
+      if (payMethod === 'HPP') {
+        params.P_HPP_METHOD = '2';
+      }
 
       console.log('[Checkout Mobile] Form params:', {
         P_MID: params.P_MID,
@@ -518,13 +527,12 @@ function CheckoutContent() {
           <input type="hidden" name="payViewType" value="overlay" />
           <input type="hidden" name="charset" value="UTF-8" />
 
-          {/* 결제 옵션 (매뉴얼 PC_Web_manual_v.1.10.13 기준)
-            - NOINT(2:3:6:12): 무이자 할부 개월수 (quotabase와 동일하게 유지)
-            - HPP(N) 제거: HPP는 '휴대폰 결제 상품유형'이므로 신용카드 결제에 불필요
-              (HPP(1)=컨텐츠, HPP(2)=실물 — 카드 결제 시 간섭 유발) */}
-          <input type="hidden" name="acceptmethod" value="NOINT(2:3:6:12)" />
-          {/* 할부 개월 드롭다운 활성화 (매뉴얼 형식: "2:3:4" 한 자리 숫자, 일시불은 기본 표시)
-            생략 시 일시불만 표시됨 */}
+          {/* 결제 옵션 (매뉴얼 PC_Web_manual_v.1.10.13 p.22-23 기준)
+            - acceptmethod: 카드=빈값, HPP(휴대폰)=HPP(2)(실물여행상품)
+              NOINT(...)는 매뉴얼에 없는 비표준 형식이므로 제거
+            - quotabase: 할부 개월 드롭다운 (매뉴얼 형식: "2:3:6:12", 일시불은 기본 표시, 생략 시 일시불만)
+              현대카드 1만원, 그 외 5만원 이상 시에만 동작 */}
+          <input type="hidden" name="acceptmethod" value={payMethod === 'HPP' ? 'HPP(2)' : ''} />
           <input type="hidden" name="quotabase" value="2:3:6:12" />
 
           {/* URL 설정 (필수) */}

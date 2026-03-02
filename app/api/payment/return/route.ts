@@ -216,10 +216,10 @@ export async function POST(req: NextRequest) {
 
         log('[Payment Return v12.0] PC 승인 성공:', { tid, authCode, authDate, payMethod });
 
-        // DB 업데이트 - 성공
+        // DB 업데이트 - 성공 [보안] TOCTOU 방지
         if (payment) {
-          await prisma.payment.update({
-            where: { orderId },
+          await prisma.payment.updateMany({
+            where: { orderId, status: { not: 'completed' } },
             data: {
               status: 'completed',
               paidAt: new Date(),
@@ -345,8 +345,9 @@ export async function POST(req: NextRequest) {
 
       if (payment) {
         if (isSuccess) {
-          await prisma.payment.update({
-            where: { orderId },
+          // [보안] TOCTOU 방지: status가 이미 completed인 경우 중복 처리 차단
+          await prisma.payment.updateMany({
+            where: { orderId, status: { not: 'completed' } },
             data: {
               status: 'completed',
               paidAt: new Date(),
@@ -471,14 +472,34 @@ export async function GET(req: NextRequest) {
 
     if (payment) {
       if (isSuccess) {
-        await prisma.payment.update({
-          where: { orderId },
+        // [보안] 금액 검증: PG 전달 금액 vs DB 저장 금액 불일치 시 결제 위조 의심
+        const receivedAmount = parseInt(amount || '0');
+        if (receivedAmount > 0 && payment.amount !== receivedAmount) {
+          error('[Payment Return GET] Amount mismatch - possible fraud!', {
+            orderId,
+            dbAmount: payment.amount,
+            receivedAmount,
+          });
+          return NextResponse.redirect(
+            new URL(`/payment/failed?orderId=${orderId}&error=${encodeURIComponent('결제 금액 불일치')}`, BASE_URL)
+          );
+        }
+
+        // [보안] TOCTOU 방지: status가 이미 completed인 경우 중복 처리 차단
+        const updated = await prisma.payment.updateMany({
+          where: { orderId, status: { not: 'completed' } },
           data: {
             status: 'completed',
             paidAt: new Date(),
             pgTransactionId: tid || undefined,
           },
         });
+
+        if (updated.count === 0) {
+          // 이미 처리된 결제 - 성공 페이지로 이동 (멱등성)
+          log('[Payment Return GET] Already processed:', orderId);
+          return NextResponse.redirect(new URL(`/payment/success?orderId=${orderId}`, BASE_URL));
+        }
 
         // [v11.0] DB + merchantData 병합
         const finalPartnerId = payment.affiliateMallUserId || merchantPartnerId || '';
@@ -493,7 +514,7 @@ export async function GET(req: NextRequest) {
               imp_uid: tid,
               merchant_uid: orderId,
               status: 'paid',
-              amount: parseInt(amount || '0'),
+              amount: receivedAmount,
               // [v11.0] 병합된 정보 사용
               productCode: finalProductCode,
               customerName: payment.buyerName,
@@ -508,8 +529,8 @@ export async function GET(req: NextRequest) {
           error('[Payment Return GET v11.0] Webhook error:', webhookErr);
         }
       } else {
-        await prisma.payment.update({
-          where: { orderId },
+        await prisma.payment.updateMany({
+          where: { orderId, status: { not: 'completed' } },
           data: {
             status: 'failed',
             failedAt: new Date(),
