@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { SESSION_COOKIE } from '@/lib/session';
-import bcrypt from 'bcryptjs';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 import { recordCustomerJourney } from '@/lib/customer-journey';
 
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
       // 5. 구매고객 → 일반고객 (customerStatus로 관리)
 
       // 비밀번호 해시 생성
-      const hashedPassword = await bcrypt.hash('8300', 10);
+      const hashedPassword = await hashPassword(SYSTEM_PASSWORDS.LOCKED);
 
       // 환불 횟수 조회 및 증가 (metadata에서 관리)
       // User 모델에 metadata 필드가 없을 수 있으므로, 일단 기본값 사용
@@ -199,18 +199,8 @@ export async function POST(req: NextRequest) {
         metadata = {};
       }
       
+      // 환불 횟수 (metadata 필드 추가 시 DB에 누적 저장 가능, 현재는 recordCustomerJourney에만 전달)
       const refundCount = ((metadata.refundCount as number) || 0) + 1;
-      const updatedMetadata = {
-        ...metadata,
-        refundCount: refundCount,
-        refundHistory: [
-          ...(metadata.refundHistory || []),
-          {
-            date: refundDate || new Date().toISOString(),
-            amount: refundAmount || 0,
-          },
-        ],
-      };
 
       // 관리자 ID 조회 (고객 그룹 생성용)
       const adminUser = await prisma.user.findFirst({
@@ -230,10 +220,6 @@ export async function POST(req: NextRequest) {
         customerStatus: 'refunded', // 환불 완료 상태
         password: hashedPassword,
       };
-      
-      // metadata 필드가 있으면 업데이트 (Prisma 스키마에 필드가 있는 경우)
-      // 일단 주석 처리하고, 나중에 스키마 업데이트 후 활성화
-      // updateData.metadata = updatedMetadata;
       
       await prisma.user.update({
         where: { id: customer.id },

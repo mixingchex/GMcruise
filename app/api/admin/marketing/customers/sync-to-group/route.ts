@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { SESSION_COOKIE } from '@/lib/session';
+import { hashPassword } from '@/lib/password';
 
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
   if (!sid) return false;
@@ -73,8 +74,7 @@ export async function POST(req: Request) {
     if (!user) {
       // 임시 비밀번호 생성
       const tempPassword = Math.random().toString(36).slice(-8);
-      const bcrypt = require('bcryptjs');
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      const hashedPassword = await hashPassword(tempPassword);
 
       user = await prisma.user.create({
         data: {

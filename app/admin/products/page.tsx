@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiDownload, FiRefreshCw, FiEye, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiSave, FiX, FiDownload, FiRefreshCw, FiEye, FiSearch, FiCopy } from 'react-icons/fi';
 import dynamic from 'next/dynamic';
 import ItineraryPatternEditor, { ItineraryDay } from '@/components/admin/ItineraryPatternEditor';
 import DateRangePicker from '@/components/admin/DateRangePicker';
@@ -1525,6 +1525,26 @@ export default function ProductsManagementPage() {
     }
   };
 
+  const handleCopyProduct = async (productCode: string) => {
+    if (!confirm(`상품 [${productCode}]을 복사하시겠습니까?\n복사 상품은 '판매중지' 상태로 생성됩니다.`)) return;
+    try {
+      const response = await fetch(`/api/admin/products/${productCode}/copy`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (data.ok) {
+        showSuccess(`복사 완료! 새 상품 코드: ${data.newProductCode}`);
+        loadProducts();
+      } else {
+        showError(data.error || '상품 복사에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error copying product:', error);
+      showError('상품 복사 중 오류가 발생했습니다.');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm('정말 삭제하시겠습니까?')) return;
 
@@ -2229,6 +2249,13 @@ export default function ProductsManagementPage() {
                           title="상세 편집"
                         >
                           <FiEdit2 size={20} />
+                        </button>
+                        <button
+                          onClick={() => handleCopyProduct(product.productCode)}
+                          className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg"
+                          title="상품 복사"
+                        >
+                          <FiCopy size={20} />
                         </button>
                         <button
                           onClick={() => handleDelete(product.id)}

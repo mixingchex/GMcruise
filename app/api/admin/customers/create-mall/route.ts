@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/password';
 import { cookies } from 'next/headers';
 
 const SESSION_COOKIE = 'cg.sid.v2';
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 비밀번호 해시
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // 크루즈몰 사용자 생성 (role을 'community'로 설정, mallUserId와 mallNickname 설정)
     const now = new Date();

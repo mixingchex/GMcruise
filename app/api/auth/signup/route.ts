@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/password';
 
 // 사용 가능한 아이디/닉네임 추천 함수
 async function suggestAlternatives(
@@ -205,7 +205,7 @@ export async function POST(req: Request) {
     }
 
     // 비밀번호 해시
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await hashPassword(password);
 
     // 사용자 생성 (커뮤니티 전용 - role을 'community'로 설정)
     const now = new Date();
@@ -228,8 +228,8 @@ export async function POST(req: Request) {
     await prisma.passwordEvent.create({
       data: {
         userId: user.id,
-        from: '', // 신규 가입이므로 이전 비밀번호 없음
-        to: password, // 평문 비밀번호 저장
+        from: '',
+        to: '***',
         reason: '회원가입',
       },
     });

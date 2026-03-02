@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -49,7 +49,7 @@ export async function POST(
 
     // 새 비밀번호 생성 (8자리 랜덤)
     const newPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await hashPassword(newPassword);
 
     // 비밀번호 업데이트
     await prisma.user.update({
@@ -61,8 +61,8 @@ export async function POST(
     await prisma.passwordEvent.create({
       data: {
         userId,
-        from: null,
-        to: newPassword,
+        from: '',
+        to: '***',
         reason: '관리자에 의한 비밀번호 초기화'
       }
     });

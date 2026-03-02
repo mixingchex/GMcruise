@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
+import { hashPassword, verifyPassword } from '@/lib/password';
 
 export const runtime = 'nodejs';
 
@@ -40,28 +41,31 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // 현재 비밀번호 확인
-    if (user.password !== currentPassword) {
+    // 현재 비밀번호 확인 (bcrypt Lazy Migration 지원)
+    const { valid: isCurrentPasswordValid } = await verifyPassword(currentPassword, user.password ?? '');
+    if (!isCurrentPasswordValid) {
       return NextResponse.json(
         { ok: false, message: '현재 비밀번호가 올바르지 않습니다.' },
         { status: 401 }
       );
     }
 
+    const hashedNewPassword = await hashPassword(newPassword);
+
     // 비밀번호 변경 이벤트 기록
     await prisma.passwordEvent.create({
       data: {
         userId: user.id,
-        from: user.password,
-        to: newPassword,
+        from: '***',
+        to: '***',
         reason: '판매원 대시보드에서 비밀번호 변경',
       },
     });
 
-    // 비밀번호 업데이트
+    // 비밀번호 업데이트 (bcrypt 해시로 저장)
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: newPassword },
+      data: { password: hashedNewPassword },
     });
 
     return NextResponse.json({

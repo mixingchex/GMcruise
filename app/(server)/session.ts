@@ -19,6 +19,10 @@ export async function getServerSession(): Promise<{ userId: number } | null> {
 
     // 세션이 없거나 만료된 경우
     if (!session || session.expiresAt < new Date()) {
+      if (session) {
+        // 만료된 세션은 DB에서 즉시 삭제 (스테일 세션 누적 방지)
+        await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+      }
       return null;
     }
 

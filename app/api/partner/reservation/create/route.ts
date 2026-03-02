@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
+import { hashPassword } from '@/lib/password';
 import { recordCustomerJourney } from '@/lib/customer-journey';
 
 /**
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       if (!mainUserData) {
         // 비밀번호 해시 생성 (phone이 있으면 phone, 없으면 name 또는 임시값)
         const passwordSource = mainUser.phone || mainUser.name || `temp_${Date.now()}`;
-        const hashedPassword = await bcrypt.hash(passwordSource, 10);
+        const hashedPassword = await hashPassword(passwordSource);
         
         mainUserData = await tx.user.create({
           data: {
@@ -218,7 +218,7 @@ export async function POST(req: NextRequest) {
         if (!travelerUser) {
           // 비밀번호 생성 (여권번호 또는 phone 또는 임시값)
           const passwordSource = traveler.passportNo || traveler.phone || `temp_${Date.now()}`;
-          const hashedPassword = await bcrypt.hash(passwordSource, 10);
+          const hashedPassword = await hashPassword(passwordSource);
           
           // OCR로 얻은 모든 정보를 User에 저장
           travelerUser = await tx.user.create({

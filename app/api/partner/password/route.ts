@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
-import bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword } from '@/lib/password';
 
 // PUT: 파트너 비밀번호 변경
 export async function PUT(req: NextRequest) {
@@ -49,7 +49,7 @@ export async function PUT(req: NextRequest) {
       }
 
       // bcrypt로 비밀번호 비교
-      const isPasswordValid = await bcrypt.compare(currentPassword.trim(), user.password);
+      const { valid: isPasswordValid } = await verifyPassword(currentPassword.trim(), user.password ?? '');
       
       if (!isPasswordValid) {
         return NextResponse.json(
@@ -60,7 +60,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // 새 비밀번호 암호화
-    const hashedNewPassword = await bcrypt.hash(newPassword.trim(), 10);
+    const hashedNewPassword = await hashPassword(newPassword.trim());
 
     // 비밀번호 이벤트 기록 (보안상 마스킹된 값 저장)
     await prisma.passwordEvent.create({

@@ -2,9 +2,8 @@
 // 공개 상품 목록 조회 API (로그인 불필요)
 
 // 성능 최적화: 10분 캐싱 (상품 목록은 자주 변경되지 않음)
-export const dynamic = 'force-dynamic';
+export const revalidate = 600;  // ISR: 10분마다 재검증
 export const runtime = 'nodejs';  // Edge Runtime 금지 (Prisma 사용)
-export const revalidate = 600;    // 10분 캐싱 - 동시 1000명 접속 시 DB 부하 90% 감소
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -165,16 +164,11 @@ export async function GET(req: NextRequest) {
             },
           },
           {
-            // saleStatus가 '판매중지' 또는 '3일체험'이 아닌 상품만 포함
+            // saleStatus가 '판매중지', '판매완료', '3일체험'이 아닌 상품만 포함
             AND: [
               {
                 NOT: {
-                  saleStatus: '판매중지',
-                },
-              },
-              {
-                NOT: {
-                  saleStatus: '3일체험',
+                  saleStatus: { in: ['판매중지', '판매완료', '3일체험'] },
                 },
               },
             ],

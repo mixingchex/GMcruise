@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 
 export interface FlightInfo {
@@ -104,9 +104,15 @@ export default function FlightInfoEditor({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flightInfo]);
 
+  // setTimeout 타이머 ID를 저장하는 ref (메모리 누수 방지용 cleanup에 사용)
+  const travelPeriodTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // setLocalFlightInfo updater가 반환한 최신 값을 setTimeout 콜백에 전달하기 위한 ref
+  const pendingFlightInfoRef = useRef<FlightInfo | null>(null);
+
   // startDate, endDate, nights, days 변경 시 travelPeriod 자동 업데이트
   useEffect(() => {
     if (startDate && endDate) {
+      // updater 함수는 순수 함수여야 하므로 side effect(setTimeout)를 분리
       setLocalFlightInfo(prev => {
         const updated = {
           ...prev,
@@ -121,13 +127,34 @@ export default function FlightInfoEditor({
             date: startDate,
           },
         };
-        // onChange는 다음 렌더 사이클에서 호출하도록 setTimeout 사용
-        setTimeout(() => {
-          onChange(updated);
-        }, 0);
+        // ref에 최신 값 저장 (setTimeout 콜백에서 stale closure 없이 참조)
+        pendingFlightInfoRef.current = updated;
         return updated;
       });
+
+      // 이전 타이머가 남아 있으면 취소 (연속 prop 변경 시 onChange 중복 호출 방지)
+      if (travelPeriodTimerRef.current !== null) {
+        clearTimeout(travelPeriodTimerRef.current);
+      }
+
+      // onChange는 setState가 완료된 다음 렌더 사이클에서 호출
+      travelPeriodTimerRef.current = setTimeout(() => {
+        if (pendingFlightInfoRef.current !== null) {
+          onChange(pendingFlightInfoRef.current);
+          pendingFlightInfoRef.current = null;
+        }
+        travelPeriodTimerRef.current = null;
+      }, 0);
     }
+
+    // Cleanup: 컴포넌트 언마운트 또는 deps 변경 직전에 타이머 취소
+    // React 18 Strict Mode 이중 실행 환경에서도 안전하게 동작
+    return () => {
+      if (travelPeriodTimerRef.current !== null) {
+        clearTimeout(travelPeriodTimerRef.current);
+        travelPeriodTimerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDate, endDate, nights, days]);
 
@@ -145,13 +172,17 @@ export default function FlightInfoEditor({
   // 항공 유형 변경 — 유형에 따른 관련 항공 정보 초기화 (고객 혼란 방지)
   const handleFlightTypeChange = (newType: 'roundtrip' | 'oneway' | 'none' | 'none_domestic' | 'none_local') => {
     if (newType === 'none_domestic' || newType === 'none_local') {
-      // 항공없음: 출발/귀국 모든 필드(date 포함) 초기화
+      // 항공없음: 출발/귀국 모든 필드(date 포함) 초기화 + 크루즈 탑승 정보 필드 명시 보존
       const emptyFlight = { from: '', to: '', date: '', time: '', arrivalTime: '', flightNumber: '', duration: '', type: '직항' as const };
       const updated: FlightInfo = {
         ...localFlightInfo,
         flightType: newType,
         departure: { ...localFlightInfo.departure, ...emptyFlight },
         return: { ...localFlightInfo.return, ...emptyFlight },
+        // 크루즈 탑승 정보는 명시적으로 보존 (타입 전환 시 데이터 유실 방지)
+        cruiseEmbarkPort: localFlightInfo.cruiseEmbarkPort || '',
+        cruiseDisembarkPort: localFlightInfo.cruiseDisembarkPort || '',
+        selfArrangeNote: localFlightInfo.selfArrangeNote || '',
       };
       setLocalFlightInfo(updated);
       onChange(updated);

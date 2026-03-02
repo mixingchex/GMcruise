@@ -24,16 +24,44 @@ export async function POST() {
       }
     }
 
-    // 쿠키 삭제
-    cookieStore.delete(SESSION_COOKIE);
-    cookieStore.delete('cg.mode');
+    // 쿠키 삭제 — login에서 .cruisedot.co.kr 도메인으로 심은 쿠키이므로 도메인 일치 필수
+    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined;
+    cookieStore.set(SESSION_COOKIE, '', {
+      maxAge: 0,
+      path: '/',
+      domain: cookieDomain,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+    cookieStore.set('cg.mode', '', {
+      maxAge: 0,
+      path: '/',
+      domain: cookieDomain,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Logout] Error:', error);
     // 쿠키는 삭제 시도
-    cookieStore.delete(SESSION_COOKIE);
-    cookieStore.delete('cg.mode');
+    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined;
+    cookieStore.set(SESSION_COOKIE, '', {
+      maxAge: 0,
+      path: '/',
+      domain: cookieDomain,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+    cookieStore.set('cg.mode', '', {
+      maxAge: 0,
+      path: '/',
+      domain: cookieDomain,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
     return NextResponse.json({ ok: true }); // 에러가 있어도 로그아웃은 성공 처리
   }
 } 

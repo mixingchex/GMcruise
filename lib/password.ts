@@ -9,6 +9,7 @@
  *   '0000' = 임시 고객 (전화번호 없음)
  */
 import bcrypt from 'bcryptjs';
+import { timingSafeEqual } from 'crypto';
 
 const BCRYPT_ROUNDS = 10;
 
@@ -30,7 +31,7 @@ export async function hashPassword(plaintext: string): Promise<string> {
 /**
  * 비밀번호 검증 (Lazy Migration 지원)
  * - bcrypt hash($2b$...)이면 bcrypt.compare
- * - 평문이면 === 비교 후 재해시 필요 여부 반환
+ * - 평문이면 timingSafeEqual 비교 후 재해시 필요 여부 반환
  */
 export async function verifyPassword(
   plaintext: string,
@@ -43,12 +44,14 @@ export async function verifyPassword(
     return { valid, needsRehash: false };
   }
 
-  // 평문 비교 → 성공 시 재해시 필요
-  const valid = plaintext === stored;
+  // 평문 비교 — timingSafeEqual로 타이밍 어택 방어
+  const a = Buffer.from(plaintext);
+  const b = Buffer.from(stored);
+  const valid = a.length === b.length && timingSafeEqual(a, b);
   return { valid, needsRehash: valid };
 }
 
 /** 이미 bcrypt 해시인지 확인 */
-export function isBcryptHash(stored: string): boolean {
-  return stored.startsWith('$2');
+export function isBcryptHash(stored: string | null | undefined): boolean {
+  return typeof stored === 'string' && stored.startsWith('$2');
 }

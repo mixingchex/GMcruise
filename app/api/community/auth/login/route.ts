@@ -11,7 +11,7 @@ import { generateCsrfToken } from '@/lib/csrf';
 import { checkRateLimit, RateLimitPolicies } from '@/lib/rate-limiter';
 import { getClientIpFromRequest } from '@/lib/ip-utils';
 import { authLogger, securityLogger } from '@/lib/logger';
-import bcrypt from 'bcryptjs';
+import { verifyPassword, hashPassword } from '@/lib/password';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -79,17 +79,23 @@ export async function POST(req: Request) {
       }, { status: 401 });
     }
 
-    // 비밀번호 확인 (bcrypt 해시 비교)
-    const isPasswordValid = await bcrypt.compare(trimmedPassword, user.password);
-    
+    // 비밀번호 확인 (bcrypt 해시 비교, Lazy Migration 지원)
+    const { valid: isPasswordValid, needsRehash } = await verifyPassword(trimmedPassword, user.password);
+
     if (!isPasswordValid) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: '아이디 또는 비밀번호가 올바르지 않습니다.' 
+      return NextResponse.json({
+        ok: false,
+        error: '아이디 또는 비밀번호가 올바르지 않습니다.'
       }, { status: 401 });
     }
 
     const userId = user.id;
+
+    // Lazy Migration: 평문 비밀번호 → bcrypt 재해시
+    if (needsRehash) {
+      const newHash = await hashPassword(trimmedPassword);
+      await prisma.user.update({ where: { id: userId }, data: { password: newHash } }).catch(() => {});
+    }
 
     // 로그인 횟수 증가
     await prisma.user.update({
@@ -125,6 +131,8 @@ export async function POST(req: Request) {
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 30, // 30일
+      secure: process.env.NODE_ENV === 'production',
+      domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
     });
 
     // 로그인 성공 로그

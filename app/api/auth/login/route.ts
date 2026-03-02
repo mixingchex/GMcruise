@@ -52,9 +52,9 @@ export async function POST(req: Request) {
 
     logger.log('[Login API] 요청 받음:', { phone: phone ? `${phone.substring(0, 3)}***` : 'empty', password: password ? '***' : 'empty', name: name ? `${name.substring(0, 1)}***` : 'empty', mode });
 
-    const isPartnerLogin = mode === 'partner' || password === 'qwe1';
+    const isPartnerLogin = mode === 'partner';
 
-    logger.log('[Login API] 파트너 로그인 여부:', { isPartnerLogin, mode, passwordIsQwe1: password === 'qwe1' });
+    logger.log('[Login API] 파트너 로그인 여부:', { isPartnerLogin, mode });
 
     if (isPartnerLogin) {
       const identifier = phone?.trim() || '';
@@ -83,6 +83,7 @@ export async function POST(req: Request) {
         },
         select: {
           id: true,
+          name: true,
           mallUserId: true,
           mallNickname: true,
           phone: true,
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
         },
       });
 
-      console.log('[Partner Login] 사용자 검색 결과:', affiliateUser ? {
+      logger.log('[Partner Login] 사용자 검색 결과:', affiliateUser ? {
         id: affiliateUser.id,
         mallUserId: affiliateUser.mallUserId,
         phone: affiliateUser.phone,
@@ -104,8 +105,15 @@ export async function POST(req: Request) {
       } : '사용자를 찾을 수 없음');
 
       // 계정이 없고 기본 비밀번호(1101, qwe1, zxc1)를 사용하는 경우 자동 생성
-      if (!affiliateUser && (password === '1101' || password === 'qwe1' || password === 'zxc1')) {
-        console.log('[Partner Login] 파트너 계정 자동 생성:', { identifier, identifierLower });
+      if (!affiliateUser && (PARTNER_DEFAULT_PASSWORDS as readonly string[]).includes(password)) {
+        const isAllowedPattern = identifierLower.startsWith('boss') || identifierLower.startsWith('gest');
+        if (!isAllowedPattern) {
+          return NextResponse.json(
+            { ok: false, error: '아이디 또는 비밀번호가 올바르지 않습니다.' },
+            { status: 401 },
+          );
+        }
+        logger.log('[Partner Login] 파트너 계정 자동 생성:', { identifier, identifierLower });
         const isBoss = identifierLower.startsWith('boss');
         const isGest = identifierLower.startsWith('gest'); // gest 계정 여부 확인
         const newMallUserId = identifierLower;
@@ -127,6 +135,7 @@ export async function POST(req: Request) {
             },
             select: {
               id: true,
+              name: true,
               mallUserId: true,
               mallNickname: true,
               phone: true,
@@ -138,7 +147,7 @@ export async function POST(req: Request) {
               },
             },
           });
-          console.log('[Partner Login] 파트너 계정 생성 완료:', { userId: affiliateUser.id, mallUserId: affiliateUser.mallUserId });
+          logger.log('[Partner Login] 파트너 계정 생성 완료:', { userId: affiliateUser.id, mallUserId: affiliateUser.mallUserId });
         } catch (createError: any) {
           console.error('[Partner Login] 계정 생성 실패:', createError);
           // 중복 키 에러인 경우 다시 조회 시도
@@ -152,6 +161,7 @@ export async function POST(req: Request) {
               },
               select: {
                 id: true,
+                name: true,
                 mallUserId: true,
                 mallNickname: true,
                 phone: true,
@@ -180,9 +190,23 @@ export async function POST(req: Request) {
       const storedPassword = affiliateUser.password ?? '';
       let isPasswordValid = false;
 
-      // 파트너 기본 비밀번호 우선 체크 (1101, qwe1, zxc1) - 무조건 허용 (시스템 공유 비밀번호)
+      // 파트너 기본 비밀번호 우선 체크 (1101, qwe1, zxc1) — DB 저장값과 대조 (개인 비밀번호 변경 후 공유 비밀번호 재진입 차단)
       if ((PARTNER_DEFAULT_PASSWORDS as readonly string[]).includes(password)) {
-        isPasswordValid = true;
+        if (isBcryptHash(storedPassword)) {
+          const { valid } = await verifyPassword(password, storedPassword);
+          isPasswordValid = valid;
+        } else {
+          isPasswordValid = storedPassword === password; // Lazy Migration 중인 계정
+          // 평문 매칭 → 즉시 재해시 (Lazy Migration)
+          if (isPasswordValid && affiliateUser) {
+            try {
+              await prisma.user.update({
+                where: { id: affiliateUser.id },
+                data: { password: await hashPassword(password) },
+              });
+            } catch { /* 재해시 실패 시 무시 — 다음 로그인에서 재시도 */ }
+          }
+        }
       } else {
         // 일반 비밀번호 검증 (bcrypt Lazy Migration 지원)
         const result = await verifyPassword(password, storedPassword);
@@ -311,7 +335,7 @@ export async function POST(req: Request) {
             // AffiliateProfile 생성 실패 시 로그인도 실패
             console.error('[Partner Login] AffiliateProfile 생성 실패로 로그인 중단:', profileError);
             return NextResponse.json(
-              { ok: false, error: '파트너 프로필 생성에 실패했습니다. 관리자에게 문의해주세요.', details: profileError?.message },
+              { ok: false, error: '파트너 프로필 생성에 실패했습니다. 관리자에게 문의해주세요.' },
               { status: 500 }
             );
           }
@@ -454,7 +478,7 @@ export async function POST(req: Request) {
         path: '/',
         maxAge: 60 * 60 * 24 * 30,
         secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+        domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
       });
 
       // 로그인 성공 후 후속 작업들을 병렬로 실행 (속도 개선)
@@ -794,7 +818,7 @@ export async function POST(req: Request) {
             isHibernated: false,
             loginCount: { increment: 1 },
             customerSource: trialCode ? 'trial-invite-link' : 'test-guide', // 무조건 무료체험 사용자로 전환 (유료 고객이어도 무시)
-            password: normalizedTestPassword, // 비밀번호는 항상 1101로 업데이트
+            password: await hashPassword(normalizedTestPassword), // 비밀번호는 항상 1101로 업데이트 (bcrypt 해시 저장)
           },
         });
 
@@ -1121,7 +1145,7 @@ export async function POST(req: Request) {
           path: '/',
           maxAge: 60 * 60 * 24 * 30,
           secure: process.env.NODE_ENV === 'production',
-          domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+          domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
         });
         // 3일 체험 유저 표시 쿠키 (middleware에서 -test 경로 강제 리다이렉트에 사용)
         cookieStore.set('cg.mode', 'test', {
@@ -1129,6 +1153,8 @@ export async function POST(req: Request) {
           sameSite: 'lax',
           path: '/',
           maxAge: 60 * 60 * 24 * 30,
+          secure: process.env.NODE_ENV === 'production',
+          domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
         });
 
         authLogger.loginSuccess(userId, clientIp);
@@ -1233,24 +1259,17 @@ export async function POST(req: Request) {
           communityUser.mallUserId = trimmedUsername;
         }
 
-        // 비밀번호 확인 (bcrypt 해시 또는 평문 비교)
-        let isPasswordValid = false;
+        // 비밀번호 확인 (verifyPassword로 통일 — bcrypt Lazy Migration 포함)
         const storedPassword = communityUser.password || '';
-
-        // bcrypt 해시인지 확인 ($2로 시작)
-        if (storedPassword.startsWith('$2')) {
+        const communityResult = await verifyPassword(password, storedPassword);
+        const isPasswordValid = communityResult.valid;
+        if (communityResult.valid && communityResult.needsRehash && communityUser) {
           try {
-            const bcrypt = await import('bcryptjs');
-            isPasswordValid = await bcrypt.default.compare(password, storedPassword);
-            console.log('[Auth Login] Community bcrypt 비교 결과:', { userId: communityUser.id, isValid: isPasswordValid });
-          } catch (bcryptError) {
-            console.warn('[Auth Login] bcrypt 비교 중 오류:', bcryptError);
-            isPasswordValid = false;
-          }
-        } else if (storedPassword.length > 0) {
-          // 평문 비밀번호인 경우 (레거시 지원)
-          isPasswordValid = storedPassword === password;
-          console.log('[Auth Login] Community 평문 비밀번호 비교 결과:', { userId: communityUser.id, isValid: isPasswordValid });
+            await prisma.user.update({
+              where: { id: communityUser.id },
+              data: { password: await hashPassword(password) },
+            });
+          } catch { /* 재해시 실패 시 무시 — 다음 로그인에서 재시도 */ }
         }
 
         if (!isPasswordValid) {
@@ -1303,7 +1322,7 @@ export async function POST(req: Request) {
           path: '/',
           maxAge: 60 * 60 * 24 * 30, // 30일
           secure: process.env.NODE_ENV === 'production',
-          domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+          domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
         });
 
         // 로그인 성공 로그
@@ -1329,8 +1348,8 @@ export async function POST(req: Request) {
 
     // 관리자 로그인 처리 - 허용된 관리자만 로그인 가능
     if (mode === 'admin') {
-      console.log('[Admin Login] ========================================');
-      console.log('[Admin Login] 시작:', {
+      logger.log('[Admin Login] ========================================');
+      logger.log('[Admin Login] 시작:', {
         name: JSON.stringify(name),
         nameLength: name?.length,
         phone: phone ? `${phone.substring(0, 3)}***` : 'empty',
@@ -1349,36 +1368,8 @@ export async function POST(req: Request) {
         const normalizedName = name.trim();
         const normalizedPhone = phone.replace(/[-\s]/g, '');
 
-        // 허용된 관리자 목록 (2명만)
-        const ALLOWED_ADMINS = [
-          { name: '저스틴', phone: '01038609161', password: '0313' },
-          { name: '모니카', phone: '01024958013', password: '0313' },
-        ];
-
-        // 허용된 관리자인지 확인
-        const allowedAdmin = ALLOWED_ADMINS.find(
-          admin => admin.name === normalizedName && admin.phone === normalizedPhone
-        );
-
-        if (!allowedAdmin) {
-          console.log('[Admin Login] 허용되지 않은 관리자:', { name: normalizedName, phone: normalizedPhone });
-          return NextResponse.json({
-            ok: false,
-            error: '관리자 권한이 없습니다.'
-          }, { status: 403 });
-        }
-
-        // 비밀번호 확인
-        if (password !== allowedAdmin.password) {
-          console.log('[Admin Login] 비밀번호 불일치');
-          return NextResponse.json({
-            ok: false,
-            error: '비밀번호가 올바르지 않습니다.'
-          }, { status: 401 });
-        }
-
-        // DB에서 관리자 계정 조회 또는 생성
-        let adminUser = await prisma.user.findFirst({
+        // DB에서 관리자 계정 직접 조회 (role: 'admin' 기준)
+        const adminUser = await prisma.user.findFirst({
           where: {
             name: normalizedName,
             phone: normalizedPhone,
@@ -1393,73 +1384,26 @@ export async function POST(req: Request) {
           },
         });
 
-        // 관리자 계정이 없으면 생성
         if (!adminUser) {
-          console.log('[Admin Login] 관리자 계정 생성:', { name: normalizedName, phone: normalizedPhone });
-          try {
-            const now = new Date();
-            adminUser = await prisma.user.create({
-              data: {
-                name: normalizedName,
-                phone: normalizedPhone,
-                password: await hashPassword(password),
-                role: 'admin',
-                onboarded: true,
-                loginCount: 0,
-                customerSource: 'admin',
-                updatedAt: now,
-              },
-              select: {
-                id: true,
-                password: true,
-                loginCount: true,
-                name: true,
-                phone: true,
-              },
-            });
-            console.log('[Admin Login] 관리자 계정 생성 완료:', { userId: adminUser.id });
-          } catch (createError: any) {
-            console.error('[Admin Login] 관리자 계정 생성 실패:', createError);
-            // 중복 키 에러인 경우 다시 조회 시도
-            if (createError?.code === 'P2002') {
-              adminUser = await prisma.user.findFirst({
-                where: {
-                  phone: normalizedPhone,
-                  role: 'admin',
-                },
-                select: {
-                  id: true,
-                  password: true,
-                  loginCount: true,
-                  name: true,
-                  phone: true,
-                },
-              });
-            }
-
-            if (!adminUser) {
-              return NextResponse.json({
-                ok: false,
-                error: '관리자 계정 생성에 실패했습니다. 잠시 후 다시 시도해주세요.'
-              }, { status: 500 });
-            }
-          }
+          return NextResponse.json({ ok: false, error: '관리자 권한이 없습니다.' }, { status: 403 });
         }
 
-        // 비밀번호 확인 (DB에 저장된 비밀번호도 확인)
-        const { valid: isPasswordValid } = await verifyPassword(password, adminUser.password ?? '');
-        console.log('[Admin Login] 비밀번호 확인:', { isValid: isPasswordValid });
+        // 비밀번호 검증 (Lazy Migration: 평문이면 bcrypt 재해시)
+        const storedPw = adminUser.password ?? '';
+        const isAdminPasswordValid = isBcryptHash(storedPw)
+          ? (await verifyPassword(password, storedPw)).valid
+          : storedPw === password;
 
-        if (!isPasswordValid) {
-          // DB 비밀번호와 일치하지 않으면 해시하여 업데이트
+        if (!isAdminPasswordValid) {
+          return NextResponse.json({ ok: false, error: '비밀번호가 올바르지 않습니다.' }, { status: 401 });
+        }
+
+        if (!isBcryptHash(storedPw)) {
           await prisma.user.update({
             where: { id: adminUser.id },
             data: { password: await hashPassword(password) },
           });
-          console.log('[Admin Login] 비밀번호 업데이트 완료');
         }
-
-        console.log('[Admin Login] 성공:', { userId: adminUser.id });
 
         const userId = adminUser.id;
         const next = '/admin/dashboard';
@@ -1507,7 +1451,7 @@ export async function POST(req: Request) {
           path: '/',
           maxAge: 60 * 60 * 24 * 30,
           secure: process.env.NODE_ENV === 'production',
-          domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+          domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
         });
 
         // 후속 작업들은 백그라운드에서 병렬 실행 (응답 속도 개선)
@@ -1573,16 +1517,25 @@ export async function POST(req: Request) {
     // 동면 고객 자동 전환: 이름=연락처, 비밀번호=3800으로 로그인한 경우
     // 동면 고객(이름=연락처, 비밀번호=연락처)이 여행 계약 후 3800으로 로그인하면 활성으로 전환
     if (password === '3800' && name === phone) {
-      // 동면 고객 찾기: 이름=연락처, 비밀번호=연락처인 고객
-      const dormantUser = await prisma.user.findFirst({
+      // 동면 고객 찾기: 이름=연락처인 고객 (password 조건은 앱 레벨에서 검증 — bcrypt Lazy Migration 지원)
+      const dormantCandidate = await prisma.user.findFirst({
         where: {
           phone,
-          name: phone,  // 동면 고객은 이름=연락처
-          password: phone,  // 동면 고객은 비밀번호=연락처
+          name: phone,     // 동면 고객은 이름=연락처
           role: 'user',
+          isHibernated: true,  // 동면 상태인 계정만 매칭 (활성 고객 오매칭 방지)
         },
-        select: { id: true, onboarded: true, loginCount: true, isHibernated: true, customerStatus: true, customerSource: true },
+        select: { id: true, password: true, onboarded: true, loginCount: true, isHibernated: true, customerStatus: true, customerSource: true },
       });
+
+      // 비밀번호가 연락처인지 앱 레벨에서 검증 (bcrypt Lazy Migration 지원)
+      const dormantStored = dormantCandidate?.password ?? '';
+      const isDormantPassword = dormantCandidate
+        ? (isBcryptHash(dormantStored)
+          ? (await verifyPassword(phone, dormantStored)).valid
+          : dormantStored === phone)
+        : false;
+      const dormantUser = isDormantPassword ? dormantCandidate : null;
 
       if (dormantUser) {
         console.log('[Login] 동면 고객 자동 전환:', { userId: dormantUser.id, phone, name });
@@ -1591,7 +1544,7 @@ export async function POST(req: Request) {
         await prisma.user.update({
           where: { id: dormantUser.id },
           data: {
-            password: '3800',
+            password: await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE), // '3800' bcrypt 해시 저장
             isHibernated: false,
             hibernatedAt: null,
             customerStatus: 'active', // 활성 상태로 설정
@@ -1634,7 +1587,7 @@ export async function POST(req: Request) {
           path: '/',
           maxAge: 60 * 60 * 24 * 30, // 30일
           secure: process.env.NODE_ENV === 'production',
-          domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+          domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
         });
 
         // 로그인 성공 로그
@@ -2048,7 +2001,7 @@ export async function POST(req: Request) {
           path: '/',
           maxAge: 60 * 60 * 24 * 30, // 30일
           secure: process.env.NODE_ENV === 'production',
-          domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+          domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
         });
 
         // 로그인 성공 로그
@@ -2110,7 +2063,7 @@ export async function POST(req: Request) {
           data: {
             phone: phone.trim(),
             name: name || phone.trim(),
-            password: '1101',
+            password: await hashPassword(SYSTEM_PASSWORDS.TRIAL), // '1101' bcrypt 해시 저장
             onboarded: false,
             loginCount: 1,
             role: 'user',
@@ -2131,13 +2084,16 @@ export async function POST(req: Request) {
         });
         console.log('[Login] 크루즈몰 계정 생성 완료:', { userId: cruiseMallUser.id, phone });
       } else {
-        // 기존 계정: 비밀번호가 1101이 아니면 업데이트
-        if (cruiseMallUser.password !== '1101') {
+        // 기존 계정: bcrypt 해시가 아니거나 '1101'과 일치하지 않으면 재해시 후 업데이트
+        const { needsRehash: trialNeedsRehash } = await verifyPassword(SYSTEM_PASSWORDS.TRIAL, cruiseMallUser.password ?? '');
+        const isNotTrialHash = !isBcryptHash(cruiseMallUser.password ?? '') || trialNeedsRehash;
+        if (isNotTrialHash) {
+          const hashedTrial = await hashPassword(SYSTEM_PASSWORDS.TRIAL);
           await prisma.user.update({
             where: { id: cruiseMallUser.id },
-            data: { password: '1101' },
+            data: { password: hashedTrial }, // '1101' bcrypt 해시 저장
           });
-          cruiseMallUser.password = '1101';
+          cruiseMallUser.password = hashedTrial;
         }
         // 로그인 횟수 증가
         await prisma.user.update({
@@ -2182,7 +2138,7 @@ export async function POST(req: Request) {
         path: '/',
         maxAge: 60 * 60 * 24 * 30,
         secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+        domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
       });
 
       authLogger.loginSuccess(userId, clientIp);
@@ -2353,7 +2309,7 @@ export async function POST(req: Request) {
       path: '/',
       maxAge: 60 * 60 * 24 * 30, // 30일
       secure: process.env.NODE_ENV === 'production',
-      domain: process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined,
+      domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
     });
 
     // 로그인 성공 로그
@@ -2368,10 +2324,6 @@ export async function POST(req: Request) {
     // 비밀번호 3800 = 일반 구매자 → onboarded 여부에 따라 /onboarding 또는 /chat (위에서 결정됨)
     if (password === '1101') {
       next = '/chat-test';
-      console.log('[Login] 비밀번호 1101 - /chat-test');
-    } else if (password === '3800') {
-      // onboarding 체크는 위에서 이미 결정됨 (next = '/onboarding' or '/chat')
-      console.log('[Login] 비밀번호 3800 - 리다이렉트:', next);
     }
 
     return NextResponse.json({

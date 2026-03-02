@@ -65,10 +65,11 @@ export async function middleware(req: NextRequest) {
     const origin = req.headers.get('origin');
     const host = req.headers.get('host');
     
-    // 커스텀 도메인 체크: host가 cruisedot.co.kr를 포함하면 무조건 통과
+    // 커스텀 도메인 체크: host가 cruisedot.co.kr 또는 mabizcruisedot.com이면 무조건 통과
     const isCustomDomain = host && (
-      host.includes('cruisedot.co.kr') || 
-      host.includes('www.cruisedot.co.kr')
+      host.includes('cruisedot.co.kr') ||
+      host.includes('www.cruisedot.co.kr') ||
+      host.includes('mabizcruisedot.com')
     );
     
     // Same-Origin 요청 (origin이 null이거나 host와 일치, 또는 커스텀 도메인)은 무조건 통과

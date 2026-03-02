@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword } from '@/lib/password';
 
 export async function PUT(req: Request) {
   try {
@@ -120,17 +120,11 @@ export async function PUT(req: Request) {
         );
       }
 
-      // 현재 비밀번호 확인
-      // 비밀번호가 해시되어 있으면 bcrypt로 확인, 아니면 직접 비교
+      // 현재 비밀번호 확인 (Lazy Migration 지원: 평문/bcrypt 모두 처리)
       let passwordValid = false;
       if (user.password) {
-        if (user.password.startsWith('$2')) {
-          // bcrypt 해시
-          passwordValid = await bcrypt.compare(currentPassword, user.password);
-        } else {
-          // 평문 비밀번호
-          passwordValid = user.password === currentPassword;
-        }
+        const result = await verifyPassword(currentPassword, user.password);
+        passwordValid = result.valid;
       } else {
         // 비밀번호가 없으면 기본 비밀번호(3800)와 비교
         passwordValid = currentPassword === '3800';
@@ -144,8 +138,7 @@ export async function PUT(req: Request) {
       }
 
       // 새 비밀번호 해시
-      const hashedPassword = await bcrypt.hash(password.trim(), 10);
-      updateData.password = hashedPassword;
+      updateData.password = await hashPassword(password.trim());
     }
 
     // 업데이트 실행
