@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { backupProductImages } from '@/lib/google-drive-product-backup';
@@ -459,13 +460,21 @@ export async function PUT(req: NextRequest) {
       },
     });
 
+    // 판매 상태가 변경된 경우 공개 상품 API 캐시 즉시 무효화
+    try {
+      revalidatePath('/api/public/products');
+      revalidatePath('/', 'layout');
+    } catch {
+      // revalidatePath 실패해도 저장은 성공
+    }
+
     return NextResponse.json({ ok: true, product });
   } catch (error: any) {
     console.error('PUT /api/admin/products error:', error);
     console.error('PUT /api/admin/products error details:', error.message);
     return NextResponse.json(
-      { 
-        ok: false, 
+      {
+        ok: false,
         message: 'Server error',
         error: error.message || String(error)
       },

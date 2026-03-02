@@ -1437,12 +1437,13 @@ export default function ProductsManagementPage() {
           });
 
           if (!contentResponse.ok) {
-            console.error('Failed to save product content');
             const errorText = await contentResponse.text();
-            console.error('Error response:', errorText);
+            console.error('Failed to save product content:', errorText);
+            showError('항공/일정 등 상세 정보 저장에 실패했습니다. 다시 저장해 주세요.');
           }
         } catch (contentError) {
           console.error('Error saving product content:', contentError);
+          showError('항공/일정 등 상세 정보 저장 중 오류가 발생했습니다.');
         }
 
         // AffiliateProduct 자동 생성/수정

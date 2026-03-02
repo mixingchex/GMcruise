@@ -1,8 +1,8 @@
 // app/api/public/products/route.ts
 // 공개 상품 목록 조회 API (로그인 불필요)
 
-// 성능 최적화: 10분 캐싱 (상품 목록은 자주 변경되지 않음)
-export const revalidate = 600;  // ISR: 10분마다 재검증
+// 성능 최적화: 1분 캐싱 (판매상태 변경 즉시 반영을 위해 단축)
+export const revalidate = 60;  // ISR: 1분마다 재검증 (관리자 revalidatePath로 즉시 무효화 가능)
 export const runtime = 'nodejs';  // Edge Runtime 금지 (Prisma 사용)
 
 import { NextRequest, NextResponse } from 'next/server';
