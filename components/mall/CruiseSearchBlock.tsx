@@ -280,14 +280,12 @@ export default function CruiseSearchBlock() {
 
   // 모든 상품 로드 (연관 검색어 생성용)
   useEffect(() => {
-    let isMounted = true;
+    const controller = new AbortController();
 
     const loadAllProducts = async () => {
       try {
         console.log('[CruiseSearchBlock] Loading all products for related search terms...');
-        const response = await fetch('/api/public/products?limit=1000');
-
-        if (!isMounted) return;
+        const response = await fetch('/api/public/products?limit=1000', { signal: controller.signal });
 
         const data = await response.json();
         console.log('[CruiseSearchBlock] API Response:', {
@@ -316,8 +314,6 @@ export default function CruiseSearchBlock() {
           } : null
         });
 
-        if (!isMounted) return;
-
         if (data.ok && data.products && Array.isArray(data.products) && data.products.length > 0) {
           console.log('[CruiseSearchBlock] Loaded products:', data.products.length);
           setAllAvailableProducts(data.products);
@@ -333,7 +329,7 @@ export default function CruiseSearchBlock() {
           setAllAvailableProducts([]);
         }
       } catch (error) {
-        if (!isMounted) return;
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         console.error('[CruiseSearchBlock] Failed to load products for related search terms:', error);
         setAllAvailableProducts([]);
       }
@@ -342,7 +338,7 @@ export default function CruiseSearchBlock() {
     loadAllProducts();
 
     return () => {
-      isMounted = false;
+      controller.abort();
     };
   }, []);
 
@@ -648,74 +644,39 @@ export default function CruiseSearchBlock() {
         params.append('keyword', keyword);
       }
 
+      // 키워드 전용 검색 시 limit 증가 (12개 페이지네이션 우회)
+      if (keyword && (cruiseLine === 'all' || !cruiseLine) && (region === 'all' || !region)) {
+        params.append('limit', '100');
+      }
+
       const response = await fetch(`/api/public/products?${params.toString()}`);
       const data = await response.json();
 
       if (data.ok) {
         let filteredProducts = data.products;
 
-        // 추천 키워드(마케팅 태그)로 검색: recommendedKeywords에 정확히 포함된 상품만 필터링
-        // API는 여러 필드에서 검색하므로, 클라이언트에서 recommendedKeywords만 확인하여 정확한 필터링
-        if (keyword) {
-          filteredProducts = data.products.filter((p: Product) => {
-            // MallProductContent.layout.recommendedKeywords 확인
-            if (p.mallProductContent?.layout) {
-              try {
-                const layout = typeof p.mallProductContent.layout === 'string'
-                  ? JSON.parse(p.mallProductContent.layout)
-                  : p.mallProductContent.layout;
-
-                if (layout && typeof layout === 'object' && layout.recommendedKeywords) {
-                  let keywords: string[] = [];
-                  if (Array.isArray(layout.recommendedKeywords)) {
-                    keywords = layout.recommendedKeywords;
-                  } else if (typeof layout.recommendedKeywords === 'string') {
-                    try {
-                      keywords = JSON.parse(layout.recommendedKeywords);
-                    } catch (e) {
-                      keywords = [layout.recommendedKeywords];
-                    }
-                  }
-
-                  // 정확히 일치하는 키워드가 있는지 확인 (대소문자 무시)
-                  const keywordLower = keyword.toLowerCase().trim();
-                  const hasExactMatch = keywords.some((kw: string) => {
-                    if (!kw) return false;
-                    return kw.toString().toLowerCase().trim() === keywordLower;
-                  });
-
-                  if (hasExactMatch) return true;
-                }
-              } catch (e) {
-                // 파싱 실패 시 무시
-              }
+        // 추천 키워드 전용 검색(cruiseLine='all', region='all', keyword 있음):
+        // API는 패키지명/선박명 등 여러 필드로 검색하므로 관련 없는 상품이 섞일 수 있음.
+        // allAvailableProducts(이미 로드됨)에서 recommendedKeywords 정확 매칭으로 필터링.
+        if (keyword && (cruiseLine === 'all' || !cruiseLine) && (region === 'all' || !region) && allAvailableProducts.length > 0) {
+          const keywordLower = keyword.toLowerCase().trim();
+          const matched = allAvailableProducts.filter((p: Product) => {
+            let keywords: string[] = [];
+            if (Array.isArray(p.recommendedKeywords)) {
+              keywords = p.recommendedKeywords;
+            } else if (typeof p.recommendedKeywords === 'string') {
+              try { keywords = JSON.parse(p.recommendedKeywords); } catch { keywords = [p.recommendedKeywords]; }
             }
-
-            // fallback: product.recommendedKeywords 필드 확인
-            if (p.recommendedKeywords) {
-              let keywords: string[] = [];
-              if (Array.isArray(p.recommendedKeywords)) {
-                keywords = p.recommendedKeywords;
-              } else if (typeof p.recommendedKeywords === 'string') {
-                try {
-                  keywords = JSON.parse(p.recommendedKeywords);
-                } catch (e) {
-                  keywords = [p.recommendedKeywords];
-                }
-              }
-
-              // 정확히 일치하는 키워드가 있는지 확인 (대소문자 무시)
-              const keywordLower = keyword.toLowerCase().trim();
-              const hasExactMatch = keywords.some((kw: string) => {
-                if (!kw) return false;
-                return kw.toString().toLowerCase().trim() === keywordLower;
-              });
-
-              if (hasExactMatch) return true;
-            }
-
-            return false;
+            return keywords.some((kw: string) => {
+              if (!kw) return false;
+              const kwStr = kw.toString().toLowerCase().trim();
+              return kwStr.includes(keywordLower) || keywordLower.includes(kwStr);
+            });
           });
+          // allAvailableProducts 기반 결과가 있으면 그것을 사용 (API 결과 대체)
+          if (matched.length > 0) {
+            filteredProducts = matched;
+          }
         }
 
         // 인기/추천 표시 추가 (productCode로 구분)

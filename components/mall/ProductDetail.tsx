@@ -1356,6 +1356,56 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                   <h2 className="text-xl md:text-2xl font-bold text-[#051C2C] mb-0">항공여정</h2>
                 </div>
 
+                {/* 항공미포함 — 현지/국내 출발 탑승 정보 (none_local / none_domestic / none 레거시) */}
+                {(flightInfo.flightType === 'none_local' || flightInfo.flightType === 'none_domestic' || flightInfo.flightType === 'none') && (
+                  <div className="space-y-4 mb-6">
+                    {/* 안내 배너 */}
+                    <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                      <p className="text-sm font-bold text-blue-700">
+                        {flightInfo.flightType === 'none_domestic' ? '🇰🇷 항공 미포함 — 국내 출발 크루즈 상품' : '🌏 항공 미포함 — 현지 크루즈 탑승 상품'}
+                      </p>
+                      <p className="text-sm text-blue-600 mt-1">
+                        {flightInfo.flightType === 'none_domestic'
+                          ? '항공권 없이 국내 항구에서 직접 탑승하는 상품입니다.'
+                          : '항공권을 개별 준비하신 후 현지 크루즈 터미널에서 탑승하는 상품입니다.'}
+                      </p>
+                    </div>
+
+                    {/* 크루즈 탑승 항구 */}
+                    {flightInfo.cruiseEmbarkPort && (
+                      <div className="p-4 md:p-6 bg-white rounded-xl border-2 border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">🚢</span>
+                          <span className="text-sm font-bold text-gray-500 uppercase tracking-wide">크루즈 탑승 항구</span>
+                        </div>
+                        <p className="text-lg font-extrabold text-gray-900" style={{ wordBreak: 'keep-all' }}>{flightInfo.cruiseEmbarkPort}</p>
+                      </div>
+                    )}
+
+                    {/* 크루즈 하선 항구 */}
+                    {flightInfo.cruiseDisembarkPort && (
+                      <div className="p-4 md:p-6 bg-white rounded-xl border-2 border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">⚓</span>
+                          <span className="text-sm font-bold text-gray-500 uppercase tracking-wide">크루즈 하선 항구</span>
+                        </div>
+                        <p className="text-lg font-extrabold text-gray-900" style={{ wordBreak: 'keep-all' }}>{flightInfo.cruiseDisembarkPort}</p>
+                      </div>
+                    )}
+
+                    {/* 고객 안내 문구 */}
+                    {flightInfo.selfArrangeNote && (
+                      <div className="p-4 md:p-6 bg-amber-50 rounded-xl border-2 border-amber-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xl">📋</span>
+                          <span className="text-sm font-bold text-amber-700 uppercase tracking-wide">고객 안내</span>
+                        </div>
+                        <p className="text-base font-semibold text-amber-900 whitespace-pre-line leading-relaxed" style={{ wordBreak: 'keep-all' }}>{flightInfo.selfArrangeNote}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* 비행기 정보 (가운데 정렬, 크게 표시) */}
                 {flightInfo.aircraftType && (
                   <div className="mb-8 text-center bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">

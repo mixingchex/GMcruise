@@ -477,16 +477,18 @@ export async function PUT(
 
     // 상품 코드 변경 시
     if (updateProductCode) {
-      // 기존 상품 삭제 후 새 코드로 생성
-      await prisma.cruiseProduct.delete({
-        where: { productCode: productCodeParam }
-      });
+      // 기존 상품 삭제 후 새 코드로 생성 — $transaction으로 원자성 보장 (삭제 성공/생성 실패 시 롤백)
+      await prisma.$transaction(async (tx) => {
+        await tx.cruiseProduct.delete({
+          where: { productCode: productCodeParam }
+        });
 
-      await prisma.cruiseProduct.create({
-        data: {
-          productCode: targetProductCode,
-          ...finalUpdateData
-        }
+        await tx.cruiseProduct.create({
+          data: {
+            productCode: targetProductCode,
+            ...finalUpdateData
+          }
+        });
       });
     } else {
       // 상품 업데이트
@@ -499,6 +501,55 @@ export async function PUT(
     const product = await prisma.cruiseProduct.findUnique({
       where: { productCode: targetProductCode }
     });
+
+    // saleStatus가 '판매중'일 때 AffiliateProduct 미존재 시 자동 생성
+    if (saleStatus === '판매중') {
+      if (!product?.id) {
+        console.error(`[Product Update] AffiliateProduct 자동 생성 스킵 — product.id 없음: ${targetProductCode}`);
+      } else {
+      const now = new Date();
+      const existingAffiliate = await prisma.affiliateProduct.findFirst({
+        where: {
+          productCode: targetProductCode,
+          OR: [
+            { effectiveTo: null },          // 만료 없는 버전
+            { effectiveTo: { gt: now } },   // 아직 유효한 버전
+          ],
+        },
+      });
+      if (!existingAffiliate) {
+        try {
+          await prisma.affiliateProduct.create({
+            data: {
+              productCode: targetProductCode,
+              cruiseProductId: product.id,
+              title: (packageName || product.packageName || targetProductCode),
+              status: 'active',
+              currency: 'KRW',
+              defaultSaleAmount: null,
+              defaultCostAmount: null,
+              defaultNetRevenue: null,
+              metadata: null,
+              isPublished: true,
+              publishedAt: now,
+              effectiveFrom: now,
+              effectiveTo: null,
+              updatedAt: now,
+            },
+          });
+          console.log(`[Product Update] AffiliateProduct 자동 생성: ${targetProductCode}`);
+        } catch (affiliateError: unknown) {
+          // P2002: unique 제약 위반 (effectiveFrom 동일 시각 중복) — 이미 존재하면 무시
+          const errMsg = affiliateError instanceof Error ? affiliateError.message : String(affiliateError);
+          if (errMsg.includes('P2002')) {
+            console.log(`[Product Update] AffiliateProduct 이미 존재 (unique 충돌 무시): ${targetProductCode}`);
+          } else {
+            console.error(`[Product Update] AffiliateProduct 자동 생성 실패: ${targetProductCode}`, errMsg);
+          }
+        }
+      }
+      } // end else (product.id exists)
+    }
 
     // MallProductContent 업데이트 또는 생성
     // 상품 코드 변경 시: contentToPreserve(이전 코드의 content)를 기반으로 layout 보존
@@ -615,21 +666,31 @@ export async function PUT(
       // 백업 실패해도 계속 진행 (원본 URL 유지)
     }
 
-    await prisma.mallProductContent.upsert({
-      where: { productCode: targetProductCode },
-      update: {
-        thumbnail: finalThumbnail !== undefined ? finalThumbnail : undefined,
-        layout: layoutData,
-        updatedAt: new Date()
-      },
-      create: {
+    try {
+      await prisma.mallProductContent.upsert({
+        where: { productCode: targetProductCode },
+        update: {
+          thumbnail: finalThumbnail !== undefined ? finalThumbnail : undefined,
+          layout: layoutData,
+          updatedAt: new Date()
+        },
+        create: {
+          productCode: targetProductCode,
+          thumbnail: finalThumbnail || null,
+          layout: layoutData,
+          isActive: true,
+          updatedAt: new Date()
+        }
+      });
+    } catch (upsertError: unknown) {
+      const errMsg = upsertError instanceof Error ? upsertError.message : String(upsertError);
+      console.error('[Product Update] MallProductContent 저장 실패:', {
         productCode: targetProductCode,
-        thumbnail: finalThumbnail || null,
-        layout: layoutData,
-        isActive: true,
-        updatedAt: new Date()
-      }
-    });
+        error: errMsg,
+      });
+      // 에러를 다시 throw하여 500 응답 반환 (기존 동작 유지)
+      throw upsertError;
+    }
 
     // 상세 페이지 캐시 무효화 (썸네일/이미지 변경 즉시 반영)
     try {

@@ -193,6 +193,45 @@ export default function ProductEditPage() {
   const hasTravelInsuranceRef = useRef(hasTravelInsurance);
   const contactOptionsRef = useRef(contactOptions);
 
+  // ─── sessionStorage 저장 실패 복구 초안 ────────────────────────────
+  // layout=null로 인한 데이터 손실 방지 (localStorage 자동저장과 별개로 운용)
+  // ref 선언 이후에 배치하여 saveDraft 내부에서 ref 접근 가능
+  const DRAFT_KEY = `product-draft-${productCode}`;
+
+  const saveDraft = useCallback(() => {
+    try {
+      const draft = {
+        savedAt: Date.now(),
+        itineraryDays: itineraryDaysRef.current,
+        flightInfo: flightInfoRef.current,
+        detailBlocks: detailBlocksRef.current,
+        includedItems: includedItemsRef.current,
+        excludedItems: excludedItemsRef.current,
+        pricingRows: pricingRowsRef.current,
+        refundPolicy: refundPolicyRef.current,
+        recommendedKeywords: recommendedKeywordsRef.current,
+      };
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+    } catch { /* sessionStorage 가득 찬 경우 무시 */ }
+  }, [DRAFT_KEY]);
+
+  const clearDraft = useCallback(() => {
+    sessionStorage.removeItem(DRAFT_KEY);
+  }, [DRAFT_KEY]);
+
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftData, setDraftData] = useState<null | {
+    savedAt: number;
+    itineraryDays: unknown;
+    flightInfo: unknown;
+    detailBlocks: unknown;
+    includedItems: unknown;
+    excludedItems: unknown;
+    pricingRows: unknown;
+    refundPolicy: unknown;
+    recommendedKeywords: unknown;
+  }>(null);
+
   // ref 업데이트
   useEffect(() => {
     formDataRef.current = formData;
@@ -553,6 +592,24 @@ export default function ProductEditPage() {
                 if (shouldRestore) {
                   loadFromLocalStorage();
                   showSuccess('이전에 작성하던 내용을 불러왔습니다.');
+
+                  // localStorage 복원 후에도 sessionStorage 복구 초안 확인
+                  // (저장 실패 시 sessionStorage에 더 최신 데이터가 남아있을 수 있음)
+                  try {
+                    const draftKey = `product-draft-${productCode}`;
+                    const storedDraft = sessionStorage.getItem(draftKey);
+                    if (storedDraft) {
+                      const parsedDraft = JSON.parse(storedDraft);
+                      const ageMs = Date.now() - (parsedDraft.savedAt || 0);
+                      if (ageMs < 24 * 60 * 60 * 1000) {
+                        setDraftData(parsedDraft);
+                        setHasDraft(true);
+                      } else {
+                        sessionStorage.removeItem(draftKey);
+                      }
+                    }
+                  } catch { /* sessionStorage 파싱 오류 무시 */ }
+
                   setLoading(false);
                   return; // 자동저장 데이터 복원 시 서버 데이터 로드 건너뛰기
                 } else {
@@ -771,8 +828,27 @@ export default function ProductEditPage() {
               phoneCall: false,
               aiChatbot: true, // 기본값
             });
+
         }
-        
+
+        // sessionStorage 저장 실패 복구 초안 체크 — layout 유무와 무관하게 항상 확인
+        // (handleSave 실패 시 layout이 있어도 초안이 남을 수 있음)
+        try {
+          const draftKey = `product-draft-${productCode}`;
+          const storedDraft = sessionStorage.getItem(draftKey);
+          if (storedDraft) {
+            const parsedDraft = JSON.parse(storedDraft);
+            const ageMs = Date.now() - (parsedDraft.savedAt || 0);
+            const ageHours = ageMs / (1000 * 60 * 60);
+            if (ageHours < 24) {
+              setDraftData(parsedDraft);
+              setHasDraft(true);
+            } else {
+              sessionStorage.removeItem(draftKey); // 만료 초안 삭제
+            }
+          }
+        } catch { /* sessionStorage 파싱 오류 무시 */ }
+
         // 서버에서 불러온 모든 데이터를 자동저장
         // 약간의 지연을 두어 모든 상태가 업데이트된 후 저장
         setTimeout(() => {
@@ -950,6 +1026,8 @@ export default function ProductEditPage() {
   const handleSave = async () => {
     try {
       setSaving(true);
+      // 저장 시작 전 sessionStorage에 현재 상태 백업 (실패 시 복구용)
+      saveDraft();
 
       // 썸네일 업로드
       let thumbnailUrl = thumbnail;
@@ -1119,6 +1197,10 @@ export default function ProductEditPage() {
         setTimeout(() => {
           saveToLocalStorage();
         }, 500);
+        // 저장 성공 시 sessionStorage 복구 초안 삭제 (더 이상 불필요)
+        clearDraft();
+        setHasDraft(false);
+        setDraftData(null);
         showSuccess('상품이 저장되었습니다.');
         
         // 저장 성공 후 자동으로 미리보기 열기
@@ -1228,6 +1310,53 @@ export default function ProductEditPage() {
           
           {/* 오른쪽: 편집 폼 */}
           <div className="max-w-6xl">
+
+        {/* 저장 실패 복구 배너 (layout=null 상태에서 이전 작업 내용 복구) */}
+        {hasDraft && draftData && (
+          <div className="mb-6 p-4 bg-amber-50 border-2 border-amber-300 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <p className="font-bold text-amber-800 text-sm">
+                저장되지 않은 이전 작업 내용이 있습니다
+              </p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                {new Date(draftData.savedAt).toLocaleString('ko-KR')} 에 임시 저장된 내용을 복구할 수 있습니다. (일정, 항공, 상세블록, 포함/불포함, 요금표, 환불규정, 키워드)
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (draftData.itineraryDays) setItineraryDays(draftData.itineraryDays as typeof itineraryDays);
+                  if (draftData.flightInfo) setFlightInfo(draftData.flightInfo as typeof flightInfo);
+                  if (draftData.detailBlocks) setDetailBlocks(draftData.detailBlocks as typeof detailBlocks);
+                  if (draftData.includedItems) setIncludedItems(draftData.includedItems as typeof includedItems);
+                  if (draftData.excludedItems) setExcludedItems(draftData.excludedItems as typeof excludedItems);
+                  if (draftData.pricingRows) setPricingRows(draftData.pricingRows as typeof pricingRows);
+                  if (draftData.refundPolicy) setRefundPolicy(draftData.refundPolicy as typeof refundPolicy);
+                  if (draftData.recommendedKeywords) setRecommendedKeywords(draftData.recommendedKeywords as typeof recommendedKeywords);
+                  setHasDraft(false);
+                  setDraftData(null);
+                  showSuccess('이전 작업 내용을 복구했습니다. 내용을 확인하고 저장해주세요.');
+                }}
+                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition-colors"
+              >
+                복구
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearDraft();
+                  setHasDraft(false);
+                  setDraftData(null);
+                }}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition-colors"
+              >
+                무시
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 헤더 */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center justify-between">
