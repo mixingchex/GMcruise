@@ -86,12 +86,13 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
         const res = await fetch(`/api/admin/products/${productCode}/soldout`);
         if (res.ok) {
           const data = await res.json();
-          if (data.ok && data.soldOutRooms) {
-            setSoldOutRooms(data.soldOutRooms);
-          }
+          setSoldOutRooms(data.ok && data.soldOutRooms ? data.soldOutRooms : []);
+        } else {
+          setSoldOutRooms([]); // 조회 실패 시 빈 배열 (모든 객실 선택 가능)
         }
       } catch (error) {
         console.error('Failed to fetch sold out status:', error);
+        setSoldOutRooms([]); // 네트워크 오류 시 빈 배열
       }
     };
     fetchSoldOutStatus();
@@ -306,6 +307,7 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
         productCode: productCode || ''
       });
 
+      setIsProcessing(false);
       router.push(`/payment/checkout?${query.toString()}`);
 
     } catch (error) {

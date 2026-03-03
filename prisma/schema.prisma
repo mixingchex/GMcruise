@@ -2411,6 +2411,7 @@ model Session {
   expiresAt DateTime?
   User      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])       // 유저별 세션 조회 및 일괄 만료 처리용
   @@index([expiresAt])
 }
 
@@ -2775,6 +2776,7 @@ model UserTrip {
   @@index([startDate])
   @@index([status, startDate])
   @@index([userId, status])
+  @@index([userId, productId])  // reservation/create.ts findFirst 쿼리 최적화용
 }
 
 model UserTripFeedback {

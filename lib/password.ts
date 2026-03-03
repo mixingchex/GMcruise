@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * lib/password.ts
  * 비밀번호 해시 및 검증 공통 유틸리티 (bcryptjs 기반)
@@ -40,8 +42,12 @@ export async function verifyPassword(
   if (!stored) return { valid: false, needsRehash: false };
 
   if (stored.startsWith('$2')) {
-    const valid = await bcrypt.compare(plaintext, stored);
-    return { valid, needsRehash: false };
+    try {
+      const valid = await bcrypt.compare(plaintext, stored);
+      return { valid, needsRehash: false };
+    } catch {
+      return { valid: false, needsRehash: false };
+    }
   }
 
   // 평문 비교 — timingSafeEqual로 타이밍 어택 방어

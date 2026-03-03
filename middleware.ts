@@ -11,7 +11,7 @@ const PUBLIC = [
   '/admin/login',
   '/api/auth/login',
   '/api/auth/logout',
-  '/api/public', // 공개 쇼핑몰 API
+  // '/api/public' 은 스크래퍼 차단이 필요하므로 PUBLIC 조기 리턴에서 제외 — API 보호 블록에서 처리
   '/api/community', // 커뮤니티 API (공개)
   '/api/subscription', // 구독/체험 API (공개)
   '/api/en', // 영어 AI API (공개)
@@ -65,17 +65,30 @@ export async function middleware(req: NextRequest) {
     const origin = req.headers.get('origin');
     const host = req.headers.get('host');
     
-    // 커스텀 도메인 체크: host가 cruisedot.co.kr 또는 mabizcruisedot.com이면 무조건 통과
-    const isCustomDomain = host && (
-      host.includes('cruisedot.co.kr') ||
-      host.includes('www.cruisedot.co.kr') ||
-      host.includes('mabizcruisedot.com')
-    );
-    
-    // Same-Origin 요청 (origin이 null이거나 host와 일치, 또는 커스텀 도메인)은 무조건 통과
-    const isSameOrigin = !origin || 
-                        (host && origin.includes(host)) || 
-                        isCustomDomain;
+    // WO-SEC-02: Host Header Spoofing 방어 — includes() 대신 정확 매칭 Set 사용
+    // evil.cruisedot.co.kr 등 서브도메인 우회 차단
+    const ALLOWED_HOSTS = new Set([
+      'cruisedot.co.kr',
+      'www.cruisedot.co.kr',
+      'mabizcruisedot.com',
+      'www.mabizcruisedot.com',
+      'localhost:3000',
+      'localhost:3001',
+    ]);
+
+    const isAllowedHost = (rawHost: string | null): boolean => {
+      if (!rawHost) return false;
+      // 포트 포함 정확 매칭 먼저 시도, 이후 포트 제외 매칭
+      return ALLOWED_HOSTS.has(rawHost) || ALLOWED_HOSTS.has(rawHost.split(':')[0]);
+    };
+
+    // 커스텀 도메인 체크: 정확 매칭만 허용
+    const isCustomDomain = isAllowedHost(host);
+
+    // Same-Origin 요청: origin 없음(브라우저 동일출처), 또는 origin이 host와 정확 일치
+    // isCustomDomain 단독 조건 제거 — Host만 허용 도메인이면 Origin=attacker.com도 통과하는 CORS 우회 방지
+    const isSameOrigin = !origin ||
+                        (host !== null && (origin === `https://${host}` || origin === `http://${host}`) && isCustomDomain);
     
     // 공개 API는 봇 차단 제외 (하지만 스크래퍼는 차단)
     if (pathname.startsWith('/api/passport') || pathname.startsWith('/api/public')) {
@@ -94,19 +107,9 @@ export async function middleware(req: NextRequest) {
       // 스크래퍼 도구는 여전히 차단 (명확한 스크래퍼만)
       if (isScraperTool(userAgent)) {
         const clientIp = getClientIp(req);
-        console.log('[Middleware] [403 BLOCKED] Scraper blocked on public API:', {
-          origin: origin || 'null',
-          host: host || 'null',
-          userAgent: userAgent || 'null',
+        securityLogger.warn('[Middleware] Scraper blocked on public API', {
           ip: clientIp,
           path: pathname,
-          method: req.method,
-        });
-        securityLogger.warn(`[Middleware] Scraper blocked on public API: ${userAgent}`, {
-          ip: clientIp,
-          path: pathname,
-          origin,
-          host,
         });
         const corsHeaders = getCorsHeaders(origin);
         return NextResponse.json(
@@ -150,20 +153,7 @@ export async function middleware(req: NextRequest) {
     // API 보호 적용
     const protectionResult = protectApiRequest(req);
     if (protectionResult) {
-      // 차단 시 디버깅 로그 출력
-      const userAgent = req.headers.get('user-agent');
-      const clientIp = getClientIp(req);
-      console.log('[Middleware] [403 BLOCKED] API request blocked by protection:', {
-        origin: origin || 'null',
-        host: host || 'null',
-        userAgent: userAgent || 'null',
-        ip: clientIp,
-        path: pathname,
-        method: req.method,
-        reason: 'API Protection (Bot/Scraper/Suspicious)',
-      });
-      
-      // 차단 시에도 CORS 헤더 추가
+        // 차단 시에도 CORS 헤더 추가
       const corsHeaders = getCorsHeaders(origin);
       Object.entries(corsHeaders).forEach(([key, value]) => {
         protectionResult.headers.set(key, value);
@@ -195,7 +185,7 @@ export async function middleware(req: NextRequest) {
     const policy = isAiRequest ? RateLimitPolicies.AI : RateLimitPolicies.API;
     const rateLimitKey = `api:${clientIp}:${pathname}`;
     
-    const { limited, resetTime } = checkRateLimit(rateLimitKey, policy);
+    const { limited, resetTime } = await checkRateLimit(rateLimitKey, policy);
     
     if (limited) {
       // 보안 로그 기록

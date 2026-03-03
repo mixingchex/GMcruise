@@ -2,14 +2,16 @@
 
 export const dynamic = 'force-dynamic';
 
+import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, Suspense, useRef } from 'react';
 import { FiCheckCircle, FiHome, FiShoppingBag, FiMail, FiPhone } from 'react-icons/fi';
 import { HiOutlineSparkles } from 'react-icons/hi';
 import Link from 'next/link';
 
 function PaymentSuccessPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   // 다양한 파라미터에서 주문번호 추출
   const orderId = searchParams.get('orderId') || searchParams.get('oid') || searchParams.get('P_OID');
@@ -17,17 +19,48 @@ function PaymentSuccessPageContent() {
   const sessionId = searchParams.get('sessionId');
   const productCode = searchParams.get('productCode');
   const [isLoading, setIsLoading] = useState(true);
-  const [showConfetti, setShowConfetti] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [orderData, setOrderData] = useState<{ amount: number; productName: string | null } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 표시할 주문번호 결정 (orderId 우선, 없으면 tid)
   const displayOrderId = orderId || tid || 'N/A';
 
+  // 서버 검증: orderId가 있으면 결제 상태 확인 후 완료 화면 표시
   useEffect(() => {
-    setIsLoading(false);
-    // confetti 효과 3초 후 제거
-    const timer = setTimeout(() => setShowConfetti(false), 3000);
-    return () => clearTimeout(timer);
-  }, [orderId]);
+    if (!orderId) {
+      // orderId 없으면 결제 흐름 외부 접근 → 홈으로 리다이렉트
+      router.replace('/');
+      return;
+    }
+
+    const controller = new AbortController();
+
+    fetch(`/api/payment/order/${orderId}`, { credentials: 'include', signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!data.ok || !data.order || data.order.status !== 'completed') {
+          // 결제 미완료 또는 조회 실패 → 실패 페이지로 리다이렉트
+          router.replace(`/payment/failed?orderId=${orderId}`);
+          return;
+        }
+        setOrderData(data.order); // tracking에서 재사용
+        setIsLoading(false);
+        setShowConfetti(true);
+        // confetti 효과 3초 후 제거
+        timerRef.current = setTimeout(() => setShowConfetti(false), 3000);
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return; // 언마운트로 인한 취소 무시
+        // 네트워크 에러 시 실패 페이지로
+        router.replace(`/payment/failed?orderId=${orderId}`);
+      });
+
+    return () => {
+      controller.abort();
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [orderId, router]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -50,44 +83,21 @@ function PaymentSuccessPageContent() {
     });
   }, [sessionId, orderId, productCode]);
 
-  // 구매 완료 이벤트 추적
+  // 구매 완료 이벤트 추적 (서버 검증 통과 후 실행, 검증에서 저장한 orderData 재사용)
   useEffect(() => {
-    if (!orderId || !productCode) return;
+    if (isLoading || !orderId || !productCode || !orderData) return;
 
-    const trackPurchase = async () => {
+    const runTracking = async () => {
       try {
-        const orderRes = await fetch(`/api/payment/order/${orderId}`, {
-          credentials: 'include',
-        });
-
-        if (orderRes.ok) {
-          const orderData = await orderRes.json();
-          if (orderData.ok && orderData.order) {
-            const { trackPurchase } = await import('@/lib/marketing/tracking');
-            trackPurchase({
-              transactionId: orderId,
-              value: orderData.order.amount || 0,
-              currency: 'KRW',
-              items: [{
-                item_id: productCode,
-                item_name: orderData.order.productName || productCode,
-                price: orderData.order.amount || 0,
-                quantity: 1,
-              }],
-            });
-            return;
-          }
-        }
-
         const { trackPurchase } = await import('@/lib/marketing/tracking');
         trackPurchase({
           transactionId: orderId,
-          value: 0,
+          value: orderData.amount || 0,
           currency: 'KRW',
           items: [{
             item_id: productCode,
-            item_name: productCode,
-            price: 0,
+            item_name: orderData.productName || productCode,
+            price: orderData.amount || 0,
             quantity: 1,
           }],
         });
@@ -96,8 +106,8 @@ function PaymentSuccessPageContent() {
       }
     };
 
-    trackPurchase();
-  }, [orderId, productCode]);
+    runTracking();
+  }, [isLoading, orderId, productCode, orderData]);
 
   if (isLoading) {
     return (

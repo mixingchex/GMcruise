@@ -82,6 +82,11 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
 
   }
 
+  // 판매중지/준비중/삭제 상품은 notFound (URL 직접 접근 차단)
+  if (['판매중지', '준비중', '삭제'].includes(product.saleStatus || '')) {
+    return notFound();
+  }
+
 
 
   // 2. 로그인 유저 확인 및 예약 여부 체크 (UserTrip 사용)

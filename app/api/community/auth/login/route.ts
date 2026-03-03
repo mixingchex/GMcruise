@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const clientIp = getClientIpFromRequest(req, headersList);
     const rateLimitKey = `community-login:${clientIp}`;
     
-    const { limited, resetTime } = checkRateLimit(rateLimitKey, RateLimitPolicies.LOGIN);
+    const { limited, resetTime } = await checkRateLimit(rateLimitKey, RateLimitPolicies.LOGIN);
     
     if (limited) {
       securityLogger.rateLimitExceeded(clientIp, '/api/community/auth/login', RateLimitPolicies.LOGIN.limit);
@@ -138,10 +138,15 @@ export async function POST(req: Request) {
     // 로그인 성공 로그
     authLogger.loginSuccess(userId, clientIp);
 
-    // next 파라미터 확인
+    // next 파라미터 확인 (Open Redirect 방지: 상대 경로만 허용)
     const url = new URL(req.url);
     const nextParam = url.searchParams.get('next');
-    const next = nextParam || '/community';
+    const isSafeRedirect = (n: string | null): boolean => {
+      if (!n) return false;
+      if (/^(https?:)?\/\//i.test(n)) return false;
+      return n.startsWith('/');
+    };
+    const next = isSafeRedirect(nextParam) ? nextParam! : '/community';
 
     return NextResponse.json({ 
       ok: true, 

@@ -91,19 +91,13 @@ export async function POST(req: NextRequest) {
       return new Response('OK', { status: 200 });
     }
 
-    // 결제 정보 조회
+    // 결제 정보 조회 (금액 검증 및 metadata 병합용)
     const payment = await prisma.payment.findUnique({
       where: { orderId: P_OID },
     });
 
     if (!payment) {
       error('[Payment Notify] 결제 정보 없음:', P_OID);
-      return new Response('OK', { status: 200 });
-    }
-
-    // 이미 완료된 결제는 스킵
-    if (payment.status === 'completed') {
-      log('[Payment Notify] 이미 완료된 결제:', P_OID);
       return new Response('OK', { status: 200 });
     }
 
@@ -121,10 +115,10 @@ export async function POST(req: NextRequest) {
     const isSuccess = isPaymentSuccess(P_STATUS);
 
     if (isSuccess) {
-      // 가상계좌 발급 (입금대기)
+      // 가상계좌 발급 (입금대기) — 원자적 updateMany로 중복 노티 방어
       if (P_TYPE === 'VBANK' && P_VACT_NUM) {
-        await prisma.payment.update({
-          where: { orderId: P_OID },
+        const vbankUpdated = await prisma.payment.updateMany({
+          where: { orderId: P_OID, status: { not: 'pending_vbank' } },
           data: {
             status: 'pending_vbank',
             pgTransactionId: P_TID,
@@ -140,15 +134,20 @@ export async function POST(req: NextRequest) {
             },
           },
         });
-        log('[Payment Notify] 가상계좌 발급:', {
-          orderId: P_OID,
-          vbankNum: P_VACT_NUM,
-          vbankDate: P_VACT_DATE,
-        });
+        if (vbankUpdated.count === 0) {
+          log('[Payment Notify] 가상계좌 중복 노티 스킵:', P_OID);
+        } else {
+          log('[Payment Notify] 가상계좌 발급:', {
+            orderId: P_OID,
+            vbankNum: P_VACT_NUM,
+            vbankDate: P_VACT_DATE,
+          });
+        }
       } else {
-        // 일반 결제 완료 또는 가상계좌 입금 완료
-        await prisma.payment.update({
-          where: { orderId: P_OID },
+        // 일반 결제 완료 — 원자적 updateMany로 TOCTOU 경쟁 조건 방지
+        // status가 'completed'가 아닌 경우에만 업데이트 (중복 노티 안전 처리)
+        const updated = await prisma.payment.updateMany({
+          where: { orderId: P_OID, status: { not: 'completed' } },
           data: {
             status: 'completed',
             paidAt: new Date(),
@@ -164,6 +163,11 @@ export async function POST(req: NextRequest) {
             },
           },
         });
+
+        if (updated.count === 0) {
+          log('[Payment Notify] 이미 완료된 결제, 중복 노티 스킵:', P_OID);
+          return new Response('OK', { status: 200 });
+        }
 
         // 결제 완료 웹훅 호출 (어필리에이트 처리)
         try {

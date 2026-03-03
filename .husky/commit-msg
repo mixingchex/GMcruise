@@ -1,0 +1,5 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Validate commit message format
+bash scripts/validate-commit-msg.sh "$1"

@@ -1,0 +1,18 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Post-commit hook - informational only
+
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+COMMIT_HASH=$(git rev-parse --short HEAD)
+COMMIT_MSG=$(git log -1 --pretty=%B)
+
+echo ""
+echo -e "${GREEN}✅ Commit successful!${NC}"
+echo ""
+echo -e "${BLUE}📝 Commit: $COMMIT_HASH${NC}"
+echo "   $COMMIT_MSG"
+echo ""

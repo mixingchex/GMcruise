@@ -12,8 +12,7 @@ import { getClientIpFromRequest } from '@/lib/ip-utils';
 import { authLogger, securityLogger, logger } from '@/lib/logger';
 import { reactivateUser, updateLastActive } from '@/lib/scheduler/lifecycleManager';
 import { normalizeItineraryPattern, extractVisitedCountriesFromItineraryPattern, extractDestinationsFromItineraryPattern } from '@/lib/utils/itineraryPattern';
-
-const SESSION_COOKIE = 'cg.sid.v2';
+import { SESSION_COOKIE } from '@/lib/session'; // 단일 출처 원칙: lib/session.ts에서만 관리
 const TEST_MODE_PASSWORDS = ['1101']; // 테스트 모드는 1101만 허용
 
 export async function POST(req: Request) {
@@ -23,7 +22,7 @@ export async function POST(req: Request) {
     const clientIp = getClientIpFromRequest(req, headersList);
     const rateLimitKey = `login:${clientIp}`;
 
-    const { limited, resetTime } = checkRateLimit(rateLimitKey, RateLimitPolicies.LOGIN);
+    const { limited, resetTime } = await checkRateLimit(rateLimitKey, RateLimitPolicies.LOGIN);
 
     if (limited) {
       securityLogger.rateLimitExceeded(clientIp, '/api/auth/login', RateLimitPolicies.LOGIN.limit);
@@ -196,7 +195,9 @@ export async function POST(req: Request) {
           const { valid } = await verifyPassword(password, storedPassword);
           isPasswordValid = valid;
         } else {
-          isPasswordValid = storedPassword === password; // Lazy Migration 중인 계정
+          // 평문 비교 — timingSafeEqual 기반 verifyPassword() 사용 (타이밍 공격 방지)
+          const { valid: plainValid } = await verifyPassword(password, storedPassword);
+          isPasswordValid = plainValid; // Lazy Migration 중인 계정
           // 평문 매칭 → 즉시 재해시 (Lazy Migration)
           if (isPasswordValid && affiliateUser) {
             try {
@@ -1149,7 +1150,7 @@ export async function POST(req: Request) {
         });
         // 3일 체험 유저 표시 쿠키 (middleware에서 -test 경로 강제 리다이렉트에 사용)
         cookieStore.set('cg.mode', 'test', {
-          httpOnly: false,
+          httpOnly: true,
           sameSite: 'lax',
           path: '/',
           maxAge: 60 * 60 * 24 * 30,

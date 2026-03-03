@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSessionUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: false, error: '프로덕션에서는 사용할 수 없습니다.' }, { status: 403 });
+  }
+
+  const sessionUser = await getSessionUser();
+  if (!sessionUser || sessionUser.role !== 'admin') {
+    return NextResponse.json({ ok: false, error: '관리자 권한이 필요합니다.' }, { status: 403 });
+  }
+
   try {
     // 1. 기존 테스트 상품 삭제 (초기화)
     // Cascade 설정에 따라 MallProductContent도 같이 삭제됨

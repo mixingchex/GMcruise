@@ -346,7 +346,8 @@ export async function POST(req: NextRequest) {
       if (payment) {
         if (isSuccess) {
           // [보안] TOCTOU 방지: status가 이미 completed인 경우 중복 처리 차단
-          await prisma.payment.updateMany({
+          // [WO-PAY-05] updateMany count 확인 — 이미 처리된 결제면 webhook 건너뜀
+          const legacyUpdated = await prisma.payment.updateMany({
             where: { orderId, status: { not: 'completed' } },
             data: {
               status: 'completed',
@@ -362,6 +363,10 @@ export async function POST(req: NextRequest) {
               },
             },
           });
+
+          if (legacyUpdated.count === 0) {
+            log('[Payment Return] 이미 처리된 결제 (TOCTOU 차단):', orderId);
+          } else {
 
           // [v11.0] DB + merchantData 병합 (DB 우선, 없으면 merchantData 사용)
           const finalPartnerId = payment.affiliateMallUserId || merchantPartnerId || '';
@@ -400,6 +405,7 @@ export async function POST(req: NextRequest) {
           } catch (webhookErr) {
             error('[Payment Return v11.0] Webhook 호출 실패:', webhookErr);
           }
+          } // end if legacyUpdated.count > 0
         } else {
           await prisma.payment.update({
             where: { orderId },

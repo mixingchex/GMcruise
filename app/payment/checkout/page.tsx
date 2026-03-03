@@ -73,17 +73,14 @@ function CheckoutContent() {
   // 2. 초기화 (PC: 스크립트 로드 + 서명 생성 / Mobile: 바로 준비)
   // ============================================
   useEffect(() => {
-    console.log('[Checkout] Component mounted');
     setIsMounted(true);
 
     // 웰컴페이먼츠 결제 콜백 함수 등록 (결제창 닫힘/실패 시 호출)
     window.INIStdPayClose = () => {
-      console.log('[Checkout] INIStdPayClose called - 결제창 닫힘');
       // 결제창 닫힘 시 로딩/처리 상태 복구
       setIsPaymentProcessing(false);
     };
     window.INIStdPayFail = (data: any) => {
-      console.error('[Checkout] INIStdPayFail called - 결제 실패:', data);
       // 결제 실패 시 로딩/처리 상태 복구
       setIsPaymentProcessing(false);
       alert('결제 오류: ' + JSON.stringify(data));
@@ -92,7 +89,6 @@ function CheckoutContent() {
     // PAYMENT_CLOSED postMessage 수신 핸들러 (overlay/팝업 모드 공통)
     const handlePaymentClosedMessage = (event: MessageEvent) => {
       if (event.data?.type === 'PAYMENT_CLOSED') {
-        console.log('[Checkout] PAYMENT_CLOSED message received - 결제창 닫힘');
         setIsPaymentProcessing(false);
       }
     };
@@ -100,25 +96,21 @@ function CheckoutContent() {
 
     const userAgent = navigator.userAgent.toLowerCase();
     const mobile = /android|iphone|ipad|ipod/i.test(userAgent);
-    console.log('[Checkout] Device detection:', { userAgent: userAgent.substring(0, 50), mobile });
     setIsMobile(mobile);
 
     if (!mobile) {
       // PC: 웰컴페이먼츠 스크립트 로드
-      console.log('[Checkout] Loading INIStdPay script...');
       const existingScript = document.querySelector('script[src*="INIStdPay"]');
       if (existingScript) {
-        console.log('[Checkout] Script already exists');
         setIsScriptLoaded(true);
       } else {
         const script = document.createElement('script');
         script.src = 'https://stdpay.paywelcome.co.kr/stdjs/INIStdPay.js';
         script.onload = () => {
-          console.log('[Checkout] INIStdPay script loaded successfully');
           setIsScriptLoaded(true);
         };
-        script.onerror = (e) => {
-          console.error('[Checkout] INIStdPay script load error:', e);
+        script.onerror = () => {
+          // 스크립트 로드 실패 — 결제 버튼 비활성화 상태 유지
         };
         document.head.appendChild(script);
       }
@@ -126,81 +118,53 @@ function CheckoutContent() {
       // PC: 서명 생성 API 호출
       // orderId를 로컬 변수로 캡처해서 일관성 보장
       const currentOrderId = orderId;
-      const currentPrice = price;
-      console.log('[Checkout] Fetching signature...', { orderId: currentOrderId, price: currentPrice });
 
       fetch('/api/payment/signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: currentOrderId, price: currentPrice }),
+        body: JSON.stringify({ orderId: currentOrderId }),
       })
-        .then((res) => {
-          console.log('[Checkout] Signature API response status:', res.status);
-          return res.json();
-        })
+        .then((res) => res.json())
         .then((data) => {
-          console.log('[Checkout] Signature API response:', {
-            ok: data.ok,
-            hasTimestamp: !!data.timestamp,
-            hasMKey: !!data.mKey,
-            hasSignature: !!data.signature,
-            timestamp: data.timestamp,
-            mKeyPreview: data.mKey ? data.mKey.substring(0, 10) + '...' : 'none',
-            signaturePreview: data.signature ? data.signature.substring(0, 10) + '...' : 'none'
-          });
           if (data.ok) {
             setTimestamp(data.timestamp);
             setMKey(data.mKey);
             setSignature(data.signature);
             setSignedOrderId(currentOrderId); // signature 생성에 사용된 orderId 저장
             setIsSignatureLoaded(true);
-            console.log('[Checkout] Signature loaded successfully for orderId:', currentOrderId);
           } else {
-            console.error('[Checkout] Signature error:', data.error);
             alert('결제 서명 생성 실패: ' + (data.error || '알 수 없는 오류'));
           }
         })
         .catch((err) => {
-          console.error('[Checkout] Signature fetch error:', err);
           alert('결제 서명 요청 실패: ' + err.message);
         });
     } else {
       // Mobile: 스크립트는 불필요하지만 서명은 필요!
-      console.log('[Checkout] Mobile detected, fetching signature...');
       setIsScriptLoaded(true); // 모바일은 스크립트 불필요
 
       // 모바일도 signature API 호출 (P_TIMESTAMP, P_SIGNATURE 필요)
       // 중요: 모바일용 signature는 PC와 다른 형식이므로 isMobile: true 전달
       const currentOrderId = orderId;
-      const currentPrice = price;
-      console.log('[Checkout Mobile] Fetching signature...', { orderId: currentOrderId, price: currentPrice });
 
       fetch('/api/payment/signature', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: currentOrderId, price: currentPrice, isMobile: true }),
+        body: JSON.stringify({ orderId: currentOrderId, isMobile: true }),
       })
         .then((res) => res.json())
         .then((data) => {
-          console.log('[Checkout Mobile] Signature API response:', {
-            ok: data.ok,
-            hasTimestamp: !!data.timestamp,
-            hasSignature: !!data.signature,
-          });
           if (data.ok) {
             setTimestamp(data.timestamp);
             setMKey(data.mKey);
             setSignature(data.signature);
             setSignedOrderId(currentOrderId);
             setIsSignatureLoaded(true);
-            console.log('[Checkout Mobile] Signature loaded successfully');
           } else {
-            console.error('[Checkout Mobile] Signature error:', data.error);
             alert('결제 서명 생성 실패: ' + (data.error || '알 수 없는 오류'));
           }
         })
         .catch((err) => {
-          console.error('[Checkout Mobile] Signature fetch error:', err);
           alert('결제 서명 요청 실패: ' + err.message);
         });
     }
@@ -208,32 +172,18 @@ function CheckoutContent() {
     return () => {
       window.removeEventListener('message', handlePaymentClosedMessage);
     };
-  }, [orderId, price]);
+  }, [orderId, isMobile]);
 
   // ============================================
   // 3. 결제 실행 핸들러 (PC/Mobile 분기)
   // ============================================
   const handlePayment = () => {
-    // 디버깅: 현재 상태 확인
-    console.log('[Checkout] Payment clicked:', {
-      isMobile,
-      isScriptLoaded,
-      isSignatureLoaded,
-      timestamp,
-      mKey: mKey ? `${mKey.substring(0, 10)}...` : 'empty',
-      signature: signature ? `${signature.substring(0, 10)}...` : 'empty',
-      orderId,
-      price,
-      payMethod,
-    });
-
     setIsPaymentProcessing(true);
 
     if (isMobile) {
       // === Mobile: 동적 폼 생성 후 POST 전송 ===
       // 서명 데이터 확인 (필수!) - signature, timestamp, mKey 모두 체크
       if (!signature || !timestamp || !mKey) {
-        console.error('[Checkout Mobile] Missing signature data:', { signature: !!signature, timestamp: !!timestamp, mKey: !!mKey });
         setIsPaymentProcessing(false);
         alert('결제 서명 데이터 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
@@ -286,14 +236,6 @@ function CheckoutContent() {
         params.P_HPP_METHOD = '2';
       }
 
-      console.log('[Checkout Mobile] Form params:', {
-        P_MID: params.P_MID,
-        P_OID: params.P_OID,
-        P_AMT: params.P_AMT,
-        P_TIMESTAMP: params.P_TIMESTAMP,
-        P_SIGNATURE: params.P_SIGNATURE ? `${params.P_SIGNATURE.substring(0, 10)}...` : 'MISSING',
-      });
-
       Object.entries(params).forEach(([key, value]) => {
         const input = document.createElement('input');
         input.type = 'hidden';
@@ -308,7 +250,6 @@ function CheckoutContent() {
     } else {
       // === PC: Overlay 팝업 실행 ===
       if (typeof window.INIStdPay === 'undefined') {
-        console.error('[Checkout] INIStdPay not loaded');
         setIsPaymentProcessing(false);
         alert('결제 모듈 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
@@ -316,7 +257,6 @@ function CheckoutContent() {
 
       // 서명 데이터 확인
       if (!signature || !mKey || !timestamp) {
-        console.error('[Checkout] Missing signature data:', { signature: !!signature, mKey: !!mKey, timestamp: !!timestamp });
         setIsPaymentProcessing(false);
         alert('결제 서명 데이터 로딩 중... 잠시 후 다시 클릭해주세요.');
         return;
@@ -324,35 +264,10 @@ function CheckoutContent() {
 
       const form = document.getElementById('SendPayForm_id') as HTMLFormElement;
       if (form) {
-        // 폼 데이터 디버깅
-        const formData = new FormData(form);
-        console.log('[Checkout] Form data before payment:');
-        formData.forEach((value, key) => {
-          if (key === 'mKey' || key === 'signature') {
-            console.log(`  ${key}: ${String(value).substring(0, 20)}...`);
-          } else {
-            console.log(`  ${key}: ${value}`);
-          }
-        });
-
-        // 폼 필드 값 직접 확인
         const formElements = form.elements;
-        console.log('[Checkout] Form elements count:', formElements.length);
-        console.log('[Checkout] Critical values:', {
-          mid: (formElements.namedItem('mid') as HTMLInputElement)?.value,
-          oid: (formElements.namedItem('oid') as HTMLInputElement)?.value,
-          price: (formElements.namedItem('price') as HTMLInputElement)?.value,
-          timestamp: (formElements.namedItem('timestamp') as HTMLInputElement)?.value,
-          signatureExists: !!(formElements.namedItem('signature') as HTMLInputElement)?.value,
-          mKeyExists: !!(formElements.namedItem('mKey') as HTMLInputElement)?.value,
-        });
-
-        console.log('[Checkout] Calling INIStdPay.pay()...');
-        console.log('[Checkout] INIStdPay object:', window.INIStdPay);
-        console.log('[Checkout] Form HTML:', form.outerHTML.substring(0, 500));
 
         try {
-          // 폼 필드 값 최종 확인
+          // 필수값 누락 체크
           const midVal = (formElements.namedItem('mid') as HTMLInputElement)?.value;
           const oidVal = (formElements.namedItem('oid') as HTMLInputElement)?.value;
           const priceVal = (formElements.namedItem('price') as HTMLInputElement)?.value;
@@ -360,15 +275,6 @@ function CheckoutContent() {
           const signatureVal = (formElements.namedItem('signature') as HTMLInputElement)?.value;
           const mKeyVal = (formElements.namedItem('mKey') as HTMLInputElement)?.value;
 
-          console.log('[Checkout] === FINAL FORM CHECK ===');
-          console.log('[Checkout] mid:', midVal);
-          console.log('[Checkout] oid:', oidVal);
-          console.log('[Checkout] price:', priceVal);
-          console.log('[Checkout] timestamp:', timestampVal);
-          console.log('[Checkout] signature (64 chars):', signatureVal?.length === 64 ? 'OK' : `WRONG: ${signatureVal?.length}`);
-          console.log('[Checkout] mKey (64 chars):', mKeyVal?.length === 64 ? 'OK' : `WRONG: ${mKeyVal?.length}`);
-
-          // 필수값 누락 체크
           if (!midVal || !oidVal || !priceVal || !timestampVal || !signatureVal || !mKeyVal) {
             const missing = [];
             if (!midVal) missing.push('mid');
@@ -377,21 +283,17 @@ function CheckoutContent() {
             if (!timestampVal) missing.push('timestamp');
             if (!signatureVal) missing.push('signature');
             if (!mKeyVal) missing.push('mKey');
-            console.error('[Checkout] Missing required fields:', missing.join(', '));
             setIsPaymentProcessing(false);
             alert('필수 결제 정보가 누락되었습니다: ' + missing.join(', '));
             return;
           }
 
           window.INIStdPay.pay('SendPayForm_id');
-          console.log('[Checkout] INIStdPay.pay() called successfully');
         } catch (payError) {
-          console.error('[Checkout] INIStdPay.pay() error:', payError);
           setIsPaymentProcessing(false);
           alert('결제 호출 오류: ' + (payError instanceof Error ? payError.message : String(payError)));
         }
       } else {
-        console.error('[Checkout] Form not found: SendPayForm_id');
         setIsPaymentProcessing(false);
       }
     }

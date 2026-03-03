@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { hashPassword } from '@/lib/password';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 import { recordCustomerJourney } from '@/lib/customer-journey';
+import { getSessionUser } from '@/lib/auth';
 
 /**
  * 예약 생성 API
@@ -17,6 +18,14 @@ import { recordCustomerJourney } from '@/lib/customer-journey';
  * APIS 코드는 dateOfBirth/passportExpiryDate도 지원하므로 입력 데이터에서 양쪽 모두 처리
  */
 export async function POST(req: NextRequest) {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    return NextResponse.json({ ok: false, message: '로그인이 필요합니다.' }, { status: 401 });
+  }
+  if (sessionUser.role !== 'partner' && sessionUser.role !== 'admin') {
+    return NextResponse.json({ ok: false, message: '파트너 권한이 필요합니다.' }, { status: 403 });
+  }
+
   try {
     const body = await req.json();
     const { tripId, mainUser, travelers, cabinType, pnrStatus } = body;
@@ -29,6 +38,10 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // pnrStatus 화이트리스트 검증 (임의 문자열 저장 차단)
+    const VALID_PNR_STATUSES = ['PENDING', 'CONFIRMED', 'CANCELLED', 'WAITLIST', 'CHECKED_IN'];
+    const validatedPnrStatus = VALID_PNR_STATUSES.includes(pnrStatus) ? pnrStatus : 'PENDING';
+
     // ⚠️ mainUser.phone이 없어도 저장 가능 (이름만 있어도 가능)
     if (!mainUser || (!mainUser.name && !mainUser.phone)) {
       return NextResponse.json(
@@ -50,6 +63,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 판매중지/판매완료 상품 예약 차단
+    if (['판매중지', '판매완료', '준비중', '삭제'].includes(cruiseProduct.saleStatus || '')) {
+      return NextResponse.json(
+        { ok: false, message: '현재 예약할 수 없는 상품입니다.' },
+        { status: 400 }
+      );
+    }
+
     // 트랜잭션으로 처리
     const result = await prisma.$transaction(async (tx) => {
       // 1. 메인 유저 처리: phone 또는 name으로 검색 -> 없으면 생성
@@ -63,16 +84,11 @@ export async function POST(req: NextRequest) {
         });
       }
       
-      // phone으로 찾지 못했고 name이 있으면 name으로 검색
-      if (!mainUserData && mainUser.name) {
-        mainUserData = await tx.user.findFirst({
-          where: { name: mainUser.name },
-        });
-      }
+      // [WO-01] name 단독 findFirst 제거 — 동명이인 시 무관한 계정에 예약 연결되는 개인정보 위반 방지
 
       if (!mainUserData) {
-        // 비밀번호 해시 생성 (phone이 있으면 phone, 없으면 name 또는 임시값)
-        const passwordSource = mainUser.phone || mainUser.name || `temp_${Date.now()}`;
+        // [WO-05] name을 비밀번호 소스에서 제거 — 반공개 정보로 취약한 비밀번호 생성 방지
+        const passwordSource = mainUser.phone || SYSTEM_PASSWORDS.TEMP;
         const hashedPassword = await hashPassword(passwordSource);
         
         mainUserData = await tx.user.create({
@@ -145,7 +161,6 @@ export async function POST(req: NextRequest) {
         if (isSingleCharge && traveler.passportNo && passportToUserIdMap.has(traveler.passportNo)) {
           const existingUserId = passportToUserIdMap.get(traveler.passportNo)!;
           travelerUserMap.set(i, existingUserId);
-          console.log(`[Reservation Create] 싱글차지: 동일 여권번호(${traveler.passportNo})를 가진 여행자에 기존 User(${existingUserId}) 재사용`);
           continue;
         }
 
@@ -234,14 +249,6 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          console.log(`[Reservation Create] 새로운 PROSPECT User 생성:`, {
-            userId: travelerUser.id,
-            name: travelerUser.name,
-            phone: travelerUser.phone,
-            passportNo: traveler.passportNo,
-            korName: traveler.korName,
-            birthDate: traveler.birthDate || traveler.dateOfBirth,
-          });
         } else {
           // 기존 User 정보 업데이트 (OCR로 얻은 정보로 보강)
           const updateData: any = {};
@@ -260,10 +267,7 @@ export async function POST(req: NextRequest) {
               where: { id: travelerUser.id },
               data: updateData,
             });
-            console.log(`[Reservation Create] 기존 User 정보 업데이트 (찾은 방법: ${foundBy}):`, {
-              userId: travelerUser.id,
-              updates: updateData,
-            });
+            // 기존 User 정보 업데이트 로그 (개인정보 미포함)
           }
         }
 
@@ -286,70 +290,34 @@ export async function POST(req: NextRequest) {
         console.log(`[Reservation Create] 싱글차지 처리: totalPeople=${totalPeople}, 동일 여권번호 중복 입력 허용`);
       }
 
-      // 3. UserTrip 확인 및 생성 (Reservation이 Trip 관계를 필수로 요구)
-      // tripId는 실제로 CruiseProduct.id를 의미하지만, Reservation은 Trip을 요구함
-      // 실제 데이터베이스에는 UserTrip 모델이 있으므로 UserTrip을 사용
-      // 메인 유저를 위한 UserTrip 생성 또는 찾기
-      let userTrip = await tx.userTrip.findFirst({
-        where: { 
-          userId: mainUserData.id,
-          productId: tripId,
+      // 3. Trip 확인 및 생성 (Reservation.tripId → Trip.id FK)
+      // upsert 사용: productCode @unique 충돌로 인한 동시 요청 race condition 방지
+      const trip = await tx.trip.upsert({
+        where: { productCode: cruiseProduct.productCode },
+        update: {},
+        create: {
+          productCode: cruiseProduct.productCode,
+          shipName: cruiseProduct.shipName,
+          departureDate: cruiseProduct.startDate || new Date(),
+          endDate: cruiseProduct.endDate || null,
+          status: 'Upcoming',
+          updatedAt: new Date(),
         },
-        select: {
-          id: true,
-          productId: true,
-          cruiseName: true,
-          status: true,
-        },
+        select: { id: true },
       });
 
-      // UserTrip이 없으면 생성 (CruiseProduct를 기반으로)
-      if (!userTrip) {
-        const now = new Date();
-        
-        try {
-          userTrip = await tx.userTrip.create({
-            data: {
-              userId: mainUserData.id,
-              productId: tripId,
-              cruiseName: `${cruiseProduct.cruiseLine} ${cruiseProduct.shipName}`,
-              status: 'Upcoming',
-              startDate: now,
-              endDate: now,
-              nights: cruiseProduct.nights || 0,
-              days: cruiseProduct.days || 0,
-              visitCount: 0,
-              companionType: '가족',
-              destination: cruiseProduct.itineraryPattern || [],
-              updatedAt: new Date(), // 필수 필드
-            },
-            select: {
-              id: true,
-              productId: true,
-              cruiseName: true,
-              status: true,
-            },
-          });
-          
-          console.log(`[Reservation Create] UserTrip 생성 완료: userTripId=${userTrip.id}, tripId=${tripId}`);
-        } catch (createError: any) {
-          console.error(`[Reservation Create] UserTrip 생성 에러:`, createError);
-          throw new Error(`UserTrip 생성 실패: ${createError.message || 'Unknown error'}`);
-        }
-      }
-      
-      // Reservation에서 사용할 tripId는 UserTrip.id를 사용
-      const reservationTripId = userTrip.id;
+      // Reservation에서 사용할 tripId는 Trip.id (FK: Reservation.tripId -> Trip.id)
+      // ⚠️ UserTrip 생성은 트랜잭션 밖에서 처리 (tx 내 try/catch 시 PostgreSQL aborted 상태 위험)
+      const reservationTripId = trip.id;
 
-      // 4. 예약 생성
-      // ⚠️ Reservation 모델이 Trip 관계와 mainUserId를 필수로 요구
-      // 실제 데이터베이스에는 UserTrip이 있으므로 UserTrip.id를 tripId로 사용
+      // 4. 예약 생성 (Reservation.tripId → Trip.id FK)
       const reservation = await tx.reservation.create({
         data: {
-          tripId: reservationTripId, // UserTrip.id 사용
+          tripId: reservationTripId, // Trip.id 사용 (FK 정확성 보장)
           mainUserId: mainUserData.id, // ⚠️ Reservation 모델에 mainUserId 필드가 필수 (userId 아님)
           totalPeople,
           cabinType: finalCabinType, // 싱글차지 정보 포함
+          pnrStatus: validatedPnrStatus, // PNR 상태 저장 (화이트리스트 검증됨)
         },
       });
 
@@ -435,19 +403,7 @@ export async function POST(req: NextRequest) {
           data: travelerData,
         });
 
-        console.log(`[Reservation Create] Traveler 생성 완료 (APIS 호환):`, {
-          travelerId: createdTraveler.id,
-          userId: createdTraveler.userId,
-          korName: createdTraveler.korName, // 1
-          engSurname: createdTraveler.engSurname, // 2
-          engGivenName: createdTraveler.engGivenName, // 3
-          passportNo: createdTraveler.passportNo, // 4
-          nationality: createdTraveler.nationality, // 5
-          birthDate: createdTraveler.birthDate, // 6 (String, APIS: dateOfBirth로도 접근 가능)
-          gender: createdTraveler.gender, // 7
-          issueDate: createdTraveler.issueDate, // 8 (String)
-          expiryDate: createdTraveler.expiryDate, // 9 (String, APIS: passportExpiryDate로도 접근 가능)
-        });
+        // Traveler 생성 완료 (개인정보는 로그 미포함)
 
         createdTravelers.push(createdTraveler);
       }
@@ -492,12 +448,16 @@ export async function POST(req: NextRequest) {
             // 여행 상품 폴더 생성/검색
             const trip = await prisma.trip.findUnique({
               where: { id: result.reservation.tripId },
-              include: { CruiseProduct: true },
+              select: { id: true, productCode: true, departureDate: true, shipName: true },
             });
-            
-            if (trip && trip.CruiseProduct) {
+            // Trip.productCode로 CruiseProduct 별도 조회 (Trip에 CruiseProduct 직접 relation 없음)
+            const tripCruiseProduct = trip?.productCode
+              ? await prisma.cruiseProduct.findUnique({ where: { productCode: trip.productCode }, select: { shipName: true } })
+              : null;
+
+            if (trip && tripCruiseProduct) {
               const departureDate = trip.departureDate ? new Date(trip.departureDate).toISOString().split('T')[0].replace(/-/g, '') : 'UNKNOWN';
-              const tripFolderName = `${departureDate}_${trip.CruiseProduct.shipName || 'UNKNOWN'}`;
+              const tripFolderName = `${departureDate}_${trip.shipName || tripCruiseProduct.shipName || 'UNKNOWN'}`;
               const tripFolderResult = await findOrCreateFolder(tripFolderName, rootFolderId);
               
               if (tripFolderResult.ok && tripFolderResult.folderId) {
@@ -533,6 +493,35 @@ export async function POST(req: NextRequest) {
           }
         }
       }
+    }
+
+    // UserTrip 생성 (가이드 앱 여정 데이터용, 트랜잭션 외부에서 실행 — 실패해도 예약에 영향 없음)
+    try {
+      const existingUserTrip = await prisma.userTrip.findFirst({
+        where: { userId: result.mainUser.id, productId: tripId },
+        select: { id: true },
+      });
+      if (!existingUserTrip) {
+        await prisma.userTrip.create({
+          data: {
+            userId: result.mainUser.id,
+            productId: tripId,
+            cruiseName: `${cruiseProduct.cruiseLine} ${cruiseProduct.shipName}`,
+            status: 'Upcoming',
+            startDate: cruiseProduct.startDate || new Date(),
+            endDate: cruiseProduct.endDate || new Date(),
+            nights: cruiseProduct.nights || 0,
+            days: cruiseProduct.days || 0,
+            visitCount: 0,
+            companionType: '가족',
+            destination: cruiseProduct.itineraryPattern || [],
+            updatedAt: new Date(),
+          },
+        });
+      }
+    } catch (userTripError: any) {
+      // UserTrip 생성 실패는 예약 완료에 영향 없음 (가이드 앱 여정 데이터 누락만 발생)
+      console.error(`[Reservation Create] UserTrip 생성 에러 (무시됨):`, userTripError?.message);
     }
 
     // 고객 여정 기록: 구매고객으로 전환 (메인 유저 및 동행자 모두)
@@ -616,7 +605,12 @@ export async function POST(req: NextRequest) {
         } else {
           console.error(`[Reservation Create] ⚠️ APIS 자동화 실패 (재시도 ${retryCount + 1}/${maxRetries}):`, syncResult.error);
           apisSyncResult = { ok: false, error: syncResult.error, retryCount: retryCount + 1 };
-          
+
+          // 스텁 함수(모듈 없음)이면 재시도 불필요
+          if (syncResult.error?.includes('google-sheets') || syncResult.error?.includes('모듈이 없습니다')) {
+            break;
+          }
+
           // 마지막 재시도가 아니면 잠시 대기 후 재시도
           if (retryCount < maxRetries - 1) {
             await new Promise(resolve => setTimeout(resolve, 2000 * (retryCount + 1))); // 2초, 4초, 6초 대기
@@ -658,11 +652,11 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('[Reservation Create] Error:', error);
+    console.error('[Reservation Create] Error:', error?.message || error);
     return NextResponse.json(
       {
         ok: false,
-        message: error.message || '예약 생성에 실패했습니다.',
+        message: '예약 생성에 실패했습니다.',
       },
       { status: 500 }
     );

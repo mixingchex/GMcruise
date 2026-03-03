@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { SESSION_COOKIE } from '@/lib/session';
+import { hashPassword } from '@/lib/password';
 
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
   if (!sid) return false;
@@ -47,7 +48,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '50');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200); // DoS 방어: 최대 200
     const status = searchParams.get('status');
     const accountId = searchParams.get('accountId');
     const search = searchParams.get('search');
@@ -136,6 +137,9 @@ export async function GET(req: Request) {
 
     // MarketingCustomer가 없거나 적은 경우, User 테이블에서도 조회
     // 랜딩페이지로 유입된 고객 등이 User 테이블에만 있을 수 있음
+    // User skip 계산을 위해 MarketingCustomer 총 개수 사전 조회
+    const marketingTotalCount = await prisma.marketingCustomer.count({ where }).catch(() => 0);
+
     if (marketingCustomers.length < limit) {
       try {
         // User 테이블에서 랜딩페이지/마케팅 관련 고객 조회
@@ -177,6 +181,20 @@ export async function GET(req: Request) {
           userWhere.AND.push({ createdAt: dateFilter });
         }
 
+        // daySearch 필터 적용 (MarketingCustomer와 동일한 조건)
+        if (daySearch) {
+          const days = parseInt(daySearch);
+          if (!isNaN(days)) {
+            const targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() - days);
+            if (!userWhere.AND) userWhere.AND = [];
+            userWhere.AND.push({ createdAt: { gte: targetDate } });
+          }
+        }
+
+        // User skip: 전체 MarketingCustomer 수 기준으로 계산 (page 2+ 중복 방지)
+        const userSkip = Math.max(0, skip - marketingTotalCount);
+
         const users = await prisma.user.findMany({
           where: userWhere,
           select: {
@@ -192,7 +210,7 @@ export async function GET(req: Request) {
           orderBy: {
             createdAt: 'desc',
           },
-          skip: marketingCustomers.length, // MarketingCustomer 이후부터
+          skip: userSkip,
           take: limit - marketingCustomers.length,
         });
 
@@ -390,18 +408,39 @@ export async function GET(req: Request) {
     // 총 개수 계산
     let total = 0;
     try {
-      const marketingCount = await prisma.marketingCustomer.count({ where }).catch(() => 0);
-      const userCount = await prisma.user.count({
-        where: {
-          role: { not: 'admin' },
-          OR: [
-            { customerSource: 'landing-page' },
-            { customerSource: 'affiliate-manual' },
-            { customerSource: 'affiliate-lead' },
-            { customerSource: null },
-          ],
-        },
-      }).catch(() => 0);
+      const marketingCount = marketingTotalCount; // 중복 DB 호출 방지 (140번째 줄에서 이미 조회됨)
+
+      // userCount도 동일한 검색/날짜 필터 적용 (페이지네이션 total 일치)
+      const userCountWhere: any = {
+        role: { not: 'admin' },
+        OR: [
+          { customerSource: 'landing-page' },
+          { customerSource: 'affiliate-manual' },
+          { customerSource: 'affiliate-lead' },
+          { customerSource: null },
+        ],
+      };
+      if (search) {
+        userCountWhere.AND = [{ OR: [{ name: { contains: search } }, { phone: { contains: search } }, { email: { contains: search } }] }];
+      }
+      if (inflowDateStart || inflowDateEnd) {
+        const dateFilter: any = {};
+        if (inflowDateStart) dateFilter.gte = new Date(inflowDateStart);
+        if (inflowDateEnd) { const ed = new Date(inflowDateEnd); ed.setHours(23, 59, 59, 999); dateFilter.lte = ed; }
+        if (!userCountWhere.AND) userCountWhere.AND = [];
+        userCountWhere.AND.push({ createdAt: dateFilter });
+      }
+      if (daySearch) {
+        const days = parseInt(daySearch);
+        if (!isNaN(days)) {
+          const targetDate = new Date();
+          targetDate.setDate(targetDate.getDate() - days);
+          if (!userCountWhere.AND) userCountWhere.AND = [];
+          userCountWhere.AND.push({ createdAt: { gte: targetDate } });
+        }
+      }
+
+      const userCount = await prisma.user.count({ where: userCountWhere }).catch(() => 0);
       total = marketingCount + userCount;
     } catch (countError) {
       console.error('[Marketing Customers] Count error:', countError);
@@ -468,12 +507,19 @@ export async function POST(req: Request) {
     }
 
     if (!account) {
-      // 계정이 없으면 자동 생성
+      // 계정이 없으면 자동 생성 (accountCode @unique, ownerId 필수)
+      const adminSession = await prisma.session.findUnique({
+        where: { id: sid },
+        select: { userId: true },
+      });
       account = await prisma.marketingAccount.create({
         data: {
           accountName: '기본 계정',
+          accountCode: `DEFAULT-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          ownerId: adminSession!.userId,
           maxCustomers: 999999999, // 무제한
           currentCustomerCount: 0,
+          updatedAt: new Date(),
         },
       });
     }
@@ -527,6 +573,7 @@ export async function POST(req: Request) {
             phone,
             email: email || null,
             role: 'user',
+            password: await hashPassword('0000'), // 임시 비밀번호 (TEMP)
           },
         });
       }

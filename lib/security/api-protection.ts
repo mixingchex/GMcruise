@@ -21,26 +21,10 @@ export function protectApiRequest(req: NextRequest): NextResponse | null {
 
   // 봇 차단
   if (isBot(userAgent)) {
-    const origin = req.headers.get('origin');
-    const host = req.headers.get('host');
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     const path = req.nextUrl.pathname;
 
-    console.log('[API Protection] [403 BLOCKED] Bot blocked:', {
-      origin: origin || 'null',
-      host: host || 'null',
-      userAgent: userAgent || 'null',
-      ip,
-      path,
-      reason: 'Bot detected',
-    });
-
-    securityLogger.warn(`[API Protection] Bot blocked: ${userAgent}`, {
-      ip,
-      path,
-      origin,
-      host,
-    });
+    securityLogger.warn('[API Protection] Bot blocked', { ip, path });
 
     return NextResponse.json(
       { error: 'Access denied' },
@@ -50,26 +34,10 @@ export function protectApiRequest(req: NextRequest): NextResponse | null {
 
   // 스크래퍼 도구 차단
   if (isScraperTool(userAgent)) {
-    const origin = req.headers.get('origin');
-    const host = req.headers.get('host');
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     const path = req.nextUrl.pathname;
 
-    console.log('[API Protection] [403 BLOCKED] Scraper blocked:', {
-      origin: origin || 'null',
-      host: host || 'null',
-      userAgent: userAgent || 'null',
-      ip,
-      path,
-      reason: 'Scraper tool detected',
-    });
-
-    securityLogger.warn(`[API Protection] Scraper blocked: ${userAgent}`, {
-      ip,
-      path,
-      origin,
-      host,
-    });
+    securityLogger.warn('[API Protection] Scraper blocked', { ip, path });
 
     return NextResponse.json(
       { error: 'Access denied' },
@@ -79,32 +47,10 @@ export function protectApiRequest(req: NextRequest): NextResponse | null {
 
   // 의심스러운 요청 차단
   if (isSuspiciousRequest(userAgent, headers)) {
-    const origin = req.headers.get('origin');
-    const host = req.headers.get('host');
     const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
     const path = req.nextUrl.pathname;
 
-    console.log('[API Protection] [403 BLOCKED] Suspicious request blocked:', {
-      origin: origin || 'null',
-      host: host || 'null',
-      userAgent: userAgent || 'null',
-      ip,
-      path,
-      reason: 'Suspicious request pattern',
-      headers: {
-        accept: headers['accept'] || headers['Accept'] || 'null',
-        'accept-language': headers['accept-language'] || headers['Accept-Language'] || 'null',
-        'accept-encoding': headers['accept-encoding'] || headers['Accept-Encoding'] || 'null',
-      },
-    });
-
-    securityLogger.warn(`[API Protection] Suspicious request blocked`, {
-      ip,
-      path,
-      userAgent,
-      origin,
-      host,
-    });
+    securityLogger.warn('[API Protection] Suspicious request blocked', { ip, path });
 
     return NextResponse.json(
       { error: 'Access denied' },
@@ -163,69 +109,64 @@ export function maskSensitiveData(data: any): any {
 }
 
 /**
+ * CORS 허용 origin 화이트리스트 — 정확 매칭 (WO-SEC-01)
+ * * wildcard + credentials 동시 사용 금지, prefix 매칭(startsWith) 금지
+ */
+const BASE_ALLOWED_ORIGINS = new Set([
+  'https://www.cruisedot.co.kr',
+  'https://cruisedot.co.kr',
+  'https://mabizcruisedot.com',
+  'https://www.mabizcruisedot.com',
+]);
+
+const BASE_CORS_HEADERS = {
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
+  'Access-Control-Max-Age': '86400',
+  'Vary': 'Origin',
+} as const;
+
+/**
  * CORS 헤더 설정
  * 허용된 도메인만 접근 가능하도록 설정
+ * WO-SEC-01: * wildcard + credentials 동시 설정 금지, 정확 매칭 적용
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
-  // 허용된 도메인 목록 (하드코딩 - 환경변수 의존 제거)
-  const allowedOrigins = [
-    // 커스텀 도메인 (HTTPS)
-    'https://www.cruisedot.co.kr',
-    'https://www.cruisedot.co.kr/',
-    'https://cruisedot.co.kr',
-    'https://cruisedot.co.kr/',
-    // 커스텀 도메인 (HTTP - 개발/테스트용)
-    'http://www.cruisedot.co.kr',
-    'http://www.cruisedot.co.kr/',
-    'http://cruisedot.co.kr',
-    'http://cruisedot.co.kr/',
-  ];
-
-  // 개발 환경에서는 localhost 허용
+  // 런타임 허용 목록 (개발/Vercel Preview 동적 추가)
+  const allowedOrigins = new Set(BASE_ALLOWED_ORIGINS);
   if (process.env.NODE_ENV === 'development') {
-    allowedOrigins.push(
-      'http://localhost:3000',
-      'http://localhost:3000/',
-      'http://localhost:3001',
-      'http://localhost:3001/'
-    );
+    allowedOrigins.add('http://localhost:3000');
+    allowedOrigins.add('http://localhost:3001');
   }
-
-  // Vercel Preview URL도 허용 (환경변수 있으면 추가)
   if (process.env.VERCEL_URL) {
-    allowedOrigins.push(
-      `https://${process.env.VERCEL_URL}`,
-      `https://${process.env.VERCEL_URL}/`
-    );
+    allowedOrigins.add(`https://${process.env.VERCEL_URL}`);
   }
 
-  // origin이 null이면 Same-Origin 요청이므로 허용
-  // 브라우저의 기본 fetch는 Same-Origin일 때 Origin 헤더를 보내지 않음
+  // origin이 null → Same-Origin 요청 (명시적 도메인 반환, * + credentials 조합 금지)
   if (!origin) {
     return {
-      'Access-Control-Allow-Origin': '*', // Same-Origin 요청은 * 허용
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
+      ...BASE_CORS_HEADERS,
+      'Access-Control-Allow-Origin': 'https://cruisedot.co.kr',
       'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Max-Age': '86400', // 24시간
     };
   }
 
-  // origin 정규화 (슬래시 제거하여 비교)
+  // 슬래시 제거 후 정확 매칭 (prefix 매칭 금지 — evil.cruisedot.co.kr 차단)
   const normalizedOrigin = origin.endsWith('/') ? origin.slice(0, -1) : origin;
+  const isAllowed = allowedOrigins.has(normalizedOrigin);
 
-  // 허용된 도메인인지 확인 (슬래시 포함/미포함 모두 체크)
-  const isAllowed = allowedOrigins.some(allowed => {
-    const normalizedAllowed = allowed.endsWith('/') ? allowed.slice(0, -1) : allowed;
-    return normalizedOrigin === normalizedAllowed || normalizedOrigin.startsWith(normalizedAllowed);
-  });
+  if (isAllowed) {
+    return {
+      ...BASE_CORS_HEADERS,
+      'Access-Control-Allow-Origin': normalizedOrigin,
+      'Access-Control-Allow-Credentials': 'true',
+    };
+  }
 
+  // 허용되지 않은 origin: credentials 미포함, 기본 도메인 반환 (* wildcard 금지)
   return {
-    'Access-Control-Allow-Origin': isAllowed ? origin : '*', // 차단하지 않고 * 허용
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
-    'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Max-Age': '86400', // 24시간
+    ...BASE_CORS_HEADERS,
+    'Access-Control-Allow-Origin': 'https://cruisedot.co.kr',
   };
 }
 

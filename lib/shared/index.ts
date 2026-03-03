@@ -30,7 +30,6 @@ export {
   getSessionCookie,
   getSessionUserId,
   getSessionAndTrip,
-  setSession,
   clearSession,
 } from '../session';
 
@@ -109,7 +108,7 @@ export {
 export {
   hashPassword,
   verifyPassword,
-} from '../crypto';
+} from '../password';
 export { checkRateLimit } from '../rate-limiter';
 export { validateEnv } from '../env';
 export { initializeApp, isInitialized } from '../init';

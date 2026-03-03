@@ -17,6 +17,11 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
     });
 
     if (!session || !session.User) return false;
+    // [WO-SEC-08] 세션 만료 체크
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+      return false;
+    }
     return session.User.role === 'admin';
   } catch (error) {
     console.error('[Certify] Auth check error:', error);
@@ -103,69 +108,44 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // 구매확인인증 처리
-      await prisma.user.update({
-        where: { id: customer.id },
-        data: {
-          customerStatus: 'purchase_confirmed', // 구매확인서발동 상태
-        },
+      // [WO-DB-03] 구매확인인증 핵심 DB 변경을 트랜잭션으로 묶기
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: customer.id },
+          data: { customerStatus: 'purchase_confirmed' },
+        });
+
+        let purchaseGroup = await tx.customerGroup.findFirst({
+          where: { adminId: adminUser.id, name: '구매고객' },
+        });
+
+        if (!purchaseGroup) {
+          purchaseGroup = await tx.customerGroup.create({
+            data: {
+              adminId: adminUser.id,
+              name: '구매고객',
+              description: '구매확인인증 처리된 고객 그룹',
+              color: '#10B981',
+              updatedAt: new Date(),
+            },
+          });
+        }
+
+        await tx.customerGroupMember.upsert({
+          where: { groupId_userId: { groupId: purchaseGroup.id, userId: customer.id } },
+          create: { groupId: purchaseGroup.id, userId: customer.id, addedBy: adminUser.id },
+          update: {},
+        });
       });
 
-      // 고객 여정 기록: 구매고객으로 전환
-      await recordCustomerJourney(
-        customer.id,
-        'purchase',
-        'certificate_issued',
-        {
+      // 고객 여정 기록: 트랜잭션 외부 (실패 시 무시)
+      try {
+        await recordCustomerJourney(customer.id, 'purchase', 'certificate_issued', {
           triggerDescription: '구매확인인증서 발급',
           metadata: { customerName, birthDate },
-        }
-      );
-
-      // 구매고객 그룹 찾기 또는 생성
-      let purchaseGroup = await prisma.customerGroup.findFirst({
-        where: {
-          adminId: adminUser.id,
-          name: '구매고객',
-        },
-      });
-
-      if (!purchaseGroup) {
-        // 구매고객 그룹이 없으면 생성
-        purchaseGroup = await prisma.customerGroup.create({
-          data: {
-            adminId: adminUser.id,
-            name: '구매고객',
-            description: '구매확인인증 처리된 고객 그룹',
-            color: '#10B981', // 초록색
-            updatedAt: new Date(),
-          },
         });
-      }
-
-      // 고객을 구매고객 그룹에 추가 (이미 있으면 무시)
-      try {
-        await prisma.customerGroupMember.upsert({
-          where: {
-            groupId_userId: {
-              groupId: purchaseGroup.id,
-              userId: customer.id,
-            },
-          },
-          create: {
-            groupId: purchaseGroup.id,
-            userId: customer.id,
-            addedBy: adminUser.id,
-          },
-          update: {
-            // 이미 있으면 업데이트하지 않음
-          },
-        });
-      } catch (error: any) {
-        // 이미 그룹에 있으면 무시
-        if (error.code !== 'P2002') {
-          console.error('[Certify] Failed to add customer to purchase group:', error);
-        }
+      } catch (journeyError) {
+        console.warn('[Certify] Failed to record customer journey (purchase):', journeyError);
       }
 
       return NextResponse.json({
@@ -215,98 +195,62 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // User 업데이트 (metadata 필드가 없을 수 있으므로 선택적으로 업데이트)
-      const updateData: any = {
-        customerStatus: 'refunded', // 환불 완료 상태
-        password: hashedPassword,
-      };
-      
-      await prisma.user.update({
-        where: { id: customer.id },
-        data: updateData,
+      // [WO-DB-03] 환불인증 핵심 DB 변경을 트랜잭션으로 묶기
+      await prisma.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: customer.id },
+          data: { customerStatus: 'refunded', password: hashedPassword },
+        });
+
+        await tx.passwordEvent.create({
+          data: {
+            userId: customer.id,
+            from: customer.password || '',
+            to: hashedPassword,
+            reason: '환불인증완료 - 크루즈가이드 지니 이용정지',
+          },
+        });
+
+        if (customer.UserTrip && customer.UserTrip.length > 0) {
+          const latestTrip = customer.UserTrip[0];
+          await tx.userTrip.update({
+            where: { id: latestTrip.id },
+            data: { status: 'cancelled' },
+          });
+        }
+
+        let refundGroup = await tx.customerGroup.findFirst({
+          where: { adminId: adminUser.id, name: '환불고객' },
+        });
+
+        if (!refundGroup) {
+          refundGroup = await tx.customerGroup.create({
+            data: {
+              adminId: adminUser.id,
+              name: '환불고객',
+              description: '환불인증완료 처리된 고객 그룹',
+              color: '#EF4444',
+              updatedAt: new Date(),
+            },
+          });
+        }
+
+        await tx.customerGroupMember.upsert({
+          where: { groupId_userId: { groupId: refundGroup.id, userId: customer.id } },
+          create: { groupId: refundGroup.id, userId: customer.id, addedBy: adminUser.id },
+          update: {},
+        });
       });
 
-      // 비밀번호 변경 이력 기록
-      await prisma.passwordEvent.create({
-        data: {
-          userId: customer.id,
-          from: customer.password || '',
-          to: hashedPassword,
-          reason: '환불인증완료 - 크루즈가이드 지니 이용정지',
-        },
-      });
-
-      // 고객 여정 기록: 환불고객으로 전환 (에러 발생 시 무시)
+      // 고객 여정 기록: 트랜잭션 외부 (실패 시 무시)
       try {
-        await recordCustomerJourney(
-          customer.id,
-          'refund',
-          'refund_processed',
-          {
-            triggerDescription: '환불인증완료 처리',
-            metadata: { refundCount, refundAmount: refundAmount || 0, refundDate },
-          }
-        );
+        await recordCustomerJourney(customer.id, 'refund', 'refund_processed', {
+          triggerDescription: '환불인증완료 처리',
+          metadata: { refundCount, refundAmount: refundAmount || 0, refundDate },
+        });
       } catch (journeyError: any) {
         console.warn('[Certify] Failed to record customer journey:', journeyError);
         // 고객 여정 기록 실패해도 계속 진행
-      }
-
-      // 여행 해지 처리 (가장 최근 여행)
-      if (customer.UserTrip && customer.UserTrip.length > 0) {
-        const latestTrip = customer.UserTrip[0];
-        await prisma.userTrip.update({
-          where: { id: latestTrip.id },
-          data: {
-            status: 'cancelled',
-          },
-        });
-      }
-
-      // 환불고객 그룹 찾기 또는 생성
-      let refundGroup = await prisma.customerGroup.findFirst({
-        where: {
-          adminId: adminUser.id,
-          name: '환불고객',
-        },
-      });
-
-      if (!refundGroup) {
-        // 환불고객 그룹이 없으면 생성
-        refundGroup = await prisma.customerGroup.create({
-          data: {
-            adminId: adminUser.id,
-            name: '환불고객',
-            description: '환불인증완료 처리된 고객 그룹',
-            color: '#EF4444', // 빨간색
-            updatedAt: new Date(),
-          },
-        });
-      }
-
-      // 고객을 환불고객 그룹에 추가 (이미 있으면 무시)
-      try {
-        await prisma.customerGroupMember.upsert({
-          where: {
-            groupId_userId: {
-              groupId: refundGroup.id,
-              userId: customer.id,
-            },
-          },
-          create: {
-            groupId: refundGroup.id,
-            userId: customer.id,
-            addedBy: adminUser.id,
-          },
-          update: {
-            // 이미 있으면 업데이트하지 않음
-          },
-        });
-      } catch (error: any) {
-        // 이미 그룹에 있으면 무시
-        if (error.code !== 'P2002') {
-          console.error('[Certify] Failed to add customer to refund group:', error);
-        }
       }
 
       return NextResponse.json({

@@ -11,7 +11,6 @@ export type SessionPayload = {
   userId: string;
   name: string;
   phone: string;
-  password?: string; // Add password as an optional string
   onboarded?: boolean;   // optional 로 변경
   role?: 'USER' | 'ADMIN'; // optional 로 변경
   isAdmin?: boolean;       // optional 로 변경
@@ -54,15 +53,18 @@ export async function getSession(): Promise<SessionPayload | null> {
 
     // SessionPayload 형식으로 반환
     // role을 대문자로 정규화 (DB에 'admin'으로 저장되어 있어도 'ADMIN'으로 변환)
-    const userRole = session.User.role?.toUpperCase() as 'USER' | 'ADMIN' | undefined;
-    
+    // as 허위 단언 제거: 실제로 'USER'|'ADMIN'인지 확인 후 할당
+    const rawRole = session.User.role?.toUpperCase();
+    const userRole: 'USER' | 'ADMIN' | undefined =
+      rawRole === 'ADMIN' ? 'ADMIN' : rawRole === 'USER' ? 'USER' : undefined;
+
     return {
       userId: session.userId.toString(),
       name: session.User.name || '',
       phone: session.User.phone || '',
       onboarded: session.User.onboarded,
-      role: userRole || 'USER',
-      isAdmin: session.User.role === 'admin' || session.User.role === 'ADMIN',
+      role: userRole ?? 'USER',
+      isAdmin: rawRole === 'ADMIN', // rawRole은 이미 toUpperCase() 적용됨
     };
   } catch (error) {
     console.error('getSession error:', error);
@@ -87,21 +89,17 @@ export async function getSessionAndTrip(): Promise<{ user: SessionPayload | null
   return { user, trip };
 }
 
-export function setSession(res: NextResponse, payload: SessionPayload) {
-  const value = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
-  res.cookies.set(SESSION_COOKIE, value, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: COOKIE_MAX_AGE,
-    secure: process.env.NODE_ENV === 'production',
-    domain: process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined,
-  });
-  return res;
-}
 
 export function clearSession(res: NextResponse) {
-  res.cookies.set(SESSION_COOKIE, '', { path: '/', maxAge: 0 });
+  const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined;
+  res.cookies.set(SESSION_COOKIE, '', {
+    maxAge: 0,
+    path: '/',
+    domain: cookieDomain,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  });
   return res;
 }
 

@@ -6,8 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
-
-const SESSION_COOKIE = 'cg.sid.v2';
+import { SESSION_COOKIE } from '@/lib/session'; // 단일 출처 원칙
 
 // 관리자 권한 확인
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
@@ -113,7 +112,6 @@ export async function GET(req: NextRequest) {
         isHibernated: true,
         isLocked: true,
         customerStatus: true, // customerStatus 추가
-        password: true, // 비밀번호 (평문)
         PasswordEvent: {
           select: {
             id: true,
@@ -233,6 +231,7 @@ export async function GET(req: NextRequest) {
         role: 'user',
         genieStatus: 'active'
       },
+      take: 1000, // 전체 조회 방지: 최대 1000명으로 제한
       select: {
         id: true,
         name: true,
@@ -303,31 +302,16 @@ export async function GET(req: NextRequest) {
     
     // 모든 연동된 크루즈가이드 사용자의 여행 존재 여부를 미리 조회
     for (const genieUser of allGenieUsers) {
-      try {
-        // Trip이 이미 조회되어 있으면 확인
-        const trips = Array.isArray(genieUser.Trip) ? genieUser.Trip : (genieUser.Trip ? [genieUser.Trip] : []);
-        
-        if (trips.length > 0) {
-          genieUserHasTripMap.set(genieUser.id, true);
-        } else {
-          // Trip이 없으면 직접 조회
-          const tripCount = await prisma.trip.count({
-            where: { userId: genieUser.id },
-          });
-          genieUserHasTripMap.set(genieUser.id, tripCount > 0);
-        }
-      } catch (error) {
-        console.error(`[Mall Customers API] Error checking trips for user ${genieUser.id}:`, error);
-        genieUserHasTripMap.set(genieUser.id, false);
-      }
+      // Trip이 include로 이미 조회됨 — 추가 DB 쿼리 없이 존재 여부만 확인
+      const trips = Array.isArray(genieUser.Trip) ? genieUser.Trip : (genieUser.Trip ? [genieUser.Trip] : []);
+      genieUserHasTripMap.set(genieUser.id, trips.length > 0);
     }
     
-    console.log('[Mall Customers API] genieUserHasTripMap:', Array.from(genieUserHasTripMap.entries()));
 
     return NextResponse.json(
       {
         ok: true,
-        customers: sortedUsers.map(user => {
+        customers: await Promise.all(sortedUsers.map(async user => {
         // 크루즈 가이드 지니 사용자 찾기
         let genieUser = null;
         let linkedBy = null;
@@ -351,10 +335,6 @@ export async function GET(req: NextRequest) {
             const diffTime = end.getTime() - now.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             daysRemaining = diffDays > 0 ? diffDays : 0;
-            
-            console.log(`[Mall Customers API] User ${user.id} (mallUserId): daysRemaining=${daysRemaining}, endDate=${endDate.toISOString()}`);
-          } else {
-            console.log(`[Mall Customers API] User ${user.id} (mallUserId): No endDate found for genieUser ${foundGenieUserByMallUserId.id}`);
           }
         }
         
@@ -375,10 +355,6 @@ export async function GET(req: NextRequest) {
               const diffTime = end.getTime() - now.getTime();
               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
               daysRemaining = diffDays > 0 ? diffDays : 0;
-              
-              console.log(`[Mall Customers API] User ${user.id} (same_user): daysRemaining=${daysRemaining}, endDate=${endDate.toISOString()}`);
-            } else {
-              console.log(`[Mall Customers API] User ${user.id} (same_user): No endDate found`);
             }
           }
         }
@@ -418,11 +394,9 @@ export async function GET(req: NextRequest) {
             
             if (trips.length > 0) {
               linkedGenieHasTrip = true;
-              console.log(`[Mall Customers API] User ${user.id}: Found trip in genieUser.Trip`);
             } else {
               // Trip이 없으면 genieUserHasTripMap에서 확인 (이미 조회된 정보 사용)
               linkedGenieHasTrip = genieUserHasTripMap.get(genieUser.id) || false;
-              console.log(`[Mall Customers API] User ${user.id}: Checked genieUserHasTripMap: ${linkedGenieHasTrip}`);
             }
           } catch (error) {
             console.error(`[Mall Customers API] Error checking linkedGenieHasTrip for user ${user.id}:`, error);
@@ -430,7 +404,6 @@ export async function GET(req: NextRequest) {
           }
         }
         
-        console.log(`[Mall Customers API] User ${user.id}: genieUser=${genieUser ? genieUser.id : 'null'}, linkedGenieHasTrip=${linkedGenieHasTrip}`);
 
         // 지니 상태 결정 (상세 페이지와 동일한 로직)
         const userTrips = Array.isArray(user.Trip) ? user.Trip : (user.Trip ? [user.Trip] : []);
@@ -442,7 +415,8 @@ export async function GET(req: NextRequest) {
           genieStatus = 'active';
           // 백그라운드에서 상태 업데이트 (비동기, 에러가 발생해도 응답은 계속 진행)
           if (user.isLocked || user.isHibernated || user.customerStatus === 'locked' || user.customerStatus === 'dormant') {
-            prisma.user.update({
+            // [WO-DB-04] await 추가 — fire-and-forget 제거, 멱등성 보장
+            await prisma.user.update({
               where: { id: user.id },
               data: {
                 isLocked: false,
@@ -453,8 +427,8 @@ export async function GET(req: NextRequest) {
                 customerStatus: 'active',
                 lastActiveAt: new Date(),
               },
-            }).catch(error => {
-              console.error(`[Mall Customers API] 크루즈몰 사용자 (ID: ${user.id}) 상태 활성화 실패:`, error);
+            }).catch(err => {
+              console.error(`[Mall Customers API] 크루즈몰 사용자 (ID: ${user.id}) 상태 활성화 실패:`, err);
             });
           }
         } else if (user.customerStatus === 'active' || user.customerStatus === 'package') {
@@ -469,13 +443,8 @@ export async function GET(req: NextRequest) {
           genieStatus = 'locked'; // Trip 없으면 잠금
         }
 
-        // 현재 비밀번호 가져오기
-        // PasswordEvent.to 값만 사용 (평문 비밀번호)
-        // password 필드는 해시된 값이므로 사용하지 않음
-        const latestPasswordEvent = user.PasswordEvent && user.PasswordEvent.length > 0
-          ? user.PasswordEvent[0]
-          : null;
-        const currentPassword = latestPasswordEvent?.to || null; // PasswordEvent.to 값만 사용, 없으면 null
+        // ⚠️ 보안: PasswordEvent.to(평문 비밀번호)는 목록 API에 절대 포함하지 않음
+        // 관리자가 비밀번호를 확인/전송해야 한다면 전용 단건 API를 사용할 것
 
         return {
           id: user.id,
@@ -493,7 +462,7 @@ export async function GET(req: NextRequest) {
           commentCount: user.CommunityComment?.length || 0,
           inquiryCount: user.ProductInquiry?.length || 0,
           viewCount: user.ProductView?.length || 0,
-          currentPassword, // 현재 비밀번호
+          hasPassword: !!(user.PasswordEvent && user.PasswordEvent.length > 0), // 비밀번호 존재 여부만 노출
           isLinked: !!genieUser, // 연동 여부 (크루즈가이드 지니와 연동된 경우)
           genieUser: genieUser ? {
             id: genieUser.id,
@@ -505,7 +474,7 @@ export async function GET(req: NextRequest) {
             daysRemaining: daysRemaining,
           } : null,
         };
-      }),
+      })),
       pagination: {
         total,
         page,

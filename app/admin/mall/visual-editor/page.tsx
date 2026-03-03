@@ -15,10 +15,11 @@ import FileGallery from '@/components/admin/mall/FileGallery';
 interface PageConfig {
   hero: {
     videoUrl: string;
+    backgroundImage?: string; // 배경 이미지 URL (/images/hero/hero-bg.jpg 등)
     logoUrl?: string; // 로고 이미지 URL
     title: string;
     subtitle: string;
-    buttons: Array<{ 
+    buttons: Array<{
       text: string; 
       link: string;
       backgroundColor?: string; // 버튼 배경색 (예: #ffffff, blue-600)
