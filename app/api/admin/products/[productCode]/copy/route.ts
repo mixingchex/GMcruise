@@ -106,7 +106,8 @@ export async function POST(
         // AffiliateProduct 복사 — 원본 어필리에이트 상품이 있으면 새 코드로 함께 생성
         // (크루즈몰 노출을 위해 AffiliateProduct 존재 필수)
         if (AffiliateProduct && AffiliateProduct.length > 0) {
-          for (const ap of AffiliateProduct) {
+          for (let i = 0; i < AffiliateProduct.length; i++) {
+            const ap = AffiliateProduct[i];
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id: _apId, createdAt: _apCreatedAt, updatedAt: _apUpdatedAt, effectiveFrom: _ef, effectiveTo: _et, ...apRest } = ap;
             await tx.affiliateProduct.create({
@@ -114,7 +115,9 @@ export async function POST(
                 ...apRest,
                 productCode: newProductCode,
                 cruiseProductId: newProduct.id,
-                effectiveFrom: new Date(now.getTime() - 1000), // 1초 전 — 즉시 몰 노출 보장 (lte: now 조건 통과)
+                // @@unique([productCode, effectiveFrom]) 제약 충돌 방지:
+                // 복수 AP일 때 인덱스×1ms 오프셋으로 각각 고유값 보장
+                effectiveFrom: new Date(now.getTime() - 1000 + i), // 즉시 몰 노출 (lte: now 통과)
                 effectiveTo: null,
                 updatedAt: now,
                 // 복사본은 항상 즉시 활성화 (원본 상태 무관하게 몰 노출 보장)

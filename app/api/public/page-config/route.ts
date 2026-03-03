@@ -224,7 +224,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('[Public Page Config API] GET Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || '설정을 불러올 수 없습니다.' },
+      { ok: false, error: '설정을 불러올 수 없습니다.' },
       { status: 500 }
     );
   }

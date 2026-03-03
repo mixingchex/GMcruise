@@ -274,7 +274,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const mallContent = (product as any).mallProductContent || (product as any).MallProductContent || null;
   const layoutData = mallContent?.layout
     ? (typeof mallContent.layout === 'string'
-      ? JSON.parse(mallContent.layout)
+      ? (() => { try { return JSON.parse(mallContent.layout); } catch { return null; } })()
       : mallContent.layout)
     : null;
 
@@ -772,7 +772,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
     ? imagesFromBlocks
     : (mallContent?.images
       ? (typeof mallContent.images === 'string'
-        ? JSON.parse(mallContent.images)
+        ? (() => { try { return JSON.parse(mallContent.images); } catch { return []; } })()
         : mallContent.images)
       : []);
 
@@ -780,7 +780,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
     ? videosFromBlocks
     : (mallContent?.videos
       ? (typeof mallContent.videos === 'string'
-        ? JSON.parse(mallContent.videos)
+        ? (() => { try { return JSON.parse(mallContent.videos); } catch { return []; } })()
         : mallContent.videos)
       : []);
 

@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from 'react';
 // hero-bg-2.jpg (Odyssey of the Seas, 2880×1920 가로형) 을 첫 슬라이드로
 const HERO_SLIDES = [
   { src: '/images/hero/hero-bg-2.jpg', ken: 'animate-kb-zoom-tr' },
-  { src: '/images/hero/hero-bg.jpg',   ken: 'animate-kb-zoom-tl' },
 ];
 
 // 포함 사항 아이콘 띠
