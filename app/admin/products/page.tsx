@@ -71,6 +71,7 @@ export default function ProductsManagementPage() {
   const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
   const [previewProductCode, setPreviewProductCode] = useState<string | null>(null);
   const [affiliateProducts, setAffiliateProducts] = useState<Map<string, { status: string; isPublished: boolean; effectiveFrom: Date | null; effectiveTo: Date | null }>>(new Map());
+  const [isSaving, setIsSaving] = useState(false);
 
   // 필터 상태
   const [saleStatusFilter, setSaleStatusFilter] = useState<'all' | '판매중' | '판매중지' | '판매완료' | '3일체험'>('all');
@@ -1199,22 +1200,27 @@ export default function ProductsManagementPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
 
     // 검색 기능과 일치하도록 cruiseLine과 shipName 검증
     if (!formData.cruiseLine || !formData.shipName) {
       showError('크루즈선사와 크루즈선 이름을 모두 선택해주세요.');
+      setIsSaving(false);
       return;
     }
 
     // 여행 시작일/종료일 필수 검증 (온보딩 연결 필수)
     if (!formData.startDate || !formData.endDate) {
       showError('여행 시작일과 종료일을 모두 입력해주세요. (온보딩 연결에 필수입니다)');
+      setIsSaving(false);
       return;
     }
 
     // 방문 국가 선택 검증
     if (selectedCountries.length === 0) {
       showError('방문 국가를 최소 1개 이상 선택해주세요.');
+      setIsSaving(false);
       return;
     }
 
@@ -1523,6 +1529,8 @@ export default function ProductsManagementPage() {
     } catch (error: any) {
       console.error('Error saving product:', error);
       showError(error.message || '상품 저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -3578,10 +3586,11 @@ export default function ProductsManagementPage() {
                         )}
                         <button
                           type="submit"
-                          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md text-base transition-colors"
+                          disabled={isSaving}
+                          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <FiSave size={20} />
-                          저장하기
+                          {isSaving ? '저장 중...' : '저장하기'}
                         </button>
                       </div>
                     </div>

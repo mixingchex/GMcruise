@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown, FiSave, FiFolder, FiImage, FiVideo, FiFileText, FiX, FiSearch, FiUpload, FiMapPin } from 'react-icons/fi';
 import { ContentBlock } from './ProductDetailEditor';
 import countries from '@/data/countries.json';
@@ -59,6 +59,12 @@ export default function EnhancedItineraryEditor({
   flightInfo,
   onAutoGenerate
 }: EnhancedItineraryEditorProps) {
+  // stale closure 방지 — onChange, days를 ref로 최신값 유지
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  const daysRef = useRef(days);
+  useEffect(() => { daysRef.current = days; }, [days]);
+
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
   const [showGroupManager, setShowGroupManager] = useState(false);
   const [savedGroups, setSavedGroups] = useState<any[]>([]);
@@ -416,36 +422,28 @@ export default function EnhancedItineraryEditor({
     }
   };
 
-  // O박 O일 입력 시 자동으로 블록 생성
+  // O박 O일 입력 시 자동으로 블록 생성 — ref로 stale closure 방지
   useEffect(() => {
-    if (totalDays && totalDays > 0) {
-      // 기존 일정이 없거나, 일정 개수가 totalDays와 다를 때만 업데이트
-      if (days.length === 0) {
-        const newDays: EnhancedItineraryDay[] = [];
-        for (let i = 1; i <= totalDays; i++) {
-          newDays.push({
-            day: i,
-            blocks: []
-          });
-        }
-        onChange(newDays);
-      } else if (days.length < totalDays) {
-        // 일정이 부족하면 추가
-        const newDays = [...days];
-        for (let i = days.length + 1; i <= totalDays; i++) {
-          newDays.push({
-            day: i,
-            blocks: []
-          });
-        }
-        onChange(newDays);
-      } else if (days.length > totalDays) {
-        // 일정이 많으면 제거
-        const newDays = days.slice(0, totalDays).map((d, idx) => ({ ...d, day: idx + 1 }));
-        onChange(newDays);
+    if (!totalDays || totalDays <= 0) return;
+    const currentDays = daysRef.current;
+    if (currentDays.length === totalDays) return;
+
+    if (currentDays.length === 0) {
+      const newDays: EnhancedItineraryDay[] = [];
+      for (let i = 1; i <= totalDays; i++) {
+        newDays.push({ day: i, blocks: [] });
       }
+      onChangeRef.current(newDays);
+    } else if (currentDays.length < totalDays) {
+      const newDays = [...currentDays];
+      for (let i = currentDays.length + 1; i <= totalDays; i++) {
+        newDays.push({ day: i, blocks: [] });
+      }
+      onChangeRef.current(newDays);
+    } else {
+      const newDays = currentDays.slice(0, totalDays).map((d, idx) => ({ ...d, day: idx + 1 }));
+      onChangeRef.current(newDays);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalDays]);
 
   // 항공 정보 기반 자동 일정 생성

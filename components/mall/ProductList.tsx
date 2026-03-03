@@ -502,8 +502,9 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       if (!data.ok) throw new Error(data.error || 'Failed to fetch products');
       return data;
     },
-    staleTime: 60 * 1000, // 1분간 데이터 신선함 유지
+    staleTime: 0, // 항상 최신 데이터 사용 (판매상태 변경 즉시 반영)
     gcTime: 5 * 60 * 1000, // 5분간 캐시 유지
+    refetchOnWindowFocus: false, // 탭 전환 시 불필요한 재요청 방지
   });
 
   // 데이터 동기화

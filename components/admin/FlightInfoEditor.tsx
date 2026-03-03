@@ -104,9 +104,13 @@ export default function FlightInfoEditor({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flightInfo]);
 
+  // localFlightInfo 최신값 ref — stale closure 방지 (setTimeout 콜백에서 항상 최신 상태 참조)
+  const localFlightInfoRef = useRef<FlightInfo>(localFlightInfo);
+  useEffect(() => { localFlightInfoRef.current = localFlightInfo; }, [localFlightInfo]);
+
   // setTimeout 타이머 ID를 저장하는 ref (메모리 누수 방지용 cleanup에 사용)
   const travelPeriodTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // setLocalFlightInfo updater가 반환한 최신 값을 setTimeout 콜백에 전달하기 위한 ref
+  // pending 여부 플래그 (값 전달은 localFlightInfoRef 사용)
   const pendingFlightInfoRef = useRef<FlightInfo | null>(null);
 
   // startDate, endDate, nights, days 변경 시 travelPeriod 자동 업데이트
@@ -138,9 +142,11 @@ export default function FlightInfoEditor({
       }
 
       // onChange는 setState가 완료된 다음 렌더 사이클에서 호출
+      // localFlightInfoRef.current 사용 — startDate/endDate 변경과 flightInfo 로드가 동시에 일어날 때
+      // pendingFlightInfoRef(stale)가 아닌 최신 localFlightInfo를 부모에 전달
       travelPeriodTimerRef.current = setTimeout(() => {
         if (pendingFlightInfoRef.current !== null) {
-          onChange(pendingFlightInfoRef.current);
+          onChange(localFlightInfoRef.current);
           pendingFlightInfoRef.current = null;
         }
         travelPeriodTimerRef.current = null;
