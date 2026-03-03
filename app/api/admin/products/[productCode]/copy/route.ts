@@ -52,10 +52,19 @@ export async function POST(
       return NextResponse.json({ ok: false, error: '원본 상품을 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // 새 상품 코드 생성: 원본코드_COPY_YYYYMMDDHHMMSS
+    // 새 상품 코드 생성: 원본 PREFIX 유지 + 새 4자리 랜덤 숫자
+    // 예) REC-MD-1400 복사 → REC-MD-4521 (REC-MD PREFIX 유지)
     const now = new Date();
-    const timestamp = now.toISOString().replace(/[-T:.Z]/g, '').slice(0, 14);
-    const newProductCode = `${productCode}_COPY_${timestamp}`;
+
+    // PREFIX 추출: 마지막 '-XXXX'(숫자로 시작하는 세그먼트) 제거
+    const parts = productCode.split('-');
+    const lastPart = parts[parts.length - 1];
+    const isLastPartNumeric = parts.length > 1 && /^\d+$/.test(lastPart); // 전체가 숫자인 세그먼트만 제거
+    const prefix = isLastPartNumeric ? parts.slice(0, -1).join('-') : productCode;
+
+    // 랜덤 4자리 숫자 (1000~9999) — P2002 중복 충돌 시 재시도 안내
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const newProductCode = `${prefix}-${randomNum}`;
 
     // 트랜잭션으로 CruiseProduct + MallProductContent + AffiliateProduct 함께 복사
     // (사전 중복 체크 없이 트랜잭션 내에서 P2002 에러로 처리 — TOCTOU 방지)
@@ -105,10 +114,10 @@ export async function POST(
                 ...apRest,
                 productCode: newProductCode,
                 cruiseProductId: newProduct.id,
-                effectiveFrom: now,   // 복사 시각으로 새로 설정 (원본 복사 시 unique 충돌 방지)
+                effectiveFrom: new Date(now.getTime() - 1000), // 1초 전 — 즉시 몰 노출 보장 (lte: now 조건 통과)
                 effectiveTo: null,
                 updatedAt: now,
-                // 원본 어필리에이트 활성 상태 그대로 복사 (몰 노출 보존)
+                // 복사본은 항상 즉시 활성화 (원본 상태 무관하게 몰 노출 보장)
                 status: 'active',
                 isPublished: true,
               },
