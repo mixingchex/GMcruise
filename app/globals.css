@@ -356,3 +356,15 @@ select {
 .reveal-visible {
   animation: slide-up-fade 0.6s ease-out forwards;
 }
+
+/* Ken Burns 슬라이더 (HeroSection Phase 4) */
+@keyframes kb-zoom-tl {
+  0%   { transform: scale(1.0) translate(0%, 0%); }
+  100% { transform: scale(1.12) translate(-2%, -2%); }
+}
+@keyframes kb-zoom-tr {
+  0%   { transform: scale(1.0) translate(0%, 0%); }
+  100% { transform: scale(1.12) translate(2%, -2%); }
+}
+.animate-kb-zoom-tl { animation: kb-zoom-tl 6s ease-in-out forwards; }
+.animate-kb-zoom-tr { animation: kb-zoom-tr 6s ease-in-out forwards; }

@@ -2,267 +2,243 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 
+// 히어로 슬라이더 이미지 (Vercel 배포 보장 경로)
+const HERO_SLIDES = [
+  { src: '/images/hero/hero-bg.jpg',   ken: 'animate-kb-zoom-tl' },
+  { src: '/images/hero/hero-bg-2.jpg', ken: 'animate-kb-zoom-tr' },
+];
+
+// 포함 사항 아이콘 띠
+const INCLUDES = [
+  { icon: '🍽️', label: '식사 포함' },
+  { icon: '⚓',  label: '기항지 투어' },
+  { icon: '🛳️', label: '선상 시설' },
+  { icon: '📞', label: '한국어 지원' },
+];
+
+// 어드민 비주얼 에디터 호환용 config 타입 (선택적)
 interface HeroConfig {
-  videoUrl?: string;
-  backgroundImage?: string; // 배경 이미지 URL
-  logoUrl?: string; // 로고 이미지 URL
+  backgroundImage?: string;
+  logoUrl?: string;
   title?: string;
   subtitle?: string;
   buttons?: Array<{
     text: string;
     link: string;
-    backgroundColor?: string; // 버튼 배경색
-    textColor?: string; // 버튼 글씨색
+    backgroundColor?: string;
+    textColor?: string;
   }>;
 }
 
-export default function HeroSection({ config, hideButtons = false }: { config?: HeroConfig; hideButtons?: boolean }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
+export default function HeroSection({
+  config,
+  hideButtons = false,
+}: {
+  config?: HeroConfig;
+  hideButtons?: boolean;
+}) {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  // 슬라이드 전환 시 Ken Burns 재시작을 위한 key
+  const [slideKey, setSlideKey] = useState(0);
 
-  // 기본값 (동영상 → 이미지로 변경하여 로딩 속도 개선)
-  const heroConfig = config || {
-    // videoUrl: '/videos/hero-video.mp4',  // 동영상 비활성화 (느린 로딩)
-    backgroundImage: '/images/hero/hero-bg.jpg',  // Vercel 배포 보장 경로
-    logoUrl: '/images/ai-cruise-logo.png',
-    title: '크루즈닷AI',
-    subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
-    buttons: [
-      { text: '지금 시작하기', link: 'https://www.cruiseai.co.kr', backgroundColor: '#2563eb', textColor: '#ffffff' }, // 파란색 - 크루즈닷AI 이동
-      { text: '라이브방송참여', link: '#live-broadcast', backgroundColor: '#dc2626', textColor: '#ffffff' }, // 빨간색 - 라이브 방송 섹션으로 이동
-      { text: '상품 둘러보기', link: '#products', backgroundColor: '#eab308', textColor: '#000000' }, // 노란색 - 상품 섹션으로 이동
-    ],
+  // config.backgroundImage가 있으면 슬라이더 비활성화 (어드민 커스텀 이미지 사용)
+  const useSlider = !config?.backgroundImage;
+  const singleBg = config?.backgroundImage;
+
+  // 슬라이더 타이머 (5초 간격)
+  useEffect(() => {
+    if (!useSlider) return;
+    const timer = setInterval(() => {
+      setCurrentSlide(prev => (prev + 1) % HERO_SLIDES.length);
+      setSlideKey(prev => prev + 1);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [useSlider]);
+
+  const scrollToProducts = () => {
+    const el = document.getElementById('products');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // 이미지 사전 로드 및 에러 핸들링
-  useEffect(() => {
-    let cancelled = false; // cleanup 후 setState 호출 방지
-    const img = new Image();
-    const imageUrl = heroConfig.backgroundImage || '/images/hero/hero-bg.jpg';
+  const openKakao = () => {
+    window.open('https://open.kakao.com/o/plREDDUh', '_blank', 'noopener noreferrer');
+  };
 
-    img.onload = () => {
-      if (!cancelled) {
-        setImageLoaded(true);
-        setImageError(false);
-      }
-    };
+  const openLiveBroadcast = () => {
+    const el = document.getElementById('live-broadcast');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
-    img.onerror = () => {
-      if (cancelled) return;
-      console.error('[HeroSection] 이미지 로드 실패:', imageUrl);
-      setImageError(true);
-      setImageLoaded(false);
-      // 대체 이미지 시도
-      const fallbackUrl = '/images/hero/hero-bg-fallback.png';
-      const fallbackImg = new Image();
-      fallbackImg.onload = () => {
-        if (!cancelled) {
-          setImageLoaded(true);
-          setImageError(false);
-          if (imgRef.current) {
-            imgRef.current.src = fallbackUrl;
-          }
-        }
-      };
-      fallbackImg.src = fallbackUrl;
-    };
+  // config.buttons가 있으면 기존 버튼 동작 유지 (어드민 호환)
+  const hasConfigButtons = config?.buttons && config.buttons.length > 0;
 
-    img.src = imageUrl;
-    if (imgRef.current) {
-      imgRef.current.src = imageUrl;
-    }
-
-    return () => {
-      cancelled = true;
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [heroConfig.backgroundImage]);  // eslint-disable-line react-hooks/exhaustive-deps
+  const title    = config?.title    || '꿈의 크루즈 여행,\n크루즈닷과 함께';
+  const subtitle = config?.subtitle || '일본·지중해·카리브해 등 전 세계 크루즈 상품을\n한국어 전담 매니저와 함께 준비하세요';
 
   return (
-    <div
-      className="relative text-white py-12 sm:py-16 md:py-20 lg:py-24 overflow-hidden cursor-pointer min-h-[500px] sm:min-h-[600px] md:min-h-[700px] flex items-center"
-      onClick={() => window.open('https://www.cruiseai.co.kr', '_blank', 'noopener noreferrer')}
-    >
-      {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
-      <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
-        {/* 숨겨진 이미지로 사전 로드 */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={imgRef}
-          src={heroConfig.backgroundImage || '/images/hero/hero-bg.jpg'}
-          alt=""
-          className="hidden"
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
-        />
-        {/* 배경 이미지 */}
-        <div
-          className={`absolute inset-0 w-full h-full bg-cover bg-center transition-opacity duration-1000 ${imageLoaded ? 'opacity-100' : 'opacity-0'
-            } ${imageError ? 'hidden' : ''} animate-subtle-zoom`}
-          style={{
-            backgroundImage: imageLoaded
-              ? `url('${encodeURI(heroConfig.backgroundImage || '/images/hero/hero-bg.jpg')}')`
-              : 'none',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-          }}
-        />
-        {/* 로딩 중 배경 (그라데이션) */}
-        {!imageLoaded && !imageError && (
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 animate-pulse"></div>
-        )}
-        {/* 에러 시 대체 배경 */}
-        {imageError && (
-          <div className="absolute inset-0 bg-gradient-to-br from-gray-800 via-gray-700 to-gray-800"></div>
+    <div className="relative text-white overflow-hidden min-h-[580px] sm:min-h-[650px] md:min-h-[750px] flex items-center">
+
+      {/* ── 배경 이미지 ── */}
+      <div className="absolute inset-0 z-0">
+        {/* 기본 다크 배경 (이미지 로드 전) */}
+        <div className="absolute inset-0 bg-[#051C2C]" />
+
+        {useSlider ? (
+          // 슬라이더 모드
+          HERO_SLIDES.map((slide, i) => (
+            <div
+              key={i}
+              className={`absolute inset-0 transition-opacity duration-[900ms] ${
+                i === currentSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <div
+                key={i === currentSlide ? slideKey : undefined}
+                className={`absolute inset-0 bg-cover bg-center ${
+                  i === currentSlide ? slide.ken : ''
+                }`}
+                style={{ backgroundImage: `url('${slide.src}')` }}
+              />
+            </div>
+          ))
+        ) : (
+          // 어드민 커스텀 이미지 (단일)
+          <div
+            className="absolute inset-0 bg-cover bg-center animate-subtle-zoom"
+            style={{ backgroundImage: `url('${encodeURI(singleBg!)}')` }}
+          />
         )}
       </div>
 
-      {/* 어두운 오버레이 (가독성 향상) */}
-      <div className="absolute inset-0 bg-black/50 z-10"></div>
+      {/* ── 럭셔리 오버레이 ── */}
+      <div
+        className="absolute inset-0 z-10"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(5,28,44,0.25) 0%, rgba(5,28,44,0.60) 55%, rgba(5,28,44,0.88) 100%)',
+        }}
+      />
 
-      {/* 컨텐츠 */}
-      <div className="relative z-20 container mx-auto px-4 pb-8">
+      {/* ── 콘텐츠 ── */}
+      <div className="relative z-20 w-full container mx-auto px-4 py-16 md:py-20">
         <div className="max-w-3xl mx-auto text-center">
-          {/* AI 지니 로고/아이콘 */}
-          {heroConfig.logoUrl && (
+
+          {/* 신뢰 배지 */}
+          <div className="inline-flex items-center gap-2 bg-[#D4AF37]/20 border border-[#D4AF37]/50 rounded-full px-4 py-1.5 mb-6 text-sm font-bold text-[#F5D76E]">
+            ✦ 크루즈 전문 여행사 No.1
+          </div>
+
+          {/* 로고 (어드민 설정 시) */}
+          {config?.logoUrl && (
             <div className="mb-6">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={heroConfig.logoUrl}
-                alt="크루즈닷AI"
+                src={config.logoUrl}
+                alt="크루즈닷"
                 className="mx-auto h-20 md:h-24"
-                onError={(e) => {
-                  // 이미지 로드 실패 시 기본 로고로 대체
-                  (e.target as HTMLImageElement).src = '/images/ai-cruise-logo.png';
-                }}
               />
             </div>
           )}
 
-          {/* 메인 타이틀 - 모바일 가독성 향상 */}
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-3 sm:mb-4 md:mb-6 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] leading-tight px-2">
-            {heroConfig.title}
+          {/* 타이틀 */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black mb-4 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] leading-tight whitespace-pre-line px-2">
+            {title.includes('\n') ? (
+              <>
+                {title.split('\n')[0]}
+                <br />
+                <span className="text-gradient-gold">{title.split('\n')[1]}</span>
+              </>
+            ) : title}
           </h1>
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl mb-6 sm:mb-8 md:mb-10 text-white font-semibold drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] whitespace-pre-line leading-relaxed px-2 sm:px-4">
-            {heroConfig.subtitle}
+
+          {/* 서브타이틀 */}
+          <p className="text-lg sm:text-xl md:text-2xl mb-8 text-white/90 font-semibold drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)] leading-relaxed whitespace-pre-line px-2 sm:px-4">
+            {subtitle}
           </p>
 
-          {/* 주요 기능 소개 - 모바일에서 블록별로 표시 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 lg:gap-6 mb-6 md:mb-8 lg:mb-10 text-sm md:text-base lg:text-lg">
-            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
-              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">🗺️</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 가자</div>
-              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">경로 안내</div>
-            </div>
-            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
-              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📸</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 보여줘</div>
-              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">관광지 정보</div>
-            </div>
-            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
-              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">💰</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 가계부</div>
-              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">경비 관리</div>
-            </div>
-            <div className="bg-white/25 backdrop-blur-md rounded-xl p-4 md:p-5 lg:p-6 border-2 border-white/40 shadow-xl hover:bg-white/30 transition-all">
-              <div className="text-2xl md:text-3xl lg:text-4xl mb-2 md:mb-3">📝</div>
-              <div className="font-bold text-white text-base md:text-lg lg:text-xl drop-shadow-lg">크루즈닷 다이어리</div>
-              <div className="text-xs md:text-sm lg:text-base text-white/95 mt-1 md:mt-2 drop-shadow-md">여행 기록</div>
-            </div>
-          </div>
-
-          {/* CTA 버튼 - 모바일에서 세로로, 데스크톱에서 가로로 */}
+          {/* ── CTA 버튼 ── */}
           {!hideButtons && (
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 lg:gap-6 justify-center px-2 sm:px-4">
-              {heroConfig.buttons?.map((btn, idx) => {
-                // 버튼 스타일 생성
-                const buttonStyle: React.CSSProperties = {};
-                let buttonClass = "px-6 py-3 md:px-8 md:py-4 lg:px-10 lg:py-5 text-base md:text-lg lg:text-xl font-black rounded-xl transition-all shadow-lg hover:shadow-xl min-h-[48px] md:min-h-[56px] flex items-center justify-center hover:scale-105 active:scale-95 border-2 border-white/20 backdrop-blur-sm";
-
-                // 배경색 처리
-                if (btn.backgroundColor) {
-                  if (btn.backgroundColor.startsWith('#')) {
-                    buttonStyle.backgroundColor = btn.backgroundColor;
-                  } else {
-                    buttonStyle.backgroundColor = '#2563eb';
-                  }
-                } else {
-                  buttonStyle.backgroundColor = '#2563eb';
-                }
-
-                // 글씨색 처리
-                if (btn.textColor) {
-                  if (btn.textColor.startsWith('#')) {
-                    buttonStyle.color = btn.textColor;
-                  } else {
-                    buttonStyle.color = '#ffffff';
-                  }
-                } else {
-                  buttonStyle.color = '#ffffff';
-                }
-
-                // 버튼별 동작 처리
-                const handleButtonClick = (e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  e.preventDefault(); // <a> 태그 기본 내비게이션 방지 (URL 해시 변경 방지)
-
-                  if (btn.text === '라이브방송참여') {
-                    // 라이브 방송 섹션으로 스크롤
-                    const liveSection = document.getElementById('live-broadcast');
-                    if (liveSection) {
-                      liveSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                  } else if (btn.text === '상품 둘러보기') {
-                    // 프로모션 배너 섹션으로 스크롤 (크루즈닷 지니 TV영상 밑)
-                    const promotionSection = document.getElementById('promotion-banner');
-                    if (promotionSection) {
-                      promotionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mb-10 px-2">
+              {hasConfigButtons ? (
+                // 어드민 커스텀 버튼
+                config!.buttons!.map((btn, idx) => {
+                  const style: React.CSSProperties = {
+                    backgroundColor: btn.backgroundColor || '#D4AF37',
+                    color: btn.textColor || '#051C2C',
+                  };
+                  const handleClick = (e: React.MouseEvent) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (btn.text === '라이브방송참여') openLiveBroadcast();
+                    else if (btn.text === '상품 둘러보기') scrollToProducts();
+                    else if (btn.link?.startsWith('http')) {
+                      window.open(btn.link, '_blank', 'noopener noreferrer');
                     } else {
-                      // 프로모션 배너 섹션을 찾을 수 없으면 products 섹션으로
-                      const productsSection = document.getElementById('products');
-                      if (productsSection) {
-                        productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                      }
+                      window.location.href = btn.link || '/';
                     }
-                  } else if (btn.text === '지금 시작하기') {
-                    // 지금 시작하기 버튼 → 크루즈닷AI 새창 이동 (상단 preventDefault로 이미 처리됨)
-                    window.open('https://www.cruiseai.co.kr', '_blank', 'noopener noreferrer');
-                  } else {
-                    // 기타 버튼은 기존 동작
-                    window.location.href = btn.link || '/login';
-                  }
-                };
-
-                const isExternalLink = btn.text !== '라이브방송참여' && btn.text !== '상품 둘러보기' &&
-                  (btn.link || 'https://www.cruiseai.co.kr').startsWith('http');
-                return (
-                  <a
-                    key={idx}
-                    href={btn.text === '라이브방송참여' ? '#live-broadcast' : btn.text === '상품 둘러보기' ? '#products' : btn.link || 'https://www.cruiseai.co.kr'}
-                    target={isExternalLink ? '_blank' : undefined}
-                    rel={isExternalLink ? 'noopener noreferrer' : undefined}
-                    onClick={handleButtonClick}
-                    className={buttonClass}
-                    style={buttonStyle}
+                  };
+                  return (
+                    <button
+                      key={idx}
+                      onClick={handleClick}
+                      className="px-8 py-4 text-base md:text-lg font-black rounded-full shadow-lg hover:shadow-xl active:scale-95 transition-all duration-200 hover:opacity-90"
+                      style={style}
+                    >
+                      {btn.text}
+                    </button>
+                  );
+                })
+              ) : (
+                // 기본 럭셔리 CTA
+                <>
+                  {/* 모바일 + 데스크톱 공통 */}
+                  <button
+                    onClick={scrollToProducts}
+                    className="btn-luxury-gold text-base md:text-lg"
                   >
-                    {btn.text}
-                  </a>
-                );
-              })}
+                    인기 상품 보기
+                  </button>
+                  {/* 데스크톱만 추가 */}
+                  <button
+                    onClick={openKakao}
+                    className="hidden sm:flex items-center justify-center gap-2 bg-[#FEE500] text-[#3A1D1D] font-black px-8 py-4 rounded-full hover:bg-[#FFD700] active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl text-base md:text-lg"
+                  >
+                    <span>💬</span> 카카오 상담하기
+                  </button>
+                </>
+              )}
             </div>
           )}
+
+          {/* ── 포함 사항 아이콘 띠 ── */}
+          <div className="grid grid-cols-4 gap-2 max-w-xl mx-auto">
+            {INCLUDES.map(({ icon, label }) => (
+              <div key={label} className="glass-panel rounded-xl p-3 text-center">
+                <div className="text-2xl mb-1">{icon}</div>
+                <div className="text-white text-xs font-bold leading-tight">{label}</div>
+              </div>
+            ))}
+          </div>
+
         </div>
       </div>
+
+      {/* ── 슬라이드 도트 ── */}
+      {useSlider && (
+        <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 flex gap-2">
+          {HERO_SLIDES.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => { setCurrentSlide(i); setSlideKey(prev => prev + 1); }}
+              className={`h-2 rounded-full transition-all duration-300 ${
+                i === currentSlide ? 'bg-[#D4AF37] w-6' : 'bg-white/40 w-2'
+              }`}
+              aria-label={`슬라이드 ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
-
-
-
-

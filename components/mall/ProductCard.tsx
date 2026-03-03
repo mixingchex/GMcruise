@@ -115,13 +115,13 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
   const reviewCount = layout?.reviewCount || product.reviewCount || 243;
 
   const classificationBadges = [
-    product.isPopular ? { label: '인기', color: 'bg-rose-500' } : null,
-    product.isRecommended ? { label: '추천', color: 'bg-blue-500' } : null,
-    product.isPremium ? { label: '프리미엄', color: 'bg-violet-500' } : null,
-    product.isGeniePack ? { label: '크루즈닷팩', color: 'bg-indigo-500' } : null,
-    product.isDomestic ? { label: '국내출', color: 'bg-emerald-500' } : null,
-    product.isJapan ? { label: '일본', color: 'bg-amber-500' } : null,
-    product.isBudget ? { label: '알뜰', color: 'bg-teal-500' } : null,
+    product.isPopular    ? { label: '인기',     color: 'bg-[#D4AF37] text-[#051C2C]' } : null,
+    product.isRecommended? { label: '추천',     color: 'bg-blue-500 text-white' } : null,
+    product.isPremium    ? { label: '프리미엄', color: 'bg-[#0A2342] text-[#D4AF37] border border-[#D4AF37]/60' } : null,
+    product.isGeniePack  ? { label: '크루즈닷팩', color: 'bg-indigo-500 text-white' } : null,
+    product.isDomestic   ? { label: '국내출',   color: 'bg-emerald-500 text-white' } : null,
+    product.isJapan      ? { label: '일본',     color: 'bg-amber-500 text-white' } : null,
+    product.isBudget     ? { label: '알뜰',     color: 'bg-teal-500 text-white' } : null,
   ].filter(Boolean) as Array<{ label: string; color: string }>;
 
   const targetHref = partnerId
@@ -132,10 +132,13 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
     <>
     <Link
       href={targetHref}
-      className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border-2 border-gray-100 hover:border-[#D4AF37] group h-full flex flex-col cursor-pointer hover:-translate-y-1 block no-underline"
+      className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-[0_4px_20px_rgba(10,35,66,0.08)] hover:shadow-[0_12px_40px_rgba(10,35,66,0.18)] hover:border-[#D4AF37]/40 hover:-translate-y-1 transition-all duration-300 group h-full flex flex-col cursor-pointer block no-underline relative"
     >
-      {/* 썸네일 이미지 (유튜브 스타일 - 16:9 비율) */}
-      <div className="relative w-full aspect-video bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 overflow-hidden">
+      {/* hover 골드 언더라인 */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37] to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 z-10" />
+
+      {/* 썸네일 이미지 (높이 고정 — 56 = 224px) */}
+      <div className="relative w-full h-48 md:h-56 bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 overflow-hidden">
         {product.thumbnail ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -168,30 +171,29 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
             </div>
           </div>
         )}
-        {/* 딱지들 - 썸네일 왼쪽 위에 표시 (더 작고 세련되게) */}
+        {/* 배지들 - 썸네일 왼쪽 위 */}
         <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1.5 z-10">
           {classificationBadges.map((badge) => (
             <div
               key={badge.label}
-              className={`${badge.color} text-white px-2.5 py-1 rounded-md text-xs font-bold shadow-md backdrop-blur-sm bg-opacity-95`}
+              className={`${badge.color} px-2.5 py-1 rounded-md text-xs font-bold shadow-md backdrop-blur-sm`}
             >
               {badge.label}
             </div>
           ))}
-          {/* 추가 딱지들 (layout에서 가져오기) */}
           {layout?.badges && Array.isArray(layout.badges) && layout.badges.map((badge: string) => {
             const badgeConfig: Record<string, { label: string; color: string }> = {
-              'event': { label: '이벤트', color: 'bg-purple-500' },
-              'theme': { label: '테마', color: 'bg-pink-500' },
-              'departure-soon': { label: '출발임박', color: 'bg-orange-500' },
-              'package-confirmed': { label: '패키지확정', color: 'bg-emerald-500' },
-              'closing-soon': { label: '마감임박', color: 'bg-rose-600' },
+              'event':             { label: '이벤트',     color: 'bg-purple-500 text-white' },
+              'theme':             { label: '테마',       color: 'bg-pink-500 text-white' },
+              'departure-soon':    { label: '출발임박',   color: 'bg-orange-500 text-white' },
+              'package-confirmed': { label: '패키지확정', color: 'bg-emerald-500 text-white' },
+              'closing-soon':      { label: '마감임박',   color: 'bg-rose-600 text-white' },
             };
-            const config = badgeConfig[badge];
-            if (!config) return null;
+            const bc = badgeConfig[badge];
+            if (!bc) return null;
             return (
-              <div key={badge} className={`${config.color} text-white px-2.5 py-1 rounded-md text-xs font-bold shadow-md backdrop-blur-sm bg-opacity-95`}>
-                {config.label}
+              <div key={badge} className={`${bc.color} px-2.5 py-1 rounded-md text-xs font-bold shadow-md backdrop-blur-sm`}>
+                {bc.label}
               </div>
             );
           })}
@@ -200,46 +202,46 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
 
       {/* 상품 정보 */}
       <div className="p-4 md:p-5 flex-1 flex flex-col">
-        {/* 크루즈명 및 여행 기간 */}
-        <div className="flex items-start gap-2.5 mb-3">
-          {/* 출처 로고 */}
+        {/* 크루즈 라인 레이블 */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-bold text-[#D4AF37] tracking-wide uppercase">
+            {product.cruiseLine}
+          </span>
+          {product.shipName && (
+            <>
+              <span className="text-gray-200">·</span>
+              <span className="text-xs text-gray-400 font-medium">{product.shipName}</span>
+            </>
+          )}
+        </div>
+
+        {/* 패키지명 */}
+        <div className="flex items-start gap-2.5 mb-2">
           {product.source === 'cruisedot' && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/images/ai-cruise-logo.png"
-              alt="크루즈닷"
-              className="w-10 h-10 md:w-12 md:h-12 object-contain flex-shrink-0 mt-0.5"
-            />
+            <img src="/images/ai-cruise-logo.png" alt="크루즈닷" className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
           )}
           {product.source === 'wcruise' && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/images/wcruise-logo.png"
-              alt="W크루즈"
-              className="w-10 h-10 md:w-12 md:h-12 object-contain flex-shrink-0 mt-0.5"
-            />
+            <img src="/images/wcruise-logo.png" alt="W크루즈" className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
           )}
           {product.source === 'lottejtb' && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src="/images/롯데제이티비.png"
-              alt="롯데 제이티비"
-              className="w-10 h-10 md:w-12 md:h-12 object-contain flex-shrink-0 mt-0.5"
-            />
+            <img src="/images/롯데제이티비.png" alt="롯데 제이티비" className="w-8 h-8 object-contain flex-shrink-0 mt-0.5" />
           )}
-          <h3 className="text-base md:text-lg font-bold text-[#051C2C] line-clamp-2 group-hover:text-[#D4AF37] transition-colors flex-1 leading-snug">
+          <h3 className="text-base md:text-lg font-bold text-[#051C2C] line-clamp-2 group-hover:text-[#0A2342] transition-colors flex-1 leading-snug">
             {product.packageName}
           </h3>
         </div>
 
-        <div className="flex items-center text-sm md:text-base text-gray-600 mb-3 font-medium flex-wrap gap-1.5">
-          <span className="whitespace-nowrap">{product.nights}박 {product.days}일</span>
+        <div className="flex items-center text-sm text-gray-500 mb-3 font-medium flex-wrap gap-1.5">
+          <span className="whitespace-nowrap font-semibold text-[#0A2342]">{product.nights}박 {product.days}일</span>
           <span className="text-gray-300">·</span>
-          <span className="line-clamp-1 break-words flex-1 min-w-0 text-[#00008B] font-extrabold">{getDestinations()}</span>
+          <span className="line-clamp-1 flex-1 min-w-0 text-[#1B5FA8] font-bold">{getDestinations()}</span>
           {(product as any).category && (
             <>
               <span className="text-gray-300">·</span>
-              <span className="text-[#1e40af] font-bold">{(product as any).category}</span>
+              <span className="text-[#1e40af] font-semibold">{(product as any).category}</span>
             </>
           )}
         </div>
@@ -290,23 +292,18 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
           </div>
         )}
 
-        {/* 이벤트 가격 */}
+        {/* 가격 */}
         <div className="pt-3 border-t border-gray-100 mt-auto">
-          <div className="space-y-0.5">
-            <div className="text-xs text-gray-500 font-medium">이벤트 가격</div>
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <div className="text-xl md:text-2xl font-bold text-[#051C2C] leading-tight break-keep">
-                {formatPrice(product.basePrice)}
-              </div>
-              {product.basePrice && (
-                <div className="flex items-center gap-1 text-sm md:text-base">
-                  <span className="text-gray-400 font-medium">/</span>
-                  <span className="text-[#FF0000] font-black text-xl md:text-2xl drop-shadow-sm">
-                    월 {Math.ceil(product.basePrice / 12).toLocaleString('ko-KR')}원
-                  </span>
-                </div>
-              )}
+          <div className="text-xs text-gray-400 font-medium mb-1">1인 기준 이벤트 가격</div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <div className="price-display text-[#051C2C]">
+              {formatPrice(product.basePrice)}
             </div>
+            {product.basePrice && product.nights > 0 && (
+              <div className="text-xs text-gray-400 font-medium">
+                하루 {Math.ceil(product.basePrice / product.nights).toLocaleString('ko-KR')}원~
+              </div>
+            )}
           </div>
         </div>
       </div>
