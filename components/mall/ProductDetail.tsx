@@ -789,7 +789,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
       <div className="max-w-7xl mx-auto w-full">
         {/* 이전으로 돌아가기 버튼 - 상단 */}
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/')}
           className="mb-3 flex items-center gap-2 text-gray-700 hover:text-gray-900 transition-colors px-4 pt-4 md:px-0 md:pt-0"
         >
           <FiChevronLeft size={20} />
@@ -1057,7 +1057,14 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 ) : (
                   <div className="group/item relative">
                     <div className="text-2xl md:text-2xl font-bold text-gray-900 break-words" style={{ lineHeight: '1.3', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                      {travelPeriod || `${editedValues.nights}박 ${editedValues.days}일`}
+                      {travelPeriod ||
+                        (editedValues.nights > 0 || editedValues.days > 0
+                          ? `${editedValues.nights}박 ${editedValues.days}일`
+                          : (flightInfo?.travelPeriod?.nights
+                              ? `${flightInfo.travelPeriod.nights}박 ${flightInfo.travelPeriod.days}일`
+                              : null)
+                        )
+                      }
                     </div>
                     {(isSuperAdmin || (isAdminUser && canEditProductText)) && (
                       <button
@@ -1434,7 +1441,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 )}
 
                 {/* 출국 */}
-                {flightInfo.departure && !flightInfo.departure.flightNumber?.includes('항공없음') && (
+                {flightInfo.departure?.flightNumber && flightInfo.departure.flightNumber.trim() !== '' && !flightInfo.departure.flightNumber.includes('항공없음') && (
                   <div className="mb-6 p-6 bg-white rounded-xl border-2 border-gray-300 shadow-md">
                     <h3 className="text-lg md:text-xl font-extrabold text-gray-900 mb-4">출국</h3>
                     <div className="space-y-4">
@@ -1459,7 +1466,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 )}
 
                 {/* 귀국 */}
-                {flightInfo.return && !flightInfo.return.flightNumber?.includes('항공없음') && (
+                {flightInfo.return?.flightNumber && flightInfo.return.flightNumber.trim() !== '' && !flightInfo.return.flightNumber.includes('항공없음') && (
                   <div className="mb-6 p-6 bg-white rounded-xl border-2 border-gray-300 shadow-md">
                     <h3 className="text-lg md:text-xl font-extrabold text-gray-900 mb-4">귀국</h3>
                     <div className="space-y-4">
