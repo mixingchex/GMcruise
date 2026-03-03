@@ -8,7 +8,7 @@ import { backupProductImages } from '@/lib/google-drive-product-backup';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
-// 관리자 권한 확인
+// 관리자 권한 확인 (WO-PROD-04: 세션 만료 체크 추가)
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
   if (!sid) return false;
 
@@ -22,7 +22,12 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
       },
     });
 
-    return session?.User.role === 'admin';
+    if (!session || !session.User) return false;
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+      return false;
+    }
+    return session.User.role === 'admin';
   } catch (error) {
     console.error('[Admin Products] Auth check error:', error);
     return false;
@@ -85,14 +90,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, products });
   } catch (error) {
     console.error('[GET /api/admin/products] Error:', error);
-    console.error('[GET /api/admin/products] Error details:', error instanceof Error ? error.message : String(error));
-    console.error('[GET /api/admin/products] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { 
-        ok: false, 
-        message: 'Server error',
-        error: error instanceof Error ? error.message : String(error)
-      },
+      { ok: false, message: 'Server error' },
       { status: 500 }
     );
   }
@@ -381,18 +380,47 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ ok: false, message: 'Admin access required' }, { status: 403 });
     }
 
-    const { id, ...updateData } = await req.json();
+    // [WO-PROD-05] Mass Assignment 방지 — 화이트리스트 필드만 명시적 추출
+    const body = await req.json();
+    const { id } = body;
 
     if (!id) {
       return NextResponse.json({ ok: false, message: 'Product ID required' }, { status: 400 });
     }
 
-    // startDate와 endDate를 Date 객체로 변환
-    const processedData: any = { ...updateData };
-    
-    // recommendedKeywords 필드 제거 (데이터베이스에 없음)
-    delete processedData.recommendedKeywords;
-    
+    const {
+      cruiseLine, shipName, packageName, nights, days, itineraryPattern,
+      basePrice, description, source, category, tags,
+      isPopular, isRecommended, isPremium, isGeniePack,
+      isDomestic, isJapan, isBudget, isUrgent, isMainProduct,
+      saleStatus, startDate, endDate,
+    } = body;
+
+    const processedData: Record<string, unknown> = {};
+    if (cruiseLine !== undefined) processedData.cruiseLine = cruiseLine;
+    if (shipName !== undefined) processedData.shipName = shipName;
+    if (packageName !== undefined) processedData.packageName = packageName;
+    if (nights !== undefined) processedData.nights = nights;
+    if (days !== undefined) processedData.days = days;
+    if (basePrice !== undefined) processedData.basePrice = basePrice;
+    if (description !== undefined) processedData.description = description;
+    if (source !== undefined) processedData.source = source;
+    if (category !== undefined) processedData.category = category;
+    if (tags !== undefined) processedData.tags = tags;
+    if (isPopular !== undefined) processedData.isPopular = isPopular;
+    if (isRecommended !== undefined) processedData.isRecommended = isRecommended;
+    if (isPremium !== undefined) processedData.isPremium = isPremium;
+    if (isGeniePack !== undefined) processedData.isGeniePack = isGeniePack;
+    if (isDomestic !== undefined) processedData.isDomestic = isDomestic;
+    if (isJapan !== undefined) processedData.isJapan = isJapan;
+    if (isBudget !== undefined) processedData.isBudget = isBudget;
+    if (isUrgent !== undefined) processedData.isUrgent = isUrgent;
+    if (isMainProduct !== undefined) processedData.isMainProduct = isMainProduct;
+    if (saleStatus !== undefined) processedData.saleStatus = saleStatus;
+    if (itineraryPattern !== undefined) processedData.itineraryPattern = itineraryPattern;
+    if (startDate !== undefined) processedData.startDate = startDate;
+    if (endDate !== undefined) processedData.endDate = endDate;
+
     // itineraryPattern 검증 및 정규화
     if (processedData.itineraryPattern !== undefined) {
       if (Array.isArray(processedData.itineraryPattern) && processedData.itineraryPattern.length > 0) {
@@ -418,12 +446,12 @@ export async function PUT(req: NextRequest) {
     }
     
     if (processedData.startDate) {
-      processedData.startDate = new Date(processedData.startDate);
+      processedData.startDate = new Date(processedData.startDate as string | number);
     } else if (processedData.startDate === '') {
       processedData.startDate = null;
     }
     if (processedData.endDate) {
-      processedData.endDate = new Date(processedData.endDate);
+      processedData.endDate = new Date(processedData.endDate as string | number);
     } else if (processedData.endDate === '') {
       processedData.endDate = null;
     }
@@ -471,12 +499,11 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ ok: true, product });
   } catch (error: any) {
     console.error('PUT /api/admin/products error:', error);
-    console.error('PUT /api/admin/products error details:', error.message);
     return NextResponse.json(
       {
         ok: false,
         message: 'Server error',
-        error: error.message || String(error)
+        ...(process.env.NODE_ENV !== 'production' && { error: error.message || String(error) }),
       },
       { status: 500 }
     );

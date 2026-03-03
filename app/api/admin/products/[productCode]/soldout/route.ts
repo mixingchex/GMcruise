@@ -2,6 +2,7 @@
 // 객실별 SOLD OUT 토글 API (관리자 전용)
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
@@ -33,7 +34,7 @@ interface SoldOutRoom {
   soldOutBy: string;
 }
 
-// GET: 현재 SOLD OUT 상태 조회
+// GET: 현재 SOLD OUT 상태 조회 (공개 — ProductDetail.tsx 비로그인 사용자도 조회)
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ productCode: string }> }
@@ -129,6 +130,14 @@ export async function POST(
         updatedAt: new Date()
       }
     });
+
+    // [WO-PROD-07] soldout 변경 후 상품 페이지 캐시 무효화
+    try {
+      revalidatePath('/products');
+      revalidatePath(`/products/${productCode}`);
+    } catch {
+      // revalidatePath 실패해도 응답은 성공
+    }
 
     return NextResponse.json({
       ok: true,

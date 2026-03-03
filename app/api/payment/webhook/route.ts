@@ -305,10 +305,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 수당 계산 (🎯 CommissionTier 적용!)
-    const netRevenue = amount - (costAmount || 0);
+    // [WO-PAY-06] commissionTier?.costAmount를 우선 사용 — breakdown과 동일한 소스로 일관성 유지
+    const resolvedCostAmount = commissionTier?.costAmount ?? costAmount ?? 0;
+    const netRevenue = amount - resolvedCostAmount;
     const breakdown = calculateCommissionBreakdown({
       saleAmount: amount,
-      costAmount: commissionTier?.costAmount || costAmount || 0,
+      costAmount: resolvedCostAmount,
       branchCommission: commissionTier?.branchShareAmount || 0, // 🎯 Tier에서 가져옴!
       salesCommission: commissionTier?.salesShareAmount || 0,   // 🎯 Tier에서 가져옴!
       overrideCommission: commissionTier?.overrideAmount || 0,  // 🎯 Tier에서 가져옴!
@@ -320,106 +322,89 @@ export async function POST(req: NextRequest) {
     const actualSalesCommission = agentId ? breakdown.salesCommission : 0;
     const actualOverrideCommission = managerId && agentId ? breakdown.overrideCommission : 0;
 
-    // AffiliateSale 생성
-    const sale = await prisma.affiliateSale.create({
-      data: {
-        externalOrderCode: merchant_uid,
-        leadId: leadId ? Number(leadId) : null,
-        affiliateProductId,
-        managerId: managerId,
-        agentId: agentId,
-        productCode,
-        cabinType: determinedCabinType || cabinType || null, // 🎯 결정된 cabinType 저장
-        fareCategory: fareCategory || null,
-        headcount: headcount || null,
+    // WO-PROD-01: AffiliateSale + CommissionLedger + Payment 원자적 트랜잭션
+    // 셋 중 하나라도 실패하면 전체 롤백 → 불일치 상태 원천 차단
+    const { sale, ledgerResult } = await prisma.$transaction(async (tx) => {
+      // 1. AffiliateSale 생성
+      const createdSale = await tx.affiliateSale.create({
+        data: {
+          externalOrderCode: merchant_uid,
+          leadId: leadId ? Number(leadId) : null,
+          affiliateProductId,
+          managerId: managerId,
+          agentId: agentId,
+          productCode,
+          cabinType: determinedCabinType || cabinType || null,
+          fareCategory: fareCategory || null,
+          headcount: headcount || null,
+          saleAmount: amount,
+          costAmount: commissionTier?.costAmount || costAmount || null,
+          netRevenue,
+          branchCommission: actualBranchCommission,
+          salesCommission: actualSalesCommission,
+          overrideCommission: actualOverrideCommission,
+          withholdingAmount: breakdown.totalWithholding,
+          status: 'CONFIRMED',
+          saleDate: new Date(),
+          confirmedAt: new Date(),
+          updatedAt: new Date(),
+          metadata: {
+            ...metadata,
+            imp_uid,
+            merchant_uid,
+            affiliateCode,
+            affiliateMallUserId,
+            commissionTierId: commissionTier ? `${affiliateProductId}-${determinedCabinType}` : null,
+            roomSelections,
+          },
+        },
+      });
+
+      // 2. CommissionLedger 엔트리 계산 (순수 함수 — DB 없음)
+      const calculatedLedger = generateLedgerEntries({
+        saleId: createdSale.id,
         saleAmount: amount,
-        costAmount: commissionTier?.costAmount || costAmount || null, // 🎯 Tier의 costAmount 우선
-        netRevenue,
-        branchCommission: actualBranchCommission,
-        salesCommission: actualSalesCommission,
-        overrideCommission: actualOverrideCommission,
-        withholdingAmount: breakdown.totalWithholding,
-        status: 'CONFIRMED',
-        saleDate: new Date(),
-        confirmedAt: new Date(),
-        updatedAt: new Date(),
+        costAmount: commissionTier?.costAmount || costAmount || 0,
+        branchCommission: agentId ? 0 : (commissionTier?.branchShareAmount || 0),
+        salesCommission: agentId ? (commissionTier?.salesShareAmount || 0) : 0,
+        overrideCommission: managerId && agentId ? (commissionTier?.overrideAmount || 0) : 0,
+        managerProfileId: managerId ?? undefined,
+        agentProfileId: agentId ?? undefined,
+        currency: commissionTier?.currency || 'KRW',
         metadata: {
           ...metadata,
           imp_uid,
           merchant_uid,
           affiliateCode,
           affiliateMallUserId,
-          commissionTierId: commissionTier ? `${affiliateProductId}-${determinedCabinType}` : null, // 🎯 추적용
-          roomSelections, // 🎯 원본 데이터 보존
+          commissionTierId: commissionTier ? `${affiliateProductId}-${determinedCabinType}` : null,
         },
-      },
-    });
+      });
 
-    // CommissionLedger 엔트리 생성 (🎯 실제 saleId로 생성)
-    // 🎯 대리점장 직접 판매: branchCommission만, 대리점 팀 판매: salesCommission + override만
-    const ledgerResult = generateLedgerEntries({
-      saleId: sale.id,
-      saleAmount: amount,
-      costAmount: commissionTier?.costAmount || costAmount || 0,
-      branchCommission: agentId ? 0 : (commissionTier?.branchShareAmount || 0),
-      salesCommission: agentId ? (commissionTier?.salesShareAmount || 0) : 0,
-      overrideCommission: managerId && agentId ? (commissionTier?.overrideAmount || 0) : 0,
-      managerProfileId: managerId ?? undefined,
-      agentProfileId: agentId ?? undefined,
-      currency: commissionTier?.currency || 'KRW',
-      metadata: {
-        ...metadata,
-        imp_uid,
-        merchant_uid,
-        affiliateCode,
-        affiliateMallUserId,
-        commissionTierId: commissionTier ? `${affiliateProductId}-${determinedCabinType}` : null,
-      },
-    });
-
-    // CommissionLedger 생성 (DB 에러 핸들링 추가)
-    if (ledgerResult.ledgerEntries.length > 0) {
-      try {
-        await prisma.commissionLedger.createMany({
-          data: ledgerResult.ledgerEntries.map((entry) => ({
+      // 3. CommissionLedger 생성
+      if (calculatedLedger.ledgerEntries.length > 0) {
+        await tx.commissionLedger.createMany({
+          data: calculatedLedger.ledgerEntries.map((entry) => ({
             ...entry,
             updatedAt: new Date(),
           })),
-          skipDuplicates: true, // 중복 방지
+          skipDuplicates: true,
         });
-        log('[Payment Webhook] CommissionLedger 생성 완료:', ledgerResult.ledgerEntries.length);
-      } catch (dbError) {
-        // 커미션 장부 생성 실패해도 Sale은 저장됨 (수동 보정 가능)
-        error('[Payment Webhook] CommissionLedger 생성 실패:', dbError);
-        warn('[Payment Webhook] Sale은 생성됨 - 커미션 장부는 수동 보정 필요');
-
-        // Sale 메타데이터에 커미션 장부 생성 실패 기록
-        try {
-          await prisma.affiliateSale.update({
-            where: { id: sale.id },
-            data: {
-              metadata: {
-                ...(sale.metadata as any || {}),
-                commissionLedgerFailed: true,
-                commissionLedgerFailureReason: dbError instanceof Error ? dbError.message : String(dbError),
-              },
-            },
-          });
-        } catch (metaUpdateError) {
-          error('[Payment Webhook] Sale 메타데이터 업데이트 실패:', metaUpdateError);
-        }
+        log('[Payment Webhook] CommissionLedger 생성 완료:', calculatedLedger.ledgerEntries.length);
       }
-    }
 
-    // Payment 상태 업데이트 (결제 완료)
-    await prisma.payment.updateMany({
-      where: { orderId: merchant_uid },
-      data: {
-        status: 'completed',
-        paidAt: new Date(),
-        pgTransactionId: imp_uid,
-        saleId: sale.id,
-      },
+      // 4. Payment 상태 업데이트 (TOCTOU 방어: status: { not: 'completed' })
+      await tx.payment.updateMany({
+        where: { orderId: merchant_uid, status: { not: 'completed' } },
+        data: {
+          status: 'completed',
+          paidAt: new Date(),
+          pgTransactionId: imp_uid,
+          saleId: createdSale.id,
+        },
+      });
+
+      return { sale: createdSale, ledgerResult: calculatedLedger };
     });
 
     // 🔴 CRITICAL: Reservation 생성 (PNR/여권 정보 입력을 위해 필요)

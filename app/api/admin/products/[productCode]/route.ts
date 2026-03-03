@@ -12,15 +12,11 @@ import { backupProductImages } from '@/lib/google-drive-product-backup';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
-// 관리자 권한 확인
+// 관리자 권한 확인 (WO-PROD-04: 세션 만료 체크 추가, WO-PROD-08: 디버그 로그 제거)
 async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
-  if (!sid) {
-    console.log('[Admin Products Detail] No session ID provided');
-    return false;
-  }
+  if (!sid) return false;
 
   try {
-    console.log('[Admin Products Detail] Checking admin auth for session:', sid.substring(0, 10) + '...');
     const session = await prisma.session.findUnique({
       where: { id: sid },
       include: {
@@ -30,29 +26,14 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
       },
     });
 
-    console.log('[Admin Products Detail] Session found:', {
-      hasSession: !!session,
-      hasUser: !!session?.User,
-      role: session?.User?.role,
-    });
-
-    if (!session) {
-      console.log('[Admin Products Detail] Session not found');
+    if (!session || !session.User) return false;
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
       return false;
     }
-
-    if (!session.User) {
-      console.log('[Admin Products Detail] User not found in session');
-      return false;
-    }
-
-    const isAdmin = session.User.role === 'admin';
-    console.log('[Admin Products Detail] Is admin:', isAdmin);
-    return isAdmin;
+    return session.User.role === 'admin';
   } catch (error) {
     console.error('[Admin Products Detail] Auth check error:', error);
-    console.error('[Admin Products Detail] Error details:', error instanceof Error ? error.message : String(error));
-    console.error('[Admin Products Detail] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return false;
   }
 }
@@ -64,19 +45,13 @@ export async function GET(
 ) {
   try {
     const { productCode } = await params;
-    console.log('[Admin Products Detail GET] Request received for productCode:', productCode);
     const cookieStore = await cookies();
     const sid = cookieStore.get(SESSION_COOKIE)?.value;
-    console.log('[Admin Products Detail GET] Session cookie:', sid ? sid.substring(0, 10) + '...' : 'not found');
-
     const isAdmin = await checkAdminAuth(sid);
 
     if (!isAdmin) {
-      console.log('[Admin Products Detail GET] Admin check failed, returning 401');
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
     }
-
-    console.log('[Admin Products Detail GET] Admin check passed, fetching product');
 
     const product = await prisma.cruiseProduct.findUnique({
       where: { productCode: productCode },
@@ -494,6 +469,12 @@ export async function PUT(
     // 디버깅: finalUpdateData 확인
     console.log('[Product Update] finalUpdateData keys:', Object.keys(finalUpdateData));
 
+    // 상품 코드 변경 시 기존 layout 데이터 보존을 위해 미리 조회
+    // (CruiseProduct 삭제 → cascade로 MallProductContent 소실 방지)
+    const contentToPreserve = updateProductCode
+      ? await prisma.mallProductContent.findUnique({ where: { productCode: productCodeParam } })
+      : null;
+
     // 상품 코드 변경 시
     if (updateProductCode) {
       // 기존 상품 삭제 후 새 코드로 생성
@@ -501,23 +482,12 @@ export async function PUT(
         where: { productCode: productCodeParam }
       });
 
-      const product = await prisma.cruiseProduct.create({
+      await prisma.cruiseProduct.create({
         data: {
           productCode: targetProductCode,
           ...finalUpdateData
         }
       });
-
-      // MallProductContent도 새 코드로 이동
-      const existingContent = await prisma.mallProductContent.findUnique({
-        where: { productCode: productCodeParam }
-      });
-
-      if (existingContent) {
-        await prisma.mallProductContent.delete({
-          where: { productCode: productCodeParam }
-        });
-      }
     } else {
       // 상품 업데이트
       await prisma.cruiseProduct.update({
@@ -531,13 +501,13 @@ export async function PUT(
     });
 
     // MallProductContent 업데이트 또는 생성
-    const existingContent = await prisma.mallProductContent.findUnique({
-      where: { productCode: targetProductCode }
-    });
+    // 상품 코드 변경 시: contentToPreserve(이전 코드의 content)를 기반으로 layout 보존
+    const existingContent = contentToPreserve
+      ?? await prisma.mallProductContent.findUnique({ where: { productCode: targetProductCode } });
 
-    const layoutData = existingContent?.layout 
-      ? (typeof existingContent.layout === 'string' 
-          ? JSON.parse(existingContent.layout) 
+    const layoutData = existingContent?.layout
+      ? (typeof existingContent.layout === 'string'
+          ? JSON.parse(existingContent.layout)
           : existingContent.layout)
       : {};
 

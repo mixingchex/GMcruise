@@ -5,7 +5,8 @@ import { getDriveClient } from '@/lib/google-drive';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// GET: 구글 드라이브 이미지 프록시 (공개용)
+// GET: 구글 드라이브 이미지 프록시 (상품 이미지 공개용)
+// 여권 등 개인 파일은 /api/private/image-proxy (별도 엔드포인트 사용)
 export async function GET(req: NextRequest) {
     try {
         const url = new URL(req.url);
@@ -13,6 +14,11 @@ export async function GET(req: NextRequest) {
 
         if (!fileId) {
             return NextResponse.json({ ok: false, error: 'File ID is required' }, { status: 400 });
+        }
+
+        // [WO-SEC-12] fileId 형식 검증 (Google Drive fileId: 25~44자 영숫자/하이픈/언더스코어)
+        if (!/^[a-zA-Z0-9_-]{25,44}$/.test(fileId)) {
+            return NextResponse.json({ ok: false, error: 'Invalid file ID' }, { status: 400 });
         }
 
         const drive = getDriveClient();
