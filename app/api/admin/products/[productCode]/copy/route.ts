@@ -64,13 +64,13 @@ export async function POST(
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, createdAt, updatedAt, MallProductContent, AffiliateProduct, ...rest } = original;
 
-        // CruiseProduct 복사 — 복사본은 판매중지로 시작 (미완성 상품이 즉시 몰 노출 방지)
+        // CruiseProduct 복사 — 원본 판매상태 그대로 유지 (몰 노출 여부 보존)
         const newProduct = await tx.cruiseProduct.create({
           data: {
             ...rest,
             productCode: newProductCode,
             packageName: `[복사] ${original.packageName}`,
-            saleStatus: '판매중지', // 관리자가 내용 확인 후 수동으로 판매 전환
+            saleStatus: original.saleStatus, // 원본이 '판매중'이면 복사본도 즉시 몰 노출
             itineraryPattern: original.itineraryPattern ?? {},
             tags: original.tags ?? [],
             updatedAt: now,
@@ -108,9 +108,9 @@ export async function POST(
                 effectiveFrom: now,   // 복사 시각으로 새로 설정 (원본 복사 시 unique 충돌 방지)
                 effectiveTo: null,
                 updatedAt: now,
-                // 복사본은 비활성 상태로 시작 (CruiseProduct.saleStatus='판매중지' 정책과 일치)
-                status: 'inactive',
-                isPublished: false,
+                // 원본 어필리에이트 활성 상태 그대로 복사 (몰 노출 보존)
+                status: 'active',
+                isPublished: true,
               },
             });
           }
