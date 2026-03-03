@@ -243,12 +243,12 @@ export default function HomeClientPage() {
                     {user.name?.trim() || '고객'}
                   </span>
                   <span className="text-sm sm:text-base font-semibold whitespace-nowrap text-gray-700">
-                    님 환영합니다! 👋
+                    님 환영합니다!
                   </span>
                 </Link>
               ) : (
                 <span className="text-sm sm:text-base font-semibold text-gray-700">
-                  크루즈닷에 오신 것을 환영합니다! ✨
+                  크루즈닷에 오신 것을 환영합니다!
                 </span>
               )}
             </div>
@@ -299,12 +299,9 @@ export default function HomeClientPage() {
       </header>
 
       {/* 히어로 섹션 */}
-      {/* 히어로 섹션 */}
       <div className="relative">
         <HeroSection config={pageConfig?.hero} />
       </div>
-
-
 
       {/* 카카오톡 채널 추가 배너 */}
       <div className="container mx-auto px-4 py-4">
@@ -327,133 +324,155 @@ export default function HomeClientPage() {
 
       {/* 크루즈 후기 */}
       {pageConfig?.reviewSection?.enabled !== false && (
-        <section className="container mx-auto px-4 py-12 bg-gray-50">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {pageConfig?.reviewSection?.title || '⭐ 크루즈 후기'}
-            </h2>
-            <p className="text-gray-600 mb-4 text-lg">
-              {pageConfig?.reviewSection?.description || '실제 고객들이 남긴 생생한 크루즈 여행 후기를 만나보세요'}
-            </p>
-            <a
-              href={pageConfig?.reviewSection?.linkUrl || '/community'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block text-blue-600 hover:text-blue-700 font-semibold text-lg"
-            >
-              {pageConfig?.reviewSection?.linkText || '더 많은 후기 보기 →'}
-            </a>
+        <section className="bg-[#EEF5FF] py-14 md:py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0A2342] mb-3 tracking-tight">
+                {pageConfig?.reviewSection?.title
+                  ? pageConfig.reviewSection.title.replace(/^[^\w가-힣]+/, '')
+                  : '고객 후기'}
+              </h2>
+              <div className="w-12 h-1 bg-[#D4AF37] mx-auto mb-4 rounded-full"></div>
+              <p className="text-slate-600 text-base md:text-lg">
+                {pageConfig?.reviewSection?.description || '실제 여행객이 남긴 생생한 크루즈 후기'}
+              </p>
+              <a
+                href={pageConfig?.reviewSection?.linkUrl || '/community'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block mt-3 text-[#1B5FA8] font-semibold hover:text-[#0A2342] transition-colors"
+              >
+                {pageConfig?.reviewSection?.linkText || '더 많은 후기 보기 →'}
+              </a>
+            </div>
+            <ReviewSlider />
           </div>
-          <ReviewSlider />
         </section>
       )}
 
-
-
       {/* 크루즈닷의 경험과 신뢰 */}
       {pageConfig?.companyStats?.enabled !== false && (
-        <section className="container mx-auto px-4 py-12 bg-white">
-          <CompanyStatsSection config={pageConfig?.companyStats} />
+        <section className="bg-white py-14 md:py-20">
+          <div className="container mx-auto px-4">
+            <CompanyStatsSection config={pageConfig?.companyStats} />
+          </div>
         </section>
       )}
 
       {/* 크루즈닷AI 쇼츠 (통계 바로 아래) */}
       {pageConfig?.youtubeShorts?.enabled !== false && (
-        <section className="container mx-auto px-4 py-12 bg-white">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {pageConfig?.youtubeShorts?.title || '🎬 크루즈닷 쇼츠'}
-            </h2>
-            <p className="text-gray-600 text-lg">
-              {pageConfig?.youtubeShorts?.description || '크루즈 여행의 모든 순간을 Shorts로 만나보세요'}
-            </p>
+        <section className="bg-[#EEF5FF] py-14 md:py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0A2342] mb-3 tracking-tight">
+                {pageConfig?.youtubeShorts?.title
+                  ? pageConfig.youtubeShorts.title.replace(/^[^\w가-힣]+/, '')
+                  : '크루즈닷 쇼츠'}
+              </h2>
+              <div className="w-12 h-1 bg-[#D4AF37] mx-auto mb-4 rounded-full"></div>
+              <p className="text-slate-600 text-base md:text-lg">
+                {pageConfig?.youtubeShorts?.description || '크루즈 여행의 모든 순간을 Shorts로 만나보세요'}
+              </p>
+            </div>
+            <YoutubeShortsSlider />
           </div>
-          <YoutubeShortsSlider />
         </section>
       )}
 
       {/* 라이브 방송 (쇼츠 아래) */}
       {pageConfig?.youtubeLive?.enabled !== false && (
-        <section id="live-broadcast" className="container mx-auto px-4 py-12 bg-white">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {pageConfig?.youtubeLive?.title || '📡 라이브 방송'}
-            </h2>
-            <p className="text-gray-600 text-lg">
-              {pageConfig?.youtubeLive?.description || '지금 이 순간, 크루즈닷과 함께하세요'}
-            </p>
+        <section id="live-broadcast" className="bg-white py-14 md:py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0A2342] mb-3 tracking-tight">
+                {pageConfig?.youtubeLive?.title
+                  ? pageConfig.youtubeLive.title.replace(/^[^\w가-힣]+/, '')
+                  : '라이브 방송'}
+              </h2>
+              <div className="w-12 h-1 bg-[#D4AF37] mx-auto mb-4 rounded-full"></div>
+              <p className="text-slate-600 text-base md:text-lg">
+                {pageConfig?.youtubeLive?.description || '지금 이 순간, 크루즈닷과 함께하세요'}
+              </p>
+            </div>
+            <YoutubeLiveSection />
           </div>
-          <YoutubeLiveSection />
         </section>
       )}
 
-      {/* 카카오톡 & 유튜브 그리드 섹션 (럭셔리 디자인) - 라이브 방송 하단에 배치 */}
-      <section className="container mx-auto px-4 py-12 bg-white">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-5xl mx-auto">
-          {/* 카카오톡 참여하기 (Solid Yellow) */}
-          <a
-            href="https://open.kakao.com/o/plREDDUh"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden rounded-xl bg-[#FEE500] p-8 shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
-          >
-            <div className="absolute top-4 right-4 opacity-50">
-              <span className="text-4xl text-yellow-600">✨</span>
-            </div>
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-md mb-6 group-hover:scale-110 transition-transform">
-              <span className="text-5xl text-[#3c1e1e]">💬</span>
-            </div>
-            <h3 className="text-3xl font-black text-[#3c1e1e] mb-2">
-              카카오톡 참여하기
-            </h3>
-          </a>
-
-          {/* 유튜브 구독하기 (Solid Red) */}
-          <a
-            href="https://www.youtube.com/@cruisedoAI?sub_confirmation=1"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group relative overflow-hidden rounded-xl bg-[#E50914] p-8 shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64"
-          >
-            <div className="absolute top-4 right-4 opacity-30">
-              <div className="w-8 h-8 rounded-full bg-white/20"></div>
-            </div>
-            <div className="w-24 h-24 bg-white/10 rounded-2xl flex items-center justify-center shadow-inner mb-6 group-hover:scale-110 transition-transform backdrop-blur-sm border border-white/20">
-              <div className="w-20 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg">
-                <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[18px] border-l-[#E50914] border-b-[10px] border-b-transparent ml-1"></div>
+      {/* 카카오톡 & 유튜브 그리드 섹션 (프리미엄 네이비 디자인) - 라이브 방송 하단에 배치 */}
+      <section className="bg-[#0A2342] py-16 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-3 tracking-tight">
+              크루즈닷 채널 참여하기
+            </h2>
+            <div className="w-12 h-1 bg-[#D4AF37] mx-auto rounded-full"></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            {/* 카카오톡 참여하기 */}
+            <a
+              href="https://open.kakao.com/o/plREDDUh"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative overflow-hidden rounded-2xl bg-[#0A2342] p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64 border border-[#D4AF37]/30"
+            >
+              <div className="w-20 h-20 bg-[#FEE500] rounded-full flex items-center justify-center shadow-lg mb-5 group-hover:scale-110 transition-transform duration-300">
+                <span className="text-4xl">💬</span>
               </div>
-            </div>
-            <h3 className="text-3xl font-black text-white mb-2">
-              유튜브 구독하기
-            </h3>
-            <p className="text-white/90 font-bold text-lg">
-              크루즈닷AI
-            </p>
-          </a>
+              <h3 className="text-2xl font-black text-white mb-1">카카오톡 참여하기</h3>
+              <p className="text-[#D4AF37] font-semibold text-sm">크루즈닷 오픈채팅</p>
+            </a>
+
+            {/* 유튜브 구독하기 */}
+            <a
+              href="https://www.youtube.com/@cruisedoAI?sub_confirmation=1"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative overflow-hidden rounded-2xl bg-[#0A2342] p-8 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 flex flex-col items-center justify-center text-center h-64 border border-[#D4AF37]/30"
+            >
+              <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-lg mb-5 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[20px] border-l-[#E50914] border-b-[10px] border-b-transparent ml-1"></div>
+              </div>
+              <h3 className="text-2xl font-black text-white mb-1">유튜브 구독하기</h3>
+              <p className="text-[#D4AF37] font-semibold text-sm">크루즈닷AI</p>
+            </a>
+          </div>
         </div>
       </section>
 
-
-
       {/* 크루즈닷AI 영상 */}
       {pageConfig?.youtubeVideos?.enabled !== false && (
-        <section className="container mx-auto px-4 py-12 bg-gray-50">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
-              {pageConfig?.youtubeVideos?.title || '📺 크루즈닷 영상'}
-            </h2>
-            <p className="text-gray-600 text-lg">
-              {pageConfig?.youtubeVideos?.description || '크루즈 여행의 특별한 영상을 만나보세요'}
-            </p>
+        <section className="bg-white py-14 md:py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0A2342] mb-3 tracking-tight">
+                {pageConfig?.youtubeVideos?.title
+                  ? pageConfig.youtubeVideos.title.replace(/^[^\w가-힣]+/, '')
+                  : '크루즈닷 영상'}
+              </h2>
+              <div className="w-12 h-1 bg-[#D4AF37] mx-auto mb-4 rounded-full"></div>
+              <p className="text-slate-600 text-base md:text-lg">
+                {pageConfig?.youtubeVideos?.description || '크루즈 여행의 특별한 영상을 만나보세요'}
+              </p>
+            </div>
+            <YoutubeVideosSlider />
           </div>
-          <YoutubeVideosSlider />
         </section>
       )}
 
-      {/* 인기 크루즈 & 추천 크루즈 */}
+      {/* 인기 크루즈 상품 */}
       {pageConfig?.productList?.enabled !== false && (
-        <section id="products" className="container mx-auto px-4 py-12 bg-white">
-          <ProductList />
+        <section id="products" className="bg-[#EEF5FF] py-14 md:py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0A2342] mb-3 tracking-tight">
+                인기 크루즈 상품
+              </h2>
+              <div className="w-12 h-1 bg-[#D4AF37] mx-auto mb-4 rounded-full"></div>
+              <p className="text-slate-600 text-base md:text-lg">엄선된 크루즈 상품을 지금 바로 만나보세요</p>
+            </div>
+            <ProductList />
+          </div>
         </section>
       )}
 
@@ -467,15 +486,15 @@ export default function HomeClientPage() {
         </div>
       )}
 
-
-
       {/* 커뮤니티 하이라이트 - 항상 표시 */}
       <CommunitySection config={pageConfig?.communitySection} />
 
       {/* 프로모션 배너 (양싱 베너) - 상품 밑으로 이동 */}
       {pageConfig?.promotionBanner?.enabled !== false && (
-        <section id="promotion-banner" className="container mx-auto px-4 py-12 bg-white">
-          <PromotionBannerCarousel />
+        <section id="promotion-banner" className="bg-white py-14 md:py-20">
+          <div className="container mx-auto px-4">
+            <PromotionBannerCarousel />
+          </div>
         </section>
       )}
 
@@ -519,14 +538,12 @@ export default function HomeClientPage() {
                 }}
                 className="w-full sm:w-auto px-8 py-3 bg-white/10 hover:bg-white/20 text-white text-base font-bold rounded-full border border-white/30 backdrop-blur-sm transition-all"
               >
-                무료체험 신청하기 🚀
+                무료체험 신청하기
               </button>
             </div>
           </div>
         </div>
       </section>
-
-
 
       {/* 푸터 */}
       <PublicFooter />
