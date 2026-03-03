@@ -503,7 +503,9 @@ function CruisedotNewsPageContent() {
                 <div className="mt-8 space-y-4 rounded-[24px] border border-slate-100 bg-white/90 p-6 shadow-sm">
                   <div className="flex flex-col gap-3 md:flex-row">
                     <Link
-                      href="/login-test"
+                      href="https://www.cruiseai.co.kr"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="flex-1 inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-rose-500 to-rose-600 px-5 py-3 text-base font-semibold text-white shadow-lg shadow-rose-300/40 transition hover:-translate-y-0.5 hover:from-rose-600 hover:to-rose-700"
                     >
                       크루즈 가이드 3일 체험 로그인

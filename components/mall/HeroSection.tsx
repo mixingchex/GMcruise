@@ -74,7 +74,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
   return (
     <div
       className="relative text-white py-12 sm:py-16 md:py-20 lg:py-24 overflow-hidden cursor-pointer min-h-[500px] sm:min-h-[600px] md:min-h-[700px] flex items-center"
-      onClick={() => window.location.href = 'https://www.cruiseai.co.kr'}
+      onClick={() => window.open('https://www.cruiseai.co.kr', '_blank', 'noopener noreferrer')}
     >
       {/* 배경 이미지 (동영상 대신 사용 - 빠른 로딩) */}
       <div className="absolute inset-0 w-full h-full z-0 overflow-hidden">
@@ -218,19 +218,23 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
                       }
                     }
                   } else if (btn.text === '지금 시작하기') {
-                    // 지금 시작하기 버튼 → 크루즈닷AI 이동
+                    // 지금 시작하기 버튼 → 크루즈닷AI 새창 이동
                     e.preventDefault();
-                    window.location.href = 'https://www.cruiseai.co.kr';
+                    window.open('https://www.cruiseai.co.kr', '_blank', 'noopener noreferrer');
                   } else {
                     // 기타 버튼은 기존 동작
                     window.location.href = btn.link || '/login';
                   }
                 };
 
+                const isExternalLink = btn.text !== '라이브방송참여' && btn.text !== '상품 둘러보기' &&
+                  (btn.link || 'https://www.cruiseai.co.kr').startsWith('http');
                 return (
                   <a
                     key={idx}
                     href={btn.text === '라이브방송참여' ? '#live-broadcast' : btn.text === '상품 둘러보기' ? '#products' : btn.link || 'https://www.cruiseai.co.kr'}
+                    target={isExternalLink ? '_blank' : undefined}
+                    rel={isExternalLink ? 'noopener noreferrer' : undefined}
                     onClick={handleButtonClick}
                     className={buttonClass}
                     style={buttonStyle}

@@ -549,7 +549,9 @@ export default function MyInfoPage() {
                   지금 바로 AI 여행 가이드를 무료로 체험해보세요!
                 </p>
                 <Link
-                  href="/login-test"
+                  href="https://www.cruiseai.co.kr"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="inline-block px-8 py-4 bg-white text-purple-600 font-black text-lg rounded-xl hover:bg-gray-100 transition-all shadow-2xl transform hover:scale-105 hover:shadow-3xl"
                 >
                   무료체험 시작하기 →

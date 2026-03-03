@@ -480,7 +480,7 @@ export default function HomeClientPage() {
       )}
 
       {/* 크루즈닷AI 출시 3일 무료체험 배너 (하단 신규 디자인) */}
-      <section className="w-full bg-gradient-to-r from-[#051C2C] via-[#0f2c44] to-[#051C2C] py-16 md:py-20 cursor-pointer relative overflow-hidden" onClick={() => window.location.href = 'https://www.cruiseai.co.kr'}>
+      <section className="w-full bg-gradient-to-r from-[#051C2C] via-[#0f2c44] to-[#051C2C] py-16 md:py-20 cursor-pointer relative overflow-hidden" onClick={() => window.open('https://www.cruiseai.co.kr', '_blank', 'noopener noreferrer')}>
         <div className="absolute inset-0 bg-[url('/images/pattern-overlay.png')] opacity-5"></div>
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
@@ -500,7 +500,7 @@ export default function HomeClientPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.location.href = 'https://www.cruiseai.co.kr';
+                  window.open('https://www.cruiseai.co.kr', '_blank', 'noopener noreferrer');
                 }}
                 className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-[#FFD700] via-[#FDB931] to-[#FFD700] bg-[length:200%_auto] animate-gradient text-[#051C2C] text-lg font-black rounded-full shadow-[0_0_20px_rgba(212,175,55,0.6)] hover:shadow-[0_0_35px_rgba(212,175,55,0.9)] transform hover:scale-105 transition-all border-2 border-[#fff]/40 backdrop-blur-md ring-2 ring-[#FFD700]/50"
               >
