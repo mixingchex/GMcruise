@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from 'react';
 // 히어로 슬라이더 이미지 (Vercel 배포 보장 경로)
 // hero-bg-2.jpg (Odyssey of the Seas, 2880×1920 가로형) 을 첫 슬라이드로
 const HERO_SLIDES = [
-  { src: '/images/hero/hero-bg-2.jpg', ken: 'animate-kb-zoom-tr' },   // 크루즈 선상 풀덱
-  { src: '/images/site-main.webp',     ken: 'animate-kb-zoom-tl' },   // 크루즈 야경
-  { src: '/images/en-main.webp',       ken: 'animate-kb-zoom-tr' },   // 한국 출발 크루즈
+  { src: '/images/hero/hero-msc-night.png',  ken: 'animate-kb-zoom-tr' }, // MSC 야간 럭셔리 풀덱 (네온/야경)
+  { src: '/images/hero/hero-bg-2.jpg',       ken: 'animate-kb-zoom-tl' }, // Royal Caribbean Odyssey 선상
+  { src: '/images/hero/hero-msc-aerial.png', ken: 'animate-kb-zoom-tr' }, // MSC 공중 내려다보기
 ];
 
 // 포함 사항 아이콘 띠
