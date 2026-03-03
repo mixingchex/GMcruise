@@ -27,7 +27,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
   // 기본값 (동영상 → 이미지로 변경하여 로딩 속도 개선)
   const heroConfig = config || {
     // videoUrl: '/videos/hero-video.mp4',  // 동영상 비활성화 (느린 로딩)
-    backgroundImage: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png',  // 고화질 이미지 사용
+    backgroundImage: '/images/hero/hero-bg.jpg',  // Vercel 배포 보장 경로
     logoUrl: '/images/ai-cruise-logo.png',
     title: '크루즈닷AI',
     subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
@@ -40,26 +40,32 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
 
   // 이미지 사전 로드 및 에러 핸들링
   useEffect(() => {
+    let cancelled = false; // cleanup 후 setState 호출 방지
     const img = new Image();
-    const imageUrl = heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png';
+    const imageUrl = heroConfig.backgroundImage || '/images/hero/hero-bg.jpg';
 
     img.onload = () => {
-      setImageLoaded(true);
-      setImageError(false);
+      if (!cancelled) {
+        setImageLoaded(true);
+        setImageError(false);
+      }
     };
 
     img.onerror = () => {
+      if (cancelled) return;
       console.error('[HeroSection] 이미지 로드 실패:', imageUrl);
       setImageError(true);
       setImageLoaded(false);
       // 대체 이미지 시도
-      const fallbackUrl = '/크루즈정보사진/크루즈배경이미지/크루즈배경이미지 (1).png';
+      const fallbackUrl = '/images/hero/hero-bg-fallback.png';
       const fallbackImg = new Image();
       fallbackImg.onload = () => {
-        setImageLoaded(true);
-        setImageError(false);
-        if (imgRef.current) {
-          imgRef.current.src = fallbackUrl;
+        if (!cancelled) {
+          setImageLoaded(true);
+          setImageError(false);
+          if (imgRef.current) {
+            imgRef.current.src = fallbackUrl;
+          }
         }
       };
       fallbackImg.src = fallbackUrl;
@@ -69,7 +75,13 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
     if (imgRef.current) {
       imgRef.current.src = imageUrl;
     }
-  }, [heroConfig.backgroundImage]);
+
+    return () => {
+      cancelled = true;
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [heroConfig.backgroundImage]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
@@ -82,7 +94,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           ref={imgRef}
-          src={heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png'}
+          src={heroConfig.backgroundImage || '/images/hero/hero-bg.jpg'}
           alt=""
           className="hidden"
           onLoad={() => setImageLoaded(true)}
@@ -94,7 +106,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
             } ${imageError ? 'hidden' : ''} animate-subtle-zoom`}
           style={{
             backgroundImage: imageLoaded
-              ? `url('${encodeURI(heroConfig.backgroundImage || '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png')}')`
+              ? `url('${encodeURI(heroConfig.backgroundImage || '/images/hero/hero-bg.jpg')}')`
               : 'none',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
@@ -198,6 +210,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
                 // 버튼별 동작 처리
                 const handleButtonClick = (e: React.MouseEvent) => {
                   e.stopPropagation();
+                  e.preventDefault(); // <a> 태그 기본 내비게이션 방지 (URL 해시 변경 방지)
 
                   if (btn.text === '라이브방송참여') {
                     // 라이브 방송 섹션으로 스크롤
@@ -218,8 +231,7 @@ export default function HeroSection({ config, hideButtons = false }: { config?: 
                       }
                     }
                   } else if (btn.text === '지금 시작하기') {
-                    // 지금 시작하기 버튼 → 크루즈닷AI 새창 이동
-                    e.preventDefault();
+                    // 지금 시작하기 버튼 → 크루즈닷AI 새창 이동 (상단 preventDefault로 이미 처리됨)
                     window.open('https://www.cruiseai.co.kr', '_blank', 'noopener noreferrer');
                   } else {
                     // 기타 버튼은 기존 동작

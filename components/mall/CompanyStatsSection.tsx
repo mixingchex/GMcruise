@@ -44,31 +44,50 @@ function AnimatedNumber({
 function useLiveStatsValue(
   initialTarget: number,
   incrementAmount: number = 0,
-  incrementInterval: number = 0
+  incrementInterval: number = 0,
+  maxValue?: number
 ) {
   const [currentValue, setCurrentValue] = useState(0); // 0부터 시작
-  const [targetValue, setTargetValue] = useState(initialTarget);
   const [isMounted, setIsMounted] = useState(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     setIsMounted(true);
     // 마운트 시 0 -> initialTarget으로 애니메이션 트리거
-    // 약간의 지연을 두어 렌더링 후 애니메이션 시작
     const timer = setTimeout(() => {
       setCurrentValue(initialTarget);
     }, 100);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      setIsMounted(false); // Strict Mode 이중 실행 방어
+    };
   }, [initialTarget]);
 
   useEffect(() => {
     if (!isMounted || incrementInterval === 0 || incrementAmount === 0) return;
 
-    const intervalId = setInterval(() => {
-      setCurrentValue(prev => prev + incrementAmount);
+    intervalRef.current = setInterval(() => {
+      setCurrentValue(prev => {
+        const next = prev + incrementAmount;
+        if (maxValue !== undefined && next >= maxValue) {
+          // 상한 도달 시 interval 자동 종료 (불필요한 콜백 실행 방지)
+          if (intervalRef.current !== null) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          return maxValue;
+        }
+        return next;
+      });
     }, incrementInterval);
 
-    return () => clearInterval(intervalId);
-  }, [isMounted, incrementInterval, incrementAmount]);
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isMounted, incrementInterval, incrementAmount, maxValue]);
 
   return currentValue;
 }
@@ -114,14 +133,14 @@ const defaultConfig: CompanyStatsConfig = {
 export default function CompanyStatsSection({ config }: { config?: CompanyStatsConfig }) {
 
   // 각 숫자의 현재 값 관리 (값만 관리하고 렌더링은 AnimatedNumber에 위임)
-  // 1. 222명: 5초마다 7명씩 증가
-  const val1 = useLiveStatsValue(222, 7, 5000);
+  // 1. 222명: 5초마다 7명씩 증가 → 상한 300명 (단일 세션 내 비현실적 수치 방지)
+  const val1 = useLiveStatsValue(222, 7, 5000, 300);
 
-  // 2. 13,491: 4초마다 13씩 증가
-  const val2 = useLiveStatsValue(13491, 13, 4000);
+  // 2. 13,491: 4초마다 13씩 증가 → 상한 13,800
+  const val2 = useLiveStatsValue(13491, 13, 4000, 13800);
 
-  // 3. 3217명: 5초마다 56명씩 증가
-  const val3 = useLiveStatsValue(3217, 56, 5000);
+  // 3. 3217명: 5초마다 56명씩 증가 → 상한 3,400명
+  const val3 = useLiveStatsValue(3217, 56, 5000, 3400);
 
   // finalConfig 복구 및 메모이제이션
   const finalConfig: CompanyStatsConfig = useMemo(() => ({
@@ -140,7 +159,7 @@ export default function CompanyStatsSection({ config }: { config?: CompanyStatsC
           <div
             className="absolute inset-0 w-full h-full bg-cover bg-center animate-subtle-zoom"
             style={{
-              backgroundImage: `url('${encodeURI('/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (5).png')}')`,
+              backgroundImage: `url('/images/hero/stats-bg.png')`,
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#051C2C]/80 via-[#051C2C]/40 to-transparent"></div>
