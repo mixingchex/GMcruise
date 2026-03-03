@@ -291,9 +291,7 @@
       {
         "name": "노르웨이 (Norway)",
         "code": "NO",
-        "regions": [
-          "앤디콧암도스빙하 (Andenes)"
-        ]
+        "regions": []
       },
       {
         "name": "덴마크 (Denmark)",
@@ -750,7 +748,8 @@
           "시애틀 (Seattle)",
           "주노 (Juneau)",
           "스캐그웨이 (Skagway)",
-          "싯카 (Sitka)"
+          "싯카 (Sitka)",
+          "앤디콧암 도스빙하 (Endicott Arm & Dawes Glacier)"
         ]
       },
       {

@@ -170,6 +170,15 @@ const convertRegionToApiFormat = (region: string): string => {
   return region;
 };
 
+/** productCode 기반 결정론적 평점 (매 렌더링마다 바뀌지 않도록 해시 사용) */
+const deterministicRating = (code: string): { rating: number; reviewCount: number } => {
+  const hash = code.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return {
+    rating: Math.round((4.0 + (hash % 10) / 10) * 10) / 10, // 4.0~4.9 (소수점 1자리)
+    reviewCount: 50 + (hash % 451), // 50~500
+  };
+};
+
 export default function CruiseSearchBlock() {
   const [isExpanded, setIsExpanded] = useState(true); // 기본값을 true로 변경 (50대 이상도 잘 보이게)
   const [selectedCruiseLine, setSelectedCruiseLine] = useState<string>('all');
@@ -179,6 +188,7 @@ export default function CruiseSearchBlock() {
   const [hasSearched, setHasSearched] = useState(false);
   const [allAvailableProducts, setAllAvailableProducts] = useState<Product[]>([]); // 모든 상품 데이터 (연관 검색어 생성용)
   const autoSelectedRef = useRef(false); // 첫 번째 연관검색어 자동 선택 여부
+  const isKeywordSearchActiveRef = useRef(false); // 연관검색어 클릭 검색 진행 중 여부 (useEffect 결과 초기화 방지)
 
   // 검색 가능한 드롭다운 상태
   const [cruiseSearchTerm, setCruiseSearchTerm] = useState('');
@@ -486,9 +496,11 @@ export default function CruiseSearchBlock() {
     if (isExpanded && (selectedCruiseLine !== 'all' || selectedRegion !== 'all')) {
       searchProducts();
     } else if (isExpanded && selectedCruiseLine === 'all' && selectedRegion === 'all') {
-      // 모두 '전체'일 경우 검색 결과 초기화
-      setProducts([]);
-      setHasSearched(false);
+      // 연관검색어 클릭 중일 때는 결과 초기화 방지 (handleRelatedSearch가 'all'/'all'로 설정 후 키워드 검색 실행)
+      if (!isKeywordSearchActiveRef.current) {
+        setProducts([]);
+        setHasSearched(false);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCruiseLine, selectedRegion, isExpanded]);
@@ -570,8 +582,7 @@ export default function CruiseSearchBlock() {
         // 인기/추천 표시 추가 (productCode로 구분)
         const productsWithFlags = data.products.map((p: Product) => ({
           ...p,
-          rating: 4.0 + Math.random() * 1.0, // 임시 평점 (4.0~5.0)
-          reviewCount: Math.floor(Math.random() * 500) + 50, // 임시 리뷰 수 (50~550)
+          ...deterministicRating(p.productCode), // productCode 기반 고정 평점/리뷰수
           isPopular: p.productCode.startsWith('POP-'),
           isRecommended: p.productCode.startsWith('REC-'),
         }));
@@ -589,6 +600,8 @@ export default function CruiseSearchBlock() {
   };
 
   const handleRelatedSearch = async (cruiseLine: string, region: string, keyword?: string) => {
+    // ref를 먼저 설정하여 useEffect([selectedCruiseLine, selectedRegion]) 실행 시 결과 초기화 방지
+    isKeywordSearchActiveRef.current = true;
     setSelectedCruiseLine(cruiseLine);
     setSelectedRegion(region);
     setIsExpanded(true); // 연관 검색어 클릭 시 확장
@@ -682,8 +695,7 @@ export default function CruiseSearchBlock() {
         // 인기/추천 표시 추가 (productCode로 구분)
         const productsWithFlags = filteredProducts.map((p: Product) => ({
           ...p,
-          rating: 4.0 + Math.random() * 1.0, // 임시 평점 (4.0~5.0)
-          reviewCount: Math.floor(Math.random() * 500) + 50, // 임시 리뷰 수 (50~550)
+          ...deterministicRating(p.productCode), // productCode 기반 고정 평점/리뷰수
           isPopular: p.productCode.startsWith('POP-'),
           isRecommended: p.productCode.startsWith('REC-'),
         }));
@@ -696,6 +708,7 @@ export default function CruiseSearchBlock() {
       console.error('Error searching products:', error);
       setProducts([]);
     } finally {
+      isKeywordSearchActiveRef.current = false; // 검색 완료 후 ref 해제
       setIsLoading(false);
     }
   };

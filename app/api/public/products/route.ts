@@ -8,6 +8,8 @@ export const runtime = 'nodejs';  // Edge Runtime 금지 (Prisma 사용)
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+const MAX_LIMIT = 500; // 연관검색어 기반 전체 상품 로드(limit=1000) 지원 — 크루즈몰 상품 수 기준 충분한 한도
+
 /**
  * GET: 상품 목록 조회
  * 로그인 없이 접근 가능
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '12', 10);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '12', 10), MAX_LIMIT);
     const sort = searchParams.get('sort') || 'newest';
     const region = searchParams.get('region') || '';
     const cruiseLine = searchParams.get('cruiseLine') || '';
@@ -919,15 +921,21 @@ export async function GET(req: NextRequest) {
         return false;
       });
       
-      // 키워드 검색 결과가 있으면 지역 필터링 결과와 병합 (OR 조건)
-      if (keywordMatches.length > 0) {
-        // 지역 필터링이 이미 실행된 경우, 키워드 검색 결과와 병합
-        const existingProductCodes = new Set(allProducts.map(p => p.productCode));
-        keywordMatches.forEach(product => {
-          if (!existingProductCodes.has(product.productCode)) {
-            allProducts.push(product);
-          }
-        });
+      if (region && region !== 'all' && region !== 'other') {
+        // 지역 필터 활성화: 지역 결과 + 키워드 결과 OR 병합 (기존 동작 유지)
+        if (keywordMatches.length > 0) {
+          const existingProductCodes = new Set(allProducts.map(p => p.productCode));
+          keywordMatches.forEach(product => {
+            if (!existingProductCodes.has(product.productCode)) {
+              allProducts.push(product);
+            }
+          });
+        }
+      } else {
+        // 키워드만: 매칭 결과가 있을 때만 교체 (빈 배열이면 기존 allProducts 유지)
+        if (keywordMatches.length > 0) {
+          allProducts = keywordMatches;
+        }
       }
     }
 
@@ -1154,66 +1162,8 @@ export async function GET(req: NextRequest) {
     const endIndex = startIndex + limit;
     const paginatedProducts = productsWithDestination.slice(startIndex, endIndex);
 
-    // limit=1000인 경우 (연관검색어 생성용) 전체 상품 반환
-    const responseProducts = isThemeRequest || (limit >= 1000) ? productsWithDestination : paginatedProducts;
-    
-    // limit=1000인 경우 recommendedKeywords 포함 여부 로그 (상세)
-    if (limit >= 1000) {
-      const productsWithKeywords = responseProducts.filter((p: any) => {
-        return p.recommendedKeywords && (
-          (Array.isArray(p.recommendedKeywords) && p.recommendedKeywords.length > 0) ||
-          (typeof p.recommendedKeywords === 'string' && p.recommendedKeywords.trim())
-        );
-      });
-      
-      // 각 상품의 recommendedKeywords 추출 과정 로그
-      const detailedLog = responseProducts.slice(0, 5).map((p: any) => {
-        let extractedKeywords: string[] | null = null;
-        
-        // MallProductContent.layout에서 추출 시도
-        if (p.mallProductContent?.layout) {
-          try {
-            const layout = typeof p.mallProductContent.layout === 'string' 
-              ? JSON.parse(p.mallProductContent.layout) 
-              : p.mallProductContent.layout;
-            if (layout?.recommendedKeywords) {
-              if (Array.isArray(layout.recommendedKeywords)) {
-                extractedKeywords = layout.recommendedKeywords;
-              } else if (typeof layout.recommendedKeywords === 'string') {
-                try {
-                  extractedKeywords = JSON.parse(layout.recommendedKeywords);
-                } catch {
-                  extractedKeywords = [layout.recommendedKeywords];
-                }
-              }
-            }
-          } catch (e) {
-            // 파싱 실패
-          }
-        }
-        
-        return {
-          productCode: p.productCode,
-          hasMallContent: !!p.mallProductContent,
-          hasLayout: !!p.mallProductContent?.layout,
-          layoutRecommendedKeywords: extractedKeywords,
-          productRecommendedKeywords: p.recommendedKeywords,
-          finalRecommendedKeywords: p.recommendedKeywords || extractedKeywords
-        };
-      });
-      
-      console.log('[Public Products API] Products with recommendedKeywords (detailed):', {
-        total: responseProducts.length,
-        withKeywords: productsWithKeywords.length,
-        sampleProducts: detailedLog,
-        allKeywords: productsWithKeywords.flatMap((p: any) => {
-          const keywords = Array.isArray(p.recommendedKeywords) 
-            ? p.recommendedKeywords 
-            : (typeof p.recommendedKeywords === 'string' ? [p.recommendedKeywords] : []);
-          return keywords.map((kw: string) => ({ productCode: p.productCode, keyword: kw }));
-        })
-      });
-    }
+    // MAX_LIMIT(100) 적용으로 limit >= 1000 분기 제거
+    const responseProducts = isThemeRequest ? productsWithDestination : paginatedProducts;
     
     return NextResponse.json({
       ok: true,

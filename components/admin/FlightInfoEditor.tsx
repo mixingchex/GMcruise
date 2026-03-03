@@ -99,12 +99,17 @@ export default function FlightInfoEditor({
   // 외부 flightInfo prop이 변경될 때 localFlightInfo 동기화 (서버에서 로드 후 반영)
   useEffect(() => {
     if (flightInfo !== null && flightInfo !== undefined) {
+      const needsMigration = flightInfo.flightType === 'none';
       // 레거시 'none' 타입을 'none_local'로 마이그레이션 (저장 시 정상 표시 보장)
       const migratedFlightInfo = {
         ...flightInfo,
-        flightType: flightInfo.flightType === 'none' ? 'none_local' : flightInfo.flightType,
+        flightType: needsMigration ? 'none_local' : flightInfo.flightType,
       };
       setLocalFlightInfo(migratedFlightInfo);
+      // 마이그레이션이 발생한 경우에만 부모에게 전파 — 무한 루프 방지 (이후에는 'none_local'로 전달되므로 재실행 안 됨)
+      if (needsMigration) {
+        onChange(migratedFlightInfo);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flightInfo]);

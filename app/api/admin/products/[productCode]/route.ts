@@ -469,16 +469,17 @@ export async function PUT(
     // 디버깅: finalUpdateData 확인
     console.log('[Product Update] finalUpdateData keys:', Object.keys(finalUpdateData));
 
-    // 상품 코드 변경 시 기존 layout 데이터 보존을 위해 미리 조회
-    // (CruiseProduct 삭제 → cascade로 MallProductContent 소실 방지)
-    const contentToPreserve = updateProductCode
-      ? await prisma.mallProductContent.findUnique({ where: { productCode: productCodeParam } })
-      : null;
-
     // 상품 코드 변경 시
     if (updateProductCode) {
-      // 기존 상품 삭제 후 새 코드로 생성 — $transaction으로 원자성 보장 (삭제 성공/생성 실패 시 롤백)
+      // 기존 상품 삭제 후 새 코드로 생성 — $transaction으로 원자성 보장
+      // MallProductContent도 트랜잭션 내에서 재생성하여 중간 실패 시 데이터 소실 방지
       await prisma.$transaction(async (tx) => {
+        // 삭제 전 MallProductContent 스냅샷 (트랜잭션 내에서 atomic)
+        const contentSnapshot = await tx.mallProductContent.findUnique({
+          where: { productCode: productCodeParam }
+        });
+
+        // CruiseProduct 삭제 (cascade로 MallProductContent도 함께 삭제)
         await tx.cruiseProduct.delete({
           where: { productCode: productCodeParam }
         });
@@ -489,6 +490,15 @@ export async function PUT(
             ...finalUpdateData
           }
         });
+
+        // MallProductContent 즉시 재생성 (트랜잭션 내 원자성 보장)
+        if (contentSnapshot) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { id: _id, productCode: _pc, createdAt: _ca, updatedAt: _ua, ...contentData } = contentSnapshot;
+          await tx.mallProductContent.create({
+            data: { ...contentData, productCode: targetProductCode, updatedAt: new Date() }
+          });
+        }
       });
     } else {
       // 상품 업데이트
@@ -552,9 +562,8 @@ export async function PUT(
     }
 
     // MallProductContent 업데이트 또는 생성
-    // 상품 코드 변경 시: contentToPreserve(이전 코드의 content)를 기반으로 layout 보존
-    const existingContent = contentToPreserve
-      ?? await prisma.mallProductContent.findUnique({ where: { productCode: targetProductCode } });
+    // 상품 코드 변경 시: 트랜잭션 내에서 이미 재생성됨 — targetProductCode로 조회
+    const existingContent = await prisma.mallProductContent.findUnique({ where: { productCode: targetProductCode } });
 
     const layoutData = existingContent?.layout
       ? (typeof existingContent.layout === 'string'
