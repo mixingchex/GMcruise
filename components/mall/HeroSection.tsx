@@ -4,9 +4,10 @@
 import { useEffect, useRef, useState } from 'react';
 
 // 히어로 슬라이더 이미지 (Vercel 배포 보장 경로)
+// hero-bg-2.jpg (Odyssey of the Seas, 2880×1920 가로형) 을 첫 슬라이드로
 const HERO_SLIDES = [
-  { src: '/images/hero/hero-bg.jpg',   ken: 'animate-kb-zoom-tl' },
   { src: '/images/hero/hero-bg-2.jpg', ken: 'animate-kb-zoom-tr' },
+  { src: '/images/hero/hero-bg.jpg',   ken: 'animate-kb-zoom-tl' },
 ];
 
 // 포함 사항 아이콘 띠
@@ -59,10 +60,6 @@ export default function HeroSection({
   const scrollToProducts = () => {
     const el = document.getElementById('products');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const openKakao = () => {
-    window.open('https://open.kakao.com/o/plREDDUh', '_blank', 'noopener noreferrer');
   };
 
   const openLiveBroadcast = () => {
@@ -190,21 +187,25 @@ export default function HeroSection({
                   );
                 })
               ) : (
-                // 기본 럭셔리 CTA
+                // 기본 CTA — 지금 시작하기 / 라이브방송 참여 / 상품 둘러보기
                 <>
-                  {/* 모바일 + 데스크톱 공통 */}
                   <button
-                    onClick={scrollToProducts}
+                    onClick={() => window.open('https://cruiseai.co.kr', '_blank', 'noopener noreferrer')}
                     className="btn-luxury-gold text-base md:text-lg"
                   >
-                    인기 상품 보기
+                    지금 시작하기
                   </button>
-                  {/* 데스크톱만 추가 */}
                   <button
-                    onClick={openKakao}
-                    className="hidden sm:flex items-center justify-center gap-2 bg-[#FEE500] text-[#3A1D1D] font-black px-8 py-4 rounded-full hover:bg-[#FFD700] active:scale-95 transition-all duration-200 shadow-lg hover:shadow-xl text-base md:text-lg"
+                    onClick={openLiveBroadcast}
+                    className="px-8 py-4 text-base md:text-lg font-black rounded-full border-2 border-white/60 text-white hover:bg-white/10 active:scale-95 transition-all duration-200 shadow-lg"
                   >
-                    <span>💬</span> 카카오 상담하기
+                    라이브방송 참여
+                  </button>
+                  <button
+                    onClick={scrollToProducts}
+                    className="px-8 py-4 text-base md:text-lg font-black rounded-full border-2 border-[#D4AF37]/60 text-[#F5D76E] hover:bg-[#D4AF37]/10 active:scale-95 transition-all duration-200 shadow-lg"
+                  >
+                    상품 둘러보기
                   </button>
                 </>
               )}

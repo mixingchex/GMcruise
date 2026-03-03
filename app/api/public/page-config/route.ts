@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
           title: '크루즈닷AI',
           subtitle: '여행 준비부터 여행 중까지\nAI가 함께하는 특별한 크루즈 여행',
           buttons: [
-            { text: '지금 시작하기', link: '/login?next=/chat', backgroundColor: '#ffffff', textColor: '#1e40af' },
+            { text: '지금 시작하기', link: 'https://cruiseai.co.kr', backgroundColor: '#ffffff', textColor: '#1e40af' },
             { text: '라이브방송참여', link: '#live-broadcast', backgroundColor: '#ffffff', textColor: '#1e40af' },
             { text: '상품 둘러보기', link: '#products', backgroundColor: '#ffffff', textColor: '#1e40af' },
           ],

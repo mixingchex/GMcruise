@@ -1422,8 +1422,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                   </div>
                 )}
 
-                {/* 여행기간 */}
-                {flightInfo.travelPeriod && (
+                {/* 여행기간 — nights/days 모두 0이면 미표시 */}
+                {flightInfo.travelPeriod &&
+                 (flightInfo.travelPeriod.nights > 0 || flightInfo.travelPeriod.days > 0) && (
                   <div className="mb-6 p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl border-2 border-gray-200 shadow-md">
                     <div className="text-base md:text-lg font-bold text-gray-700 mb-3">여행기간</div>
                     <div className="text-xl md:text-2xl font-extrabold text-gray-900" style={{ wordBreak: 'keep-all', lineHeight: '1.5' }}>
@@ -2815,7 +2816,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
       {/* 이전으로 돌아가기 버튼 - 하단 */}
       <div className="mt-8 flex justify-center">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/')}
           className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-sm"
         >
           <FiChevronLeft size={20} />
