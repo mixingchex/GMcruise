@@ -40,7 +40,7 @@ async function readFooterData(): Promise<any> {
       genieButton: {
         enabled: true,
         name: '🎉 크루즈닷AI 3일 무료체험',
-        link: '/login-test',
+        link: 'https://www.cruiseai.co.kr',
         icon: null,
         gradient: 'from-purple-600 to-pink-600',
       },

@@ -24,7 +24,7 @@ const defaultBanners: Banner[] = [
     image: '/크루즈정보사진/크루즈배경이미지/고화질배경이미지 (1).png',  // 첫 번째 배너 - 고화질 배경 이미지
     title: '크루즈닷AI 출시',
     subtitle: '3일 무료 체험',
-    link: '/login-test',
+    link: 'https://www.cruiseai.co.kr',
   },
   {
     id: 2,
@@ -238,9 +238,9 @@ export default function PromotionBannerCarousel() {
                   return;
                 }
 
-                // 첫 번째 배너(크루즈닷 지니 AI 출시)는 튜토리얼 모드로 이동
+                // 첫 번째 배너(크루즈닷 지니 AI 출시)는 크루즈닷AI로 이동
                 if (banner.id === 1) {
-                  window.location.href = '/login-test';
+                  window.location.href = 'https://www.cruiseai.co.kr';
                   return;
                 }
 
