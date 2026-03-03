@@ -37,6 +37,11 @@ export async function GET(req: NextRequest) {
     const themeValue = (searchParams.get('themeValue') || '').trim();
     const themeLimit = parseInt(searchParams.get('themeLimit') || '0', 10);
     const isThemeRequest = Boolean(themeType && themeValue);
+    // 계절 필터: 출발월 목록 (예: "3,4,5" → 봄)
+    const monthsParam = searchParams.get('months') || '';
+    const months = monthsParam
+      ? monthsParam.split(',').map(Number).filter(n => n >= 1 && n <= 12)
+      : [];
 
     // WHERE 조건 구성
     const where: any = {};
@@ -194,6 +199,8 @@ export async function GET(req: NextRequest) {
         isMainProduct: true, // 주력 상품 여부 추가
         updatedAt: true, // 최근 설정 순서를 위해 필요
         createdAt: true,
+        startDate: true, // 출발일 (계절 필터용)
+        endDate: true,
         tags: true,
         isPopular: true,
         isRecommended: true,
@@ -1047,6 +1054,16 @@ export async function GET(req: NextRequest) {
       });
     }
  
+    // 계절(출발월) 필터링 — months=[3,4,5] 이면 startDate가 3~5월인 상품만 표시
+    // startDate가 없는 상품은 계절 필터 적용 시 제외
+    if (months.length > 0) {
+      allProducts = allProducts.filter(product => {
+        if (!product.startDate) return false;
+        const month = new Date(product.startDate).getMonth() + 1; // 1-12
+        return months.includes(month);
+      });
+    }
+
     // 각 상품에 destination 및 recommendedKeywords 추가
     const productsWithDestination = allProducts.map(product => {
       let destination: string[] | null = null;

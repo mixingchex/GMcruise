@@ -6,7 +6,9 @@ import { useEffect, useRef, useState } from 'react';
 // 히어로 슬라이더 이미지 (Vercel 배포 보장 경로)
 // hero-bg-2.jpg (Odyssey of the Seas, 2880×1920 가로형) 을 첫 슬라이드로
 const HERO_SLIDES = [
-  { src: '/images/hero/hero-bg-2.jpg', ken: 'animate-kb-zoom-tr' },
+  { src: '/images/hero/hero-bg-2.jpg', ken: 'animate-kb-zoom-tr' },   // 크루즈 선상 풀덱
+  { src: '/images/site-main.webp',     ken: 'animate-kb-zoom-tl' },   // 크루즈 야경
+  { src: '/images/en-main.webp',       ken: 'animate-kb-zoom-tr' },   // 한국 출발 크루즈
 ];
 
 // 포함 사항 아이콘 띠

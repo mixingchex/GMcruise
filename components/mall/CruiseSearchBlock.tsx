@@ -179,10 +179,25 @@ const deterministicRating = (code: string): { rating: number; reviewCount: numbe
   };
 };
 
+// 계절별 출발월 매핑
+const SEASON_MONTHS: Record<string, number[]> = {
+  '봄': [3, 4, 5],
+  '여름': [6, 7, 8],
+  '가을': [9, 10, 11],
+  '겨울': [12, 1, 2],
+};
+const SEASON_ICONS: Record<string, string> = {
+  '봄': '🌸', '여름': '☀️', '가을': '🍂', '겨울': '❄️',
+};
+const SEASON_MONTHS_LABEL: Record<string, string> = {
+  '봄': '3·4·5월', '여름': '6·7·8월', '가을': '9·10·11월', '겨울': '12·1·2월',
+};
+
 export default function CruiseSearchBlock() {
   const [isExpanded, setIsExpanded] = useState(true); // 기본값을 true로 변경 (50대 이상도 잘 보이게)
   const [selectedCruiseLine, setSelectedCruiseLine] = useState<string>('all');
   const [selectedRegion, setSelectedRegion] = useState<string>('all');
+  const [selectedSeason, setSelectedSeason] = useState<string>('all'); // 계절 필터
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -522,6 +537,11 @@ export default function CruiseSearchBlock() {
     try {
       const params = new URLSearchParams();
 
+      // 계절 필터
+      if (selectedSeason !== 'all' && SEASON_MONTHS[selectedSeason]) {
+        params.append('months', SEASON_MONTHS[selectedSeason].join(','));
+      }
+
       // 크루즈선/크루즈이름 필터 처리
       if (selectedCruiseLine !== 'all') {
         if (selectedCruiseLine.startsWith('line:')) {
@@ -612,6 +632,11 @@ export default function CruiseSearchBlock() {
 
     try {
       const params = new URLSearchParams();
+
+      // 계절 필터
+      if (selectedSeason !== 'all' && SEASON_MONTHS[selectedSeason]) {
+        params.append('months', SEASON_MONTHS[selectedSeason].join(','));
+      }
 
       // 크루즈선/크루즈이름 필터 처리
       if (cruiseLine !== 'all') {
@@ -906,6 +931,68 @@ export default function CruiseSearchBlock() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* ── 계절별 출발 필터 ── */}
+          <div className="mt-6 md:mt-8">
+            <p className="text-base md:text-lg font-semibold text-[#051C2C] mb-3 md:mb-4 flex items-center gap-2">
+              <span className="text-[#D4AF37]">✦</span> 출발 시즌으로 찾기
+            </p>
+            <div className="grid grid-cols-4 gap-2 md:gap-3">
+              {Object.keys(SEASON_MONTHS).map((season) => {
+                const isActive = selectedSeason === season;
+                return (
+                  <button
+                    key={season}
+                    onClick={() => {
+                      const next = selectedSeason === season ? 'all' : season;
+                      setSelectedSeason(next);
+                      // 선택 즉시 검색 트리거 — searchProducts는 selectedSeason 상태를 읽으므로
+                      // 함께 업데이트되도록 직접 params 구성하여 호출
+                      setIsLoading(true);
+                      setHasSearched(true);
+                      const params = new URLSearchParams();
+                      if (next !== 'all' && SEASON_MONTHS[next]) {
+                        params.append('months', SEASON_MONTHS[next].join(','));
+                      }
+                      if (selectedCruiseLine !== 'all') {
+                        if (selectedCruiseLine.startsWith('line:')) params.append('cruiseLine', selectedCruiseLine.replace('line:', ''));
+                        else if (selectedCruiseLine.startsWith('ship:')) {
+                          const parts = selectedCruiseLine.replace('ship:', '').split(':');
+                          if (parts.length === 2) { params.append('cruiseLine', parts[0]); params.append('shipName', parts[1]); }
+                        } else { params.append('cruiseLine', selectedCruiseLine); }
+                      }
+                      if (selectedRegion !== 'all') params.append('region', selectedRegion);
+                      if (next === 'all' && selectedCruiseLine === 'all' && selectedRegion === 'all') {
+                        setProducts([]); setHasSearched(false); setIsLoading(false); return;
+                      }
+                      fetch(`/api/public/products?${params.toString()}`)
+                        .then(r => r.json())
+                        .then(data => {
+                          if (data.ok) setProducts(data.products || []);
+                          else setProducts([]);
+                        })
+                        .catch(() => setProducts([]))
+                        .finally(() => setIsLoading(false));
+                    }}
+                    className={`relative flex flex-col items-center justify-center py-3 md:py-4 px-2 rounded-xl border-2 transition-all duration-200 font-bold text-sm md:text-base shadow-sm ${
+                      isActive
+                        ? 'bg-[#051C2C] border-[#D4AF37] text-[#F5D76E] shadow-[0_0_12px_rgba(212,175,55,0.35)]'
+                        : 'bg-white border-gray-200 text-gray-700 hover:border-[#D4AF37] hover:bg-[#FBF7EB] hover:text-[#051C2C]'
+                    }`}
+                  >
+                    <span className="text-xl md:text-2xl mb-1">{SEASON_ICONS[season]}</span>
+                    <span className="font-black tracking-wide">{season}</span>
+                    <span className={`text-xs mt-0.5 font-medium ${isActive ? 'text-[#D4AF37]/80' : 'text-gray-400'}`}>
+                      {SEASON_MONTHS_LABEL[season]}
+                    </span>
+                    {isActive && (
+                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-[#D4AF37] rounded-full flex items-center justify-center text-[9px] text-[#051C2C] font-black">✓</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
