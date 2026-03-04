@@ -2269,6 +2269,7 @@ model Reservation {
   Trip                        Trip               @relation(fields: [tripId], references: [id], onDelete: Cascade)
   Traveler                    Traveler[]
   AuditLogs                   ReservationAudit[]
+  TravelContract              TravelContract?
 
   @@index([mainUserId])
   @@index([passportStatus])
@@ -3068,4 +3069,39 @@ enum PartnerScheduledMessageStatus {
   SENT       // 발송 완료
   FAILED     // 발송 실패
   CANCELLED  // 취소됨
+}
+
+// 크루즈닷 고객 여행 계약서
+model TravelContract {
+  id                  Int          @id @default(autoincrement())
+  token               String       @unique @default(cuid())
+  reservationId       Int          @unique
+
+  // 계약서 데이터 스냅샷 (생성 시점)
+  contractData        Json
+
+  // 상태: pending, signed, expired, cancelled
+  status              String       @default("pending")
+
+  // 여행자 직접 입력 항목
+  customerAddress     String?
+  customerSignature   String?      @db.Text  // base64 PNG
+  contractorSignature String?      @db.Text  // 계약자 서명 (동일인인 경우 동일)
+  companions          Json?        // [{name: string, phone: string}]
+
+  // 타임스탬프
+  generatedAt         DateTime     @default(now())
+  signedAt            DateTime?
+  expiresAt           DateTime?
+
+  // PDF 저장 URL
+  pdfUrl              String?
+
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  Reservation         Reservation  @relation(fields: [reservationId], references: [id])
+
+  @@index([token])
+  @@index([status])
 }
