@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { checkAdminAuth } from '@/lib/auth';
-import logger from '@/lib/logger';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/admin/users/[userId]/password
