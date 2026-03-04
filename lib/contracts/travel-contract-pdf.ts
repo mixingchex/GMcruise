@@ -120,7 +120,10 @@ export async function generateTravelContractPDF(
         );
       }
     } finally {
-      await browser.close();
+      // WO-V3-02: browser.close() 에러 핸들링 — page.close()와 동일 패턴
+      await browser.close().catch((err: unknown) =>
+        logger.warn('[PDF] browser.close 실패', { error: err instanceof Error ? err.message : String(err) })
+      );
     }
   });
 }

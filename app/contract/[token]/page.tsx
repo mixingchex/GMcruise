@@ -444,6 +444,7 @@ export default function ContractSignPage() {
           </div>
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={() => setStep('review')}
               className={`text-xs px-3 py-1 rounded-full transition ${
                 step === 'review'
@@ -456,6 +457,7 @@ export default function ContractSignPage() {
             {/* WO-CR-12: isSigned 상태면 서명하기 버튼 숨김 */}
             {!contract?.isSigned && (
               <button
+                type="button"
                 onClick={() => setStep('sign')}
                 className={`text-xs px-3 py-1 rounded-full transition ${
                   step === 'sign'
@@ -496,6 +498,7 @@ export default function ContractSignPage() {
             {/* WO-CR-12: review step에서만 서명하기 버튼 표시 (isSigned 아닐 때) */}
             {!contract?.isSigned && (
               <button
+                type="button"
                 onClick={() => setStep('sign')}
                 className="w-full bg-[#1a3a6b] text-white py-4 rounded-2xl font-bold text-base shadow hover:bg-[#16325a] transition"
               >
@@ -526,6 +529,7 @@ export default function ContractSignPage() {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-[#1a3a6b]">동행자 명단</h3>
                 <button
+                  type="button"
                   onClick={addCompanion}
                   className="text-xs bg-[#1a3a6b] text-white px-3 py-1 rounded-full"
                 >
@@ -551,6 +555,7 @@ export default function ContractSignPage() {
                     />
                     {companions.length > 1 && (
                       <button
+                        type="button"
                         onClick={() => removeCompanion(i)}
                         className="text-red-400 text-lg leading-none px-1"
                         aria-label="동행자 삭제"
@@ -574,6 +579,7 @@ export default function ContractSignPage() {
                   여행자 서명 <span className="text-red-500">*</span>
                 </h3>
                 <button
+                  type="button"
                   onClick={() => { setActiveCanvas('sig'); clearCanvas('sig'); }}
                   className="text-xs text-gray-400 underline"
                 >
@@ -611,6 +617,7 @@ export default function ContractSignPage() {
                   </span>
                 </h3>
                 <button
+                  type="button"
                   onClick={() => { setActiveCanvas('contractor'); clearCanvas('contractor'); }}
                   className="text-xs text-gray-400 underline"
                 >

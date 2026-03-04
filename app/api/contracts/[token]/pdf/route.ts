@@ -55,6 +55,7 @@ export async function GET(
         { status: 403 }
       );
     }
+    // WO-V3-06: 서명 완료 후에는 만료 여부와 무관하게 다운로드 허용 (PDF는 이미 완성된 계약 증빙)
 
     // WO-CR-08: Zod로 contractData 파싱
     const parseResult = TravelContractDataSchema.safeParse(contract.contractData);
@@ -106,7 +107,7 @@ export async function GET(
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename*=UTF-8''${filename}`,
         'Content-Length': pdfBuffer.length.toString(),
-        'Cache-Control': 'private, no-cache',
+        'Cache-Control': 'private, no-cache, no-store',
       },
     });
   } catch (error: unknown) {

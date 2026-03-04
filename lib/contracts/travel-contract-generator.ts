@@ -104,9 +104,9 @@ export function generateTravelContractHTML(
     ? data.excludedItems.map(item => escapeHtml(item)).join(', ')
     : '선상팁, 개인 경비, 기타 일정 외 비용';
 
-  // 취소료 규정 테이블
+  // 취소료 규정 테이블 — WO-V3-01: XSS 방어 escapeHtml 적용
   const cancelRows = data.cancellationPolicy.map(r =>
-    `<tr><td>${r.period}</td><td>${r.charge}</td></tr>`
+    `<tr><td>${escapeHtml(r.period)}</td><td>${escapeHtml(r.charge)}</td></tr>`
   ).join('');
 
   // 동행자 명단
@@ -880,7 +880,8 @@ export function generateTravelContractHTML(
   <div style="margin:12px 0 8px;padding:8px 12px;border:1px solid #ddd;border-radius:6px;background:#f9f9f9;font-size:8pt;color:#555;line-height:1.7;">
     <strong style="color:#1a3a6b;">■ 분쟁해결 안내</strong><br>
     여행계약에 관한 분쟁은 한국여행업협회(KATA) 또는 공정거래위원회에 신고하실 수 있습니다.<br>
-    소비자상담센터: 국번없이 <strong>1372</strong> / 한국여행업협회(KATA): <strong>02-752-8601</strong>
+    소비자상담센터: 국번없이 <strong>1372</strong> / 한국여행업협회(KATA): <strong>02-752-8601</strong><br>
+    관광불편신고처리위원회: <strong>1588-8692</strong>
   </div>
 
   <!-- 최종 확인 서명 -->

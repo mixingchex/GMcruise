@@ -196,7 +196,7 @@ export async function POST(
           const msg = err instanceof Error ? err.message : String(err);
           logger.error('[ContractSign] PDF 생성 실패 — DB rollback 시작', { token: token.slice(0, 8), error: msg });
 
-          // P0-02: PDF 생성 실패 시 DB 상태를 pending으로 rollback
+          // P0-02: PDF 생성 실패 시 DB 상태를 pending으로 rollback — WO-V3-03: companions/address도 초기화
           await prisma.travelContract.update({
             where: { token },
             data: {
@@ -204,6 +204,8 @@ export async function POST(
               signedAt: null,
               customerSignature: null,
               contractorSignature: null,
+              customerAddress: null,
+              companions: [],
             },
           }).catch((rollbackErr: unknown) => {
             const rollbackMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
