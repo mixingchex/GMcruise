@@ -1,7 +1,7 @@
 // components/mall/ProductDetail.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createPortal } from 'react-dom';
@@ -9,6 +9,22 @@ import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3, FiMaximize2, FiChevronL
 import { getKoreanCruiseLineName, getKoreanShipName, formatTravelPeriod } from '@/lib/utils/cruiseNames';
 import { PRODUCT_TAGS } from '@/components/admin/ProductTagsSelector';
 import DOMPurify from 'isomorphic-dompurify';
+
+// [WO-FE-16] DOMPurify 화이트리스트 — admin 콘텐츠용 (script/event handler 완전 차단)
+// [WO-SEC-FE-01] style 속성 제거 — CSS injection/exfiltration 방지
+const DOMPURIFY_CONFIG: Parameters<typeof DOMPurify.sanitize>[1] = {
+  ALLOWED_TAGS: ['p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
+                 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                 'a', 'img', 'span', 'div', 'table', 'thead', 'tbody',
+                 'tr', 'td', 'th', 'blockquote', 'hr'],
+  ALLOWED_ATTR: ['href', 'src', 'alt', 'target', 'rel',
+                 'width', 'height', 'colspan', 'rowspan'],
+  // [WO-SEC-FE-01 보완] class 제거(Tailwind CSS Injection 방지), id 제거(DOM Clobbering 방지)
+  ALLOW_DATA_ATTR: false,
+  FORCE_BODY: false,
+  // href/src 에서 javascript: 스킴 차단
+  ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+};
 import LiveViewerCount from '@/components/marketing/LiveViewerCount';
 import RemainingRooms from '@/components/marketing/RemainingRooms';
 
@@ -109,30 +125,37 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
   // 리뷰 데이터 가져오기 (모달 열릴 때)
   useEffect(() => {
-    if (showReviewModal && reviews.length === 0) {
-      const fetchReviews = async () => {
-        setReviewsLoading(true);
-        try {
-          const res = await fetch(`/api/products/${product.productCode}/reviews`);
-          const data = await res.json();
-          if (data.ok && data.reviews) {
-            setReviews(data.reviews);
-          }
-        } catch (error) {
-          console.error('Failed to fetch reviews:', error);
-        } finally {
-          setReviewsLoading(false);
+    if (!showReviewModal || reviews.length > 0) return;
+    const controller = new AbortController();
+    const fetchReviews = async () => {
+      setReviewsLoading(true);
+      try {
+        const res = await fetch(`/api/products/${product.productCode}/reviews`, { signal: controller.signal });
+        if (!res.ok) {
+          console.error(`[ProductDetail] fetchReviews HTTP ${res.status}`);
+          return;
         }
-      };
-      fetchReviews();
-    }
+        const data = await res.json();
+        if (data.ok && data.reviews) {
+          setReviews(data.reviews);
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        console.error('Failed to fetch reviews:', error);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    fetchReviews();
+    return () => controller.abort();
   }, [showReviewModal, product.productCode, reviews.length]);
 
   // SOLD OUT 상태 조회
   useEffect(() => {
+    const controller = new AbortController();
     const fetchSoldOutStatus = async () => {
       try {
-        const res = await fetch(`/api/admin/products/${product.productCode}/soldout`);
+        const res = await fetch(`/api/admin/products/${product.productCode}/soldout`, { signal: controller.signal });
         if (res.ok) {
           const data = await res.json();
           if (data.ok && data.soldOutRooms) {
@@ -140,10 +163,12 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
           }
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         console.error('Failed to fetch sold out status:', error);
       }
     };
     fetchSoldOutStatus();
+    return () => controller.abort();
   }, [product.productCode]);
 
   // SOLD OUT 토글 함수 (관리자 전용)
@@ -219,41 +244,52 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
   // 상품 조회 추적
   useEffect(() => {
+    const controller = new AbortController();
     const trackProductView = async () => {
       try {
         // 로그인된 사용자 ID 확인
         let userId: number | null = null;
-        const res = await fetch('/api/auth/me', { credentials: 'include' });
-        const data = await res.json();
-        if (data.ok && data.user) {
-          userId = data.user.id;
+        const res = await fetch('/api/auth/me', { credentials: 'include', signal: controller.signal });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.user) {
+            userId = data.user.id;
+          }
         }
 
         // 상품 조회 기록 저장
-        await fetch('/api/products/track-view', {
+        const trackRes = await fetch('/api/products/track-view', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+          signal: controller.signal,
           body: JSON.stringify({
             productCode: product.productCode,
             userId
           })
         });
+        if (!trackRes.ok) {
+          console.warn(`[ProductDetail] track-view HTTP ${trackRes.status}`);
+        }
 
-        // 마케팅 픽셀 이벤트 추적
-        const { trackViewItem } = await import('@/lib/marketing/tracking');
-        trackViewItem({
-          itemId: product.productCode,
-          itemName: `${product.cruiseLine} ${product.shipName} - ${product.packageName}`,
-          price: product.basePrice ? Number(product.basePrice) : undefined,
-          category: product.cruiseLine || '크루즈',
-        });
+        // 마케팅 픽셀 이벤트 추적 (abort됐으면 실행 안 함)
+        if (!controller.signal.aborted) {
+          const { trackViewItem } = await import('@/lib/marketing/tracking');
+          trackViewItem({
+            itemId: product.productCode,
+            itemName: `${product.cruiseLine} ${product.shipName} - ${product.packageName}`,
+            price: product.basePrice ? Number(product.basePrice) : undefined,
+            category: product.cruiseLine || '크루즈',
+          });
+        }
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
         console.error('[ProductDetail] Failed to track view:', error);
       }
     };
 
     trackProductView();
+    return () => controller.abort();
   }, [product.productCode, product.cruiseLine, product.shipName, product.packageName, product.basePrice]);
 
   // 편집 상태 관리
@@ -288,9 +324,14 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const recommendedKeywords = layoutData?.recommendedKeywords || [];
 
   // 후킹태그 (tags에서 가져오기)
-  const tags = product.tags
-    ? (Array.isArray(product.tags) ? product.tags : typeof product.tags === 'string' ? JSON.parse(product.tags) : [])
-    : [];
+  const tags = (() => {
+    if (!product.tags) return [];
+    if (Array.isArray(product.tags)) return product.tags;
+    if (typeof product.tags === 'string') {
+      try { return JSON.parse(product.tags); } catch { return []; }
+    }
+    return [];
+  })();
 
   // 태그 정보 가져오기
   const getTagById = (id: string) => PRODUCT_TAGS.find((tag: any) => tag.id === id);
@@ -299,8 +340,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   const flightInfo = layoutData?.flightInfo || null;
 
   // 별점과 리뷰 개수 (layout에서 가져오기)
-  const rating = layoutData?.rating || 4.4;
-  const reviewCount = layoutData?.reviewCount || 0;
+  // [WO-LEGAL-FE-01] null: 평점 미표시 (가짜 기본값 4.4 제거 — 표시광고법 위반 방지)
+  const rating = layoutData?.rating ?? null;
+  const reviewCount = Math.max(0, layoutData?.reviewCount ?? 0);
 
   // 서비스 옵션 (layout에서 가져오기)
   const hasEscort = layoutData?.hasEscort || false;
@@ -493,46 +535,57 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
     layoutData?.priceTableNote || '• 위 요금은 2인1실 기준 1인당 금액입니다.\n• 1인 예약 시 정상가의 100% 싱글차지가 추가됩니다.\n• 3/4인실 이용 시 3/4번째 고객님은 매니저 필수 상담 하셔야 합니다.'
   );
 
-  // 로그인 상태 확인
+  // 로그인/관리자 상태 확인 (마운트 1회 실행)
+  const isMountedRef = useRef(true);
+
   useEffect(() => {
+    isMountedRef.current = true;
     checkLoginStatus();
     checkAdminStatus();
+    return () => { isMountedRef.current = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkLoginStatus = async () => {
     try {
       const response = await fetch('/api/user/profile', { credentials: 'include' });
-      setIsLoggedIn(response.ok);
+      if (isMountedRef.current) setIsLoggedIn(response.ok);
     } catch {
-      setIsLoggedIn(false);
+      if (isMountedRef.current) setIsLoggedIn(false);
     }
   };
 
   const checkAdminStatus = async () => {
     try {
       const response = await fetch('/api/auth/me', { credentials: 'include' });
+      if (!isMountedRef.current) return;
       const data = await response.json();
+      if (!isMountedRef.current) return;
+
       // user1~user10: 상품 설명 즉석 수정 가능 (크루즈몰 관리자)
       const adminUser = data.ok && data.user && data.user.role === 'admin' &&
         data.user.phone && /^user(1[0]|[1-9])$/.test(data.user.phone);
       // 모든 admin role 사용자: 관리자 기능 접근 가능 (SOLD OUT 등)
       const superAdmin = data.ok && data.user && data.user.role === 'admin';
 
-      setIsAdminUser(!!adminUser);
-      setIsSuperAdmin(!!superAdmin);
+      if (isMountedRef.current) {
+        setIsAdminUser(!!adminUser);
+        setIsSuperAdmin(!!superAdmin);
+      }
 
       // 대리점장 여부 확인
       if (data.ok && data.user) {
         try {
           const profileResponse = await fetch('/api/affiliate/me/profile', { credentials: 'include' });
+          if (!isMountedRef.current) return;
           const profileData = await profileResponse.json();
-          if (profileData.ok && profileData.profile && profileData.profile.type === 'BRANCH_MANAGER') {
-            setIsBranchManager(true);
-          } else {
-            setIsBranchManager(false);
+          if (isMountedRef.current) {
+            setIsBranchManager(
+              profileData.ok && profileData.profile?.type === 'BRANCH_MANAGER'
+            );
           }
         } catch {
-          setIsBranchManager(false);
+          if (isMountedRef.current) setIsBranchManager(false);
         }
       }
 
@@ -542,23 +595,28 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
           const permResponse = await fetch('/api/mall-admin/check-permissions', {
             credentials: 'include',
           });
+          if (!isMountedRef.current) return;
           const permData = await permResponse.json();
-          if (permData.ok && permData.isMallAdmin && permData.featureSettings) {
-            setCanEditProductText(permData.featureSettings.canEditProductText !== false);
-          } else {
-            setCanEditProductText(true); // 기본값: 활성화
+          if (isMountedRef.current) {
+            setCanEditProductText(
+              permData.ok && permData.isMallAdmin && permData.featureSettings
+                ? permData.featureSettings.canEditProductText !== false
+                : true // 기본값: 활성화
+            );
           }
         } catch {
-          setCanEditProductText(true); // 기본값: 활성화
+          if (isMountedRef.current) setCanEditProductText(true); // 기본값: 활성화
         }
       } else {
-        setCanEditProductText(false);
+        if (isMountedRef.current) setCanEditProductText(false);
       }
     } catch {
-      setIsAdminUser(false);
-      setIsSuperAdmin(false);
-      setIsBranchManager(false);
-      setCanEditProductText(false);
+      if (isMountedRef.current) {
+        setIsAdminUser(false);
+        setIsSuperAdmin(false);
+        setIsBranchManager(false);
+        setCanEditProductText(false);
+      }
     }
   };
 
@@ -940,14 +998,16 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                     {/* 별점과 리뷰 개수 */}
                     <div className="flex flex-col gap-3 mt-4">
                       <div className="flex items-center gap-3 flex-wrap">
-                        <div
-                          className="flex items-center gap-1.5 bg-[#FDB931]/10 px-3 py-1.5 rounded-lg border border-[#FDB931]/30 cursor-pointer hover:bg-[#FDB931]/20 transition-colors"
-                          onClick={() => setShowReviewModal(true)}
-                          title="리뷰 보기"
-                        >
-                          <FiStar className="text-[#FDB931] fill-[#FDB931]" size={20} />
-                          <span className="text-xl md:text-2xl font-bold text-[#051C2C]">{rating.toFixed(1)}</span>
-                        </div>
+                        {rating != null && (
+                          <div
+                            className="flex items-center gap-1.5 bg-[#FDB931]/10 px-3 py-1.5 rounded-lg border border-[#FDB931]/30 cursor-pointer hover:bg-[#FDB931]/20 transition-colors"
+                            onClick={() => setShowReviewModal(true)}
+                            title="리뷰 보기"
+                          >
+                            <FiStar className="text-[#FDB931] fill-[#FDB931]" size={20} />
+                            <span className="text-xl md:text-2xl font-bold text-[#051C2C]">{rating.toFixed(1)}</span>
+                          </div>
+                        )}
                         {reviewCount > 0 ? (
                           <button
                             onClick={() => setShowReviewModal(true)}
@@ -1650,7 +1710,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                             letterSpacing: '0.025em',
                             fontSize: '16px'
                           }}
-                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(block.content) }}
+                          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(block.content, DOMPURIFY_CONFIG) }}
                         />
                       </div>
                     );
@@ -1911,13 +1971,13 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                               const hasHtml = /<[a-z][\s\S]*>/i.test(text);
                               if (hasHtml) {
                                 // HTML이 이미 있으면 그대로 사용하되 줄바꿈 처리
-                                return text.replace(/\n\n+/g, '</p><p class="mb-4">').replace(/\n/g, '<br />');
+                                return text.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br />');
                               }
                               // 일반 텍스트인 경우 줄바꿈과 문단 구분 처리
                               const paragraphs = text.split(/\n\n+/);
                               return paragraphs.map(p => {
                                 const lines = p.split(/\n/);
-                                return `<p class="mb-4">${lines.join('<br />')}</p>`;
+                                return `<p>${lines.join('<br />')}</p>`;
                               }).join('');
                             };
 
@@ -1933,7 +1993,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                                     fontWeight: '400'
                                   }}
                                   dangerouslySetInnerHTML={{
-                                    __html: DOMPurify.sanitize(formatTourText(day.tourText))
+                                    __html: DOMPurify.sanitize(formatTourText(day.tourText), DOMPURIFY_CONFIG)
                                   }}
                                 />
                               </div>
@@ -2129,7 +2189,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                                       <div
                                         className={`prose prose-sm max-w-none ${isTip ? 'text-yellow-900' : 'text-gray-700'
                                           }`}
-                                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(block.content) }}
+                                        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(block.content, DOMPURIFY_CONFIG) }}
                                       />
                                     </div>
                                   );
@@ -2742,9 +2802,11 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 <h3 className="text-2xl font-bold text-gray-900">
                   리뷰 {reviewCount > 0 ? `${reviewCount.toLocaleString('ko-KR')}개` : '미리보기'}
                 </h3>
-                <div className="flex items-center gap-1">
-                  <span className="text-xl font-bold text-gray-900">{rating.toFixed(1)}</span>
-                </div>
+                {rating != null && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-xl font-bold text-gray-900">{rating.toFixed(1)}</span>
+                  </div>
+                )}
               </div>
               <button
                 onClick={() => setShowReviewModal(false)}
@@ -2803,9 +2865,11 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                 <div className="text-center py-12">
                   <FiStar className="text-[#FDB931] fill-[#FDB931] mx-auto mb-4" size={48} />
                   <p className="text-lg text-gray-600 mb-2">아직 리뷰가 없습니다.</p>
-                  <p className="text-sm text-gray-500">
-                    평균 별점: {rating.toFixed(1)}점
-                  </p>
+                  {rating != null && (
+                    <p className="text-sm text-gray-500">
+                      평균 별점: {rating.toFixed(1)}점
+                    </p>
+                  )}
                 </div>
               )}
             </div>

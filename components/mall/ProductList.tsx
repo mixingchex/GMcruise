@@ -8,7 +8,6 @@ import Image from 'next/image';
 import ProductCard from './ProductCard';
 import cruiseShipsData from '@/data/cruise_ships.json';
 import { normalize } from '@/utils/normalize';
-import { FiYoutube } from 'react-icons/fi'; // Added FiYoutube import
 
 interface Product {
   id: number;
@@ -22,8 +21,8 @@ interface Product {
   source: string | null;
   destination?: any;
   itineraryPattern?: any; // 일정 패턴 (JSON)
-  rating?: number;
-  reviewCount?: number;
+  rating?: number | null;   // [WO-LEGAL-FE-01] null: 평점 미표시
+  reviewCount?: number | null; // [WO-LEGAL-FE-01] null: 리뷰수 미표시
   isPopular?: boolean;
   isRecommended?: boolean;
   isPremium?: boolean;
@@ -31,6 +30,7 @@ interface Product {
   isDomestic?: boolean;
   isJapan?: boolean;
   isBudget?: boolean;
+  mallProductContent?: { layout?: any } | null;
 }
 
 interface MallSettings {
@@ -273,11 +273,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     }
   }, [featuredProductCodes.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    loadProducts();
-  }, [filters, page]);
+  // [WO-QA-08] React Query가 queryKey(filters, page)로 자동 처리 — 빈 함수 useEffect 제거
 
   useEffect(() => {
     // 필터 변경 시 상품 목록으로 스크롤
@@ -313,9 +309,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       if (data.ok && data.settings) {
         setSettings(data.settings);
       }
-    } catch (error) {
-      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/public/mall-settings` : '/api/public/mall-settings';
-      console.error('[ProductList] 설정 로드 실패:', fullUrl, error);
+    } catch {
       // 설정 로드 실패 시 기본값 사용
     }
   };
@@ -369,9 +363,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
 
         setAvailableRegions(regions);
       }
-    } catch (error) {
-      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/public/products?limit=1000` : '/api/public/products?limit=1000';
-      console.error('[ProductList] 지역 정보 로드 실패:', fullUrl, error);
+    } catch {
       // 실패 시 기본값 사용 (전체만 표시)
       setAvailableRegions(new Set(['all']));
     }
@@ -393,23 +385,14 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const loadFeaturedProducts = async () => {
     const codesToLoad = featuredProductCodesProp || partnerContext?.featuredProductCodes || [];
 
-    console.log('[ProductList] loadFeaturedProducts 호출:', {
-      codesToLoad,
-      codesToLoadLength: codesToLoad.length,
-      featuredProductCodesProp,
-      partnerContextFeaturedCodes: partnerContext?.featuredProductCodes,
-    });
-
+    // [WO-SEC-FE-03] console.log 제거 — 파트너 상품코드 브라우저 노출 방지
     if (codesToLoad.length === 0) {
-      console.log('[ProductList] featuredProductCodes가 비어있어서 상품을 로드하지 않습니다.');
       setFeaturedProducts([]);
       return;
     }
 
     try {
       setIsLoadingFeatured(true);
-
-      console.log('[ProductList] 상품 로드 시작:', codesToLoad);
 
       // 각 상품 코드에 대해 상품 정보 조회
       const productPromises = codesToLoad.map(async (productCode) => {
@@ -437,8 +420,9 @@ export default function ProductList({ partnerContext = null, featuredProductCode
                 ? JSON.parse(mallContent.layout)
                 : mallContent.layout)
               : null;
-            const rating = layout?.rating || p.rating || 4.0 + Math.random() * 1.0;
-            const reviewCount = layout?.reviewCount || p.reviewCount || Math.floor(Math.random() * 500) + 50;
+            // [WO-LEGAL-FE-01] 가짜 랜덤 평점/리뷰수 제거 — 표시광고법 위반 방지
+            const rating = layout?.rating ?? p.rating ?? null;
+            const reviewCount = layout?.reviewCount ?? p.reviewCount ?? null;
 
             return {
               ...rest,
@@ -455,9 +439,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
             } as Product;
           }
           return null;
-        } catch (error) {
-          const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/public/products/${productCode}` : `/api/public/products/${productCode}`;
-          console.error(`[ProductList] 상품 로드 실패:`, fullUrl, error);
+        } catch {
           return null;
         }
       });
@@ -466,15 +448,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         (p): p is Product => p !== null
       );
 
-      console.log('[ProductList] 상품 로드 완료:', {
-        requestedCount: codesToLoad.length,
-        loadedCount: loadedProducts.length,
-        loadedProductCodes: loadedProducts.map(p => p.productCode),
-      });
-
       setFeaturedProducts(loadedProducts);
-    } catch (error) {
-      console.error('Failed to load featured products:', error);
+    } catch {
       setFeaturedProducts([]);
     } finally {
       setIsLoadingFeatured(false);
@@ -527,8 +502,9 @@ export default function ProductList({ partnerContext = null, featuredProductCode
         return {
           ...rest,
           mallProductContent: mallContent,
-          rating: layout?.rating || p.rating || 4.0 + Math.random() * 1.0,
-          reviewCount: layout?.reviewCount || p.reviewCount || Math.floor(Math.random() * 500) + 50,
+          // [WO-LEGAL-FE-01] 가짜 랜덤 평점/리뷰수 제거 — 표시광고법 위반 방지
+          rating: layout?.rating ?? p.rating ?? null,
+          reviewCount: layout?.reviewCount ?? p.reviewCount ?? null,
           isPopular: Boolean(p.isPopular),
           isRecommended: Boolean(p.isRecommended),
           isPremium: Boolean(p.isPremium),
@@ -561,10 +537,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
     if (queryError) setError(queryError instanceof Error ? queryError.message : 'Error loading products');
   }, [queryError]);
 
-  // 기존 loadProducts 함수는 더 이상 사용하지 않음 (빈 함수로 대체)
-  const loadProducts = async () => {
-    // React Query가 자동으로 처리하므로 수동 호출 불필요
-  };
+  // [WO-QA-08] loadProducts 빈 함수 제거 — React Query가 자동 처리
 
   // 상품 목록에서 판매 중인 지역 확인
   const updateAvailableRegions = (products: Product[]) => {
@@ -633,9 +606,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
       if (data.ok && data.products) {
         setBelowProducts(data.products);
       }
-    } catch (error) {
-      const fullUrl = typeof window !== 'undefined' ? `${window.location.origin}${apiUrl}` : apiUrl;
-      console.error('[ProductList] 하위 상품 로드 실패:', fullUrl, error);
+    } catch {
       setBelowProducts([]);
     }
   };
@@ -678,7 +649,18 @@ export default function ProductList({ partnerContext = null, featuredProductCode
   const recommendedProducts = products.filter(p => p.isRecommended);
   const premiumProducts = products.filter(p => p.isPremium);
   const geniePackProducts = products.filter(p => p.isGeniePack);
-  const domesticProducts = products.filter(p => p.isDomestic);
+  // 항공 포함(roundtrip/oneway) 또는 현지 크루즈터미널 탑승(none_local) 상품은
+  // "국내출발" 섹션에서 제외 — ProductCard.tsx isActuallyDomestic과 동일 로직
+  const domesticProducts = products.filter(p => {
+    if (!p.isDomestic) return false;
+    const layout = p.mallProductContent?.layout
+      ? (typeof p.mallProductContent.layout === 'string'
+          ? (() => { try { return JSON.parse(p.mallProductContent!.layout); } catch { return null; } })()
+          : p.mallProductContent.layout)
+      : null;
+    const flightType = layout?.flightInfo?.flightType as string | undefined;
+    return flightType !== 'roundtrip' && flightType !== 'oneway' && flightType !== 'none_local';
+  });
   const japanProducts = products.filter(p => p.isJapan);
   const budgetProducts = products.filter(p => p.isBudget);
   const allProducts = products;
@@ -775,15 +757,8 @@ export default function ProductList({ partnerContext = null, featuredProductCode
 
   // 개인 링크 상품 섹션 렌더링
   const renderFeaturedProducts = () => {
-    // 디버깅: featuredProductCodes와 featuredProducts 상태 확인
+    // [WO-SEC-FE-03] console.log 제거 — 파트너 컨텍스트 브라우저 노출 방지
     const codesToCheck = featuredProductCodesProp || partnerContext?.featuredProductCodes || [];
-    console.log('[ProductList] renderFeaturedProducts:', {
-      codesToCheck,
-      codesToCheckLength: codesToCheck.length,
-      featuredProductsLength: featuredProducts.length,
-      isLoadingFeatured,
-      isPartnerMall,
-    });
 
     // 파트너몰이고 featuredProductCodes가 있으면 항상 섹션 표시 (로딩 중이거나 상품이 없어도)
     if (isPartnerMall && codesToCheck.length > 0) {
@@ -1231,7 +1206,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
               </>
             ) : (
               recommendedProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
+                <ProductCard key={product.id} product={product} partnerId={partnerId} />
               ))
             )}
           </div>
@@ -1302,7 +1277,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">프리미엄 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {premiumProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} partnerId={partnerId} />
             ))}
           </div>
         </div>
@@ -1314,7 +1289,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">크루즈닷패키지 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {geniePackProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} partnerId={partnerId} />
             ))}
           </div>
         </div>
@@ -1326,7 +1301,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">국내출발 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {domesticProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} partnerId={partnerId} />
             ))}
           </div>
         </div>
@@ -1338,7 +1313,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">일본 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {japanProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} partnerId={partnerId} />
             ))}
           </div>
         </div>
@@ -1350,7 +1325,7 @@ export default function ProductList({ partnerContext = null, featuredProductCode
           <h3 className="text-3xl md:text-4xl font-black text-[#051C2C] mb-6">알뜰 크루즈</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 lg:gap-6">
             {budgetProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} partnerId={partnerId} />
             ))}
           </div>
         </div>

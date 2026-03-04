@@ -21,8 +21,8 @@ interface ProductCardProps {
     destination?: string[] | string | null;
     thumbnail?: string | null;
     // 리뷰/평점 데이터 (추후 DB에서 가져올 수 있음)
-    rating?: number;
-    reviewCount?: number;
+    rating?: number | null; // [WO-LEGAL-FE-01] null: 평점 미표시
+    reviewCount?: number | null; // [WO-LEGAL-FE-01] null: 리뷰수 미표시
     isPopular?: boolean;
     isRecommended?: boolean;
     isPremium?: boolean;
@@ -97,8 +97,8 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
           const countryCount = countries.size;
           return countryCount > 0 ? `${countryCount}개국 여행` : '목적지 미정';
         }
-      } catch (e) {
-        console.error('[ProductCard] itineraryPattern 파싱 실패:', e);
+      } catch {
+        // 파싱 실패 시 '목적지 미정' 반환 (위 기본값)
       }
     }
 
@@ -106,20 +106,31 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
   };
 
   // 별점 (layout에서 가져오기 또는 기본값)
+  // [WO-SEC-FE-02] JSON.parse try-catch: 손상된 layout JSON → SyntaxError 크래시 방지
   const layout = product.mallProductContent?.layout
     ? (typeof product.mallProductContent.layout === 'string'
-      ? JSON.parse(product.mallProductContent.layout)
+      ? (() => { try { return JSON.parse(product.mallProductContent!.layout); } catch { return null; } })()
       : product.mallProductContent.layout)
     : null;
-  const rating = layout?.rating || product.rating || 4.5;
-  const reviewCount = layout?.reviewCount || product.reviewCount || 243;
+  // [WO-LEGAL-FE-01] 가짜 기본값 제거 — 표시광고법 위반 방지 (null: 별점 섹션 미표시)
+  const rating = layout?.rating ?? product.rating ?? null;
+  const reviewCount = layout?.reviewCount ?? product.reviewCount ?? 0;
+
+  // 항공 포함(roundtrip/oneway) 또는 현지 크루즈터미널 탑승(none_local) 상품은
+  // "국내출" 배지 표시 안 함 — 비행기 타고 현지 탑승하는 상품은 국내출도착 아님
+  const flightType = layout?.flightInfo?.flightType as string | undefined;
+  const isActuallyDomestic =
+    product.isDomestic &&
+    flightType !== 'roundtrip' &&
+    flightType !== 'oneway' &&
+    flightType !== 'none_local';
 
   const classificationBadges = [
     product.isPopular    ? { label: '인기',     color: 'bg-[#D4AF37] text-[#051C2C]' } : null,
     product.isRecommended? { label: '추천',     color: 'bg-blue-500 text-white' } : null,
     product.isPremium    ? { label: '프리미엄', color: 'bg-[#0A2342] text-[#D4AF37] border border-[#D4AF37]/60' } : null,
     product.isGeniePack  ? { label: '크루즈닷팩', color: 'bg-indigo-500 text-white' } : null,
-    product.isDomestic   ? { label: '국내출',   color: 'bg-emerald-500 text-white' } : null,
+    isActuallyDomestic   ? { label: '국내출',   color: 'bg-emerald-500 text-white' } : null,
     product.isJapan      ? { label: '일본',     color: 'bg-amber-500 text-white' } : null,
     product.isBudget     ? { label: '알뜰',     color: 'bg-teal-500 text-white' } : null,
   ].filter(Boolean) as Array<{ label: string; color: string }>;
@@ -246,32 +257,32 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
           )}
         </div>
 
-        {/* 별점 및 리뷰 */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex items-center gap-1">
-            <span className="text-[#D4AF37] fill-[#D4AF37]">★</span>
-            <span className="text-black font-bold">{rating.toFixed(1)}</span>
-            <span className="text-gray-400 text-sm">({reviewCount.toLocaleString('ko-KR')})</span>
+        {/* 별점 및 리뷰 — rating이 null이거나 리뷰 0개면 미표시 (WO-LEGAL-FE-01: 가짜 평점 방지) */}
+        {rating != null && reviewCount > 0 && (
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-1">
+              <span className="text-[#D4AF37] fill-[#D4AF37]">★</span>
+              <span className="text-black font-bold">{rating!.toFixed(1)}</span>
+              {reviewCount > 0 && (
+                <span className="text-gray-400 text-sm">({reviewCount.toLocaleString('ko-KR')})</span>
+              )}
+            </div>
+            {reviewCount > 0 ? (
+              <button
+                type="button"
+                className="text-xs md:text-sm text-gray-500 font-medium hover:text-[#D4AF37] transition-colors text-left bg-transparent border-0 p-0 cursor-pointer"
+                onClick={(e) => {
+                  // 리뷰 클릭 시 모달로 표시 (새 창 이동 대신)
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setShowReviewModal(true);
+                }}
+              >
+                크루즈 여행 리뷰 {reviewCount.toLocaleString('ko-KR')}개
+              </button>
+            ) : null}
           </div>
-          {reviewCount > 0 ? (
-            <button
-              type="button"
-              className="text-xs md:text-sm text-gray-500 font-medium hover:text-[#D4AF37] transition-colors text-left bg-transparent border-0 p-0 cursor-pointer"
-              onClick={(e) => {
-                // 리뷰 클릭 시 모달로 표시 (새 창 이동 대신)
-                e.stopPropagation();
-                e.preventDefault();
-                setShowReviewModal(true);
-              }}
-            >
-              크루즈 여행 리뷰 {reviewCount.toLocaleString('ko-KR')}개
-            </button>
-          ) : (
-            <span className="text-xs md:text-sm text-gray-500 font-medium">
-              크루즈 여행 리뷰 {reviewCount.toLocaleString('ko-KR')}개
-            </span>
-          )}
-        </div>
+        )}
 
         {/* 후킹 태그 표시 - 이용자 리뷰 밑에 */}
         {(product as any).tags && Array.isArray((product as any).tags) && (product as any).tags.length > 0 && (

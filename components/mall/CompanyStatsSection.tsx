@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 import { motion, useSpring, useTransform, useMotionValue, animate } from 'framer-motion';
 
@@ -40,54 +40,18 @@ function AnimatedNumber({
   return <motion.span className={className}>{displayValue}</motion.span>;
 }
 
-// 라이브 스탯 훅 (값 관리만 담당)
-function useLiveStatsValue(
-  initialTarget: number,
-  incrementAmount: number = 0,
-  incrementInterval: number = 0,
-  maxValue?: number
-) {
-  const [currentValue, setCurrentValue] = useState(0); // 0부터 시작
-  const [isMounted, setIsMounted] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+// [WO-QA-02] 초기 애니메이션 전용 훅 — 자동 증가(auto-increment) 기능 완전 제거
+// 표시광고법 위반 방지: setInterval로 숫자를 증가시키는 기능은 재활성화 금지
+function useLiveStatsValue(initialTarget: number) {
+  const [currentValue, setCurrentValue] = useState(0);
 
   useEffect(() => {
-    setIsMounted(true);
     // 마운트 시 0 -> initialTarget으로 애니메이션 트리거
     const timer = setTimeout(() => {
       setCurrentValue(initialTarget);
     }, 100);
-    return () => {
-      clearTimeout(timer);
-      setIsMounted(false); // Strict Mode 이중 실행 방어
-    };
+    return () => clearTimeout(timer);
   }, [initialTarget]);
-
-  useEffect(() => {
-    if (!isMounted || incrementInterval === 0 || incrementAmount === 0) return;
-
-    intervalRef.current = setInterval(() => {
-      setCurrentValue(prev => {
-        const next = prev + incrementAmount;
-        if (maxValue !== undefined && next >= maxValue) {
-          // 상한 도달 시 interval 자동 종료 (불필요한 콜백 실행 방지)
-          if (intervalRef.current !== null) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
-          return maxValue;
-        }
-        return next;
-      });
-    }, incrementInterval);
-
-    return () => {
-      if (intervalRef.current !== null) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = null;
-      }
-    };
-  }, [isMounted, incrementInterval, incrementAmount, maxValue]);
 
   return currentValue;
 }
@@ -103,12 +67,8 @@ interface CompanyStatsConfig {
   }>;
   bottomRowCards: Array<{
     icon: string;
-    value: string;
     description: string;
-    bgColor: 'blue' | 'yellow' | 'green';
-    autoIncrement?: boolean;
-    incrementInterval?: number;
-    incrementAmount?: number;
+    // [WO-QA-02] value/bgColor 제거 — value는 훅에서 직접 관리, bgColor는 JSX에서 미사용
   }>;
 }
 
@@ -124,23 +84,19 @@ const defaultConfig: CompanyStatsConfig = {
     { icon: '🏢', value: '11년~', description: '크루즈 서비스만 연구한시간' },
   ],
   bottomRowCards: [
-    { icon: '📊', value: '222명', description: '다음 크루즈 준비', bgColor: 'blue', autoIncrement: true, incrementInterval: 3, incrementAmount: 3 },
-    { icon: '💬', value: '13,491', description: '지금 크루즈 문의', bgColor: 'yellow', autoIncrement: true, incrementInterval: 5, incrementAmount: 9 },
-    { icon: '🎉', value: '3217명', description: '크루즈닷 회원', bgColor: 'green' },
+    { icon: '📊', description: '다음 크루즈 준비' },
+    { icon: '💬', description: '지금 크루즈 문의' },
+    { icon: '🎉', description: '크루즈닷 회원' },
   ],
 };
 
 export default function CompanyStatsSection({ config }: { config?: CompanyStatsConfig }) {
 
-  // 각 숫자의 현재 값 관리 (값만 관리하고 렌더링은 AnimatedNumber에 위임)
-  // 1. 222명: 5초마다 7명씩 증가 → 상한 300명 (단일 세션 내 비현실적 수치 방지)
-  const val1 = useLiveStatsValue(222, 7, 5000, 300);
-
-  // 2. 13,491: 4초마다 13씩 증가 → 상한 13,800
-  const val2 = useLiveStatsValue(13491, 13, 4000, 13800);
-
-  // 3. 3217명: 5초마다 56명씩 증가 → 상한 3,400명
-  const val3 = useLiveStatsValue(3217, 56, 5000, 3400);
+  // [WO-FE-18] 가짜 실시간 증가 제거 — 표시광고법 위반 방지
+  // 초기값 애니메이션만 유지, 자동 증가(incrementAmount) 제거
+  const val1 = useLiveStatsValue(222);
+  const val2 = useLiveStatsValue(13491);
+  const val3 = useLiveStatsValue(3217);
 
   // finalConfig 복구 및 메모이제이션
   const finalConfig: CompanyStatsConfig = useMemo(() => ({

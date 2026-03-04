@@ -13,7 +13,7 @@ interface ProductReviewsModalProps {
   productName: string;
   cruiseLine: string;
   shipName: string;
-  rating: number;
+  rating: number | null;
   reviewCount: number;
 }
 
@@ -44,8 +44,9 @@ export default function ProductReviewsModal({
     try {
       setLoading(true);
       const res = await fetch(`/api/products/${productCode}/reviews`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      if (data.ok && data.reviews) {
+      if (data.ok && Array.isArray(data.reviews)) {
         setReviews(data.reviews);
       }
     } catch (error) {
@@ -113,7 +114,7 @@ export default function ProductReviewsModal({
           <div className="flex items-center gap-3 pt-4 mt-4 border-t border-gray-100">
             <div className="flex items-center gap-2">
               <FiStar className="text-yellow-400 fill-yellow-400" size={22} />
-              <span className="text-xl font-black text-gray-900">{rating.toFixed(1)}</span>
+              <span className="text-xl font-black text-gray-900">{rating != null ? rating.toFixed(1) : '-'}</span>
             </div>
             <span className="text-base text-gray-600 font-semibold">
               이용자 리뷰 {reviewCount.toLocaleString('ko-KR')}개

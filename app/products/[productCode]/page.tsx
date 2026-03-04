@@ -2,7 +2,9 @@ import { notFound } from 'next/navigation';
 
 import prisma from '@/lib/prisma';
 
-export const revalidate = 3600; // 1시간 ISR 캐시 (매 요청 DB 쿼리 방지)
+// [WO-FE-17] 1시간 → 1분으로 단축 (판매중지/판매완료 상품 최대 1분 내 반영)
+// 어드민에서 saleStatus 변경 시 revalidatePath('/products/[code]') 호출 권장
+export const revalidate = 60;
 
 import ProductDetail from '@/components/mall/ProductDetail';
 

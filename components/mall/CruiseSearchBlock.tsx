@@ -309,53 +309,17 @@ export default function CruiseSearchBlock() {
 
     const loadAllProducts = async () => {
       try {
-        console.log('[CruiseSearchBlock] Loading all products for related search terms...');
         const response = await fetch('/api/public/products?limit=1000', { signal: controller.signal });
-
         const data = await response.json();
-        console.log('[CruiseSearchBlock] API Response:', {
-          ok: data.ok,
-          productsCount: data.products?.length || 0,
-          hasProducts: !!data.products,
-          isArray: Array.isArray(data.products),
-          firstProduct: data.products?.[0] ? {
-            productCode: data.products[0].productCode,
-            hasRecommendedKeywords: !!data.products[0].recommendedKeywords,
-            recommendedKeywords: data.products[0].recommendedKeywords,
-            hasMallContent: !!data.products[0].mallProductContent,
-            mallContentLayout: data.products[0].mallProductContent?.layout ? (() => {
-              try {
-                const layout = typeof data.products[0].mallProductContent.layout === 'string'
-                  ? JSON.parse(data.products[0].mallProductContent.layout)
-                  : data.products[0].mallProductContent.layout;
-                return {
-                  hasRecommendedKeywords: !!layout?.recommendedKeywords,
-                  recommendedKeywords: layout?.recommendedKeywords
-                };
-              } catch {
-                return null;
-              }
-            })() : null
-          } : null
-        });
 
         if (data.ok && data.products && Array.isArray(data.products) && data.products.length > 0) {
-          console.log('[CruiseSearchBlock] Loaded products:', data.products.length);
           setAllAvailableProducts(data.products);
         } else {
-          console.warn('[CruiseSearchBlock] Failed to load products:', {
-            ok: data.ok,
-            hasProducts: !!data.products,
-            productsType: typeof data.products,
-            isArray: Array.isArray(data.products),
-            productsLength: data.products?.length || 0,
-            data
-          });
           setAllAvailableProducts([]);
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') return;
-        console.error('[CruiseSearchBlock] Failed to load products for related search terms:', error);
+        console.error('[CruiseSearchBlock] Failed to load products:', error);
         setAllAvailableProducts([]);
       }
     };
@@ -369,9 +333,7 @@ export default function CruiseSearchBlock() {
 
   // 실제 상품 데이터 기반으로 연관 검색어 생성 (실제 검색 결과가 있는 것만)
   const relatedSearchTerms = useMemo(() => {
-    console.log('[CruiseSearchBlock] Generating related search terms, products count:', allAvailableProducts.length);
     if (allAvailableProducts.length === 0) {
-      console.warn('[CruiseSearchBlock] No products available, returning empty related search terms');
       return []; // 상품이 없으면 연관 검색어 없음
     }
 
@@ -383,7 +345,6 @@ export default function CruiseSearchBlock() {
 
     // 추천 키워드 기반 연관 검색어 추가 (상품이 있는 키워드만) - 우선순위 높게, 더 많이 표시
     const keywordCounts: Record<string, number> = {};
-    let keywordProductsCount = 0;
     allAvailableProducts.forEach(product => {
       let keywords: string[] = [];
 
@@ -418,9 +379,8 @@ export default function CruiseSearchBlock() {
               }
             }
           }
-        } catch (e) {
-          // 파싱 실패 시 무시
-          console.warn('[CruiseSearchBlock] Failed to parse layout.recommendedKeywords:', e);
+        } catch {
+          // 파싱 실패 시 무시 (silent fail)
         }
       }
 
@@ -429,51 +389,10 @@ export default function CruiseSearchBlock() {
         if (keyword && typeof keyword === 'string' && keyword.trim()) {
           const trimmedKeyword = keyword.trim();
           keywordCounts[trimmedKeyword] = (keywordCounts[trimmedKeyword] || 0) + 1;
-          keywordProductsCount++;
         }
       });
     });
 
-    console.log('[CruiseSearchBlock] Keyword extraction:', {
-      totalProducts: allAvailableProducts.length,
-      totalKeywords: Object.keys(keywordCounts).length,
-      keywordCounts: Object.entries(keywordCounts).slice(0, 20),
-      keywordProductsCount,
-      sampleProducts: allAvailableProducts.slice(0, 5).map(p => {
-        let keywords: string[] = [];
-        if (p.recommendedKeywords) {
-          if (Array.isArray(p.recommendedKeywords)) {
-            keywords = p.recommendedKeywords;
-          } else if (typeof p.recommendedKeywords === 'string') {
-            try {
-              keywords = JSON.parse(p.recommendedKeywords);
-            } catch {
-              keywords = [p.recommendedKeywords];
-            }
-          }
-        }
-        return {
-          productCode: p.productCode,
-          hasProductRecommendedKeywords: !!p.recommendedKeywords,
-          productRecommendedKeywords: keywords,
-          hasMallContent: !!p.mallProductContent,
-          hasLayout: !!p.mallProductContent?.layout,
-          layoutRecommendedKeywords: (() => {
-            if (p.mallProductContent?.layout) {
-              try {
-                const layout = typeof p.mallProductContent.layout === 'string'
-                  ? JSON.parse(p.mallProductContent.layout)
-                  : p.mallProductContent.layout;
-                return layout?.recommendedKeywords || null;
-              } catch {
-                return null;
-              }
-            }
-            return null;
-          })()
-        };
-      })
-    });
 
     // 추천 키워드 연관 검색어 추가 (관리자가 입력한 마케팅태그 - 최우선 표시)
     // 최대 15개로 증가하여 더 많은 키워드 표시
@@ -502,7 +421,6 @@ export default function CruiseSearchBlock() {
       .slice(0, 20) // 최대 20개
       .map(({ productCount, ...term }) => term); // productCount 제거
 
-    console.log('[CruiseSearchBlock] Generated related search terms:', result.length, result);
     return result;
   }, [allAvailableProducts]);
 
@@ -527,6 +445,8 @@ export default function CruiseSearchBlock() {
       const first = relatedSearchTerms[0];
       handleRelatedSearch(first.cruiseLine, first.region, first.keyword);
     }
+    // Strict Mode 대응: cleanup에서 ref 초기화 (두 번째 mount 시 auto-select 재실행)
+    return () => { autoSelectedRef.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [relatedSearchTerms]);
 
@@ -695,25 +615,28 @@ export default function CruiseSearchBlock() {
 
         // 추천 키워드 전용 검색(cruiseLine='all', region='all', keyword 있음):
         // API는 패키지명/선박명 등 여러 필드로 검색하므로 관련 없는 상품이 섞일 수 있음.
-        // allAvailableProducts(이미 로드됨)에서 recommendedKeywords 정확 매칭으로 필터링.
-        if (keyword && (cruiseLine === 'all' || !cruiseLine) && (region === 'all' || !region) && allAvailableProducts.length > 0) {
+        // 시즌 필터가 활성화된 경우: data.products(API가 이미 months 파라미터로 시즌 필터 적용)에서 키워드 매칭
+        // 시즌 필터가 없는 경우: allAvailableProducts(전체 상품)에서 키워드 매칭 (기존 동작 유지)
+        if (keyword && (cruiseLine === 'all' || !cruiseLine) && (region === 'all' || !region)) {
           const keywordLower = keyword.toLowerCase().trim();
-          const matched = allAvailableProducts.filter((p: Product) => {
-            let keywords: string[] = [];
-            if (Array.isArray(p.recommendedKeywords)) {
-              keywords = p.recommendedKeywords;
-            } else if (typeof p.recommendedKeywords === 'string') {
-              try { keywords = JSON.parse(p.recommendedKeywords); } catch { keywords = [p.recommendedKeywords]; }
-            }
-            return keywords.some((kw: string) => {
-              if (!kw) return false;
-              const kwStr = kw.toString().toLowerCase().trim();
-              return kwStr.includes(keywordLower) || keywordLower.includes(kwStr);
+          const sourceProducts = selectedSeason !== 'all' ? data.products : allAvailableProducts;
+          if (sourceProducts.length > 0) {
+            const matched = sourceProducts.filter((p: Product) => {
+              let keywords: string[] = [];
+              if (Array.isArray(p.recommendedKeywords)) {
+                keywords = p.recommendedKeywords;
+              } else if (typeof p.recommendedKeywords === 'string') {
+                try { keywords = JSON.parse(p.recommendedKeywords); } catch { keywords = [p.recommendedKeywords]; }
+              }
+              return keywords.some((kw: string) => {
+                if (!kw) return false;
+                const kwStr = kw.toString().toLowerCase().trim();
+                return kwStr.includes(keywordLower) || keywordLower.includes(kwStr);
+              });
             });
-          });
-          // allAvailableProducts 기반 결과가 있으면 그것을 사용 (API 결과 대체)
-          if (matched.length > 0) {
-            filteredProducts = matched;
+            if (matched.length > 0) {
+              filteredProducts = matched;
+            }
           }
         }
 
@@ -963,7 +886,7 @@ export default function CruiseSearchBlock() {
                           if (parts.length === 2) { params.append('cruiseLine', parts[0]); params.append('shipName', parts[1]); }
                         } else { params.append('cruiseLine', selectedCruiseLine); }
                       }
-                      if (selectedRegion !== 'all') params.append('region', selectedRegion);
+                      if (selectedRegion !== 'all') params.append('region', convertRegionToApiFormat(selectedRegion));
                       if (next === 'all' && selectedCruiseLine === 'all' && selectedRegion === 'all') {
                         setProducts([]); setHasSearched(false); setIsLoading(false); return;
                       }

@@ -1,14 +1,14 @@
 // components/mall/HeroSection.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // 히어로 슬라이더 이미지 (Vercel 배포 보장 경로)
 // hero-bg-2.jpg (Odyssey of the Seas, 2880×1920 가로형) 을 첫 슬라이드로
 const HERO_SLIDES = [
   { src: '/images/hero/hero-msc-night.png',  ken: 'animate-kb-zoom-tr' }, // MSC 야간 럭셔리 풀덱 (네온/야경)
   { src: '/images/hero/hero-bg-2.jpg',       ken: 'animate-kb-zoom-tl' }, // Royal Caribbean Odyssey 선상
-  { src: '/images/hero/hero-msc-aerial.png', ken: 'animate-kb-zoom-tr' }, // MSC 공중 내려다보기
+  { src: '/images/hero/hero-msc-aerial.png', ken: 'animate-kb-zoom-tl' }, // MSC 공중 내려다보기
 ];
 
 // 포함 사항 아이콘 띠
@@ -52,6 +52,7 @@ export default function HeroSection({
   useEffect(() => {
     if (!useSlider) return;
     const timer = setInterval(() => {
+      if (document.hidden) return; // Page Visibility: 백그라운드 탭에서 타이머 일시정지
       setCurrentSlide(prev => (prev + 1) % HERO_SLIDES.length);
       setSlideKey(prev => prev + 1);
     }, 5000);
@@ -92,7 +93,7 @@ export default function HeroSection({
               }`}
             >
               <div
-                key={i === currentSlide ? slideKey : undefined}
+                key={i === currentSlide ? `active-${slideKey}` : `slide-${i}`}
                 className={`absolute inset-0 bg-cover bg-center ${
                   i === currentSlide ? slide.ken : ''
                 }`}
@@ -104,7 +105,7 @@ export default function HeroSection({
           // 어드민 커스텀 이미지 (단일)
           <div
             className="absolute inset-0 bg-cover bg-center animate-subtle-zoom"
-            style={{ backgroundImage: `url('${encodeURI(singleBg!)}')` }}
+            style={{ backgroundImage: singleBg ? `url('${encodeURI(singleBg)}')` : 'none' }}
           />
         )}
       </div>
@@ -170,10 +171,12 @@ export default function HeroSection({
                     e.preventDefault();
                     if (btn.text === '라이브방송참여') openLiveBroadcast();
                     else if (btn.text === '상품 둘러보기') scrollToProducts();
-                    else if (btn.link?.startsWith('http')) {
+                    else if (btn.link?.startsWith('https://') || btn.link?.startsWith('http://')) {
                       window.open(btn.link, '_blank', 'noopener noreferrer');
                     } else {
-                      window.location.href = btn.link || '/';
+                      // 프로토콜 상대 URL(//)은 OPEN REDIRECT 위험 — 상대 경로만 허용
+                      const safePath = btn.link?.startsWith('/') && !btn.link?.startsWith('//') ? btn.link : '/';
+                      window.location.href = safePath;
                     }
                   };
                   return (
