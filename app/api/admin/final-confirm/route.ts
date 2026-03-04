@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
               engSurname: true,
               engGivenName: true,
               passportNo: true,
-              passportImage: true,
+              passportImage: true, // hasPassportImage 계산용 — URL은 응답에 미포함
               expiryDate: true,
             },
           },
@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
                 select: {
                   id: true,
                   displayName: true,
+                  legalName: true,
                   branchLabel: true,
                   type: true,
                 },
@@ -140,13 +141,13 @@ export async function GET(request: NextRequest) {
           shipName: r.Trip.shipName,
           departureDate: r.Trip.departureDate,
         } : null,
-        // 여행자 정보 (여권 포함)
+        // 여행자 정보 (passportImage URL 제외 — /api/admin/traveler/[id]/passport-link 사용)
         travelers: r.Traveler?.map((t) => ({
           id: t.id,
           korName: t.korName,
           engName: `${t.engSurname || ''} ${t.engGivenName || ''}`.trim(),
           passportNo: t.passportNo,
-          passportImage: t.passportImage,
+          hasPassportImage: !!t.passportImage,
           expiryDate: t.expiryDate,
         })) || [],
         // 담당자 정보

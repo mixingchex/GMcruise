@@ -17,6 +17,7 @@ import {
   FiAlertCircle,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
+import { csrfFetch } from '@/lib/csrf-client';
 
 type FinalConfirmItem = {
   id: number;
@@ -37,7 +38,7 @@ type FinalConfirmItem = {
     korName: string;
     engName: string;
     passportNo: string;
-    passportImage: string | null;
+    hasPassportImage: boolean;
     expiryDate: string | null;
   }>;
   agent: {
@@ -478,15 +479,25 @@ export default function AdminFinalConfirmPage() {
                       <div key={traveler.id} className="bg-gray-50 rounded-xl p-4">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium">여행자 {index + 1}</span>
-                          {traveler.passportImage && (
-                            <a
-                              href={traveler.passportImage}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                          {traveler.hasPassportImage && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await csrfFetch(`/api/admin/traveler/${traveler.id}/passport-link`);
+                                  const data = await res.json();
+                                  if (data.ok && data.url) {
+                                    window.open(data.url, '_blank', 'noopener,noreferrer');
+                                  } else {
+                                    showError(data.message || '여권 이미지를 불러올 수 없습니다.');
+                                  }
+                                } catch {
+                                  showError('여권 이미지 불러오기 실패');
+                                }
+                              }}
                               className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                             >
-                              <FiExternalLink /> 여권 이미지
-                            </a>
+                              <FiEye className="text-xs" /> 여권 이미지
+                            </button>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-sm">
