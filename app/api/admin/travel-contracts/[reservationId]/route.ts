@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import prisma from '@/lib/prisma';
 import { checkAdminAuth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
@@ -79,9 +80,12 @@ export async function POST(
     }
 
     // 메인 여행자 (첫 번째 또는 예약자)
-    const mainTraveler = reservation.Traveler[0];
-    const mainName = mainTraveler?.korName || reservation.User.name || '여행자';
-    const mainPhone = mainTraveler?.phone || reservation.User.phone || '';
+    const mainTraveler = reservation.Traveler?.[0];
+    if (!mainTraveler) {
+      logger.warn('[TravelContract] No traveler data for reservation', { reservationId: resId });
+    }
+    const mainName = mainTraveler?.korName || reservation.User?.name || '미입력';
+    const mainPhone = mainTraveler?.phone || reservation.User?.phone || '';
 
     // 어필리에이트 담당자
     const affiliateAgent = reservation.AffiliateSale
@@ -98,19 +102,28 @@ export async function POST(
     const hasInsurance = productTags.some(t => t.includes('보험') || t.toLowerCase().includes('insurance'));
 
     // 날짜 포맷
-    const dept = reservation.Trip.departureDate;
-    const ret = reservation.Trip.endDate || dept;
+    const trip = reservation.Trip;
     const fmtDate = (d: Date) =>
       `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 
+    const departureDate = trip.departureDate || trip.createdAt || new Date();
+    const returnDate = trip.endDate ?? departureDate; // null이면 당일 여행으로 처리
+    const nights = trip.endDate
+      ? Math.max(0, Math.ceil((returnDate.getTime() - departureDate.getTime()) / 86400000))
+      : 0;
+    const days = nights + 1;
+
     // 1인당 가격
-    const pricePerPerson = reservation.paymentAmount
-      ? Math.round(reservation.paymentAmount / reservation.totalPeople)
+    const totalAmount = reservation.paymentAmount || 0;
+    const totalPeople = Math.max(1, reservation.totalPeople || 1);
+    const pricePerPerson = totalAmount > 0 && totalPeople > 0
+      ? Math.round(totalAmount / totalPeople)
       : (product.basePrice || 0);
 
     // 교통수단별 출발/도착 기본값
     const departure = reservation.airlineName ? '인천국제공항' : '부산항';
-    const arrival = reservation.airlineName ? '인천국제공항' : '부산항';
+    // 크루즈는 출발항과 귀항이 동일한 경우가 많지만, 항공 포함시 귀항지 구분
+    const arrival = reservation.airlineName ? '인천국제공항' : '부산항 (귀항)';
 
     const contractData: TravelContractData = {
       reservationId: resId,
@@ -120,28 +133,45 @@ export async function POST(
       isPackage,
       hasHotel,
       hasInsurance,
-      departureDate: fmtDate(dept),
-      returnDate: fmtDate(ret),
-      nights: product.nights,
-      days: product.days,
+      departureDate: fmtDate(departureDate),
+      returnDate: fmtDate(returnDate),
+      nights,
+      days,
       departure,
       arrival,
-      totalPeople: reservation.totalPeople,
+      totalPeople,
       mainTravelerName: mainName,
       mainTravelerPhone: mainPhone,
       pricePerPerson,
-      totalAmount: reservation.paymentAmount || pricePerPerson * reservation.totalPeople,
+      totalAmount: totalAmount || pricePerPerson * totalPeople,
       affiliateName,
       affiliatePhone,
+      customerEmail: reservation.User?.email || null,
       cancellationPolicy: STANDARD_CRUISE_CANCELLATION_POLICY,
       excludedItems: [],
     };
 
-    // 계약 만료일 (생성 후 30일)
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    // 계약 만료일 (생성 후 7일)
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    // Upsert (이미 있으면 갱신)
+    // 기존 계약서 조회 (이미 서명된 경우 차단, 토큰 재사용)
+    const existingContract = await prisma.travelContract.findUnique({
+      where: { reservationId: resId },
+      select: { token: true, status: true },
+    });
+
+    // 이미 서명된 경우 차단
+    if (existingContract?.status === 'signed') {
+      return NextResponse.json({
+        ok: false,
+        error: '이미 서명된 계약서입니다. 취소 후 재발송하세요.',
+      }, { status: 409 });
+    }
+
+    // 새로 만들 때만 토큰 생성 (기존 계약서는 토큰 유지)
+    const token = existingContract?.token || randomBytes(32).toString('hex');
+
+    // Upsert (이미 있으면 갱신, token은 update에 포함하지 않음)
     const contract = await prisma.travelContract.upsert({
       where: { reservationId: resId },
       update: {
@@ -153,6 +183,7 @@ export async function POST(
       },
       create: {
         reservationId: resId,
+        token,
         contractData,
         status: 'pending',
         expiresAt,

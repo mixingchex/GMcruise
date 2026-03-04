@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
@@ -46,7 +47,7 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('[Contract GET]', error);
+    logger.error('[Contract GET]', error);
     return NextResponse.json({ ok: false, error: '조회 실패' }, { status: 500 });
   }
 }

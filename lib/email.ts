@@ -749,3 +749,120 @@ export async function sendRefundNotificationEmail(
   }
 }
 
+/**
+ * 여행계약서 서명 완료 시 관리자에게 PDF 첨부 이메일 전송
+ */
+export async function sendTravelContractSignedEmail(data: {
+  adminEmail: string;
+  customerName: string;
+  productName: string;
+  reservationId: number;
+  signedAt: string;
+  pdfBuffer: Buffer;
+}): Promise<boolean> {
+  try {
+    const transporter = getEmailTransporter();
+    if (!transporter) {
+      logger.warn('[TravelContractEmail] SMTP 미설정, 이메일 전송 건너뜀');
+      return false;
+    }
+    const smtpFrom = process.env.EMAIL_SMTP_FROM || process.env.EMAIL_SMTP_USER || 'noreply@cruisedot.co.kr';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr';
+    const adminLink = `${baseUrl}/admin/travel-contracts/${data.reservationId}`;
+    const mailOptions = {
+      from: `크루즈닷 계약시스템 <${smtpFrom}>`,
+      to: data.adminEmail,
+      subject: `[계약서 서명완료] ${data.customerName}님 - ${data.productName}`,
+      html: `
+        <div style="font-family:'Malgun Gothic',sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <h2 style="color:#1a3a6b;border-bottom:2px solid #c9a84c;padding-bottom:10px;">여행계약서 서명 완료</h2>
+          <p><strong>${escapeHtml(data.customerName)}</strong>님이 여행계약서에 서명을 완료하였습니다.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+            <tr><td style="padding:8px;background:#f0f4fa;font-weight:600;width:120px;">고객명</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(data.customerName)}</td></tr>
+            <tr><td style="padding:8px;background:#f0f4fa;font-weight:600;">상품명</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(data.productName)}</td></tr>
+            <tr><td style="padding:8px;background:#f0f4fa;font-weight:600;">예약번호</td><td style="padding:8px;border:1px solid #ddd;">#${data.reservationId}</td></tr>
+            <tr><td style="padding:8px;background:#f0f4fa;font-weight:600;">서명일시</td><td style="padding:8px;border:1px solid #ddd;">${new Date(data.signedAt).toLocaleString('ko-KR')}</td></tr>
+          </table>
+          <p>서명된 계약서 PDF가 첨부되어 있습니다.</p>
+          <div style="margin:20px 0;text-align:center;">
+            <a href="${adminLink}" style="background:#1a3a6b;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;">관리자 페이지에서 보기</a>
+          </div>
+          <p style="color:#888;font-size:12px;margin-top:20px;">이 이메일은 자동으로 발송된 메일입니다.</p>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: `여행계약서_${data.customerName}_${new Date().toISOString().split('T')[0]}.pdf`,
+          content: data.pdfBuffer,
+          contentType: 'application/pdf',
+        },
+      ],
+    };
+    const info = await transporter.sendMail(mailOptions);
+    logger.log('[TravelContractEmail] 관리자 이메일 발송 성공', {
+      to: data.adminEmail,
+      reservationId: data.reservationId,
+      messageId: info.messageId,
+    });
+    return true;
+  } catch (error: any) {
+    logger.error('[TravelContractEmail] 관리자 이메일 발송 실패', {
+      reservationId: data.reservationId,
+      error: error.message,
+    });
+    return false;
+  }
+}
+
+/**
+ * 여행계약서 서명 완료 시 고객에게 다운로드 링크 이메일 전송
+ */
+export async function sendTravelContractCustomerEmail(data: {
+  customerEmail: string;
+  customerName: string;
+  productName: string;
+  downloadUrl: string;
+  signedAt: string;
+}): Promise<boolean> {
+  try {
+    const transporter = getEmailTransporter();
+    if (!transporter) {
+      logger.warn('[TravelContractEmail] SMTP 미설정, 고객 이메일 건너뜀');
+      return false;
+    }
+    const smtpFrom = process.env.EMAIL_SMTP_FROM || process.env.EMAIL_SMTP_USER || 'noreply@cruisedot.co.kr';
+    const mailOptions = {
+      from: `크루즈닷 <${smtpFrom}>`,
+      to: data.customerEmail,
+      subject: `[크루즈닷] 여행계약서 서명이 완료되었습니다`,
+      html: `
+        <div style="font-family:'Malgun Gothic',sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <h2 style="color:#1a3a6b;border-bottom:2px solid #c9a84c;padding-bottom:10px;">여행계약서 서명 완료</h2>
+          <p>안녕하세요, <strong>${escapeHtml(data.customerName)}</strong>님.</p>
+          <p>여행계약서 서명이 완료되었습니다. 아래 버튼을 클릭하여 계약서를 다운로드하실 수 있습니다.</p>
+          <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+            <tr><td style="padding:8px;background:#f0f4fa;font-weight:600;width:120px;">상품명</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(data.productName)}</td></tr>
+            <tr><td style="padding:8px;background:#f0f4fa;font-weight:600;">서명일시</td><td style="padding:8px;border:1px solid #ddd;">${new Date(data.signedAt).toLocaleString('ko-KR')}</td></tr>
+          </table>
+          <div style="margin:20px 0;text-align:center;">
+            <a href="${data.downloadUrl}" style="background:#c9a84c;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;display:inline-block;">계약서 PDF 다운로드</a>
+          </div>
+          <p style="color:#888;font-size:12px;">다운로드 링크는 30일간 유효합니다.</p>
+          <p style="color:#888;font-size:12px;margin-top:10px;">문의: 크루즈닷 010-3289-3800</p>
+        </div>
+      `,
+    };
+    const info = await transporter.sendMail(mailOptions);
+    logger.log('[TravelContractEmail] 고객 이메일 발송 성공', {
+      to: data.customerEmail,
+      messageId: info.messageId,
+    });
+    return true;
+  } catch (error: any) {
+    logger.error('[TravelContractEmail] 고객 이메일 발송 실패', {
+      customerEmail: data.customerEmail,
+      error: error.message,
+    });
+    return false;
+  }
+}

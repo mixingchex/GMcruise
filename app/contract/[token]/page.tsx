@@ -10,6 +10,7 @@ interface ContractData {
     productName: string;
     mainTravelerName: string;
     mainTravelerPhone: string;
+    affiliatePhone?: string;
     totalPeople: number;
     departureDate: string;
     returnDate: string;
@@ -46,6 +47,7 @@ export default function ContractSignPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -163,6 +165,10 @@ export default function ContractSignPage() {
   };
 
   const handleSubmit = async () => {
+    if (!termsAgreed) {
+      alert('약관 동의가 필요합니다.');
+      return;
+    }
     if (!customerAddress.trim() || customerAddress.trim().length < 5) {
       setSubmitError('주소를 정확히 입력해주세요.');
       return;
@@ -242,12 +248,24 @@ export default function ContractSignPage() {
           </div>
           <h2 className="text-xl font-bold text-[#1a3a6b] mb-3">서명 완료</h2>
           <p className="text-gray-600 text-sm mb-2">
-            <strong>{contract?.contractData.productName}</strong> 여행계약서 서명이 완료되었습니다.
+            <strong>{contract?.contractData?.productName}</strong> 여행계약서 서명이 완료되었습니다.
           </p>
           <p className="text-gray-400 text-xs">
             담당자가 계약서를 검토 후 연락드리겠습니다.<br />
             감사합니다.
           </p>
+          <div className="mt-6 space-y-3">
+            <a
+              href={`/api/contracts/${token}/pdf`}
+              download
+              className="block w-full text-center bg-[#1a3a6b] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#152d54] transition-colors"
+            >
+              서명된 계약서 PDF 다운로드
+            </a>
+            <p className="text-xs text-center text-gray-400">
+              계약서는 이메일로도 발송됩니다. 저장해두시면 여행 시 활용할 수 있습니다.
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -463,6 +481,22 @@ export default function ContractSignPage() {
               </p>
             </div>
 
+            {/* 약관 동의 체크박스 */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={termsAgreed}
+                  onChange={e => setTermsAgreed(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-[#1a3a6b] flex-shrink-0"
+                />
+                <span className="text-sm text-gray-700 leading-relaxed">
+                  본인은 <strong>국외여행표준약관(공정위 제10021호)</strong> 및 <strong>크루즈 특별약관</strong>을
+                  전문 확인하였으며, 개인정보 수집·이용(필수) 및 제3자 제공(필수)에 동의합니다.
+                </span>
+              </label>
+            </div>
+
             {submitError && (
               <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
                 {submitError}
@@ -478,7 +512,7 @@ export default function ContractSignPage() {
             </button>
 
             <p className="text-center text-xs text-gray-400">
-              궁금한 점은 담당자 ({cd?.mainTravelerPhone || '크루즈닷'})에게 문의해주세요
+              궁금한 점은 담당자 ({cd?.affiliatePhone || '010-3289-3800'})에게 문의해주세요
             </p>
           </div>
         )}

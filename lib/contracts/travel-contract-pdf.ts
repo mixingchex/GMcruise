@@ -1,6 +1,24 @@
 import puppeteer from 'puppeteer-core';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import { generateTravelContractHTML } from './travel-contract-generator';
 import { TravelContractData } from './types';
+
+/** 배민도현체 TTF를 base64로 읽어 @font-face CSS를 반환 */
+function getCustomFontStyle(): string {
+  const fontPath = join(process.cwd(), 'public', 'fonts', 'BaeMinDoHyeon.ttf');
+  if (!existsSync(fontPath)) return '';
+  const base64 = readFileSync(fontPath).toString('base64');
+  return `
+    @font-face {
+      font-family: 'BaeMinDoHyeon';
+      src: url('data:font/truetype;base64,${base64}') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+      font-display: block;
+    }
+  `;
+}
 
 async function getBrowser() {
   // Vercel serverless 환경
@@ -22,7 +40,6 @@ async function getBrowser() {
   ];
   for (const executablePath of localPaths) {
     try {
-      const { existsSync } = await import('fs');
       if (existsSync(executablePath)) {
         return puppeteer.launch({
           executablePath,
@@ -51,10 +68,19 @@ export async function generateTravelContractPDF(
     companions,
   );
 
+  const fontStyle = getCustomFontStyle();
+
   const browser = await getBrowser();
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // networkidle0 대신 load 사용 (외부 네트워크 의존 없음)
+    await page.setContent(html, { waitUntil: 'load' });
+    // 배민도현체 @font-face 주입 (base64 임베드, 네트워크 불필요)
+    if (fontStyle) {
+      await page.addStyleTag({ content: fontStyle });
+    }
+    // 폰트 렌더링 완료 대기
+    await page.evaluateHandle('document.fonts.ready');
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
