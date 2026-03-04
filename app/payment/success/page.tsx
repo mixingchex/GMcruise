@@ -1,7 +1,6 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
+// [WO-CODE-03] 'use client' 컴포넌트에서 dynamic export는 무효 — 제거
 import { useRouter } from 'next/navigation';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense, useRef } from 'react';

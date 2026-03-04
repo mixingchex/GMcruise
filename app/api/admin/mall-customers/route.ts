@@ -22,7 +22,13 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
       },
     });
 
-    return session?.User.role === 'admin';
+    if (!session || !session.User) return false;
+    // [WO-SEC-18] 세션 만료 체크
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await prisma.session.delete({ where: { id: sid } }).catch(() => {});
+      return false;
+    }
+    return session.User.role === 'admin';
   } catch (error) {
     console.error('[Admin Mall Customers] Auth check error:', error);
     return false;
@@ -45,9 +51,12 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const status = searchParams.get('status') || 'all';
     const sortBy = searchParams.get('sortBy') || 'createdAt';
-    const sortOrder = searchParams.get('sortOrder') || 'desc';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc'; // [WO-ADM-01] 화이트리스트
+    const pageRaw = parseInt(searchParams.get('page') || '1');
+    const limitRaw = parseInt(searchParams.get('limit') || '20');
+    // [WO-ADM-01] NaN guard + 상한선 200
+    const page = isNaN(pageRaw) || pageRaw < 1 ? 1 : pageRaw;
+    const limit = isNaN(limitRaw) || limitRaw < 1 ? 20 : Math.min(limitRaw, 200);
     const skip = (page - 1) * limit;
 
     // 검색 조건

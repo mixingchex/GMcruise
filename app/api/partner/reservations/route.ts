@@ -150,7 +150,6 @@ export async function GET(req: NextRequest) {
               gender: true,
               residentNum: true,
               roomNumber: true,
-              passportImage: true,
             },
           },
           AffiliateSale: {

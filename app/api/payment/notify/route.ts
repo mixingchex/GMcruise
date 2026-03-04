@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
         // 일반 결제 완료 — 원자적 updateMany로 TOCTOU 경쟁 조건 방지
         // status가 'completed'가 아닌 경우에만 업데이트 (중복 노티 안전 처리)
         const updated = await prisma.payment.updateMany({
-          where: { orderId: P_OID, status: { not: 'completed' } },
+          where: { orderId: P_OID, status: { notIn: ['completed', 'refunded'] } },
           data: {
             status: 'completed',
             paidAt: new Date(),

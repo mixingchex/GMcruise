@@ -266,24 +266,18 @@ export async function POST(req: NextRequest) {
       );
     }
   } catch (error: any) {
-    console.error('[Certify] Error:', error);
-    console.error('[Certify] Error stack:', error?.stack);
+    // [WO-SEC-19] PII 보호: body(customerName, birthDate)는 에러 로그에서 제외
+    console.error('[Certify] Error code:', error?.code);
     console.error('[Certify] Error message:', error?.message);
-    if (body) {
-      try {
-        console.error('[Certify] Request body:', JSON.stringify(body, null, 2));
-      } catch (e) {
-        console.error('[Certify] Failed to stringify request body');
-      }
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[Certify] Error stack (dev only):', error?.stack);
     }
-    
-    // 더 자세한 에러 메시지 반환
-    const errorMessage = error?.message || '인증 처리 중 오류가 발생했습니다.';
+
     return NextResponse.json(
-      { 
-        ok: false, 
-        error: errorMessage,
-        details: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+      {
+        ok: false,
+        error: '인증 처리 중 오류가 발생했습니다.',
+        details: process.env.NODE_ENV === 'development' ? error?.message : undefined
       },
       { status: 500 }
     );

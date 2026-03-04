@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 import { recordCustomerJourney } from '@/lib/customer-journey';
 import { getSessionUser } from '@/lib/auth';
+import { log, error as logError, warn } from '@/lib/logger-wrapper';
 
 /**
  * 예약 생성 API
@@ -87,9 +88,8 @@ export async function POST(req: NextRequest) {
       // [WO-01] name 단독 findFirst 제거 — 동명이인 시 무관한 계정에 예약 연결되는 개인정보 위반 방지
 
       if (!mainUserData) {
-        // [WO-05] name을 비밀번호 소스에서 제거 — 반공개 정보로 취약한 비밀번호 생성 방지
-        const passwordSource = mainUser.phone || SYSTEM_PASSWORDS.TEMP;
-        const hashedPassword = await hashPassword(passwordSource);
+        // [WO-PAY-15] 전화번호는 유출 가능 정보 — 비밀번호 소스 사용 금지. 동행자와 동일한 TEMP 정책
+        const hashedPassword = await hashPassword(SYSTEM_PASSWORDS.TEMP);
         
         mainUserData = await tx.user.create({
           data: {
@@ -231,9 +231,9 @@ export async function POST(req: NextRequest) {
 
         // User를 찾지 못한 경우 새로 생성 (PROSPECT 역할)
         if (!travelerUser) {
-          // 비밀번호 생성 (여권번호 또는 phone 또는 임시값)
-          const passwordSource = traveler.passportNo || traveler.phone || `temp_${Date.now()}`;
-          const hashedPassword = await hashPassword(passwordSource);
+          // 비밀번호 생성 — 여권번호는 개인정보보호법상 비밀번호 소스 사용 금지
+          // PROSPECT 계정은 임시 비밀번호로 생성 (관리자가 나중에 변경)
+          const hashedPassword = await hashPassword(SYSTEM_PASSWORDS.TEMP);
           
           // OCR로 얻은 모든 정보를 User에 저장
           travelerUser = await tx.user.create({
@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
       
       if (isSingleCharge) {
         finalCabinType = cabinType ? `${cabinType} (싱글차지)` : '싱글차지';
-        console.log(`[Reservation Create] 싱글차지 처리: totalPeople=${totalPeople}, 동일 여권번호 중복 입력 허용`);
+        // [WO-LOG-01] 삭제 — DEBUG 레벨, 로직에 이미 반영됨
       }
 
       // 3. Trip 확인 및 생성 (Reservation.tripId → Trip.id FK)
@@ -396,7 +396,7 @@ export async function POST(req: NextRequest) {
           gender: traveler.gender || null, // 성별 (M 또는 F) - 7
           issueDate: issueDateFormatted, // 여권 발급일 (String) - 8
           expiryDate: expiryDateFormatted, // 여권 만료일 (String) - 9 (APIS: passportExpiryDate로도 입력 가능)
-          passportImage: traveler.passportImage || null, // 여권 이미지 (실제 DB에 있음)
+          passportImage: null, // 여권 이미지: base64 원본은 DB 저장 금지. Drive 업로드 성공 후 URL로 업데이트됨 (WO-01)
         };
 
         const createdTraveler = await tx.traveler.create({
@@ -420,7 +420,7 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    console.log(`[Reservation Create] 예약 생성 완료: reservationId=${result.reservation.id}`);
+    log(`[Reservation Create] 예약 생성 완료: reservationId=${result.reservation.id}`);
 
     // 여권 이미지 구글 드라이브 백업 (트랜잭션 외부에서 실행)
     if (result.travelers && result.travelers.length > 0 && travelers && travelers.length > 0) {
@@ -448,7 +448,7 @@ export async function POST(req: NextRequest) {
             // 여행 상품 폴더 생성/검색
             const trip = await prisma.trip.findUnique({
               where: { id: result.reservation.tripId },
-              select: { id: true, productCode: true, departureDate: true, shipName: true },
+              select: { id: true, productCode: true, departureDate: true, shipName: true, googleFolderId: true },
             });
             // Trip.productCode로 CruiseProduct 별도 조회 (Trip에 CruiseProduct 직접 relation 없음)
             const tripCruiseProduct = trip?.productCode
@@ -461,6 +461,19 @@ export async function POST(req: NextRequest) {
               const tripFolderResult = await findOrCreateFolder(tripFolderName, rootFolderId);
               
               if (tripFolderResult.ok && tripFolderResult.folderId) {
+                // Trip.googleFolderId 저장 (첫 번째 여권 업로드 시 1회만) — WO-NEW-06-B
+                if (trip?.id && !trip.googleFolderId) {
+                  await prisma.trip.update({
+                    where: { id: trip.id },
+                    data: { googleFolderId: tripFolderResult.folderId },
+                  }).catch((err: unknown) => {
+                    logError('[Reservation Create] googleFolderId DB 저장 실패 (비차단)', {
+                      tripId: trip.id,
+                      errorType: (err as any)?.constructor?.name,
+                      prismaCode: (err as any)?.code,
+                    });
+                  });
+                }
                 // 예약 그룹 폴더 생성/검색
                 const mainUserPhone = result.mainUser.phone || '';
                 const phoneLast4 = mainUserPhone.length >= 4 ? mainUserPhone.slice(-4) : '0000';
@@ -482,13 +495,29 @@ export async function POST(req: NextRequest) {
                   });
                   
                   if (uploadResult.ok && uploadResult.url) {
-                    console.log(`[Reservation Create] 여권 이미지 구글 드라이브 백업 완료: ${uploadResult.url}`);
+                    log(`[Reservation Create] 여권 이미지 구글 드라이브 백업 완료: ${fileName}`);
+                    // WO-01: Drive URL을 Traveler.passportImage에 저장
+                    try {
+                      await prisma.traveler.update({
+                        where: { id: createdTraveler.id },
+                        data: { passportImage: uploadResult.url },
+                      });
+                    } catch (dbErr) {
+                      logError('[Reservation Create] passportImage DB 저장 실패 — Drive 고아파일 발생 가능', {
+                        travelerId: createdTraveler?.id,
+                        passportNo: createdTraveler?.passportNo || 'unknown',
+                        errorType: (dbErr as any)?.constructor?.name,
+                        prismaCode: (dbErr as any)?.code,
+                      });
+                      // 비차단: Drive 백업 성공, DB 링크만 누락 — 예약 프로세스 계속
+                    }
                   }
                 }
               }
             }
           } catch (error) {
-            console.error('[Reservation Create] 여권 이미지 구글 드라이브 백업 실패:', error);
+            // [WO-LOG-01] error 객체 원본 제거 — Google API credential 노출 위험
+            logError('[Reservation Create] 여권 이미지 구글 드라이브 백업 실패', { travelerId: createdTraveler?.id });
             // 백업 실패해도 예약은 계속 진행
           }
         }
@@ -521,7 +550,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (userTripError: any) {
       // UserTrip 생성 실패는 예약 완료에 영향 없음 (가이드 앱 여정 데이터 누락만 발생)
-      console.error(`[Reservation Create] UserTrip 생성 에러 (무시됨):`, userTripError?.message);
+      logError('[Reservation Create] UserTrip 생성 에러 (무시됨)', { errorType: userTripError?.constructor?.name });
     }
 
     // 고객 여정 기록: 구매고객으로 전환 (메인 유저 및 동행자 모두)
@@ -562,7 +591,7 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (journeyError) {
-      console.error('[Reservation Create] Failed to record customer journey:', journeyError);
+      logError('[Reservation Create] Customer journey 기록 실패 (예약은 성공 처리)', { errorType: (journeyError as any)?.constructor?.name });
       // 여정 기록 실패해도 예약 생성은 성공으로 처리
     }
 
@@ -580,7 +609,7 @@ export async function POST(req: NextRequest) {
         });
 
         if (!userTrip) {
-          console.error('[Reservation Create] UserTrip을 찾을 수 없습니다:', result.reservation.tripId);
+          logError('[Reservation Create] UserTrip 미발견 — APIS 자동화 중단', { tripId: result.reservation.tripId });
           apisSyncResult = { ok: false, error: 'UserTrip을 찾을 수 없습니다.', retryCount };
           break;
         }
@@ -594,16 +623,16 @@ export async function POST(req: NextRequest) {
         // 일단 UserTrip.id를 tripId로 사용 (나중에 수정 필요할 수 있음)
         const tripId = userTrip.id;
         
-        console.log(`[Reservation Create] APIS 자동화 실행 시작 (재시도 ${retryCount + 1}/${maxRetries}): tripId=${tripId}`);
+        // [WO-LOG-01] 삭제 — 스텁 함수 DEBUG 로그 불필요
         
         const syncResult = await syncApisSpreadsheet(tripId);
         
         if (syncResult.ok) {
-          console.log(`[Reservation Create] ✅ APIS 자동화 성공: spreadsheetId=${(syncResult as any).spreadsheetId}`);
+          // [WO-LOG-01] 삭제 — 스텁 함수 성공 불가, DEBUG 로그 불필요
           apisSyncResult = { ok: true, retryCount: retryCount + 1 };
           break; // 성공하면 재시도 중단
         } else {
-          console.error(`[Reservation Create] ⚠️ APIS 자동화 실패 (재시도 ${retryCount + 1}/${maxRetries}):`, syncResult.error);
+          warn(`[Reservation Create] APIS 자동화 실패 (재시도 ${retryCount + 1}/${maxRetries})`);
           apisSyncResult = { ok: false, error: syncResult.error, retryCount: retryCount + 1 };
 
           // 스텁 함수(모듈 없음)이면 재시도 불필요
@@ -617,12 +646,12 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (apisError: any) {
-        console.error(`[Reservation Create] ⚠️ APIS 자동화 에러 (재시도 ${retryCount + 1}/${maxRetries}):`, apisError);
+        warn(`[Reservation Create] APIS 자동화 에러 (재시도 ${retryCount + 1}/${maxRetries})`);
         apisSyncResult = { ok: false, error: apisError.message || 'APIS 자동화 실행 중 오류 발생', retryCount: retryCount + 1 };
-        
+
         // 파일이 없거나 import 에러인 경우 재시도하지 않음
         if (apisError.message?.includes('Cannot find module') || apisError.message?.includes('google-sheets')) {
-          console.error('[Reservation Create] ⚠️ lib/google-sheets.ts 파일이 없습니다. APIS 자동화를 건너뜁니다.');
+          warn('[Reservation Create] google-sheets 모듈 없음 — APIS 자동화 건너뜀');
           break;
         }
         
@@ -635,8 +664,7 @@ export async function POST(req: NextRequest) {
 
     // APIS 자동화 결과 로깅 (실패해도 예약 생성은 성공)
     if (apisSyncResult && !apisSyncResult.ok) {
-      console.error(`[Reservation Create] ⚠️ APIS 자동화 최종 실패 (${apisSyncResult.retryCount}회 시도):`, apisSyncResult.error);
-      console.error('[Reservation Create] ⚠️ 관리자가 수동으로 APIS를 입력해야 합니다.');
+      warn(`[Reservation Create] APIS 자동화 최종 실패 (${apisSyncResult.retryCount}회 시도) — 관리자 수동 입력 필요`);
     }
 
     return NextResponse.json({
@@ -652,7 +680,8 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error('[Reservation Create] Error:', error?.message || error);
+    // [WO-LOG-01] error.message 제거 — Prisma 쿼리/바인딩 정보 노출 위험
+    logError('[Reservation Create] API 요청 실패', { errorType: error?.constructor?.name || 'Unknown' });
     return NextResponse.json(
       {
         ok: false,

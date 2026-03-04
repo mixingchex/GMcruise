@@ -15,6 +15,18 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
  * PC 결제 승인 API 호출 (매뉴얼 Page 26-27)
  * authUrl로 HTTPS POST 요청을 보내 최종 승인 처리
  */
+/** [WO-PAY-12] SSRF 방어: authUrl은 웰컴페이먼츠 도메인만 허용 */
+const ALLOWED_APPROVAL_HOSTS = ['paywelcome.co.kr', 'api.paywelcome.co.kr'];
+
+function isAllowedAuthUrl(url: string): boolean {
+  try {
+    const { hostname, protocol } = new URL(url);
+    return protocol === 'https:' && ALLOWED_APPROVAL_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`));
+  } catch {
+    return false;
+  }
+}
+
 async function requestPaymentApproval(
   authUrl: string,
   mid: string,
@@ -23,6 +35,11 @@ async function requestPaymentApproval(
   timestamp: string,
   signature: string
 ): Promise<{ success: boolean; data?: any; error?: string }> {
+  // [WO-PAY-12] SSRF 방어
+  if (!isAllowedAuthUrl(authUrl)) {
+    error('[Payment Approval] SSRF 차단 — 허용되지 않은 authUrl:', authUrl);
+    return { success: false, error: '허용되지 않은 승인 URL' };
+  }
   try {
     log('[Payment Approval] Requesting approval to:', authUrl);
     log('[Payment Approval] Params:', { mid, authToken: authToken.substring(0, 20) + '...', price, timestamp });
@@ -147,8 +164,9 @@ export async function POST(req: NextRequest) {
 
         // DB 업데이트 - 실패
         if (orderId) {
-          await prisma.payment.update({
-            where: { orderId },
+          // [WO-PAY-11] updateMany + status guard (완료 결제 덮어쓰기 방지)
+          await prisma.payment.updateMany({
+            where: { orderId, status: { not: 'completed' } },
             data: {
               status: 'failed',
               failedAt: new Date(),
@@ -281,10 +299,10 @@ export async function POST(req: NextRequest) {
         // 승인 실패
         error('[Payment Return v12.0] PC 승인 실패:', approvalResult.error);
 
-        // DB 업데이트 - 실패
+        // [WO-PAY-11] DB 업데이트 - 실패: updateMany + status guard (완료 결제 덮어쓰기 방지)
         if (payment) {
-          await prisma.payment.update({
-            where: { orderId },
+          await prisma.payment.updateMany({
+            where: { orderId, status: { not: 'completed' } },
             data: {
               status: 'failed',
               failedAt: new Date(),
@@ -296,22 +314,27 @@ export async function POST(req: NextRequest) {
         // 망취소 호출 (매뉴얼 권장)
         // 망취소도 승인요청과 동일한 signature 사용 (authToken + timestamp)
         if (netCancelUrl) {
-          try {
-            log('[Payment Return v12.0] 망취소 요청:', netCancelUrl);
-            await fetch(netCancelUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: new URLSearchParams({
-                mid: mid || config.mid,
-                authToken,
-                price: paymentAmount.toString(),
-                timestamp: approvalTimestamp,
-                signature: approvalSignature,
-                charset: 'UTF-8',
-              }).toString(),
-            });
-          } catch (cancelErr) {
-            error('[Payment Return v12.0] 망취소 실패:', cancelErr);
+          // [WO-PAY-13] SSRF 방어: netCancelUrl도 허용된 도메인만 허용
+          if (!isAllowedAuthUrl(netCancelUrl)) {
+            error('[Payment Return v12.0] 망취소 SSRF 차단 — 허용되지 않은 netCancelUrl:', netCancelUrl);
+          } else {
+            try {
+              log('[Payment Return v12.0] 망취소 요청:', netCancelUrl);
+              await fetch(netCancelUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                  mid: mid || config.mid,
+                  authToken,
+                  price: paymentAmount.toString(),
+                  timestamp: approvalTimestamp,
+                  signature: approvalSignature,
+                  charset: 'UTF-8',
+                }).toString(),
+              });
+            } catch (cancelErr) {
+              error('[Payment Return v12.0] 망취소 실패:', cancelErr);
+            }
           }
         }
 
@@ -391,7 +414,7 @@ export async function POST(req: NextRequest) {
                 imp_uid: tid,
                 merchant_uid: orderId,
                 status: 'paid',
-                amount: parseInt(amount),
+                amount: payment.amount, // [WO-PAY-10] DB 금액 사용 (클라이언트 제공 amount 불신)
                 // [v11.0] 병합된 정보 사용
                 productCode: finalProductCode,
                 customerName: payment.buyerName,
@@ -407,8 +430,9 @@ export async function POST(req: NextRequest) {
           }
           } // end if legacyUpdated.count > 0
         } else {
-          await prisma.payment.update({
-            where: { orderId },
+          // [WO-PAY-11] updateMany + status guard (완료 결제 덮어쓰기 방지)
+          await prisma.payment.updateMany({
+            where: { orderId, status: { not: 'completed' } },
             data: {
               status: 'failed',
               failedAt: new Date(),
@@ -520,7 +544,7 @@ export async function GET(req: NextRequest) {
               imp_uid: tid,
               merchant_uid: orderId,
               status: 'paid',
-              amount: receivedAmount,
+              amount: payment.amount, // [WO-PAY-14] DB 금액 사용 (클라이언트 제공 receivedAmount 불신)
               // [v11.0] 병합된 정보 사용
               productCode: finalProductCode,
               customerName: payment.buyerName,
