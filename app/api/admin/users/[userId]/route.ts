@@ -125,38 +125,11 @@ export async function GET(
     });
     const trips = Array.from(tripsMap.values());
 
-    // 비밀번호 처리: PasswordEvent 우선, 없으면 password 필드 (해시 감지)
-    const latestPasswordEvent = (user as any).PasswordEvent && (user as any).PasswordEvent.length > 0
-      ? (user as any).PasswordEvent[0]
-      : null;
-
-    let currentPassword: string | null = null;
-    if (latestPasswordEvent?.to) {
-      // PasswordEvent의 비밀번호 (평문)
-      currentPassword = latestPasswordEvent.to;
-    } else if (user.password) {
-      const pwd = user.password;
-      // 해시된 비밀번호 감지 (bcrypt, argon2, scrypt 등)
-      const isHashed =
-        pwd.startsWith('$2') ||           // bcrypt
-        pwd.startsWith('$argon2') ||      // argon2
-        pwd.startsWith('$scrypt') ||      // scrypt
-        pwd.length > 50 ||                // 너무 긴 문자열 (해시일 가능성)
-        /^[a-f0-9]{64}$/i.test(pwd) ||    // SHA-256 hex
-        /^[a-f0-9]{128}$/i.test(pwd) ||   // SHA-512 hex
-        /[^\x20-\x7E]/.test(pwd);         // 출력 불가능한 문자 포함 (바이너리/인코딩)
-
-      if (isHashed) {
-        // 해시된 비밀번호는 표시 불가, 기본값 사용
-        currentPassword = '(암호화됨) 3800';
-      } else {
-        // 평문 비밀번호
-        currentPassword = pwd;
-      }
-    } else {
-      // 비밀번호가 없으면 기본값
-      currentPassword = '3800';
-    }
+    // 비밀번호는 별도 엔드포인트(/api/admin/users/[userId]/password)에서 감사 로그와 함께 제공
+    const hasPassword = !!(
+      ((user as any).PasswordEvent && (user as any).PasswordEvent.length > 0)
+      || user.password
+    );
 
     // 응답 데이터 구성
     const responseData = {
@@ -179,7 +152,7 @@ export async function GET(
         kakaoChannelAddedAt: user.kakaoChannelAddedAt?.toISOString() || null,
         pwaGenieInstalledAt: user.pwaGenieInstalledAt?.toISOString() || null,
         pwaMallInstalledAt: user.pwaMallInstalledAt?.toISOString() || null,
-        currentPassword, // 관리자용 비밀번호 표시 (해시 감지 적용)
+        hasPassword, // 비밀번호 보유 여부만 표시 (실제 값은 /api/admin/users/[userId]/password 에서 감사 로그와 함께 제공)
         nextActionDate: user.nextActionDate?.toISOString() || null,
         nextActionNote: user.nextActionNote,
         customerGroupId: user.customerGroupId,

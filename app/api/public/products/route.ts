@@ -729,9 +729,6 @@ export async function GET(req: NextRequest) {
           if (koreanName.includes(keywordLower) || keywordLower.includes(koreanName) ||
               (englishName && (englishName.includes(keywordLower) || keywordLower.includes(englishName))) ||
               cruiseLineLower.includes(keywordLower) || keywordLower.includes(cruiseLineLower)) {
-            if (process.env.NODE_ENV === 'development' && product.productCode === 'POP-NEW-001') {
-              console.log('[DEBUG KEYWORD] POP-NEW-001 MATCHED in cruiseLine:', cruiseLineLower);
-            }
             return true;
           }
         }
@@ -748,9 +745,6 @@ export async function GET(req: NextRequest) {
           if (koreanName.includes(keywordLower) || keywordLower.includes(koreanName) ||
               (englishName && (englishName.includes(keywordLower) || keywordLower.includes(englishName))) ||
               shipNameLower.includes(keywordLower) || keywordLower.includes(shipNameLower)) {
-            if (process.env.NODE_ENV === 'development' && product.productCode === 'POP-NEW-001') {
-              console.log('[DEBUG KEYWORD] POP-NEW-001 MATCHED in shipName:', shipNameLower);
-            }
             return true;
           }
         }
@@ -811,67 +805,43 @@ export async function GET(req: NextRequest) {
                 const destinationMatches = destinations.some((dest: any) => {
                   const destStr = dest.toString();
                   const destLower = destStr.toLowerCase();
-                  
-                  // 디버깅: POP-NEW-001 상품 확인 (개발 환경에서만)
-                  const isDebugProduct = process.env.NODE_ENV === 'development' && product.productCode === 'POP-NEW-001';
-                  if (isDebugProduct) {
-                    console.log('[DEBUG KEYWORD] POP-NEW-001 destination:', destStr, 'keyword:', keywordLower);
-                  }
-                  
+
                   // 전체 문자열에서 키워드 검색
                   if (destLower.includes(keywordLower)) {
-                    if (isDebugProduct) {
-                      console.log('[DEBUG KEYWORD] POP-NEW-001 matched in full string');
-                    }
                     return true;
                   }
-                  
+
                   // "국가 - 도시" 형식에서 도시명 추출하여 검색
                   if (destLower.includes(' - ')) {
                     const cityPart = destLower.split(' - ')[1]?.trim() || '';
                     // 도시명 한글 부분 검색 (예: "시애틀 (Seattle)" -> "시애틀")
                     const cityKorean = cityPart.split('(')[0].trim();
                     if (cityKorean.includes(keywordLower) || keywordLower.includes(cityKorean)) {
-                      if (isDebugProduct) {
-                        console.log('[DEBUG KEYWORD] POP-NEW-001 matched in cityKorean:', cityKorean);
-                      }
                       return true;
                     }
                     // 괄호 안의 영문 도시명도 검색 (예: "시애틀 (Seattle)")
                     const cityInParens = cityPart.match(/\(([^)]+)\)/)?.[1]?.toLowerCase() || '';
                     if (cityInParens && (cityInParens.includes(keywordLower) || keywordLower.includes(cityInParens))) {
-                      if (isDebugProduct) {
-                        console.log('[DEBUG KEYWORD] POP-NEW-001 matched in cityInParens:', cityInParens);
-                      }
                       return true;
                     }
                     // 국가명도 검색 (예: "미국 - 시애틀"에서 "미국" 검색)
                     const countryPart = destLower.split(' - ')[0]?.trim() || '';
                     const countryKorean = countryPart.split('(')[0].trim();
                     if (countryKorean.includes(keywordLower) || keywordLower.includes(countryKorean)) {
-                      if (isDebugProduct) {
-                        console.log('[DEBUG KEYWORD] POP-NEW-001 matched in countryKorean:', countryKorean);
-                      }
                       return true;
                     }
                   } else {
                     // "국가" 형식만 있는 경우 (예: "미국")
                     const countryKorean = destLower.split('(')[0].trim();
                     if (countryKorean.includes(keywordLower) || keywordLower.includes(countryKorean)) {
-                      if (isDebugProduct) {
-                        console.log('[DEBUG KEYWORD] POP-NEW-001 matched in country only:', countryKorean);
-                      }
                       return true;
                     }
                   }
-                  
+
                   return false;
                 });
-                
+
                 if (destinationMatches) {
-                  if (process.env.NODE_ENV === 'development' && product.productCode === 'POP-NEW-001') {
-                    console.log('[DEBUG KEYWORD] POP-NEW-001 MATCHED in keyword search');
-                  }
                   return true;
                 }
               }

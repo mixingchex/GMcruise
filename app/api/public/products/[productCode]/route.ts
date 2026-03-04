@@ -26,7 +26,6 @@ export async function GET(
       );
     }
 
-    console.log('[Public Product Detail API] 조회 시작:', productCode);
 
     // 어필리에이트 상품 유효성 확인
     // 구매몰에 표시되려면:
@@ -107,11 +106,6 @@ export async function GET(
       );
     }
 
-    console.log('[Public Product Detail API] 상품 조회 성공:', {
-      productCode: product.productCode,
-      hasItineraryPattern: !!product.itineraryPattern,
-    });
-
     return NextResponse.json({
       ok: true,
       product,
@@ -123,7 +117,9 @@ export async function GET(
       { 
         ok: false, 
         error: '상품 정보를 불러올 수 없습니다.',
-        details: error instanceof Error ? error.message : String(error)
+        ...(process.env.NODE_ENV === 'development' && {
+          details: error instanceof Error ? error.message : String(error),
+        })
       },
       { status: 500 }
     );

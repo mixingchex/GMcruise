@@ -28,6 +28,40 @@ const getProxyAudioUrl = (url: string | null): string => {
   return url;
 };
 
+// 비밀번호 클릭-확인 컴포넌트 (감사 로그 기록 후 reveal)
+function PasswordReveal({ customerId, hasPassword }: { customerId: number; hasPassword: boolean }) {
+  const [hint, setHint] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+
+  if (!hasPassword) return <p className="font-medium text-gray-400">-</p>;
+  if (revealed) return <p className="font-medium font-mono text-orange-600">{hint || '-'}</p>;
+
+  return (
+    <button
+      onClick={async () => {
+        setLoading(true);
+        try {
+          const res = await csrfFetch(`/api/admin/users/${customerId}/password`);
+          const data = await res.json();
+          if (data.ok) {
+            setHint(data.hint || '(정보 없음)');
+            setRevealed(true);
+          }
+        } catch {
+          // silent
+        } finally {
+          setLoading(false);
+        }
+      }}
+      disabled={loading}
+      className="text-sm text-blue-600 underline hover:text-blue-800 disabled:opacity-50"
+    >
+      {loading ? '조회 중...' : '••••••  (클릭 시 감사 기록됨)'}
+    </button>
+  );
+}
+
 // 상담기록 타입
 interface ConsultationNote {
   id: number;
@@ -69,7 +103,7 @@ interface CustomerDetail {
   kakaoChannelAddedAt: string | null;
   pwaGenieInstalledAt: string | null;
   pwaMallInstalledAt: string | null;
-  currentPassword: string | null;
+  hasPassword: boolean;
   // 추가 필드
   nextActionDate: string | null;
   nextActionNote: string | null;
@@ -382,7 +416,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">비밀번호</label>
-                    <p className="font-medium font-mono">{customer.currentPassword || '-'}</p>
+                    <PasswordReveal customerId={customer.id} hasPassword={customer.hasPassword} />
                   </div>
                   <div>
                     <label className="text-sm text-gray-600">역할</label>

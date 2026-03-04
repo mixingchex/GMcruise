@@ -72,7 +72,6 @@ export async function POST(req: NextRequest) {
     // partnerId는 요청 본문에서 직접 받거나, 쿠키에서 읽기
     const affiliateMallUserId = body.partnerId || cookies.get('affiliate_mall_user_id')?.value || null;
 
-    console.log('[Public Inquiry API] 파트너 추적:', { affiliateCode, affiliateMallUserId, bodyPartnerId: body.partnerId });
 
     // 어필리에이트 프로필 찾기
     let managerId: number | null = null;
@@ -86,7 +85,6 @@ export async function POST(req: NextRequest) {
         profileWhere.User = { mallUserId: affiliateMallUserId }; // User 대문자
       }
 
-      console.log('[Public Inquiry API] 프로필 검색 조건:', profileWhere);
 
       const affiliateProfile = await prisma.affiliateProfile.findFirst({
         where: {
@@ -105,12 +103,10 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      console.log('[Public Inquiry API] 찾은 프로필:', affiliateProfile);
 
       if (affiliateProfile) {
         if (affiliateProfile.type === 'BRANCH_MANAGER') {
           managerId = affiliateProfile.id;
-          console.log('[Public Inquiry API] 대리점장 설정:', managerId);
         } else if (affiliateProfile.type === 'SALES_AGENT') {
           agentId = affiliateProfile.id;
           // 판매원인 경우 대리점장 ID도 설정
@@ -118,7 +114,6 @@ export async function POST(req: NextRequest) {
           if (agentRelations && agentRelations.length > 0) {
             managerId = agentRelations[0].managerId;
           }
-          console.log('[Public Inquiry API] 판매원 설정:', { agentId, managerId });
         }
       }
     }
@@ -244,13 +239,6 @@ export async function POST(req: NextRequest) {
     }
 
     // NOTE: 관리자 알림 시스템 구현 필요 (See GitHub Issue #TBD)
-    // 임시: 로그에만 기록
-    console.log('[Public Inquiry] New inquiry received:', {
-      inquiryId: inquiry.id,
-      customerName,
-      productCode,
-      timestamp: new Date().toISOString()
-    });
 
     return NextResponse.json({
       ok: true,
