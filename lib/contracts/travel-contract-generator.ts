@@ -1,4 +1,26 @@
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 import { TravelContractData } from './types';
+
+/** P0-03: 모듈 레벨 이미지 캐시 — 동일 경로 중복 I/O 방지 */
+const _imageCache = new Map<string, string>();
+
+/** WO-CR-01: 상대경로 이미지를 base64 data URL로 변환 (Puppeteer setContent 호환) */
+function getImageAsDataUrl(relativePath: string): string {
+  if (_imageCache.has(relativePath)) return _imageCache.get(relativePath)!;
+  try {
+    const absPath = join(process.cwd(), 'public', relativePath.replace(/^\//, ''));
+    if (!existsSync(absPath)) { _imageCache.set(relativePath, ''); return ''; }
+    const ext = (relativePath.split('.').pop() || 'png').toLowerCase();
+    const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
+    const result = `data:${mime};base64,${readFileSync(absPath).toString('base64')}`;
+    _imageCache.set(relativePath, result);
+    return result;
+  } catch {
+    _imageCache.set(relativePath, '');
+    return '';
+  }
+}
 
 function escapeHtml(str: string | null | undefined): string {
   if (!str) return '';
@@ -18,8 +40,8 @@ const COMPANY = {
   ceo: '배연성',
   bank: '국민은행 531301-04-167150',
   bankHolder: '배연성(크루즈닷)',
-  stampUrl: '/images/stamp-bae.png',
-  cruisedotStampUrl: '/images/cruisedot-stamp.png',
+  stampUrl: getImageAsDataUrl('/images/stamp-bae.png'),
+  cruisedotStampUrl: getImageAsDataUrl('/images/cruisedot-stamp.png'),
 };
 
 function fmt(n: number): string {
@@ -32,7 +54,15 @@ export function generateTravelContractHTML(
   contractorSignatureUrl?: string,
   customerAddress?: string,
   companions?: Array<{ name: string; phone: string }>,
+  signedAt?: Date, // WO-CR-13: 계약 체결일
 ): string {
+  // WO-CR-13: 계약일 문자열 생성
+  const contractDate = signedAt || new Date();
+  const contractDateStr = `${contractDate.getFullYear()}.${String(contractDate.getMonth() + 1).padStart(2, '0')}.${String(contractDate.getDate()).padStart(2, '0')}`;
+  const contractDateTimeStr = signedAt
+    ? `${contractDateStr} ${String(contractDate.getHours()).padStart(2, '0')}:${String(contractDate.getMinutes()).padStart(2, '0')}`
+    : contractDateStr;
+
   const { isPackage, hasHotel } = data;
 
   // 교통수단 텍스트
@@ -69,8 +99,9 @@ export function generateTravelContractHTML(
     : `□ 여행보험료 (선택사항 — 일정에 표시)`;
 
   // 불포함 내역
+  // WO-CR-16: XSS 방어 — 각 항목 escapeHtml 적용
   const excluded = data.excludedItems.length > 0
-    ? data.excludedItems.join(', ')
+    ? data.excludedItems.map(item => escapeHtml(item)).join(', ')
     : '선상팁, 개인 경비, 기타 일정 외 비용';
 
   // 취소료 규정 테이블
@@ -114,11 +145,15 @@ export function generateTravelContractHTML(
     background: #fff;
   }
   @media print {
+    /* WO-HI-09: .page-break는 @media print 밖에 이미 정의됨 — 중복 제거 */
     .page { margin: 0; padding: 15mm 15mm 10mm; }
-    .page-break { page-break-after: always; }
     .no-print { display: none !important; }
   }
   .page-break { page-break-after: always; height: 1px; }
+  /* WO-HI-09: 페이지 중간 잘림 방지 */
+  .terms-article { page-break-inside: avoid; }
+  .cancel-table { page-break-inside: avoid; }
+  .privacy-box { page-break-inside: avoid; }
 
   /* Header */
   .contract-header {
@@ -853,7 +888,7 @@ export function generateTravelContractHTML(
     <p style="font-size:9pt;font-weight:600;color:#1a3a6b;margin-bottom:8px;">
       본인은 위 계약 내용 및 약관을 모두 확인하였으며, 이에 동의하여 서명합니다.
     </p>
-    <p style="font-size:8.5pt;">계약일: <strong>${new Date().getFullYear()}년 ${new Date().getMonth()+1}월 ${new Date().getDate()}일</strong></p>
+    <p style="font-size:8.5pt;">계약일: <strong>${contractDateTimeStr}</strong></p>
     <div class="sig-row" style="margin-top:8px;">
       <span>계약자 성명: <strong>${escapeHtml(data.mainTravelerName)}</strong></span>
       <span>(서명)</span>

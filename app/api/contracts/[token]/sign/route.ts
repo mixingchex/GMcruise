@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-export const maxDuration = 30; // Vercel: PDF 동기 생성 타임아웃 방지
+export const maxDuration = 60; // Vercel: PDF 동기 생성 타임아웃 방지
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -61,9 +61,9 @@ export async function POST(
     if (base64Part && !/^[A-Za-z0-9+/=]+$/.test(base64Part.substring(0, 100))) {
       return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
     }
-    // WO-HI-04: 제한 700000 바이트(약 700KB)와 에러 메시지 일치
-    if (customerSignature.length > 700000) {
-      return NextResponse.json({ ok: false, error: '서명 이미지 크기가 너무 큽니다. (최대 700KB)' }, { status: 400 });
+    // P2-07: 서명 이미지 크기 제한 200KB
+    if (customerSignature.length > 200 * 1024) {
+      return NextResponse.json({ ok: false, error: '서명 이미지 크기가 너무 큽니다. (최대 200KB)' }, { status: 400 });
     }
 
     // contractorSignature 포맷 검증
@@ -148,6 +148,7 @@ export async function POST(
         const validCompanions = Array.isArray(companions) ? (companions as Array<{ name: string; phone: string }>) : [];
         const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr';
 
+        // P0-02: PDF 생성 및 이메일 발송 — 실패 시 DB rollback
         try {
           // WO-CR-13: signedAtDate를 PDF 생성에도 전달
           const pdfBuffer = await generateTravelContractPDF(
@@ -193,8 +194,26 @@ export async function POST(
           logger.info('[ContractSign] 이메일 발송 완료', { token: token.slice(0, 8) });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
-          logger.error('[ContractSign] PDF 생성 실패', { token: token.slice(0, 8), error: msg });
-          // PDF 실패해도 서명은 완료됨 (이미 DB 업데이트됨)
+          logger.error('[ContractSign] PDF 생성 실패 — DB rollback 시작', { token: token.slice(0, 8), error: msg });
+
+          // P0-02: PDF 생성 실패 시 DB 상태를 pending으로 rollback
+          await prisma.travelContract.update({
+            where: { token },
+            data: {
+              status: 'pending',
+              signedAt: null,
+              customerSignature: null,
+              contractorSignature: null,
+            },
+          }).catch((rollbackErr: unknown) => {
+            const rollbackMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+            logger.error('[ContractSign] DB rollback 실패', { token: token.slice(0, 8), error: rollbackMsg });
+          });
+
+          return NextResponse.json(
+            { ok: false, error: 'PDF 생성에 실패했습니다. 다시 시도해주세요.' },
+            { status: 500 }
+          );
         }
       }
     }

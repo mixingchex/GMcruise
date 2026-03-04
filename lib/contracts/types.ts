@@ -71,3 +71,39 @@ export interface ContractSignInput {
   contractorSignature?: string; // base64 PNG
   companions: Array<{ name: string; phone: string }>;
 }
+
+// WO-CR-08: Zod 검증 스키마 (sign/route.ts, pdf/route.ts에서 contractData 파싱 시 사용)
+import { z } from 'zod';
+
+export const TravelContractDataSchema = z.object({
+  reservationId: z.number(),
+  productName: z.string().min(1),
+  shipName: z.string().min(1),
+  mainTravelerName: z.string().min(1),
+  mainTravelerPhone: z.string().min(1),
+  totalPeople: z.number().min(1),
+  pricePerPerson: z.number().min(0),
+  totalAmount: z.number().min(0),
+  departureDate: z.string(),
+  returnDate: z.string(),
+  nights: z.number().min(0),
+  days: z.number().min(1),
+  departure: z.string(),
+  arrival: z.string(),
+  affiliateName: z.string(),
+  isPackage: z.boolean(),
+  hasHotel: z.boolean(),
+  hasInsurance: z.boolean(),
+  cancellationPolicy: z.array(z.object({ period: z.string(), charge: z.string() })).min(1, '취소료 규정은 최소 1개 이상 필수입니다'),
+  excludedItems: z.array(z.string()).default([]),
+  airlineName: z.string().nullable().optional(),
+  guaranteeType: z.enum(['insurance', 'mutual-aid', 'deposit']).optional(),
+  insuranceCompany: z.string().nullable().optional(),
+  insuranceCoverage: z.string().nullable().optional(),
+  minGroupSize: z.number().optional(),
+  maxGroupSize: z.number().optional(),
+  affiliatePhone: z.string().nullable().optional(),
+  customerEmail: z.string().nullable().optional(),
+  localTransportType: z.enum(['bus', 'car', 'other', 'none']).optional(),
+  otherNotes: z.string().nullable().optional(),
+});

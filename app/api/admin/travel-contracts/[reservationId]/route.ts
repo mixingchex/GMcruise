@@ -19,8 +19,9 @@ export async function GET(
     }
 
     const { reservationId } = await params;
-    const resId = parseInt(reservationId);
-    if (isNaN(resId)) {
+    // WO-CR-20: reservationId 음수 검증
+    const resId = parseInt(reservationId, 10);
+    if (isNaN(resId) || resId <= 0) {
       return NextResponse.json({ ok: false, error: 'Invalid reservationId' }, { status: 400 });
     }
 
@@ -29,8 +30,9 @@ export async function GET(
     });
 
     return NextResponse.json({ ok: true, contract });
-  } catch (error: any) {
-    logger.error('[TravelContract GET]', error);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error('[TravelContract GET]', { error: msg });
     return NextResponse.json({ ok: false, error: '조회 실패' }, { status: 500 });
   }
 }
@@ -46,9 +48,20 @@ export async function POST(
     }
 
     const { reservationId } = await params;
-    const resId = parseInt(reservationId);
-    if (isNaN(resId)) {
+    // WO-CR-20: reservationId 음수 검증
+    const resId = parseInt(reservationId, 10);
+    if (isNaN(resId) || resId <= 0) {
       return NextResponse.json({ ok: false, error: 'Invalid reservationId' }, { status: 400 });
+    }
+
+    // WO-CR-07: partner role 접근 차단 (admin/superadmin만 허용)
+    const sessionUser = auth.user;
+    if (sessionUser?.role === 'partner') {
+      logger.warn('[ContractCreate] partner role 접근 시도', {
+        userId: sessionUser.id,
+        reservationId: resId,
+      });
+      return NextResponse.json({ ok: false, error: '권한이 없습니다.' }, { status: 403 });
     }
 
     // 예약 + 관련 데이터 조회
@@ -127,8 +140,9 @@ export async function POST(
 
     const contractData: TravelContractData = {
       reservationId: resId,
-      productName: product.packageName,
-      shipName: product.shipName,
+      // WO-ME-02: productName, shipName .trim() 추가
+      productName: (product.packageName || '').trim(),
+      shipName: (product.shipName || '').trim(),
       airlineName: reservation.airlineName || product.airlineName || null,
       isPackage,
       hasHotel,
@@ -206,8 +220,13 @@ export async function POST(
       signUrl,
       message: '계약서가 생성되었습니다.',
     });
-  } catch (error: any) {
-    logger.error('[TravelContract POST]', error);
+  } catch (error: unknown) {
+    // P2-05: Unique Constraint 충돌 (동시 요청 등으로 P2002 발생 시)
+    if ((error as any)?.code === 'P2002') {
+      return NextResponse.json({ ok: false, error: '이 예약의 계약서가 이미 존재합니다.' }, { status: 409 });
+    }
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error('[TravelContract POST]', { error: msg });
     return NextResponse.json({ ok: false, error: '계약서 생성 실패' }, { status: 500 });
   }
 }

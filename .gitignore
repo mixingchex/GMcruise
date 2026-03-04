@@ -107,3 +107,4 @@ docs/welcome-payments-vercel-setup-guide.md
 docs/welcomepayments-callback-setup.md
 docs/*credentials*
 docs/*signkey*
+public/contracts/pdfs/

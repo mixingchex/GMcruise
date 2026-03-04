@@ -22,6 +22,7 @@ interface ContractData {
 }
 
 interface Companion {
+  _id?: string;
   name: string;
   phone: string;
 }
@@ -36,7 +37,7 @@ export default function ContractSignPage() {
 
   const [step, setStep] = useState<'review' | 'sign' | 'done'>('review');
   const [customerAddress, setCustomerAddress] = useState('');
-  const [companions, setCompanions] = useState<Companion[]>([{ name: '', phone: '' }]);
+  const [companions, setCompanions] = useState<Companion[]>([{ _id: crypto.randomUUID(), name: '', phone: '' }]);
 
   // 서명 캔버스 refs (여행자 서명, 계약자 서명)
   const sigCanvas = useRef<HTMLCanvasElement>(null);
@@ -66,18 +67,18 @@ export default function ContractSignPage() {
   useEffect(() => {
     if (!token) return;
     fetch(`/api/contracts/${token}`)
-      .then(r => r.json())
-      .then(data => {
-        if (!data.ok) {
-          setError(data.error || '계약서를 불러올 수 없습니다.');
-        } else {
-          setContract(data.contract);
-          if (data.contract.isSigned) {
-            setStep('done');
-          }
+      .then(async r => {
+        const data = await r.json();
+        if (!r.ok || !data.ok) {
+          throw new Error(data.error || '계약서를 불러올 수 없습니다.');
         }
+        return data;
       })
-      .catch(() => setError('네트워크 오류가 발생했습니다.'))
+      .then(data => {
+        setContract(data.contract);
+        if (data.contract.isSigned) setStep('done');
+      })
+      .catch(err => setError(err instanceof Error ? err.message : '계약서를 불러올 수 없습니다.'))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -101,14 +102,19 @@ export default function ContractSignPage() {
     ctx.lineJoin = 'round';
   }, []);
 
-  // WO-CR-18: setTimeout → requestAnimationFrame
+  // P1-01: 3 RAF 체인으로 레이아웃 계산 완료 후 초기화
   useEffect(() => {
     if (step !== 'sign') return;
-    const raf = requestAnimationFrame(() => {
-      initCanvas(sigCanvas.current);
-      initCanvas(contractorCanvas.current);
-    });
-    return () => cancelAnimationFrame(raf);
+    let frameId: number;
+    frameId = requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          initCanvas(sigCanvas.current);
+          initCanvas(contractorCanvas.current);
+        })
+      )
+    );
+    return () => cancelAnimationFrame(frameId);
   }, [step, initCanvas]);
 
   // WO-CR-09: DPR 적용 후 getPos는 CSS 좌표 그대로 사용 (ctx.scale이 DPR 처리)
@@ -220,25 +226,48 @@ export default function ContractSignPage() {
     };
   }, [step, startDraw, draw, endDraw]);
 
-  const clearCanvas = (which: 'sig' | 'contractor') => {
-    const canvas = (which === 'sig' ? sigCanvas : contractorCanvas).current;
-    initCanvas(canvas);
-  };
+  // P2-03: orientationchange / resize 시 canvas 재초기화
+  useEffect(() => {
+    if (step !== 'sign') return;
+    const handleResize = () => {
+      requestAnimationFrame(() => {
+        initCanvas(sigCanvas.current);
+        initCanvas(contractorCanvas.current);
+      });
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, [step, initCanvas]);
 
+  // P1-02: ctx.setTransform 리셋 후 initCanvas 호출
+  const clearCanvas = useCallback((which: 'sig' | 'contractor') => {
+    const canvas = (which === 'sig' ? sigCanvas : contractorCanvas).current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // 트랜스폼 완전 리셋
+    initCanvas(canvas);
+  }, [initCanvas]);
+
+  // P1-03: Alpha Channel 체크 추가 (투명 픽셀 / 안티앨리어싱 오판 방지)
   const isCanvasEmpty = (canvas: HTMLCanvasElement | null): boolean => {
     if (!canvas) return true;
     const ctx = canvas.getContext('2d');
     if (!ctx) return true;
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    // 모든 픽셀이 흰색(255,255,255,255)인지 확인
     for (let i = 0; i < data.length; i += 4) {
-      if (data[i] !== 255 || data[i + 1] !== 255 || data[i + 2] !== 255) return false;
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      if (a > 200 && (r < 240 || g < 240 || b < 240)) return false;
     }
     return true;
   };
 
   const addCompanion = () => {
-    setCompanions(prev => [...prev, { name: '', phone: '' }]);
+    setCompanions(prev => [...prev, { _id: crypto.randomUUID(), name: '', phone: '' }]);
   };
 
   const removeCompanion = (i: number) => {
@@ -274,8 +303,10 @@ export default function ContractSignPage() {
         ? customerSignature
         : contractorCanvas.current!.toDataURL('image/jpeg', 0.8);
 
-      // WO-ME-07: 빈 동행자 제외
-      const validCompanions = companions.filter(c => c.name.trim() && c.phone.trim());
+      // WO-ME-07: 빈 동행자 제외 + _id 필드 제거 (서버 isValidCompanion 키 개수 2 검증 통과)
+      const validCompanions = companions
+        .filter(c => c.name.trim() && c.phone.trim())
+        .map(({ name, phone }) => ({ name, phone }));
 
       const res = await fetch(`/api/contracts/${token}/sign`, {
         method: 'POST',
@@ -302,6 +333,17 @@ export default function ContractSignPage() {
     }
   };
 
+  // P1-05: 서명 제출 중 페이지 이탈 방지
+  useEffect(() => {
+    if (!submitting) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '서명을 저장하는 중입니다. 잠시 기다려주세요.';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [submitting]);
+
   // WO-CR-19: PDF 다운로드 — Fetch API로 교체 (진행 상태 표시)
   const handlePdfDownload = async () => {
     setDownloading(true);
@@ -315,7 +357,7 @@ export default function ContractSignPage() {
       a.download = '여행계약서.pdf';
       document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
       document.body.removeChild(a);
     } catch {
       setSubmitError('PDF 다운로드에 실패했습니다. 잠시 후 다시 시도해주세요.');
@@ -492,7 +534,7 @@ export default function ContractSignPage() {
               </div>
               <div className="space-y-2">
                 {companions.map((c, i) => (
-                  <div key={i} className="flex gap-2 items-center">
+                  <div key={c._id || i} className="flex gap-2 items-center">
                     <input
                       type="text"
                       value={c.name}
@@ -552,6 +594,8 @@ export default function ContractSignPage() {
                   onMouseMove={draw}
                   onMouseUp={endDraw}
                   onMouseLeave={endDraw}
+                  aria-label="여행자 서명 입력 영역"
+                  role="img"
                 />
               </div>
             </div>
@@ -586,6 +630,8 @@ export default function ContractSignPage() {
                   onMouseMove={draw}
                   onMouseUp={endDraw}
                   onMouseLeave={endDraw}
+                  aria-label="계약자 서명 입력 영역"
+                  role="img"
                 />
               </div>
             </div>
