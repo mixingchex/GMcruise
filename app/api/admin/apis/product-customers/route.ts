@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
         korName: t.korName,
         engName: `${t.engSurname} ${t.engGivenName}`.trim(),
         hasPassport: !!t.passportNo,
-        passportImage: t.passportImage,
+        hasPassportImage: !!t.passportImage, // 여권 이미지 — /api/admin/traveler/[id]/passport-link 사용
       })),
     }));
 

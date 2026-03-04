@@ -672,17 +672,14 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
   const loadMyContract = useCallback(async () => {
     try {
       setLoadingMyContract(true);
-      console.log('[PartnerDashboard] Loading my contract...');
       const res = await fetch('/api/affiliate/my-contract', { credentials: 'include' });
       const json = await res.json();
-      console.log('[PartnerDashboard] My contract response:', { ok: json.ok, hasContract: !!json.contract, contract: json.contract, completedAgentContracts: json.completedAgentContracts?.length || 0 });
       if (res.ok && json.ok) {
         setMyContract(json.contract);
         // 대리점장인 경우 완료된 판매원 계약서 목록도 저장
         if (json.completedAgentContracts && Array.isArray(json.completedAgentContracts)) {
           setCompletedAgentContracts(json.completedAgentContracts);
         }
-        console.log('[PartnerDashboard] My contract set:', json.contract ? { id: json.contract.id, status: json.contract.status, name: json.contract.name } : 'null');
       } else {
         console.warn('[PartnerDashboard] Failed to load contract:', json.message);
         setMyContract(null);
@@ -818,7 +815,6 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
   // 통계 데이터 로드
   useEffect(() => {
-    console.log('[PartnerDashboard] useEffect triggered, isBranchManager:', isBranchManager);
     // loadStats()와 loadMySales()는 selectedMonth 변경 시 호출되므로 여기서는 제거 (중복 호출 방지)
     loadMyContract(); // 나의 계약서 로드
     if (isBranchManager) {
@@ -885,20 +881,16 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
 
   const loadContracts = useCallback(async () => {
     if (!isBranchManager) {
-      console.log('[PartnerDashboard] Not a branch manager, skipping loadContracts');
       return;
     }
     try {
       setLoadingContracts(true);
-      console.log('[PartnerDashboard] Loading contracts...');
       const res = await fetch('/api/partner/contracts', {
         credentials: 'include',
       });
       const json = await res.json();
-      console.log('[PartnerDashboard] Contracts response:', { ok: res.ok, jsonOk: json.ok, contractsCount: json.contracts?.length || 0 });
       if (res.ok && json.ok) {
         setContracts(json.contracts || []);
-        console.log('[PartnerDashboard] Contracts loaded:', json.contracts?.length || 0);
       } else {
         console.error('[PartnerDashboard] Failed to load contracts:', json.message || 'Unknown error');
         showError(json.message || '계약서 목록을 불러오는 중 오류가 발생했습니다.');
@@ -1162,7 +1154,6 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
     if (!confirm('계약서 PDF를 계약자 이메일 주소로 전송하시겠습니까? (본사 이메일은 참조로 추가됩니다)')) return;
     try {
       setSendingPdfContractId(contractId);
-      console.log('[PartnerDashboard] Starting PDF send for contract:', contractId);
 
       // 타임아웃 설정 (60초)
       const controller = new AbortController();
@@ -1204,8 +1195,6 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           console.error('[PartnerDashboard] JSON parse error:', parseError, 'Response text:', text);
           throw new Error('Invalid JSON response from server');
         }
-
-        console.log('[PartnerDashboard] PDF send response:', json);
 
         if (!json.ok) {
           throw new Error(json.message || json.error || 'PDF 전송에 실패했습니다.');
@@ -4633,31 +4622,17 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
                               <div>
                                 <p className="text-sm font-medium text-gray-500">여권번호</p>
                                 <p className="text-base text-gray-900">{traveler.passportNo || '미입력'}</p>
-                                {traveler.passportImage && (
-                                  <div className="mt-2 flex gap-2">
-                                    <button
-                                      onClick={() => {
-                                        const img = new Image();
-                                        img.src = traveler.passportImage;
-                                        const w = window.open();
-                                        if (w) {
-                                          w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
-                                        }
-                                      }}
-                                      className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                                    >
-                                      이미지 보기
-                                    </button>
-                                  </div>
+                                {traveler.hasPassportImage && (
+                                  <p className="text-xs text-green-600 mt-1">✓ 여권 이미지 제출됨</p>
                                 )}
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-gray-500">생년월일</p>
-                                <p className="text-base text-gray-900">{traveler.dateOfBirth || '미입력'}</p>
+                                <p className="text-base text-gray-900">{traveler.birthDate || '미입력'}</p>
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-gray-500">여권 만료일</p>
-                                <p className="text-base text-gray-900">{traveler.passportExpiryDate || '미입력'}</p>
+                                <p className="text-base text-gray-900">{traveler.expiryDate || '미입력'}</p>
                               </div>
                               <div>
                                 <p className="text-sm font-medium text-gray-500">국적</p>

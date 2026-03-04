@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { csrfFetch } from '@/lib/csrf-client';
 import { FiX, FiUser, FiPhone, FiMail, FiCalendar, FiLock, FiUnlock, FiPackage, FiShoppingCart, FiDollarSign, FiFileText, FiPlus, FiSave, FiInfo, FiCheckCircle, FiMessageSquare, FiSend, FiBell, FiUpload, FiMic, FiUsers, FiEdit2, FiTrash2, FiClock, FiChevronDown, FiChevronUp } from 'react-icons/fi';
 
 // Google Drive URL을 프록시 다운로드 URL로 변환 (403 권한 문제 해결)
@@ -235,7 +236,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
               korName: t.korName,
               engName: `${t.engGivenName || ''} ${t.engSurname || ''}`.trim(),
               passportNo: t.passportNo,
-              passportImage: t.passportImage, // 여권 이미지 포함
+              hasPassportImage: !!t.passportImage,
               hasPassport: !!(t.passportNo && t.passportNo.trim() !== ''),
             })),
           })) || [],
@@ -255,7 +256,7 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
               korName: t.korName,
               engName: `${t.engGivenName || ''} ${t.engSurname || ''}`.trim(),
               passportNo: t.passportNo,
-              passportImage: t.passportImage, // 여권 이미지 포함
+              hasPassportImage: !!t.passportImage,
               hasPassport: !!(t.passportNo && t.passportNo.trim() !== ''),
             })),
           })),
@@ -872,33 +873,21 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                                       <div key={traveler.id} className="ml-4 text-xs text-gray-600 mb-2">
                                         {traveler.korName || `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() || '이름 없음'}
                                         {traveler.passportNo && ` (여권: ${traveler.passportNo})`}
-                                        {traveler.passportImage && (
-                                          <div className="mt-1 flex gap-1">
+                                        {traveler.hasPassportImage && (
+                                          <div className="mt-1">
                                             <button
-                                              onClick={() => {
-                                                const img = new Image();
-                                                img.src = traveler.passportImage;
-                                                const w = window.open();
-                                                if (w) {
-                                                  w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
-                                                }
+                                              onClick={async () => {
+                                                try {
+                                                  const res = await csrfFetch(`/api/admin/traveler/${traveler.id}/passport-link`);
+                                                  const data = await res.json();
+                                                  if (data.ok && data.url) {
+                                                    window.open(data.url, '_blank', 'noopener,noreferrer');
+                                                  }
+                                                } catch { /* silent */ }
                                               }}
                                               className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
                                             >
                                               이미지 보기
-                                            </button>
-                                            <button
-                                              onClick={() => {
-                                                const link = document.createElement('a');
-                                                link.href = traveler.passportImage;
-                                                link.download = `passport_${traveler.passportNo || 'unknown'}.jpg`;
-                                                document.body.appendChild(link);
-                                                link.click();
-                                                document.body.removeChild(link);
-                                              }}
-                                              className="px-2 py-0.5 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                                            >
-                                              다운로드
                                             </button>
                                           </div>
                                         )}
@@ -925,33 +914,21 @@ export default function CustomerDetailModal({ customerId, isOpen, onClose }: Pro
                                 <div key={traveler.id} className="ml-4 text-xs text-gray-600 mb-2">
                                   {traveler.korName || `${traveler.engGivenName || ''} ${traveler.engSurname || ''}`.trim() || '이름 없음'}
                                   {traveler.passportNo && ` (여권: ${traveler.passportNo})`}
-                                  {traveler.passportImage && (
-                                    <div className="mt-1 flex gap-1">
+                                  {traveler.hasPassportImage && (
+                                    <div className="mt-1">
                                       <button
-                                        onClick={() => {
-                                          const img = new Image();
-                                          img.src = traveler.passportImage;
-                                          const w = window.open();
-                                          if (w) {
-                                            w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
-                                          }
+                                        onClick={async () => {
+                                          try {
+                                            const res = await csrfFetch(`/api/admin/traveler/${traveler.id}/passport-link`);
+                                            const data = await res.json();
+                                            if (data.ok && data.url) {
+                                              window.open(data.url, '_blank', 'noopener,noreferrer');
+                                            }
+                                          } catch { /* silent */ }
                                         }}
                                         className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
                                       >
                                         이미지 보기
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          const link = document.createElement('a');
-                                          link.href = traveler.passportImage;
-                                          link.download = `passport_${traveler.passportNo || 'unknown'}.jpg`;
-                                          document.body.appendChild(link);
-                                          link.click();
-                                          document.body.removeChild(link);
-                                        }}
-                                        className="px-2 py-0.5 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                                      >
-                                        다운로드
                                       </button>
                                     </div>
                                   )}

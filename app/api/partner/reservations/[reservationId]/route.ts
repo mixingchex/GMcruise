@@ -101,6 +101,19 @@ export async function GET(
       where: { id: reservationId },
       include: {
         Traveler: {
+          select: {
+            id: true,
+            roomNumber: true,
+            korName: true,
+            engSurname: true,
+            engGivenName: true,
+            passportNo: true,
+            residentNum: true,
+            nationality: true,
+            passportImage: true, // hasPassportImage 계산용 — URL은 응답에 미포함
+            birthDate: true,
+            expiryDate: true,
+          },
           orderBy: [
             { roomNumber: 'asc' },
             { id: 'asc' },
@@ -186,16 +199,16 @@ export async function GET(
           passportNo: t.passportNo,
           residentNum: t.residentNum,
           nationality: t.nationality,
-          dateOfBirth: t.dateOfBirth ? t.dateOfBirth.toISOString().split('T')[0] : null,
-          passportExpiryDate: t.passportExpiryDate ? t.passportExpiryDate.toISOString().split('T')[0] : null,
-          passportImage: t.passportImage, // 여권 이미지 포함
+          birthDate: t.birthDate || null,
+          expiryDate: t.expiryDate || null,
+          hasPassportImage: !!t.passportImage, // 여권 이미지 — /api/admin/traveler/[id]/passport-link 사용
         })),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Reservation GET] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || 'Failed to fetch reservation' },
+      { ok: false, error: 'Failed to fetch reservation' },
       { status: 500 }
     );
   }

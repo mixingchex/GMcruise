@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
             departureDate: true,
             spreadsheetId: true,
             productCode: true,
+            googleFolderId: true,
           },
         },
         Traveler: {
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
             gender: true,
             residentNum: true,  // 주민번호
             roomNumber: true,
-            passportImage: true,
+            passportImage: true, // hasPassportImage 계산용 — URL은 응답에 미포함
             notes: true,        // 비고
           },
         },
@@ -154,6 +155,7 @@ export async function GET(req: NextRequest) {
           spreadsheetId: r.Trip.spreadsheetId,
           shipName: r.Trip.shipName,
           productCode: r.Trip.productCode,
+          googleFolderId: r.Trip.googleFolderId ?? null,
           product: {
             cruiseLine: null,
             shipName: r.Trip.shipName,
@@ -173,7 +175,7 @@ export async function GET(req: NextRequest) {
           gender: t.gender,
           residentNum: t.residentNum,  // 주민번호
           roomNumber: t.roomNumber,
-          passportImage: t.passportImage,
+          hasPassportImage: !!t.passportImage,
           notes: t.notes,              // 비고
         })),
         // 판매원 정보 (실제 판매자)

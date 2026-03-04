@@ -45,6 +45,7 @@ export async function GET(
             departureDate: true,
             productCode: true,
             spreadsheetId: true,
+            googleFolderId: true,
           },
         },
         Traveler: {
@@ -95,6 +96,7 @@ export async function GET(
         id: reservation.Trip.id,
         departureDate: reservation.Trip.departureDate?.toISOString(),
         spreadsheetId: reservation.Trip.spreadsheetId,
+        googleFolderId: reservation.Trip.googleFolderId ?? null,
         shipName: reservation.Trip.shipName,
         productCode: reservation.Trip.productCode,
         product: {
@@ -114,7 +116,7 @@ export async function GET(
         expiryDate: t.expiryDate,
         gender: t.gender,
         roomNumber: t.roomNumber,
-        passportImage: t.passportImage,
+        hasPassportImage: !!t.passportImage, // 여권 이미지 — /api/admin/traveler/[id]/passport-link 사용
       })),
       affiliate: reservation.AffiliateSale?.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile ? {
         displayName: reservation.AffiliateSale.AffiliateProfile_AffiliateSale_agentIdToAffiliateProfile.displayName,
@@ -126,10 +128,10 @@ export async function GET(
       ok: true,
       reservation: mappedReservation,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin Purchased Customers Detail] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || 'Failed to fetch reservation detail' },
+      { ok: false, error: 'Failed to fetch reservation detail' },
       { status: 500 }
     );
   }

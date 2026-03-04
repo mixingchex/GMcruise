@@ -108,10 +108,10 @@ export async function PATCH(
         notes: updatedTraveler.notes,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin Travelers Update] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || 'Failed to update traveler' },
+      { ok: false, error: 'Failed to update traveler' },
       { status: 500 }
     );
   }
@@ -171,14 +171,14 @@ export async function GET(
         expiryDate: traveler.expiryDate,
         gender: traveler.gender,
         roomNumber: traveler.roomNumber,
-        passportImage: traveler.passportImage,
+        hasPassportImage: !!traveler.passportImage, // 여권 이미지 — /api/admin/traveler/[id]/passport-link 사용
         reservationId: traveler.reservationId,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin Travelers Get] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || 'Failed to fetch traveler' },
+      { ok: false, error: 'Failed to fetch traveler' },
       { status: 500 }
     );
   }
@@ -255,10 +255,10 @@ export async function DELETE(
       ok: true,
       message: 'Traveler deleted successfully',
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Admin Travelers Delete] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || 'Failed to delete traveler' },
+      { ok: false, error: 'Failed to delete traveler' },
       { status: 500 }
     );
   }

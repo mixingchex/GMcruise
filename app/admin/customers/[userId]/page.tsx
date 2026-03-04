@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { FiLock, FiUnlock, FiKey, FiLogOut, FiArrowLeft, FiRefreshCw, FiTrash2, FiBarChart2, FiFileText, FiX, FiPlus, FiEdit, FiLink, FiCopy, FiMessageSquare, FiSend, FiLoader } from 'react-icons/fi';
 import { showSuccess, showError } from '@/components/ui/Toast';
+import { csrfFetch } from '@/lib/csrf-client';
 
 type AffiliateOwnershipSource = 'self-profile' | 'lead-agent' | 'lead-manager' | 'fallback';
 
@@ -1653,33 +1654,25 @@ export default function CustomerDetailPage() {
                                 {traveler.expiryDate && (
                                   <div><span className="font-medium">만료일:</span> {typeof traveler.expiryDate === 'string' ? traveler.expiryDate : new Date(traveler.expiryDate).toLocaleDateString('ko-KR')}</div>
                                 )}
-                                {traveler.passportImage && (
-                                  <div className="mt-2 flex gap-2">
+                                {traveler.hasPassportImage && (
+                                  <div className="mt-2">
                                     <button
-                                      onClick={() => {
-                                        const img = new Image();
-                                        img.src = traveler.passportImage;
-                                        const w = window.open();
-                                        if (w) {
-                                          w.document.write(`<img src="${traveler.passportImage}" style="max-width: 100%; height: auto;" />`);
+                                      onClick={async () => {
+                                        try {
+                                          const res = await csrfFetch(`/api/admin/traveler/${traveler.id}/passport-link`);
+                                          const data = await res.json();
+                                          if (data.ok && data.url) {
+                                            window.open(data.url, '_blank', 'noopener,noreferrer');
+                                          } else {
+                                            showError(data.message || '여권 이미지를 불러올 수 없습니다.');
+                                          }
+                                        } catch {
+                                          showError('여권 이미지 불러오기 실패');
                                         }
                                       }}
                                       className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
                                     >
                                       이미지 보기
-                                    </button>
-                                    <button
-                                      onClick={() => {
-                                        const link = document.createElement('a');
-                                        link.href = traveler.passportImage;
-                                        link.download = `passport_${traveler.passportNo || 'unknown'}.jpg`;
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                      }}
-                                      className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                                    >
-                                      다운로드
                                     </button>
                                   </div>
                                 )}

@@ -21,6 +21,7 @@ import {
   FiDollarSign,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
+import { csrfFetch } from '@/lib/csrf-client';
 
 type Traveler = {
   id: number;
@@ -35,7 +36,7 @@ type Traveler = {
   gender: string | null;
   residentNum: string | null; // 주민번호
   roomNumber: number | null;
-  passportImage: string | null;
+  hasPassportImage: boolean;
   notes: string | null;       // 비고
 };
 
@@ -80,6 +81,7 @@ type Reservation = {
     departureDate: string | null;
     spreadsheetId: string | null;
     shipName: string | null;
+    googleFolderId: string | null;
     product: {
       cruiseLine: string | null;
       shipName: string | null;
@@ -1304,12 +1306,44 @@ export default function AdminPurchasedCustomersPage() {
                                   <div>
                                     <p className="text-sm font-medium text-gray-500">여권번호</p>
                                     <p className="text-base text-gray-900">{traveler.passportNo || <span className="text-red-500">미입력</span>}</p>
-                                    {traveler.passportImage && (
+                                    {traveler.hasPassportImage && (
                                       <button
-                                        onClick={() => window.open(traveler.passportImage!, '_blank')}
-                                        className="mt-1 text-xs text-blue-600 hover:text-blue-700"
+                                        onClick={async () => {
+                                          try {
+                                            const res = await csrfFetch(`/api/admin/traveler/${traveler.id}/passport-link`);
+                                            const data = await res.json();
+                                            if (data.ok && data.url) {
+                                              window.open(data.url, '_blank', 'noopener,noreferrer');
+                                            } else {
+                                              showError(data.message || '여권 이미지를 불러올 수 없습니다.');
+                                            }
+                                          } catch {
+                                            showError('여권 이미지 불러오기 실패');
+                                          }
+                                        }}
+                                        className="mt-1 text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
                                       >
-                                        여권 이미지 보기
+                                        <FiEye className="text-xs" /> 여권 이미지
+                                      </button>
+                                    )}
+                                    {selectedReservation.trip?.googleFolderId && (
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            const res = await csrfFetch(`/api/admin/trips/${selectedReservation.trip!.id}/passport-folder`);
+                                            const data = await res.json();
+                                            if (data.ok && data.folderUrl) {
+                                              window.open(data.folderUrl, '_blank', 'noopener,noreferrer');
+                                            } else {
+                                              showError(data.message || 'Drive 폴더를 찾을 수 없습니다.');
+                                            }
+                                          } catch {
+                                            showError('Drive 폴더 열기 실패');
+                                          }
+                                        }}
+                                        className="mt-1 text-xs text-gray-600 hover:text-gray-700 flex items-center gap-1"
+                                      >
+                                        <FiExternalLink className="text-xs" /> Drive 폴더
                                       </button>
                                     )}
                                   </div>

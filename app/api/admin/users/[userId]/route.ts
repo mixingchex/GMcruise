@@ -106,12 +106,20 @@ export async function GET(
     });
 
     // Reservation에서 Trip 정보를 추출하여 trips 배열 생성
+    // passportImage는 Traveler에 포함되므로 trips 경로에서도 반드시 제거
     const tripsMap = new Map<number, any>();
     user.Reservation.forEach((res: any) => {
       if (res.Trip && !tripsMap.has(res.Trip.id)) {
+        const sanitizedReservations = (res.Trip.Reservation || [res]).map((r: any) => ({
+          ...r,
+          Traveler: r.Traveler?.map((t: any) => {
+            const { passportImage, ...tRest } = t;
+            return { ...tRest, hasPassportImage: !!passportImage };
+          }) ?? [],
+        }));
         tripsMap.set(res.Trip.id, {
           ...res.Trip,
-          Reservation: res.Trip.Reservation || [res],
+          Reservation: sanitizedReservations,
         });
       }
     });
@@ -179,7 +187,23 @@ export async function GET(
         assignedManager,
         consultationNotes,
         trips,
-        reservations: user.Reservation,
+        reservations: user.Reservation.map((res: any) => ({
+          ...res,
+          Traveler: res.Traveler?.map((t: any) => {
+            const { passportImage, ...tRest } = t;
+            return { ...tRest, hasPassportImage: !!passportImage };
+          }) ?? [],
+          Trip: res.Trip ? {
+            ...res.Trip,
+            Reservation: res.Trip.Reservation?.map((r: any) => ({
+              ...r,
+              Traveler: r.Traveler?.map((t: any) => {
+                const { passportImage, ...tRest } = t;
+                return { ...tRest, hasPassportImage: !!passportImage };
+              }) ?? [],
+            })) ?? [],
+          } : null,
+        })),
         refundHistory: [], // RefundHistory 관계가 없으므로 빈 배열
         apisInfo,
       },
