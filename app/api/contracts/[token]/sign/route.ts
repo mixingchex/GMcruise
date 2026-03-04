@@ -1,10 +1,24 @@
 export const dynamic = 'force-dynamic';
+export const maxDuration = 30; // Vercel: PDF 동기 생성 타임아웃 방지
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { sendTravelContractSignedEmail, sendTravelContractCustomerEmail } from '@/lib/email';
 import { generateTravelContractPDF } from '@/lib/contracts/travel-contract-pdf';
+import { TravelContractDataSchema } from '@/lib/contracts/types';
+import { checkRateLimit } from '@/lib/rate-limiter';
+import { getClientIp } from '@/lib/ip-utils';
+
+// WO-CR-15: 동반자 타입 가드
+function isValidCompanion(c: unknown): c is { name: string; phone: string } {
+  if (typeof c !== 'object' || c === null) return false;
+  const obj = c as Record<string, unknown>;
+  if (typeof obj.name !== 'string' || typeof obj.phone !== 'string') return false;
+  if (Object.keys(obj).length !== 2) return false;
+  return obj.name.trim().length > 0 && obj.name.length <= 50
+      && obj.phone.trim().length > 0 && obj.phone.length <= 20;
+}
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +26,17 @@ export async function POST(
 ) {
   try {
     const { token } = await params;
+
+    // WO-CR-06: Rate limiting (IP당 1분에 5회)
+    const ip = getClientIp(request);
+    const { limited } = await checkRateLimit(`contract:sign:${ip}`, { limit: 5, windowMs: 60_000 });
+    if (limited) {
+      return NextResponse.json(
+        { ok: false, error: '너무 많은 시도입니다. 1분 후 다시 시도해주세요.' },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const { customerAddress, customerSignature, contractorSignature, companions } = body;
 
@@ -36,8 +61,9 @@ export async function POST(
     if (base64Part && !/^[A-Za-z0-9+/=]+$/.test(base64Part.substring(0, 100))) {
       return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
     }
+    // WO-HI-04: 제한 700000 바이트(약 700KB)와 에러 메시지 일치
     if (customerSignature.length > 700000) {
-      return NextResponse.json({ ok: false, error: '서명 이미지 크기가 너무 큽니다. (최대 500KB)' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: '서명 이미지 크기가 너무 큽니다. (최대 700KB)' }, { status: 400 });
     }
 
     // contractorSignature 포맷 검증
@@ -56,9 +82,16 @@ export async function POST(
     if (companions && companions.length > MAX_COMPANIONS) {
       return NextResponse.json({ ok: false, error: '동반자는 최대 20명까지 입력 가능합니다.' }, { status: 400 });
     }
-    if (companions?.some((c: any) => !c.name || c.name.length > 50 || !c.phone || c.phone.length > 20)) {
-      return NextResponse.json({ ok: false, error: '동반자 정보 형식이 올바르지 않습니다.' }, { status: 400 });
+
+    // WO-CR-15: companions strict 타입 검증
+    if (companions !== undefined && companions !== null) {
+      if (!Array.isArray(companions) || !companions.every(isValidCompanion)) {
+        return NextResponse.json({ ok: false, error: '동반자 정보 형식이 올바르지 않습니다.' }, { status: 400 });
+      }
     }
+
+    // WO-CR-13: signedAt을 updateMany와 PDF 생성 모두에 동일 값 사용
+    const signedAtDate = new Date();
 
     // TOCTOU 방지: atomic updateMany (pending 상태 + 만료되지 않은 계약서만 서명 처리)
     const result = await prisma.travelContract.updateMany({
@@ -76,7 +109,7 @@ export async function POST(
         customerSignature,
         contractorSignature: body.contractorSignature || null,
         companions: companions || [],
-        signedAt: new Date(),
+        signedAt: signedAtDate,
       },
     });
 
@@ -98,69 +131,82 @@ export async function POST(
       return NextResponse.json({ ok: false, error: '서명 처리 중 오류가 발생했습니다.' }, { status: 500 });
     }
 
-    // 비동기: 이메일 발송 (응답에 영향 없음)
+    // WO-CR-02: Fire-and-forget IIFE 제거 → 응답 전 동기 처리 (Vercel 실행 보장)
     const contract = await prisma.travelContract.findUnique({
       where: { token },
       select: { contractData: true, reservationId: true },
     });
 
     if (contract) {
-      const contractData = contract.contractData as any;
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr';
+      // WO-CR-08: Zod로 contractData 파싱
+      const parseResult = TravelContractDataSchema.safeParse(contract.contractData);
+      if (!parseResult.success) {
+        logger.error('[ContractSign] contractData 타입 불일치', { token: token.slice(0, 8) });
+        // contractData 손상이지만 서명 자체는 이미 완료됨 — 이메일만 스킵
+      } else {
+        const contractData = parseResult.data;
+        const validCompanions = Array.isArray(companions) ? (companions as Array<{ name: string; phone: string }>) : [];
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr';
 
-      (async () => {
         try {
-          // PDF 생성 (서명 포함)
+          // WO-CR-13: signedAtDate를 PDF 생성에도 전달
           const pdfBuffer = await generateTravelContractPDF(
             contractData,
             customerSignature,
-            body.contractorSignature || undefined,
+            contractorSignature || undefined,
             customerAddress || undefined,
-            companions || undefined,
+            validCompanions,
+            signedAtDate,
           );
 
-          // 관리자 이메일
-          const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_SMTP_USER;
+          // 관리자 이메일 (실패해도 서명 자체는 성공)
+          const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_SMTP_USER || '';
           if (adminEmail) {
             await sendTravelContractSignedEmail({
               adminEmail,
-              customerName: contractData.mainTravelerName || '고객',
-              productName: contractData.productName || '',
+              customerName: contractData.mainTravelerName,
+              productName: contractData.productName,
               reservationId: contract.reservationId,
-              signedAt: new Date().toISOString(),
+              signedAt: signedAtDate.toISOString(),
               pdfBuffer,
+            }).catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              logger.error('[ContractSign] 관리자 이메일 발송 실패', { token: token.slice(0, 8), error: msg });
             });
           }
 
           // 고객 이메일 (contractData에 email 필드 있을 때)
-          const customerEmail = contractData.customerEmail as string | undefined;
-          if (customerEmail) {
+          if (contractData.customerEmail) {
             const downloadUrl = `${baseUrl}/api/contracts/${token}/pdf`;
             await sendTravelContractCustomerEmail({
-              customerEmail,
-              customerName: contractData.mainTravelerName || '고객',
-              productName: contractData.productName || '',
+              customerEmail: contractData.customerEmail,
+              customerName: contractData.mainTravelerName,
+              productName: contractData.productName,
               downloadUrl,
-              signedAt: new Date().toISOString(),
+              signedAt: signedAtDate.toISOString(),
+            }).catch((err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              logger.error('[ContractSign] 고객 이메일 발송 실패', { token: token.slice(0, 8), error: msg });
             });
           }
 
-          // Google Drive 아카이브 (설정된 경우)
-          // TODO: pdfUrl DB 업데이트 - WO-BIZ-04
-          logger.log('[ContractSign] 이메일 발송 완료', { token });
-        } catch (err: any) {
-          logger.error('[ContractSign] 사후 처리 오류', { token, error: err.message });
+          logger.info('[ContractSign] 이메일 발송 완료', { token: token.slice(0, 8) });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logger.error('[ContractSign] PDF 생성 실패', { token: token.slice(0, 8), error: msg });
+          // PDF 실패해도 서명은 완료됨 (이미 DB 업데이트됨)
         }
-      })();
+      }
     }
 
     return NextResponse.json({
       ok: true,
       message: '계약서 서명이 완료되었습니다.',
-      signedAt: new Date(),
+      signedAt: signedAtDate,
     });
-  } catch (error: any) {
-    logger.error('[Contract Sign POST]', error);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error('[Contract Sign POST]', { error: msg });
     return NextResponse.json({ ok: false, error: '서명 처리 실패' }, { status: 500 });
   }
 }

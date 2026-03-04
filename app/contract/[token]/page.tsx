@@ -49,6 +49,20 @@ export default function ContractSignPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [termsAgreed, setTermsAgreed] = useState(false);
 
+  // WO-CR-19: PDF 다운로드 상태
+  const [downloading, setDownloading] = useState(false);
+
+  // WO-LO-02: 로딩 타임아웃 5초
+  useEffect(() => {
+    if (!loading) return;
+    const timeout = setTimeout(() => {
+      if (loading && !contract) {
+        setError('계약서 로드에 시간이 걸리고 있습니다. 페이지를 새로고침해 주세요.');
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [loading, contract]);
+
   useEffect(() => {
     if (!token) return;
     fetch(`/api/contracts/${token}`)
@@ -67,58 +81,75 @@ export default function ContractSignPage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  // 서명 캔버스 초기화
+  // WO-CR-09: Canvas Retina DPI 수정
   const initCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
     if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    // CSS 크기에 맞게 실제 픽셀 크기 설정
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    // 물리 픽셀 좌표로 흰색 채우기 (scale 적용 전 → 모든 픽셀 보장)
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#1a3a6b';
-    ctx.lineWidth = 2.5;
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
   }, []);
 
+  // WO-CR-18: setTimeout → requestAnimationFrame
   useEffect(() => {
-    if (step === 'sign') {
-      setTimeout(() => {
-        initCanvas(sigCanvas.current);
-        initCanvas(contractorCanvas.current);
-      }, 100);
-    }
+    if (step !== 'sign') return;
+    const raf = requestAnimationFrame(() => {
+      initCanvas(sigCanvas.current);
+      initCanvas(contractorCanvas.current);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [step, initCanvas]);
 
-  const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
+  // WO-CR-09: DPR 적용 후 getPos는 CSS 좌표 그대로 사용 (ctx.scale이 DPR 처리)
+  const getPos = (e: React.MouseEvent | React.TouchEvent | TouchEvent | MouseEvent, canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
     if ('touches' in e) {
+      const te = e as TouchEvent | React.TouchEvent<HTMLCanvasElement>;
+      const touch = (te as TouchEvent).touches?.[0] ?? (te as React.TouchEvent<HTMLCanvasElement>).touches[0];
       return {
-        x: (e.touches[0].clientX - rect.left) * scaleX,
-        y: (e.touches[0].clientY - rect.top) * scaleY,
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
       };
     }
+    const me = e as MouseEvent | React.MouseEvent<HTMLCanvasElement>;
     return {
-      x: (e.clientX - rect.left) * scaleX,
-      y: (e.clientY - rect.top) * scaleY,
+      x: (me as MouseEvent).clientX !== undefined
+        ? (me as MouseEvent).clientX - rect.left
+        : (me as React.MouseEvent<HTMLCanvasElement>).clientX - rect.left,
+      y: (me as MouseEvent).clientY !== undefined
+        ? (me as MouseEvent).clientY - rect.top
+        : (me as React.MouseEvent<HTMLCanvasElement>).clientY - rect.top,
     };
   };
 
-  const getActiveCanvasRef = () => activeCanvas === 'sig' ? sigCanvas : contractorCanvas;
+  const getActiveCanvasRef = useCallback(
+    () => activeCanvas === 'sig' ? sigCanvas : contractorCanvas,
+    [activeCanvas]
+  );
 
-  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    const canvas = getActiveCanvasRef().current;
+  const startDraw = useCallback((e: React.MouseEvent | React.TouchEvent | TouchEvent) => {
+    if ('preventDefault' in e) e.preventDefault();
+    const canvas = (activeCanvas === 'sig' ? sigCanvas : contractorCanvas).current;
     if (!canvas) return;
     setIsDrawing(true);
     lastPos.current = getPos(e, canvas);
-  };
+  }, [activeCanvas]);
 
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
+  const draw = useCallback((e: React.MouseEvent | React.TouchEvent | TouchEvent) => {
+    if ('preventDefault' in e) e.preventDefault();
     if (!isDrawing) return;
-    const canvas = getActiveCanvasRef().current;
+    const canvas = (activeCanvas === 'sig' ? sigCanvas : contractorCanvas).current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx || !lastPos.current) return;
@@ -128,12 +159,66 @@ export default function ContractSignPage() {
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
     lastPos.current = pos;
-  };
+  }, [isDrawing, activeCanvas]);
 
-  const stopDraw = () => {
+  const endDraw = useCallback(() => {
     setIsDrawing(false);
     lastPos.current = null;
-  };
+  }, []);
+
+  // WO-CR-10: 여행자 서명 캔버스 터치 이벤트 passive:false
+  useEffect(() => {
+    const canvas = sigCanvas.current;
+    if (!canvas || step !== 'sign') return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      setActiveCanvas('sig');
+      startDraw(e);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      draw(e);
+    };
+    const handleTouchEnd = () => { endDraw(); };
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [step, startDraw, draw, endDraw]);
+
+  // WO-CR-10: 계약자 서명 캔버스 터치 이벤트 passive:false
+  useEffect(() => {
+    const canvas = contractorCanvas.current;
+    if (!canvas || step !== 'sign') return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      setActiveCanvas('contractor');
+      startDraw(e);
+    };
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      draw(e);
+    };
+    const handleTouchEnd = () => { endDraw(); };
+
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd);
+
+    return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [step, startDraw, draw, endDraw]);
 
   const clearCanvas = (which: 'sig' | 'contractor') => {
     const canvas = (which === 'sig' ? sigCanvas : contractorCanvas).current;
@@ -165,8 +250,9 @@ export default function ContractSignPage() {
   };
 
   const handleSubmit = async () => {
+    // WO-CR-17: alert() → setSubmitError
     if (!termsAgreed) {
-      alert('약관 동의가 필요합니다.');
+      setSubmitError('약관 동의가 필요합니다.');
       return;
     }
     if (!customerAddress.trim() || customerAddress.trim().length < 5) {
@@ -182,11 +268,13 @@ export default function ContractSignPage() {
     setSubmitError(null);
 
     try {
-      const customerSignature = sigCanvas.current!.toDataURL('image/png');
+      // WO-CR-11: PNG → JPEG 0.8 (서버에서 JPEG 허용 확인됨)
+      const customerSignature = sigCanvas.current!.toDataURL('image/jpeg', 0.8);
       const contractorSignature = isCanvasEmpty(contractorCanvas.current)
         ? customerSignature
-        : contractorCanvas.current!.toDataURL('image/png');
+        : contractorCanvas.current!.toDataURL('image/jpeg', 0.8);
 
+      // WO-ME-07: 빈 동행자 제외
       const validCompanions = companions.filter(c => c.name.trim() && c.phone.trim());
 
       const res = await fetch(`/api/contracts/${token}/sign`, {
@@ -211,6 +299,28 @@ export default function ContractSignPage() {
       setSubmitError('네트워크 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // WO-CR-19: PDF 다운로드 — Fetch API로 교체 (진행 상태 표시)
+  const handlePdfDownload = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/contracts/${token}/pdf`);
+      if (!res.ok) throw new Error('다운로드에 실패했습니다.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '여행계약서.pdf';
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch {
+      setSubmitError('PDF 다운로드에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -254,14 +364,20 @@ export default function ContractSignPage() {
             담당자가 계약서를 검토 후 연락드리겠습니다.<br />
             감사합니다.
           </p>
+          {submitError && (
+            <div className="mt-3 bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+              {submitError}
+            </div>
+          )}
           <div className="mt-6 space-y-3">
-            <a
-              href={`/api/contracts/${token}/pdf`}
-              download
-              className="block w-full text-center bg-[#1a3a6b] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#152d54] transition-colors"
+            {/* WO-CR-19: fetch 기반 다운로드 버튼 */}
+            <button
+              onClick={handlePdfDownload}
+              disabled={downloading}
+              className="block w-full text-center bg-[#1a3a6b] text-white py-3 px-6 rounded-xl font-semibold hover:bg-[#152d54] transition-colors disabled:opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              서명된 계약서 PDF 다운로드
-            </a>
+              {downloading ? '다운로드 중...' : '서명된 계약서 PDF 다운로드'}
+            </button>
             <p className="text-xs text-center text-gray-400">
               계약서는 이메일로도 발송됩니다. 저장해두시면 여행 시 활용할 수 있습니다.
             </p>
@@ -295,16 +411,19 @@ export default function ContractSignPage() {
             >
               계약서 검토
             </button>
-            <button
-              onClick={() => setStep('sign')}
-              className={`text-xs px-3 py-1 rounded-full transition ${
-                step === 'sign'
-                  ? 'bg-white text-[#1a3a6b] font-bold'
-                  : 'text-white/70 hover:text-white'
-              }`}
-            >
-              서명하기
-            </button>
+            {/* WO-CR-12: isSigned 상태면 서명하기 버튼 숨김 */}
+            {!contract?.isSigned && (
+              <button
+                onClick={() => setStep('sign')}
+                className={`text-xs px-3 py-1 rounded-full transition ${
+                  step === 'sign'
+                    ? 'bg-white text-[#1a3a6b] font-bold'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                서명하기
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -332,12 +451,15 @@ export default function ContractSignPage() {
                 <ContractPreview contractData={cd as ContractPreviewData} />
               </div>
             </div>
-            <button
-              onClick={() => setStep('sign')}
-              className="w-full bg-[#1a3a6b] text-white py-4 rounded-2xl font-bold text-base shadow hover:bg-[#16325a] transition"
-            >
-              계약서 내용 확인 완료 - 서명하기
-            </button>
+            {/* WO-CR-12: review step에서만 서명하기 버튼 표시 (isSigned 아닐 때) */}
+            {!contract?.isSigned && (
+              <button
+                onClick={() => setStep('sign')}
+                className="w-full bg-[#1a3a6b] text-white py-4 rounded-2xl font-bold text-base shadow hover:bg-[#16325a] transition"
+              >
+                계약서 내용 확인 완료 - 서명하기
+              </button>
+            )}
           </div>
         )}
 
@@ -397,7 +519,10 @@ export default function ContractSignPage() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-2">* 본인 외 동행자가 없으면 비워두셔도 됩니다.</p>
+              {/* WO-ME-07: 빈 필드 안내 */}
+              <p className="text-xs text-gray-400 mt-2">
+                * 본인 외 동행자가 없으면 비워두셔도 됩니다. 이름과 연락처가 모두 입력된 행만 제출됩니다.
+              </p>
             </div>
 
             {/* 여행자 서명 */}
@@ -419,18 +544,14 @@ export default function ContractSignPage() {
                 style={{ touchAction: 'none' }}
                 onMouseEnter={() => setActiveCanvas('sig')}
               >
+                {/* WO-CR-09/WO-CR-10: width/height 고정값 제거, 터치 이벤트는 useEffect에서 처리 */}
                 <canvas
                   ref={sigCanvas}
-                  width={600}
-                  height={160}
-                  style={{ width: '100%', height: '140px', display: 'block' }}
+                  style={{ width: '100%', height: '140px', display: 'block', touchAction: 'none' }}
                   onMouseDown={startDraw}
                   onMouseMove={draw}
-                  onMouseUp={stopDraw}
-                  onMouseLeave={stopDraw}
-                  onTouchStart={startDraw}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDraw}
+                  onMouseUp={endDraw}
+                  onMouseLeave={endDraw}
                 />
               </div>
             </div>
@@ -440,8 +561,9 @@ export default function ContractSignPage() {
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-bold text-[#1a3a6b]">
                   계약자 서명{' '}
+                  {/* WO-ME-09: 문구 명확화 */}
                   <span className="text-gray-400 text-xs font-normal">
-                    (선택 · 비워두면 위 서명 사용)
+                    (선택 · 비워두면 여행자 서명을 계약자 서명으로 사용합니다)
                   </span>
                 </h3>
                 <button
@@ -456,18 +578,14 @@ export default function ContractSignPage() {
                 style={{ touchAction: 'none' }}
                 onMouseEnter={() => setActiveCanvas('contractor')}
               >
+                {/* WO-CR-09/WO-CR-10: width/height 고정값 제거, 터치 이벤트는 useEffect에서 처리 */}
                 <canvas
                   ref={contractorCanvas}
-                  width={600}
-                  height={160}
-                  style={{ width: '100%', height: '140px', display: 'block' }}
+                  style={{ width: '100%', height: '140px', display: 'block', touchAction: 'none' }}
                   onMouseDown={startDraw}
                   onMouseMove={draw}
-                  onMouseUp={stopDraw}
-                  onMouseLeave={stopDraw}
-                  onTouchStart={startDraw}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDraw}
+                  onMouseUp={endDraw}
+                  onMouseLeave={endDraw}
                 />
               </div>
             </div>
@@ -503,10 +621,11 @@ export default function ContractSignPage() {
               </div>
             )}
 
+            {/* WO-LO-05: disabled 버튼 시각 개선 */}
             <button
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full bg-[#1a3a6b] text-white py-4 rounded-2xl font-bold text-base shadow hover:bg-[#16325a] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#1a3a6b] text-white py-4 rounded-2xl font-bold text-base shadow hover:bg-[#16325a] transition disabled:opacity-60 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
               {submitting ? '처리 중...' : '계약서 서명 완료하기'}
             </button>
