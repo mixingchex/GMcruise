@@ -79,6 +79,15 @@ const customJestConfig = {
     '**/?(*.)+(spec|test).[jt]s?(x)',
   ],
 
+  // Jest로 실행하면 안 되는 독립 실행 스크립트 제외
+  // payment-api-live-test.ts: tsx로 직접 실행하는 live 테스트 스크립트
+  // payment-api-verification.ts: 동일하게 독립 실행 스크립트
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/__tests__/payment-api-live-test\\.ts',
+    '/__tests__/payment-api-verification\\.ts',
+  ],
+
   // Transform configuration
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
 

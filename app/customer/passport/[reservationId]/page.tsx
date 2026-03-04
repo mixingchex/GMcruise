@@ -11,8 +11,8 @@ interface Traveler {
   passportNo: string;
   residentNum: string;
   nationality: string;
-  dateOfBirth: string; // YYYY-MM-DD
-  passportExpiryDate: string; // YYYY-MM-DD
+  birthDate: string; // YYYY-MM-DD
+  expiryDate: string; // YYYY-MM-DD
   phone: string;
   isSubmitLater: boolean; // 추후 제출 체크박스
   isScanning: boolean; // OCR 스캔 중
@@ -56,9 +56,7 @@ interface Reservation {
     engSurname: string | null;
     engGivenName: string | null;
     passportNo: string | null;
-    dateOfBirth?: string | null;
     birthDate?: string | null;
-    passportExpiryDate?: string | null;
     expiryDate?: string | null;
   }>;
 }
@@ -129,8 +127,8 @@ export default function CustomerPassportPage() {
               passportNo: t.passportNo || '',
               residentNum: '',
               nationality: t.nationality || '',
-              dateOfBirth: t.birthDate || t.dateOfBirth || '',  // birthDate 또는 dateOfBirth
-              passportExpiryDate: t.expiryDate || t.passportExpiryDate || '',  // expiryDate 또는 passportExpiryDate
+              birthDate: t.birthDate || '',
+              expiryDate: t.expiryDate || '',
               phone: index === 0 ? (data.reservation.user?.phone || '') : '',
               isSubmitLater: false,
               isScanning: false,
@@ -146,8 +144,8 @@ export default function CustomerPassportPage() {
               passportNo: '',
               residentNum: '',
               nationality: '',
-              dateOfBirth: '',
-              passportExpiryDate: '',
+              birthDate: '',
+              expiryDate: '',
               phone: i === 0 ? (data.reservation.user?.phone || '') : '',
               isSubmitLater: false,
               isScanning: false,
@@ -221,8 +219,8 @@ export default function CustomerPassportPage() {
                       passportNo: t.passportNo || '',
                       residentNum: '',
                       nationality: t.nationality || '',
-                      dateOfBirth: t.birthDate || t.dateOfBirth || '',
-                      passportExpiryDate: t.expiryDate || t.passportExpiryDate || '',
+                      birthDate: t.birthDate || '',
+                      expiryDate: t.expiryDate || '',
                       phone: index === 0 ? (data.reservation.user?.phone || '') : '',
                       isSubmitLater: false,
                       isScanning: false,
@@ -238,8 +236,8 @@ export default function CustomerPassportPage() {
                       passportNo: '',
                       residentNum: '',
                       nationality: '',
-                      dateOfBirth: '',
-                      passportExpiryDate: '',
+                      birthDate: '',
+                      expiryDate: '',
                       phone: i === 0 ? (data.reservation.user?.phone || '') : '',
                       isSubmitLater: false,
                       isScanning: false,
@@ -414,8 +412,8 @@ export default function CustomerPassportPage() {
           engSurname: passportData.engSurname || updatedTravelers[travelerIndex].engSurname,
           engGivenName: passportData.engGivenName || updatedTravelers[travelerIndex].engGivenName,
           passportNo: passportData.passportNo || updatedTravelers[travelerIndex].passportNo,
-          dateOfBirth: passportData.dateOfBirth || passportData.birthDate || updatedTravelers[travelerIndex].dateOfBirth,
-          passportExpiryDate: passportData.passportExpiryDate || passportData.expiryDate || updatedTravelers[travelerIndex].passportExpiryDate,
+          birthDate: passportData.birthDate || passportData.dateOfBirth || updatedTravelers[travelerIndex].birthDate,
+          expiryDate: passportData.expiryDate || passportData.passportExpiryDate || updatedTravelers[travelerIndex].expiryDate,
           nationality: passportData.nationality || updatedTravelers[travelerIndex].nationality,
           isScanning: false,
         };
@@ -489,8 +487,8 @@ export default function CustomerPassportPage() {
         passportNo: '',
         residentNum: '',
         nationality: '',
-        dateOfBirth: '',
-        passportExpiryDate: '',
+        birthDate: '',
+        expiryDate: '',
         phone: '',
         isSubmitLater: false,
         isScanning: false,
@@ -566,8 +564,8 @@ export default function CustomerPassportPage() {
             passportNo: t.passportNo || null,
             residentNum: t.residentNum || null,
             nationality: t.nationality || null,
-            dateOfBirth: t.dateOfBirth || null,
-            passportExpiryDate: t.passportExpiryDate || null,
+            dateOfBirth: t.birthDate || null,
+            passportExpiryDate: t.expiryDate || null,
             phone: t.phone || null,
             isSubmitLater: t.isSubmitLater,
             roomNumber: t.roomNumber || index + 1,
@@ -1131,8 +1129,8 @@ export default function CustomerPassportPage() {
                         </label>
                         <input
                           type="date"
-                          value={traveler.dateOfBirth}
-                          onChange={(e) => updateTraveler(index, 'dateOfBirth', e.target.value)}
+                          value={traveler.birthDate}
+                          onChange={(e) => updateTraveler(index, 'birthDate', e.target.value)}
                           disabled={traveler.isSubmitLater}
                           className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${traveler.isSubmitLater ? 'bg-gray-100' : ''
                             }`}
@@ -1145,8 +1143,8 @@ export default function CustomerPassportPage() {
                         </label>
                         <input
                           type="date"
-                          value={traveler.passportExpiryDate}
-                          onChange={(e) => updateTraveler(index, 'passportExpiryDate', e.target.value)}
+                          value={traveler.expiryDate}
+                          onChange={(e) => updateTraveler(index, 'expiryDate', e.target.value)}
                           disabled={traveler.isSubmitLater}
                           className={`w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200 ${traveler.isSubmitLater ? 'bg-gray-100' : ''
                             }`}
@@ -1281,8 +1279,8 @@ export default function CustomerPassportPage() {
                           <p><span className="font-medium">한글 성명:</span> {traveler.korName || '미입력'}</p>
                           <p><span className="font-medium">영문 이름:</span> {traveler.engSurname && traveler.engGivenName ? `${traveler.engSurname} ${traveler.engGivenName}` : '미입력'}</p>
                           <p><span className="font-medium">여권번호:</span> {traveler.passportNo || (traveler.isSubmitLater ? '추후 제출' : '미입력')}</p>
-                          <p><span className="font-medium">생년월일:</span> {traveler.dateOfBirth || '미입력'}</p>
-                          <p><span className="font-medium">여권 만료일:</span> {traveler.passportExpiryDate || '미입력'}</p>
+                          <p><span className="font-medium">생년월일:</span> {traveler.birthDate || '미입력'}</p>
+                          <p><span className="font-medium">여권 만료일:</span> {traveler.expiryDate || '미입력'}</p>
                           <p><span className="font-medium">국적:</span> {traveler.nationality || '미입력'}</p>
                           <p><span className="font-medium">연락처:</span> {traveler.phone || '미입력'}</p>
                         </div>

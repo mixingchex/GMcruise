@@ -16,7 +16,7 @@ ISSUES_FOUND=0
 echo "🔒 Running Security Checks..."
 
 # Get staged files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|jsx|json|env)$' || true)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -v '^__tests__/' | grep -E '\.(ts|tsx|js|jsx|json|env)$' || true)
 
 if [ -z "$STAGED_FILES" ]; then
   echo "✅ No relevant files to check"

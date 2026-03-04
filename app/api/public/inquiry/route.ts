@@ -160,7 +160,6 @@ export async function POST(req: NextRequest) {
             select: { id: true },
           });
           userForLead = newUser;
-          console.log('[Public Inquiry API] User 생성 완료 (잠재고객):', newUser.id, isPhoneConsult ? '(전화상담)' : '(전화상담)');
         } catch (userError) {
           console.error('[Public Inquiry API] User 생성 실패:', userError);
           // User 생성 실패해도 계속 진행
@@ -174,7 +173,6 @@ export async function POST(req: NextRequest) {
               customerSource: isPhoneConsult ? 'phone-consultation' : 'product-inquiry',
             },
           });
-          console.log('[Public Inquiry API] 기존 User customerSource 업데이트 완료:', userForLead.id, isPhoneConsult ? '(전화상담)' : '(전화상담)');
         } catch (updateError) {
           console.error('[Public Inquiry API] User 업데이트 실패:', updateError);
           // 업데이트 실패해도 계속 진행
@@ -195,7 +193,6 @@ export async function POST(req: NextRequest) {
         });
         if (affiliateLink) {
           linkId = affiliateLink.id;
-          console.log('[Public Inquiry API] 자동 생성 링크 연결:', { autoLinkCode, linkId });
         }
       }
 
@@ -225,14 +222,6 @@ export async function POST(req: NextRequest) {
       };
 
       await prisma.affiliateLead.create({ data: leadData });
-      console.log('[Public Inquiry API] AffiliateLead 생성 완료 (누적 기록):', {
-        managerId,
-        agentId,
-        customerName,
-        userId: userForLead?.id,
-        isPhoneConsult,
-        channel: managerId || agentId ? '파트너' : '본사'
-      });
     } catch (leadError) {
       console.error('[Public Inquiry API] AffiliateLead 생성 실패:', leadError);
       // AffiliateLead 생성 실패해도 문의는 정상 처리
