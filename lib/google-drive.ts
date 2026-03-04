@@ -277,8 +277,7 @@ export function optimizeDriveUrl(url: string, fileId?: string): string {
 }
 
 export async function uploadFileToDrive(params: UploadParams): Promise<UploadResult> {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { folderId, fileName, mimeType = 'application/octet-stream', buffer, makePublic: _makePublic = false } = params;
+  const { folderId, fileName, mimeType = 'application/octet-stream', buffer, makePublic = false } = params;
 
   // 클라이언트(browser-image-compression)에서 이미 WebP 변환됨 — 서버 변환 불필요
   const uploadBuffer = buffer;
@@ -325,30 +324,33 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
       throw new Error('Google Drive 업로드에 실패했습니다 (fileId 없음).');
     }
 
-    // 권한 설정: anyone with link (공개 읽기)
-    // 실패 시 업로드된 파일이 403으로 표시되지 않음 → critical
-    try {
-      const permissionOptions: any = {
-        fileId,
-        requestBody: { role: 'reader', type: 'anyone' },
-        supportsAllDrives: true,
-      };
-      await drive.permissions.create(permissionOptions);
-    } catch (permErr: unknown) {
-      console.error('[GoogleDrive] Permission set FAILED — file will be inaccessible (403):', permErr);
-      // 접근 불가능한 고아 파일(orphan) 정리 — 실패해도 이미 에러 상황이므로 무시
-      try { await drive.files.delete({ fileId, supportsAllDrives: true }); } catch { /* ignore */ }
-      return {
-        ok: false,
-        error: `파일 업로드 후 공개 권한 설정에 실패했습니다. 잠시 후 다시 시도해주세요.`,
-      };
+    // 권한 설정: makePublic=true인 경우만 anyone 공개 읽기 설정
+    // makePublic=false (여권 이미지 등 PII): 서비스 계정만 접근 가능한 비공개 유지
+    if (makePublic) {
+      try {
+        const permissionOptions: any = {
+          fileId,
+          requestBody: { role: 'reader', type: 'anyone' },
+          supportsAllDrives: true,
+        };
+        await drive.permissions.create(permissionOptions);
+      } catch (permErr: unknown) {
+        console.error('[GoogleDrive] Permission set FAILED — file will be inaccessible (403):', permErr);
+        try { await drive.files.delete({ fileId, supportsAllDrives: true }); } catch { /* ignore */ }
+        return {
+          ok: false,
+          error: `파일 업로드 후 공개 권한 설정에 실패했습니다. 잠시 후 다시 시도해주세요.`,
+        };
+      }
     }
 
     // 이미지인지 확인
     const isImage = uploadMimeType?.startsWith('image/') || false;
 
-    // 최적화된 URL 사용 (CDN 캐싱 최적화)
-    const url = getDriveFileUrl(fileId, isImage);
+    // URL 결정: 공개 파일은 CDN URL, 비공개 파일은 Drive webViewLink (서비스 계정 인증 필요)
+    const url = makePublic
+      ? getDriveFileUrl(fileId, isImage)
+      : (response.data.webViewLink ?? getDriveFileUrl(fileId, isImage));
 
     return { ok: true, fileId, url };
   } catch (error: any) {

@@ -143,6 +143,30 @@ export async function processRefund(
       });
     }
 
+    // WO-02: Payment 환불 기록 동기화 (Payment.saleId @unique → 1:1 관계)
+    const paymentRecord = await tx.payment.findUnique({
+      where: { saleId: saleId },
+    });
+    if (paymentRecord && paymentRecord.status !== 'refunded') {
+      await tx.payment.update({
+        where: { id: paymentRecord.id },
+        data: {
+          status: 'refunded',
+          cancelledAt: new Date(),
+          metadata: {
+            ...((typeof paymentRecord.metadata === 'object' && paymentRecord.metadata !== null
+              ? paymentRecord.metadata
+              : {}) as Record<string, unknown>),
+            refundReason,
+            refundProcessedBy: processedBy,
+            refundProcessedAt: new Date().toISOString(),
+            // 환불 취소 시 원래 상태 복구를 위해 이전 상태 보존
+            refundPreviousStatus: paymentRecord.status,
+          },
+        },
+      });
+    }
+
     return { updatedSale: updated, refundEntries: createdRefundEntries };
   });
 
@@ -210,6 +234,31 @@ export async function cancelRefund(
         },
       },
     });
+
+    // WO-02: Payment 환불 취소 동기화 — 이전 상태로 복구
+    const cancelPaymentRecord = await tx.payment.findUnique({
+      where: { saleId: saleId },
+    });
+    if (cancelPaymentRecord && cancelPaymentRecord.status === 'refunded') {
+      // 환불 시 저장해 둔 이전 상태 복구 (없으면 'completed' 폴백)
+      const previousStatus =
+        (cancelPaymentRecord.metadata as Record<string, unknown> | null)?.refundPreviousStatus as string | undefined
+        ?? 'completed';
+      await tx.payment.update({
+        where: { id: cancelPaymentRecord.id },
+        data: {
+          status: previousStatus,
+          cancelledAt: null,
+          metadata: {
+            ...((typeof cancelPaymentRecord.metadata === 'object' && cancelPaymentRecord.metadata !== null
+              ? cancelPaymentRecord.metadata
+              : {}) as Record<string, unknown>),
+            refundCancelledBy: processedBy,
+            refundCancelledAt: new Date().toISOString(),
+          },
+        },
+      });
+    }
 
     // Lead 상태 복구 (있는 경우)
     if (sale.leadId) {

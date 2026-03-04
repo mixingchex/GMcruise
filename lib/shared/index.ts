@@ -81,20 +81,6 @@ export {
 } from '../email';
 
 // ============================================================================
-// API 에러 핸들러
-// ============================================================================
-export {
-  ApiError,
-  handleApiError,
-  validateRequest,
-  requireAuth,
-  requireRole,
-  successResponse,
-  errorResponse,
-  withErrorHandler,
-} from '../api-error-handler';
-
-// ============================================================================
 // 유틸리티
 // ============================================================================
 export { getClientIp, getClientIpFromRequest } from '../ip-utils';

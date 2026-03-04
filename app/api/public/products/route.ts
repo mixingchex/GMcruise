@@ -8,7 +8,7 @@ export const runtime = 'nodejs';  // Edge Runtime 금지 (Prisma 사용)
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
-const MAX_LIMIT = 500; // 연관검색어 기반 전체 상품 로드(limit=1000) 지원 — 크루즈몰 상품 수 기준 충분한 한도
+const MAX_LIMIT = 1000; // 연관검색어 기반 전체 상품 로드 지원 (CruiseSearchBlock limit=1000 요청 대응)
 
 /**
  * GET: 상품 목록 조회
@@ -26,8 +26,10 @@ const MAX_LIMIT = 500; // 연관검색어 기반 전체 상품 로드(limit=1000
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '12', 10), MAX_LIMIT);
+    const pageRaw = parseInt(searchParams.get('page') || '1', 10);
+    const page = Number.isNaN(pageRaw) || pageRaw < 1 ? 1 : pageRaw;
+    const limitRaw = parseInt(searchParams.get('limit') || '12', 10);
+    const limit = Number.isNaN(limitRaw) || limitRaw < 1 ? 12 : Math.min(limitRaw, MAX_LIMIT);
     const sort = searchParams.get('sort') || 'newest';
     const region = searchParams.get('region') || '';
     const cruiseLine = searchParams.get('cruiseLine') || '';
@@ -35,7 +37,8 @@ export async function GET(req: NextRequest) {
     const keyword = searchParams.get('keyword') || ''; // 키워드 파라미터 추가
     const themeType = (searchParams.get('themeType') || '').trim();
     const themeValue = (searchParams.get('themeValue') || '').trim();
-    const themeLimit = parseInt(searchParams.get('themeLimit') || '0', 10);
+    const themeLimitRaw = parseInt(searchParams.get('themeLimit') || '0', 10);
+    const themeLimit = Number.isNaN(themeLimitRaw) || themeLimitRaw < 0 ? 0 : Math.min(themeLimitRaw, MAX_LIMIT);
     const isThemeRequest = Boolean(themeType && themeValue);
     // 계절 필터: 출발월 목록 (예: "3,4,5" → 봄)
     const monthsParam = searchParams.get('months') || '';
@@ -126,27 +129,12 @@ export async function GET(req: NextRequest) {
       activeAffiliateProducts = [];
     }
 
-    // 디버깅: AffiliateProduct 조회 결과 로그
-    console.log('[Public Products API] Active AffiliateProducts:', {
-      count: activeAffiliateProducts.length,
-      productCodes: activeAffiliateProducts.map(ap => ap.productCode),
-      now: now.toISOString(),
-      details: activeAffiliateProducts.map(ap => ({
-        productCode: ap.productCode,
-        status: ap.status,
-        isPublished: ap.isPublished,
-        effectiveFrom: ap.effectiveFrom?.toISOString(),
-        effectiveTo: ap.effectiveTo?.toISOString(),
-      })),
-    });
-
     const affiliateProductCodes = new Set(
       activeAffiliateProducts.map(ap => ap.productCode)
     );
 
     // 어필리에이트 수당이 완료된 상품이 없으면 빈 배열 반환
     if (affiliateProductCodes.size === 0) {
-      console.log('[Public Products API] No active affiliate products found');
       return NextResponse.json({
         ok: true,
         products: [],
@@ -158,8 +146,6 @@ export async function GET(req: NextRequest) {
         },
       });
     }
-
-    console.log('[Public Products API] Looking for CruiseProducts with codes:', Array.from(affiliateProductCodes));
 
     // 상품 조회 (어필리에이트 수당이 완료된 상품만, saleStatus는 선택적)
     let allProducts = await prisma.cruiseProduct.findMany({
@@ -200,7 +186,6 @@ export async function GET(req: NextRequest) {
         updatedAt: true, // 최근 설정 순서를 위해 필요
         createdAt: true,
         startDate: true, // 출발일 (계절 필터용)
-        endDate: true,
         tags: true,
         isPopular: true,
         isRecommended: true,
@@ -220,15 +205,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    console.log('[Public Products API] Found CruiseProducts:', {
-      count: allProducts.length,
-      productCodes: allProducts.map(p => p.productCode),
-      saleStatuses: allProducts.map(p => p.saleStatus),
-    });
-
     // CruiseProduct가 없으면 빈 배열 반환
     if (allProducts.length === 0) {
-      console.log('[Public Products API] No CruiseProducts found for affiliate product codes');
       return NextResponse.json({
         ok: true,
         products: [],
@@ -1202,7 +1180,6 @@ export async function GET(req: NextRequest) {
       {
         ok: false,
         error: '상품 목록을 불러올 수 없습니다.',
-        message: error?.message || 'Unknown error',
         details: process.env.NODE_ENV === 'development' ? {
           message: error?.message,
           name: error?.name,

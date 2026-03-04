@@ -271,6 +271,13 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
       const userPhone = reservation.User?.phone || '';
       const cabinType = reservation.cabinType || '기타';
 
+      // WO-05: 환불 여부 확인 — 비고열에 환불 날짜 자동 표시
+      const isRefunded = reservation.AffiliateSale?.status === 'REFUNDED';
+      const refundedAt = reservation.AffiliateSale?.refundedAt;
+      const refundMark = isRefunded
+        ? `[환불 ${refundedAt ? new Date(refundedAt).toLocaleDateString('ko-KR') : ''}]`
+        : '';
+
       // 결제 정보 가져오기
       const payment = reservation.AffiliateSale?.Payment;
       const paidAt = payment?.paidAt
@@ -322,7 +329,7 @@ export async function syncApisSpreadsheet(tripId: number): Promise<SyncResult> {
           agentName, // U: 연결담당자 (계약서 이름)
           agentName, // V: 최종수정자 (계약서 이름)
           now, // W: 최종수정일시
-          traveler.notes || '', // X: 비고
+          refundMark || traveler.notes || '', // X: 비고 (환불 시 자동 표시 — WO-05)
           traveler.passportImage || '', // Y: 여권 이미지 링크 (구글 드라이브)
         ];
 

@@ -5,24 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { cookies } from 'next/headers';
-
-const SESSION_COOKIE = 'cg.sid.v2';
-
-async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
-  if (!sid) return false;
-  try {
-    const session = await prisma.session.findUnique({
-      where: { id: sid },
-      include: { User: { select: { role: true, } } },
-    });
-    // 세션 만료 체크
-    if (session?.expiresAt && session.expiresAt < new Date()) return false;
-    return session?.User?.role === 'admin';
-  } catch {
-    return false;
-  }
-}
+import { checkAdminAuth } from '@/lib/auth';
 
 // POST /api/admin/products/[productCode]/copy
 export async function POST(
@@ -31,25 +14,10 @@ export async function POST(
 ) {
   try {
     const { productCode } = await params;
-    const cookieStore = await cookies();
-    const sid = cookieStore.get(SESSION_COOKIE)?.value;
 
-    const isAdmin = await checkAdminAuth(sid);
+    const { isAdmin } = await checkAdminAuth();
     if (!isAdmin) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // 원본 상품 조회 (MallProductContent + AffiliateProduct 포함)
-    const original = await prisma.cruiseProduct.findUnique({
-      where: { productCode },
-      include: {
-        MallProductContent: true,
-        AffiliateProduct: true,
-      },
-    });
-
-    if (!original) {
-      return NextResponse.json({ ok: false, error: '원본 상품을 찾을 수 없습니다.' }, { status: 404 });
     }
 
     // 새 상품 코드 생성: 원본 PREFIX 유지 + 새 4자리 랜덤 숫자
@@ -67,9 +35,22 @@ export async function POST(
     const newProductCode = `${prefix}-${randomNum}`;
 
     // 트랜잭션으로 CruiseProduct + MallProductContent + AffiliateProduct 함께 복사
-    // (사전 중복 체크 없이 트랜잭션 내에서 P2002 에러로 처리 — TOCTOU 방지)
+    // findUnique를 트랜잭션 내부에서 실행하여 TOCTOU 방지 (조회~생성 사이 삭제 경쟁 조건 차단)
     try {
       await prisma.$transaction(async (tx) => {
+        // 원본 상품 조회 — 트랜잭션 내에서 실행하여 동시성 보장
+        const original = await tx.cruiseProduct.findUnique({
+          where: { productCode },
+          include: {
+            MallProductContent: true,
+            AffiliateProduct: true,
+          },
+        });
+
+        if (!original) {
+          throw Object.assign(new Error('원본 상품을 찾을 수 없습니다.'), { code: 'PRODUCT_NOT_FOUND' });
+        }
+
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, createdAt, updatedAt, MallProductContent, AffiliateProduct, ...rest } = original;
 
@@ -129,6 +110,10 @@ export async function POST(
         }
       });
     } catch (txError: unknown) {
+      // 원본 상품 없음 (트랜잭션 내부에서 throw)
+      if (txError instanceof Error && (txError as any).code === 'PRODUCT_NOT_FOUND') {
+        return NextResponse.json({ ok: false, error: '원본 상품을 찾을 수 없습니다.' }, { status: 404 });
+      }
       // 중복 productCode 처리 (Prisma P2002)
       if (txError && typeof txError === 'object' && 'code' in txError && (txError as { code: string }).code === 'P2002') {
         return NextResponse.json({ ok: false, error: '복사 코드가 이미 존재합니다. 다시 시도해주세요.' }, { status: 409 });

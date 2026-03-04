@@ -46,6 +46,28 @@ export async function POST(
     // processRefund 함수 사용 (Lead 상태도 자동 업데이트됨)
     const result = await processRefund(saleId, reason, sessionUser.id);
 
+    // WO-05: 환불 후 APIS 스프레드시트 자동 동기화 (환불 표시)
+    // processRefund 완료 후 비동기로 실행 — 실패해도 환불 결과에 영향 없음
+    try {
+      const saleRecord = await prisma.affiliateSale.findUnique({
+        where: { id: saleId },
+        select: { productCode: true },
+      });
+      if (saleRecord?.productCode) {
+        const relatedTrip = await prisma.trip.findFirst({
+          where: { productCode: saleRecord.productCode },
+          select: { id: true, departureDate: true },
+        });
+        // 출발 전 여행만 APIS 동기화 (출발 후는 제출 완료)
+        if (relatedTrip?.id && relatedTrip.departureDate && relatedTrip.departureDate > new Date()) {
+          const { syncApisInBackground } = await import('@/lib/google-sheets');
+          syncApisInBackground(relatedTrip.id); // void 반환 — 내부에서 이미 catch 처리됨
+        }
+      }
+    } catch {
+      // APIS 동기화 실패는 환불 성공에 영향 없음
+    }
+
     // 관리자 액션 로그 기록
     await prisma.adminActionLog.create({
       data: {
