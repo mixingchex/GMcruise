@@ -34,7 +34,7 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
     }
     return session.User.role === 'admin';
   } catch (error) {
-    console.error('[Admin Products Detail] Auth check error:', error);
+    logger.error('[Admin Products Detail] Auth check error:', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 }
@@ -79,6 +79,7 @@ export async function GET(
         saleStatus: true,
         isUrgent: true,
         isMainProduct: true,
+        tourType: true,
         startDate: true,
         endDate: true,
         itineraryPattern: true,
@@ -114,7 +115,7 @@ export async function GET(
           }
         }
       } catch (e) {
-        console.error('[GET Product] Failed to parse itineraryPattern:', e);
+        logger.error('[GET Product] Failed to parse itineraryPattern:', { error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -132,7 +133,7 @@ export async function GET(
           layoutDestination = layout.destination;
         }
       } catch (e) {
-        console.error('[GET Product] Failed to parse layout for destination:', e);
+        logger.error('[GET Product] Failed to parse layout for destination:', { error: e instanceof Error ? e.message : String(e) });
       }
     }
 
@@ -147,7 +148,7 @@ export async function GET(
       }
     });
   } catch (error: any) {
-    console.error('[Admin Product Detail API] Error:', error);
+    logger.error('[Admin Product Detail API] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { ok: false, error: 'Failed to fetch product' },
       { status: 500 }
@@ -283,10 +284,6 @@ export async function PUT(
         })
         .filter((code): code is string => code !== null && code !== 'KR');
       
-      console.log('[Product Update] Selected countries:', {
-        destination,
-        selectedCountryCodes,
-      });
       
       // itineraryPattern의 각 day에 국가 코드 할당
       let daysArray: any[] = [];
@@ -327,17 +324,10 @@ export async function PUT(
         };
       }
       
-      console.log('[Product Update] Updated itineraryPattern:', {
-        destination,
-        daysCount: daysArray.length,
-        portVisitCount: portVisitDays.length,
-        selectedCountryCodes,
-      });
     }
 
     // itineraryDays에서 기항지 정보를 itineraryPattern에 동기화 (크루즈 가이드 지니 연동용)
     if (itineraryDays !== undefined && Array.isArray(itineraryDays) && itineraryDays.length > 0) {
-      console.log('[Product Update] itineraryDays에서 itineraryPattern 동기화 시작:', itineraryDays.length, '일');
 
       // 현재 itineraryPattern 가져오기
       const currentProduct = await prisma.cruiseProduct.findUnique({
@@ -382,17 +372,6 @@ export async function PUT(
       });
 
       updateData.itineraryPattern = updatedPattern;
-
-      console.log('[Product Update] itineraryPattern 동기화 완료:', {
-        days: updatedPattern.length,
-        sample: updatedPattern.slice(0, 3).map((d: any) => ({
-          day: d.day,
-          type: d.type,
-          location: d.location,
-          country: d.country,
-          arrival: d.arrival,
-        })),
-      });
     }
 
     // 최종 데이터 정리: 허용된 필드만 포함
@@ -478,9 +457,6 @@ export async function PUT(
       finalUpdateData.itineraryPattern = updateData.itineraryPattern;
     }
 
-    // 디버깅: finalUpdateData 확인
-    console.log('[Product Update] finalUpdateData keys:', Object.keys(finalUpdateData));
-
     // 상품 코드 변경 시
     if (updateProductCode) {
       // 기존 상품 삭제 후 새 코드로 생성 — $transaction으로 원자성 보장
@@ -527,7 +503,7 @@ export async function PUT(
     // saleStatus가 '판매중'일 때 AffiliateProduct 미존재 시 자동 생성
     if (saleStatus === '판매중') {
       if (!product?.id) {
-        console.error(`[Product Update] AffiliateProduct 자동 생성 스킵 — product.id 없음: ${targetProductCode}`);
+        logger.error(`[Product Update] AffiliateProduct 자동 생성 스킵 — product.id 없음: ${targetProductCode}`, {});
       } else {
       const now = new Date();
       const existingAffiliate = await prisma.affiliateProduct.findFirst({
@@ -559,14 +535,11 @@ export async function PUT(
               updatedAt: now,
             },
           });
-          console.log(`[Product Update] AffiliateProduct 자동 생성: ${targetProductCode}`);
         } catch (affiliateError: unknown) {
           // P2002: unique 제약 위반 (effectiveFrom 동일 시각 중복) — 이미 존재하면 무시
           const errMsg = affiliateError instanceof Error ? affiliateError.message : String(affiliateError);
-          if (errMsg.includes('P2002')) {
-            console.log(`[Product Update] AffiliateProduct 이미 존재 (unique 충돌 무시): ${targetProductCode}`);
-          } else {
-            console.error(`[Product Update] AffiliateProduct 자동 생성 실패: ${targetProductCode}`, errMsg);
+          if (!errMsg.includes('P2002')) {
+            logger.error(`[Product Update] AffiliateProduct 자동 생성 실패: ${targetProductCode}`, { error: errMsg });
           }
         }
       }
@@ -683,7 +656,7 @@ export async function PUT(
         layoutData.itinerary = finalItineraryDays;
       }
     } catch (error: any) {
-      console.error('[Product Update] Error backing up images to Google Drive:', error);
+      logger.error('[Product Update] Error backing up images to Google Drive:', { error: error instanceof Error ? error.message : String(error) });
       // 백업 실패해도 계속 진행 (원본 URL 유지)
     }
 
@@ -705,7 +678,7 @@ export async function PUT(
       });
     } catch (upsertError: unknown) {
       const errMsg = upsertError instanceof Error ? upsertError.message : String(upsertError);
-      console.error('[Product Update] MallProductContent 저장 실패:', {
+      logger.error('[Product Update] MallProductContent 저장 실패:', {
         productCode: targetProductCode,
         error: errMsg,
       });
@@ -727,15 +700,9 @@ export async function PUT(
       message: '상품이 업데이트되었습니다.'
     });
   } catch (error: any) {
-    console.error('[Admin Product Update API] Error:', error);
-    console.error('[Admin Product Update API] Error details:', error.message);
-    console.error('[Admin Product Update API] Error stack:', error.stack);
+    logger.error('[Admin Product Update API] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
-      { 
-        ok: false, 
-        error: error.message || 'Failed to update product',
-        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      },
+      { ok: false, error: 'Failed to update product' },
       { status: 500 }
     );
   }

@@ -50,6 +50,7 @@ interface Product {
   isPopular?: boolean; // 인기 크루즈
   isRecommended?: boolean; // 추천 크루즈
   isGeniePack?: boolean; // 크루즈닷AI패키지 여부
+  tourType?: string; // 여행 유형: 'FREE' | 'PACKAGE'
   startDate?: Date | string | null;
   endDate?: Date | string | null;
   recommendedKeywords?: string[] | any; // 추천 키워드 배열
@@ -163,6 +164,7 @@ export default function ProductsManagementPage() {
     isRecommended: false, // 추천 크루즈
     isPremium: false, // 프리미엄 크루즈 (수동 등록 폼과 동일)
     isGeniePack: false, // 크루즈닷AI패키지 (수동 등록 폼과 동일)
+    tourType: 'FREE' as 'FREE' | 'PACKAGE', // 여행 유형
     isDomestic: false, // 국내출발 크루즈 (수동 등록 폼과 동일)
     isJapan: false, // 일본 크루즈 (수동 등록 폼과 동일)
     isBudget: false, // 알뜰 크루즈 (수동 등록 폼과 동일)
@@ -407,25 +409,6 @@ export default function ProductsManagementPage() {
       });
     }
 
-    // 디버깅: 필터링 결과 로그
-    if (filtered.length === 0 && products.length > 0) {
-      console.log('[Admin Products] 필터링 결과: 상품이 필터링되어 표시되지 않습니다', {
-        전체상품수: products.length,
-        필터된상품수: filtered.length,
-        필터상태: {
-          saleStatusFilter,
-          cruiseLineFilter,
-          countryFilter,
-          searchTerm,
-        },
-        상품목록: products.map(p => ({
-          productCode: p.productCode,
-          cruiseLine: p.cruiseLine,
-          saleStatus: p.saleStatus || '판매중',
-        })),
-      });
-    }
-
     return filtered;
   }, [products, saleStatusFilter, cruiseLineFilter, countryFilter, searchTerm]);
 
@@ -523,8 +506,6 @@ export default function ProductsManagementPage() {
     // 방문 국가가 없으면 일정 패턴을 초기화하지 않음 (사용자가 직접 설정할 수 있도록)
     if (selectedCountries.length === 0) return;
 
-    console.log('[Admin Products] 방문 국가 변경 감지:', selectedCountries.length, '개국');
-
     // 방문 국가 코드 매핑
     const koreanNameToCode: Record<string, string> = {
       '일본': 'JP', 'Japan': 'JP',
@@ -567,20 +548,15 @@ export default function ProductsManagementPage() {
     }).filter(code => code !== '');
 
     if (selectedCountryCodes.length === 0) {
-      console.log('[Admin Products] 국가 코드 변환 실패');
       return;
     }
-
-    console.log('[Admin Products] 선택된 국가 코드:', selectedCountryCodes);
 
     // 현재 formData의 일정 패턴을 가져오기 (최신 상태)
     setFormData(prev => {
       const currentPortVisits = prev.itineraryPattern.filter((day: ItineraryDay) => day.type === 'PortVisit');
-      console.log('[Admin Products] 현재 기항지 개수:', currentPortVisits.length, '선택된 국가 개수:', selectedCountryCodes.length);
 
       // 방문 국가 개수와 일정 개수가 다르면 자동으로 조정
       if (selectedCountryCodes.length !== currentPortVisits.length) {
-        console.log('[Admin Products] 일정 패턴 자동 생성 시작');
         const newPattern: ItineraryDay[] = [];
 
         // 첫 번째 일정: 승선
@@ -635,7 +611,6 @@ export default function ProductsManagementPage() {
           });
         }
 
-        console.log('[Admin Products] 새 일정 패턴 생성 완료:', newPattern.length, '개 일정');
         return { ...prev, itineraryPattern: newPattern };
       } else {
         // 개수는 같지만 국가 코드가 다를 수 있으므로 업데이트
@@ -662,7 +637,6 @@ export default function ProductsManagementPage() {
         });
 
         if (hasChanges) {
-          console.log('[Admin Products] 일정 패턴 국가 코드 업데이트');
           return { ...prev, itineraryPattern: updatedPattern };
         }
       }
@@ -759,7 +733,6 @@ export default function ProductsManagementPage() {
       }
 
       const data = await response.json();
-      console.log('[Admin Products] API Response:', data);
 
       if (data.ok && Array.isArray(data.products)) {
         // 필드 안전 처리: 누락된 필드에 기본값 설정
@@ -772,7 +745,6 @@ export default function ProductsManagementPage() {
           MallProductContent: undefined, // 원본 제거
         }));
         setProducts(safeProducts);
-        console.log('[Admin Products] Loaded products:', safeProducts.length);
 
         // AffiliateProduct 정보 로드
         try {
@@ -792,7 +764,6 @@ export default function ProductsManagementPage() {
                 });
               });
               setAffiliateProducts(affiliateMap);
-              console.log('[Admin Products] Loaded affiliate products:', affiliateMap.size);
             }
           }
         } catch (affiliateError) {
@@ -841,6 +812,7 @@ export default function ProductsManagementPage() {
       isRecommended: false,
       isPremium: false, // 수동 등록 폼과 동일
       isGeniePack: false, // 수동 등록 폼과 동일
+      tourType: 'FREE' as 'FREE' | 'PACKAGE',
       isDomestic: false, // 수동 등록 폼과 동일
       isJapan: false, // 수동 등록 폼과 동일
       isBudget: false, // 수동 등록 폼과 동일
@@ -988,6 +960,10 @@ export default function ProductsManagementPage() {
     let layoutRefundPolicy = '';
     let layoutFlightInfo: FlightInfo | null = null;
     let layoutDepartureDate = '';
+    let layoutHasEscort = false;
+    let layoutHasLocalGuide = false;
+    let layoutHasCruisedotStaff = false;
+    let layoutHasTravelInsurance = false;
 
     if (product.mallProductContent?.layout) {
       const layout = typeof product.mallProductContent.layout === 'string'
@@ -1005,6 +981,10 @@ export default function ProductsManagementPage() {
       layoutRefundPolicy = layout.refundPolicy || '';
       layoutFlightInfo = layout.flightInfo || null;
       layoutDepartureDate = layout.departureDate || '';
+      layoutHasEscort = layout.hasEscort || false;
+      layoutHasLocalGuide = layout.hasLocalGuide || false;
+      layoutHasCruisedotStaff = layout.hasCruisedotStaff || false;
+      layoutHasTravelInsurance = layout.hasTravelInsurance || false;
       // 8번: 문의 옵션 불러오기
       if (layout.contactOptions) {
         setContactOptions({
@@ -1044,6 +1024,10 @@ export default function ProductsManagementPage() {
     setRefundPolicy(layoutRefundPolicy);
     setFlightInfo(layoutFlightInfo);
     setDepartureDate(layoutDepartureDate);
+    setHasEscort(layoutHasEscort);
+    setHasLocalGuide(layoutHasLocalGuide);
+    setHasCruisedotStaff(layoutHasCruisedotStaff);
+    setHasTravelInsurance(layoutHasTravelInsurance);
 
     // AffiliateProduct 정보도 불러오기
     let affiliateProduct = null;
@@ -1086,6 +1070,7 @@ export default function ProductsManagementPage() {
       isRecommended: product.isRecommended || false,
       isPremium: (product as any).isPremium || false, // 수동 등록 폼과 동일
       isGeniePack: (product as any).isGeniePack || false, // 수동 등록 폼과 동일
+      tourType: ((product as any).tourType === 'PACKAGE' ? 'PACKAGE' : 'FREE') as 'FREE' | 'PACKAGE',
       isDomestic: (product as any).isDomestic || false, // 수동 등록 폼과 동일
       isJapan: (product as any).isJapan || false, // 수동 등록 폼과 동일
       isBudget: (product as any).isBudget || false, // 수동 등록 폼과 동일
@@ -1313,6 +1298,7 @@ export default function ProductsManagementPage() {
     // itineraryPattern의 country 필드 검증 (검색 기능에 사용됨)
     if (!updatedPattern || updatedPattern.length === 0) {
       showError('최소 하나 이상의 일정을 추가해주세요.');
+      setIsSaving(false);
       return;
     }
 
@@ -1325,6 +1311,7 @@ export default function ProductsManagementPage() {
 
     if (hasInvalidCountry) {
       showError('모든 기항지/승선지/하선지의 국가 정보를 입력해주세요. (검색 기능에 필요합니다)');
+      setIsSaving(false);
       return;
     }
 
@@ -1433,6 +1420,7 @@ export default function ProductsManagementPage() {
             hasCruisedotStaff: hasCruisedotStaff,
             hasTravelInsurance: hasTravelInsurance,
             contactOptions: contactOptions, // 8번: 문의 옵션 저장
+            tourType: formData.tourType,
           };
 
           const contentResponse = await fetch(`/api/admin/products/${productCode}`, {
@@ -1493,9 +1481,7 @@ export default function ProductsManagementPage() {
                 body: JSON.stringify(affiliatePayload),
               });
 
-              if (affiliateResponse.ok) {
-                console.log('[Admin Products] AffiliateProduct 수정 완료');
-              } else {
+              if (!affiliateResponse.ok) {
                 console.error('[Admin Products] AffiliateProduct 수정 실패:', await affiliateResponse.text());
               }
             } else {
@@ -1507,9 +1493,7 @@ export default function ProductsManagementPage() {
                 body: JSON.stringify(affiliatePayload),
               });
 
-              if (affiliateResponse.ok) {
-                console.log('[Admin Products] AffiliateProduct 자동 생성 완료');
-              } else {
+              if (!affiliateResponse.ok) {
                 console.error('[Admin Products] AffiliateProduct 자동 생성 실패:', await affiliateResponse.text());
               }
             }
@@ -3348,6 +3332,31 @@ export default function ProductsManagementPage() {
                     {/* 4. 포함 사항과 불포함 사항 */}
                     <div className="border-t-2 pt-6 md:pt-8">
                       <h2 className="text-xl font-bold text-gray-800 mb-4">4. 포함 사항과 불포함 사항</h2>
+
+                      {/* 여행 유형 */}
+                      <div className="mb-6">
+                        <p className="text-sm font-semibold text-gray-700 mb-3">여행 유형 <span className="text-red-500">*</span></p>
+                        <div className="flex gap-3">
+                          <label className={`flex-1 cursor-pointer rounded-xl border-2 p-4 transition-all text-center ${formData.tourType === 'FREE' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                            <input type="radio" name="tourType" value="FREE" checked={formData.tourType === 'FREE'} onChange={() => setFormData(prev => ({ ...prev, tourType: 'FREE' }))} className="sr-only" />
+                            <div className="text-2xl mb-1">🚢</div>
+                            <p className="font-bold text-gray-800 text-sm">자유여행형</p>
+                            <p className="text-xs text-gray-500 mt-1">고객이 자유롭게 기항지 탐방</p>
+                          </label>
+                          <label className={`flex-1 cursor-pointer rounded-xl border-2 p-4 transition-all text-center ${formData.tourType === 'PACKAGE' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                            <input type="radio" name="tourType" value="PACKAGE" checked={formData.tourType === 'PACKAGE'} onChange={() => setFormData(prev => ({ ...prev, tourType: 'PACKAGE' }))} className="sr-only" />
+                            <div className="text-2xl mb-1">🎫</div>
+                            <p className="font-bold text-gray-800 text-sm">패키지형</p>
+                            <p className="text-xs text-gray-500 mt-1">가이드·투어·식사 포함 상품</p>
+                          </label>
+                        </div>
+                        {formData.tourType === 'PACKAGE' && (
+                          <p className="text-xs text-orange-600 mt-2 bg-orange-50 rounded-lg px-3 py-2">패키지형은 계약서에 인솔자·가이드·보험 조항이 자동으로 포함됩니다.</p>
+                        )}
+                        {formData.tourType === 'FREE' && (
+                          <p className="text-xs text-blue-600 mt-2 bg-blue-50 rounded-lg px-3 py-2">자유여행형은 계약서에 자유 일정 조항이 포함됩니다.</p>
+                        )}
+                      </div>
 
                       {/* 서비스 옵션 체크박스 */}
                       <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">

@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { checkAdminAuth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 // POST /api/admin/products/[productCode]/copy
 export async function POST(
@@ -60,7 +61,7 @@ export async function POST(
             ...rest,
             productCode: newProductCode,
             packageName: `[복사] ${original.packageName}`,
-            saleStatus: original.saleStatus, // 원본이 '판매중'이면 복사본도 즉시 몰 노출
+            saleStatus: '판매중지', // 복사 상품은 항상 판매중지로 생성 (UI 안내와 일치)
             itineraryPattern: original.itineraryPattern ?? {},
             tags: original.tags ?? [],
             updatedAt: now,
@@ -101,9 +102,9 @@ export async function POST(
                 effectiveFrom: new Date(now.getTime() - 1000 + i), // 즉시 몰 노출 (lte: now 통과)
                 effectiveTo: null,
                 updatedAt: now,
-                // 복사본은 항상 즉시 활성화 (원본 상태 무관하게 몰 노출 보장)
-                status: 'active',
-                isPublished: true,
+                // 복사본은 판매중지 상태이므로 미노출 처리
+                status: 'inactive',
+                isPublished: false,
               },
             });
           }
@@ -127,7 +128,7 @@ export async function POST(
       message: `상품이 복사되었습니다. 새 상품 코드: ${newProductCode}`,
     });
   } catch (error) {
-    console.error('[Product Copy] Error:', error);
+    logger.error('[Product Copy] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { ok: false, error: '상품 복사 중 오류가 발생했습니다.' },
       { status: 500 }

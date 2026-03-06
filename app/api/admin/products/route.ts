@@ -30,7 +30,7 @@ async function checkAdminAuth(sid: string | undefined): Promise<boolean> {
     }
     return session.User.role === 'admin';
   } catch (error) {
-    console.error('[Admin Products] Auth check error:', error);
+    logger.error('[Admin Products] Auth check error:', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 }
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ ok: true, products });
   } catch (error) {
-    console.error('[GET /api/admin/products] Error:', error);
+    logger.error('[GET /api/admin/products] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { ok: false, message: 'Server error' },
       { status: 500 }
@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
         layoutData.thumbnail = finalThumbnail;
       }
     } catch (error: any) {
-      console.error('[Product Create] Error backing up images to Google Drive:', error);
+      logger.error('[Product Create] Error backing up images to Google Drive:', { error: error instanceof Error ? error.message : String(error) });
       // 백업 실패해도 계속 진행 (원본 URL 유지)
     }
 
@@ -368,7 +368,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, product });
   } catch (error) {
-    console.error('POST /api/admin/products error:', error);
+    logger.error('POST /api/admin/products error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }
@@ -515,7 +515,7 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ ok: true, product });
   } catch (error: any) {
-    console.error('PUT /api/admin/products error:', error);
+    logger.error('PUT /api/admin/products error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       {
         ok: false,
@@ -573,7 +573,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ ok: true, message: 'Product deleted' });
   } catch (error) {
-    console.error('DELETE /api/admin/products error:', error);
+    logger.error('DELETE /api/admin/products error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }

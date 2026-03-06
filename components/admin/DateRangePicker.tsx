@@ -267,58 +267,59 @@ export default function DateRangePicker({
 
       <style jsx global>{`
         .date-picker-custom {
-          --rdp-cell-size: 45px;
           --rdp-accent-color: #2563eb;
-          --rdp-background-color: #eff6ff;
+          --rdp-accent-background-color: #eff6ff;
         }
-        .date-picker-custom .rdp-day {
+        .date-picker-custom .rdp-day_button {
           border-radius: 0.5rem;
           font-weight: 500;
           font-size: 16px;
           transition: all 0.2s;
         }
-        .date-picker-custom .rdp-day:hover:not([disabled]):not(.rdp-day_selected) {
+        .date-picker-custom .rdp-day_button:hover:not([disabled]) {
           background-color: #dbeafe;
           transform: scale(1.1);
         }
-        .date-picker-custom .rdp-day_selected {
+        .date-picker-custom .rdp-selected .rdp-day_button {
           background-color: #2563eb;
           color: white;
           font-weight: 700;
         }
-        .date-picker-custom .rdp-range_start {
+        .date-picker-custom .rdp-range_start .rdp-day_button {
           border-top-left-radius: 9999px;
           border-bottom-left-radius: 9999px;
           background-color: #2563eb;
           color: white;
           font-weight: 700;
         }
-        .date-picker-custom .rdp-range_end {
+        .date-picker-custom .rdp-range_end .rdp-day_button {
           border-top-right-radius: 9999px;
           border-bottom-right-radius: 9999px;
           background-color: #ea580c;
           color: white;
           font-weight: 700;
         }
-        .date-picker-custom .rdp-range_middle {
+        .date-picker-custom .rdp-range_middle .rdp-day_button {
           background-color: #dbeafe;
           color: #1e40af;
           font-weight: 600;
+          border-radius: 0;
         }
-        .date-picker-custom .rdp-head_cell {
+        .date-picker-custom .rdp-weekday {
           font-weight: 600;
           color: #374151;
           font-size: 14px;
         }
-        .date-picker-custom .rdp-caption_label {
+        .date-picker-custom .rdp-month_caption {
           font-weight: 700;
           font-size: 1.2rem;
           color: #111827;
         }
-        .date-picker-custom .rdp-button {
+        .date-picker-custom .rdp-nav button,
+        .date-picker-custom .rdp-day_button {
           transition: all 0.2s;
         }
-        .date-picker-custom .rdp-button:hover {
+        .date-picker-custom .rdp-nav button:hover {
           transform: scale(1.1);
         }
       `}</style>

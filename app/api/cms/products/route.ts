@@ -17,17 +17,20 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ authorized: bo
   const session = await prisma.session.findUnique({
     where: { id: sid },
     include: {
-      user: {
+      User: {
         select: { id: true, role: true },
       },
     },
   });
 
-  if (!session || session.user.role !== 'admin') {
+  if (!session || !session.User) return { authorized: false };
+  if (session.expiresAt && session.expiresAt < new Date()) {
+    await prisma.session.delete({ where: { id: sid } }).catch(() => {});
     return { authorized: false };
   }
+  if (session.User.role !== 'admin') return { authorized: false };
 
-  return { authorized: true, userId: session.user.id };
+  return { authorized: true, userId: session.User.id };
 }
 
 // GET: 모든 상품 조회
