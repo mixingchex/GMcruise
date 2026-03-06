@@ -552,12 +552,30 @@ export async function POST(req: Request) {
               { status: 400 }
             );
           }
+
+          // [H-5] 유료 고객 계정 보호: 1101로 유료 고객 비밀번호/상태 덮어쓰기 차단
+          const isPayingCustomer = testUser.customerStatus === 'active' || testUser.customerStatus === null;
+          const isNotTestSource = testUser.customerSource !== 'test-guide' && testUser.customerSource !== 'trial-invite-link';
+          if (isPayingCustomer && isNotTestSource) {
+            console.log('[Login] 테스트 모드 로그인 차단: 유료 고객 계정 보호', { userId: testUser.id, customerStatus: testUser.customerStatus });
+            return NextResponse.json(
+              { ok: false, error: '이미 정식 서비스를 이용 중인 계정입니다. 상담 매니저가 안내드린 비밀번호로 로그인해주세요.' },
+              { status: 400 }
+            );
+          }
         }
 
+        // [C-1] 신규 계정 생성 시 전화번호 필수 검증 (phone 없으면 무제한 유령 계정 생성 방지)
+        if (!testUser && (!phone || !/^[0-9]{10,11}$/.test(phone.trim()))) {
+          return NextResponse.json(
+            { ok: false, error: '연락처(10~11자리 숫자)를 입력해주세요.' },
+            { status: 400 }
+          );
+        }
 
         console.log('[Login] 테스트 모드 사용자 조회 결과:', { found: !!testUser, userId: testUser?.id, customerStatus: testUser?.customerStatus, customerSource: testUser?.customerSource });
 
-        // 사용자가 없으면 자동 생성 (테스트 모드) - 이름/전화번호 아무거나 입력해도 생성
+        // 사용자가 없으면 자동 생성 (테스트 모드)
         if (!testUser) {
           console.log('[Login] 테스트 모드 신규 사용자 생성 시작');
           const now = new Date();
@@ -565,7 +583,7 @@ export async function POST(req: Request) {
             const newUser = await prisma.user.create({
               data: {
                 name: name || '3일체험고객', // 이름이 없으면 기본값
-                phone: phone || `test-${Date.now()}`, // 전화번호가 없으면 임시값
+                phone: phone!.trim(), // C-1: 위에서 검증된 유효한 전화번호만 사용
                 password: await hashPassword(normalizedTestPassword),
                 onboarded: false,
                 loginCount: 1,
@@ -807,18 +825,19 @@ export async function POST(req: Request) {
         }
 
         // 테스트 모드 활성화
-        // 비밀번호 1101로 로그인하면 무조건 무료체험 사용자로 전환 (유료 고객이어도 무시)
         // 72시간 경과 시 'test-locked'로 이미 설정되었으므로 덮어쓰지 않음
+        // [H-5] 유료 고객 보호: 이미 위의 isPrivileged/isPayingCustomer 체크에서 차단됨
+        // 이 시점에 도달한 사용자는 test/test-locked/신규 사용자만 해당됨
         const shouldSetTestStatus = !isExpired; // 72시간 경과가 아니면 무조건 'test'로 설정
         await prisma.user.update({
           where: { id: testUser.id },
           data: {
-            ...(shouldSetTestStatus && { customerStatus: 'test' }), // 무조건 무료체험 모드로 전환 (유료 고객 상태 무시)
+            ...(shouldSetTestStatus && { customerStatus: 'test' }),
             testModeStartedAt: testModeStartedAt || now, // null 체크 후 할당
             isLocked: false,
             isHibernated: false,
             loginCount: { increment: 1 },
-            customerSource: trialCode ? 'trial-invite-link' : 'test-guide', // 무조건 무료체험 사용자로 전환 (유료 고객이어도 무시)
+            customerSource: trialCode ? 'trial-invite-link' : 'test-guide',
             password: await hashPassword(normalizedTestPassword), // 비밀번호는 항상 1101로 업데이트 (bcrypt 해시 저장)
           },
         });
