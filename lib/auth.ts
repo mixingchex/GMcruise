@@ -106,7 +106,8 @@ export async function checkAdminAuth(): Promise<AdminAuthResult> {
 
     const user = session.User;
 
-    if (user.role !== 'admin') {
+    // superadmin은 admin 권한을 포함 (시스템 전체 관례: ['admin', 'superadmin'])
+    if (user.role !== 'admin' && user.role !== 'superadmin') {
       return { isAdmin: false, user: null, error: 'Not an admin' };
     }
 

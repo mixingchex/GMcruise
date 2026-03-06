@@ -8,6 +8,10 @@ import { logger } from '@/lib/logger';
 import { STANDARD_CRUISE_CANCELLATION_POLICY } from '@/lib/contracts/travel-contract-generator';
 import type { TravelContractData } from '@/lib/contracts/types';
 import { sendTravelContractRequestEmail } from '@/lib/email';
+import { Prisma } from '@prisma/client';
+
+/** 계약서 서명 요청 유효기간 — POST 신규 발송 및 PUT 재발송 공통 */
+const CONTRACT_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function GET(
   request: NextRequest,
@@ -199,7 +203,7 @@ export async function POST(
     };
 
     // 계약 만료일 (생성 후 7일)
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + CONTRACT_EXPIRY_MS);
 
     // 기존 계약서 조회 (이미 서명된 경우 차단, 토큰 재사용)
     const existingContract = await prisma.travelContract.findUnique({
@@ -220,28 +224,44 @@ export async function POST(
     // 동시 서명이 발생하면 count=0으로 감지하여 409 반환
     let contract;
     if (existingContract) {
-      const updateResult = await prisma.travelContract.updateMany({
-        where: { reservationId: resId, status: { not: 'signed' } },
-        data: {
-          contractData,
-          status: 'pending',
-          expiresAt,
-          customerSignature: null,
-          signedAt: null,
-        },
-      });
-      if (updateResult.count === 0) {
-        // findUnique와 updateMany 사이에 동시 서명 발생
-        return NextResponse.json({
-          ok: false,
-          error: '계약서가 방금 서명되었습니다. 취소 후 재발송하세요.',
-        }, { status: 409 });
+      const newToken = randomBytes(32).toString('hex');
+      try {
+        contract = await prisma.$transaction(async (tx) => {
+          const current = await tx.travelContract.findUnique({
+            where: { reservationId: resId },
+            select: { id: true, status: true },
+          });
+          if (!current) {
+            throw Object.assign(new Error(''), { code: 'NOT_FOUND' });
+          }
+          if (current.status === 'signed') {
+            throw Object.assign(new Error(''), { code: 'ALREADY_SIGNED' });
+          }
+          return tx.travelContract.update({
+            where: { id: current.id },
+            data: {
+              token: newToken, // 재발송 시 새 토큰 발급 — 구 이메일 링크 무효화
+              contractData,
+              status: 'pending',
+              expiresAt,
+              customerSignature: null,
+              signedAt: null,
+            },
+          });
+        });
+      } catch (txErr: unknown) {
+        const code = (txErr as NodeJS.ErrnoException).code;
+        if (code === 'NOT_FOUND') {
+          return NextResponse.json({ ok: false, error: '계약서 갱신 후 조회 실패' }, { status: 500 });
+        }
+        if (code === 'ALREADY_SIGNED') {
+          return NextResponse.json({
+            ok: false,
+            error: '계약서가 방금 서명되었습니다. 취소 후 재발송하세요.',
+          }, { status: 409 });
+        }
+        throw txErr;
       }
-      const updated = await prisma.travelContract.findUnique({ where: { reservationId: resId } });
-      if (!updated) {
-        return NextResponse.json({ ok: false, error: '계약서 갱신 후 조회 실패' }, { status: 500 });
-      }
-      contract = updated;
     } else {
       const newToken = randomBytes(32).toString('hex');
       contract = await prisma.travelContract.create({
@@ -302,7 +322,7 @@ export async function POST(
     });
   } catch (error: unknown) {
     // P2-05: Unique Constraint 충돌 (동시 요청 등으로 P2002 발생 시)
-    if ((error as any)?.code === 'P2002') {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json({ ok: false, error: '이 예약의 계약서가 이미 존재합니다.' }, { status: 409 });
     }
     const msg = error instanceof Error ? error.message : String(error);
@@ -337,47 +357,60 @@ export async function PUT(
     const body = await request.json().catch(() => ({}));
     const reason = typeof body?.reason === 'string' ? body.reason.slice(0, 200).trim() : '';
 
-    // signed 상태인 계약서만 리셋 허용 (TOCTOU 방지: updateMany)
-    // expiresAt도 now+7일로 갱신 — 리셋 후 기존 만료 기한이 단축되지 않도록
-    const resetExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const result = await prisma.travelContract.updateMany({
-      where: {
-        reservationId: resId,
-        status: 'signed',
-      },
-      data: {
-        status: 'pending',
-        expiresAt: resetExpiresAt,
-        customerSignature: null,
-        contractorSignature: null,
-        customerAddress: null,
-        contractorPhone: null,
-        companions: [],
-        signedAt: null,
-        marketingConsent: null,
-        pdfUrl: null,
-      },
-    });
+    // signed 상태인 계약서만 리셋 허용 — $transaction + update로 토큰 교체 (구 이메일 링크 무효화)
+    const newToken = randomBytes(32).toString('hex');
+    const resetExpiresAt = new Date(Date.now() + CONTRACT_EXPIRY_MS);
 
-    if (result.count === 0) {
-      const existing = await prisma.travelContract.findUnique({
-        where: { reservationId: resId },
-        select: { status: true },
+    let resetContract: { id: number };
+    try {
+      resetContract = await prisma.$transaction(async (tx) => {
+        const current = await tx.travelContract.findUnique({
+          where: { reservationId: resId },
+          select: { id: true, status: true },
+        });
+        if (!current) {
+          throw Object.assign(new Error('계약서를 찾을 수 없습니다.'), { code: 'NOT_FOUND' });
+        }
+        if (current.status !== 'signed') {
+          throw Object.assign(
+            new Error(`서명된 계약서가 없습니다. 현재 상태: ${current.status}`),
+            { code: 'NOT_SIGNED' }
+          );
+        }
+        return tx.travelContract.update({
+          where: { id: current.id },
+          data: {
+            token: newToken, // 구 토큰 무효화 — 구 이메일 링크로 서명 불가
+            status: 'pending',
+            expiresAt: resetExpiresAt,
+            customerSignature: null,
+            contractorSignature: null,
+            customerAddress: null,
+            contractorPhone: null,
+            companions: [],
+            signedAt: null,
+            marketingConsent: null,
+            pdfUrl: null,
+          },
+          select: { id: true },
+        });
       });
-      if (!existing) {
+    } catch (txErr: unknown) {
+      const code = (txErr as NodeJS.ErrnoException).code;
+      if (code === 'NOT_FOUND') {
         return NextResponse.json({ ok: false, error: '계약서를 찾을 수 없습니다.' }, { status: 404 });
       }
-      return NextResponse.json({
-        ok: false,
-        error: `서명된 계약서가 없습니다. 현재 상태: ${existing.status}`,
-      }, { status: 409 });
+      if (code === 'NOT_SIGNED') {
+        return NextResponse.json({
+          ok: false,
+          error: (txErr as Error).message,
+        }, { status: 409 });
+      }
+      throw txErr;
     }
 
     // 취소 이력 DB 저장 (실패해도 PUT 자체는 성공)
-    const contractForAudit = await prisma.travelContract.findUnique({
-      where: { reservationId: resId },
-      select: { id: true },
-    });
+    const contractForAudit = resetContract;
     if (contractForAudit) {
       await prisma.travelContractAudit.create({
         data: {

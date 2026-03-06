@@ -31,7 +31,7 @@ export async function GET(
     const { limited } = await checkRateLimit(`contract:pdf:${ip}`, RateLimitPolicies.LOGIN);
     if (limited) {
       return NextResponse.json(
-        { ok: false, error: '너무 많은 시도입니다. 잠시 후 다시 시도해주세요.' },
+        { ok: false, error: '너무 많은 시도입니다. 5분 후 다시 시도해주세요.' },
         { status: 429 }
       );
     }

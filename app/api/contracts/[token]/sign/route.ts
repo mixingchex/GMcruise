@@ -37,7 +37,7 @@ export async function POST(
     const { limited } = await checkRateLimit(`contract:sign:${ip}`, RateLimitPolicies.LOGIN);
     if (limited) {
       return NextResponse.json(
-        { ok: false, error: '너무 많은 시도입니다. 1분 후 다시 시도해주세요.' },
+        { ok: false, error: '너무 많은 시도입니다. 5분 후 다시 시도해주세요.' },
         { status: 429 }
       );
     }
@@ -71,31 +71,30 @@ export async function POST(
         !customerSignature.startsWith('data:image/jpeg;base64,')) {
       return NextResponse.json({ ok: false, error: '서명 형식이 올바르지 않습니다. (PNG 또는 JPEG만 허용)' }, { status: 400 });
     }
-    // base64 문자셋 검증
-    const base64Part = customerSignature.split(',')[1] || '';
-    if (base64Part) {
-      try {
-        Buffer.from(base64Part.substring(0, 500), 'base64');
-        if (!/^[A-Za-z0-9+/=]+$/.test(base64Part.substring(0, 500))) {
-          return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
-        }
-      } catch {
-        return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
-      }
-    }
-    // P2-07: 서명 이미지 크기 제한 200KB
+    // P2-07: 크기 제한 먼저 체크 → 초과 시 regex 비용 자체를 차단
     if (customerSignature.length > 200 * 1024) {
       return NextResponse.json({ ok: false, error: '서명 이미지 크기가 너무 큽니다. (최대 200KB)' }, { status: 400 });
     }
+    // P0-3: 전체 base64 문자셋 검증 (200KB 이하 → regex 약 3-5ms, 허용 가능)
+    // Node.js Buffer.from(..., 'base64')는 잘못된 문자를 silently ignore하므로 try/catch는 의미 없음
+    const base64Part = customerSignature.split(',')[1] || '';
+    if (base64Part && !/^[A-Za-z0-9+/=]+$/.test(base64Part)) {
+      return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
+    }
 
     // contractorSignature 포맷 검증
-    if (body.contractorSignature) {
-      const sig = body.contractorSignature as string;
-      if (!sig.startsWith('data:image/png;base64,') && !sig.startsWith('data:image/jpeg;base64,')) {
+    if (contractorSignature) {
+      if (!contractorSignature.startsWith('data:image/png;base64,') && !contractorSignature.startsWith('data:image/jpeg;base64,')) {
         return NextResponse.json({ ok: false, error: '계약자 서명 형식이 올바르지 않습니다.' }, { status: 400 });
       }
-      if (sig.length > 500 * 1024) {
+      // 크기 제한 먼저 (regex 비용 사전 차단)
+      if (contractorSignature.length > 500 * 1024) {
         return NextResponse.json({ ok: false, error: '계약자 서명 크기가 너무 큽니다.' }, { status: 400 });
+      }
+      // P0-3: 전체 base64 문자셋 검증 (기존에 누락되어 있던 검증)
+      const sigBase64Part = contractorSignature.split(',')[1] || '';
+      if (sigBase64Part && !/^[A-Za-z0-9+/=]+$/.test(sigBase64Part)) {
+        return NextResponse.json({ ok: false, error: '계약자 서명 데이터가 손상되었습니다.' }, { status: 400 });
       }
     }
 
@@ -131,7 +130,7 @@ export async function POST(
         customerAddress: customerAddress.trim(),
         contractorPhone: (typeof contractorPhone === 'string' && contractorPhone.trim()) ? contractorPhone.trim() : null,
         customerSignature,
-        contractorSignature: body.contractorSignature || null,
+        contractorSignature: contractorSignature || null,
         companions: companions || [],
         signedAt: signedAtDate,
         marketingConsent: typeof marketingConsent === 'boolean' ? marketingConsent : null,
@@ -159,7 +158,7 @@ export async function POST(
     // WO-CR-02: Fire-and-forget IIFE 제거 → 응답 전 동기 처리 (Vercel 실행 보장)
     const contract = await prisma.travelContract.findUnique({
       where: { token },
-      select: { contractData: true, reservationId: true },
+      select: { id: true, contractData: true, reservationId: true },
     });
 
     // updateMany 성공 후 findUnique null → read replica 지연 또는 동시 삭제 (좀비 서명 방지)
@@ -248,6 +247,22 @@ export async function POST(
           }
 
           logger.info('[ContractSign] 이메일 발송 완료', { token: token.slice(0, 8) });
+
+          // P2-2: 서명 감사 로그 (best-effort — 실패해도 서명 자체는 성공 유지)
+          await prisma.travelContractAudit.create({
+            data: {
+              contractId: contract.id,
+              action: 'signed',
+              adminId: null, // 고객이 직접 서명 — 관리자 없음
+              previousStatus: 'pending',
+              metadata: { signedAt: signedAtDate.toISOString() },
+            },
+          }).catch((auditErr: unknown) => {
+            logger.warn('[ContractSign] audit 저장 실패 (무시)', {
+              token: token.slice(0, 8),
+              error: auditErr instanceof Error ? auditErr.message : String(auditErr),
+            });
+          });
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           logger.error('[ContractSign] PDF 생성 실패 — DB rollback 시작', { token: token.slice(0, 8), error: msg });

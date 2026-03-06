@@ -4,36 +4,28 @@
 import { NextRequest } from 'next/server';
 
 /**
- * NextRequest에서 클라이언트 IP 주소 추출
- * Proxy/Load Balancer를 고려하여 X-Forwarded-For 헤더 우선 사용
+ * 클라이언트 IP 추출 — 신뢰도 높은 순서로 우선순위 적용
+ *
+ * 1. request.ip    — Next.js/Vercel이 TCP 소켓으로부터 직접 주입 (위조 불가)
+ * 2. x-real-ip     — Vercel이 단일 실제 IP로 설정
+ * 3. cf-connecting-ip — Cloudflare 앞단 시 실제 클라이언트 IP
+ * 4. x-forwarded-for 마지막 값 — rightmost-trusted (첫 번째는 클라이언트 위조 가능)
  */
 export function getClientIp(request: NextRequest): string {
-  // X-Forwarded-For 헤더 확인 (프록시/로드밸런서 뒤에 있을 때)
+  if (request.ip) return request.ip;
+
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+
+  const cfIp = request.headers.get('cf-connecting-ip');
+  if (cfIp) return cfIp.trim();
+
   const forwardedFor = request.headers.get('x-forwarded-for');
   if (forwardedFor) {
-    // X-Forwarded-For는 쉼표로 구분된 IP 목록일 수 있음
-    // 첫 번째 IP가 실제 클라이언트 IP
-    return forwardedFor.split(',')[0].trim();
+    const ips = forwardedFor.split(',');
+    return ips[ips.length - 1].trim(); // rightmost (클라이언트 위조 불가 영역)
   }
 
-  // X-Real-IP 헤더 확인 (Nginx 등에서 사용)
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) {
-    return realIp.trim();
-  }
-
-  // CF-Connecting-IP 헤더 확인 (Cloudflare)
-  const cfIp = request.headers.get('cf-connecting-ip');
-  if (cfIp) {
-    return cfIp.trim();
-  }
-
-  // request.ip 확인 (Next.js 14+)
-  if (request.ip) {
-    return request.ip;
-  }
-
-  // 기본값: 알 수 없는 IP
   return 'unknown';
 }
 

@@ -1543,6 +1543,7 @@ export default function ProductEditPage() {
                 <option value="동남아">동남아</option>
                 <option value="홍콩">홍콩</option>
                 <option value="일본">일본</option>
+                <option value="일본 고베">일본 고베</option>
                 <option value="대만">대만</option>
                 <option value="중국">중국</option>
                 <option value="알래스카">알래스카</option>

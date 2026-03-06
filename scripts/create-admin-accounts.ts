@@ -5,12 +5,12 @@ async function main() {
 
   const admins = [
     {
-      name: '관리자',
+      name: '모니카',
       phone: '01024958013',
       password: '0313',
     },
     {
-      name: '관리자2',
+      name: '저스틴',
       phone: '01038609161',
       password: '0313',
     },
@@ -48,6 +48,7 @@ async function main() {
             role: 'admin',
             onboarded: true,
             loginCount: 0,
+            updatedAt: new Date(),
           },
         });
         console.log(`✅ ${adminData.name} (${adminData.phone}) - 생성 완료 (ID: ${admin.id})`);
