@@ -109,13 +109,17 @@ export async function POST(req: NextRequest) {
     // - quality:85 = JPEG 95+ 수준 화질 유지, 용량 60~80% 절감
     // - animated:true = GIF 애니메이션 프레임 전체 보존 → animated WebP 변환
     let webpBuffer: Buffer;
-    try {
-      webpBuffer = await sharp(originalBuffer, { animated: true })
-        .webp({ quality: 85 })
-        .toBuffer();
-    } catch (sharpErr) {
-      logger.error('[Image Upload] WebP 변환 실패', { error: sharpErr instanceof Error ? sharpErr.message : String(sharpErr) });
-      return NextResponse.json({ ok: false, message: '이미지 변환에 실패했습니다.' }, { status: 400 });
+    if (file.type === 'image/webp') {
+      webpBuffer = originalBuffer;
+    } else {
+      try {
+        webpBuffer = await sharp(originalBuffer, { animated: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+      } catch (sharpErr) {
+        logger.error('[Image Upload] WebP 변환 실패', { error: sharpErr instanceof Error ? sharpErr.message : String(sharpErr) });
+        return NextResponse.json({ ok: false, message: '이미지 변환에 실패했습니다.' }, { status: 400 });
+      }
     }
 
     const webpFileName = `${nameWithoutExt}.webp`;

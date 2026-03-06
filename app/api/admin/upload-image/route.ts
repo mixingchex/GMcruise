@@ -86,13 +86,17 @@ export async function POST(req: NextRequest) {
     // WebP 변환 (quality:85 — JPEG 95+ 수준 화질, 용량 60~80% 절감)
     // animated:true = GIF 애니메이션 프레임 전체 보존 → animated WebP 변환
     let webpBuffer: Buffer;
-    try {
-      webpBuffer = await sharp(buffer, { animated: true })
-        .webp({ quality: 85 })
-        .toBuffer();
-    } catch (sharpErr) {
-      logger.error('[Upload Image] WebP 변환 실패', { error: sharpErr instanceof Error ? sharpErr.message : String(sharpErr) });
-      return NextResponse.json({ ok: false, error: '이미지 변환에 실패했습니다.' }, { status: 400 });
+    if (file.type === 'image/webp') {
+      webpBuffer = buffer;
+    } else {
+      try {
+        webpBuffer = await sharp(buffer, { animated: true })
+          .webp({ quality: 85 })
+          .toBuffer();
+      } catch (sharpErr) {
+        logger.error('[Upload Image] WebP 변환 실패', { error: sharpErr instanceof Error ? sharpErr.message : String(sharpErr) });
+        return NextResponse.json({ ok: false, error: '이미지 변환에 실패했습니다.' }, { status: 400 });
+      }
     }
 
     // Google Drive 이미지 폴더 ID 가져오기

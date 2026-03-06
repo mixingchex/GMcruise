@@ -65,9 +65,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('User', users as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.user.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.user.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.user.update>[0]['data'],
         create: row as Parameters<typeof backup.user.create>[0]['data'],
       });
     }));
@@ -77,9 +78,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('CruiseProduct', products as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.cruiseProduct.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.cruiseProduct.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.cruiseProduct.update>[0]['data'],
         create: row as Parameters<typeof backup.cruiseProduct.create>[0]['data'],
       });
     }));
@@ -89,9 +91,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('MallProductContent', mallContents as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.mallProductContent.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.mallProductContent.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.mallProductContent.update>[0]['data'],
         create: row as Parameters<typeof backup.mallProductContent.create>[0]['data'],
       });
     }));
@@ -101,9 +104,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('Reservation', reservations as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.reservation.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.reservation.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.reservation.update>[0]['data'],
         create: row as Parameters<typeof backup.reservation.create>[0]['data'],
       });
     }));
@@ -113,9 +117,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('Payment', payments as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.payment.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.payment.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.payment.update>[0]['data'],
         create: row as Parameters<typeof backup.payment.create>[0]['data'],
       });
     }));
@@ -125,9 +130,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('AffiliateProfile', affiliates as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.affiliateProfile.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.affiliateProfile.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.affiliateProfile.update>[0]['data'],
         create: row as Parameters<typeof backup.affiliateProfile.create>[0]['data'],
       });
     }));
@@ -137,9 +143,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('Trip', trips as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.trip.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.trip.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.trip.update>[0]['data'],
         create: row as Parameters<typeof backup.trip.create>[0]['data'],
       });
     }));
@@ -149,9 +156,10 @@ export async function runSupabaseBackup(): Promise<{ results: SyncResult[]; skip
       where: { updatedAt: { gte: since } },
     });
     results.push(await syncTable('UserTrip', userTrips as Record<string, unknown>[], async (row) => {
+      const { id, ...updateData } = row;
       await backup.userTrip.upsert({
-        where: { id: row.id as number },
-        update: row as Parameters<typeof backup.userTrip.update>[0]['data'],
+        where: { id: id as number },
+        update: updateData as Parameters<typeof backup.userTrip.update>[0]['data'],
         create: row as Parameters<typeof backup.userTrip.create>[0]['data'],
       });
     }));

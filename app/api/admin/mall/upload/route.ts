@@ -71,6 +71,10 @@ async function checkAdminAuth() {
       return null;
     }
 
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      return null;
+    }
+
     return session.User;
   } catch (error) {
     console.error('[Mall Upload API] Auth check error:', error);
@@ -308,12 +312,13 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 파일명 생성 (타임스탬프 + 원본 파일명, 이미지는 .webp로 통일)
+      // 파일명 생성 (타임스탬프 + 원본 파일명, 이미지는 변환 결과에 맞는 확장자)
       const timestamp = Date.now();
       const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+      const uploadExt = uploadMimeType === 'image/webp' ? 'webp' : (originalName.split('.').pop() || 'jpg');
       const finalFilename = type === 'image'
-        ? `${timestamp}_${nameWithoutExt}.webp`
+        ? `${timestamp}_${nameWithoutExt}.${uploadExt}`
         : `${timestamp}_${originalName}`;
 
       // 타입별 Google Drive 폴더 ID 매핑
