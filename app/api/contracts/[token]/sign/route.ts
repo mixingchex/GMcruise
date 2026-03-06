@@ -141,8 +141,26 @@ export async function POST(
       // WO-CR-08: Zod로 contractData 파싱
       const parseResult = TravelContractDataSchema.safeParse(contract.contractData);
       if (!parseResult.success) {
-        logger.error('[ContractSign] contractData 타입 불일치', { token: token.slice(0, 8) });
-        // contractData 손상이지만 서명 자체는 이미 완료됨 — 이메일만 스킵
+        logger.error('[ContractSign] contractData 타입 불일치 — DB rollback', { token: token.slice(0, 8) });
+        // contractData 손상 → pending으로 rollback (zombie signed 방지)
+        await prisma.travelContract.update({
+          where: { token },
+          data: {
+            status: 'pending',
+            signedAt: null,
+            customerSignature: null,
+            contractorSignature: null,
+            customerAddress: null,
+            companions: [],
+          },
+        }).catch((rollbackErr: unknown) => {
+          const rollbackMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+          logger.error('[ContractSign] DB rollback 실패', { token: token.slice(0, 8), error: rollbackMsg });
+        });
+        return NextResponse.json(
+          { ok: false, error: '계약서 데이터가 손상되었습니다. 담당자에게 문의해주세요.' },
+          { status: 500 }
+        );
       } else {
         const contractData = parseResult.data;
         const validCompanions = Array.isArray(companions) ? (companions as Array<{ name: string; phone: string }>) : [];
@@ -161,7 +179,7 @@ export async function POST(
           );
 
           // 관리자 이메일 (실패해도 서명 자체는 성공)
-          const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_SMTP_USER || '';
+          const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_SMTP_USER || 'jmonica@cruisedot.co.kr';
           if (adminEmail) {
             await sendTravelContractSignedEmail({
               adminEmail,
