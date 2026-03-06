@@ -3097,6 +3097,9 @@ model TravelContract {
   // PDF 저장 URL
   pdfUrl              String?
 
+  // 마케팅 활용 동의 여부 (서명 시 고객이 선택)
+  marketingConsent    Boolean?
+
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 

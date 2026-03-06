@@ -27,9 +27,39 @@ export async function GET(
 
     const contract = await prisma.travelContract.findUnique({
       where: { reservationId: resId },
+      select: {
+        id: true,
+        reservationId: true,
+        token: true,
+        status: true,
+        expiresAt: true,
+        signedAt: true,
+        contractData: true,
+        customerAddress: true,
+        companions: true,
+        generatedAt: true,
+        pdfUrl: true,
+        createdAt: true,
+        updatedAt: true,
+        customerSignature: true,
+        contractorSignature: true,
+      },
     });
 
-    return NextResponse.json({ ok: true, contract });
+    if (!contract) {
+      return NextResponse.json({ ok: true, contract: null });
+    }
+
+    const { customerSignature, contractorSignature, ...contractWithoutSignatures } = contract;
+
+    return NextResponse.json({
+      ok: true,
+      contract: {
+        ...contractWithoutSignatures,
+        hasCustomerSignature: !!customerSignature,
+        hasContractorSignature: !!contractorSignature,
+      },
+    });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     logger.error('[TravelContract GET]', { error: msg });

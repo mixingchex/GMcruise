@@ -71,6 +71,24 @@ export interface TravelContractData {
   mainTravelerBirthdate?: string | null;
   departurePort?: string | null;
   insurancePolicyNumber?: string | null;
+
+  // 여행자보험 상세 (법적 필수 기재)
+  insurancePeriod?: string | null;   // e.g. '여행기간' 또는 '2024.12.24~2024.12.29'
+  insuredPerson?: string | null;     // e.g. '여행자 본인' 또는 피보험자명
+
+  // 숙박 정보
+  accommodationType?: 'schedule' | 'tourist-hotel' | 'regular-hotel' | 'other' | null;
+  hotelGrade?: string | null;        // 관광호텔 등급 (e.g. '3성급')
+  roomOccupancy?: number | null;     // 1실 투숙인원
+
+  // 식사
+  inflightMealIncluded?: boolean;    // 기내식 포함 여부 (항공 포함 패키지)
+
+  // 마케팅 동의
+  marketingConsent?: boolean;        // 마케팅 활용 동의 여부 (선택)
+
+  // 항공 좌석 등급
+  airlineSeatClass?: string | null;  // e.g. '이코노미', '비즈니스'
 }
 
 export type ContractStatus = 'pending' | 'signed' | 'expired' | 'cancelled';
@@ -124,4 +142,12 @@ export const TravelContractDataSchema = z.object({
   mainTravelerBirthdate: z.string().max(20).nullable().optional(),
   departurePort: z.string().max(100).nullable().optional(),
   insurancePolicyNumber: z.string().max(100).nullable().optional(),
+  insurancePeriod: z.string().max(100).nullable().optional(),
+  insuredPerson: z.string().max(100).nullable().optional(),
+  accommodationType: z.enum(['schedule', 'tourist-hotel', 'regular-hotel', 'other']).nullable().optional(),
+  hotelGrade: z.string().max(50).nullable().optional(),
+  roomOccupancy: z.number().int().min(1).max(20).nullable().optional(),
+  inflightMealIncluded: z.boolean().optional(),
+  marketingConsent: z.boolean().optional(),
+  airlineSeatClass: z.string().max(50).nullable().optional(),
 });

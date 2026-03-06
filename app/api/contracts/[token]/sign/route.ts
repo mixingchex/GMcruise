@@ -38,7 +38,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { customerAddress, customerSignature, contractorSignature, companions } = body;
+    const { customerAddress, customerSignature, contractorSignature, companions, marketingConsent } = body;
 
     if (!customerAddress || typeof customerAddress !== 'string' || customerAddress.trim().length < 5) {
       return NextResponse.json({ ok: false, error: '주소를 정확히 입력해주세요.' }, { status: 400 });
@@ -58,8 +58,15 @@ export async function POST(
     }
     // base64 문자셋 검증
     const base64Part = customerSignature.split(',')[1] || '';
-    if (base64Part && !/^[A-Za-z0-9+/=]+$/.test(base64Part.substring(0, 100))) {
-      return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
+    if (base64Part) {
+      try {
+        Buffer.from(base64Part.substring(0, 500), 'base64');
+        if (!/^[A-Za-z0-9+/=]+$/.test(base64Part.substring(0, 500))) {
+          return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
+        }
+      } catch {
+        return NextResponse.json({ ok: false, error: '서명 데이터가 손상되었습니다.' }, { status: 400 });
+      }
     }
     // P2-07: 서명 이미지 크기 제한 200KB
     if (customerSignature.length > 200 * 1024) {
@@ -129,6 +136,17 @@ export async function POST(
         return NextResponse.json({ ok: false, error: '계약서가 만료되었습니다.' }, { status: 410 });
       }
       return NextResponse.json({ ok: false, error: '서명 처리 중 오류가 발생했습니다.' }, { status: 500 });
+    }
+
+    // marketingConsent 저장 (옵셔널 — Prisma 스키마에 marketingConsent Boolean? 필드 존재)
+    // 마이그레이션: npx prisma migrate dev --name add_travel_contract_marketing_consent
+    if (typeof marketingConsent === 'boolean') {
+      await prisma.travelContract.update({
+        where: { token },
+        data: { marketingConsent },
+      }).catch((err: unknown) => {
+        logger.error('[ContractSign] marketingConsent 저장 실패', { error: err instanceof Error ? err.message : String(err) });
+      });
     }
 
     // WO-CR-02: Fire-and-forget IIFE 제거 → 응답 전 동기 처리 (Vercel 실행 보장)

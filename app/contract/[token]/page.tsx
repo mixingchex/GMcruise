@@ -48,7 +48,7 @@ export default function ContractSignPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
 
   // WO-CR-19: PDF 다운로드 상태
   const [downloading, setDownloading] = useState(false);
@@ -279,11 +279,6 @@ export default function ContractSignPage() {
   };
 
   const handleSubmit = async () => {
-    // WO-CR-17: alert() → setSubmitError
-    if (!termsAgreed) {
-      setSubmitError('약관 동의가 필요합니다.');
-      return;
-    }
     if (!customerAddress.trim() || customerAddress.trim().length < 5) {
       setSubmitError('주소를 정확히 입력해주세요.');
       return;
@@ -316,6 +311,7 @@ export default function ContractSignPage() {
           customerSignature,
           contractorSignature,
           companions: validCompanions,
+          marketingConsent: agreeMarketing,
         }),
       });
 
@@ -652,18 +648,22 @@ export default function ContractSignPage() {
               </p>
             </div>
 
-            {/* 약관 동의 체크박스 */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-              <label className="flex items-start gap-3 cursor-pointer">
+            {/* 서명 = 전체 약관 동의 안내 (관리자가 계약 생성 시 약관 적용 완료) */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+              <p className="text-xs text-amber-800 font-semibold leading-relaxed">
+                아래 서명은 계약서 전문(국외여행표준약관·크루즈 특별약관·개인정보 수집이용·제3자 제공 동의 포함)에
+                동의하는 것으로 간주됩니다.
+              </p>
+              {/* 마케팅 동의 (선택) */}
+              <label className="flex items-start gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={termsAgreed}
-                  onChange={e => setTermsAgreed(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-[#1a3a6b] flex-shrink-0"
+                  checked={agreeMarketing}
+                  onChange={e => setAgreeMarketing(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-[#1a3a6b]"
                 />
-                <span className="text-sm text-gray-700 leading-relaxed">
-                  본인은 <strong>국외여행표준약관(공정위 제10021호)</strong> 및 <strong>크루즈 특별약관</strong>을
-                  전문 확인하였으며, 개인정보 수집·이용(필수) 및 제3자 제공(필수)에 동의합니다.
+                <span className="text-sm text-gray-700">
+                  <strong>[선택]</strong> 마케팅 정보 수신에 동의합니다. (동의 거부해도 계약에 불이익 없음)
                 </span>
               </label>
             </div>
@@ -720,6 +720,22 @@ interface ContractPreviewData {
   affiliateName?: string;
   isPackage?: boolean;
   cancellationPolicy?: CancellationPolicyRow[];
+  mealCounts?: {
+    breakfast: number;
+    lunch: number;
+    dinner: number;
+  } | null;
+  hasHotel?: boolean;
+  excludedItems?: string[];
+  otherNotes?: string | null;
+  guaranteeType?: 'insurance' | 'mutual-aid' | 'deposit';
+  localTransportType?: 'bus' | 'car' | 'other' | 'none';
+  marketingConsent?: boolean;
+  accommodationType?: string | null;
+  roomOccupancy?: number | null;
+  insurancePeriod?: string | null;
+  insuredPerson?: string | null;
+  inflightMealIncluded?: boolean;
 }
 
 // 계약서 미리보기 컴포넌트

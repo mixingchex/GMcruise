@@ -373,12 +373,12 @@ export function generateTravelContractHTML(
     </tr>
     <tr>
       <td class="lbl">여행기간</td>
-      <td>${data.departureDate} ~ ${data.returnDate}&nbsp;(${data.nights}박 ${data.days}일)</td>
+      <td>${escapeHtml(data.departureDate)} ~ ${escapeHtml(data.returnDate)}&nbsp;(${data.nights}박 ${data.days}일)</td>
       <td class="lbl2">여행보증</td>
       <td>
         ${data.guaranteeType === 'mutual-aid' ? '■' : '□'} 공제 &nbsp;
-        ${(!data.guaranteeType || data.guaranteeType === 'insurance') ? '■' : '□'} 여행보증보험 &nbsp;
-        ${data.guaranteeType === 'deposit' ? '■' : '□'} 영업보증금
+        ${data.guaranteeType === 'deposit' ? '■' : '□'} 예치금 &nbsp;
+        ${(!data.guaranteeType || data.guaranteeType === 'insurance') ? '■' : '□'} 영업보증보험
       </td>
     </tr>
     <tr>
@@ -398,7 +398,7 @@ export function generateTravelContractHTML(
       <td class="lbl">여행요금</td>
       <td>1인당 <strong>${fmt(data.pricePerPerson)}</strong>원 / 총액 <strong>${fmt(data.totalAmount)}</strong>원</td>
       <td class="lbl2">계좌정보</td>
-      <td style="font-size:8pt">${COMPANY.bank}<br>예금주: ${COMPANY.bankHolder}</td>
+      <td style="font-size:8pt">${COMPANY.bank}<br>예금주: ${COMPANY.bankHolder}<br><span style="color:#c00;">*계약과 동시 납부</span></td>
     </tr>
     <tr>
       <td class="lbl">출발/도착</td>
@@ -416,13 +416,13 @@ export function generateTravelContractHTML(
       <td class="lbl">여행인솔자</td>
       <td>${tourLeader}</td>
       <td class="lbl2">현지안내원</td>
-      <td>${localGuide}</td>
+      <td>${localGuide} &nbsp;<span style="font-size:7.5pt;color:#666;">*여행일정표 참조</span></td>
     </tr>
     <tr>
       <td class="lbl">현지교통</td>
       <td>${localTransport}</td>
       <td class="lbl2">현지여행사</td>
-      <td>${localAgency}</td>
+      <td>${localAgency} &nbsp;<span style="font-size:7.5pt;color:#666;">*여행일정표 참조</span></td>
     </tr>
     <tr>
       <td class="lbl">여행요금<br>포함내역</td>
@@ -522,12 +522,12 @@ export function generateTravelContractHTML(
     </tr>
     <tr>
       <td class="lbl">여행기간</td>
-      <td>${data.departureDate} ~ ${data.returnDate}&nbsp;(${data.nights}박 ${data.days}일)</td>
+      <td>${escapeHtml(data.departureDate)} ~ ${escapeHtml(data.returnDate)}&nbsp;(${data.nights}박 ${data.days}일)</td>
       <td class="lbl2">여행보증</td>
       <td>
         ${data.guaranteeType === 'mutual-aid' ? '■' : '□'} 공제 &nbsp;
-        ${(!data.guaranteeType || data.guaranteeType === 'insurance') ? '■' : '□'} 여행보증보험 &nbsp;
-        ${data.guaranteeType === 'deposit' ? '■' : '□'} 영업보증금
+        ${data.guaranteeType === 'deposit' ? '■' : '□'} 예치금 &nbsp;
+        ${(!data.guaranteeType || data.guaranteeType === 'insurance') ? '■' : '□'} 영업보증보험
       </td>
     </tr>
     <tr>
@@ -547,7 +547,7 @@ export function generateTravelContractHTML(
       <td class="lbl">여행요금</td>
       <td>1인당 <strong>${fmt(data.pricePerPerson)}</strong>원 / 총액 <strong>${fmt(data.totalAmount)}</strong>원</td>
       <td class="lbl2">계좌정보</td>
-      <td style="font-size:8pt">${COMPANY.bank}<br>예금주: ${COMPANY.bankHolder}</td>
+      <td style="font-size:8pt">${COMPANY.bank}<br>예금주: ${COMPANY.bankHolder}<br><span style="color:#c00;">*계약과 동시 납부</span></td>
     </tr>
     <tr>
       <td class="lbl">출발/도착</td>
@@ -565,13 +565,13 @@ export function generateTravelContractHTML(
       <td class="lbl">여행인솔자</td>
       <td>${tourLeader}</td>
       <td class="lbl2">현지안내원</td>
-      <td>${localGuide}</td>
+      <td>${localGuide} &nbsp;<span style="font-size:7.5pt;color:#666;">*여행일정표 참조</span></td>
     </tr>
     <tr>
       <td class="lbl">현지교통</td>
       <td>${localTransport}</td>
       <td class="lbl2">현지여행사</td>
-      <td>${localAgency}</td>
+      <td>${localAgency} &nbsp;<span style="font-size:7.5pt;color:#666;">*여행일정표 참조</span></td>
     </tr>
     <tr>
       <td class="lbl">여행요금<br>포함내역</td>
@@ -709,20 +709,24 @@ export function generateTravelContractHTML(
   <div class="terms-article">
     <div class="art-title">제11조 (여행요금)</div>
     <div>① 여행자는 계약 체결과 동시에 계약금을 납부하여야 합니다.<br>
-    ② 잔금의 납부는 여행 출발 전 당사가 지정한 날까지 완납하여야 합니다.<br>
-    ③ 여행요금에 포함되지 않은 비용(선내팁, 개인 경비 등)은 여행자가 부담하여야 합니다.<br>
-    ④ 여행자가 여행 출발 후 자기 사정으로 여행에 참가하지 못한 경우 불참가 기간에 대한 환급은 없습니다.<br>
-    ⑤ 여행자가 여행 출발 후 자기 사정으로 중도 포기하는 경우 잔여 여행요금은 환급되지 않습니다.</div>
+    ② 계약금은 여행요금의 10% 이하로 하며, 계약금은 여행요금 또는 손해배상액의 전부 또는 일부로 취급합니다.<br>
+    ③ 잔금의 납부는 여행 출발 전 당사가 지정한 날까지 완납하여야 합니다.<br>
+    ④ 여행요금에 포함되지 않은 비용(선내팁, 개인 경비 등)은 여행자가 부담하여야 합니다.<br>
+    ⑤ 여행자가 여행 출발 후 자기 사정으로 여행에 참가하지 못한 경우 불참가 기간에 대한 환급은 없습니다.<br>
+    ⑥ 여행자가 여행 출발 후 자기 사정으로 중도 포기하는 경우 잔여 여행요금은 환급되지 않습니다.</div>
   </div>
 
   <div class="terms-article">
     <div class="art-title">제12조 (여행요금 변경)</div>
-    <div>항공운임 또는 관련 운임이 계약 당시보다 5% 이상 증감하거나, 여행요금에 적용된 외화환율이 계약 당시보다 2% 이상 변동된 경우 당사 또는 여행자는 그 증감 또는 변동분을 여행요금에 추가하거나 공제할 수 있습니다.</div>
+    <div>① 항공운임 또는 관련 운임이 계약 당시보다 5% 이상 증감하거나, 여행요금에 적용된 외화환율이 계약 당시보다 2% 이상 변동된 경우 당사 또는 여행자는 그 증감 또는 변동분을 여행요금에 추가하거나 공제할 수 있습니다.<br>
+    ② 당사는 제1항에 따라 여행요금을 증액하는 경우 여행 출발일 15일 전에 여행자에게 통지하여야 합니다.</div>
   </div>
 
   <div class="terms-article">
     <div class="art-title">제13조 (여행업자의 계약이행 의무)</div>
-    <div>당사는 여행자와 계약한 여행일정 내용이 정상적으로 이행될 수 있도록 최선을 다하여야 하며, 여행 중 예정된 여행지 변경, 여행 내용 변경, 여행요금 변경 등 계약을 불이행하는 경우 여행자에게 적절한 대가를 지급하여야 합니다.</div>
+    <div>① 당사는 여행자와 계약한 여행일정 내용이 정상적으로 이행될 수 있도록 최선을 다하여야 하며, 여행 중 예정된 여행지 변경, 여행 내용 변경, 여행요금 변경 등 계약을 불이행하는 경우 여행자에게 적절한 대가를 지급하여야 합니다.<br>
+    ② 당사는 계약의 변경 또는 해제로 인하여 여행자에게 손해가 발생한 경우, 그 변경 또는 해제가 당사의 귀책사유로 인한 것인지 여부를 명확히 하여야 합니다.<br>
+    ③ 제1항의 변경으로 인하여 여행요금에 증감이 생기는 경우, 여행 종료 후 10일 이내에 정산·환급하여야 합니다.</div>
   </div>
 
   <div class="terms-article">
@@ -826,11 +830,13 @@ export function generateTravelContractHTML(
   </div>
   <div class="terms-article">
     <div class="art-title">제6조 (미성년자 및 탑승 제한)</div>
-    <div>18세 미만 미성년자는 성인 보호자와 동반하여야 합니다. 생후 6개월 미만 유아 및 임신 24주(6개월) 이상인 경우 선사 규정에 따라 탑승이 제한될 수 있으며, 이로 인한 불이익의 책임은 여행자에게 있습니다.</div>
+    <div>① 18세 미만 미성년자는 성인 보호자와 동반하여야 합니다. 생후 6개월 미만 유아 및 임신 24주(6개월) 이상인 경우 선사 규정에 따라 탑승이 제한될 수 있으며, 이로 인한 불이익의 책임은 여행자에게 있습니다.<br>
+    ② 임신 24주 미만이더라도 크루즈 및 항공기 탑승 시 의사의 소견서(영문)와 동의서 제출 후 선사의 사전 승인을 받아야 탑승이 가능하며, 미제출 시 탑승이 거부될 수 있습니다.</div>
   </div>
   <div class="terms-article">
     <div class="art-title">제7조 (기항지 투어)</div>
-    <div>기항지 투어는 선택사항이며, 불참 시 환불 여부는 상품 조건에 따릅니다. 기항지 투어 중 발생한 사고에 대하여 당사는 현지 업체 귀책의 경우를 제외하고 책임지지 않습니다.</div>
+    <div>① 기항지 투어는 선택사항이며, 불참 시 환불 여부는 상품 조건에 따릅니다. 기항지 투어 중 발생한 사고에 대하여 당사는 현지 업체 귀책의 경우를 제외하고 책임지지 않습니다.<br>
+    ② 기상악화 및 선사의 사정으로 기항지 투어 진행이 불가한 경우, 선사에서 정한 기준에 따라 일부 비용이 환불될 수 있으며, 이를 초과하는 추가 보상은 제공되지 않습니다.</div>
   </div>
   <div class="terms-article">
     <div class="art-title">제8조 (선내 구매물품)</div>
@@ -855,7 +861,7 @@ export function generateTravelContractHTML(
   <div class="section-h">개인정보처리 동의사항</div>
 
   <div class="privacy-box">
-    <h4>① 개인정보 수집·이용 동의 (필수) — 개인정보보호법 제15조 제1항 근거</h4>
+    <h4>① 개인정보 수집·이용 동의 (필수) — 개인정보보호법 제15조·제22조 근거</h4>
     <p><strong>수집 항목:</strong> 성명, 생년월일, 주소, 연락처, 이메일, 여권정보</p>
     <p><strong>수집 목적:</strong> 여행계약 이행, 여행자 보험 가입, 탑승 수속, 기항지 관련 서비스 제공</p>
     <p><strong>보유 기간:</strong> 목적 달성 시까지 (계약·결제 기록 5년, 분쟁 기록 3년)</p>
@@ -866,7 +872,7 @@ export function generateTravelContractHTML(
   </div>
 
   <div class="privacy-box">
-    <h4>② 개인정보 제3자 제공 동의 (필수) — 개인정보보호법 제17조 제1항 근거</h4>
+    <h4>② 개인정보 제3자 제공 동의 (필수) — 개인정보보호법 제17조·제22조 근거</h4>
     <p><strong>제공 대상:</strong> 항공사, 선사(크루즈 운항사), 랜드사(현지여행사), 보험사</p>
     <p><strong>제공 목적:</strong> 크루즈 여행 서비스 제공 및 탑승수속</p>
     <p><strong>보유 기간:</strong> 크루즈 여행 서비스 종료 시까지</p>
@@ -877,9 +883,9 @@ export function generateTravelContractHTML(
   </div>
 
   <div class="privacy-box">
-    <h4>③ 마케팅 정보 활용 동의 (선택) — 개인정보보호법 제22조 제4항 근거</h4>
+    <h4>③ 마케팅 정보 활용 동의 (선택) — 개인정보보호법 제22조제3항·시행령 제17조제2항 근거</h4>
     <p><strong>목적:</strong> 신상품·여행정보 안내 및 판매 권유</p>
-    <p><strong>방법:</strong> 우편, 전화, 이메일, 문자, SNS</p>
+    <p><strong>방법:</strong> 우편, 전화, 이메일, 문자, 방문</p>
     <p><strong>보유 기간:</strong> 동의 철회 시까지 (최대 계약 종료 후 5년)</p>
     <p style="font-size:7.5pt;color:#888;margin-top:4px;">
       ※ 동의하지 않으셔도 여행 계약 및 서비스 이용에 불이익이 없습니다.<br>

@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { log, error } from '@/lib/logger-wrapper';
-import { isPaymentSuccess } from '@/lib/welcomepay';
+import { isPaymentSuccess, sha256Hash, getWelcomePayConfig } from '@/lib/welcomepay';
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.cruisedot.co.kr';
 
@@ -38,6 +39,9 @@ export async function POST(req: NextRequest) {
     let P_VACT_TIME: string = '';
     let P_VACT_NAME: string = '';
     let P_VACT_BANK_CODE: string = '';
+    // 서명 검증용
+    let P_TIMESTAMP: string = '';
+    let P_SIGNATURE: string = '';
 
     if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
@@ -57,6 +61,9 @@ export async function POST(req: NextRequest) {
       P_VACT_TIME = formData.get('P_VACT_TIME') as string || '';
       P_VACT_NAME = formData.get('P_VACT_NAME') as string || '';
       P_VACT_BANK_CODE = formData.get('P_VACT_BANK_CODE') as string || '';
+      // 서명 검증
+      P_TIMESTAMP = formData.get('P_TIMESTAMP') as string || '';
+      P_SIGNATURE = formData.get('P_SIGNATURE') as string || '';
     } else {
       // JSON 형식
       const body = await req.json();
@@ -75,6 +82,34 @@ export async function POST(req: NextRequest) {
       P_VACT_TIME = body.P_VACT_TIME || '';
       P_VACT_NAME = body.P_VACT_NAME || '';
       P_VACT_BANK_CODE = body.P_VACT_BANK_CODE || '';
+      // 서명 검증
+      P_TIMESTAMP = body.P_TIMESTAMP || '';
+      P_SIGNATURE = body.P_SIGNATURE || '';
+    }
+
+    // C-4: PG 서명 검증 (웰컴페이먼츠 Mobile 노티 방식)
+    // signature = SHA-256("mkey={mkey}&P_AMT={amt}&P_OID={oid}&P_TIMESTAMP={ts}")
+    // mkey = SHA-256(signKey)
+    // P_TIMESTAMP와 P_SIGNATURE가 존재하면 반드시 검증
+    if (P_TIMESTAMP && P_SIGNATURE) {
+      const wpConfig = getWelcomePayConfig();
+      if (wpConfig.signKey) {
+        const mkey = sha256Hash(wpConfig.signKey);
+        const signString = `mkey=${mkey}&P_AMT=${P_AMT}&P_OID=${P_OID}&P_TIMESTAMP=${P_TIMESTAMP}`;
+        const expectedSig = sha256Hash(signString);
+        const receivedSigBuf = Buffer.from(P_SIGNATURE, 'hex');
+        const expectedSigBuf = Buffer.from(expectedSig, 'hex');
+        const sigValid =
+          receivedSigBuf.length === expectedSigBuf.length &&
+          crypto.timingSafeEqual(receivedSigBuf, expectedSigBuf);
+        if (!sigValid) {
+          error('[Payment Notify] 서명 검증 실패:', { orderId: P_OID });
+          return new Response('FAIL', { status: 400 });
+        }
+      } else {
+        error('[Payment Notify] WELCOMEPAY_SIGNKEY 환경변수 미설정 — 서명 검증 불가');
+        return new Response('FAIL', { status: 400 });
+      }
     }
 
     log('[Payment Notify] 수신:', {
@@ -209,9 +244,13 @@ export async function POST(req: NextRequest) {
         });
       }
     } else {
-      // 결제 실패
-      await prisma.payment.update({
-        where: { orderId: P_OID },
+      // 결제 실패 — H-2: updateMany + status notIn으로 TOCTOU 방지
+      // 이미 completed/failed 상태인 경우 덮어쓰지 않음
+      const failUpdated = await prisma.payment.updateMany({
+        where: {
+          orderId: P_OID,
+          status: { notIn: ['completed', 'failed', 'refunded'] },
+        },
         data: {
           status: 'failed',
           failedAt: new Date(),
@@ -219,10 +258,14 @@ export async function POST(req: NextRequest) {
           pgTransactionId: P_TID || undefined,
         },
       });
-      log('[Payment Notify] 결제 실패:', {
-        orderId: P_OID,
-        reason: P_RMESG1,
-      });
+      if (failUpdated.count === 0) {
+        log('[Payment Notify] 이미 처리된 결제, 실패 중복 노티 스킵:', P_OID);
+      } else {
+        log('[Payment Notify] 결제 실패:', {
+          orderId: P_OID,
+          reason: P_RMESG1,
+        });
+      }
     }
 
     // 웰컴페이먼츠에 OK 응답 (반드시 OK 문자열 반환)

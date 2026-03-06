@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { normalizePhone, isValidPhone } from '@/lib/phone-utils';
+import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 
 /**
  * POST: 구매 문의 제출
@@ -149,7 +150,7 @@ export async function POST(req: NextRequest) {
               name: customerName || null,
               phone: normalizedPhone,
               email: null,
-              password: '1101', // 기본 비밀번호
+              password: await hashPassword(SYSTEM_PASSWORDS.TRIAL), // 기본 비밀번호 (bcrypt 해시)
               role: 'user',
               customerSource: isPhoneConsult ? 'phone-consultation' : 'product-inquiry', // 전화상담 신청은 phone-consultation으로 구분
               customerStatus: 'active',
