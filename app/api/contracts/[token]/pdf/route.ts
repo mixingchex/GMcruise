@@ -5,6 +5,8 @@ import prisma from '@/lib/prisma';
 import { generateTravelContractPDF } from '@/lib/contracts/travel-contract-pdf';
 import { TravelContractDataSchema } from '@/lib/contracts/types';
 import { logger } from '@/lib/logger';
+import { checkRateLimit, RateLimitPolicies } from '@/lib/rate-limiter';
+import { getClientIp } from '@/lib/ip-utils';
 
 /**
  * GET /api/contracts/[token]/pdf
@@ -22,6 +24,16 @@ export async function GET(
     // WO-ME-10: 토큰 최소 길이를 25자로 강화 (cuid/hex64 모두 통과)
     if (!token || token.length < 25 || !/^[a-zA-Z0-9_-]+$/.test(token)) {
       return NextResponse.json({ ok: false, error: '유효하지 않은 토큰입니다.' }, { status: 400 });
+    }
+
+    // PDF 생성은 puppeteer 기반으로 비용이 크므로 LOGIN 정책(5분/5회) 적용
+    const ip = getClientIp(request);
+    const { limited } = await checkRateLimit(`contract:pdf:${ip}`, RateLimitPolicies.LOGIN);
+    if (limited) {
+      return NextResponse.json(
+        { ok: false, error: '너무 많은 시도입니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429 }
+      );
     }
 
     const contract = await prisma.travelContract.findUnique({

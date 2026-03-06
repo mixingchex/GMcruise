@@ -373,6 +373,28 @@ export async function PUT(
       }, { status: 409 });
     }
 
+    // 취소 이력 DB 저장 (실패해도 PUT 자체는 성공)
+    const contractForAudit = await prisma.travelContract.findUnique({
+      where: { reservationId: resId },
+      select: { id: true },
+    });
+    if (contractForAudit) {
+      await prisma.travelContractAudit.create({
+        data: {
+          contractId: contractForAudit.id,
+          action: 'reset',
+          adminId: sessionUser?.id ?? null,
+          reason: reason || null,
+          previousStatus: 'signed',
+          metadata: { reservationId: resId },
+        },
+      }).catch((auditErr: unknown) => {
+        logger.warn('[TravelContract PUT] audit 저장 실패 (무시)', {
+          error: auditErr instanceof Error ? auditErr.message : String(auditErr),
+        });
+      });
+    }
+
     logger.info('[TravelContract PUT] 계약서 서명 취소 (재발송용)', {
       reservationId: resId,
       adminId: sessionUser?.id,
