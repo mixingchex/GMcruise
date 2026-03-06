@@ -3085,6 +3085,7 @@ model TravelContract {
 
   // 여행자 직접 입력 항목
   customerAddress     String?
+  contractorPhone     String?                // 서명 시 고객이 확인/수정한 연락처
   customerSignature   String?      @db.Text  // base64 PNG
   contractorSignature String?      @db.Text  // 계약자 서명 (동일인인 경우 동일)
   companions          Json?        // [{name: string, phone: string}]

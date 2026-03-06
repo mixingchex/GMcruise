@@ -70,6 +70,7 @@ export async function generateTravelContractPDF(
   customerAddress?: string,
   companions?: Array<{ name: string; phone: string }>,
   signedAt?: Date, // WO-CR-13
+  contractorPhone?: string, // 서명 시 고객이 확인/수정한 연락처
 ): Promise<Buffer> {
   return withPdfLimit(async () => {
     const html = generateTravelContractHTML(
@@ -79,6 +80,7 @@ export async function generateTravelContractPDF(
       customerAddress,
       companions,
       signedAt,
+      contractorPhone,
     );
 
     const fontStyle = getCustomFontStyle();

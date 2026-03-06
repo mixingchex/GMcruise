@@ -38,7 +38,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { customerAddress, customerSignature, contractorSignature, companions, marketingConsent } = body;
+    const { customerAddress, customerSignature, contractorSignature, companions, marketingConsent, contractorPhone } = body;
 
     if (!customerAddress || typeof customerAddress !== 'string' || customerAddress.trim().length < 5) {
       return NextResponse.json({ ok: false, error: '주소를 정확히 입력해주세요.' }, { status: 400 });
@@ -47,6 +47,13 @@ export async function POST(
     // customerAddress 길이 제한
     if (customerAddress.length > 200) {
       return NextResponse.json({ ok: false, error: '주소는 200자 이하로 입력해주세요.' }, { status: 400 });
+    }
+
+    // contractorPhone 검증 (선택, 최대 20자)
+    if (contractorPhone !== undefined && contractorPhone !== null) {
+      if (typeof contractorPhone !== 'string' || contractorPhone.length > 20) {
+        return NextResponse.json({ ok: false, error: '연락처 형식이 올바르지 않습니다.' }, { status: 400 });
+      }
     }
 
     if (!customerSignature || typeof customerSignature !== 'string') {
@@ -113,6 +120,7 @@ export async function POST(
       data: {
         status: 'signed',
         customerAddress: customerAddress.trim(),
+        contractorPhone: (typeof contractorPhone === 'string' && contractorPhone.trim()) ? contractorPhone.trim() : null,
         customerSignature,
         contractorSignature: body.contractorSignature || null,
         companions: companions || [],
@@ -187,6 +195,7 @@ export async function POST(
         // P0-02: PDF 생성 및 이메일 발송 — 실패 시 DB rollback
         try {
           // WO-CR-13: signedAtDate를 PDF 생성에도 전달
+          const resolvedContractorPhone = (typeof contractorPhone === 'string' && contractorPhone.trim()) ? contractorPhone.trim() : undefined;
           const pdfBuffer = await generateTravelContractPDF(
             contractData,
             customerSignature,
@@ -194,6 +203,7 @@ export async function POST(
             customerAddress || undefined,
             validCompanions,
             signedAtDate,
+            resolvedContractorPhone,
           );
 
           // 관리자 이메일 (실패해도 서명 자체는 성공)
@@ -241,6 +251,7 @@ export async function POST(
               customerSignature: null,
               contractorSignature: null,
               customerAddress: null,
+              contractorPhone: null,
               companions: [],
             },
           }).catch((rollbackErr: unknown) => {

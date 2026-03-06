@@ -46,6 +46,7 @@ export default function ContractSignPage() {
   const [activeCanvas, setActiveCanvas] = useState<'sig' | 'contractor'>('sig');
   const lastPos = useRef<{ x: number; y: number } | null>(null);
 
+  const [contractorPhone, setContractorPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
@@ -76,6 +77,9 @@ export default function ContractSignPage() {
       })
       .then(data => {
         setContract(data.contract);
+        if (data.contract.contractData?.mainTravelerPhone) {
+          setContractorPhone(data.contract.contractData.mainTravelerPhone);
+        }
         if (data.contract.isSigned) setStep('done');
       })
       .catch(err => setError(err instanceof Error ? err.message : '계약서를 불러올 수 없습니다.'))
@@ -308,6 +312,7 @@ export default function ContractSignPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerAddress: customerAddress.trim(),
+          contractorPhone: contractorPhone.trim() || undefined,
           customerSignature,
           contractorSignature,
           companions: validCompanions,
@@ -518,6 +523,23 @@ export default function ContractSignPage() {
                 placeholder="도로명 주소를 입력해주세요 (예: 경기도 화성시 ...)"
                 className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1a3a6b] focus:ring-1 focus:ring-[#1a3a6b]"
               />
+            </div>
+
+            {/* 계약자 연락처 */}
+            <div className="bg-white rounded-2xl shadow p-4">
+              <h3 className="font-bold text-[#1a3a6b] mb-3">
+                계약자 연락처 <span className="text-red-500">*</span>
+              </h3>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={contractorPhone}
+                onChange={e => setContractorPhone(e.target.value)}
+                placeholder="010-0000-0000"
+                maxLength={20}
+                className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#1a3a6b] focus:ring-1 focus:ring-[#1a3a6b]"
+              />
+              <p className="text-xs text-gray-400 mt-2">* 계약서에 기재될 연락처입니다. 확인 후 수정해주세요.</p>
             </div>
 
             {/* 동행자 명단 */}

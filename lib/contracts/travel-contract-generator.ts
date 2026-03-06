@@ -54,6 +54,7 @@ export function generateTravelContractHTML(
   customerAddress?: string,
   companions?: Array<{ name: string; phone: string }>,
   signedAt?: Date, // WO-CR-13: 계약 체결일
+  contractorPhone?: string, // 서명 시 고객이 확인/수정한 연락처
 ): string {
   // WO-CR-13: 계약일 문자열 생성
   const contractDate = signedAt || new Date();
@@ -478,7 +479,7 @@ export function generateTravelContractHTML(
         <span>(서명)</span>
         ${sigBox(signatureImageUrl, '여행자')}
       </div>
-      <p style="margin-top:6px">전화: ${escapeHtml(data.mainTravelerPhone)}</p>
+      <p style="margin-top:6px">전화: ${escapeHtml(contractorPhone || data.mainTravelerPhone)}</p>
       <p>주소: ${customerAddress ? escapeHtml(customerAddress) : '__________________ (계약서에 직접 기입)'}</p>
     </div>
   </div>
@@ -495,6 +496,7 @@ export function generateTravelContractHTML(
     <span style="font-weight:600;color:#1a3a6b;">계약자 확인 및 서명</span>
     <div class="sig-row" style="margin-top:6px;">
       <span>성명: <strong>${escapeHtml(data.mainTravelerName)}</strong></span>
+      <span>전화: ${escapeHtml(contractorPhone || data.mainTravelerPhone)}</span>
       <span>(서명)</span>
       ${sigBox(contractorSignatureUrl, '계약자')}
     </div>
@@ -620,7 +622,7 @@ export function generateTravelContractHTML(
         <span>(서명)</span>
         ${sigBox(signatureImageUrl, '여행자')}
       </div>
-      <p style="margin-top:6px">전화: ${escapeHtml(data.mainTravelerPhone)}</p>
+      <p style="margin-top:6px">전화: ${escapeHtml(contractorPhone || data.mainTravelerPhone)}</p>
       <p>주소: ${customerAddress ? escapeHtml(customerAddress) : '__________________ (계약서에 직접 기입)'}</p>
     </div>
   </div>
@@ -628,6 +630,7 @@ export function generateTravelContractHTML(
     <span style="font-weight:600;color:#1a3a6b;">계약자 확인 및 서명</span>
     <div class="sig-row" style="margin-top:6px;">
       <span>성명: <strong>${escapeHtml(data.mainTravelerName)}</strong></span>
+      <span>전화: ${escapeHtml(contractorPhone || data.mainTravelerPhone)}</span>
       <span>(서명)</span>
       ${sigBox(contractorSignatureUrl, '계약자')}
     </div>
