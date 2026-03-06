@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/admin/products/import
@@ -105,6 +106,7 @@ function transformCruiseDotData(apiData: any): any {
     basePrice: apiData.price ? parseInt(apiData.price) : apiData.basePrice ? parseInt(apiData.basePrice) : null,
     description: apiData.description || apiData.desc || null,
     itineraryPattern: transformItinerary(apiData.ports || apiData.itinerary || apiData.schedule || []),
+    tourType: 'FREE' as const,
   };
 }
 
@@ -119,6 +121,7 @@ function transformWCruiseData(apiData: any): any {
     basePrice: apiData.basePrice ? parseInt(apiData.basePrice) : apiData.price ? parseInt(apiData.price) : null,
     description: apiData.description || null,
     itineraryPattern: transformItinerary(apiData.itinerary || apiData.ports || []),
+    tourType: 'FREE' as const,
   };
 }
 
@@ -272,7 +275,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('POST /api/admin/products/import error:', error);
+    logger.error('POST /api/admin/products/import error:', { error: error.message });
     return NextResponse.json(
       { ok: false, message: error.message || 'Server error' },
       { status: 500 }
@@ -310,7 +313,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, sources });
 
   } catch (error) {
-    console.error('GET /api/admin/products/import error:', error);
+    logger.error('GET /api/admin/products/import error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }
 }

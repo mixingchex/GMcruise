@@ -161,7 +161,7 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
                 >
                   <div className="min-h-screen bg-gray-50" style={{ maxWidth: '375px' }}>
                     <div className="mobile-preview-wrapper" key={`preview-${refreshKey}-${forceRefresh}`}>
-                      <ProductDetail product={product} />
+                      <ProductDetail product={product} isPreview={true} />
                     </div>
                   </div>
                 </div>

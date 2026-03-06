@@ -189,7 +189,12 @@ export async function POST(req: NextRequest) {
       let uploadFileExt = fileExtension;
       if (type === 'image' && file.type !== 'image/webp') {
         try {
-          uploadBuffer = await sharp(buffer, { animated: true }).webp({ quality: 85 }).toBuffer();
+          const imagePipeline = sharp(buffer, { animated: true });
+          const imageMeta = await imagePipeline.metadata();
+          if (imageMeta.height && imageMeta.height > 2000) {
+            imagePipeline.resize(undefined, 2000, { withoutEnlargement: true, fit: 'inside' });
+          }
+          uploadBuffer = await imagePipeline.webp({ quality: 85 }).toBuffer();
           uploadMimeType = 'image/webp';
           uploadFileExt = 'webp';
         } catch {
@@ -305,7 +310,12 @@ export async function POST(req: NextRequest) {
       let uploadMimeType = file.type;
       if (type === 'image' && file.type !== 'image/webp') {
         try {
-          uploadBuffer = await sharp(buffer, { animated: true }).webp({ quality: 85 }).toBuffer();
+          const imagePipeline = sharp(buffer, { animated: true });
+          const imageMeta = await imagePipeline.metadata();
+          if (imageMeta.height && imageMeta.height > 2000) {
+            imagePipeline.resize(undefined, 2000, { withoutEnlargement: true, fit: 'inside' });
+          }
+          uploadBuffer = await imagePipeline.webp({ quality: 85 }).toBuffer();
           uploadMimeType = 'image/webp';
         } catch {
           // 변환 실패 시 원본 그대로 업로드

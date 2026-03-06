@@ -6,9 +6,12 @@ export interface TravelContractData {
   productName: string;
   shipName: string;
   airlineName?: string | null;
-  isPackage: boolean;    // airlineName 있으면 true
+  isPackage: boolean;    // tourType === 'PACKAGE' 이면 true
   hasHotel: boolean;     // tags에 '호텔' 포함 시 true
-  hasInsurance: boolean; // tags에 '보험' 포함 시 true
+  hasInsurance: boolean; // MallProductContent.layout.hasTravelInsurance
+  hasEscort?: boolean;         // 인솔자 동반 여부 (layout.hasEscort)
+  hasLocalGuide?: boolean;     // 현지 가이드 여부 (layout.hasLocalGuide)
+  hasCruisedotStaff?: boolean; // 크루즈닷 전용 스탭 (layout.hasCruisedotStaff)
 
   // 여행보증 종류 (기본: insurance)
   guaranteeType?: 'insurance' | 'mutual-aid' | 'deposit';
@@ -122,6 +125,9 @@ export const TravelContractDataSchema = z.object({
   isPackage: z.boolean(),
   hasHotel: z.boolean(),
   hasInsurance: z.boolean(),
+  hasEscort: z.boolean().optional().default(false),
+  hasLocalGuide: z.boolean().optional().default(false),
+  hasCruisedotStaff: z.boolean().optional().default(false),
   cancellationPolicy: z.array(z.object({ period: z.string().max(200), charge: z.string().max(200) })).min(1, '취소료 규정은 최소 1개 이상 필수입니다'),
   excludedItems: z.array(z.string().max(200)).default([]),
   airlineName: z.string().nullable().optional(),

@@ -1,5 +1,6 @@
 import { google } from 'googleapis';
 import { Readable } from 'stream';
+import { logger } from '@/lib/logger';
 
 type UploadParams = {
   folderId?: string | null;
@@ -327,20 +328,41 @@ export async function uploadFileToDrive(params: UploadParams): Promise<UploadRes
     // 권한 설정: makePublic=true인 경우만 anyone 공개 읽기 설정
     // makePublic=false (여권 이미지 등 PII): 서비스 계정만 접근 가능한 비공개 유지
     if (makePublic) {
-      try {
-        const permissionOptions: any = {
+      const permissionOptions: any = {
+        fileId,
+        requestBody: { role: 'reader', type: 'anyone' },
+        supportsAllDrives: true,
+      };
+      let permissionSet = false;
+      let lastPermError: unknown;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          await drive.permissions.create(permissionOptions);
+          permissionSet = true;
+          break;
+        } catch (err: unknown) {
+          lastPermError = err;
+          if (attempt < 3) {
+            // 최대 500ms 대기 (Vercel 서버리스 타임아웃 방지)
+            await new Promise(r => setTimeout(r, attempt * 200));
+          }
+        }
+      }
+      if (!permissionSet) {
+        logger.error('[GoogleDrive] Permission set FAILED after 3 attempts', {
           fileId,
-          requestBody: { role: 'reader', type: 'anyone' },
-          supportsAllDrives: true,
-        };
-        await drive.permissions.create(permissionOptions);
-      } catch (permErr: unknown) {
-        console.error('[GoogleDrive] Permission set FAILED — file will be inaccessible (403):', permErr);
-        try { await drive.files.delete({ fileId, supportsAllDrives: true }); } catch { /* ignore */ }
-        return {
-          ok: false,
-          error: `파일 업로드 후 공개 권한 설정에 실패했습니다. 잠시 후 다시 시도해주세요.`,
-        };
+          error: lastPermError instanceof Error ? lastPermError.message : String(lastPermError),
+        });
+        try {
+          await drive.files.delete({ fileId, supportsAllDrives: true });
+          logger.info('[GoogleDrive] Orphan file deleted', { fileId });
+        } catch (deleteErr) {
+          logger.error('[GoogleDrive] CRITICAL: Orphan file delete failed — manual cleanup required', {
+            fileId,
+            deleteError: deleteErr instanceof Error ? deleteErr.message : String(deleteErr),
+          });
+        }
+        return { ok: false, error: '파일 업로드 후 공개 권한 설정에 실패했습니다. 잠시 후 다시 시도해주세요.' };
       }
     }
 

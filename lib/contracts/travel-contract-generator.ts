@@ -75,8 +75,11 @@ export function generateTravelContractHTML(
   const accommodationText = hasHotel ? '☑ 호텔포함' : '☑ 일정에 표시';
 
   // 인솔자/안내원/현지교통/현지여행사
-  const tourLeader = isPackage ? '☑ 유 &nbsp; □ 무' : '□ 유 &nbsp; ☑ 무';
-  const localGuide = isPackage ? '☑ 유 &nbsp; □ 무' : '□ 유 &nbsp; ☑ 무';
+  // hasEscort/hasLocalGuide 명시값 우선, 없으면 isPackage 폴백
+  const escortYn = data.hasEscort ?? isPackage;
+  const localGuideYn = data.hasLocalGuide ?? isPackage;
+  const tourLeader = escortYn ? '☑ 유 &nbsp; □ 무' : '□ 유 &nbsp; ☑ 무';
+  const localGuide = localGuideYn ? '☑ 유 &nbsp; □ 무' : '□ 유 &nbsp; ☑ 무';
   const lt = data.localTransportType || (isPackage ? 'bus' : 'none');
   const localTransport = [
     lt === 'bus' ? '■ 버스' : '□ 버스',
@@ -84,7 +87,9 @@ export function generateTravelContractHTML(
     lt === 'other' ? '■ 기타' : '□ 기타',
     lt === 'none' ? '■ 없음' : '□ 없음',
   ].join(' &nbsp; ');
-  const localAgency = isPackage ? '☑ 유 &nbsp; □ 무' : '□ 유 &nbsp; ☑ 무';
+  // 현지여행사: 패키지형이거나 크루즈닷 전용 스탭이 있으면 "유"
+  const localAgencyYn = isPackage || data.hasCruisedotStaff === true;
+  const localAgency = localAgencyYn ? '☑ 유 &nbsp; □ 무' : '□ 유 &nbsp; ☑ 무';
 
   // 포함내역
   const includedItems = isPackage
@@ -93,8 +98,9 @@ export function generateTravelContractHTML(
        ☑ 일정표 내 관광지 입장료 등`
     : `☑ 선박 운임 (크루즈 객실 요금 포함)<br>□ 숙박·식사료 &nbsp; □ 안내자 경비<br>자유여행 일정에 표시`;
 
-  // 기타 선택항목
-  const extraOptions = isPackage
+  // 기타 선택항목 — hasTravelInsurance 명시값 우선, 없으면 isPackage 폴백
+  const insuranceYn = data.hasInsurance;
+  const extraOptions = insuranceYn
     ? `☑ 여행보험료`
     : `□ 여행보험료 (선택사항 — 일정에 표시)`;
 

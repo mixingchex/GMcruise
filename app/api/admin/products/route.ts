@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { backupProductImages } from '@/lib/google-drive-product-backup';
+import { logger } from '@/lib/logger';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -73,6 +74,7 @@ export async function GET(req: NextRequest) {
         isBudget: true,
         isUrgent: true,
         isMainProduct: true,
+        tourType: true,
         saleStatus: true,
         startDate: true,
         endDate: true,
@@ -160,7 +162,12 @@ export async function POST(req: NextRequest) {
       hasCruisedotStaff,
       hasTravelInsurance,
       contactOptions, // 8번: 문의 옵션 (결제하기, 전화상담, 크루즈닷AI 채팅봇)
+      tourType,
     } = await req.json();
+
+    // tourType 유효성 검사
+    const validTourTypes = ['FREE', 'PACKAGE'];
+    const safeTourType = validTourTypes.includes(tourType) ? tourType : 'FREE';
 
     // 필수 필드 검증
     if (!productCode || !cruiseLine || !shipName || !packageName) {
@@ -214,6 +221,7 @@ export async function POST(req: NextRequest) {
         isBudget: isBudget || false,
         isUrgent: isUrgent || false, // 긴급 상품 여부 추가
         isMainProduct: isMainProduct || false, // 주력 상품 여부 추가
+        tourType: safeTourType,
         // 수동 등록 상품은 항상 판매중으로 설정
         saleStatus: (source === 'manual' || !saleStatus) ? '판매중' : saleStatus,
         startDate: startDate ? new Date(startDate) : null,
@@ -394,7 +402,14 @@ export async function PUT(req: NextRequest) {
       isPopular, isRecommended, isPremium, isGeniePack,
       isDomestic, isJapan, isBudget, isUrgent, isMainProduct,
       saleStatus, startDate, endDate,
+      tourType,
     } = body;
+
+    // tourType 유효성 검사
+    const validTourTypes = ['FREE', 'PACKAGE'];
+    const safeTourType = tourType !== undefined
+      ? (validTourTypes.includes(tourType) ? tourType : 'FREE')
+      : undefined;
 
     const processedData: Record<string, unknown> = {};
     if (cruiseLine !== undefined) processedData.cruiseLine = cruiseLine;
@@ -417,6 +432,7 @@ export async function PUT(req: NextRequest) {
     if (isUrgent !== undefined) processedData.isUrgent = isUrgent;
     if (isMainProduct !== undefined) processedData.isMainProduct = isMainProduct;
     if (saleStatus !== undefined) processedData.saleStatus = saleStatus;
+    if (safeTourType !== undefined) processedData.tourType = safeTourType;
     if (itineraryPattern !== undefined) processedData.itineraryPattern = itineraryPattern;
     if (startDate !== undefined) processedData.startDate = startDate;
     if (endDate !== undefined) processedData.endDate = endDate;
@@ -488,8 +504,9 @@ export async function PUT(req: NextRequest) {
       },
     });
 
-    // 판매 상태가 변경된 경우 공개 상품 API 캐시 즉시 무효화
+    // 상품 수정 시 해당 상품 몰 페이지 캐시 즉시 무효화
     try {
+      revalidatePath(`/products/${product.productCode}`, 'page');
       revalidatePath('/api/public/products');
       revalidatePath('/', 'layout');
     } catch {

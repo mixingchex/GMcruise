@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { logger } from '@/lib/logger';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -32,6 +33,14 @@ async function checkAdminAuth(sid: string | undefined): Promise<{ authorized: bo
 // GET: 모든 상품 조회
 export async function GET() {
   try {
+    const cookieStore = await cookies();
+    const sid = cookieStore.get(SESSION_COOKIE)?.value;
+    const auth = await checkAdminAuth(sid);
+
+    if (!auth.authorized) {
+      return NextResponse.json({ ok: false, error: 'Admin access required' }, { status: 403 });
+    }
+
     const products = await prisma.cruiseProduct.findMany({
       orderBy: {
         createdAt: 'desc',
@@ -43,7 +52,7 @@ export async function GET() {
       products,
     });
   } catch (error) {
-    console.error('[CMS Products API] GET error:', error);
+    logger.error('[CMS Products API] GET error:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }
@@ -113,7 +122,7 @@ export async function POST(req: Request) {
       );
     }
 
-    console.error('[CMS Products API] POST error:', error);
+    logger.error('[CMS Products API] POST error:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }
@@ -183,7 +192,7 @@ export async function PUT(req: Request) {
       );
     }
 
-    console.error('[CMS Products API] PUT error:', error);
+    logger.error('[CMS Products API] PUT error:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }
@@ -242,7 +251,7 @@ export async function DELETE(req: Request) {
       );
     }
 
-    console.error('[CMS Products API] DELETE error:', error);
+    logger.error('[CMS Products API] DELETE error:', error);
     return NextResponse.json(
       { ok: false, error: 'Internal server error' },
       { status: 500 }

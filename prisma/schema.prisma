@@ -912,6 +912,7 @@ model CruiseProduct {
   // 항공 정보
   airlineName        String?
   airlineCode        String?
+  tourType           String    @default("FREE")
   createdAt          DateTime             @default(now())
   updatedAt          DateTime
   AffiliateProduct   AffiliateProduct[]

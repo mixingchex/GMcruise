@@ -72,6 +72,9 @@ export async function middleware(req: NextRequest) {
       'www.cruisedot.co.kr',
       'mabizcruisedot.com',
       'www.mabizcruisedot.com',
+      'cruiseai.co.kr',
+      'www.cruiseai.co.kr',
+      'cruiseai.vercel.app',
       'localhost:3000',
       'localhost:3001',
     ]);
@@ -178,9 +181,10 @@ export async function middleware(req: NextRequest) {
     }
     
     const clientIp = getClientIp(req);
-    const isAiRequest = pathname.startsWith('/api/ai/') || 
-                        pathname.startsWith('/api/ask') || 
-                        pathname.startsWith('/api/chat');
+    const isAiRequest = pathname.startsWith('/api/ai/') ||
+                        pathname.startsWith('/api/ask') ||
+                        pathname.startsWith('/api/chat') ||
+                        pathname.startsWith('/api/tts');  // Supertone 과금 API — AI 정책 적용
     
     const policy = isAiRequest ? RateLimitPolicies.AI : RateLimitPolicies.API;
     const rateLimitKey = `api:${clientIp}:${pathname}`;

@@ -12,6 +12,7 @@ let _redis: Redis | null | undefined = undefined;
 let _loginLimiter: Ratelimit | null = null;
 let _apiLimiter: Ratelimit | null = null;
 let _aiLimiter: Ratelimit | null = null;
+let _ttsLimiter: Ratelimit | null = null;
 let _signupLimiter: Ratelimit | null = null;
 
 function getRedis(): Redis | null {
@@ -51,6 +52,14 @@ function getAiLimiter(): Ratelimit | null {
   return _aiLimiter;
 }
 
+function getTtsLimiter(): Ratelimit | null {
+  if (_ttsLimiter) return _ttsLimiter;
+  const redis = getRedis();
+  if (!redis) return null;
+  _ttsLimiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(20, '1 m'), analytics: true, prefix: 'rl:tts' });
+  return _ttsLimiter;
+}
+
 function getSignupLimiter(): Ratelimit | null {
   if (_signupLimiter) return _signupLimiter;
   const redis = getRedis();
@@ -81,6 +90,12 @@ export const RateLimitPolicies = {
     windowMs: 60 * 1000,
     _type: 'ai' as const,
   },
+  // TTS: 1분에 20번 (Supertone 과금 API — 번역 후 재생 패턴 고려)
+  TTS: {
+    limit: 20,
+    windowMs: 60 * 1000,
+    _type: 'tts' as const,
+  },
   // 엄격한 제한: 1시간에 10번 (회원가입 등)
   STRICT: {
     limit: 10,
@@ -89,12 +104,13 @@ export const RateLimitPolicies = {
   },
 } as const;
 
-type RateLimitType = 'login' | 'api' | 'ai' | 'signup';
+type RateLimitType = 'login' | 'api' | 'ai' | 'tts' | 'signup';
 
 function getLimiterByType(type: RateLimitType): Ratelimit | null {
   switch (type) {
     case 'login': return getLoginLimiter();
     case 'ai': return getAiLimiter();
+    case 'tts': return getTtsLimiter();
     case 'signup': return getSignupLimiter();
     case 'api':
     default: return getApiLimiter();

@@ -24,7 +24,6 @@ export default function DateRangePicker({
   className = '',
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [firstSelectedDate, setFirstSelectedDate] = useState<Date | null>(null); // 첫 번째 선택된 날짜 추적
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(() => {
     if (startDate && endDate) {
       // 타임존 문제 방지를 위해 로컬 날짜로 파싱
@@ -87,99 +86,49 @@ export default function DateRangePicker({
     }
   }, [startDate, endDate]);
 
-  // 캘린더가 열릴 때 첫 번째 선택 날짜 초기화
-  useEffect(() => {
-    if (isOpen) {
-      // 캘린더가 열릴 때 첫 번째 선택 날짜를 초기화
-      if (!startDate && !endDate) {
-        setFirstSelectedDate(null);
-      } else if (startDate && !endDate) {
-        // 출발일만 있는 경우, 출발일을 첫 번째 선택으로 설정
-        const [fromYear, fromMonth, fromDay] = startDate.split('-').map(Number);
-        const fromDate = new Date(fromYear, fromMonth - 1, fromDay);
-        setFirstSelectedDate(fromDate);
-      } else {
-        // 두 날짜 모두 있는 경우 초기화
-        setFirstSelectedDate(null);
-      }
-    }
-  }, [isOpen, startDate, endDate]);
-
-  const handleSelect = (date: Date | undefined) => {
-    if (!date) {
-      // 날짜 선택 해제
+  const handleSelect = (range: DateRange | undefined) => {
+    if (!range) {
       setSelectedRange(undefined);
-      setFirstSelectedDate(null);
       onStartDateChange('');
       onEndDateChange('');
       return;
     }
 
-    // 같은 날짜를 다시 클릭한 경우 처리
-    if (firstSelectedDate && 
-        firstSelectedDate.getTime() === date.getTime() && 
-        !selectedRange?.to) {
-      // 첫 번째 선택된 날짜를 다시 클릭한 경우: 선택 해제
-      setFirstSelectedDate(null);
-      setSelectedRange(undefined);
-      onStartDateChange('');
-      return;
-    }
-    
-    if (selectedRange?.to && 
-        selectedRange.to.getTime() === date.getTime()) {
-      // 도착일을 다시 클릭한 경우: 선택 해제하고 첫 번째 선택 상태로
-      setSelectedRange({ from: firstSelectedDate || date, to: undefined });
+    const { from, to } = range;
+
+    if (from && !to) {
+      // 출발일만 선택된 상태
+      setSelectedRange({ from, to: undefined });
+      const fromYear = from.getFullYear();
+      const fromMonth = String(from.getMonth() + 1).padStart(2, '0');
+      const fromDay = String(from.getDate()).padStart(2, '0');
+      onStartDateChange(`${fromYear}-${fromMonth}-${fromDay}`);
       onEndDateChange('');
       return;
     }
 
-    // 날짜 선택 로직: 선택 순서에 따라 출발일/도착일 결정
-    if (!firstSelectedDate) {
-      // 첫 번째 선택: 출발일로 설정
-      setFirstSelectedDate(date);
-      setSelectedRange({ from: date, to: undefined });
-      
-      const fromYear = date.getFullYear();
-      const fromMonth = String(date.getMonth() + 1).padStart(2, '0');
-      const fromDay = String(date.getDate()).padStart(2, '0');
-      const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-      
-      onStartDateChange(fromDate);
-      // 도착일이 이미 있으면 초기화 (새로운 출발일 선택 시)
-      if (endDate) {
-        onEndDateChange('');
-      }
-    } else {
-      // 두 번째 선택: 도착일로 설정
-      const toYear = date.getFullYear();
-      const toMonth = String(date.getMonth() + 1).padStart(2, '0');
-      const toDay = String(date.getDate()).padStart(2, '0');
-      const toDate = `${toYear}-${toMonth}-${toDay}`;
-      
-      // 첫 번째 선택된 날짜를 출발일로, 두 번째 선택된 날짜를 도착일로 설정
-      const fromYear = firstSelectedDate.getFullYear();
-      const fromMonth = String(firstSelectedDate.getMonth() + 1).padStart(2, '0');
-      const fromDay = String(firstSelectedDate.getDate()).padStart(2, '0');
-      const fromDate = `${fromYear}-${fromMonth}-${fromDay}`;
-      
-      setSelectedRange({
-        from: firstSelectedDate,
-        to: date,
-      });
-      
-      onStartDateChange(fromDate);
-      onEndDateChange(toDate);
-      
-      // 일수 자동 계산
+    if (from && to) {
+      // 스왑 체크: from이 to보다 늦으면 swap
+      const rangeStart = from <= to ? from : to;
+      const rangeEnd = from <= to ? to : from;
+
+      const toISODate = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      setSelectedRange({ from: rangeStart, to: rangeEnd });
+      onStartDateChange(toISODate(rangeStart));
+      onEndDateChange(toISODate(rangeEnd));
+
       if (onDaysChange) {
-        const days = Math.ceil((date.getTime() - firstSelectedDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const days = Math.ceil((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
         onDaysChange(days);
       }
-      
-      // 두 날짜 모두 선택되면 자동으로 닫기
+
       setIsOpen(false);
-      setFirstSelectedDate(null);
     }
   };
 
@@ -239,7 +188,15 @@ export default function DateRangePicker({
           {/* 배경 오버레이 */}
           <div
             className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
+            onClick={() => {
+              // from만 선택된 상태에서 닫으면 전체 초기화
+              if (selectedRange?.from && !selectedRange?.to) {
+                setSelectedRange(undefined);
+                onStartDateChange('');
+                if (onDaysChange) onDaysChange(0);
+              }
+              setIsOpen(false);
+            }}
           />
           
           {/* 캘린더 팝업 */}
@@ -260,15 +217,13 @@ export default function DateRangePicker({
             </div>
             
             {/* 선택된 날짜 표시 */}
-            {(firstSelectedDate || selectedRange?.from || startDate) && (
+            {(selectedRange?.from || startDate) && (
               <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <div className="flex items-center gap-4 text-sm">
                   <div>
                     <span className="font-semibold text-gray-700">출발일:</span>{' '}
                     <span className="text-blue-700 font-bold">
-                      {firstSelectedDate
-                        ? firstSelectedDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
-                        : selectedRange?.from
+                      {selectedRange?.from
                         ? selectedRange.from.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
                         : formatDate(startDate)}
                     </span>
@@ -278,13 +233,13 @@ export default function DateRangePicker({
                       <span className="text-gray-400">→</span>
                       <div>
                         <span className="font-semibold text-gray-700">종료일:</span>{' '}
-                        <span className="text-blue-700 font-bold">
+                        <span className="text-orange-600 font-bold">
                           {selectedRange.to.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
                         </span>
                       </div>
                     </>
                   )}
-                  {firstSelectedDate && !selectedRange?.to && (
+                  {selectedRange?.from && !selectedRange?.to && (
                     <div className="text-gray-500 text-sm">
                       (종료일을 선택하세요)
                     </div>
@@ -294,15 +249,12 @@ export default function DateRangePicker({
             )}
             
             <DayPicker
-              mode="single"
-              selected={firstSelectedDate || selectedRange?.from || undefined}
+              mode="range"
+              selected={selectedRange}
               onSelect={handleSelect}
               numberOfMonths={2}
               locale={ko}
               className="date-picker-custom"
-              modifiersClassNames={{
-                selected: 'bg-blue-600 text-white',
-              }}
             />
             <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <p className="text-sm text-blue-800 font-semibold">
@@ -334,21 +286,21 @@ export default function DateRangePicker({
           color: white;
           font-weight: 700;
         }
-        .date-picker-custom .rdp-day_range_start {
+        .date-picker-custom .rdp-range_start {
           border-top-left-radius: 9999px;
           border-bottom-left-radius: 9999px;
           background-color: #2563eb;
           color: white;
           font-weight: 700;
         }
-        .date-picker-custom .rdp-day_range_end {
+        .date-picker-custom .rdp-range_end {
           border-top-right-radius: 9999px;
           border-bottom-right-radius: 9999px;
-          background-color: #2563eb;
+          background-color: #ea580c;
           color: white;
           font-weight: 700;
         }
-        .date-picker-custom .rdp-day_range_middle {
+        .date-picker-custom .rdp-range_middle {
           background-color: #dbeafe;
           color: #1e40af;
           font-weight: 600;

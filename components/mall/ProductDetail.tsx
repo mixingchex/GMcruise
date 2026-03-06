@@ -60,9 +60,10 @@ interface ProductDetailProps {
   };
   partnerId?: string;
   hasUserTrip?: boolean;
+  isPreview?: boolean;
 }
 
-export default function ProductDetail({ product, partnerId, hasUserTrip }: ProductDetailProps) {
+export default function ProductDetail({ product, partnerId, hasUserTrip, isPreview = false }: ProductDetailProps) {
   const router = useRouter();
   const [showInquiryModal, setShowInquiryModal] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -219,8 +220,6 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
   // 한국어 이름 가져오기
   const koreanCruiseLine = getKoreanCruiseLineName(product.cruiseLine);
   const koreanShipName = getKoreanShipName(product.cruiseLine, product.shipName);
-  const travelPeriod = formatTravelPeriod(product.startDate, product.endDate, product.nights, product.days);
-
   // 크루즈 라인은 직접 사용 (한국어 변환 없이)
   const displayCruiseLine = product.cruiseLine || koreanCruiseLine;
 
@@ -338,6 +337,11 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
 
   // 항공 정보 (layout에서 가져오기)
   const flightInfo = layoutData?.flightInfo || null;
+
+  // product.startDate/endDate 우선, 없으면 flightInfo.travelPeriod.startDate/endDate fallback
+  const effectiveStartDate = product.startDate || flightInfo?.travelPeriod?.startDate || null;
+  const effectiveEndDate = product.endDate || flightInfo?.travelPeriod?.endDate || null;
+  const travelPeriod = formatTravelPeriod(effectiveStartDate, effectiveEndDate, product.nights, product.days);
 
   // 별점과 리뷰 개수 (layout에서 가져오기)
   // [WO-LEGAL-FE-01] null: 평점 미표시 (가짜 기본값 4.4 제거 — 표시광고법 위반 방지)
@@ -1920,7 +1924,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                           {day.arrivalLocation && (
                             <div className="flex items-center gap-3 text-gray-900 bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
                               <span className="text-red-600 text-2xl md:text-3xl">📍</span>
-                              <span className="text-lg md:text-xl font-extrabold" style={{ wordBreak: 'keep-all', lineHeight: '1.5' }}>{day.arrivalLocation}</span>
+                              <span className="text-lg md:text-xl font-extrabold" style={{ wordBreak: 'keep-all', lineHeight: '1.5' }}>
+                                {day.arrivalCountryName ? `${day.arrivalCountryName} ` : ''}{day.arrivalLocation}
+                              </span>
                             </div>
                           )}
 
@@ -2056,25 +2062,52 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                               <span className="text-2xl md:text-3xl">🍴</span>
                               <div className="flex flex-wrap gap-3 text-base md:text-lg font-extrabold">
                                 {day.breakfast && (
-                                  <span className="flex items-center gap-1 px-3 py-1 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
-                                    <span className="text-[#051C2C] text-sm md:text-base font-bold">아침</span>
-                                    <span className="text-gray-300">|</span>
-                                    <span className="text-[#051C2C]">{day.breakfast}</span>
-                                  </span>
+                                  <div className="flex flex-col gap-1 px-3 py-2 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[#051C2C] text-sm md:text-base font-bold">아침</span>
+                                      <span className="text-gray-300">|</span>
+                                      <span className="text-[#051C2C] font-semibold">{day.breakfast}</span>
+                                    </div>
+                                    {day.breakfastDetail && (day.breakfastDetail.time || day.breakfastDetail.location || day.breakfastDetail.description) && (
+                                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500 ml-1">
+                                        {day.breakfastDetail.time && <span>{day.breakfastDetail.time}</span>}
+                                        {day.breakfastDetail.location && <span>{day.breakfastDetail.location}</span>}
+                                        {day.breakfastDetail.description && <span>{day.breakfastDetail.description}</span>}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                                 {day.lunch && (
-                                  <span className="flex items-center gap-1 px-3 py-1 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
-                                    <span className="text-[#051C2C] text-sm md:text-base font-bold">점심</span>
-                                    <span className="text-gray-300">|</span>
-                                    <span className="text-[#051C2C]">{day.lunch}</span>
-                                  </span>
+                                  <div className="flex flex-col gap-1 px-3 py-2 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[#051C2C] text-sm md:text-base font-bold">점심</span>
+                                      <span className="text-gray-300">|</span>
+                                      <span className="text-[#051C2C] font-semibold">{day.lunch}</span>
+                                    </div>
+                                    {day.lunchDetail && (day.lunchDetail.time || day.lunchDetail.location || day.lunchDetail.description) && (
+                                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500 ml-1">
+                                        {day.lunchDetail.time && <span>{day.lunchDetail.time}</span>}
+                                        {day.lunchDetail.location && <span>{day.lunchDetail.location}</span>}
+                                        {day.lunchDetail.description && <span>{day.lunchDetail.description}</span>}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                                 {day.dinner && (
-                                  <span className="flex items-center gap-1 px-3 py-1 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
-                                    <span className="text-[#051C2C] text-sm md:text-base font-bold">저녁</span>
-                                    <span className="text-gray-300">|</span>
-                                    <span className="text-[#051C2C]">{day.dinner}</span>
-                                  </span>
+                                  <div className="flex flex-col gap-1 px-3 py-2 bg-[#051C2C]/5 rounded-lg border border-[#051C2C]/20" style={{ wordBreak: 'keep-all' }}>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[#051C2C] text-sm md:text-base font-bold">저녁</span>
+                                      <span className="text-gray-300">|</span>
+                                      <span className="text-[#051C2C] font-semibold">{day.dinner}</span>
+                                    </div>
+                                    {day.dinnerDetail && (day.dinnerDetail.time || day.dinnerDetail.location || day.dinnerDetail.description) && (
+                                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500 ml-1">
+                                        {day.dinnerDetail.time && <span>{day.dinnerDetail.time}</span>}
+                                        {day.dinnerDetail.location && <span>{day.dinnerDetail.location}</span>}
+                                        {day.dinnerDetail.description && <span>{day.dinnerDetail.description}</span>}
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -2555,12 +2588,12 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
               )}
             </div>
 
-            {/* 하단 고정 버튼 여백 (모바일 + PC 공통) */}
-            <div className="h-24 md:h-32" />
+            {/* 하단 고정 버튼 여백 (모바일 + PC 공통) — 미리보기에서는 버튼이 없으므로 여백도 불필요 */}
+            {!isPreview && <div className="h-24 md:h-32" />}
 
-            {/* 구매 문의 버튼 — 모바일 + PC 모두 하단 고정 */}
+            {/* 구매 문의 버튼 — 모바일 + PC 모두 하단 고정 (미리보기에서는 숨김) */}
             {/* z-40: 모달(z-[9999])보다 낮아서 모달 열릴 때 배너가 뒤로 숨음 */}
-            <div
+            {!isPreview && <div
               className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.2)] px-3 pt-3 md:px-6 md:pt-4"
               style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))' }}
             >
@@ -2609,7 +2642,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip }: Produ
                   </div>
                 );
               })()}
-            </div>
+            </div>}
           </div>
 
           {/* AI 지니 안내 */}

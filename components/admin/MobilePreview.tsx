@@ -3,7 +3,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import ProductDetail from '@/components/mall/ProductDetail';
 
 interface MobilePreviewProps {
@@ -36,22 +36,6 @@ export default function MobilePreview({ product }: MobilePreviewProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [forceRefresh, setForceRefresh] = useState(0);
 
-  // product가 변경될 때마다 새로고침 (모든 변경사항 감지)
-  useEffect(() => {
-    setRefreshKey(prev => prev + 1);
-    setForceRefresh(prev => prev + 1);
-  }, [
-    product.productCode,
-    product.packageName,
-    product.cruiseLine,
-    product.shipName,
-    product.nights,
-    product.days,
-    product.basePrice,
-    product.mallProductContent,
-    JSON.stringify(product.mallProductContent?.layout),
-  ]);
-
   const productUrl = product.productCode 
     ? `/products/${product.productCode}`
     : '/products';
@@ -78,7 +62,7 @@ export default function MobilePreview({ product }: MobilePreviewProps) {
           >
             <div className="min-h-screen bg-gray-50" style={{ maxWidth: '375px' }}>
               <div className="mobile-preview-wrapper" key={`preview-${refreshKey}-${forceRefresh}`}>
-                <ProductDetail product={product} />
+                <ProductDetail product={product} isPreview={true} />
               </div>
             </div>
           </div>

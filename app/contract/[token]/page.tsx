@@ -780,6 +780,9 @@ interface ContractPreviewData {
   otherNotes?: string | null;
   guaranteeType?: 'insurance' | 'mutual-aid' | 'deposit';
   localTransportType?: 'bus' | 'car' | 'other' | 'none';
+  hasEscort?: boolean;
+  hasLocalGuide?: boolean;
+  hasCruisedotStaff?: boolean;
   marketingConsent?: boolean;
   accommodationType?: string | null;
   roomOccupancy?: number | null;
@@ -827,9 +830,24 @@ function ContractPreview({ contractData }: { contractData: ContractPreviewData |
               .filter(Boolean)
               .join(', ')}
           />
-          <InfoRow label="여행인솔자" value={isPackage ? '유' : '무'} />
-          <InfoRow label="현지안내원" value={isPackage ? '유' : '무'} />
-          <InfoRow label="현지교통" value={isPackage ? '버스' : '없음'} />
+          <InfoRow
+            label="여행인솔자"
+            value={(d.hasEscort ?? isPackage) ? '유' : '무'}
+          />
+          <InfoRow
+            label="현지안내원"
+            value={(d.hasLocalGuide ?? isPackage) ? '유' : '무'}
+          />
+          <InfoRow
+            label="현지교통"
+            value={
+              d.localTransportType === 'bus' ? '버스' :
+              d.localTransportType === 'car' ? '승용차' :
+              d.localTransportType === 'other' ? '기타' :
+              d.localTransportType === 'none' ? '없음' :
+              isPackage ? '버스' : '없음'
+            }
+          />
           <InfoRow label="담당자" value={d.affiliateName ?? ''} />
         </tbody>
       </table>

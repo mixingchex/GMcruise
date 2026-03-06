@@ -31,6 +31,7 @@ export default function ChecklistPage() {
   const [editingText, setEditingText] = useState('');
   const [speakingCategory, setSpeakingCategory] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [showProgressModal, setShowProgressModal] = useState(false);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const hasCreatedDefaultsRef = useRef(false); // 기본 항목 생성 플래그
 
@@ -682,51 +683,44 @@ export default function ChecklistPage() {
     <main className="min-h-screen bg-[#F5F7FA]">
       {/* 상단 고정 헤더 */}
       <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b">
-        <div className="mx-auto max-w-3xl px-4 py-4 md:py-5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="mx-auto max-w-3xl px-4 pt-3 pb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
             <Link
               href="/tools"
-              className="inline-flex items-center gap-1 rounded-xl border px-4 md:px-5 py-2 md:py-2.5 hover:bg-gray-50 text-base md:text-lg font-semibold"
+              className="inline-flex items-center gap-1 rounded-xl border px-3 py-1.5 hover:bg-gray-50 text-sm font-semibold flex-shrink-0"
               aria-label="뒤로가기"
             >
-              <FiChevronLeft className="text-xl md:text-2xl" />
-              <span className="font-semibold">뒤로가기</span>
+              <FiChevronLeft className="text-base" />
+              <span>뒤로</span>
             </Link>
-            <h1 className="ml-2 text-xl md:text-2xl lg:text-3xl font-extrabold leading-tight">
-              꼼꼼한 크루즈닷의 여행 준비물 체크리스트
+            <h1 className="ml-1 text-base font-bold text-gray-900 truncate">
+              여행 준비물 체크리스트
             </h1>
           </div>
-          <Link
-            href="/chat"
-            className="hidden sm:inline-flex items-center rounded-xl border px-4 md:px-5 py-2 md:py-2.5 hover:bg-gray-50 text-base md:text-lg font-semibold"
+          <button
+            onClick={() => setShowProgressModal(true)}
+            className="ml-2 w-8 h-8 min-h-0 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm font-bold flex-shrink-0 p-0 active:bg-gray-200"
+            aria-label="진행률 상세 보기"
           >
-            크루즈닷과 대화하기
-          </Link>
+            ?
+          </button>
         </div>
 
         {/* 에러 메시지 */}
         {error && (
-          <div className="mx-auto max-w-3xl px-4 pb-3">
+          <div className="mx-auto max-w-3xl px-4 pb-2">
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
               ⚠️ {error}
             </div>
           </div>
         )}
 
-        {/* 진행률 */}
-        <div className="mx-auto max-w-3xl px-4 pb-4 md:pb-5">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xl md:text-2xl text-gray-600 font-semibold leading-relaxed">
-              진행률 <span className="text-gray-900">{completed}</span> / {total}
-            </span>
-            <span className="text-3xl md:text-4xl font-extrabold text-blue-600">{progress}%</span>
-          </div>
-          <div className="h-4 md:h-5 w-full rounded-full bg-gray-200 overflow-hidden shadow-inner">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[#FDB931] to-[#E1A21E] transition-all shadow-md"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+        {/* 얇은 진행바만 표시 */}
+        <div className="h-1.5 w-full bg-gray-200">
+          <div
+            className="h-full bg-blue-500 transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
         </div>
       </header>
 
@@ -1102,6 +1096,41 @@ export default function ChecklistPage() {
           </button>
         </div>
       </div>
+
+      {/* 진행률 상세 모달 */}
+      {showProgressModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setShowProgressModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 mx-4 w-full max-w-sm shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold text-gray-900 mb-4">진행률 상세</h2>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-600 font-medium">완료한 항목</span>
+              <span className="text-xl font-extrabold text-gray-900">{completed} / {total}</span>
+            </div>
+            <div className="h-4 w-full rounded-full bg-gray-200 overflow-hidden mb-3">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#FDB931] to-[#E1A21E] transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-center text-4xl font-extrabold text-blue-600 mb-1">{progress}%</p>
+            <p className="text-center text-sm text-gray-500">
+              {total - completed > 0 ? `${total - completed}개 남았어요` : '모두 완료했어요!'}
+            </p>
+            <button
+              onClick={() => setShowProgressModal(false)}
+              className="mt-5 w-full py-2.5 min-h-0 rounded-xl bg-gray-100 text-gray-700 font-semibold active:bg-gray-200"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -370,7 +370,7 @@ export default function IncludedExcludedEditor({
 
   const addIncludedItem = (item?: string) => {
     const itemToAdd = item || newIncludedItem.trim();
-    if (itemToAdd) {
+    if (itemToAdd && !included.includes(itemToAdd)) {
       onChange([...included, itemToAdd], excluded);
       setNewIncludedItem('');
       setShowIncludedDropdown(false);
@@ -379,7 +379,7 @@ export default function IncludedExcludedEditor({
 
   const addExcludedItem = (item?: string) => {
     const itemToAdd = item || newExcludedItem.trim();
-    if (itemToAdd) {
+    if (itemToAdd && !excluded.includes(itemToAdd)) {
       onChange(included, [...excluded, itemToAdd]);
       setNewExcludedItem('');
       setShowExcludedDropdown(false);

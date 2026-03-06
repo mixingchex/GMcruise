@@ -62,6 +62,9 @@ export default function NewProductPage() {
   const [includedItems, setIncludedItems] = useState<string[]>([]);
   const [excludedItems, setExcludedItems] = useState<string[]>([]);
 
+  // 여행 유형
+  const [tourType, setTourType] = useState<'FREE' | 'PACKAGE'>('FREE');
+
   // 서비스 옵션 체크박스
   const [hasEscort, setHasEscort] = useState<boolean>(false); // 인솔자
   const [hasLocalGuide, setHasLocalGuide] = useState<boolean>(false); // 현지가이드
@@ -86,6 +89,7 @@ export default function NewProductPage() {
   const [keywordSearchTerm, setKeywordSearchTerm] = useState('');
   const [keywordDropdownOpen, setKeywordDropdownOpen] = useState(false);
   const keywordDropdownRef = useRef<HTMLDivElement>(null);
+  const basePriceFromTableRef = useRef(false);
   const [flightInfo, setFlightInfo] = useState<FlightInfo | null>(null);
   const [rating, setRating] = useState<number>(4.4);
   const [reviewCount, setReviewCount] = useState<number>(0);
@@ -112,8 +116,8 @@ export default function NewProductPage() {
     aiChatbot: boolean;
   }>({
     payment: false,
-    phoneCall: false,
-    aiChatbot: true, // 기본값: 크루즈닷AI 채팅봇만 활성화
+    phoneCall: true,
+    aiChatbot: true,
   });
 
   // 추천 키워드 목록 (실제 검색량이 많은 키워드 50개 - 구글/네이버 검색량 기준)
@@ -198,7 +202,7 @@ export default function NewProductPage() {
         });
       }
     } catch (error) {
-      console.error('상품코드 체크 오류:', error);
+      logger.error('상품코드 체크 오류', { error: error instanceof Error ? error.message : String(error) });
       setProductCodeStatus(prev => ({ ...prev, checking: false }));
     }
   }, []);
@@ -270,6 +274,7 @@ export default function NewProductPage() {
   const hasCruisedotStaffRef = useRef(hasCruisedotStaff);
   const hasTravelInsuranceRef = useRef(hasTravelInsurance);
   const contactOptionsRef = useRef(contactOptions);
+  const tourTypeRef = useRef(tourType);
 
   // ref 업데이트
   useEffect(() => {
@@ -293,6 +298,7 @@ export default function NewProductPage() {
     hasCruisedotStaffRef.current = hasCruisedotStaff;
     hasTravelInsuranceRef.current = hasTravelInsurance;
     contactOptionsRef.current = contactOptions;
+    tourTypeRef.current = tourType;
   });
 
   // 자동저장 함수 (ref 사용으로 dependency 없음)
@@ -322,6 +328,7 @@ export default function NewProductPage() {
         hasCruisedotStaff: hasCruisedotStaffRef.current,
         hasTravelInsurance: hasTravelInsuranceRef.current,
         contactOptions: contactOptionsRef.current,
+        tourType: tourTypeRef.current,
         savedAt: new Date().toISOString(),
       };
       localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(draft));
@@ -331,7 +338,7 @@ export default function NewProductPage() {
         setTimeout(() => setAutoSaveStatus(null), 2000);
       }, 300);
     } catch (error) {
-      console.error('자동저장 실패:', error);
+      logger.error('자동저장 실패', { error: error instanceof Error ? error.message : String(error) });
       setAutoSaveStatus(null);
     }
   }, [isLoadingFromStorage]);
@@ -403,6 +410,9 @@ export default function NewProductPage() {
         if (draft.contactOptions !== undefined) {
           setContactOptions(draft.contactOptions);
         }
+        if (['FREE', 'PACKAGE'].includes(draft.tourType)) {
+          setTourType(draft.tourType as 'FREE' | 'PACKAGE');
+        }
         setTimeout(() => {
           setIsLoadingFromStorage(false);
         }, 1000);
@@ -410,7 +420,7 @@ export default function NewProductPage() {
       }
       setIsLoadingFromStorage(false);
     } catch (error) {
-      console.error('자동저장 복원 실패:', error);
+      logger.error('자동저장 복원 실패', { error: error instanceof Error ? error.message : String(error) });
       setIsLoadingFromStorage(false);
     }
     return false;
@@ -529,6 +539,7 @@ export default function NewProductPage() {
     contactOptions.payment,
     contactOptions.phoneCall,
     contactOptions.aiChatbot,
+    tourType,
     isLoadingFromStorage,
   ]);
 
@@ -545,6 +556,7 @@ export default function NewProductPage() {
 
   // 시작가(basePrice) 변경 시 요금표 성인 가격 자동 연동
   useEffect(() => {
+    if (basePriceFromTableRef.current) return; // 요금표에서 온 변경이면 무시 (무한루프 방지)
     const price = formData.basePrice ? parseInt(formData.basePrice.replace(/[^0-9]/g, ''), 10) : 0;
     if (!price || price <= 0) return;
     setPricingRows(prev => {
@@ -567,8 +579,9 @@ export default function NewProductPage() {
     }
   }, []);
 
-  // 카테고리나 인기/추천 변경 시 상품 코드 업데이트
+  // 카테고리나 인기/추천 변경 시 상품 코드 업데이트 (수동 입력 모드에서는 덮어쓰지 않음)
   useEffect(() => {
+    if (isManualProductCode) return;
     if (formData.productCode) {
       const prefix = formData.isRecommended ? 'REC' : formData.isPopular ? 'POP' : 'MAN';
       const regionCode = formData.category === '동남아' ? 'SEA' : 
@@ -588,7 +601,7 @@ export default function NewProductPage() {
         setFormData(prev => ({ ...prev, productCode: newCode }));
       }
     }
-  }, [formData.category, formData.isPopular, formData.isRecommended]);
+  }, [formData.category, formData.isPopular, formData.isRecommended, isManualProductCode]);
 
   const handleThumbnailChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -724,6 +737,7 @@ export default function NewProductPage() {
         hasCruisedotStaff: hasCruisedotStaff || false,
         hasTravelInsurance: hasTravelInsurance || false,
         contactOptions: contactOptions, // 8번: 문의 옵션 저장
+        tourType: tourType,
       };
 
       // 상품 생성 API 호출
@@ -779,12 +793,14 @@ export default function NewProductPage() {
           hasCruisedotStaff: payload.hasCruisedotStaff,
           hasTravelInsurance: payload.hasTravelInsurance,
           contactOptions: contactOptions,
+          tourType: payload.tourType,
         })
       });
 
       if (!createRes.ok) {
         throw new Error('상품 생성에 실패했습니다.');
       }
+      const productData = await createRes.json();
 
       // MallProductContent 생성
       const contentRes = await fetch(`/api/admin/products/${payload.productCode}`, {
@@ -801,7 +817,6 @@ export default function NewProductPage() {
       const data = await contentRes.json();
       if (data.ok) {
         // AffiliateProduct 자동 생성 (메인몰에 표시되도록)
-        const productData = await createRes.json();
         if (productData.ok && productData.product) {
           try {
             const productCode = productData.product.productCode;
@@ -832,12 +847,12 @@ export default function NewProductPage() {
             });
 
             if (affiliateResponse.ok) {
-              logger.log('[New Product] AffiliateProduct 자동 생성 완료');
+              logger.info('[New Product] AffiliateProduct 자동 생성 완료');
             } else {
-              console.error('[New Product] AffiliateProduct 자동 생성 실패:', await affiliateResponse.text());
+              logger.error('[New Product] AffiliateProduct 자동 생성 실패', { status: affiliateResponse.status });
             }
           } catch (affiliateError) {
-            console.error('[New Product] AffiliateProduct 처리 중 오류:', affiliateError);
+            logger.error('[New Product] AffiliateProduct 처리 중 오류', { error: affiliateError instanceof Error ? affiliateError.message : String(affiliateError) });
             // AffiliateProduct 생성 실패해도 CruiseProduct는 이미 생성되었으므로 계속 진행
           }
         }
@@ -860,7 +875,7 @@ export default function NewProductPage() {
         throw new Error(data.error || '저장에 실패했습니다.');
       }
     } catch (error) {
-      console.error('Failed to save product:', error);
+      logger.error('상품 저장 실패', { error: error instanceof Error ? error.message : String(error) });
       showError(error instanceof Error ? error.message : '저장 중 오류가 발생했습니다.');
     } finally {
       setSaving(false);
@@ -913,10 +928,11 @@ export default function NewProductPage() {
           hasCruisedotStaff: hasCruisedotStaff,
           hasTravelInsurance: hasTravelInsurance,
           contactOptions: contactOptions, // 8번: 문의 옵션
+          tourType: tourType,
         },
       },
     } as any;
-  }, [formData, thumbnail, detailBlocks, includedItems, excludedItems, itineraryDays, pricingRows, refundPolicy, flightInfo, rating, reviewCount, recommendedKeywords, selectedCountries, selectedTags, hasEscort, hasLocalGuide, hasCruisedotStaff, hasTravelInsurance, contactOptions]);
+  }, [formData, thumbnail, detailBlocks, includedItems, excludedItems, itineraryDays, pricingRows, refundPolicy, flightInfo, rating, reviewCount, recommendedKeywords, selectedCountries, selectedTags, hasEscort, hasLocalGuide, hasCruisedotStaff, hasTravelInsurance, contactOptions, tourType]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -934,7 +950,14 @@ export default function NewProductPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => router.push('/admin/products')}
+                onClick={() => {
+                  if (autoSaveTimerRef.current) {
+                    clearTimeout(autoSaveTimerRef.current);
+                    autoSaveTimerRef.current = null;
+                  }
+                  localStorage.removeItem(AUTO_SAVE_KEY);
+                  router.push('/admin/products');
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <FiArrowLeft size={20} />
@@ -1758,9 +1781,58 @@ export default function NewProductPage() {
 
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">4. 포함 사항과 불포함 사항</h2>
-          
+
+          {/* 여행 유형 */}
+          <div className="mb-6">
+            <p className="text-sm font-semibold text-gray-700 mb-3">여행 유형 <span className="text-red-500">*</span></p>
+            <div className="flex gap-3">
+              <label className={`flex-1 cursor-pointer rounded-xl border-2 p-4 transition-all text-center
+                ${tourType === 'FREE'
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                <input
+                  type="radio"
+                  name="tourType"
+                  value="FREE"
+                  checked={tourType === 'FREE'}
+                  onChange={() => setTourType('FREE')}
+                  className="sr-only"
+                />
+                <div className="text-2xl mb-1">🚢</div>
+                <p className="font-bold text-gray-800 text-sm">자유여행형</p>
+                <p className="text-xs text-gray-500 mt-1">고객이 자유롭게 기항지 탐방</p>
+              </label>
+              <label className={`flex-1 cursor-pointer rounded-xl border-2 p-4 transition-all text-center
+                ${tourType === 'PACKAGE'
+                  ? 'border-orange-500 bg-orange-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+                <input
+                  type="radio"
+                  name="tourType"
+                  value="PACKAGE"
+                  checked={tourType === 'PACKAGE'}
+                  onChange={() => setTourType('PACKAGE')}
+                  className="sr-only"
+                />
+                <div className="text-2xl mb-1">🎫</div>
+                <p className="font-bold text-gray-800 text-sm">패키지형</p>
+                <p className="text-xs text-gray-500 mt-1">가이드·투어·식사 포함 상품</p>
+              </label>
+            </div>
+            {tourType === 'PACKAGE' && (
+              <p className="text-xs text-orange-600 mt-2 bg-orange-50 rounded-lg px-3 py-2">
+                패키지형은 계약서에 인솔자·가이드·보험 조항이 자동으로 포함됩니다.
+              </p>
+            )}
+            {tourType === 'FREE' && (
+              <p className="text-xs text-blue-600 mt-2 bg-blue-50 rounded-lg px-3 py-2">
+                자유여행형은 계약서에 자유 일정 조항이 포함됩니다.
+              </p>
+            )}
+          </div>
+
           {/* 서비스 옵션 체크박스 */}
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+          <div className={`mb-6 p-4 bg-gray-50 rounded-lg border-2 border-gray-200 ${tourType === 'PACKAGE' ? 'ring-2 ring-orange-300 bg-orange-50/30' : ''}`}>
             <p className="text-sm font-semibold text-gray-700 mb-4">서비스 옵션</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* 인솔자 */}
@@ -1884,6 +1956,11 @@ export default function NewProductPage() {
             onChange={setPricingRows}
             departureDate={departureDate || undefined}
             nights={formData.nights || 0}
+            onBasePriceChange={(minPrice) => {
+              basePriceFromTableRef.current = true;
+              setFormData(prev => ({ ...prev, basePrice: minPrice.toString() }));
+              queueMicrotask(() => { basePriceFromTableRef.current = false; });
+            }}
           />
         </div>
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { getDdayMessage } from '@/lib/date-utils'; // D-Day 계산 함수 임포트
 import { ChatInputMode } from '@/lib/types';
+import { logger } from '@/lib/logger';
 
 // 성능 최적화: 큰 컴포넌트들을 동적 임포트
 const ChatClientShell = dynamic(() => import('./ChatClientShell'), {
@@ -85,12 +86,12 @@ export default function ChatInteractiveUI() {
         if (data && typeof data === 'object' && !Array.isArray(data)) {
           setDdayMessagesData(data);
         } else {
-          console.warn('[ChatInteractiveUI] Invalid ddayMessages data format');
+          logger.warn('[ChatInteractiveUI] Invalid ddayMessages data format');
           setDdayMessagesData({ messages: {} }); // 기본값
         }
       })
       .catch((error) => {
-        console.error('[ChatInteractiveUI] Failed to load ddayMessages:', error);
+        logger.error('[ChatInteractiveUI] Failed to load ddayMessages:', error);
         setDdayMessagesData({ messages: {} }); // 기본값
       });
   }, []);
@@ -126,7 +127,7 @@ export default function ChatInteractiveUI() {
         // 4개 API 병렬 호출
         const [userResponse, tripResponse, accessResponse, affiliateResponse] = await Promise.all([
           fetch('/api/user/profile', { credentials: 'include' }),
-          fetch('/api/trips/active'),
+          fetch('/api/trips/active', { credentials: 'include' }),
           fetch('/api/user/access-check', { credentials: 'include' }),
           fetch('/api/user/affiliate-mall-url', { credentials: 'include' }),
         ]);
@@ -171,7 +172,7 @@ export default function ChatInteractiveUI() {
           setAffiliateMallUrl(affiliateData.mallUrl);
         }
       } catch (error) {
-        console.error('Error loading user data:', error);
+        logger.error('Error loading user data:', error);
       } finally {
         setIsLoading(false);
       }

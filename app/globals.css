@@ -190,6 +190,14 @@ select {
     display: none;
     /* Chrome, Safari and Opera */
   }
+
+  /* Safe Area 유틸리티 */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
 }
 
 @keyframes scaleIn {
@@ -263,6 +271,14 @@ select {
 
 .animate-in.zoom-in {
   animation-name: zoom-in;
+}
+
+/* 모바일 터치 최적화 */
+button,
+[role="button"],
+a {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .animate-in.slide-in-from-bottom-5,

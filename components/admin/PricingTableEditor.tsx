@@ -22,13 +22,15 @@ interface PricingTableEditorProps {
   onChange: (rows: PricingRow[]) => void;
   departureDate?: string; // 출발일 (YYYY-MM-DD 형식)
   nights?: number; // 박 수 (도착일 계산용)
+  onBasePriceChange?: (minPrice: number) => void;
 }
 
 export default function PricingTableEditor({
   rows,
   onChange,
   departureDate,
-  nights = 0
+  nights = 0,
+  onBasePriceChange
 }: PricingTableEditorProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [editingRowInModal, setEditingRowInModal] = useState<PricingRow | null>(null);
@@ -124,12 +126,27 @@ export default function PricingTableEditor({
 
   const removeRow = (id: string) => {
     if (!confirm('이 행을 삭제하시겠습니까?')) return;
-    onChange(rows.filter(r => r.id !== id));
+    const updated = rows.filter(r => r.id !== id);
+    onChange(updated);
+    if (onBasePriceChange) {
+      const adultPrices = updated
+        .map((r: PricingRow) => r.adult)
+        .filter((p): p is number => typeof p === 'number' && p > 0);
+      onBasePriceChange(adultPrices.length > 0 ? Math.min(...adultPrices) : 0);
+    }
   };
 
   const updateRow = (id: string, updates: Partial<PricingRow>) => {
     const updated = rows.map(r => r.id === id ? { ...r, ...updates } : r);
     onChange(updated);
+    // 최저 성인가 재계산 후 부모에 알림
+    if (onBasePriceChange) {
+      const adultPrices = updated
+        .map((r: PricingRow) => r.adult)
+        .filter((p): p is number => typeof p === 'number' && p > 0);
+      // 가격이 없을 때도 0으로 알림 (silent failure 방지)
+      onBasePriceChange(adultPrices.length > 0 ? Math.min(...adultPrices) : 0);
+    }
   };
 
   // 모달에서 행 편집
@@ -194,6 +211,11 @@ export default function PricingTableEditor({
 
   return (
     <div className="space-y-4">
+      {onBasePriceChange && (
+        <p className="text-xs text-blue-600 mb-3 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
+          💡 성인 요금 입력 시 기본 판매가가 자동으로 최저가로 업데이트됩니다
+        </p>
+      )}
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
@@ -276,7 +298,7 @@ export default function PricingTableEditor({
                   만 2세 미만
                   {departureDate && (
                     <div className="text-xs font-normal text-blue-600 mt-1">
-                      {calculateAgeRange(0, 1)}
+                      {calculateAgeRange(0, null)}
                     </div>
                   )}
                 </th>
@@ -611,7 +633,7 @@ export default function PricingTableEditor({
                     만 2세 미만
                     {departureDate && (
                       <span className="text-xs font-normal text-purple-600 ml-2">
-                        ({calculateAgeRange(0, 1)})
+                        ({calculateAgeRange(0, null)})
                       </span>
                     )}
                   </label>

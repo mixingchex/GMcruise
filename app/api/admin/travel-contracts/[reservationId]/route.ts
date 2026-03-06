@@ -123,6 +123,9 @@ export async function POST(
     // 상품 정보 조회
     const product = await prisma.cruiseProduct.findUnique({
       where: { productCode: reservation.Trip.productCode },
+      include: {
+        MallProductContent: { select: { layout: true } },
+      },
     });
 
     if (!product) {
@@ -147,9 +150,15 @@ export async function POST(
 
     // 패키지 여부
     const productTags = Array.isArray(product.tags) ? (product.tags as string[]) : [];
-    const isPackage = !!(reservation.airlineName || product.airlineName);
+    const isPackage = product?.tourType === 'PACKAGE';
     const hasHotel = productTags.some(t => t.includes('호텔') || t.toLowerCase().includes('hotel'));
-    const hasInsurance = productTags.some(t => t.includes('보험') || t.toLowerCase().includes('insurance'));
+
+    // MallProductContent.layout 에서 서비스 옵션 추출
+    const layout = (product?.MallProductContent?.layout as Record<string, any>) ?? {};
+    const hasInsurance = layout.hasTravelInsurance === true;
+    const hasEscort = layout.hasEscort === true;
+    const hasLocalGuide = layout.hasLocalGuide === true;
+    const hasCruisedotStaff = layout.hasCruisedotStaff === true;
 
     // 날짜 포맷
     const trip = reservation.Trip;
@@ -184,6 +193,9 @@ export async function POST(
       isPackage,
       hasHotel,
       hasInsurance,
+      hasEscort,
+      hasLocalGuide,
+      hasCruisedotStaff,
       departureDate: fmtDate(departureDate),
       returnDate: fmtDate(returnDate),
       nights,

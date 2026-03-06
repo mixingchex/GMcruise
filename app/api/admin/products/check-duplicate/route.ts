@@ -3,11 +3,17 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { checkAdminAuth } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   try {
+    const { isAdmin } = await checkAdminAuth();
+    if (!isAdmin) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+    }
     const url = new URL(req.url);
     const productCode = url.searchParams.get('productCode');
 
@@ -60,9 +66,9 @@ export async function GET(req: NextRequest) {
       isValid: validationErrors.length === 0 && !isDuplicate
     });
   } catch (error: any) {
-    console.error('[Check Duplicate] Error:', error);
+    logger.error('[Check Duplicate] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
-      { ok: false, error: error.message || 'Failed to check duplicate' },
+      { ok: false, error: 'Failed to check duplicate' },
       { status: 500 }
     );
   }

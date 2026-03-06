@@ -9,6 +9,7 @@ import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getCountryCode, getKoreanCountryName } from '@/lib/utils/countryMapping';
 import { backupProductImages } from '@/lib/google-drive-product-backup';
+import { logger } from '@/lib/logger';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -213,7 +214,14 @@ export async function PUT(
       hasCruisedotStaff,
       hasTravelInsurance,
       contactOptions,
+      tourType,
     } = body;
+
+    // tourType 유효성 검사
+    const validTourTypes = ['FREE', 'PACKAGE'];
+    const safeTourType = tourType !== undefined
+      ? (validTourTypes.includes(tourType) ? tourType : 'FREE')
+      : undefined;
 
     // 상품 코드 변경 처리
     const updateProductCode = newProductCode && newProductCode !== productCodeParam;
@@ -243,6 +251,7 @@ export async function PUT(
       ...(saleStatus !== undefined && { saleStatus }),
       ...(startDate !== undefined && { startDate: startDate ? new Date(startDate) : null }),
       ...(endDate !== undefined && { endDate: endDate ? new Date(endDate) : null }),
+      ...(safeTourType !== undefined && { tourType: safeTourType }),
     };
 
     // itineraryPattern 처리
@@ -455,6 +464,9 @@ export async function PUT(
     }
     if ('saleStatus' in updateData && updateData.saleStatus !== undefined) {
       finalUpdateData.saleStatus = updateData.saleStatus;
+    }
+    if ('tourType' in updateData && updateData.tourType !== undefined) {
+      finalUpdateData.tourType = updateData.tourType;
     }
     if ('startDate' in updateData && updateData.startDate !== undefined) {
       finalUpdateData.startDate = updateData.startDate;

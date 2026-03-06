@@ -8,6 +8,12 @@ import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown, FiSave, FiFolder, FiImage
 import { ContentBlock } from './ProductDetailEditor';
 import countries from '@/data/countries.json';
 
+export interface MealDetail {
+  location?: string;
+  time?: string;
+  description?: string;
+}
+
 export interface EnhancedItineraryDay {
   day: number;
   emoji?: string; // 왼쪽 이모티콘
@@ -33,6 +39,9 @@ export interface EnhancedItineraryDay {
   breakfast?: '선상식' | '호텔식' | '현지식' | '정찬식' | '기내식' | '자유식' | '한식';
   lunch?: '선상식' | '호텔식' | '현지식' | '정찬식' | '기내식' | '자유식' | '한식';
   dinner?: '선상식' | '호텔식' | '현지식' | '정찬식' | '기내식' | '자유식' | '한식';
+  breakfastDetail?: MealDetail;
+  lunchDetail?: MealDetail;
+  dinnerDetail?: MealDetail;
   // 기존 필드 (하위 호환성)
   departure?: string; // 출발지
   arrival?: string; // 도착지
@@ -475,16 +484,16 @@ export default function EnhancedItineraryEditor({
 
       // 첫날: 출발
       if (i === 1) {
-        dayInfo.departure = departure.origin || '';
-        dayInfo.arrival = departure.destination || '';
-        dayInfo.departureTime = departure.departureTime || '';
+        dayInfo.departure = departure.from || '';
+        dayInfo.arrival = departure.to || '';
+        dayInfo.departureTime = departure.time || '';
         dayInfo.arrivalTime = departure.arrivalTime || '';
       }
       // 마지막날: 귀국
       else if (i === totalDays) {
-        dayInfo.departure = returnFlight.origin || '';
-        dayInfo.arrival = returnFlight.destination || '';
-        dayInfo.departureTime = returnFlight.departureTime || '';
+        dayInfo.departure = returnFlight.from || '';
+        dayInfo.arrival = returnFlight.to || '';
+        dayInfo.departureTime = returnFlight.time || '';
         dayInfo.arrivalTime = returnFlight.arrivalTime || '';
       }
       // 중간날: 크루즈 일정
@@ -1338,6 +1347,9 @@ export default function EnhancedItineraryEditor({
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         관광이미지 첨부
                       </label>
+                      <p className="text-xs text-gray-400 mb-2">
+                        💡 이미지 우측 상단 × 버튼으로 삭제 후 재업로드 가능합니다
+                      </p>
                       <div className="space-y-2">
                         {day.tourImages && day.tourImages.length > 0 && (
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -1466,6 +1478,9 @@ export default function EnhancedItineraryEditor({
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             숙박 사진 첨부
                           </label>
+                          <p className="text-xs text-gray-400 mb-2">
+                            💡 이미지 우측 상단 × 버튼으로 삭제 후 재업로드 가능합니다
+                          </p>
                           {/* 여러 장 표시 */}
                           {((day.accommodationImages && day.accommodationImages.length > 0) || day.accommodationImage) && (
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
@@ -1600,6 +1615,51 @@ export default function EnhancedItineraryEditor({
                               <option key={type} value={type}>{type}</option>
                             ))}
                           </select>
+                          {/* 조식 상세 (토글) */}
+                          {day.breakfast && (
+                            <div className="mt-1">
+                              <button
+                                type="button"
+                                onClick={() => updateDay(day.day, {
+                                  breakfastDetail: day.breakfastDetail ? undefined : { location: '', time: '', description: '' }
+                                })}
+                                className="text-xs text-blue-500 hover:text-blue-700 underline"
+                              >
+                                {day.breakfastDetail ? '▲ 상세 정보 닫기' : '▼ 상세 정보 추가 (선택)'}
+                              </button>
+                              {day.breakfastDetail && (
+                                <div className="mt-2 p-3 bg-blue-50 rounded-lg space-y-2 border border-blue-100">
+                                  <input
+                                    type="text"
+                                    placeholder="장소 (예: 주 식당)"
+                                    value={day.breakfastDetail.location || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      breakfastDetail: { ...day.breakfastDetail, location: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="시간 (예: 07:00–08:30)"
+                                    value={day.breakfastDetail.time || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      breakfastDetail: { ...day.breakfastDetail, time: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="설명 (예: 뷔페식 다양한 국제 요리)"
+                                    value={day.breakfastDetail.description || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      breakfastDetail: { ...day.breakfastDetail, description: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1615,6 +1675,51 @@ export default function EnhancedItineraryEditor({
                               <option key={type} value={type}>{type}</option>
                             ))}
                           </select>
+                          {/* 중식 상세 (토글) */}
+                          {day.lunch && (
+                            <div className="mt-1">
+                              <button
+                                type="button"
+                                onClick={() => updateDay(day.day, {
+                                  lunchDetail: day.lunchDetail ? undefined : { location: '', time: '', description: '' }
+                                })}
+                                className="text-xs text-blue-500 hover:text-blue-700 underline"
+                              >
+                                {day.lunchDetail ? '▲ 상세 정보 닫기' : '▼ 상세 정보 추가 (선택)'}
+                              </button>
+                              {day.lunchDetail && (
+                                <div className="mt-2 p-3 bg-blue-50 rounded-lg space-y-2 border border-blue-100">
+                                  <input
+                                    type="text"
+                                    placeholder="장소 (예: 주 식당)"
+                                    value={day.lunchDetail.location || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      lunchDetail: { ...day.lunchDetail, location: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="시간 (예: 12:00–13:30)"
+                                    value={day.lunchDetail.time || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      lunchDetail: { ...day.lunchDetail, time: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="설명 (예: 뷔페식 다양한 국제 요리)"
+                                    value={day.lunchDetail.description || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      lunchDetail: { ...day.lunchDetail, description: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1630,6 +1735,51 @@ export default function EnhancedItineraryEditor({
                               <option key={type} value={type}>{type}</option>
                             ))}
                           </select>
+                          {/* 석식 상세 (토글) */}
+                          {day.dinner && (
+                            <div className="mt-1">
+                              <button
+                                type="button"
+                                onClick={() => updateDay(day.day, {
+                                  dinnerDetail: day.dinnerDetail ? undefined : { location: '', time: '', description: '' }
+                                })}
+                                className="text-xs text-blue-500 hover:text-blue-700 underline"
+                              >
+                                {day.dinnerDetail ? '▲ 상세 정보 닫기' : '▼ 상세 정보 추가 (선택)'}
+                              </button>
+                              {day.dinnerDetail && (
+                                <div className="mt-2 p-3 bg-blue-50 rounded-lg space-y-2 border border-blue-100">
+                                  <input
+                                    type="text"
+                                    placeholder="장소 (예: 주 식당)"
+                                    value={day.dinnerDetail.location || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      dinnerDetail: { ...day.dinnerDetail, location: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="시간 (예: 18:00–20:00)"
+                                    value={day.dinnerDetail.time || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      dinnerDetail: { ...day.dinnerDetail, time: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                  <input
+                                    type="text"
+                                    placeholder="설명 (예: 뷔페식 다양한 국제 요리)"
+                                    value={day.dinnerDetail.description || ''}
+                                    onChange={(e) => updateDay(day.day, {
+                                      dinnerDetail: { ...day.dinnerDetail, description: e.target.value }
+                                    })}
+                                    className="w-full text-xs border border-gray-200 rounded px-2 py-1 bg-white"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
