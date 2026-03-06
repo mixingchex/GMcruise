@@ -59,6 +59,13 @@ export interface TravelContractData {
   // 현지교통 종류 (기본: isPackage ? 'bus' : 'none')
   localTransportType?: 'bus' | 'car' | 'other' | 'none';
 
+  // 식사 횟수 (선택 — 없으면 "일정표 참조" 표시)
+  mealCounts?: {
+    breakfast: number;
+    lunch: number;
+    dinner: number;
+  };
+
   // 기타사항 (자유입력)
   otherNotes?: string | null;
 }
@@ -77,10 +84,10 @@ import { z } from 'zod';
 
 export const TravelContractDataSchema = z.object({
   reservationId: z.number(),
-  productName: z.string().min(1),
-  shipName: z.string().min(1),
-  mainTravelerName: z.string().min(1),
-  mainTravelerPhone: z.string().min(1),
+  productName: z.string().min(1).max(200),
+  shipName: z.string().min(1).max(100),
+  mainTravelerName: z.string().min(1).max(100),
+  mainTravelerPhone: z.string().min(1).max(30),
   totalPeople: z.number().min(1),
   pricePerPerson: z.number().min(0),
   totalAmount: z.number().min(0),
@@ -88,22 +95,30 @@ export const TravelContractDataSchema = z.object({
   returnDate: z.string(),
   nights: z.number().min(0),
   days: z.number().min(1),
-  departure: z.string(),
-  arrival: z.string(),
-  affiliateName: z.string(),
+  departure: z.string().max(100),
+  arrival: z.string().max(100),
+  affiliateName: z.string().min(1, '담당자명을 입력해주세요').max(100),
   isPackage: z.boolean(),
   hasHotel: z.boolean(),
   hasInsurance: z.boolean(),
-  cancellationPolicy: z.array(z.object({ period: z.string(), charge: z.string() })).min(1, '취소료 규정은 최소 1개 이상 필수입니다'),
-  excludedItems: z.array(z.string()).default([]),
+  cancellationPolicy: z.array(z.object({ period: z.string().max(200), charge: z.string().max(200) })).min(1, '취소료 규정은 최소 1개 이상 필수입니다'),
+  excludedItems: z.array(z.string().max(200)).default([]),
   airlineName: z.string().nullable().optional(),
   guaranteeType: z.enum(['insurance', 'mutual-aid', 'deposit']).optional(),
-  insuranceCompany: z.string().nullable().optional(),
+  insuranceCompany: z.string().max(200).nullable().optional(),
   insuranceCoverage: z.string().nullable().optional(),
   minGroupSize: z.number().optional(),
   maxGroupSize: z.number().optional(),
-  affiliatePhone: z.string().nullable().optional(),
-  customerEmail: z.string().nullable().optional(),
+  affiliatePhone: z.string().max(30).nullable().optional(),
+  customerEmail: z.string().max(200).nullable().optional(),
   localTransportType: z.enum(['bus', 'car', 'other', 'none']).optional(),
-  otherNotes: z.string().nullable().optional(),
+  mealCounts: z.object({
+    breakfast: z.number().int().min(0).max(999),
+    lunch: z.number().int().min(0).max(999),
+    dinner: z.number().int().min(0).max(999),
+  }).optional(),
+  otherNotes: z.string().max(2000).nullable().optional(),
+  mainTravelerBirthdate: z.string().max(20).nullable().optional(),
+  departurePort: z.string().max(100).nullable().optional(),
+  insurancePolicyNumber: z.string().max(100).nullable().optional(),
 });

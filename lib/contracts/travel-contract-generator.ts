@@ -10,15 +10,14 @@ function getImageAsDataUrl(relativePath: string): string {
   if (_imageCache.has(relativePath)) return _imageCache.get(relativePath)!;
   try {
     const absPath = join(process.cwd(), 'public', relativePath.replace(/^\//, ''));
-    if (!existsSync(absPath)) { _imageCache.set(relativePath, ''); return ''; }
+    if (!existsSync(absPath)) return ''; // WO-V3-13: 실패는 캐시하지 않음
     const ext = (relativePath.split('.').pop() || 'png').toLowerCase();
     const mime = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png';
     const result = `data:${mime};base64,${readFileSync(absPath).toString('base64')}`;
-    _imageCache.set(relativePath, result);
+    _imageCache.set(relativePath, result); // 성공한 경우에만 캐시
     return result;
   } catch {
-    _imageCache.set(relativePath, '');
-    return '';
+    return ''; // WO-V3-13: 실패는 캐시하지 않음
   }
 }
 
@@ -411,7 +410,7 @@ export function generateTravelContractHTML(
       <td class="lbl">숙박</td>
       <td>${accommodationText}</td>
       <td class="lbl2">식사</td>
-      <td>☑ 일정에 표시</td>
+      <td>${data.mealCounts ? `조식 ${data.mealCounts.breakfast}회 / 중식 ${data.mealCounts.lunch}회 / 석식 ${data.mealCounts.dinner}회` : '☑ 일정에 표시'}</td>
     </tr>
     <tr>
       <td class="lbl">여행인솔자</td>
@@ -503,19 +502,19 @@ export function generateTravelContractHTML(
 
   <div class="gold-line"></div>
 
-  <!-- 고객보관용 시작 -->
+  <!-- 여행자보관용 시작 -->
   <div class="page-break"></div>
   <div class="contract-header">
     <div class="logo">크루즈<span>닷</span></div>
     <div class="contract-title">크루즈닷 여행계약서</div>
-    <div class="contract-copy-label">고객보관용</div>
+    <div class="contract-copy-label">여행자보관용</div>
   </div>
   <p class="subtitle">
     크루즈닷(이하 "당사")과 여행자는 아래와 같이
     ${isPackage ? '<strong>☑ 기획</strong> &nbsp; □ 희망' : '□ 기획 &nbsp; <strong>☑ 희망</strong>'}
     여행 계약을 체결한다.
   </p>
-  <!-- 고객보관용은 계약 테이블 + 서명란만 반복 (약관은 1부만) -->
+  <!-- 여행자보관용은 계약 테이블 + 서명란만 반복 (약관은 1부만) -->
   <table class="contract-table">
     <tr>
       <td class="lbl">상품명</td>
@@ -556,7 +555,7 @@ export function generateTravelContractHTML(
       <td class="lbl">숙박</td>
       <td>${accommodationText}</td>
       <td class="lbl2">식사</td>
-      <td>☑ 일정에 표시</td>
+      <td>${data.mealCounts ? `조식 ${data.mealCounts.breakfast}회 / 중식 ${data.mealCounts.lunch}회 / 석식 ${data.mealCounts.dinner}회` : '☑ 일정에 표시'}</td>
     </tr>
     <tr>
       <td class="lbl">여행인솔자</td>
@@ -625,7 +624,7 @@ export function generateTravelContractHTML(
       ${sigBox(contractorSignatureUrl, '계약자')}
     </div>
   </div>
-  <p style="font-size:8pt;color:#999;margin-top:8px;text-align:center;">※ 고객보관용 — 약관 전문은 회사보관용 앞면 참조</p>
+  <p style="font-size:8pt;color:#999;margin-top:8px;text-align:center;">※ 여행자보관용 — 약관 전문은 회사보관용 앞면 참조</p>
 
   <div class="gold-line"></div>
   <div class="page-break"></div>
@@ -797,10 +796,17 @@ export function generateTravelContractHTML(
     ※ 항공권이 포함된 경우 항공사 페널티가 추가 부과될 수 있습니다.<br>
     ※ 여행보험 가입 여부와 관계없이 취소수수료는 면제되지 않습니다.
   </p>
+  <p style="font-size:7.5pt;color:#888;margin-top:6px;">
+    ※ 본 여행 상품은 세금계산서 및 현금영수증 발급이 불가합니다.
+  </p>
 
   <div class="terms-article">
     <div class="art-title">제3조 (여권 및 비자)</div>
     <div>여권 유효기간은 여행 출발일 기준 6개월 이상 남아있어야 합니다. 여권 또는 비자 미비로 인한 탑승 거부·입국 거부의 책임은 여행자에게 있습니다.</div>
+  </div>
+  <div class="terms-article">
+    <div class="art-title">제3조의2 (일정 변경 패널티)</div>
+    <div>크루즈 여행 출발 후 여행자의 귀책사유로 인한 일정 변경 시 추가 비용이 발생할 수 있으며, 선사 및 현지 협력사 규정에 따라 별도 위약금이 부과될 수 있습니다. 출발 전 일정 변경은 본 계약서 제2조의 취소료 규정에 준합니다.</div>
   </div>
   <div class="terms-article">
     <div class="art-title">제4조 (예약금 납부)</div>
