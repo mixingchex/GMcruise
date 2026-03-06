@@ -1,9 +1,12 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs'; // sharp는 Node.js 네이티브 바이너리 — Edge 런타임 불가
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/prisma';
 import { uploadFileToDrive } from '@/lib/google-drive';
+import sharp from 'sharp';
+import { logger } from '@/lib/logger';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -30,13 +33,18 @@ async function checkAdminAuth() {
       return null;
     }
 
+    // 세션 만료 확인
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      return null;
+    }
+
     return {
       id: session.User.id,
       name: session.User.name,
       role: session.User.role,
     };
   } catch (error) {
-    console.error('[Upload Image] Auth check error:', error);
+    logger.error('[Upload Image] Auth check error:', { error: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
@@ -45,7 +53,7 @@ export async function POST(req: NextRequest) {
   try {
     const admin = await checkAdminAuth();
     if (!admin) {
-      return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 403 });
+      return NextResponse.json({ ok: false, error: '인증이 필요합니다.' }, { status: 401 });
     }
 
     const formData = await req.formData();
@@ -69,10 +77,23 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // 파일명 생성 (타임스탬프 + 원본 파일명)
+    // 파일명 생성 (타임스탬프 + 원본 파일명, 확장자는 .webp로 통일)
     const timestamp = Date.now();
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const fileName = `messages_${timestamp}_${originalName}`;
+    const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+    const fileName = `messages_${timestamp}_${nameWithoutExt}.webp`;
+
+    // WebP 변환 (quality:85 — JPEG 95+ 수준 화질, 용량 60~80% 절감)
+    // animated:true = GIF 애니메이션 프레임 전체 보존 → animated WebP 변환
+    let webpBuffer: Buffer;
+    try {
+      webpBuffer = await sharp(buffer, { animated: true })
+        .webp({ quality: 85 })
+        .toBuffer();
+    } catch (sharpErr) {
+      logger.error('[Upload Image] WebP 변환 실패', { error: sharpErr instanceof Error ? sharpErr.message : String(sharpErr) });
+      return NextResponse.json({ ok: false, error: '이미지 변환에 실패했습니다.' }, { status: 400 });
+    }
 
     // Google Drive 이미지 폴더 ID 가져오기
     const { getDriveFolderId } = await import('@/lib/config/drive-config');
@@ -85,13 +106,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Google Drive에 업로드
+    // Google Drive에 WebP만 업로드
     const uploadResult = await uploadFileToDrive({
       folderId: imagesFolderId,
       fileName: fileName,
-      mimeType: file.type,
-      buffer: buffer,
-      makePublic: true, // 공개 링크로 제공
+      mimeType: 'image/webp',
+      buffer: webpBuffer,
+      makePublic: true,
     });
 
     if (!uploadResult.ok || !uploadResult.url) {
@@ -109,9 +130,9 @@ export async function POST(req: NextRequest) {
       fileName,
     });
   } catch (error) {
-    console.error('[Upload Image] Error:', error);
+    logger.error('[Upload Image] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : '이미지 업로드 중 오류가 발생했습니다.' },
+      { ok: false, error: '이미지 업로드 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

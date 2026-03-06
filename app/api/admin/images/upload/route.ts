@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { uploadFileToDrive, findOrCreateFolder } from '@/lib/google-drive';
+import { logger } from '@/lib/logger';
 import path from 'path';
 import sharp from 'sharp';
 
@@ -77,7 +78,6 @@ export async function POST(req: NextRequest) {
     // 파일명 정리 (특수문자 제거)
     const originalName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const nameWithoutExt = path.parse(originalName).name;
-    const ext = path.parse(originalName).ext.toLowerCase();
 
     // 폴더 경로 설정
     const folderPath = folder ? folder.trim() : 'images';
@@ -105,76 +105,63 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 원본 파일을 Google Drive에 업로드
-    const originalUploadResult = await uploadFileToDrive({
+    // WebP 변환 후 WebP만 업로드 (원본 저장 안 함 — 용량 절감)
+    // - quality:85 = JPEG 95+ 수준 화질 유지, 용량 60~80% 절감
+    // - animated:true = GIF 애니메이션 프레임 전체 보존 → animated WebP 변환
+    let webpBuffer: Buffer;
+    try {
+      webpBuffer = await sharp(originalBuffer, { animated: true })
+        .webp({ quality: 85 })
+        .toBuffer();
+    } catch (sharpErr) {
+      logger.error('[Image Upload] WebP 변환 실패', { error: sharpErr instanceof Error ? sharpErr.message : String(sharpErr) });
+      return NextResponse.json({ ok: false, message: '이미지 변환에 실패했습니다.' }, { status: 400 });
+    }
+
+    const webpFileName = `${nameWithoutExt}.webp`;
+    const uploadResult = await uploadFileToDrive({
       folderId: targetFolderId,
-      fileName: originalName,
-      mimeType: file.type,
-      buffer: originalBuffer,
-      makePublic: true, // 공개 링크로 제공 (로딩 최적화)
+      fileName: webpFileName,
+      mimeType: 'image/webp',
+      buffer: webpBuffer,
+      makePublic: true,
     });
 
-    if (!originalUploadResult.ok || !originalUploadResult.url) {
+    if (!uploadResult.ok || !uploadResult.url) {
       return NextResponse.json(
-        { ok: false, message: `원본 파일 업로드 실패: ${originalUploadResult.error}` },
+        { ok: false, message: `이미지 업로드 실패: ${uploadResult.error}` },
         { status: 500 }
       );
     }
 
-    const originalUrl = originalUploadResult.url;
-
-    // WebP 변환 및 업로드
-    let webpUrl: string | null = null;
-    let webpBuffer: Buffer | null = null;
-
-    try {
-      webpBuffer = await sharp(originalBuffer)
-        .webp({ quality: 80 })
-        .toBuffer();
-
-      const webpFileName = `${nameWithoutExt}.webp`;
-      const webpUploadResult = await uploadFileToDrive({
-        folderId: targetFolderId,
-        fileName: webpFileName,
-        mimeType: 'image/webp',
-        buffer: webpBuffer,
-        makePublic: true, // 공개 링크로 제공
-      });
-
-      if (webpUploadResult.ok && webpUploadResult.url) {
-        webpUrl = webpUploadResult.url;
-      }
-    } catch (error) {
-      console.error('[Image Upload] WebP 변환 실패:', error);
-      // WebP 변환 실패해도 원본은 저장됨
-    }
+    const webpUrl = uploadResult.url;
 
     return NextResponse.json({
       ok: true,
       image: {
         original: {
-          url: originalUrl,
-          name: originalName,
-          size: originalBuffer.length,
-          fileId: originalUploadResult.fileId,
-        },
-        webp: webpUrl ? {
           url: webpUrl,
-          name: `${nameWithoutExt}.webp`,
-          size: webpBuffer?.length || 0,
-        } : null,
+          name: webpFileName,
+          size: webpBuffer.length,
+          fileId: uploadResult.fileId,
+        },
+        webp: {
+          url: webpUrl,
+          name: webpFileName,
+          size: webpBuffer.length,
+        },
         folder: folderPath,
       },
       code: {
-        url: webpUrl || originalUrl,
-        imageTag: `<Image src="${webpUrl || originalUrl}" alt="${nameWithoutExt}" width={500} height={300} />`,
-        htmlTag: `<img src="${webpUrl || originalUrl}" alt="${nameWithoutExt}" />`,
+        url: webpUrl,
+        imageTag: `<Image src="${webpUrl}" alt="${nameWithoutExt}" width={500} height={300} />`,
+        htmlTag: `<img src="${webpUrl}" alt="${nameWithoutExt}" />`,
       },
     });
-  } catch (error: any) {
-    console.error('[Image Upload] 에러:', error);
+  } catch (error: unknown) {
+    logger.error('[Image Upload] 에러', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
-      { ok: false, message: error.message || '이미지 업로드 중 오류가 발생했습니다.' },
+      { ok: false, message: '이미지 업로드 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

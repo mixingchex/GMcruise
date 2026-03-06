@@ -164,6 +164,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 7. Supabase Backup (증분 동기화 — Neon → Supabase)
+    try {
+      const { runSupabaseBackup } = await import('@/lib/supabase-backup');
+      results.push(await runTask('supabase-backup', runSupabaseBackup));
+    } catch (e: any) {
+      results.push({ name: 'supabase-backup', success: false, error: e.message });
+    }
+
     const duration = Date.now() - startTime;
     console.log(`[Cron] Daily All Tasks completed in ${duration}ms`);
 

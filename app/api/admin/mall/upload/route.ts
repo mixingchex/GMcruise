@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { cookies } from 'next/headers';
 import { getCache, setCache } from '@/lib/redis';
+import sharp from 'sharp';
 
 const SESSION_COOKIE = 'cg.sid.v2';
 
@@ -173,11 +174,25 @@ export async function POST(req: NextRequest) {
       // 파일명 생성
       const fileExtension = file.name.split('.').pop() || 'jpg';
       const cleanFilename = actualFilename.trim().replace(/[^a-zA-Z0-9가-힣\s]/g, '_');
-      const finalFilename = `${cleanFilename}.${fileExtension}`;
 
       // 파일 버퍼 생성
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
+
+      // 이미지인 경우 WebP 변환 (quality:85, animated GIF 지원)
+      let uploadBuffer = buffer;
+      let uploadMimeType = file.type;
+      let uploadFileExt = fileExtension;
+      if (type === 'image' && file.type !== 'image/webp') {
+        try {
+          uploadBuffer = await sharp(buffer, { animated: true }).webp({ quality: 85 }).toBuffer();
+          uploadMimeType = 'image/webp';
+          uploadFileExt = 'webp';
+        } catch {
+          // 변환 실패 시 원본 그대로 업로드
+        }
+      }
+      const finalFilename = `${cleanFilename}.${uploadFileExt}`;
 
       // Google Drive에 업로드 시도
       try {
@@ -205,8 +220,8 @@ export async function POST(req: NextRequest) {
               const uploadResult = await uploadFileToDrive({
                 folderId: productFolderResult.folderId,
                 fileName: driveFileName,
-                mimeType: file.type,
-                buffer: buffer,
+                mimeType: uploadMimeType,
+                buffer: uploadBuffer,
                 makePublic: true,
               });
 
@@ -216,7 +231,7 @@ export async function POST(req: NextRequest) {
                   ok: true,
                   url: uploadResult.url,
                   filename: finalFilename,
-                  size: file.size,
+                  size: uploadBuffer.length,
                   type: file.type,
                   category: categoryDir,
                   subPath: cleanSubFolders.length > 0 ? cleanSubFolders.join('/') : undefined,
@@ -248,8 +263,8 @@ export async function POST(req: NextRequest) {
           const uploadResult = await uploadFileToDrive({
             folderId,
             fileName: driveFileName,
-            mimeType: file.type,
-            buffer: buffer,
+            mimeType: uploadMimeType,
+            buffer: uploadBuffer,
             makePublic: true, // 크루즈정보사진은 공개
           });
 
@@ -259,7 +274,7 @@ export async function POST(req: NextRequest) {
               ok: true,
               url: uploadResult.url,
               filename: finalFilename,
-              size: file.size,
+              size: uploadBuffer.length,
               type: file.type,
               category: categoryDir,
               subPath: cleanSubFolders.length > 0 ? cleanSubFolders.join('/') : undefined,
@@ -281,10 +296,25 @@ export async function POST(req: NextRequest) {
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 
-      // 파일명 생성 (타임스탬프 + 원본 파일명)
+      // 이미지인 경우 WebP 변환 (quality:85, animated GIF 지원)
+      let uploadBuffer = buffer;
+      let uploadMimeType = file.type;
+      if (type === 'image' && file.type !== 'image/webp') {
+        try {
+          uploadBuffer = await sharp(buffer, { animated: true }).webp({ quality: 85 }).toBuffer();
+          uploadMimeType = 'image/webp';
+        } catch {
+          // 변환 실패 시 원본 그대로 업로드
+        }
+      }
+
+      // 파일명 생성 (타임스탬프 + 원본 파일명, 이미지는 .webp로 통일)
       const timestamp = Date.now();
       const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const finalFilename = `${timestamp}_${originalName}`;
+      const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+      const finalFilename = type === 'image'
+        ? `${timestamp}_${nameWithoutExt}.webp`
+        : `${timestamp}_${originalName}`;
 
       // 타입별 Google Drive 폴더 ID 매핑
       const { getDriveFolderId } = await import('@/lib/config/drive-config');
@@ -325,8 +355,8 @@ export async function POST(req: NextRequest) {
       const uploadResult = await uploadFileToDrive({
         folderId: uploadFolderId,
         fileName: finalFilename,
-        mimeType: file.type,
-        buffer: buffer,
+        mimeType: uploadMimeType,
+        buffer: uploadBuffer,
         makePublic: true, // 공개 링크로 제공
       });
 
@@ -341,7 +371,7 @@ export async function POST(req: NextRequest) {
         ok: true,
         url: uploadResult.url,
         filename: finalFilename,
-        size: file.size,
+        size: uploadBuffer.length,
         type: file.type,
         fileId: uploadResult.fileId,
       });
