@@ -402,7 +402,7 @@ export function generateTravelContractHTML(
     </tr>
     <tr>
       <td class="lbl">출발/도착</td>
-      <td><strong>${data.departure}</strong> → <strong>${data.arrival}</strong></td>
+      <td><strong>${escapeHtml(data.departure)}</strong> → <strong>${escapeHtml(data.arrival)}</strong></td>
       <td class="lbl2">교통수단</td>
       <td>${transportText}</td>
     </tr>
@@ -540,6 +540,10 @@ export function generateTravelContractHTML(
       <td><strong>${data.totalPeople}명</strong>${data.minGroupSize ? `&nbsp;(최저 ${data.minGroupSize}명 / 최대 ${data.maxGroupSize || '-'}명)` : ''}</td>
     </tr>
     <tr>
+      <td class="lbl">여행지역</td>
+      <td colspan="3">여행일정표 참조</td>
+    </tr>
+    <tr>
       <td class="lbl">여행요금</td>
       <td>1인당 <strong>${fmt(data.pricePerPerson)}</strong>원 / 총액 <strong>${fmt(data.totalAmount)}</strong>원</td>
       <td class="lbl2">계좌정보</td>
@@ -547,7 +551,7 @@ export function generateTravelContractHTML(
     </tr>
     <tr>
       <td class="lbl">출발/도착</td>
-      <td><strong>${data.departure}</strong> → <strong>${data.arrival}</strong></td>
+      <td><strong>${escapeHtml(data.departure)}</strong> → <strong>${escapeHtml(data.arrival)}</strong></td>
       <td class="lbl2">교통수단</td>
       <td>${transportText}</td>
     </tr>
@@ -572,6 +576,10 @@ export function generateTravelContractHTML(
     <tr>
       <td class="lbl">여행요금<br>포함내역</td>
       <td colspan="3">${includedItems}</td>
+    </tr>
+    <tr>
+      <td class="lbl">기타선택<br>항목</td>
+      <td colspan="3">${extraOptions}</td>
     </tr>
     <tr>
       <td class="lbl">불포함내역</td>
@@ -881,6 +889,10 @@ export function generateTravelContractHTML(
       □ 동의합니다 &nbsp;&nbsp; □ 동의하지 않습니다
     </div>
   </div>
+
+  <p style="font-size:7.5pt;color:#888;margin:6px 0 10px;">
+    ※ 개인정보처리방침 전문: <a href="https://cruisedot.co.kr/privacy" style="color:#1a3a6b;">https://cruisedot.co.kr/privacy</a>
+  </p>
 
   <!-- 분쟁해결 안내 -->
   <div style="margin:12px 0 8px;padding:8px 12px;border:1px solid #ddd;border-radius:6px;background:#f9f9f9;font-size:8pt;color:#555;line-height:1.7;">

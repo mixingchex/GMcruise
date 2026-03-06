@@ -68,6 +68,9 @@ export interface TravelContractData {
 
   // 기타사항 (자유입력)
   otherNotes?: string | null;
+  mainTravelerBirthdate?: string | null;
+  departurePort?: string | null;
+  insurancePolicyNumber?: string | null;
 }
 
 export type ContractStatus = 'pending' | 'signed' | 'expired' | 'cancelled';

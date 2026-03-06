@@ -676,6 +676,7 @@ export default function ContractSignPage() {
 
             {/* WO-LO-05: disabled 버튼 시각 개선 */}
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={submitting}
               className="w-full bg-[#1a3a6b] text-white py-4 rounded-2xl font-bold text-base shadow hover:bg-[#16325a] transition disabled:opacity-60 disabled:bg-gray-400 disabled:cursor-not-allowed"

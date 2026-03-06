@@ -49,7 +49,7 @@ async function readFooterData(): Promise<any> {
         { id: '2', name: '파트너모드', link: '/partner', order: 2 },
         { id: '3', name: '관리자모드', link: '/admin/login', order: 3 },
         { id: '4', name: '이용약관', link: '/terms/0', order: 4 },
-        { id: '5', name: '개인정보처리방침', link: '/terms/1', order: 5 },
+        { id: '5', name: '개인정보처리방침', link: '/privacy', order: 5 },
         { id: '6', name: '해외여행자보험', link: '/insurance', order: 6 },
       ],
       companyInfo: {

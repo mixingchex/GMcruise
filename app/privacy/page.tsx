@@ -9,10 +9,11 @@ export const metadata: Metadata = {
 const COMPANY = {
   name: '크루즈닷',
   ceo: '배연성',
+  privacyOfficer: '전혜선',
   address: '경기도 화성시 효행로 1068, 603-A60호(병점동, 리더스프라자)',
   phone: '010-3289-3800',
   regNo: '714-57-00419',
-  email: 'cruise@cruisedot.co.kr',
+  email: 'jmonica@cruisedot.co.kr',
 };
 
 const sections = [
@@ -232,8 +233,8 @@ const sections = [
         <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
           <p className="font-semibold text-[#1a3a6b] mb-2">개인정보 보호책임자</p>
           <ul className="space-y-1 text-sm">
-            <li><span className="font-medium">성명:</span> {COMPANY.ceo}</li>
-            <li><span className="font-medium">직책:</span> 대표</li>
+            <li><span className="font-medium">성명:</span> {COMPANY.privacyOfficer}</li>
+            <li><span className="font-medium">직책:</span> 개인정보 보호책임자</li>
             <li><span className="font-medium">전화:</span> <a href={`tel:${COMPANY.phone.replace(/-/g, '')}`} className="text-[#1a3a6b] hover:underline">{COMPANY.phone}</a></li>
             <li><span className="font-medium">이메일:</span> <a href={`mailto:${COMPANY.email}`} className="text-[#1a3a6b] hover:underline">{COMPANY.email}</a></li>
           </ul>
@@ -333,7 +334,7 @@ export default function PrivacyPage() {
         <nav className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-8">
           <p className="font-semibold text-[#1a3a6b] mb-3 text-sm uppercase tracking-wide">목차</p>
           <ol className="grid sm:grid-cols-2 gap-1 text-sm">
-            {sections.map((s, i) => (
+            {sections.map((s) => (
               <li key={s.id}>
                 <a
                   href={`#${s.id}`}
