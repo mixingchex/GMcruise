@@ -54,6 +54,16 @@ export default function ContractSignPage() {
   // WO-CR-19: PDF 다운로드 상태
   const [downloading, setDownloading] = useState(false);
 
+  // AbortController refs — 컴포넌트 언마운트 시 진행 중인 요청 취소
+  const submitControllerRef = useRef<AbortController | null>(null);
+  const pdfControllerRef = useRef<AbortController | null>(null);
+  useEffect(() => {
+    return () => {
+      submitControllerRef.current?.abort();
+      pdfControllerRef.current?.abort();
+    };
+  }, []);
+
   // WO-LO-02: 로딩 타임아웃 5초
   useEffect(() => {
     if (!loading) return;
@@ -67,7 +77,8 @@ export default function ContractSignPage() {
 
   useEffect(() => {
     if (!token) return;
-    fetch(`/api/contracts/${token}`)
+    const controller = new AbortController();
+    fetch(`/api/contracts/${token}`, { signal: controller.signal })
       .then(async r => {
         const data = await r.json();
         if (!r.ok || !data.ok) {
@@ -82,8 +93,12 @@ export default function ContractSignPage() {
         }
         if (data.contract.isSigned) setStep('done');
       })
-      .catch(err => setError(err instanceof Error ? err.message : '계약서를 불러올 수 없습니다.'))
+      .catch(err => {
+        if ((err as Error)?.name === 'AbortError') return;
+        setError(err instanceof Error ? err.message : '계약서를 불러올 수 없습니다.');
+      })
       .finally(() => setLoading(false));
+    return () => controller.abort();
   }, [token]);
 
   // WO-CR-09: Canvas Retina DPI 수정
@@ -283,6 +298,10 @@ export default function ContractSignPage() {
   };
 
   const handleSubmit = async () => {
+    if (!contractorPhone.trim()) {
+      setSubmitError('계약자 연락처를 입력해주세요.');
+      return;
+    }
     if (!customerAddress.trim() || customerAddress.trim().length < 5) {
       setSubmitError('주소를 정확히 입력해주세요.');
       return;
@@ -307,6 +326,9 @@ export default function ContractSignPage() {
         .filter(c => c.name.trim() && c.phone.trim())
         .map(({ name, phone }) => ({ name, phone }));
 
+      submitControllerRef.current?.abort(); // 이전 요청 취소
+      const controller = new AbortController();
+      submitControllerRef.current = controller;
       const res = await fetch(`/api/contracts/${token}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -318,6 +340,7 @@ export default function ContractSignPage() {
           companions: validCompanions,
           marketingConsent: agreeMarketing,
         }),
+        signal: controller.signal,
       });
 
       const data = await res.json();
@@ -327,7 +350,8 @@ export default function ContractSignPage() {
       }
 
       setStep('done');
-    } catch {
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') return;
       setSubmitError('네트워크 오류가 발생했습니다.');
     } finally {
       setSubmitting(false);
@@ -349,7 +373,10 @@ export default function ContractSignPage() {
   const handlePdfDownload = async () => {
     setDownloading(true);
     try {
-      const res = await fetch(`/api/contracts/${token}/pdf`);
+      pdfControllerRef.current?.abort(); // 이전 요청 취소
+      const controller = new AbortController();
+      pdfControllerRef.current = controller;
+      const res = await fetch(`/api/contracts/${token}/pdf`, { signal: controller.signal });
       if (!res.ok) throw new Error('다운로드에 실패했습니다.');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -360,7 +387,8 @@ export default function ContractSignPage() {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 100);
       document.body.removeChild(a);
-    } catch {
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') return;
       setSubmitError('PDF 다운로드에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setDownloading(false);

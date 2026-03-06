@@ -117,7 +117,9 @@ export function generateTravelContractHTML(
   // 서명 영역
   const sigBox = (imgUrl?: string, label = '') => {
     if (imgUrl) {
-      return `<img src="${escapeHtml(imgUrl)}" style="max-height:60px;max-width:150px;object-fit:contain;" alt="${escapeHtml(label)}서명">`;
+      // data URL(base64)은 escapeHtml 금지 — ','가 '&#x2C;'로 변환되면 이미지 깨짐
+      const safeSrc = imgUrl.startsWith('data:image/') ? imgUrl : escapeHtml(imgUrl);
+      return `<img src="${safeSrc}" style="max-height:60px;max-width:150px;object-fit:contain;" alt="${escapeHtml(label)}서명">`;
     }
     return `<div style="display:inline-block;width:150px;height:55px;border:1px solid #bbb;border-radius:4px;"></div>`;
   };
@@ -154,6 +156,7 @@ export function generateTravelContractHTML(
   .terms-article { page-break-inside: avoid; }
   .cancel-table { page-break-inside: avoid; }
   .privacy-box { page-break-inside: avoid; }
+  .companion-table { page-break-inside: avoid; }
 
   /* Header */
   .contract-header {
@@ -626,6 +629,13 @@ export function generateTravelContractHTML(
       <p>주소: ${customerAddress ? escapeHtml(customerAddress) : '__________________ (계약서에 직접 기입)'}</p>
     </div>
   </div>
+  <!-- 여행자보관용 동행자 명단 -->
+  <div class="section-sub">여행자 명단 (동행자)</div>
+  <table class="companion-table">
+    <tr><th style="width:40px">번호</th><th>성명</th><th>연락처</th></tr>
+    ${companionRows}
+  </table>
+
   <div style="margin-top:10px;padding:8px 12px;border:1px solid #bbb;border-radius:6px;font-size:8.5pt;">
     <span style="font-weight:600;color:#1a3a6b;">계약자 확인 및 서명</span>
     <div class="sig-row" style="margin-top:6px;">

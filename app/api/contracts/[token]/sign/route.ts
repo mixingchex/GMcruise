@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 import { sendTravelContractSignedEmail, sendTravelContractCustomerEmail } from '@/lib/email';
 import { generateTravelContractPDF } from '@/lib/contracts/travel-contract-pdf';
 import { TravelContractDataSchema } from '@/lib/contracts/types';
-import { checkRateLimit } from '@/lib/rate-limiter';
+import { checkRateLimit, RateLimitPolicies } from '@/lib/rate-limiter';
 import { getClientIp } from '@/lib/ip-utils';
 
 // WO-CR-15: 동반자 타입 가드
@@ -27,9 +27,14 @@ export async function POST(
   try {
     const { token } = await params;
 
-    // WO-CR-06: Rate limiting (IP당 1분에 5회)
+    // 토큰 형식 검증 (GET/pdf 라우트와 동일 기준)
+    if (!token || token.length < 25 || !/^[a-zA-Z0-9_-]+$/.test(token)) {
+      return NextResponse.json({ ok: false, error: '유효하지 않은 토큰입니다.' }, { status: 400 });
+    }
+
+    // WO-CR-06: Rate limiting — LOGIN 정책(5분에 5회) 사용 (api 폴백 60회/분보다 엄격)
     const ip = getClientIp(request);
-    const { limited } = await checkRateLimit(`contract:sign:${ip}`, { limit: 5, windowMs: 60_000 });
+    const { limited } = await checkRateLimit(`contract:sign:${ip}`, RateLimitPolicies.LOGIN);
     if (limited) {
       return NextResponse.json(
         { ok: false, error: '너무 많은 시도입니다. 1분 후 다시 시도해주세요.' },
@@ -49,10 +54,13 @@ export async function POST(
       return NextResponse.json({ ok: false, error: '주소는 200자 이하로 입력해주세요.' }, { status: 400 });
     }
 
-    // contractorPhone 검증 (선택, 최대 20자)
+    // contractorPhone 검증 (선택, 숫자/공백/-/+/() 6~20자)
     if (contractorPhone !== undefined && contractorPhone !== null) {
       if (typeof contractorPhone !== 'string' || contractorPhone.length > 20) {
         return NextResponse.json({ ok: false, error: '연락처 형식이 올바르지 않습니다.' }, { status: 400 });
+      }
+      if (contractorPhone.trim() && !/^[\d\s\-+()]{6,20}$/.test(contractorPhone.trim())) {
+        return NextResponse.json({ ok: false, error: '연락처는 숫자, 공백, -, +, () 만 입력 가능합니다. (6~20자)' }, { status: 400 });
       }
     }
 
@@ -108,6 +116,7 @@ export async function POST(
     const signedAtDate = new Date();
 
     // TOCTOU 방지: atomic updateMany (pending 상태 + 만료되지 않은 계약서만 서명 처리)
+    // marketingConsent도 동일 트랜잭션에 포함하여 데이터 불일치 방지
     const result = await prisma.travelContract.updateMany({
       where: {
         token,
@@ -125,6 +134,7 @@ export async function POST(
         contractorSignature: body.contractorSignature || null,
         companions: companions || [],
         signedAt: signedAtDate,
+        marketingConsent: typeof marketingConsent === 'boolean' ? marketingConsent : null,
       },
     });
 
@@ -146,24 +156,19 @@ export async function POST(
       return NextResponse.json({ ok: false, error: '서명 처리 중 오류가 발생했습니다.' }, { status: 500 });
     }
 
-    // marketingConsent 저장 (옵셔널 — Prisma 스키마에 marketingConsent Boolean? 필드 존재)
-    // 마이그레이션: npx prisma migrate dev --name add_travel_contract_marketing_consent
-    if (typeof marketingConsent === 'boolean') {
-      await prisma.travelContract.update({
-        where: { token },
-        data: { marketingConsent },
-      }).catch((err: unknown) => {
-        logger.error('[ContractSign] marketingConsent 저장 실패', { error: err instanceof Error ? err.message : String(err) });
-      });
-    }
-
     // WO-CR-02: Fire-and-forget IIFE 제거 → 응답 전 동기 처리 (Vercel 실행 보장)
     const contract = await prisma.travelContract.findUnique({
       where: { token },
       select: { contractData: true, reservationId: true },
     });
 
-    if (contract) {
+    // updateMany 성공 후 findUnique null → read replica 지연 또는 동시 삭제 (좀비 서명 방지)
+    if (!contract) {
+      logger.error('[ContractSign] updateMany 성공 후 findUnique null — DB 불일치', { token: token.slice(0, 8) });
+      return NextResponse.json({ ok: false, error: '서명 처리 중 내부 오류가 발생했습니다.' }, { status: 500 });
+    }
+
+    {
       // WO-CR-08: Zod로 contractData 파싱
       const parseResult = TravelContractDataSchema.safeParse(contract.contractData);
       if (!parseResult.success) {
@@ -177,7 +182,9 @@ export async function POST(
             customerSignature: null,
             contractorSignature: null,
             customerAddress: null,
+            contractorPhone: null,
             companions: [],
+            marketingConsent: null,
           },
         }).catch((rollbackErr: unknown) => {
           const rollbackMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
@@ -207,7 +214,10 @@ export async function POST(
           );
 
           // 관리자 이메일 (실패해도 서명 자체는 성공)
-          const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_SMTP_USER || 'jmonica@cruisedot.co.kr';
+          const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_SMTP_USER;
+          if (!adminEmail) {
+            logger.warn('[ContractSign] ADMIN_EMAIL 미설정 — 관리자 이메일 발송 스킵', { token: token.slice(0, 8) });
+          }
           if (adminEmail) {
             await sendTravelContractSignedEmail({
               adminEmail,
@@ -242,7 +252,7 @@ export async function POST(
           const msg = err instanceof Error ? err.message : String(err);
           logger.error('[ContractSign] PDF 생성 실패 — DB rollback 시작', { token: token.slice(0, 8), error: msg });
 
-          // P0-02: PDF 생성 실패 시 DB 상태를 pending으로 rollback — WO-V3-03: companions/address도 초기화
+          // P0-02: PDF 생성 실패 시 DB 상태를 pending으로 rollback — WO-V3-03: companions/address/marketingConsent도 초기화
           await prisma.travelContract.update({
             where: { token },
             data: {
@@ -253,6 +263,7 @@ export async function POST(
               customerAddress: null,
               contractorPhone: null,
               companions: [],
+              marketingConsent: null,
             },
           }).catch((rollbackErr: unknown) => {
             const rollbackMsg = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);

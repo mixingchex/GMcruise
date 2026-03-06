@@ -145,6 +145,15 @@ export default function AdminPurchasedCustomersPage() {
   const [refundReason, setRefundReason] = useState('');
   const [processingRefund, setProcessingRefund] = useState(false);
 
+  // 여행계약서 모달
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [contractReservation, setContractReservation] = useState<Reservation | null>(null);
+  const [contractResult, setContractResult] = useState<{ signUrl: string; emailSent: boolean; message: string } | null>(null);
+  const [sendingContract, setSendingContract] = useState(false);
+  const [contractAlreadySigned, setContractAlreadySigned] = useState(false);
+  const [resendReason, setResendReason] = useState('');
+  const [resettingContract, setResettingContract] = useState(false);
+
   const loadReservations = useCallback(async () => {
     try {
       setLoading(true);
@@ -270,6 +279,124 @@ export default function AdminPurchasedCustomersPage() {
       showError('PNR 문자 발송 중 오류가 발생했습니다.');
     } finally {
       setSendingPnr(false);
+    }
+  };
+
+  // 여행계약서 발송 모달 열기 + 계약서 생성/갱신 요청
+  const handleOpenContractModal = async (reservation: Reservation) => {
+    setContractReservation(reservation);
+    setContractResult(null);
+    setContractAlreadySigned(false);
+    setResendReason('');
+    setShowContractModal(true);
+    setSendingContract(true);
+    try {
+      // 현재 계약서 상태 먼저 확인
+      const checkRes = await csrfFetch(`/api/admin/travel-contracts/${reservation.id}`, { method: 'GET' });
+      if (!checkRes.ok) {
+        throw new Error(`계약서 상태 확인 실패 (${checkRes.status})`);
+      }
+      const checkData = await checkRes.json();
+
+      if (checkData.ok && checkData.contract?.status === 'signed') {
+        // 이미 서명된 계약서 → 재발송 UI 표시
+        setContractAlreadySigned(true);
+        setSendingContract(false);
+        return;
+      }
+
+      // 서명 전이거나 계약서 없음 → 계약서 생성/갱신 및 이메일 발송
+      const res = await csrfFetch(`/api/admin/travel-contracts/${reservation.id}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        setContractResult({ signUrl: data.signUrl, emailSent: data.emailSent, message: data.message });
+      } else {
+        showError(data.error || '계약서 생성에 실패했습니다.');
+        setShowContractModal(false);
+        setContractReservation(null);
+        setContractResult(null);
+      }
+    } catch {
+      showError('계약서 생성 중 오류가 발생했습니다.');
+      setShowContractModal(false);
+      setContractReservation(null);
+      setContractResult(null);
+      setContractAlreadySigned(false);
+    } finally {
+      setSendingContract(false);
+    }
+  };
+
+  // 서명 취소 후 재발송
+  const handleResetAndResend = async () => {
+    if (!contractReservation) return;
+    setResettingContract(true);
+    try {
+      const resetRes = await csrfFetch(`/api/admin/travel-contracts/${contractReservation.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ reason: resendReason.trim() || undefined }),
+      });
+      const resetData = await resetRes.json();
+      if (!resetData.ok) {
+        showError(resetData.error || '계약서 취소에 실패했습니다.');
+        return;
+      }
+
+      setContractAlreadySigned(false);
+      setSendingContract(true);
+
+      const res = await csrfFetch(`/api/admin/travel-contracts/${contractReservation.id}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.ok) {
+        setContractResult({ signUrl: data.signUrl, emailSent: data.emailSent, message: data.message });
+      } else {
+        showError(data.error || '계약서 재발송에 실패했습니다.');
+        setShowContractModal(false);
+        setContractReservation(null);
+        setContractResult(null);
+      }
+    } catch {
+      showError('계약서 재발송 중 오류가 발생했습니다.');
+      setShowContractModal(false);
+      setContractReservation(null);
+      setContractResult(null);
+      setContractAlreadySigned(false);
+    } finally {
+      setResettingContract(false);
+      setSendingContract(false);
+    }
+  };
+
+  // 서명 링크 복사
+  const handleCopyContractLink = async () => {
+    if (!contractResult?.signUrl) return;
+    try {
+      await navigator.clipboard.writeText(contractResult.signUrl);
+      showSuccess('서명 링크가 복사되었습니다.');
+    } catch {
+      showError('링크 복사에 실패했습니다.');
+    }
+  };
+
+  // 카카오톡 메시지 복사
+  const handleCopyKakaoMessage = async () => {
+    if (!contractResult?.signUrl || !contractReservation) return;
+    const customerName = contractReservation.user?.name || '고객';
+    const productName = contractReservation.trip?.product?.packageName || '상품';
+    const message = `[크루즈닷] 여행계약서 서명 요청
+
+안녕하세요, ${customerName}님!
+${productName} 여행계약서 서명을 요청드립니다.
+
+아래 링크에서 내용 확인 후 서명해주세요:
+${contractResult.signUrl}
+
+문의: 크루즈닷 010-3289-3800`;
+    try {
+      await navigator.clipboard.writeText(message);
+      showSuccess('카카오톡 메시지가 복사되었습니다. 카카오톡에 붙여넣기 하세요!');
+    } catch {
+      showError('메시지 복사에 실패했습니다.');
     }
   };
 
@@ -940,6 +1067,16 @@ export default function AdminPurchasedCustomersPage() {
                               시트
                             </a>
                           )}
+                          {/* 계약서 보내기 */}
+                          <button
+                            onClick={() => handleOpenContractModal(reservation)}
+                            disabled={sendingContract || resettingContract}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                            title="여행계약서 보내기"
+                          >
+                            <FiMessageSquare className="text-xs" />
+                            계약서
+                          </button>
                           {/* 환불 버튼 - 결제완료 상태일 때만 표시 */}
                           {reservation.payment && reservation.payment.status === 'paid' && !reservation.saleRefundedAt && (
                             <button
@@ -1429,6 +1566,18 @@ export default function AdminPurchasedCustomersPage() {
                 )}
                 2. 여권 요청 보내기
               </button>
+              {/* 3. 여행계약서 발송 */}
+              <button
+                onClick={() => {
+                  setShowDetailModal(false);
+                  handleOpenContractModal(selectedReservation);
+                }}
+                disabled={sendingContract || resettingContract}
+                className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors inline-flex items-center gap-2"
+              >
+                <FiMessageSquare />
+                3. 계약서 보내기
+              </button>
             </div>
           </div>
         </div>
@@ -1566,6 +1715,182 @@ export default function AdminPurchasedCustomersPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 여행계약서 모달 */}
+      {showContractModal && contractReservation && (
+        <div
+          className="fixed inset-0 z-[1001] flex items-center justify-center bg-black bg-opacity-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !sendingContract && !resettingContract) {
+              setShowContractModal(false);
+              setContractReservation(null);
+              setContractResult(null);
+              setContractAlreadySigned(false);
+              setResendReason('');
+            }
+          }}
+        >
+          <div
+            className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-200 bg-indigo-50 px-6 py-4 rounded-t-2xl">
+              <div>
+                <h3 className="text-xl font-bold text-indigo-800">여행계약서 보내기</h3>
+                <p className="text-sm text-indigo-600 mt-1">
+                  {contractReservation.user?.name || '고객'}님 · {contractReservation.trip?.product?.packageName || '상품'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  if (!sendingContract && !resettingContract) {
+                    setShowContractModal(false);
+                    setContractReservation(null);
+                    setContractResult(null);
+                    setContractAlreadySigned(false);
+                    setResendReason('');
+                  }
+                }}
+                className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40"
+                disabled={sendingContract || resettingContract}
+              >
+                <FiX className="text-xl" />
+              </button>
+            </div>
+
+            {/* 내용 */}
+            <div className="px-6 py-6">
+              {sendingContract ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-4 text-indigo-700">
+                  <FiRefreshCw className="animate-spin text-4xl" />
+                  <p className="font-semibold">계약서 생성 중...</p>
+                </div>
+              ) : contractAlreadySigned ? (
+                <div className="space-y-5">
+                  {/* 이미 서명된 상태 안내 */}
+                  <div className="flex items-start gap-3 rounded-lg p-4 bg-blue-50 border border-blue-200">
+                    <FiCheckCircle className="text-blue-600 text-xl flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-semibold text-blue-800">이미 서명이 완료된 계약서입니다</p>
+                      <p className="text-sm mt-0.5 text-blue-700">
+                        서명을 취소하고 새 계약서를 재발송할 수 있습니다.<br />
+                        취소 시 기존 서명 데이터는 모두 삭제됩니다.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 취소 사유 입력 */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">
+                      취소 사유 <span className="text-gray-400 font-normal">(선택)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={resendReason}
+                      onChange={(e) => setResendReason(e.target.value)}
+                      placeholder="예: 계약 내용 수정 필요"
+                      maxLength={200}
+                      disabled={resettingContract}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-50"
+                    />
+                  </div>
+
+                  {/* 재발송 버튼 */}
+                  <button
+                    onClick={handleResetAndResend}
+                    disabled={resettingContract}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-4 py-3 text-sm font-bold text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
+                  >
+                    {resettingContract ? (
+                      <><FiRefreshCw className="animate-spin" /> 처리 중...</>
+                    ) : (
+                      <><FiSend /> 서명 취소 후 재발송</>
+                    )}
+                  </button>
+                </div>
+              ) : contractResult ? (
+                <div className="space-y-5">
+                  {/* 이메일 발송 결과 */}
+                  <div className={`flex items-start gap-3 rounded-lg p-4 ${contractResult.emailSent ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                    {contractResult.emailSent ? (
+                      <FiCheckCircle className="text-green-600 text-xl flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <FiAlertCircle className="text-yellow-600 text-xl flex-shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <p className={`font-semibold ${contractResult.emailSent ? 'text-green-800' : 'text-yellow-800'}`}>
+                        {contractResult.emailSent ? '이메일 발송 완료' : '이메일 미발송 (이메일 없음)'}
+                      </p>
+                      <p className={`text-sm mt-0.5 ${contractResult.emailSent ? 'text-green-700' : 'text-yellow-700'}`}>
+                        {contractResult.emailSent
+                          ? `${contractReservation.user?.email}로 서명 요청 이메일을 발송했습니다.`
+                          : '고객 이메일이 없어 카카오톡으로 링크를 전달해주세요.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 서명 링크 */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">서명 링크</p>
+                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                      <p className="flex-1 text-xs text-gray-600 truncate font-mono">{contractResult.signUrl}</p>
+                      <button
+                        onClick={handleCopyContractLink}
+                        className="flex-shrink-0 inline-flex items-center gap-1 rounded-md bg-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-300 transition-colors"
+                      >
+                        <FiCopy className="text-xs" />
+                        링크 복사
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 카카오톡 메시지 복사 */}
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">카카오톡으로 보내기</p>
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-gray-700 whitespace-pre-wrap font-mono text-xs leading-relaxed">
+{`[크루즈닷] 여행계약서 서명 요청
+
+안녕하세요, ${contractReservation.user?.name || '고객'}님!
+${contractReservation.trip?.product?.packageName || '상품'} 여행계약서 서명을 요청드립니다.
+
+아래 링크에서 내용 확인 후 서명해주세요:
+${contractResult.signUrl}
+
+문의: 크루즈닷 010-3289-3800`}
+                    </div>
+                    <button
+                      onClick={handleCopyKakaoMessage}
+                      className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-yellow-400 px-4 py-2.5 text-sm font-bold text-yellow-900 hover:bg-yellow-500 transition-colors"
+                    >
+                      <FiCopy />
+                      카카오톡 메시지 복사
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {/* 하단 버튼 */}
+            {!sendingContract && !resettingContract && (contractResult || contractAlreadySigned) && (
+              <div className="flex items-center justify-end border-t border-gray-200 bg-gray-50 px-6 py-4 rounded-b-2xl">
+                <button
+                  onClick={() => {
+                    setShowContractModal(false);
+                    setContractReservation(null);
+                    setContractResult(null);
+                    setContractAlreadySigned(false);
+                    setResendReason('');
+                  }}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  닫기
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

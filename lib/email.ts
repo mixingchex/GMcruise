@@ -866,3 +866,59 @@ export async function sendTravelContractCustomerEmail(data: {
     return false;
   }
 }
+
+/**
+ * 여행계약서 서명 요청 시 고객에게 서명 링크 이메일 전송
+ */
+export async function sendTravelContractRequestEmail(data: {
+  customerEmail: string;
+  customerName: string;
+  productName: string;
+  signUrl: string;
+  expiresAt: Date;
+}): Promise<boolean> {
+  try {
+    const transporter = getEmailTransporter();
+    if (!transporter) {
+      logger.warn('[TravelContractEmail] SMTP 미설정, 서명요청 이메일 건너뜀');
+      return false;
+    }
+    const smtpFrom = process.env.EMAIL_SMTP_FROM || process.env.EMAIL_SMTP_USER || 'noreply@cruisedot.co.kr';
+    const expiresStr = data.expiresAt.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    const mailOptions = {
+      from: `크루즈닷 <${smtpFrom}>`,
+      to: data.customerEmail,
+      subject: `[크루즈닷] 여행계약서 서명을 요청드립니다`,
+      html: `
+        <div style="font-family:'Malgun Gothic',sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <h2 style="color:#1a3a6b;border-bottom:2px solid #c9a84c;padding-bottom:10px;">여행계약서 서명 요청</h2>
+          <p>안녕하세요, <strong>${escapeHtml(data.customerName)}</strong>님.</p>
+          <p><strong>${escapeHtml(data.productName)}</strong> 여행계약서 서명을 요청드립니다.</p>
+          <p>아래 버튼을 클릭하시면 계약서 내용을 확인하고 서명하실 수 있습니다.</p>
+          <div style="margin:28px 0;text-align:center;">
+            <a href="${escapeHtml(data.signUrl)}" style="background:#c9a84c;color:#fff;padding:14px 32px;text-decoration:none;border-radius:8px;display:inline-block;font-size:16px;font-weight:bold;">계약서 서명하기</a>
+          </div>
+          <div style="background:#f0f4fa;border-radius:8px;padding:14px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#444;">
+              📅 서명 마감일: <strong>${expiresStr}</strong><br>
+              🔗 서명 링크: <a href="${escapeHtml(data.signUrl)}" style="color:#1a3a6b;">${escapeHtml(data.signUrl)}</a>
+            </p>
+          </div>
+          <p style="color:#888;font-size:12px;">버튼이 작동하지 않으면 위 링크를 복사하여 브라우저에 붙여넣기 해주세요.</p>
+          <p style="color:#888;font-size:12px;margin-top:10px;">문의: 크루즈닷 010-3289-3800</p>
+          <p style="color:#bbb;font-size:11px;margin-top:20px;border-top:1px solid #eee;padding-top:12px;">이 이메일은 자동으로 발송된 메일입니다.</p>
+        </div>
+      `,
+    };
+    const info = await transporter.sendMail(mailOptions);
+    logger.log('[TravelContractEmail] 서명요청 이메일 발송 성공', {
+      messageId: info.messageId,
+    });
+    return true;
+  } catch (error: any) {
+    logger.error('[TravelContractEmail] 서명요청 이메일 발송 실패', {
+      error: error.message,
+    });
+    return false;
+  }
+}

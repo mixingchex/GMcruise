@@ -7,6 +7,7 @@ import { checkAdminAuth } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { STANDARD_CRUISE_CANCELLATION_POLICY } from '@/lib/contracts/travel-contract-generator';
 import type { TravelContractData } from '@/lib/contracts/types';
+import { sendTravelContractRequestEmail } from '@/lib/email';
 
 export async function GET(
   request: NextRequest,
@@ -36,9 +37,11 @@ export async function GET(
         signedAt: true,
         contractData: true,
         customerAddress: true,
+        contractorPhone: true,
         companions: true,
         generatedAt: true,
         pdfUrl: true,
+        marketingConsent: true,
         createdAt: true,
         updatedAt: true,
         customerSignature: true,
@@ -212,27 +215,46 @@ export async function POST(
       }, { status: 409 });
     }
 
-    // 새로 만들 때만 토큰 생성 (기존 계약서는 토큰 유지)
-    const token = existingContract?.token || randomBytes(32).toString('hex');
-
-    // Upsert (이미 있으면 갱신, token은 update에 포함하지 않음)
-    const contract = await prisma.travelContract.upsert({
-      where: { reservationId: resId },
-      update: {
-        contractData,
-        status: 'pending',
-        expiresAt,
-        customerSignature: null,
-        signedAt: null,
-      },
-      create: {
-        reservationId: resId,
-        token,
-        contractData,
-        status: 'pending',
-        expiresAt,
-      },
-    });
+    // TOCTOU 방지: upsert 대신 updateMany(guard) + create 분리 패턴
+    // updateMany where { status: { not: 'signed' } } → findUnique와 updateMany 사이에
+    // 동시 서명이 발생하면 count=0으로 감지하여 409 반환
+    let contract;
+    if (existingContract) {
+      const updateResult = await prisma.travelContract.updateMany({
+        where: { reservationId: resId, status: { not: 'signed' } },
+        data: {
+          contractData,
+          status: 'pending',
+          expiresAt,
+          customerSignature: null,
+          signedAt: null,
+        },
+      });
+      if (updateResult.count === 0) {
+        // findUnique와 updateMany 사이에 동시 서명 발생
+        return NextResponse.json({
+          ok: false,
+          error: '계약서가 방금 서명되었습니다. 취소 후 재발송하세요.',
+        }, { status: 409 });
+      }
+      const updated = await prisma.travelContract.findUnique({ where: { reservationId: resId } });
+      if (!updated) {
+        return NextResponse.json({ ok: false, error: '계약서 갱신 후 조회 실패' }, { status: 500 });
+      }
+      contract = updated;
+    } else {
+      const newToken = randomBytes(32).toString('hex');
+      contract = await prisma.travelContract.create({
+        data: {
+          reservationId: resId,
+          token: newToken,
+          contractData,
+          status: 'pending',
+          expiresAt,
+          companions: [],
+        },
+      });
+    }
 
     // 서명 링크 생성
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cruisedot.co.kr';
@@ -244,11 +266,39 @@ export async function POST(
       adminId: auth.user?.id,
     });
 
+    // 고객 이메일 있으면 서명 요청 이메일 자동발송 (실패해도 계약서 생성 성공)
+    let emailSent = false;
+    const customerEmail = reservation.User?.email;
+    if (customerEmail) {
+      emailSent = await sendTravelContractRequestEmail({
+        customerEmail,
+        customerName: contractData.mainTravelerName,
+        productName: contractData.productName,
+        signUrl,
+        expiresAt,
+      }).catch((err: unknown) => {
+        logger.error('[TravelContract POST] 서명요청 이메일 발송 실패', {
+          reservationId: resId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return false;
+      });
+    }
+
+    // GET 응답과 동일하게 서명 이미지 마스킹 — PII 최소 노출
+    const { customerSignature, contractorSignature, ...safeContract } = contract;
     return NextResponse.json({
       ok: true,
-      contract,
+      contract: {
+        ...safeContract,
+        hasCustomerSignature: !!customerSignature,
+        hasContractorSignature: !!contractorSignature,
+      },
       signUrl,
-      message: '계약서가 생성되었습니다.',
+      emailSent,
+      message: emailSent
+        ? '계약서가 생성되고 서명 요청 이메일이 발송되었습니다.'
+        : '계약서가 생성되었습니다.',
     });
   } catch (error: unknown) {
     // P2-05: Unique Constraint 충돌 (동시 요청 등으로 P2002 발생 시)
@@ -258,5 +308,81 @@ export async function POST(
     const msg = error instanceof Error ? error.message : String(error);
     logger.error('[TravelContract POST]', { error: msg });
     return NextResponse.json({ ok: false, error: '계약서 생성 실패' }, { status: 500 });
+  }
+}
+
+// PUT /api/admin/travel-contracts/[reservationId]
+// 서명된 계약서를 pending으로 리셋 (재발송 전처리)
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ reservationId: string }> }
+) {
+  try {
+    const auth = await checkAdminAuth();
+    if (!auth.isAdmin) {
+      return NextResponse.json({ ok: false, error: '권한이 없습니다.' }, { status: 401 });
+    }
+
+    const { reservationId } = await params;
+    const resId = parseInt(reservationId, 10);
+    if (isNaN(resId) || resId <= 0) {
+      return NextResponse.json({ ok: false, error: 'Invalid reservationId' }, { status: 400 });
+    }
+
+    const sessionUser = auth.user;
+    if (sessionUser?.role === 'partner') {
+      return NextResponse.json({ ok: false, error: '권한이 없습니다.' }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const reason = typeof body?.reason === 'string' ? body.reason.slice(0, 200).trim() : '';
+
+    // signed 상태인 계약서만 리셋 허용 (TOCTOU 방지: updateMany)
+    // expiresAt도 now+7일로 갱신 — 리셋 후 기존 만료 기한이 단축되지 않도록
+    const resetExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const result = await prisma.travelContract.updateMany({
+      where: {
+        reservationId: resId,
+        status: 'signed',
+      },
+      data: {
+        status: 'pending',
+        expiresAt: resetExpiresAt,
+        customerSignature: null,
+        contractorSignature: null,
+        customerAddress: null,
+        contractorPhone: null,
+        companions: [],
+        signedAt: null,
+        marketingConsent: null,
+        pdfUrl: null,
+      },
+    });
+
+    if (result.count === 0) {
+      const existing = await prisma.travelContract.findUnique({
+        where: { reservationId: resId },
+        select: { status: true },
+      });
+      if (!existing) {
+        return NextResponse.json({ ok: false, error: '계약서를 찾을 수 없습니다.' }, { status: 404 });
+      }
+      return NextResponse.json({
+        ok: false,
+        error: `서명된 계약서가 없습니다. 현재 상태: ${existing.status}`,
+      }, { status: 409 });
+    }
+
+    logger.info('[TravelContract PUT] 계약서 서명 취소 (재발송용)', {
+      reservationId: resId,
+      adminId: sessionUser?.id,
+      ...(reason ? { reason } : {}),
+    });
+
+    return NextResponse.json({ ok: true, message: '계약서가 초기화되었습니다.' });
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error('[TravelContract PUT]', { error: msg });
+    return NextResponse.json({ ok: false, error: '계약서 초기화 실패' }, { status: 500 });
   }
 }

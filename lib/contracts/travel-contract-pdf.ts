@@ -35,7 +35,7 @@ async function getBrowser() {
     const chromium = (await import('@sparticuz/chromium')).default;
     return puppeteer.launch({
       args: chromium.args,
-      defaultViewport: { width: 1280, height: 720 },
+      defaultViewport: { width: 1240, height: 720 },
       executablePath: await chromium.executablePath(),
       headless: true,
     });
@@ -62,6 +62,9 @@ async function getBrowser() {
   return puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 }
 
+// Vercel 60s limit보다 15s 여유 — 이 시간 초과 시 caller의 catch/rollback이 실행됨
+const PDF_TIMEOUT_MS = 45_000;
+
 /** WO-CR-05: withPdfLimit으로 동시 실행 최대 2개 제한 */
 export async function generateTravelContractPDF(
   data: TravelContractData,
@@ -72,60 +75,84 @@ export async function generateTravelContractPDF(
   signedAt?: Date, // WO-CR-13
   contractorPhone?: string, // 서명 시 고객이 확인/수정한 연락처
 ): Promise<Buffer> {
-  return withPdfLimit(async () => {
-    const html = generateTravelContractHTML(
-      data,
-      signatureImageUrl,
-      contractorSignatureUrl,
-      customerAddress,
-      companions,
-      signedAt,
-      contractorPhone,
-    );
+  // 타임아웃 시 browser 명시 종료를 위한 ref — 고아 프로세스 방지
+  let browserRef: Awaited<ReturnType<typeof getBrowser>> | null = null;
+  let timedOut = false;
 
-    const fontStyle = getCustomFontStyle();
-
-    const browser = await getBrowser();
-    try {
-      // WO-HI-01: page.close()를 try-finally로 보장
-      const page = await browser.newPage();
-      try {
-        // WO-LO-04: waitUntil 'load' → 'domcontentloaded' (외부 네트워크 의존 없음)
-        await page.setContent(html, { waitUntil: 'domcontentloaded' });
-        // 배민도현체 @font-face 주입 (base64 임베드, 네트워크 불필요)
-        if (fontStyle) {
-          await page.addStyleTag({ content: fontStyle });
-        }
-        // WO-CR-04 / P0-07: 폰트 렌더링 완료 대기 — timeout 시 warn 후 계속 진행
-        try {
-          await Promise.race([
-            page.evaluateHandle('document.fonts.ready'),
-            new Promise<never>((_, reject) =>
-              setTimeout(() => reject(new Error('Font loading timeout after 3s')), 3000)
-            ),
-          ]);
-        } catch (fontErr) {
-          // 폰트 로딩 실패해도 계속 진행 (시스템 폰트로 렌더링)
-          logger.warn('[PDF] 폰트 로딩 타임아웃 - 시스템 폰트로 대체', {
-            error: fontErr instanceof Error ? fontErr.message : String(fontErr),
-          });
-        }
-        const pdfBuffer = await page.pdf({
-          format: 'A4',
-          printBackground: true,
-          margin: { top: '0', bottom: '0', left: '0', right: '0' },
-        });
-        return Buffer.from(pdfBuffer);
-      } finally {
-        await page.close().catch(err =>
-          logger.warn('[PDF] page.close 실패', { error: err instanceof Error ? err.message : String(err) })
-        );
-      }
-    } finally {
-      // WO-V3-02: browser.close() 에러 핸들링 — page.close()와 동일 패턴
-      await browser.close().catch((err: unknown) =>
-        logger.warn('[PDF] browser.close 실패', { error: err instanceof Error ? err.message : String(err) })
+  // 큐 대기 + 생성 전체를 45s 내에 완료해야 함 (Vercel 60s kill 이전에 catch/rollback 보장)
+  return Promise.race([
+    withPdfLimit(async () => {
+      const html = generateTravelContractHTML(
+        data,
+        signatureImageUrl,
+        contractorSignatureUrl,
+        customerAddress,
+        companions,
+        signedAt,
+        contractorPhone,
       );
-    }
-  });
+
+      const fontStyle = getCustomFontStyle();
+
+      const browser = await getBrowser();
+      browserRef = browser;
+
+      // timeout이 getBrowser() 완료 전에 발생한 경우 즉시 종료
+      if (timedOut) {
+        await browser.close().catch(() => {});
+        throw new Error('PDF generation aborted (timeout)');
+      }
+
+      try {
+        // WO-HI-01: page.close()를 try-finally로 보장
+        const page = await browser.newPage();
+        try {
+          // WO-LO-04: waitUntil 'load' → 'domcontentloaded' (외부 네트워크 의존 없음)
+          await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+          // 배민도현체 @font-face 주입 (base64 임베드, 네트워크 불필요)
+          if (fontStyle) {
+            await page.addStyleTag({ content: fontStyle });
+          }
+          // WO-CR-04 / P0-07: 폰트 렌더링 완료 대기 — timeout 시 warn 후 계속 진행
+          try {
+            await Promise.race([
+              page.evaluateHandle('document.fonts.ready'),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('Font loading timeout after 3s')), 3000)
+              ),
+            ]);
+          } catch (fontErr) {
+            // 폰트 로딩 실패해도 계속 진행 (시스템 폰트로 렌더링)
+            logger.warn('[PDF] 폰트 로딩 타임아웃 - 시스템 폰트로 대체', {
+              error: fontErr instanceof Error ? fontErr.message : String(fontErr),
+            });
+          }
+          const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            margin: { top: '0', bottom: '0', left: '0', right: '0' },
+          });
+          return Buffer.from(pdfBuffer);
+        } finally {
+          await page.close().catch(err =>
+            logger.warn('[PDF] page.close 실패', { error: err instanceof Error ? err.message : String(err) })
+          );
+        }
+      } finally {
+        // WO-V3-02: browser.close() 에러 핸들링 — page.close()와 동일 패턴
+        await browser.close().catch((err: unknown) =>
+          logger.warn('[PDF] browser.close 실패', { error: err instanceof Error ? err.message : String(err) })
+        );
+        browserRef = null;
+      }
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => {
+        timedOut = true;
+        // browser가 이미 생성된 경우 명시적 종료 (고아 프로세스 방지)
+        browserRef?.close().catch(() => {});
+        reject(new Error('PDF generation timeout — Vercel 60s limit 초과 방지'));
+      }, PDF_TIMEOUT_MS)
+    ),
+  ]);
 }

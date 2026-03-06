@@ -55,6 +55,8 @@ export async function GET(
       contract.contractorSignature || undefined,
       contract.customerAddress || undefined,
       companions,
+      contract.signedAt || undefined,
+      contract.contractorPhone || undefined,
     );
 
     const safeName = contractData.productName.replace(/[^가-힣a-zA-Z0-9]/g, '_').slice(0, 30);

@@ -32,6 +32,7 @@ export async function GET(
         customerSignature: true,
         contractorSignature: true,
         customerAddress: true,
+        contractorPhone: true,
         companions: true,
         signedAt: true,
         expiresAt: true,
@@ -88,6 +89,7 @@ export async function GET(
       contract.customerAddress || undefined,
       companions,
       contract.signedAt ? new Date(contract.signedAt) : undefined,
+      contract.contractorPhone || undefined,
     );
 
     // WO-ME-08: PDF 파일명 sanitize
