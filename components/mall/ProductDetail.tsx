@@ -1352,18 +1352,20 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                     {finalDestination.length}개국{portLocations.length > 0 ? ` · ${portLocations.length}개 지역` : ''}
                   </p>
                 )}
-                {/* 방문 국가 + 기항지 배지 */}
+                {/* 방문 국가 + 기항지 배지 — 기항지별 개별 블록 (모바일 가독성) */}
                 {portsByCountry.length > 0 ? (
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {portsByCountry.map(({ country, ports }) => (
-                      <span
-                        key={country || ports[0]}
-                        className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                        style={{ wordBreak: 'keep-all' }}
-                      >
-                        {country ? `${country} - ${ports.join(', ')}` : ports.join(', ')}
-                      </span>
-                    ))}
+                    {portsByCountry.flatMap(({ country, ports }) =>
+                      ports.map(port => (
+                        <span
+                          key={`${country}-${port}`}
+                          className="px-3 py-1.5 md:px-4 md:py-2 bg-[#051C2C] text-white rounded-full text-xs md:text-sm font-semibold hover:bg-[#0A2E46] transition-colors shadow-md"
+                          style={{ wordBreak: 'keep-all', whiteSpace: 'nowrap' }}
+                        >
+                          {country ? `${country} · ${port}` : port}
+                        </span>
+                      ))
+                    )}
                   </div>
                 ) : finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
