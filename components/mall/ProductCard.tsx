@@ -124,6 +124,16 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
     });
     return ports.size;
   })();
+
+  // 국가 수 (layout.destination에서 추출 — 관리자가 설정한 방문 국가 배열)
+  const countryCount = (() => {
+    const dest = layout?.destination;
+    if (Array.isArray(dest)) return dest.length;
+    if (typeof dest === 'string') {
+      try { const p = JSON.parse(dest); return Array.isArray(p) ? p.length : 0; } catch { return 0; }
+    }
+    return 0;
+  })();
   // [WO-LEGAL-FE-01] 가짜 기본값 제거 — 표시광고법 위반 방지 (null: 별점 섹션 미표시)
   const rating = layout?.rating ?? product.rating ?? null;
   const reviewCount = layout?.reviewCount ?? product.reviewCount ?? 0;
@@ -261,7 +271,11 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
           <span className="whitespace-nowrap font-semibold text-[#0A2342]">{product.nights}박 {product.days}일</span>
           <span className="text-gray-300">·</span>
           <span className="line-clamp-1 flex-1 min-w-0 text-[#1B5FA8] font-bold">
-            {portCount > 0 ? `${portCount}개 지역` : getDestinations()}
+            {countryCount > 0 && portCount > 0
+              ? `${countryCount}개국 · ${portCount}개 지역`
+              : portCount > 0
+              ? `${portCount}개 지역`
+              : getDestinations()}
           </span>
           {(product as any).category && (
             <>
