@@ -107,11 +107,12 @@ export default function DateRangePicker({
     }
 
     if (from && to) {
-      // react-day-picker v9: 첫 클릭 시 { from: date, to: date } 반환
-      // → {from, to: undefined}로 바꾸면 v9가 다음 클릭을 "새 범위 시작"으로 처리해버려 두 번째 클릭이 무시됨
-      // → {from, to} (같은 날짜)를 유지해야 v9 내부 상태머신이 "범위 완성 대기"로 동작
+      // react-day-picker v9: 첫 클릭 시 { from: date, to: date } 반환하는 경우 처리
+      // {from, to} (full range)로 유지하면 v9가 두 번째 클릭을 "새 범위 재시작"으로 보고
+      // {from: newDate, to: newDate}를 반환 → 루프 발생
+      // {from, to: undefined}로 설정해야 v9가 "partial range" 경로로 진입해 정상 완성됨
       if (from.getTime() === to.getTime()) {
-        setSelectedRange({ from, to }); // to 유지 (v9 state machine 보존)
+        setSelectedRange({ from, to: undefined });
         return;
       }
 
@@ -243,7 +244,7 @@ export default function DateRangePicker({
                         : formatDate(startDate)}
                     </span>
                   </div>
-                  {selectedRange?.to && selectedRange.from?.getTime() !== selectedRange.to.getTime() && (
+                  {selectedRange?.to && (
                     <>
                       <span className="text-gray-400">→</span>
                       <div>
@@ -254,7 +255,7 @@ export default function DateRangePicker({
                       </div>
                     </>
                   )}
-                  {selectedRange?.from && (!selectedRange?.to || selectedRange.from.getTime() === selectedRange.to.getTime()) && (
+                  {selectedRange?.from && !selectedRange?.to && (
                     <div className="text-gray-500 text-sm">
                       (종료일을 선택하세요)
                     </div>
