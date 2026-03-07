@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { FiX, FiAlertCircle, FiExternalLink, FiRefreshCw } from 'react-icons/fi';
 import ProductDetail from '@/components/mall/ProductDetail';
 
@@ -17,6 +17,7 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
   const [product, setProduct] = useState<any>(productProp || null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [forceRefresh, setForceRefresh] = useState(0);
+  const loadProductAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (isOpen && productCode) {
@@ -33,12 +34,17 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
         setIsLoading(false);
       }
     }
+    return () => { loadProductAbortRef.current?.abort(); };
   }, [isOpen, productCode, productProp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadProduct = async () => {
+    loadProductAbortRef.current?.abort();
+    const ac = new AbortController();
+    loadProductAbortRef.current = ac;
     try {
       const res = await fetch(`/api/admin/products/${productCode}`, {
-        credentials: 'include'
+        credentials: 'include',
+        signal: ac.signal,
       });
 
       if (!res.ok) {
@@ -54,6 +60,7 @@ export default function ProductPreviewModal({ isOpen, onClose, productCode, prod
         throw new Error('상품 데이터를 찾을 수 없습니다.');
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Failed to load product:', error);
       setIsLoading(false);
       setHasError(true);

@@ -13,6 +13,7 @@ import { getKoreanCruiseLineName, getKoreanShipName, formatTravelPeriod } from '
 import { Option } from '@/components/CountrySelect';
 import { normalize } from '@/utils/normalize';
 import ProductTagsSelector from '@/components/admin/ProductTagsSelector';
+import { CRUISE_COUNTRIES } from '@/lib/shared/countries';
 import AutocompleteInput from '@/components/admin/AutocompleteInput';
 import CountrySelector from '@/components/admin/CountrySelector';
 import { getAllCruiseLines, getAllShipNames, searchCruiseLinesAndShips } from '@/lib/cruise-data';
@@ -327,17 +328,11 @@ export default function ProductsManagementPage() {
   // 고유한 방문 국가 목록 (필터용)
   const uniqueCountries = useMemo(() => {
     const countries = new Set<string>();
-    const countryNames: Record<string, string> = {
-      'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-      'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-      'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-      'PH': '필리핀', 'ID': '인도네시아', 'NO': '노르웨이', 'HR': '크로아티아'
-    };
     products.forEach(p => {
       if (p.itineraryPattern && Array.isArray(p.itineraryPattern)) {
         p.itineraryPattern.forEach((day: any) => {
           if (day.country && day.country !== 'KR') {
-            const countryName = countryNames[day.country] || day.country;
+            const countryName = CRUISE_COUNTRIES[day.country] || day.country;
             if (countryName) countries.add(countryName);
           }
         });
@@ -377,15 +372,9 @@ export default function ProductsManagementPage() {
     if (countryFilter !== 'all') {
       filtered = filtered.filter(p => {
         if (!p.itineraryPattern || !Array.isArray(p.itineraryPattern)) return false;
-        const countryNames: Record<string, string> = {
-          'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-          'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-          'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-          'PH': '필리핀', 'ID': '인도네시아', 'NO': '노르웨이', 'HR': '크로아티아'
-        };
         return p.itineraryPattern.some((day: any) => {
           const countryCode = day.country;
-          const countryName = countryNames[countryCode] || countryCode;
+          const countryName = CRUISE_COUNTRIES[countryCode] || countryCode;
           return countryName === countryFilter || countryCode === countryFilter;
         });
       });
@@ -2205,18 +2194,12 @@ export default function ProductsManagementPage() {
                         {(() => {
                           const itineraryPattern = Array.isArray(product.itineraryPattern) ? product.itineraryPattern : [];
                           const countries = new Set<string>();
-                          const countryNames: Record<string, string> = {
-                            'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-                            'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-                            'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-                            'PH': '필리핀', 'ID': '인도네시아'
-                          };
                           itineraryPattern.forEach((day: any) => {
                             if (day.country && day.country !== 'KR' && (day.type === 'PortVisit' || day.type === 'Embarkation' || day.type === 'Disembarkation')) {
                               countries.add(day.country);
                             }
                           });
-                          const countryList = Array.from(countries).map(code => countryNames[code] || code).join(', ');
+                          const countryList = Array.from(countries).map(code => CRUISE_COUNTRIES[code] || code).join(', ');
                           return countryList ? (
                             <div className="text-sm text-gray-600 mb-2">
                               <span className="font-semibold">🌍 방문 국가:</span> {countryList}

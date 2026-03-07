@@ -7,6 +7,7 @@ export const runtime = 'nodejs';  // Edge Runtime 금지 (Prisma 사용)
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { CRUISE_COUNTRIES } from '@/lib/shared/countries';
 
 const MAX_LIMIT = 1000; // 연관검색어 기반 전체 상품 로드 지원 (CruiseSearchBlock limit=1000 요청 대응)
 
@@ -974,17 +975,10 @@ export async function GET(req: NextRequest) {
           if (Array.isArray(pattern)) {
             // 각 일정에서 country 필드 추출 (중복 제거)
             const countries = new Set<string>();
-            const countryNames: Record<string, string> = {
-              'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-              'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-              'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-              'PH': '필리핀', 'ID': '인도네시아', 'NO': '노르웨이', 'HR': '크로아티아', 'CA': '캐나다'
-            };
-            
             pattern.forEach((day: any) => {
               if (day && typeof day === 'object' && day.country && day.country !== 'KR') {
                 const countryCode = day.country.toString().toUpperCase();
-                const countryName = countryNames[countryCode] || countryCode;
+                const countryName = CRUISE_COUNTRIES[countryCode] || countryCode;
                 countries.add(countryName);
               }
             });

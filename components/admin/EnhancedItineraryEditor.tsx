@@ -85,6 +85,7 @@ export default function EnhancedItineraryEditor({
   }, [days.length]);
   const [showGroupManager, setShowGroupManager] = useState(false);
   const [savedGroups, setSavedGroups] = useState<any[]>([]);
+  const loadGroupsAbortRef = useRef<AbortController | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
   const [nightsFilter, setNightsFilter] = useState<number | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
@@ -182,25 +183,27 @@ export default function EnhancedItineraryEditor({
 
   // 크루즈정보사진 폴더 목록 로드
   useEffect(() => {
-    if (showCruisePhotoModal) {
-      loadCruiseFolders();
-    }
+    if (!showCruisePhotoModal) return;
+    const ac = new AbortController();
+    loadCruiseFolders(ac.signal);
+    return () => ac.abort();
   }, [showCruisePhotoModal]);
 
-  const loadCruiseFolders = async () => {
+  const loadCruiseFolders = async (signal: AbortSignal) => {
     try {
       // 이미지 라이브러리와 동일한 API 사용 (폴더 구조 탐색)
       const res = await fetch('/api/admin/cruise-photos', {
         credentials: 'include',
+        signal,
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.ok && data.folders) {
-          // folders는 { name, path, id } 형태의 배열
-          setCruiseFolders(data.folders.map((f: { name: string }) => f.name));
-        }
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.ok && data.folders) {
+        // folders는 { name, path, id } 형태의 배열
+        setCruiseFolders(data.folders.map((f: { name: string }) => f.name));
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Failed to load cruise folders:', error);
     }
   };
@@ -304,15 +307,17 @@ export default function EnhancedItineraryEditor({
 
   // 구글 드라이브 모달 열릴 때 폴더 목록 로드
   useEffect(() => {
-    if (showGoogleDriveModal) {
-      loadGoogleDriveFolders();
-    }
+    if (!showGoogleDriveModal) return;
+    const ac = new AbortController();
+    loadGoogleDriveFolders(ac.signal);
+    return () => ac.abort();
   }, [showGoogleDriveModal]);
 
-  const loadGoogleDriveFolders = async () => {
+  const loadGoogleDriveFolders = async (signal: AbortSignal) => {
     try {
       const res = await fetch('/api/admin/mall/google-drive-products?listFolders=true', {
         credentials: 'include',
+        signal,
       });
       if (res.ok) {
         const data = await res.json();
@@ -325,6 +330,7 @@ export default function EnhancedItineraryEditor({
         setGoogleDriveFolders([]);
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('구글 드라이브 폴더 로드 실패:', error);
       setGoogleDriveFolders([]);
     }
@@ -421,12 +427,17 @@ export default function EnhancedItineraryEditor({
   // 그룹 목록 로드
   useEffect(() => {
     loadGroups();
+    return () => { loadGroupsAbortRef.current?.abort(); };
   }, []);
 
   const loadGroups = async () => {
+    loadGroupsAbortRef.current?.abort();
+    const ac = new AbortController();
+    loadGroupsAbortRef.current = ac;
     try {
       const res = await fetch('/api/admin/itinerary-groups', {
-        credentials: 'include'
+        credentials: 'include',
+        signal: ac.signal,
       });
       if (res.ok) {
         const data = await res.json();
@@ -435,6 +446,7 @@ export default function EnhancedItineraryEditor({
         }
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Failed to load groups:', error);
     }
   };

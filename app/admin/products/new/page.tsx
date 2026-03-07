@@ -175,6 +175,7 @@ export default function NewProductPage() {
 
   // 상품코드 중복 체크 함수 (debounced)
   const productCodeCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const productCodeAbortRef = useRef<AbortController | null>(null);
 
   const checkProductCodeDuplicate = useCallback(async (code: string) => {
     if (!code || code.length < 3) {
@@ -187,10 +188,17 @@ export default function NewProductPage() {
       return;
     }
 
+    // 이전 요청 취소
+    productCodeAbortRef.current?.abort();
+    const ac = new AbortController();
+    productCodeAbortRef.current = ac;
+
     setProductCodeStatus(prev => ({ ...prev, checking: true }));
 
     try {
-      const res = await fetch(`/api/admin/products/check-duplicate?productCode=${encodeURIComponent(code)}`);
+      const res = await fetch(`/api/admin/products/check-duplicate?productCode=${encodeURIComponent(code)}`, {
+        signal: ac.signal,
+      });
       const data = await res.json();
 
       if (data.ok) {
@@ -202,6 +210,7 @@ export default function NewProductPage() {
         });
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       logger.error('상품코드 체크 오류', { error: error instanceof Error ? error.message : String(error) });
       setProductCodeStatus(prev => ({ ...prev, checking: false }));
     }
@@ -223,6 +232,7 @@ export default function NewProductPage() {
       if (productCodeCheckTimeoutRef.current) {
         clearTimeout(productCodeCheckTimeoutRef.current);
       }
+      productCodeAbortRef.current?.abort();
     };
   }, [formData.productCode, isManualProductCode, checkProductCodeDuplicate]);
 

@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { CRUISE_COUNTRIES } from '@/lib/shared/countries';
 
 // 자연스러운 한글 닉네임 생성 (성+이름 조합)
 const generateNaturalNickname = (): string => {
@@ -47,13 +48,7 @@ function generateReviewTemplates(product: {
     if (Array.isArray(pattern)) {
       pattern.forEach((day: any) => {
         if (day.country && day.country !== 'KR') {
-          const countryNames: Record<string, string> = {
-            'JP': '일본', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-            'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아',
-            'GR': '그리스', 'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만',
-            'HK': '홍콩', 'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다'
-          };
-          const countryName = countryNames[day.country] || day.country;
+          const countryName = CRUISE_COUNTRIES[day.country] || day.country;
           if (!countries.includes(countryName)) {
             countries.push(countryName);
           }
