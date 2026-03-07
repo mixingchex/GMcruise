@@ -1,6 +1,7 @@
 'use client';
 import { ChatMessage } from '@/lib/chat-types';
-import { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import { logger } from '@/lib/logger';
 import type { ChatInputMode } from '@/lib/types'; // ChatInputMode import
 import GoAnywhere from '@/app/chat/components/blocks/GoAnywhere';
 import ShowMe from '@/app/chat/components/blocks/ShowMe';
@@ -14,24 +15,31 @@ import { FiVolume2, FiVolumeX } from 'react-icons/fi'; // TTS 아이콘 import
 
 type Props = { messages: ChatMessage[]; mode: ChatInputMode; onSend: (payload: ChatInputPayload) => void; }; // mode, onSend prop 추가
 
-export default function ChatWindow({ messages, mode, onSend }: Props) {
+function ChatWindow({ messages, mode, onSend }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [isTTSEnabled, setIsTTSEnabled] = useState(false); // 기본값 false (비활성화)
   const [selectedCategory, setSelectedCategory] = useState<{ messageId: string; categoryName: string; photos: any[] } | null>(null);
   const [selectedImage, setSelectedImage] = useState<{ images: Array<{ url: string; title?: string }>; index: number } | null>(null);
   const [selectedSubfolder, setSelectedSubfolder] = useState<{ messageId: string; subfolderName: string; photos: any[] } | null>(null);
 
-  useEffect(() => {
-    // TTS 비활성화 (사용자 요청)
-    // setIsTTSEnabled(tts.getEnabled());
-    setIsTTSEnabled(false);
+  // 메시지에 유저 입력이 있는지 한 번만 계산 (3회 중복 some() 제거)
+  const showEmptyState = useMemo(
+    () => messages.length === 0 || !messages.some(m => m.role === 'user'),
+    [messages]
+  );
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }
+    });
   }, []);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.id?.startsWith('streaming-') || lastMsg?.id?.startsWith('temp-')) return;
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   // TTS 재생 함수
   const handleSpeak = (text: string) => {
@@ -58,7 +66,7 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
         });
       }
     } catch (error) {
-      console.error('Failed to load category photos:', error);
+      logger.error('Failed to load category photos:', error);
     }
   };
 
@@ -97,7 +105,7 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
         setSelectedCategory(null);
       }
     } catch (error) {
-      console.error('Failed to load subfolder photos:', error);
+      logger.error('Failed to load subfolder photos:', error);
     }
   };
 
@@ -107,20 +115,20 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-2 flex-1 min-h-0 overflow-y-auto" ref={scrollRef}>
-      {(messages.length === 0 || !messages.some(m => m.role === 'user')) && mode === 'go' && (
+    <div className="mx-auto max-w-6xl px-3 py-2 flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={scrollRef}>
+      {showEmptyState && mode === 'go' && (
         <div className="mx-auto max-w-6xl w-full">
           <GoAnywhere onSend={onSend} />
         </div>
       )}
 
-      {(messages.length === 0 || !messages.some(m => m.role === 'user')) && mode === 'show' && (
+      {showEmptyState && mode === 'show' && (
         <div className="mx-auto max-w-6xl w-full">
           <ShowMe onSend={onSend} />
         </div>
       )}
 
-      {(messages.length === 0 || !messages.some(m => m.role === 'user')) && mode === 'general' && (
+      {showEmptyState && mode === 'general' && (
         <div className="mx-auto max-w-6xl w-full text-center py-12">
           <div className="text-7xl mb-4">💬</div>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">무엇이든 물어보세요</h2>
@@ -570,3 +578,5 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
     </div>
   );
 }
+
+export default React.memo(ChatWindow);

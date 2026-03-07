@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 import type { ChatInputMode } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { ChatInputPayload } from '@/components/chat/types';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChatMessage, TextMessage } from '@/lib/chat-types';
 import { ChatMessageSkeleton } from '@/components/ui/Skeleton';
 import { csrfFetch } from '@/lib/csrf-client';
@@ -48,6 +48,28 @@ export default function ChatClientShell({
   const prevModeRef = useRef<ChatInputMode | null>(null); // 이전 모드 추적
   const hasLoadedHistoryRef = useRef(false); // 히스토리 로드 여부 추적
   const [isTestMode, setIsTestMode] = useState(false); // test 모드 여부
+  const [keyboardPadding, setKeyboardPadding] = useState(0); // WO-MOB-10: iOS 소프트 키보드 높이
+
+  // WO-MOB-10/11: visualViewport API — iOS에서 소프트 키보드 높이 감지 (rAF throttle + NaN 처리)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    let rafId: number | null = null;
+    const handleResize = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const offsetTop = Number.isFinite(vv.offsetTop) ? vv.offsetTop : 0;
+        const kbHeight = Math.max(0, window.innerHeight - vv.height - offsetTop);
+        setKeyboardPadding(prev => prev === kbHeight ? prev : kbHeight);
+      });
+    };
+    vv.addEventListener('resize', handleResize);
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, []);
 
   // 네트워크 온/오프라인 감지
   useEffect(() => {
@@ -155,9 +177,8 @@ export default function ChatClientShell({
   const saveChatHistory = async (messagesToSave: ChatMessage[]) => {
     if (!ENABLE_CHAT_HISTORY) return;
     try {
-      // test 모드 확인
-      const testModeInfo = await checkTestModeClient();
-      const testSuffix = testModeInfo.isTestMode ? '_test' : '';
+      // isTestMode state 직접 사용 (checkTestModeClient 불필요한 재호출 방지)
+      const testSuffix = isTestMode ? '_test' : '';
 
       // 모드별로 다른 sessionId 사용 (탭별 히스토리 분리 + test 모드 구분)
       const sessionId = (mode === 'general' ? 'general' :
@@ -204,7 +225,7 @@ export default function ChatClientShell({
     }
   };
 
-  const onSend = async (payload: ChatInputPayload) => {
+  const onSend = useCallback(async (payload: ChatInputPayload) => {
     // 오프라인 상태 차단
     if (!navigator.onLine) {
       showError('인터넷 연결이 없습니다. 연결 후 다시 시도해주세요.');
@@ -262,6 +283,9 @@ export default function ChatClientShell({
           });
         }
 
+        // WO-MOB-16: 클라이언트 타임아웃 (해상 WiFi 끊김 무한 대기 방지)
+        const connectTimeoutId = setTimeout(() => abortCtrl.abort(), 35000);
+        try {
         const response = await fetch('/api/chat/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -269,6 +293,7 @@ export default function ChatClientShell({
           signal: abortCtrl.signal,
           body: JSON.stringify(requestBody),
         });
+        clearTimeout(connectTimeoutId); // 응답 도착 시 타임아웃 해제
 
         // 개발 환경에서만 디버그 로그
         if (process.env.NODE_ENV === 'development') {
@@ -286,6 +311,7 @@ export default function ChatClientShell({
         }
 
         if (!response.ok) {
+          clearTimeout(connectTimeoutId);
           // 에러 응답 처리
           let errorMessage = '응답을 받지 못했습니다';
           try {
@@ -318,6 +344,7 @@ export default function ChatClientShell({
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let accumulatedText = '';
+        let clientBuffer = '';
 
         const isDev = process.env.NODE_ENV === 'development';
         if (isDev) {
@@ -363,7 +390,9 @@ export default function ChatClientShell({
           if (isDev) {
             logger.log('[ChatClientShell] Received chunk #' + readCount + ', length:', chunk.length, 'content:', chunk.substring(0, 200));
           }
-          const lines = chunk.split('\n');
+          clientBuffer += chunk;
+          const lines = clientBuffer.split('\n');
+          clientBuffer = lines.pop() || ''; // 불완전 마지막 라인은 다음 청크로
           if (isDev) {
             logger.log('[ChatClientShell] Split into', lines.length, 'lines');
           }
@@ -372,7 +401,7 @@ export default function ChatClientShell({
             if (line.startsWith('0:')) {
               // 텍스트 데이터 추출
               try {
-                const jsonStr = line.substring(2);
+                const jsonStr = line.substring(2).trim();
                 const parsed = JSON.parse(jsonStr);
                 if (isDev) {
                   logger.log('[ChatClientShell] Parsed text:', typeof parsed, parsed?.substring?.(0, 50));
@@ -404,31 +433,28 @@ export default function ChatClientShell({
           }
         }
 
-        // 스트리밍 완료 후 최종 메시지 ID 업데이트 및 히스토리 저장
-        setMessages((prevMessages) => {
-          const updated = prevMessages.map((msg) =>
-            msg.id === streamingMessageId
-              ? { ...msg, id: Date.now().toString() }
-              : msg
-          );
+        // 스트리밍 완료 후 최종 메시지 ID 업데이트 및 히스토리 저장 (언마운트 시 스킵)
+        if (!abortCtrl.signal.aborted) {
+          const finalId = Date.now().toString();
+          setMessages((prevMessages) => {
+            const updated = prevMessages.map((msg) =>
+              msg.id === streamingMessageId
+                ? { ...msg, id: finalId }
+                : msg
+            );
+            return updated;
+          });
 
-          // 히스토리 저장 (debounce)
-          if (ENABLE_CHAT_HISTORY && saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-          }
-          if (ENABLE_CHAT_HISTORY) {
-            saveTimeoutRef.current = setTimeout(() => {
-              saveChatHistory(updated);
-            }, 1000); // 1초 후 저장
-          }
+          // 히스토리 저장은 useEffect([messages]) debounce가 자동 처리
+        }
 
-          return updated;
-        });
-
-        // TTS: 스트리밍 완료 후 AI 응답을 음성으로 읽기 (사용자 설정 확인)
-        if (accumulatedText && tts.getEnabled()) {
+        // TTS: 스트리밍 완료 후 AI 응답을 음성으로 읽기 (언마운트/탭전환 시 차단)
+        if (!abortCtrl.signal.aborted && accumulatedText && tts.getEnabled()) {
           const plainText = extractPlainText(accumulatedText);
           tts.speak(plainText);
+        }
+        } finally {
+          clearTimeout(connectTimeoutId); // throw 경로 포함 모든 경로에서 타임아웃 해제
         }
       } else {
         // 다른 모드는 기존 API 사용 (구조화된 응답)
@@ -449,7 +475,10 @@ export default function ChatClientShell({
         });
 
         if (!response.ok) {
-          throw new Error('Failed to get response from server');
+          if (response.status === 401) {
+            throw new Error('Unauthorized');
+          }
+          throw new Error(`Server error: ${response.status}`);
         }
 
         const data = await response.json();
@@ -481,21 +510,7 @@ export default function ChatClientShell({
         }
 
         if (data.ok && Array.isArray(data.messages)) {
-          setMessages((prevMessages) => {
-            const updated = [...prevMessages, ...data.messages];
-
-            // 히스토리 저장 (debounce)
-            if (ENABLE_CHAT_HISTORY && saveTimeoutRef.current) {
-              clearTimeout(saveTimeoutRef.current);
-            }
-            if (ENABLE_CHAT_HISTORY) {
-              saveTimeoutRef.current = setTimeout(() => {
-                saveChatHistory(updated);
-              }, 1000); // 1초 후 저장
-            }
-
-            return updated;
-          });
+          setMessages((prevMessages) => [...prevMessages, ...data.messages]);
 
           // TTS: AI 응답 음성 재생 (텍스트 타입 메시지만, 사용자 설정 확인)
           if (tts.getEnabled()) {
@@ -521,6 +536,15 @@ export default function ChatClientShell({
     } catch (error) {
       // AbortError: 사용자가 취소하거나 새 요청이 시작된 경우 - 에러 표시 안 함
       if (error instanceof Error && error.name === 'AbortError') {
+        setMessages((prevMessages) => {
+          const hasStreaming = prevMessages.some(msg => msg.id.startsWith('streaming-'));
+          if (!hasStreaming) return prevMessages;
+          return prevMessages.map(msg =>
+            msg.id.startsWith('streaming-')
+              ? { ...msg, text: '⏱️ 응답 시간이 초과되었습니다. 다시 시도해주세요.' }
+              : msg
+          );
+        });
         setIsSending(false);
         return;
       }
@@ -579,16 +603,16 @@ export default function ChatClientShell({
     } finally {
       setIsSending(false);
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, messages, isTestMode, isSending]);
 
   // 채팅 기록 삭제 함수
   const handleDeleteChatHistory = async () => {
     setIsDeleting(true);
 
     try {
-      // 현재 탭의 sessionId 계산 (saveChatHistory와 동일한 로직)
-      const testModeInfo = await checkTestModeClient();
-      const testSuffix = testModeInfo.isTestMode ? '_test' : '';
+      // 현재 탭의 sessionId 계산 (isTestMode state 사용)
+      const testSuffix = isTestMode ? '_test' : '';
       const sessionId = (mode === 'general' ? 'general' :
         mode === 'go' ? 'go' :
           mode === 'show' ? 'show' :
@@ -682,12 +706,12 @@ export default function ChatClientShell({
     <div className="flex flex-col h-full">
       {/* 오프라인 배너 */}
       {!isOnline && (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white text-center text-sm py-2 px-4 font-semibold">
+        <div className="fixed top-12 left-0 right-0 z-40 bg-yellow-500 text-white text-center text-sm py-2 px-4 font-semibold">
           📡 인터넷 연결이 끊겼습니다. 연결 후 자동으로 복구됩니다.
         </div>
       )}
       {isLoading ? (
-        <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
+        <div className="flex items-center justify-center" style={{ minHeight: '60dvh' }}>
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
             <p className="text-gray-600">대화 내역을 불러오는 중...</p>
@@ -779,7 +803,7 @@ export default function ChatClientShell({
             );
           })()}
 
-          <div className="px-3 pt-2 bg-white border-t" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
+          <div className="px-3 pt-2 bg-white border-t" style={{ paddingBottom: `calc(0.75rem + env(safe-area-inset-bottom) + ${keyboardPadding}px)` }}>
             <InputBar mode={mode} onSend={onSend} disabled={isSending} />
             {isSending && (
               <div className="text-center text-sm text-gray-500 mt-2">

@@ -8,9 +8,14 @@ import { trackFeature } from '@/lib/analytics';
 import { checkTestModeClient, getCorrectPath } from '@/lib/test-mode-client';
 import { logger } from '@/lib/logger';
 import { showSuccess, showError } from '@/components/ui/Toast';
-// 성능 최적화: 무거운 지도 라이브러리는 그대로 사용 (복잡도가 높아서 나중에 최적화)
-// 동적 임포트는 컴포넌트 분리 후 적용 예정
-import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
+// 성능 최적화: react-simple-maps (~150KB+, d3 의존성 포함)를 dynamic import로 지연 로딩
+import dynamic from 'next/dynamic';
+
+const ComposableMap = dynamic(() => import('react-simple-maps').then(m => ({ default: m.ComposableMap })), { ssr: false });
+const ZoomableGroup = dynamic(() => import('react-simple-maps').then(m => ({ default: m.ZoomableGroup })), { ssr: false });
+const Geographies = dynamic(() => import('react-simple-maps').then(m => ({ default: m.Geographies })), { ssr: false });
+const Geography = dynamic(() => import('react-simple-maps').then(m => ({ default: m.Geography })), { ssr: false });
+const Marker = dynamic(() => import('react-simple-maps').then(m => ({ default: m.Marker })), { ssr: false });
 import { scaleQuantile } from 'd3-scale';
 import { geoCentroid } from 'd3-geo';
 import * as topojson from 'topojson-client';
@@ -613,6 +618,7 @@ export default function MapPage() {
   const [geographyData, setGeographyData] = useState<any[] | null>(null); // 타입을 any[] | null로 변경
   const [isTripsLoaded, setIsTripsLoaded] = useState(false);
   const [isMapDataLoaded, setIsMapDataLoaded] = useState(false);
+  const [mapError, setMapError] = useState(false);
 
   // 4-2) useEffect 초기화 로직 교체
   useEffect(() => {
@@ -741,14 +747,20 @@ export default function MapPage() {
         setIsTripsLoaded(true);
 
         // 2) 지도 데이터: 그대로 fetch (정적 파일)
-        const mapResponse = await fetch(geoUrl);
-        if (!mapResponse.ok) {
-          throw new Error(`HTTP error! status: ${mapResponse.status}`);
-        }
-        const world = await mapResponse.json();
-        const features = (topojson.feature(world, world.objects.countries as any) as any).features;
+        try {
+          const mapResponse = await fetch(geoUrl);
+          if (!mapResponse.ok) {
+            throw new Error(`HTTP error! status: ${mapResponse.status}`);
+          }
+          const world = await mapResponse.json();
+          const features = (topojson.feature(world, world.objects.countries as any) as any).features;
 
-        setGeographyData(features);
+          setGeographyData(features);
+          setMapError(false);
+        } catch (mapFetchError) {
+          logger.error('Map Page: Map data fetch failed', mapFetchError);
+          setMapError(true);
+        }
         setIsMapDataLoaded(true);
       } catch (e) {
         logger.error('Map Page: Map init failed', e);
@@ -1198,6 +1210,35 @@ export default function MapPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
               <p className="text-lg text-gray-800">지도를 불러오는 중...</p>
+            </div>
+          ) : mapError ? (
+            <div className="h-[60vh] flex items-center justify-center flex-col gap-4">
+              <p className="text-lg text-gray-700">지도를 불러올 수 없습니다.</p>
+              <button
+                onClick={() => {
+                  setMapError(false);
+                  setGeographyData(null);
+                  setIsMapDataLoaded(false);
+                  fetch(geoUrl)
+                    .then(res => {
+                      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                      return res.json();
+                    })
+                    .then(world => {
+                      const features = (topojson.feature(world, world.objects.countries as any) as any).features;
+                      setGeographyData(features);
+                      setIsMapDataLoaded(true);
+                    })
+                    .catch(err => {
+                      logger.error('Map Page: Retry map fetch failed', err);
+                      setMapError(true);
+                      setIsMapDataLoaded(true);
+                    });
+                }}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+              >
+                다시 시도
+              </button>
             </div>
           ) : (
             <ComposableMap projection="geoEqualEarth" projectionConfig={{ scale: 150 }} className="w-full h-full">

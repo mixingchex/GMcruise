@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger';
 
-const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash';
 
 type AliasConfig = {
   target: string;
@@ -8,25 +8,17 @@ type AliasConfig = {
 };
 
 const MODEL_ALIAS_MAP: Record<string, AliasConfig> = {
-  'gemini-1.5-flash': {
-    target: 'gemini-flash-latest',
-    reason: 'Gemini 1.5 Flash is not available for the current API key, falling back to flash-latest.',
-  },
-  'gemini-1.5-flash-latest': {
-    target: 'gemini-flash-latest',
-    reason: 'Use the consolidated flash-latest alias.',
-  },
-  'gemini-1.5-pro': {
-    target: 'gemini-pro-latest',
-    reason: 'Gemini 1.5 Pro is superseded by the latest Gemini Pro release.',
-  },
-  'gemini-pro': {
-    target: 'gemini-pro-latest',
-    reason: 'Prefer the latest Gemini Pro alias.',
+  'gemini-flash-latest': {
+    target: 'gemini-2.0-flash',
+    reason: 'gemini-flash-latest is not a valid API model ID, using gemini-2.0-flash.',
   },
   'gemini-flash': {
-    target: 'gemini-flash-latest',
-    reason: 'Prefer the latest Gemini Flash alias.',
+    target: 'gemini-2.0-flash',
+    reason: 'Prefer the explicit versioned model ID.',
+  },
+  'gemini-pro-latest': {
+    target: 'gemini-2.0-flash',
+    reason: 'gemini-pro-latest is deprecated, using gemini-2.0-flash.',
   },
 };
 
@@ -63,6 +55,6 @@ export function getDefaultGeminiModel() {
 }
 
 export function getChatModelName() {
-  return DEFAULT_GEMINI_MODEL;
+  return resolveGeminiModelName();
 }
 

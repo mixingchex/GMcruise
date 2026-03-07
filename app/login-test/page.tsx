@@ -25,7 +25,7 @@ function TestLoginPageContent() {
     // URL 파라미터에서 메시지 확인
     const message = sp.get('message');
     if (message) {
-      alert(message);
+      setError(message);
     }
     
     // 3일 체험 초대 링크 파라미터 확인
@@ -93,8 +93,6 @@ function TestLoginPageContent() {
       return;
     }
 
-    console.log('[TEST LOGIN] Submitting...', { phone: trimmedPhone, password: '***', name: trimmedName });
-
     try {
       const r = await fetch('/api/auth/login', {
         method: 'POST',
@@ -112,35 +110,14 @@ function TestLoginPageContent() {
         }),
       });
       
-      console.log('[TEST LOGIN] Response status:', r.status);
-      
-      const data = await r.json().catch((err) => {
-        console.error('[TEST LOGIN] JSON parse error:', err);
+      const data = await r.json().catch(() => {
         return { ok: false, error: '서버 응답을 처리할 수 없습니다.' };
       });
-      
-      console.log('[TEST LOGIN] Response data:', data);
-      
+
       if (!r.ok || !data?.ok) {
         const errorMessage = data?.error ?? '로그인 실패';
         const errorDetails = data?.details ?? '';
         const errorStack = data?.stack ?? '';
-        
-        console.error('[TEST LOGIN] Login failed:', errorMessage, { 
-          status: r.status, 
-          statusText: r.statusText,
-          data,
-          details: errorDetails,
-          stack: errorStack,
-        });
-        
-        // 개발 환경에서는 상세 오류 정보도 콘솔에 출력
-        if (errorDetails) {
-          console.error('[TEST LOGIN] Error details:', errorDetails);
-        }
-        if (errorStack) {
-          console.error('[TEST LOGIN] Error stack:', errorStack);
-        }
         
         // 비밀번호 오류인 경우 명확한 메시지 표시
         if (r.status === 401 || errorMessage.includes('비밀번호') || errorMessage.includes('올바르지 않습니다')) {
@@ -161,7 +138,6 @@ function TestLoginPageContent() {
       // CSRF 토큰 저장
       if (data.csrfToken) {
         setCsrfToken(data.csrfToken);
-        console.log('[TEST LOGIN] CSRF token saved');
       }
 
       // 서버가 알려준 next로 이동 (테스트 모드는 /chat-test로만 이동)
@@ -172,26 +148,22 @@ function TestLoginPageContent() {
       // 안전장치: test 모드 사용자는 항상 /chat-test로만 이동
       // /chat으로 가려는 시도 차단 - /chat-test로 강제 변경
       if (next === '/chat' || next.startsWith('/chat/')) {
-        console.warn('[TEST LOGIN] /chat 리다이렉트 차단, /chat-test로 변경:', next);
         next = next.replace('/chat', '/chat-test');
       }
-      
+
       // 최종 안전장치: /chat-test로 시작하지 않으면 강제로 /chat-test로 변경
       if (!next.startsWith('/chat-test')) {
-        console.warn('[TEST LOGIN] 안전장치: /chat-test가 아닌 경로 감지, 강제 변경:', next);
         next = '/chat-test';
       }
-      
-      console.log('[TEST LOGIN] Redirecting to:', next);
+
       window.location.href = next; // router.push 대신 window.location.href 사용하여 확실하게 리다이렉트
     } catch (error) {
-      console.error('[TEST LOGIN] Network error:', error);
       setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-100 via-blue-100 to-sky-200 text-gray-900 relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-sky-100 via-blue-100 to-sky-200 text-gray-900 relative overflow-hidden">
       {/* 크루즈 배경 이미지 */}
       <div className="absolute inset-0">
         <div 
@@ -203,7 +175,7 @@ function TestLoginPageContent() {
         <div className="absolute inset-0 bg-gradient-to-b from-sky-50/30 via-blue-50/20 to-sky-50/30"></div>
       </div>
 
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-4 md:py-12">
+      <div className="relative z-10 flex items-center justify-center min-h-[100dvh] px-4 py-4 md:py-12">
         <div className="w-full max-w-lg">
           {/* 헤더 섹션 */}
           <div className="text-center mb-4 md:mb-6 space-y-2 md:space-y-4">
@@ -240,7 +212,7 @@ function TestLoginPageContent() {
           </div>
 
           {/* YouTube 영상 */}
-          <div className="mb-4 md:mb-6 rounded-xl md:rounded-2xl overflow-hidden shadow-xl md:shadow-2xl border-2 border-gray-200 bg-white">
+          <div className="mb-4 md:mb-6 rounded-xl md:rounded-2xl overflow-hidden shadow-xl md:shadow-2xl border-2 border-gray-200 bg-white hidden md:block">
             <div className="aspect-video w-full">
               <iframe
                 src="https://www.youtube.com/embed/-p_6G69MgyQ?autoplay=1&mute=1&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1&rel=0&enablejsapi=1"
@@ -436,7 +408,7 @@ function TestLoginPageContent() {
 
 export default function TestLoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">로딩 중...</div>}>
+    <Suspense fallback={<div className="flex min-h-[100dvh] items-center justify-center">로딩 중...</div>}>
       <TestLoginPageContent />
     </Suspense>
   );

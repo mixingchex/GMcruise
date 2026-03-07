@@ -1,6 +1,17 @@
 // lib/test-mode-client.ts
 // 클라이언트 사이드에서 사용할 테스트 모드 유틸리티
 
+// 테스트 경로 목록 (정확한 경계 조건 매칭용)
+const TEST_PATH_PREFIXES = [
+  '/chat-test',
+  '/checklist-test',
+  '/translator-test',
+  '/profile-test',
+  '/wallet-test',
+  '/tools-test',
+  '/map-test',
+];
+
 export interface TestModeInfo {
   isTestMode: boolean;
   testModeStartedAt: Date | null;
@@ -29,8 +40,8 @@ export async function checkTestModeClient(): Promise<TestModeInfo> {
 
     const data = await response.json();
     return data;
-  } catch (error) {
-    console.error('[TestMode] Client check error:', error);
+  } catch {
+    // 클라이언트 컴포넌트이므로 logger 미사용, 에러 조용히 처리
     return {
       isTestMode: false,
       testModeStartedAt: null,
@@ -45,7 +56,9 @@ export async function checkTestModeClient(): Promise<TestModeInfo> {
  */
 export function isTestModePath(pathname: string): boolean {
   if (!pathname) return false;
-  return pathname.includes('-test') || pathname.startsWith('/chat-test');
+  return TEST_PATH_PREFIXES.some(prefix =>
+    pathname === prefix || pathname.startsWith(prefix + '/')
+  );
 }
 
 /**

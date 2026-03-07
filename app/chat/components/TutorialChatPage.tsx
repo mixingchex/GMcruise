@@ -43,8 +43,6 @@ const CHAT_FEATURES = [
 export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps) {
   const router = useRouter();
   const [showWelcome, setShowWelcome] = useState(false);
-  const [showFeatureGuide, setShowFeatureGuide] = useState(false);
-  const [currentGuideStep, setCurrentGuideStep] = useState(0);
   const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
 
   // 3초마다 기능 메시지 자동 변경
@@ -71,15 +69,11 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const { csrfFetch } = await import('@/lib/csrf-client');
+      const response = await csrfFetch('/api/auth/logout', { method: 'POST' });
 
       if (response.ok) {
-        // 사용자 관련 모든 localStorage 데이터 정리
         clearAllLocalStorage();
-        // 로그아웃 후 로그인 페이지로 이동
         window.location.href = '/login-test';
       } else {
         logger.error('[TutorialChat] 로그아웃 실패');
@@ -92,7 +86,7 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
       {/* 72시간 카운트다운 배너 (상단 고정) - 로그아웃 버튼 포함 */}
       <TutorialCountdown testModeInfo={testModeInfo} onLogout={handleLogout} />
 
@@ -197,7 +191,10 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
           </div>
 
           {/* TestChatInteractiveUI 사용 - 테스트 고객 전용 (완전 분리) */}
-          <TestChatInteractiveUI />
+          {/* flex flex-col min-h-[640px]: ChatClientShell의 flex-1이 동작하려면 부모에 height 컨텍스트 필요 */}
+          <div className="flex flex-col min-h-[640px]">
+            <TestChatInteractiveUI />
+          </div>
           
           {/* 크루즈몰 바탕화면 추가하기 (카카오톡 채널 버튼 아래) */}
           <div className="mt-4 pt-4 border-t border-gray-200">

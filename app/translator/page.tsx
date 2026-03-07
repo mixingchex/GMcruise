@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { FiArrowLeft, FiMic, FiMicOff } from 'react-icons/fi';
-import { csrfFetch } from '@/lib/csrf-client';
+import { csrfFetch, clearAllLocalStorage } from '@/lib/csrf-client';
 import { showError } from '@/components/ui/Toast';
 import dynamic from 'next/dynamic';
 import { trackFeature } from '@/lib/analytics';
@@ -95,6 +95,15 @@ export default function TranslatorPage() {
     checkPath();
   }, [pathname, router]);
 
+  const handleLogout = async () => {
+    try {
+      await csrfFetch('/api/auth/logout', { method: 'POST' });
+    } finally {
+      clearAllLocalStorage();
+      router.push('/login');
+    }
+  };
+
   // 튜토리얼 상태
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -178,6 +187,7 @@ export default function TranslatorPage() {
   // 음성 인식 객체
   const recRef = useRef<SpeechRecognition | null>(null);
   const isProcessingRef = useRef(false); // race condition 방지
+  const isListeningRef = useRef(false); // 버튼 눌림 상태 추적용 (iOS continuous 워크어라운드)
   const interimTextRef = useRef(''); // stale closure 방지용 ref
   const currentAudioRef = useRef<HTMLAudioElement | null>(null); // 중복 재생 방지
   const audioCtxRef = useRef<AudioContext | null>(null); // iOS AudioContext 잠금 해제용
@@ -282,15 +292,29 @@ export default function TranslatorPage() {
       logger.warn('[STT] error:', errorType);
     };
     recog.onend = () => {
-      setListening('none');
-      setPreview('');
-      setFinalText('');
-      setInterimText('');
+      if (isListeningRef.current && !isProcessingRef.current) {
+        // 버튼 아직 눌려있음 → iOS continuous 끊김 → 재시작
+        try {
+          recog.start();
+          logger.debug('[PTT] iOS continuous workaround: restarting recognition');
+        } catch (e) {
+          // 이미 시작된 경우 무시
+          logger.debug('[PTT] Recognition restart skipped:', e);
+          isListeningRef.current = false;
+          setListening('none');
+        }
+      } else {
+        setListening('none');
+        setPreview('');
+        setFinalText('');
+        setInterimText('');
+      }
     };
 
     recRef.current = recog;
 
     return () => {
+      isListeningRef.current = false;
       try { recog.abort(); } catch { }
       recRef.current = null;
     };
@@ -630,6 +654,7 @@ export default function TranslatorPage() {
 
   // 공통 음성 인식 시작(길게 누르는 동안)
   async function startPressToTalk(from: { code: string; name: string; flag: string }, to: { code: string; name: string; flag: string }) {
+    isListeningRef.current = true; // iOS continuous 워크어라운드: 버튼 눌림 상태 기록
     // P1-4: PTT onTouchStart 제스처 컨텍스트에서 AudioContext 미리 잠금 해제
     // speak()가 await translateText() 이후 호출되므로 제스처 컨텍스트가 소멸 — 여기서 미리 unlock
     try {
@@ -639,6 +664,7 @@ export default function TranslatorPage() {
     } catch { }
     if (!recRef.current) {
       showError('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome, Edge, Safari 등을 사용해주세요.');
+      isListeningRef.current = false;
       return;
     }
 
@@ -700,6 +726,7 @@ export default function TranslatorPage() {
         showError('음성 인식 초기화에 실패했습니다.');
         setListening('none');
         setPreview('');
+        isListeningRef.current = false;
         return;
       }
 
@@ -771,6 +798,7 @@ export default function TranslatorPage() {
         }
         setListening('none');
         setPreview('');
+        isListeningRef.current = false;
         return;
       }
 
@@ -786,6 +814,7 @@ export default function TranslatorPage() {
       logger.error('[Start Speech Recognition Error]', error);
       setListening('none');
       setPreview('');
+      isListeningRef.current = false;
 
       if (error?.name === 'NotAllowedError' || error?.message?.includes('permission')) {
         micPermissionRef.current = false;
@@ -797,6 +826,7 @@ export default function TranslatorPage() {
   }
 
   async function stopPressToTalk() {
+    isListeningRef.current = false; // iOS continuous 워크어라운드: 버튼 뗌 상태 기록
     if (isProcessingRef.current) return; // 중복 실행 방지
     isProcessingRef.current = true;
 
@@ -1044,6 +1074,12 @@ export default function TranslatorPage() {
               <span className="font-medium">뒤로가기</span>
             </button>
             <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">AI 통번역기</h1>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 min-h-[44px] rounded-md"
+            >
+              로그아웃
+            </button>
           </div>
           <div className="max-w-3xl mx-auto mt-3 flex flex-col sm:flex-row sm:items-center gap-3 text-base md:text-lg">
             <div className={`inline-flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-lg ${isCruising ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'
@@ -1092,7 +1128,7 @@ export default function TranslatorPage() {
         </header>
 
         {/* 본문 */}
-        <main className="max-w-3xl mx-auto w-full flex-1 overflow-y-auto min-h-0 px-4 py-6 md:py-8">
+        <main className="max-w-3xl mx-auto w-full flex-1 overflow-y-auto overscroll-contain min-h-0 px-4 py-6 md:py-8">
           {/* 프리뷰(인식 중) - 개선된 버전: 인식 과정을 실시간으로 표시 */}
           {listening !== 'none' && (
             <div className="rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-50 to-purple-50 p-6 md:p-8 mb-6 shadow-lg">
@@ -1371,11 +1407,12 @@ export default function TranslatorPage() {
         </main>
 
         {/* 하단 고정 버튼들(모바일에 최적) - 크기 조정 */}
-        <footer className="sticky bottom-0 z-20 border-t-2 bg-white/95 backdrop-blur px-4 pb-[env(safe-area-inset-bottom)] shadow-lg">
+        <footer className="sticky bottom-0 z-20 border-t-2 bg-white/95 backdrop-blur px-4 shadow-lg" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <div className="max-w-3xl mx-auto py-3 md:py-4 grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             {BTN_PAIRS.map((p) => (
               <button
                 key={p.label}
+                style={{ touchAction: 'none' }}
                 onPointerDown={() => startPressToTalk(p.from, p.to)}
                 onPointerUp={stopPressToTalk}
                 onPointerCancel={stopPressToTalk}

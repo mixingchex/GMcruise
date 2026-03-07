@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
       if (!apiKey) {
         return NextResponse.json(
-          { ok: false, error: 'GEMINI_API_KEY가 설정되지 않았습니다.' },
+          { ok: false, error: '번역 서비스를 사용할 수 없습니다.' },
           { status: 500 }
         );
       }
@@ -301,7 +301,7 @@ Now translate and output ONLY the translation in ${normalizedTo} (no labels, no 
   } catch (error: any) {
     logger.error('[Chat API] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || 'Internal server error' },
+      { ok: false, error: '서버 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

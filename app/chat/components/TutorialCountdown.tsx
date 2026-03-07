@@ -3,15 +3,16 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TestModeInfo } from '@/lib/test-mode-client';
 
 interface TutorialCountdownProps {
   testModeInfo: TestModeInfo;
   onLogout?: () => void;
+  onExpired?: () => void;
 }
 
-export default function TutorialCountdown({ testModeInfo, onLogout }: TutorialCountdownProps) {
+function TutorialCountdown({ testModeInfo, onLogout, onExpired }: TutorialCountdownProps) {
   const [remainingTime, setRemainingTime] = useState<{
     hours: number;
     minutes: number;
@@ -23,13 +24,15 @@ export default function TutorialCountdown({ testModeInfo, onLogout }: TutorialCo
       return;
     }
 
+    const endTime = new Date(testModeInfo.testModeEndAt!).getTime();
+
     const updateCountdown = () => {
-      const now = new Date();
-      const end = new Date(testModeInfo.testModeEndAt!);
-      const diff = end.getTime() - now.getTime();
+      const diff = endTime - Date.now();
 
       if (diff <= 0) {
         setRemainingTime({ hours: 0, minutes: 0, seconds: 0 });
+        clearInterval(interval);
+        onExpired?.();
         return;
       }
 
@@ -40,11 +43,11 @@ export default function TutorialCountdown({ testModeInfo, onLogout }: TutorialCo
       setRemainingTime({ hours, minutes, seconds });
     };
 
-    updateCountdown();
     const interval = setInterval(updateCountdown, 1000);
+    updateCountdown(); // interval 할당 후 호출 (onExpired 이중 실행 방지)
 
     return () => clearInterval(interval);
-  }, [testModeInfo]);
+  }, [testModeInfo.isTestMode, testModeInfo.testModeEndAt, onExpired]);
 
   if (!testModeInfo.isTestMode || !remainingTime) {
     return null;
@@ -73,6 +76,11 @@ export default function TutorialCountdown({ testModeInfo, onLogout }: TutorialCo
               ⚠️ 곧 만료됩니다!
             </span>
           )}
+          {remainingTime.hours === 0 && remainingTime.minutes === 0 && remainingTime.seconds === 0 && (
+            <div className="bg-white/20 rounded-lg px-4 py-2 text-sm font-semibold">
+              체험 기간이 종료되었습니다. 정식 서비스를 이용하시려면 구매해주세요.
+            </div>
+          )}
         </div>
         {onLogout && (
           <button
@@ -89,3 +97,4 @@ export default function TutorialCountdown({ testModeInfo, onLogout }: TutorialCo
   );
 }
 
+export default React.memo(TutorialCountdown);

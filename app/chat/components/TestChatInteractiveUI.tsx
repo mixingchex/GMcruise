@@ -76,20 +76,27 @@ export default function TestChatInteractiveUI() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        // 사용자 프로필 조회
-        const userResponse = await fetch('/api/user/profile', { credentials: 'include' });
-        if (!userResponse.ok) throw new Error('Failed to load user profile');
-        const userData = await userResponse.json();
-        setUserName(userData.user?.name || userData.data?.name || '');
-        setUserId(userData.user?.id);
-        setUserPhone(userData.user?.phone || userData.data?.phone || null);
+        // 5개 API 병렬 호출 — allSettled로 개별 실패 처리
+        const [userResult, testModeResult, tripResult, accessResult, affiliateResult] = await Promise.allSettled([
+          fetch('/api/user/profile', { credentials: 'include' }),
+          fetch('/api/user/test-mode', { credentials: 'include' }),
+          fetch('/api/trips/active', { credentials: 'include' }),
+          fetch('/api/user/access-check', { credentials: 'include' }),
+          fetch('/api/user/affiliate-mall-url', { credentials: 'include' }),
+        ]);
 
-        // 테스트 모드 정보 확인
-        const testModeResponse = await fetch('/api/user/test-mode', { credentials: 'include' });
-        if (testModeResponse.ok) {
-          const testModeData = await testModeResponse.json();
+        if (userResult.status === 'fulfilled' && userResult.value.ok) {
+          const userData = await userResult.value.json();
+          setUserName(userData.user?.name || userData.data?.name || '');
+          setUserId(userData.user?.id);
+          setUserPhone(userData.user?.phone || userData.data?.phone || null);
+        } else {
+          throw new Error('Failed to load user profile');
+        }
+
+        if (testModeResult.status === 'fulfilled' && testModeResult.value.ok) {
+          const testModeData = await testModeResult.value.json();
           if (testModeData.ok && testModeData.isTestMode) {
-            // 테스트 모드가 종료되었는지 확인
             if (testModeData.remainingHours !== null && testModeData.remainingHours <= 0) {
               setTripExpired(true);
               setExpiredMessage('3일 체험 기간이 종료되었습니다. 정식 서비스를 이용하시려면 크루즈몰에서 구매해주세요.');
@@ -97,35 +104,29 @@ export default function TestChatInteractiveUI() {
           }
         }
 
-        // 활성 여행 조회 (테스트 모드는 SAMPLE-MED-001 상품)
-        const tripResponse = await fetch('/api/trips/active');
-        if (tripResponse.ok) {
-          const tripData = await tripResponse.json();
+        if (tripResult.status === 'fulfilled' && tripResult.value.ok) {
+          const tripData = await tripResult.value.json();
           if (tripData.data) {
-            const trip = tripData.data;
+            const activeTripData = tripData.data;
             setTrip({
-              cruiseName: trip.cruiseName || '크루즈 여행',
-              destination: trip.itineraries?.map((it: any) => it.country).join(', ') || '목적지 미정',
-              startDate: new Date(trip.startDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '부터',
-              endDate: new Date(trip.endDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '까지',
+              cruiseName: activeTripData.cruiseName || '크루즈 여행',
+              destination: activeTripData.itineraries?.map((it: any) => it.country).join(', ') || '목적지 미정',
+              startDate: new Date(activeTripData.startDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '부터',
+              endDate: new Date(activeTripData.endDate).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) + '까지',
             });
           }
         }
-        
-        // 여행 종료 상태 확인 (테스트 모드 전용)
-        const accessResponse = await fetch('/api/user/access-check', { credentials: 'include' });
-        if (accessResponse.ok) {
-          const accessData = await accessResponse.json();
+
+        if (accessResult.status === 'fulfilled' && accessResult.value.ok) {
+          const accessData = await accessResult.value.json();
           if (accessData.ok && accessData.status === 'expired') {
             setTripExpired(true);
             setExpiredMessage(accessData.message || '3일 체험 기간이 종료되었습니다. 정식 서비스를 이용하시려면 크루즈몰에서 구매해주세요.');
           }
         }
-        
-        // 어필리에이트 몰 URL 확인
-        const affiliateResponse = await fetch('/api/user/affiliate-mall-url', { credentials: 'include' });
-        if (affiliateResponse.ok) {
-          const affiliateData = await affiliateResponse.json();
+
+        if (affiliateResult.status === 'fulfilled' && affiliateResult.value.ok) {
+          const affiliateData = await affiliateResult.value.json();
           if (affiliateData.ok && affiliateData.mallUrl) {
             setAffiliateMallUrl(affiliateData.mallUrl);
           }
@@ -142,7 +143,7 @@ export default function TestChatInteractiveUI() {
   
   // 튜토리얼 표시 여부 확인 (사용자 정보 로드 후)
   useEffect(() => {
-    if (!userId || isLoading) return;
+    if (userId === undefined || isLoading) return;
     
     // 튜토리얼 표시 여부 확인 (테스트 모드 전용 키 사용)
     const storageKey = userId 

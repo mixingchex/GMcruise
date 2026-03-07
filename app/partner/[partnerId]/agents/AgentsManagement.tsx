@@ -76,7 +76,6 @@ export default function AgentsManagement({
 
       setData(result);
     } catch (error) {
-      console.error('Failed to fetch agents:', error);
       showError(error instanceof Error ? error.message : '판매원 정보를 불러오지 못했습니다.');
     } finally {
       setLoading(false);

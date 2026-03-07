@@ -75,20 +75,14 @@ export default function TranslatorPage() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-
+      const response = await csrfFetch('/api/auth/logout', { method: 'POST' });
       if (response.ok) {
         clearAllLocalStorage();
         window.location.href = '/login-test';
       } else {
-        logger.error('로그아웃 실패');
         showError('로그아웃에 실패했습니다. 다시 시도해주세요.');
       }
-    } catch (error) {
-      logger.error('로그아웃 요청 중 오류 발생:', error);
+    } catch {
       showError('로그아웃 중 오류가 발생했습니다.');
     }
   };
@@ -168,6 +162,7 @@ export default function TranslatorPage() {
   // 음성 인식 객체
   const recRef = useRef<SpeechRecognition | null>(null);
   const isProcessingRef = useRef(false); // race condition 방지
+  const isListeningRef = useRef(false); // 버튼 눌림 상태 추적용 (iOS continuous 워크어라운드)
   const interimTextRef = useRef(''); // stale closure 방지용 ref
   const currentAudioRef = useRef<HTMLAudioElement | null>(null); // 중복 재생 방지
   const audioCtxRef = useRef<AudioContext | null>(null); // iOS AudioContext 잠금 해제용
@@ -272,15 +267,29 @@ export default function TranslatorPage() {
       logger.warn('[STT] error:', errorType);
     };
     recog.onend = () => {
-      setListening('none');
-      setPreview('');
-      setFinalText('');
-      setInterimText('');
+      if (isListeningRef.current && !isProcessingRef.current) {
+        // 버튼 아직 눌려있음 → iOS continuous 끊김 → 재시작
+        try {
+          recog.start();
+          logger.debug('[PTT] iOS continuous workaround: restarting recognition');
+        } catch (e) {
+          // 이미 시작된 경우 무시
+          logger.debug('[PTT] Recognition restart skipped:', e);
+          isListeningRef.current = false;
+          setListening('none');
+        }
+      } else {
+        setListening('none');
+        setPreview('');
+        setFinalText('');
+        setInterimText('');
+      }
     };
 
     recRef.current = recog;
 
     return () => {
+      isListeningRef.current = false;
       try { recog.abort(); } catch { }
       recRef.current = null;
     };
@@ -602,6 +611,7 @@ export default function TranslatorPage() {
 
   // 공통 음성 인식 시작(길게 누르는 동안)
   async function startPressToTalk(from: { code: string; name: string; flag: string }, to: { code: string; name: string; flag: string }) {
+    isListeningRef.current = true; // iOS continuous 워크어라운드: 버튼 눌림 상태 기록
     // P1-4: PTT onTouchStart 제스처 컨텍스트에서 AudioContext 미리 잠금 해제
     try {
       const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext | undefined;
@@ -610,6 +620,7 @@ export default function TranslatorPage() {
     } catch { }
     if (!recRef.current) {
       showError('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome, Edge, Safari 등을 사용해주세요.');
+      isListeningRef.current = false;
       return;
     }
 
@@ -666,6 +677,7 @@ export default function TranslatorPage() {
         showError('음성 인식 초기화에 실패했습니다.');
         setListening('none');
         setPreview('');
+        isListeningRef.current = false;
         return;
       }
 
@@ -736,6 +748,7 @@ export default function TranslatorPage() {
         }
         setListening('none');
         setPreview('');
+        isListeningRef.current = false;
         return;
       }
 
@@ -750,6 +763,7 @@ export default function TranslatorPage() {
       logger.error('[Start Speech Recognition Error]', error);
       setListening('none');
       setPreview('');
+      isListeningRef.current = false;
 
       if (error?.name === 'NotAllowedError' || error?.message?.includes('permission')) {
         micPermissionRef.current = false;
@@ -761,6 +775,7 @@ export default function TranslatorPage() {
   }
 
   async function stopPressToTalk() {
+    isListeningRef.current = false; // iOS continuous 워크어라운드: 버튼 뗌 상태 기록
     if (isProcessingRef.current) return; // 중복 실행 방지
     isProcessingRef.current = true;
 
@@ -1101,7 +1116,7 @@ export default function TranslatorPage() {
         </div>
       )}
 
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 text-gray-900 flex flex-col">
+      <div className="min-h-[100dvh] bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 text-gray-900 flex flex-col">
         {/* 헤더 */}
         <header className="sticky top-0 z-20 border-b-2 border-purple-200 bg-white/95 backdrop-blur shadow-md px-4 py-3">
           <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
@@ -1124,6 +1139,12 @@ export default function TranslatorPage() {
               </div>
               <p className="text-sm md:text-base text-gray-500 mt-2 leading-relaxed">72시간 무료 체험</p>
             </div>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-500 hover:text-gray-800 px-3 py-2 min-h-[44px] rounded-md shrink-0"
+            >
+              로그아웃
+            </button>
           </div>
           <div className="max-w-3xl mx-auto mt-3 flex flex-col sm:flex-row sm:items-center gap-3 text-base md:text-lg">
             <div className={`inline-flex items-center gap-3 px-4 py-2.5 rounded-lg ${isCruising ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'
@@ -1172,7 +1193,7 @@ export default function TranslatorPage() {
         </header>
 
         {/* 본문 */}
-        <main className="max-w-3xl mx-auto w-full flex-1 px-4 py-4">
+        <main className="max-w-3xl mx-auto w-full flex-1 overflow-y-auto overscroll-contain min-h-0 px-4 py-4">
           {/* 프리뷰(인식 중) - 개선된 버전: 인식 과정을 실시간으로 표시 */}
           {listening !== 'none' && (
             <div className="rounded-xl border-2 border-blue-400 bg-gradient-to-r from-blue-50 to-purple-50 p-6 mb-4 shadow-lg">
@@ -1406,11 +1427,12 @@ export default function TranslatorPage() {
         </main>
 
         {/* 하단 고정 버튼들(모바일에 최적) - 크기 조정 */}
-        <footer className="sticky bottom-0 z-20 border-t bg-white px-4 pb-[env(safe-area-inset-bottom)]">
+        <footer className="sticky bottom-0 z-20 border-t bg-white px-4" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           <div className="max-w-3xl mx-auto py-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {BTN_PAIRS.map((p) => (
               <button
                 key={p.label}
+                style={{ touchAction: 'none' }}
                 onPointerDown={() => { startPressToTalk(p.from, p.to); }}
                 onPointerUp={stopPressToTalk}
                 onPointerCancel={stopPressToTalk}

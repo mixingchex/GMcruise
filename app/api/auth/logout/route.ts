@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '@/lib/session';
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -19,13 +20,13 @@ export async function POST() {
         }).catch(() => {
           // 세션이 이미 삭제되었거나 없는 경우 무시
         });
-      } catch (error) {
-        console.error('[Logout] Error deleting session from DB:', error);
+      } catch {
+        logger.error('[Logout] Error deleting session from DB');
       }
     }
 
-    // 쿠키 삭제 — login에서 .cruisedot.co.kr 도메인으로 심은 쿠키이므로 도메인 일치 필수
-    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined;
+    // 쿠키 삭제 — login에서 .cruiseai.co.kr 도메인으로 심은 쿠키이므로 도메인 일치 필수
+    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined;
     cookieStore.set(SESSION_COOKIE, '', {
       maxAge: 0,
       path: '/',
@@ -43,10 +44,10 @@ export async function POST() {
     });
 
     return NextResponse.json({ ok: true });
-  } catch (error) {
-    console.error('[Logout] Error:', error);
+  } catch {
+    logger.error('[Logout] Error');
     // 쿠키는 삭제 시도
-    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined;
+    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined;
     cookieStore.set(SESSION_COOKIE, '', {
       maxAge: 0,
       path: '/',

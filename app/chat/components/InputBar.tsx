@@ -21,6 +21,19 @@ type SItem = { id: string; label: string; subtitle?: string; }
 
 type TerminalData = typeof terminalsData[0]; // terminals.json의 단일 객체 타입 정의
 
+// 모듈 레벨 상수 — 렌더마다 재생성 방지
+const FIXED_ORIGIN_BUTTONS: SItem[] = [
+  { id: 'current_location', label: '현 위치' },
+];
+
+const FIXED_DEST_BUTTONS: SItem[] = [
+  { id: 'convenience', label: '편의점' },
+  { id: 'mart', label: '마트' },
+  { id: 'tourist', label: '관광지' },
+  { id: 'restaurant', label: '맛집' },
+  { id: 'cafe', label: '카페' },
+];
+
 type Props = {
   mode: ChatInputMode; // ChatInputMode 사용
   trip?: {
@@ -47,18 +60,6 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     { id: 'cafe', label: '카페' },
   ])
 
-  // 고정 버튼 정의
-  const fixedOriginButtons: SItem[] = [
-    { id: 'current_location', label: '현 위치' },
-  ];
-
-  const fixedDestButtons: SItem[] = [
-    { id: 'convenience', label: '편의점' },
-    { id: 'mart', label: '마트' },
-    { id: 'tourist', label: '관광지' },
-    { id: 'restaurant', label: '맛집' },
-    { id: 'cafe', label: '카페' },
-  ];
   const [generalText, setGeneralText] = useState(''); // New state for general mode
   const typingO = useRef<number>()
   const typingD = useRef<number>()
@@ -207,7 +208,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         try {
           const fetchedChips = await fetchSuggestions('origin', '', destText.trim());
           // 고정 버튼 + 초기 제안 (모든 결과 표시, 최대 11개 추가)
-          const chips = [...fixedOriginButtons, ...fetchedChips.slice(0, 11)];
+          const chips = [...FIXED_ORIGIN_BUTTONS, ...fetchedChips.slice(0, 11)];
           logger.log('[InputBar] Initial origin suggestions (no text):', {
             fetchedCount: fetchedChips.length,
             chips: chips,
@@ -216,7 +217,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           setOSug(chips);
         } catch (error) {
           // 에러 발생 시 고정 버튼만 표시
-          setOSug(fixedOriginButtons);
+          setOSug(FIXED_ORIGIN_BUTTONS);
         } finally {
           setOriginLoading(false);
         }
@@ -243,7 +244,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         // 국가명 검색 시 (짧은 입력) 더 많은 결과 표시, 일반 검색 시 적당히 표시
         const maxResults = q.length <= 3 ? 19 : 11; // 국가명(짧은 입력)이면 19개, 아니면 11개
         // 고정 버튼 + 연관검색 결과 (국가별 검색 시 최대 19개 추가)
-        const chips = [...fixedOriginButtons, ...fetchedChips.slice(0, maxResults)];
+        const chips = [...FIXED_ORIGIN_BUTTONS, ...fetchedChips.slice(0, maxResults)];
         logger.log('[InputBar] ✅ Origin suggestions final (calling setOSug):', {
           q,
           hint,
@@ -251,7 +252,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           chips: chips,
           chipsCount: chips.length,
           chipsLabels: chips.map(c => c.label),
-          fixedButtonsCount: fixedOriginButtons.length,
+          fixedButtonsCount: FIXED_ORIGIN_BUTTONS.length,
           maxResults
         });
         setOSug(chips);
@@ -259,7 +260,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       } catch (error) {
         logger.error('[InputBar] ❌ Error fetching suggestions:', error);
         // 에러 발생 시에도 고정 버튼은 유지
-        setOSug(fixedOriginButtons);
+        setOSug(FIXED_ORIGIN_BUTTONS);
       } finally {
         setOriginLoading(false);
       }
@@ -283,7 +284,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         try {
           const fetchedChips = await fetchSuggestions('dest', '', originText.trim());
           // 고정 버튼 + 초기 제안 (최대 7개 추가)
-          const chips = [...fixedDestButtons, ...fetchedChips.slice(0, 7)];
+          const chips = [...FIXED_DEST_BUTTONS, ...fetchedChips.slice(0, 7)];
           logger.log('[InputBar] Initial dest suggestions (no text):', {
             fetchedCount: fetchedChips.length,
             chips: chips,
@@ -292,12 +293,12 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           setDSug(chips);
         } catch (error) {
           // 에러 발생 시 고정 버튼만 표시
-          setDSug(fixedDestButtons);
+          setDSug(FIXED_DEST_BUTTONS);
         } finally {
           setDestLoading(false);
         }
       }, 180);
-      return;
+      return () => window.clearTimeout(typingD.current);
     }
 
     // 텍스트 입력 시: 고정 버튼 + 연관검색 결과 (국가별 검색 시 더 많이 표시)
@@ -306,12 +307,12 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       const hint = originText.trim(); // 출발지를 힌트로 전달
 
       // 키워드 감지: 편의점, 마트, 관광지, 맛집, 카페 등
-      const isKeyword = fixedDestButtons.some(btn => q === btn.label || q.includes(btn.label));
+      const isKeyword = FIXED_DEST_BUTTONS.some(btn => q === btn.label || q.includes(btn.label));
 
       if (isKeyword) {
         // 키워드인 경우: 고정 버튼만 표시 (연관검색 불필요)
         logger.log('[InputBar] ✅ Dest is keyword, showing fixed buttons only:', { q });
-        setDSug(fixedDestButtons);
+        setDSug(FIXED_DEST_BUTTONS);
         return;
       }
 
@@ -329,7 +330,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         // 국가명 검색 시 (짧은 입력) 더 많은 결과 표시, 일반 검색 시 적당히 표시
         const maxResults = q.length <= 3 ? 15 : 7; // 국가명(짧은 입력)이면 15개, 아니면 7개
         // 고정 버튼 + 연관검색 결과 (국가별 검색 시 최대 15개 추가)
-        const chips = [...fixedDestButtons, ...fetchedChips.slice(0, maxResults)];
+        const chips = [...FIXED_DEST_BUTTONS, ...fetchedChips.slice(0, maxResults)];
         logger.log('[InputBar] ✅ Dest suggestions final (calling setDSug):', {
           q,
           hint,
@@ -337,7 +338,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           chips: chips,
           chipsCount: chips.length,
           chipsLabels: chips.map(c => c.label),
-          fixedButtonsCount: fixedDestButtons.length,
+          fixedButtonsCount: FIXED_DEST_BUTTONS.length,
           maxResults
         });
         setDSug(chips);
@@ -345,7 +346,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       } catch (error) {
         logger.error('[InputBar] ❌ Error fetching dest suggestions:', error);
         // 에러 발생 시에도 고정 버튼은 유지
-        setDSug(fixedDestButtons);
+        setDSug(FIXED_DEST_BUTTONS);
       } finally {
         setDestLoading(false);
       }
@@ -906,13 +907,18 @@ function Input({ id, value, onChange, placeholder, onKeyDown, onFocus, onBlur, c
   disabled?: boolean;
 }) {
   return (
-    <input id={id} className={`w-full rounded-xl border px-4 py-3 text-lg outline-none ${className}`}
+    <input id={id} className={`w-full rounded-xl border px-4 py-3 text-lg outline-none touch-manipulation ${className}`}
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck={false}
       value={value} placeholder={placeholder}
       onChange={e => onChange(e.target.value)} onKeyDown={onKeyDown} onFocus={onFocus} onBlur={onBlur} disabled={disabled} />
   )
 }
 function Chips({ items, onClick, compact = false, loading = false }: { items: SItem[], onClick: (it: SItem) => void, compact?: boolean, loading?: boolean }) {
-  logger.log('[Chips] Rendering with items:', items?.length, items?.map(i => ({ id: i.id, label: i.label })), 'compact:', compact, 'loading:', loading);
+  if (process.env.NODE_ENV === 'development') {
+    logger.log('[Chips] Rendering with items:', items?.length, 'compact:', compact);
+  }
 
   // 로딩 중일 때 스켈레톤 UI 표시
   if (loading) {

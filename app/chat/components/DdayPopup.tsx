@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { dDiff } from '@/lib/date';
 import { User, Trip } from '@/types/app'; // Import global User and Trip types
+import { logger } from '@/lib/logger';
 
 type DMap = Record<string, { title: string; message: string }>;
 type Row = { dday?: number; emoji?: string; message?: string; d_day?: string; title?: string; message_template?: string };
@@ -102,13 +103,13 @@ export default function DdayPopup({ initialUser, initialTrip }: DdayPopupProps) 
         }
 
         if (!normalized || Object.keys(normalized).length === 0) {
-          console.warn('D-Day JSON 빈 값 또는 포맷 오작동. 화면에 표시할 데이터가 없습니다.', raw);
+          logger.warn('D-Day JSON 빈 값 또는 포맷 오작동. 화면에 표시할 데이터가 없습니다.');
           setDmap(FALLBACK_DMAP); // 빈 경우 폴백 사용
           return;
         }
         setDmap(normalized);
       } catch (e) {
-        console.error('D-Day JSON 로드 실패:', e);
+        logger.error('D-Day JSON 로드 실패');
         setDmap(FALLBACK_DMAP); // 실패 시 폴백 사용
       }
     })();

@@ -12,6 +12,7 @@ function LoginPageContent() {
   const [password, setPassword] = useState('');  // ← 공백
   const [name, setName] = useState('');          // ← 공백
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const sp = useSearchParams();
 
@@ -25,28 +26,31 @@ function LoginPageContent() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isSubmitting) return;
     setError(null); // 에러 초기화
+    setIsSubmitting(true);
 
     // 입력값 앞뒤 공백 제거
     const trimmedName = name.trim();
     const trimmedPhone = phone.trim();
-    const trimmedPassword = password.trim();
+    const trimmedPassword = password; // 비밀번호는 trim 하지 않음 (공백 포함 비밀번호 지원)
 
     // 필수 필드 검증 (3800 일반 모드)
     if (!trimmedName) {
+      setIsSubmitting(false);
       setError('이름을 입력해주세요.');
       return;
     }
     if (!trimmedPhone) {
+      setIsSubmitting(false);
       setError('전화번호를 입력해주세요.');
       return;
     }
     if (!trimmedPassword) {
+      setIsSubmitting(false);
       setError('비밀번호를 입력해주세요.');
       return;
     }
-
-    console.log('[LOGIN] Submitting...', { phone: trimmedPhone, password: '***', name: trimmedName });
 
     // 재시도 로직 함수
     const attemptLogin = async (retryCount = 0): Promise<Response> => {
@@ -67,7 +71,6 @@ function LoginPageContent() {
         clearTimeout(timeoutId);
         // 타임아웃이나 네트워크 오류 시 재시도 (최대 2회)
         if (retryCount < 2 && (err.name === 'AbortError' || err.name === 'TypeError')) {
-          console.log(`[LOGIN] Retrying... (${retryCount + 1}/2)`);
           await new Promise(resolve => setTimeout(resolve, 1000)); // 1초 대기
           return attemptLogin(retryCount + 1);
         }
@@ -78,35 +81,13 @@ function LoginPageContent() {
     try {
       const r = await attemptLogin();
 
-      console.log('[LOGIN] Response status:', r.status);
-      
-      const data = await r.json().catch((err) => {
-        console.error('[LOGIN] JSON parse error:', err);
+      const data = await r.json().catch(() => {
         return { ok: false, error: '서버 응답을 처리할 수 없습니다.' };
       });
-      
-      console.log('[LOGIN] Response data:', data);
       
       if (!r.ok || !data?.ok) {
         const errorMessage = data?.error ?? '로그인 실패';
         const errorDetails = data?.details ?? '';
-        const errorStack = data?.stack ?? '';
-        
-        console.error('[LOGIN] Login failed:', errorMessage, { 
-          status: r.status, 
-          statusText: r.statusText,
-          data,
-          details: errorDetails,
-          stack: errorStack,
-        });
-        
-        // 개발 환경에서는 상세 오류 정보도 콘솔에 출력
-        if (errorDetails) {
-          console.error('[LOGIN] Error details:', errorDetails);
-        }
-        if (errorStack) {
-          console.error('[LOGIN] Error stack:', errorStack);
-        }
         
         // 비밀번호 오류인 경우 명확한 메시지 표시
         if (r.status === 401 || errorMessage.includes('비밀번호') || errorMessage.includes('올바르지 않습니다')) {
@@ -118,6 +99,7 @@ function LoginPageContent() {
             : errorMessage;
           setError(fullErrorMessage);
         }
+        setIsSubmitting(false);
         return; // 절대 리다이렉트하지 않음
       }
 
@@ -127,25 +109,16 @@ function LoginPageContent() {
       // CSRF 토큰 저장
       if (data.csrfToken) {
         setCsrfToken(data.csrfToken);
-        console.log('[LOGIN] CSRF token saved');
       }
 
       // 서버가 알려준 next로 이동 (온보딩으로는 절대 이동하지 않음)
       const nextParam = sp.get('next');
       const decodedNext = nextParam ? decodeURIComponent(nextParam) : null;
-      let next = data.next || decodedNext || '/chat';
-      
-      // 비밀번호 1101(3일체험) 감지 시 /chat-test로 강제 리다이렉트
-      if (trimmedPassword === '1101') {
-        next = '/chat-test';
-        console.log('[LOGIN] 비밀번호 1101 감지 - /chat-test로 강제 리다이렉트');
-      }
-      
-      console.log('[LOGIN] Redirecting to:', next);
+      // 서버 data.next를 우선 사용 — 클라이언트에서 비밀번호로 분기하지 않음
+      const next = data.next || decodedNext || '/chat';
       router.push(next);
     } catch (error: any) {
-      console.error('[LOGIN] Network error:', error);
-
+      setIsSubmitting(false);
       // 에러 유형에 따른 상세 메시지
       let errorMessage = '네트워크 오류가 발생했습니다.';
 
@@ -158,11 +131,13 @@ function LoginPageContent() {
       }
 
       setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 text-gray-900 relative overflow-hidden">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-gray-50 via-white to-gray-50 text-gray-900 relative overflow-hidden">
       {/* 크루즈 배경 이미지 */}
       <div className="absolute inset-0">
         <div 
@@ -174,7 +149,7 @@ function LoginPageContent() {
         <div className="absolute inset-0 bg-gradient-to-b from-white/80 via-white/60 to-white/80"></div>
       </div>
 
-      <div className="relative z-10 flex items-center justify-center min-h-screen px-4 py-8 md:py-12">
+      <div className="relative z-10 flex items-center justify-center min-h-[100dvh] px-4 py-8 md:py-12">
         <div className="w-full max-w-lg">
           {/* 헤더 섹션 */}
           <div className="text-center mb-6 space-y-4">
@@ -205,7 +180,7 @@ function LoginPageContent() {
           </div>
 
           {/* YouTube 영상 */}
-          <div className="mb-6 rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 bg-white">
+          <div className="mb-6 rounded-2xl overflow-hidden shadow-2xl border-2 border-gray-200 bg-white hidden md:block">
             <div className="aspect-video w-full">
               <iframe
                 src="https://www.youtube.com/embed/-p_6G69MgyQ?autoplay=1&mute=1&loop=1&playlist=-p_6G69MgyQ&controls=1&modestbranding=1&rel=0&enablejsapi=1"
@@ -286,12 +261,22 @@ function LoginPageContent() {
 
               <button
                 type="submit"
+                disabled={isSubmitting}
                 className="w-full bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 hover:from-blue-700 hover:via-blue-800 hover:to-indigo-800 text-white font-bold text-xl md:text-2xl py-6 md:py-7 rounded-xl shadow-2xl hover:shadow-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
               >
                 <span className="relative z-10 flex items-center justify-center gap-3">
-                  <span className="text-2xl md:text-3xl">🚀</span>
-                  <span>로그인</span>
-                  <span className="text-2xl md:text-3xl">✨</span>
+                  {isSubmitting ? (
+                    <>
+                      <span className="text-2xl md:text-3xl animate-spin">⏳</span>
+                      <span>로그인 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-2xl md:text-3xl">🚀</span>
+                      <span>로그인</span>
+                      <span className="text-2xl md:text-3xl">✨</span>
+                    </>
+                  )}
                 </span>
               </button>
             </form>
@@ -324,7 +309,7 @@ function LoginPageContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">로딩 중...</div>}>
+    <Suspense fallback={<div className="flex min-h-[100dvh] items-center justify-center">로딩 중...</div>}>
       <LoginPageContent />
     </Suspense>
   );
