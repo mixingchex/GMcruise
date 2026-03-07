@@ -531,9 +531,20 @@ export default function FlightInfoEditor({
               type="date"
               value={localFlightInfo.travelPeriod.startDate}
               onChange={(e) => {
+                const newStartDate = e.target.value;
+                const newPeriod = { ...localFlightInfo.travelPeriod, startDate: newStartDate };
+                if (newStartDate && localFlightInfo.travelPeriod.endDate) {
+                  const start = new Date(newStartDate);
+                  const end = new Date(localFlightInfo.travelPeriod.endDate);
+                  const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                  if (diffDays > 0) {
+                    newPeriod.days = diffDays;
+                    newPeriod.nights = diffDays - 1;
+                  }
+                }
                 updateFlightInfo({
-                  travelPeriod: { ...localFlightInfo.travelPeriod, startDate: e.target.value },
-                  departure: { ...localFlightInfo.departure, date: e.target.value },
+                  travelPeriod: newPeriod,
+                  departure: { ...localFlightInfo.departure, date: newStartDate },
                 });
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -545,10 +556,17 @@ export default function FlightInfoEditor({
               type="date"
               value={localFlightInfo.travelPeriod.endDate}
               onChange={(e) => {
-                const newPeriod = {
-                  ...localFlightInfo.travelPeriod,
-                  endDate: e.target.value,
-                };
+                const newEndDate = e.target.value;
+                const newPeriod = { ...localFlightInfo.travelPeriod, endDate: newEndDate };
+                if (localFlightInfo.travelPeriod.startDate && newEndDate) {
+                  const start = new Date(localFlightInfo.travelPeriod.startDate);
+                  const end = new Date(newEndDate);
+                  const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                  if (diffDays > 0) {
+                    newPeriod.days = diffDays;
+                    newPeriod.nights = diffDays - 1;
+                  }
+                }
                 updateFlightInfo({ travelPeriod: newPeriod });
               }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"

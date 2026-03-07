@@ -80,93 +80,15 @@ export async function GET(req: NextRequest) {
         break;
     }
 
-    // 어필리에이트 수당이 완료된 상품만 조회
-    // 필터링 조건:
-    // 1. status: 'active' - 활성 상태인 상품만
-    // 2. isPublished: true - 게시된 상품만
-    // 3. effectiveFrom <= now - 적용 시작일이 현재보다 이전이어야 함
-    // 4. effectiveTo IS NULL OR effectiveTo >= now - 적용 종료일이 없거나, 현재보다 이후여야 함
-    //    (적용 종료일이 지난 상품은 자동으로 제외됨)
-    // 5. 삭제된 상품은 데이터베이스에서 제거되므로 자동으로 필터링됨
-    const now = new Date();
-    
-    let activeAffiliateProducts;
-    try {
-      // effectiveFrom은 필수 필드이므로 null 체크 불필요, effectiveTo만 null 가능
-      // Prisma 쿼리 구조: 최상위 레벨에 AND와 OR을 동시에 사용할 수 없으므로 AND로 묶어야 함
-      activeAffiliateProducts = await prisma.affiliateProduct.findMany({
-        where: {
-          AND: [
-            { status: 'active' }, // 활성 상태만
-            { isPublished: true }, // 게시된 상품만
-            { effectiveFrom: { lte: now } }, // 적용 시작일이 현재보다 이전이어야 함
-            {
-              OR: [
-                { effectiveTo: null }, // 적용 종료일이 없으면 계속 유효
-                { effectiveTo: { gte: now } }, // 적용 종료일이 현재보다 이후여야 함 (종료일이 지난 상품은 제외)
-              ],
-            },
-          ],
-        },
-        select: {
-          productCode: true,
-          cruiseProductId: true,
-          effectiveFrom: true,
-          effectiveTo: true,
-          status: true,
-          isPublished: true,
-        },
-      });
-    } catch (queryError: any) {
-      console.error('[Public Products API] AffiliateProduct query error:', queryError);
-      console.error('[Public Products API] Query error details:', {
-        message: queryError?.message,
-        name: queryError?.name,
-        code: queryError?.code,
-        stack: queryError?.stack,
-      });
-      // 쿼리 에러 발생 시 빈 배열 반환
-      activeAffiliateProducts = [];
-    }
+    // 상품 노출 기준: CruiseProduct.saleStatus='판매중'만으로 결정
+    // AffiliateProduct는 수당 계산/추적 용도로만 사용하며 노출 여부에 영향 없음
 
-    const affiliateProductCodes = new Set(
-      activeAffiliateProducts.map(ap => ap.productCode)
-    );
-
-    // 어필리에이트 수당이 완료된 상품이 없으면 빈 배열 반환
-    if (affiliateProductCodes.size === 0) {
-      return NextResponse.json({
-        ok: true,
-        products: [],
-        pagination: {
-          page: 1,
-          limit,
-          total: 0,
-          totalPages: 0,
-        },
-      });
-    }
-
-    // 상품 조회 (어필리에이트 수당이 완료된 상품만, saleStatus는 선택적)
+    // 상품 조회 (saleStatus='판매중'인 상품만)
     let allProducts = await prisma.cruiseProduct.findMany({
       where: {
-        AND: [
-          {
-            productCode: {
-              in: Array.from(affiliateProductCodes), // AffiliateProduct가 있는 상품만
-            },
-          },
-          {
-            // saleStatus가 '판매중지', '판매완료', '3일체험'이 아닌 상품만 포함
-            AND: [
-              {
-                NOT: {
-                  saleStatus: { in: ['판매중지', '판매완료', '3일체험'] },
-                },
-              },
-            ],
-          },
-        ],
+        NOT: {
+          saleStatus: { in: ['판매중지', '판매완료', '3일체험'] },
+        },
       },
       orderBy,
       select: {
