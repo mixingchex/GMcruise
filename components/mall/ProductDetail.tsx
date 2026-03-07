@@ -381,10 +381,14 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
     if (!departureDateStr) return null;
 
     try {
-      const departure = new Date(departureDateStr + 'T00:00:00');
-      const departureYear = departure.getFullYear();
-      const departureMonth = departure.getMonth();
-      const departureDay = departure.getDate();
+      // YYYY-MM-DD 부분만 추출 (ISO 전체 문자열이 들어와도 안전하게 처리)
+      const datePart = departureDateStr.split('T')[0];
+      const [yearStr, monthStr, dayStr] = datePart.split('-');
+      const departureYear = parseInt(yearStr, 10);
+      const departureMonth = parseInt(monthStr, 10) - 1; // 0-indexed
+      const departureDay = parseInt(dayStr, 10);
+
+      if (isNaN(departureYear) || isNaN(departureMonth) || isNaN(departureDay)) return null;
 
       const formatDate = (date: Date) => {
         const year = date.getFullYear();
