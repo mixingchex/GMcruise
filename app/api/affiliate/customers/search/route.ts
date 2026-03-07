@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 
 // 판매원/대리점장의 고객 검색 API
 import { NextRequest, NextResponse } from 'next/server';
+import { maskName, maskPhone } from '@/lib/privacy/masking';
+import { logger } from '@/lib/logger';
 import prisma from '@/lib/prisma';
 import { requirePartnerContext } from '@/lib/partner-auth';
 
@@ -180,17 +182,17 @@ export async function GET(req: NextRequest) {
       ok: true,
       customers: customers.map(c => ({
         id: c.id,
-        name: c.name || '',
-        phone: c.phone || '',
-        email: c.email || '',
-        displayName: `${c.name || '이름 없음'}${c.phone ? ` (${c.phone})` : ''}`,
+        maskedName: maskName(c.name) ?? '고객',
+        maskedPhone: maskPhone(c.phone),
+        // 실명/전화번호 원본 미포함 (개인정보보호법 제17조)
+        displayName: `${maskName(c.name) ?? '고객'} 님`,
       }))
     });
   } catch (error: any) {
-    console.error('[Affiliate Customers Search] Error:', error);
+    logger.error('[Affiliate Customers Search] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
-      { ok: false, error: error.message || '서버 오류가 발생했습니다.' },
-      { status: error.status || 500 }
+      { ok: false, error: '고객 검색 중 오류가 발생했습니다.' },
+      { status: 500 }
     );
   }
 }

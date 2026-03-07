@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
               phone: true,
               mallUserId: true,
               mallNickname: true,
-              password: true, // 비밀번호 추가
+
             },
           },
         },
@@ -191,7 +191,6 @@ export async function GET(req: NextRequest) {
           phone: base.User?.phone ?? null,
           mallUserId: base.User?.mallUserId ?? null,
           mallNickname: base.User?.mallNickname ?? null,
-          password: base.User?.password ?? null, // 비밀번호 추가
         },
         metrics: {
           leadsTotal,

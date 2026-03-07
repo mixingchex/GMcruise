@@ -1920,8 +1920,8 @@ export default function PartnerDashboard({ user, profile, trialInfo }: PartnerDa
           </section>
         )}
 
-        {/* 개인 링크 - 모바일 최적화 (대리점장/판매원은 빠른메뉴의 링크 관리에서 확인 가능하므로 숨김) */}
-        {!isBranchManager && !isSalesAgent && (
+        {/* 개인 링크 - 판매원도 최우선 CTA로 표시 */}
+        {!isBranchManager && (
           <section className="rounded-2xl bg-white p-4 shadow-lg shadow-slate-900/5 border border-slate-100 md:rounded-3xl md:p-6">
             <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl flex items-center gap-2">
               <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center">

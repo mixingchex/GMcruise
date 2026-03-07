@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/session';
+import { logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   try {
@@ -224,10 +225,10 @@ export async function GET(req: NextRequest) {
       ok: true,
       reservations: mappedReservations,
     });
-  } catch (error: any) {
-    console.error('[Admin Purchased Customers] Error:', error);
+  } catch (error: unknown) {
+    logger.error('[Admin Purchased Customers] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
-      { ok: false, error: error.message || 'Failed to fetch reservations' },
+      { ok: false, error: '예약 목록 조회 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

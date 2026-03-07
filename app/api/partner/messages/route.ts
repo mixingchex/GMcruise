@@ -9,32 +9,6 @@ const SESSION_COOKIE = 'cg.sid.v2';
 // Helper: Check Authentication
 async function checkAuth() {
     try {
-        // Dev-only: Allow impersonation for testing
-        if (process.env.NODE_ENV === 'development') {
-            const { headers } = require('next/headers');
-            const headersList = await headers();
-            const testUserId = headersList.get('X-Test-User-Id');
-            if (testUserId) {
-                const user = await prisma.user.findUnique({
-                    where: { id: parseInt(testUserId) },
-                    select: {
-                        id: true,
-                        role: true,
-                        name: true,
-                        AffiliateProfile: true,
-                    },
-                });
-                if (user) {
-                    return {
-                        userId: user.id,
-                        role: user.role,
-                        name: user.name,
-                        profile: user.AffiliateProfile,
-                    };
-                }
-            }
-        }
-
         const cookieStore = await cookies();
         const sid = cookieStore.get(SESSION_COOKIE)?.value;
         if (!sid) return null;

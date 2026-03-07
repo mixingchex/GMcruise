@@ -4,72 +4,96 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requirePartnerContext } from '@/lib/partner-auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { leadId: string } }
 ) {
   try {
-    const { sessionUser: user, profile } = await requirePartnerContext();
+    const { profile } = await requirePartnerContext();
     const leadId = parseInt(params.leadId);
 
-    if (isNaN(leadId)) {
+    if (isNaN(leadId) || leadId <= 0) {
       return NextResponse.json(
         { ok: false, error: '잘못된 고객 ID입니다.' },
         { status: 400 }
       );
     }
 
-    // 고객의 결제 정보 조회
-    const payments = await prisma.payment.findMany({
+    // C-1: 소유권 검증 — 이 리드가 현재 파트너(또는 산하 판매원)의 고객인지 확인
+    const lead = await prisma.affiliateLead.findFirst({
       where: {
-        status: 'paid',
+        id: leadId,
         OR: [
-          { userId: leadId },
-          {
-            buyerEmail: {
-              in: await prisma.user
-                .findUnique({
-                  where: { id: leadId },
-                  select: { email: true },
-                })
-                .then((u) => (u?.email ? [u.email] : [])),
-            },
-          },
+          { managerId: profile.id },
+          { agentId: profile.id },
         ],
       },
-      orderBy: { paidAt: 'desc' },
-      take: 10,
+      select: { id: true },
+    });
+
+    if (!lead) {
+      return NextResponse.json(
+        { ok: false, error: '접근 권한이 없습니다.' },
+        { status: 403 }
+      );
+    }
+
+    // 소유권 확인 후 AffiliateSale 통해 결제 정보 조회
+    const sales = await prisma.affiliateSale.findMany({
+      where: {
+        leadId,
+        OR: [
+          { managerId: profile.id },
+          { agentId: profile.id },
+        ],
+      },
       select: {
         id: true,
-        orderId: true,
-        productCode: true,
-        productName: true,
-        amount: true,
-        currency: true,
+        saleDate: true,
+        saleAmount: true,
+        cabinType: true,
         status: true,
-        paidAt: true,
-        buyerName: true,
-        buyerEmail: true,
-        buyerTel: true,
+        Payment: {
+          select: {
+            id: true,
+            productCode: true,
+            productName: true,
+            amount: true,
+            status: true,
+            paidAt: true,
+            pgProvider: true,
+            // buyerName, buyerTel, buyerEmail 제외 (PII 최소화)
+          },
+        },
       },
+      orderBy: { saleDate: 'desc' },
+      take: 10,
     });
 
-    console.log('[Partner Customer Payments] Found:', {
-      leadId,
-      partnerId: user.id,
-      paymentsCount: payments.length,
-    });
+    const payments = sales
+      .filter(s => s.Payment)
+      .map(s => ({
+        id: s.Payment!.id,
+        productCode: s.Payment!.productCode,
+        productName: s.Payment!.productName,
+        amount: s.Payment!.amount,
+        status: s.Payment!.status,
+        paidAt: s.Payment!.paidAt,
+        pgProvider: s.Payment!.pgProvider,
+        cabinType: s.cabinType,
+        saleStatus: s.status,
+      }));
 
-    return NextResponse.json({
-      ok: true,
-      payments,
+    return NextResponse.json({ ok: true, payments });
+  } catch (error: unknown) {
+    logger.error('[Partner Customer Payments] Error:', {
+      error: error instanceof Error ? error.message : String(error),
     });
-  } catch (error: any) {
-    console.error('[Partner Customer Payments] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || '결제 정보 조회 실패' },
-      { status: error.status || 500 }
+      { ok: false, error: '결제 정보 조회 실패' },
+      { status: 500 }
     );
   }
 }

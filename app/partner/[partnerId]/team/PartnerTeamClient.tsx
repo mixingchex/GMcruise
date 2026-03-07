@@ -51,7 +51,6 @@ type AgentRecord = {
     phone: string | null;
     mallUserId: string | null;
     mallNickname: string | null;
-    password: string | null; // 비밀번호 추가
   };
   metrics: AgentMetrics;
 };
@@ -594,11 +593,7 @@ export default function PartnerTeamClient() {
                       <td className="px-6 py-4 text-sm text-slate-700">
                         <div className="flex flex-col gap-1">
                           <span>{agent.user.phone ?? '연락처 미등록'}</span>
-                          {agent.user.password && (
-                            <span className="text-xs font-mono font-semibold text-purple-700">
-                              비밀번호: {agent.user.password}
-                            </span>
-                          )}
+
                           {agent.user.mallUserId ? (
                             <Link
                               href={`/products/${agent.user.mallUserId}`}

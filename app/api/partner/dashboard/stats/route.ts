@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
     // 프로필 확인
     const profile = await prisma.affiliateProfile.findFirst({
-      where: { userId: user.id },
+      where: { userId: user.id, status: 'ACTIVE' },
       select: {
         id: true,
         type: true,

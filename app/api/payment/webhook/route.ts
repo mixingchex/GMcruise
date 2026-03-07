@@ -223,6 +223,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 고아 결제 → 본사(HQ) 자동 연결: 어필리에이트 정보 없으면 HQ managerId로 귀속
+    if (!managerId && !agentId) {
+      const hqProfile = await prisma.affiliateProfile.findFirst({
+        where: { type: 'HQ', status: 'ACTIVE' },
+        select: { id: true },
+        orderBy: { createdAt: 'asc' }, // 가장 먼저 생성된 HQ
+      }).catch(() => null);
+      if (hqProfile) {
+        managerId = hqProfile.id;
+      }
+    }
+
     // AffiliateProduct 찾기
     let affiliateProductId: number | null = null;
     if (productCode) {
@@ -249,10 +261,22 @@ export async function POST(req: NextRequest) {
     let commissionTier = null;
     const roomSelections = metadata?.roomSelections || [];
 
+    // cabinType 영문→한글 정규화 (MallProductContent에서 영문값이 올 수 있음)
+    const CABIN_TYPE_NORMALIZE: Record<string, string> = {
+      'INSIDE': '인사이드', 'inside': '인사이드',
+      'OCEANVIEW': '오션뷰', 'oceanview': '오션뷰', 'OCEAN_VIEW': '오션뷰',
+      'BALCONY': '발코니', 'balcony': '발코니',
+      'SUITE': '스위트', 'suite': '스위트',
+    };
+    const normalizeCabinType = (raw: string | undefined | null): string | null => {
+      if (!raw) return null;
+      return CABIN_TYPE_NORMALIZE[raw] ?? raw;
+    };
+
     // 객실 타입 결정: 직접 전달된 cabinType 또는 roomSelections의 첫 번째 객실
-    let determinedCabinType = cabinType;
+    let determinedCabinType = normalizeCabinType(cabinType);
     if (!determinedCabinType && roomSelections.length > 0) {
-      determinedCabinType = roomSelections[0].roomType;
+      determinedCabinType = normalizeCabinType(roomSelections[0].roomType);
     }
 
     if (affiliateProductId && determinedCabinType) {

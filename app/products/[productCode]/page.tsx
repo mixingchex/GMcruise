@@ -86,7 +86,7 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
 
   // 2. 로그인 유저 확인 (saleStatus 체크보다 먼저 — 관리자 바이패스용)
   const session = await getSession();
-  const isAdmin = session?.role === 'admin';
+  const isAdmin = session?.role?.toLowerCase() === 'admin';
 
   // 판매중지/준비중/삭제 상품: 관리자만 접근 가능, 일반 유저는 404
   const isNonSaleStatus = ['판매중지', '준비중', '삭제'].includes(product.saleStatus || '');

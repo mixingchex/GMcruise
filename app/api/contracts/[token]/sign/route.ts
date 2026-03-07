@@ -212,10 +212,16 @@ export async function POST(
             resolvedContractorPhone,
           );
 
-          // 관리자 이메일 (실패해도 서명 자체는 성공)
-          const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_SMTP_USER;
+          // 관리자 이메일: SystemConfig → ADMIN_EMAIL → EMAIL_SMTP_USER 순 fallback
+          const sysConfig = await prisma.systemConfig.findFirst({
+            where: { key: 'admin_email' },
+            select: { value: true },
+          }).catch(() => null);
+          const adminEmail = sysConfig?.value
+            || process.env.ADMIN_EMAIL
+            || process.env.EMAIL_SMTP_USER;
           if (!adminEmail) {
-            logger.warn('[ContractSign] ADMIN_EMAIL 미설정 — 관리자 이메일 발송 스킵', { token: token.slice(0, 8) });
+            logger.warn('[ContractSign] 관리자 이메일 미설정 — ADMIN_EMAIL 환경변수를 추가하세요', { token: token.slice(0, 8) });
           }
           if (adminEmail) {
             await sendTravelContractSignedEmail({
