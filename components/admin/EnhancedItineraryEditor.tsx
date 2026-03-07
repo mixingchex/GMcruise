@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown, FiSave, FiFolder, FiImage, FiVideo, FiFileText, FiX, FiSearch, FiUpload, FiMapPin } from 'react-icons/fi';
 import { ContentBlock } from './ProductDetailEditor';
 import countries from '@/data/countries.json';
+import { showSuccess } from '@/components/ui/Toast';
 
 export interface MealDetail {
   location?: string;
@@ -86,6 +87,8 @@ export default function EnhancedItineraryEditor({
   const [showGroupManager, setShowGroupManager] = useState(false);
   const [savedGroups, setSavedGroups] = useState<any[]>([]);
   const loadGroupsAbortRef = useRef<AbortController | null>(null);
+  const loadCruiseImagesAbortRef = useRef<AbortController | null>(null);
+  const loadGoogleDriveImagesAbortRef = useRef<AbortController | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
   const [nightsFilter, setNightsFilter] = useState<number | null>(null);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
@@ -183,7 +186,10 @@ export default function EnhancedItineraryEditor({
 
   // 크루즈정보사진 폴더 목록 로드
   useEffect(() => {
-    if (!showCruisePhotoModal) return;
+    if (!showCruisePhotoModal) {
+      loadCruiseImagesAbortRef.current?.abort();
+      return;
+    }
     const ac = new AbortController();
     loadCruiseFolders(ac.signal);
     return () => ac.abort();
@@ -209,19 +215,22 @@ export default function EnhancedItineraryEditor({
   };
 
   const loadCruiseImages = async (folder: string) => {
+    loadCruiseImagesAbortRef.current?.abort();
+    const ac = new AbortController();
+    loadCruiseImagesAbortRef.current = ac;
     try {
-      // 이미지 라이브러리와 동일한 API 사용
       const res = await fetch(`/api/admin/cruise-photos?folder=${encodeURIComponent(folder)}`, {
         credentials: 'include',
+        signal: ac.signal,
       });
       if (res.ok) {
         const data = await res.json();
         if (data.ok && data.images) {
-          // images는 { id, name, url, webpUrl } 형태의 배열
           setCruiseImages(data.images.map((img: { url: string }) => img.url));
         }
       }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('Failed to load cruise images:', error);
     }
   };
@@ -236,7 +245,7 @@ export default function EnhancedItineraryEditor({
       );
     } else if (showTourImagePicker !== null) {
       // 관광이미지에 추가
-      const day = days.find(d => d.day === showTourImagePicker);
+      const day = daysRef.current.find(d => d.day === showTourImagePicker);
       if (day) {
         updateDay(showTourImagePicker, {
           tourImages: [...(day.tourImages || []), imageUrl]
@@ -249,7 +258,7 @@ export default function EnhancedItineraryEditor({
       setSearchTerm('');
     } else if (showAccommodationImagePicker !== null) {
       // 숙박 사진 배열에 추가
-      const targetDay = days.find(d => d.day === showAccommodationImagePicker);
+      const targetDay = daysRef.current.find(d => d.day === showAccommodationImagePicker);
       updateDay(showAccommodationImagePicker, {
         accommodationImages: [...(targetDay?.accommodationImages || []), imageUrl]
       });
@@ -274,7 +283,7 @@ export default function EnhancedItineraryEditor({
   const handleConfirmCruiseMultiSelect = () => {
     if (selectedCruiseImages.length === 0 || selectingForDay === null) return;
 
-    const day = days.find(d => d.day === selectingForDay);
+    const day = daysRef.current.find(d => d.day === selectingForDay);
     if (!day) return;
 
     // 선택된 이미지들을 블록으로 추가
@@ -288,7 +297,7 @@ export default function EnhancedItineraryEditor({
     const updatedBlocks = [...(day.blocks || []), ...newBlocks];
     updateDay(selectingForDay, { blocks: updatedBlocks });
 
-    alert(`${selectedCruiseImages.length}개의 이미지가 추가되었습니다.`);
+    showSuccess(`${selectedCruiseImages.length}개의 이미지가 추가되었습니다.`);
 
     // 상태 초기화
     setShowCruisePhotoModal(false);
@@ -307,7 +316,10 @@ export default function EnhancedItineraryEditor({
 
   // 구글 드라이브 모달 열릴 때 폴더 목록 로드
   useEffect(() => {
-    if (!showGoogleDriveModal) return;
+    if (!showGoogleDriveModal) {
+      loadGoogleDriveImagesAbortRef.current?.abort();
+      return;
+    }
     const ac = new AbortController();
     loadGoogleDriveFolders(ac.signal);
     return () => ac.abort();
@@ -337,12 +349,16 @@ export default function EnhancedItineraryEditor({
   };
 
   const loadGoogleDriveImages = async (folderId?: string) => {
+    loadGoogleDriveImagesAbortRef.current?.abort();
+    const ac = new AbortController();
+    loadGoogleDriveImagesAbortRef.current = ac;
     try {
       const url = folderId
         ? `/api/admin/mall/google-drive-products?folderId=${encodeURIComponent(folderId)}`
         : '/api/admin/mall/google-drive-products';
       const res = await fetch(url, {
         credentials: 'include',
+        signal: ac.signal,
       });
 
       if (!res.ok) {
@@ -363,7 +379,8 @@ export default function EnhancedItineraryEditor({
         console.error('[Google Drive] API returned error:', data.error);
         setGoogleDriveImages([]);
       }
-    } catch (error: any) {
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
       console.error('구글 드라이브 이미지 로드 에러:', error);
       setGoogleDriveImages([]);
     }
@@ -393,7 +410,7 @@ export default function EnhancedItineraryEditor({
   const handleConfirmGoogleDriveMultiSelect = () => {
     if (selectedGoogleDriveImageUrls.length === 0 || selectingForDay === null) return;
 
-    const day = days.find(d => d.day === selectingForDay);
+    const day = daysRef.current.find(d => d.day === selectingForDay);
     if (!day) return;
 
     // 선택된 이미지들을 블록으로 추가
@@ -407,7 +424,7 @@ export default function EnhancedItineraryEditor({
     const updatedBlocks = [...(day.blocks || []), ...newBlocks];
     updateDay(selectingForDay, { blocks: updatedBlocks });
 
-    alert(`${selectedGoogleDriveImageUrls.length}개의 이미지가 추가되었습니다.`);
+    showSuccess(`${selectedGoogleDriveImageUrls.length}개의 이미지가 추가되었습니다.`);
 
     // 상태 초기화
     setShowGoogleDriveModal(false);
@@ -525,11 +542,11 @@ export default function EnhancedItineraryEditor({
       newDays.push(dayInfo);
     }
 
-    onChange(newDays);
+    onChangeRef.current(newDays);
     if (onAutoGenerate) {
       onAutoGenerate();
     }
-    alert(`${totalDays}일 일정이 항공 정보를 기반으로 생성되었습니다.`);
+    showSuccess(`${totalDays}일 일정이 항공 정보를 기반으로 생성되었습니다.`);
   };
 
   // PPT 업로드 및 파싱

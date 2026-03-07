@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { FiStar, FiCheck, FiX, FiEdit2, FiSave, FiEdit3, FiMaximize2, FiChevronLeft, FiAlertCircle } from 'react-icons/fi';
 import { getKoreanCruiseLineName, getKoreanShipName, formatTravelPeriod } from '@/lib/utils/cruiseNames';
+import { CRUISE_COUNTRIES } from '@/lib/shared/countries';
 import { PRODUCT_TAGS } from '@/components/admin/ProductTagsSelector';
 import DOMPurify from 'isomorphic-dompurify';
 
@@ -223,16 +224,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
   // 크루즈 라인은 직접 사용 (한국어 변환 없이)
   const displayCruiseLine = product.cruiseLine || koreanCruiseLine;
 
-  // 방문 국가 추출
-  // 국가코드 → 한국어 국가명 공통 맵 (2곳에서 사용)
-  const COUNTRY_CODE_MAP: Record<string, string> = {
-    'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-    'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-    'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-    'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다',
-    'HR': '크로아티아', 'ME': '몬테네그로', 'NO': '노르웨이',
-    'PT': '포르투갈', 'MT': '몰타', 'AL': '알바니아', 'BA': '보스니아헤르체고비나',
-  };
+  // 방문 국가 추출 (CRUISE_COUNTRIES: lib/shared/countries.ts 단일 출처)
 
   // 상품 조회 추적
   useEffect(() => {
@@ -1350,7 +1342,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                         className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                         style={{ wordBreak: 'keep-all' }}
                       >
-                        {COUNTRY_CODE_MAP[countryCode] || countryCode}
+                        {CRUISE_COUNTRIES[countryCode] || countryCode}
                       </span>
                     ))}
                   </div>

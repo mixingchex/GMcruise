@@ -199,6 +199,10 @@ export default function NewProductPage() {
       const res = await fetch(`/api/admin/products/check-duplicate?productCode=${encodeURIComponent(code)}`, {
         signal: ac.signal,
       });
+      if (!res.ok) {
+        setProductCodeStatus(prev => ({ ...prev, checking: false }));
+        return;
+      }
       const data = await res.json();
 
       if (data.ok) {

@@ -104,6 +104,13 @@ export default function DateRangePicker({
     }
 
     if (from && to) {
+      // react-day-picker v9: 첫 클릭 시 { from: date, to: date } 반환하는 경우 처리
+      // → 출발일만 선택된 상태로 전환 (캘린더 닫힘 방지)
+      if (from.getTime() === to.getTime()) {
+        setSelectedRange({ from, to: undefined });
+        return;
+      }
+
       // 스왑 체크: from이 to보다 늦으면 swap
       const rangeStart = from <= to ? from : to;
       const rangeEnd = from <= to ? to : from;

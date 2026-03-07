@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { CRUISE_COUNTRIES } from '@/lib/shared/countries';
+import { logger } from '@/lib/logger';
 
 // 자연스러운 한글 닉네임 생성 (성+이름 조합)
 const generateNaturalNickname = (): string => {
@@ -283,8 +284,8 @@ export async function GET(
     const rating = layout?.rating || 4.4;
     const reviewCount = layout?.reviewCount || 0;
 
-    // 디버깅 로그
-    console.log('[Reviews API] Product:', productCode, {
+    logger.debug('[Reviews API] Product:', {
+      productCode,
       hasMallProductContent: !!product.MallProductContent,
       hasLayout: !!layout,
       rating,
@@ -292,7 +293,7 @@ export async function GET(
     });
 
     if (reviewCount === 0) {
-      console.log('[Reviews API] reviewCount is 0, returning empty reviews');
+      logger.debug('[Reviews API] reviewCount is 0, returning empty reviews');
       return NextResponse.json({
         ok: true,
         reviews: [],
