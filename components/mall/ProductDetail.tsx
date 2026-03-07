@@ -487,6 +487,25 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
     return ports;
   })();
 
+  // 국가별 기항지 맵 (arrivalCountryName + arrivalLocation)
+  const portsByCountry = (() => {
+    const itinerary = layoutData?.itinerary;
+    if (!Array.isArray(itinerary) || itinerary.length === 0) return [];
+    const map: { country: string; ports: string[] }[] = [];
+    itinerary.forEach((day: any) => {
+      const loc = day?.arrivalLocation || day?.location;
+      const countryName = day?.arrivalCountryName || day?.country || '';
+      if (!loc || loc === '해상' || loc === 'Sea' || loc === 'sea') return;
+      const existing = map.find(m => m.country === countryName);
+      if (existing) {
+        if (!existing.ports.includes(loc)) existing.ports.push(loc);
+      } else {
+        map.push({ country: countryName, ports: [loc] });
+      }
+    });
+    return map;
+  })();
+
   // 포함/불포함 기본값
   const defaultIncluded = [
     '크루즈 객실료 (TAX 및 항구세 포함)',
@@ -1333,8 +1352,20 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                     {finalDestination.length}개국{portLocations.length > 0 ? ` · ${portLocations.length}개 지역` : ''}
                   </p>
                 )}
-                {/* 방문 국가 배지 */}
-                {finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
+                {/* 방문 국가 + 기항지 배지 */}
+                {portsByCountry.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {portsByCountry.map(({ country, ports }) => (
+                      <span
+                        key={country || ports[0]}
+                        className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                        style={{ wordBreak: 'keep-all' }}
+                      >
+                        {country ? `${country} - ${ports.join(', ')}` : ports.join(', ')}
+                      </span>
+                    ))}
+                  </div>
+                ) : finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
                     {finalDestination.map((countryCode: string) => (
                       <span
@@ -1343,21 +1374,6 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                         style={{ wordBreak: 'keep-all' }}
                       >
                         {CRUISE_COUNTRIES[countryCode] || countryCode}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {/* 지역 배지 (itinerary에서 추출) */}
-                {portLocations.length > 0 && (
-                  <div className="flex flex-wrap gap-2 items-center">
-                    <span className="text-xs text-gray-500 font-medium">{portLocations.length}개 지역:</span>
-                    {portLocations.map((port: string) => (
-                      <span
-                        key={port}
-                        className="px-3 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-full text-sm font-medium"
-                        style={{ wordBreak: 'keep-all' }}
-                      >
-                        {port}
                       </span>
                     ))}
                   </div>

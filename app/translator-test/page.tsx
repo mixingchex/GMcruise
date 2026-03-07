@@ -643,35 +643,9 @@ export default function TranslatorPage() {
       setInterimText('');
     }
 
-    // ⚡ 마이크 권한 확인 및 Speech Recognition 시작
+    // ⚡ Speech Recognition 시작 (getUserMedia 별도 호출 제거 — iOS 이중 권한 프롬프트 방지)
     try {
-      // 1단계: 권한 미확인 상태일 때만 getUserMedia로 확인
-      if (micPermissionRef.current !== true) {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => track.stop());
-            micPermissionRef.current = true;
-            setPreview('✅ 마이크 준비됨! 말씀하세요...');
-          } catch (mediaError: any) {
-            const errName = mediaError?.name ?? '';
-            if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-              micPermissionRef.current = false;
-              showError('마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
-            } else if (errName === 'NotFoundError' || errName === 'NotReadableError') {
-              micPermissionRef.current = false;
-              showError('마이크를 찾을 수 없습니다.');
-            } else {
-              micPermissionRef.current = true;
-              logger.warn('[getUserMedia] 일시 오류:', errName);
-            }
-          }
-        } else {
-          micPermissionRef.current = true;
-        }
-      }
-
-      // 2단계: Speech Recognition 시작
+      // Speech Recognition 시작
       const r = recRef.current!;
       if (!r) {
         showError('음성 인식 초기화에 실패했습니다.');
@@ -685,6 +659,11 @@ export default function TranslatorPage() {
       r.lang = from.code;
 
       let accumulatedFinalText = '';
+
+      r.onstart = () => {
+        micPermissionRef.current = true; // 권한 허용 확인 — 다음 호출부터 재확인 불필요
+        setPreview('말씀하세요...');
+      };
 
       r.onresult = (e: SpeechRecognitionEvent) => {
         let newFinalText = accumulatedFinalText;
