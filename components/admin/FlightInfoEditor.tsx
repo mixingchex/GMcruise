@@ -123,9 +123,16 @@ export default function FlightInfoEditor({
   // pending 여부 플래그 (값 전달은 localFlightInfoRef 사용)
   const pendingFlightInfoRef = useRef<FlightInfo | null>(null);
 
-  // startDate, endDate, nights, days 변경 시 travelPeriod 자동 업데이트
+  // startDate, endDate 변경 시 travelPeriod 자동 업데이트 (nights/days는 날짜에서 직접 계산)
   useEffect(() => {
     if (startDate && endDate) {
+      // DB에 저장된 nights/days 값이 잘못될 수 있으므로 항상 날짜에서 재계산
+      const startMs = new Date(startDate).getTime();
+      const endMs = new Date(endDate).getTime();
+      const diffDays = Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
+      const calcDays = diffDays > 0 ? diffDays : (days || 0);
+      const calcNights = calcDays > 0 ? calcDays - 1 : (nights || 0);
+
       // updater 함수는 순수 함수여야 하므로 side effect(setTimeout)를 분리
       setLocalFlightInfo(prev => {
         const updated = {
@@ -133,8 +140,8 @@ export default function FlightInfoEditor({
           travelPeriod: {
             startDate,
             endDate,
-            nights: nights || prev.travelPeriod.nights,
-            days: days || prev.travelPeriod.days,
+            nights: calcNights,
+            days: calcDays,
           },
           departure: {
             ...prev.departure,
@@ -172,7 +179,7 @@ export default function FlightInfoEditor({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startDate, endDate, nights, days]);
+  }, [startDate, endDate]);
 
   const updateFlightInfo = (updates: Partial<FlightInfo>) => {
     const newInfo = { ...localFlightInfo, ...updates };

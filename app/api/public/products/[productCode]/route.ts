@@ -27,50 +27,13 @@ export async function GET(
     }
 
 
-    // 어필리에이트 상품 유효성 확인
-    // 구매몰에 표시되려면:
-    // 1. AffiliateProduct가 존재해야 함
-    // 2. status: 'active', isPublished: true
-    // 3. effectiveFrom <= now
-    // 4. effectiveTo IS NULL OR effectiveTo >= now (종료일이 지난 상품은 제외)
-    // 5. 삭제된 상품은 자동으로 제외됨
-    const now = new Date();
-    const affiliateProduct = await prisma.affiliateProduct.findFirst({
+    // 상품 노출 기준: CruiseProduct.saleStatus='판매중'만으로 결정
+    // AffiliateProduct는 수당 추적 전용 — 노출 여부에 영향 없음
+    const product = await prisma.cruiseProduct.findFirst({
       where: {
-        AND: [
-          { productCode },
-          { status: 'active' },
-          { isPublished: true },
-          { effectiveFrom: { lte: now } },
-          {
-            OR: [
-              { effectiveTo: null },
-              { effectiveTo: { gte: now } },
-            ],
-          },
-        ],
+        productCode,
+        NOT: { saleStatus: { in: ['판매중지', '판매완료', '3일체험'] } },
       },
-      select: {
-        id: true,
-        productCode: true,
-        status: true,
-        isPublished: true,
-        effectiveFrom: true,
-        effectiveTo: true,
-      },
-    });
-
-    if (!affiliateProduct) {
-      console.warn('[Public Product Detail API] 유효한 어필리에이트 상품이 없음:', productCode);
-      return NextResponse.json(
-        { ok: false, error: '상품을 찾을 수 없습니다.' },
-        { status: 404 }
-      );
-    }
-
-    // 상품 조회
-    const product = await prisma.cruiseProduct.findUnique({
-      where: { productCode },
       select: {
         id: true,
         productCode: true,

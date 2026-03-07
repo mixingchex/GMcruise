@@ -1135,9 +1135,13 @@ export default function EnhancedItineraryEditor({
                   <div className="flex-1">
                     <p className="font-bold text-gray-900">Day {day.day}</p>
                     <p className="text-sm text-gray-600">
-                      {day.departure && day.arrival
+                      {day.arrivalLocation
+                        ? `📍 ${day.arrivalLocation}`
+                        : day.departure && day.arrival
                         ? `${day.departure} → ${day.arrival}`
-                        : day.departure || day.arrival || '정보 없음'}
+                        : day.tourText
+                        ? day.tourText.replace(/\n/g, ' ').slice(0, 40) + (day.tourText.length > 40 ? '...' : '')
+                        : '정보 없음'}
                     </p>
                   </div>
 

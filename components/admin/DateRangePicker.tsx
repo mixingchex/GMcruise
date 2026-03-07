@@ -97,13 +97,9 @@ export default function DateRangePicker({
     const { from, to } = range;
 
     if (from && !to) {
-      // 출발일만 선택된 상태
+      // 출발일만 선택된 상태 — 부모 콜백 호출 없이 로컬 selectedRange만 업데이트
+      // onStartDateChange를 호출하면 endDate가 자동계산되어 selectedRange가 즉시 complete range로 복원되는 버그 방지
       setSelectedRange({ from, to: undefined });
-      const fromYear = from.getFullYear();
-      const fromMonth = String(from.getMonth() + 1).padStart(2, '0');
-      const fromDay = String(from.getDate()).padStart(2, '0');
-      onStartDateChange(`${fromYear}-${fromMonth}-${fromDay}`);
-      onEndDateChange('');
       return;
     }
 
@@ -195,11 +191,9 @@ export default function DateRangePicker({
           <div
             className="fixed inset-0 z-40"
             onClick={() => {
-              // from만 선택된 상태에서 닫으면 전체 초기화
+              // from만 선택된 상태에서 닫으면 기존 날짜 유지 (부모 콜백 없이 로컬 상태만 복원)
               if (selectedRange?.from && !selectedRange?.to) {
-                setSelectedRange(undefined);
-                onStartDateChange('');
-                if (onDaysChange) onDaysChange(0);
+                setSelectedRange(undefined); // 로컬 선택 초기화 (기존 startDate/endDate는 유지)
               }
               setIsOpen(false);
             }}
