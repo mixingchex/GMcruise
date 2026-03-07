@@ -224,24 +224,15 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
   const displayCruiseLine = product.cruiseLine || koreanCruiseLine;
 
   // 방문 국가 추출
-  const visitedCountries = (() => {
-    const itineraryPattern = Array.isArray(product.itineraryPattern) ? product.itineraryPattern : [];
-    const countries = new Set<string>();
-    const countryNames: Record<string, string> = {
-      'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-      'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-      'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-      'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다',
-      'HR': '크로아티아', 'ME': '몬테네그로', 'NO': '노르웨이',
-      'PT': '포르투갈', 'MT': '몰타', 'AL': '알바니아', 'BA': '보스니아헤르체고비나',
-    };
-    itineraryPattern.forEach((day: any) => {
-      if (day.country && day.country !== 'KR' && (day.type === 'PortVisit' || day.type === 'Embarkation' || day.type === 'Disembarkation')) {
-        countries.add(day.country);
-      }
-    });
-    return Array.from(countries).map(code => countryNames[code] || code).join(', ');
-  })();
+  // 국가코드 → 한국어 국가명 공통 맵 (2곳에서 사용)
+  const COUNTRY_CODE_MAP: Record<string, string> = {
+    'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
+    'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
+    'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
+    'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다',
+    'HR': '크로아티아', 'ME': '몬테네그로', 'NO': '노르웨이',
+    'PT': '포르투갈', 'MT': '몰타', 'AL': '알바니아', 'BA': '보스니아헤르체고비나',
+  };
 
   // 상품 조회 추적
   useEffect(() => {
@@ -1344,29 +1335,24 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
             {/* 방문 국가/기항지 배지 - 상품 설명 위에 표시 */}
             {((finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0) || portLocations.length > 0) && (
               <div className="mb-5 md:mb-6">
-                {/* 방문 국가/지역 배지 */}
+                {/* N개국 N개 지역 요약 */}
+                {finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
+                  <p className="text-sm font-semibold text-gray-600 mb-2">
+                    {finalDestination.length}개국{portLocations.length > 0 ? ` · ${portLocations.length}개 지역` : ''}
+                  </p>
+                )}
+                {/* 방문 국가 배지 */}
                 {finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-2">
-                    {finalDestination.map((countryCode: string) => {
-                      const countryNames: Record<string, string> = {
-                        'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-                        'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-                        'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-                        'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다',
-                        'HR': '크로아티아', 'ME': '몬테네그로', 'NO': '노르웨이',
-                        'PT': '포르투갈', 'MT': '몰타', 'AL': '알바니아', 'BA': '보스니아헤르체고비나',
-                      };
-                      const countryName = countryNames[countryCode] || countryCode;
-                      return (
-                        <span
-                          key={countryCode}
-                          className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                          style={{ wordBreak: 'keep-all' }}
-                        >
-                          {countryName}
-                        </span>
-                      );
-                    })}
+                    {finalDestination.map((countryCode: string) => (
+                      <span
+                        key={countryCode}
+                        className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                        style={{ wordBreak: 'keep-all' }}
+                      >
+                        {COUNTRY_CODE_MAP[countryCode] || countryCode}
+                      </span>
+                    ))}
                   </div>
                 )}
                 {/* 지역 배지 (itinerary에서 추출) */}

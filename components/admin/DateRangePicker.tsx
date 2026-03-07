@@ -167,7 +167,16 @@ export default function DateRangePicker({
                 ? `${formatDate(startDate)} ~ 종료일 선택`
                 : '출발일과 종료일을 선택하세요'
             }
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => {
+              if (!isOpen) {
+                // 달력 열기 시 selectedRange 초기화 필수 —
+                // complete {from,to} 상태에서 react-day-picker는 첫 클릭을 "새 range 시작"이 아닌
+                // "기존 range 수정"으로 해석하여 {from_기존, to_클릭} 반환 → 종료일만 바뀌는 버그 발생
+                // useEffect([startDate,endDate])는 startDate/endDate 미변경 시 재실행 안 됨 → 안전
+                setSelectedRange(undefined);
+              }
+              setIsOpen(!isOpen);
+            }}
             placeholder="출발일과 종료일을 선택하세요"
             className={`w-full px-4 py-3 md:px-5 md:py-4 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg cursor-pointer ${
               !startDate || !endDate ? 'border-red-500 bg-red-50' : 'border-gray-300'

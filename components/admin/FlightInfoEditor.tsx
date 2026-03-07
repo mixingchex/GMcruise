@@ -131,11 +131,14 @@ export default function FlightInfoEditor({
 
   // startDate, endDate 변경 시 travelPeriod 자동 업데이트 (nights/days는 날짜에서 직접 계산)
   useEffect(() => {
-    if (startDate && endDate) {
+    // props.startDate/endDate가 없으면 flightInfo 내부 travelPeriod 날짜로 fallback
+    const effectiveStart = startDate || localFlightInfo.travelPeriod?.startDate || '';
+    const effectiveEnd = endDate || localFlightInfo.travelPeriod?.endDate || '';
+    if (effectiveStart && effectiveEnd) {
       // DB에 저장된 nights/days 값이 잘못될 수 있으므로 항상 날짜에서 재계산
       // Date.UTC로 파싱 — "YYYY-MM-DD"를 new Date()로 파싱하면 UTC midnight 기준이라 UTC- 타임존에서 하루 오차 발생
-      const startMs = parseDateLocal(startDate);
-      const endMs = parseDateLocal(endDate);
+      const startMs = parseDateLocal(effectiveStart);
+      const endMs = parseDateLocal(effectiveEnd);
       const diffDays = Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
       const calcDays = diffDays > 0 ? diffDays : (days || 0);
       const calcNights = calcDays > 0 ? calcDays - 1 : (nights || 0);
@@ -145,14 +148,14 @@ export default function FlightInfoEditor({
         const updated = {
           ...prev,
           travelPeriod: {
-            startDate,
-            endDate,
+            startDate: effectiveStart,
+            endDate: effectiveEnd,
             nights: calcNights,
             days: calcDays,
           },
           departure: {
             ...prev.departure,
-            date: startDate,
+            date: effectiveStart,
           },
         };
         // ref에 최신 값 저장 (setTimeout 콜백에서 stale closure 없이 참조)
