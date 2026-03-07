@@ -24,6 +24,7 @@ export default function DateRangePicker({
   className = '',
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openKey, setOpenKey] = useState(0); // DayPicker 강제 재마운트용 (타이밍 race condition 방지)
   const [selectedRange, setSelectedRange] = useState<DateRange | undefined>(() => {
     if (startDate && endDate) {
       // 타임존 문제 방지를 위해 로컬 날짜로 파싱
@@ -53,8 +54,9 @@ export default function DateRangePicker({
     return undefined;
   });
 
-  // props가 변경될 때 selectedRange 업데이트
+  // props가 변경될 때 selectedRange 업데이트 (달력 열린 중에는 보호)
   useEffect(() => {
+    if (isOpen) return; // 달력 열린 상태에서 외부 props 변경으로 내부 선택 중 상태 덮어쓰기 방지
     if (startDate && endDate) {
       // 타임존 문제 방지를 위해 로컬 날짜로 파싱
       const [fromYear, fromMonth, fromDay] = startDate.split('-').map(Number);
@@ -84,7 +86,8 @@ export default function DateRangePicker({
     } else {
       setSelectedRange(undefined);
     }
-  }, [startDate, endDate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, isOpen]);
 
   const handleSelect = (range: DateRange | undefined) => {
     if (!range) {
@@ -176,11 +179,12 @@ export default function DateRangePicker({
             }
             onClick={() => {
               if (!isOpen) {
-                // 달력 열기 시 selectedRange 초기화 필수 —
-                // complete {from,to} 상태에서 react-day-picker는 첫 클릭을 "새 range 시작"이 아닌
-                // "기존 range 수정"으로 해석하여 {from_기존, to_클릭} 반환 → 종료일만 바뀌는 버그 발생
-                // useEffect([startDate,endDate])는 startDate/endDate 미변경 시 재실행 안 됨 → 안전
+                // 달력 열기 시 selectedRange 초기화 + DayPicker 강제 재마운트
+                // setSelectedRange(undefined)만으로는 React 렌더 타이밍상 DayPicker가
+                // 이전 complete {from,to}로 초기화된 상태로 렌더될 수 있어 첫 클릭이
+                // 종료일 변경으로 처리되는 race condition 발생 → key 변경으로 완전 재마운트
                 setSelectedRange(undefined);
+                setOpenKey(prev => prev + 1);
               }
               setIsOpen(!isOpen);
             }}
@@ -259,6 +263,7 @@ export default function DateRangePicker({
             )}
             
             <DayPicker
+              key={openKey}
               mode="range"
               selected={selectedRange}
               onSelect={handleSelect}

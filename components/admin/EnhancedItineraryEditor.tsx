@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { FiPlus, FiTrash2, FiChevronUp, FiChevronDown, FiSave, FiFolder, FiImage, FiVideo, FiFileText, FiX, FiSearch, FiUpload, FiMapPin } from 'react-icons/fi';
 import { ContentBlock } from './ProductDetailEditor';
 import countries from '@/data/countries.json';
-import { showSuccess } from '@/components/ui/Toast';
+import { showSuccess, showError } from '@/components/ui/Toast';
 
 export interface MealDetail {
   location?: string;
@@ -495,13 +495,13 @@ export default function EnhancedItineraryEditor({
   // 항공 정보 기반 자동 일정 생성
   const generateFromFlightInfo = () => {
     if (!flightInfo) {
-      alert('항공 정보가 없습니다. 먼저 항공 정보를 입력해주세요.');
+      showError('항공 정보가 없습니다. 먼저 항공 정보를 입력해주세요.');
       return;
     }
 
     const { departure, return: returnFlight, travelPeriod } = flightInfo;
     if (!departure || !returnFlight) {
-      alert('출발/도착 항공 정보가 필요합니다.');
+      showError('출발/도착 항공 정보가 필요합니다.');
       return;
     }
 
@@ -579,16 +579,16 @@ export default function EnhancedItineraryEditor({
 
           onChange(parsedDays);
           setShowPPTUpload(false);
-          alert('PPT 문서에서 일정을 불러왔습니다.');
+          showSuccess('PPT 문서에서 일정을 불러왔습니다.');
         } else {
-          alert(`PPT 파싱 실패: ${data.error || '알 수 없는 오류'}`);
+          showError(`PPT 파싱 실패: ${data.error || '알 수 없는 오류'}`);
         }
       } else {
-        alert('PPT 업로드에 실패했습니다.');
+        showError('PPT 업로드에 실패했습니다.');
       }
     } catch (error) {
       console.error('Failed to upload PPT:', error);
-      alert('PPT 업로드 중 오류가 발생했습니다.');
+      showError('PPT 업로드 중 오류가 발생했습니다.');
     } finally {
       setUploadingPPT(false);
     }
@@ -611,8 +611,10 @@ export default function EnhancedItineraryEditor({
   };
 
   const updateDay = (day: number, updates: Partial<EnhancedItineraryDay>) => {
-    const updated = days.map(d => d.day === day ? { ...d, ...updates } : d);
-    onChange(updated);
+    // daysRef.current 사용 — days prop 스테일 클로저 방지
+    // (여러 Day를 빠르게 연속 편집 시 이전 Day 내용이 덮어쓰여지는 버그 수정)
+    const updated = daysRef.current.map(d => d.day === day ? { ...d, ...updates } : d);
+    onChangeRef.current(updated);
   };
 
   const moveDay = (day: number, direction: 'up' | 'down') => {
@@ -694,7 +696,7 @@ export default function EnhancedItineraryEditor({
 
   const saveAsGroup = async () => {
     if (!newGroupName.trim()) {
-      alert('그룹 이름을 입력하세요.');
+      showError('그룹 이름을 입력하세요.');
       return;
     }
 
@@ -717,16 +719,16 @@ export default function EnhancedItineraryEditor({
       if (res.ok) {
         const data = await res.json();
         if (data.ok) {
-          alert('그룹이 저장되었습니다.');
+          showSuccess('그룹이 저장되었습니다.');
           setNewGroupName('');
           loadGroups();
         } else {
-          alert(`저장 실패: ${data.error}`);
+          showError(`저장 실패: ${data.error}`);
         }
       }
     } catch (error) {
       console.error('Failed to save group:', error);
-      alert('그룹 저장에 실패했습니다.');
+      showError('그룹 저장에 실패했습니다.');
     }
   };
 
@@ -741,10 +743,10 @@ export default function EnhancedItineraryEditor({
       if (data.ok) {
         loadGroups();
       } else {
-        alert(`삭제 실패: ${data.error}`);
+        showError(`삭제 실패: ${data.error}`);
       }
     } catch {
-      alert('삭제에 실패했습니다.');
+      showError('삭제에 실패했습니다.');
     }
   };
 
@@ -763,10 +765,10 @@ export default function EnhancedItineraryEditor({
         setEditingGroupName('');
         loadGroups();
       } else {
-        alert(`수정 실패: ${data.error}`);
+        showError(`수정 실패: ${data.error}`);
       }
     } catch {
-      alert('수정에 실패했습니다.');
+      showError('수정에 실패했습니다.');
     }
   };
 
@@ -794,7 +796,7 @@ export default function EnhancedItineraryEditor({
       }
     } catch (error) {
       console.error('Failed to load group:', error);
-      alert('그룹 불러오기에 실패했습니다.');
+      showError('그룹 불러오기에 실패했습니다.');
     }
   };
 
@@ -833,7 +835,7 @@ export default function EnhancedItineraryEditor({
       }
     } catch (error) {
       console.error('Failed to upload file:', error);
-      alert('파일 업로드에 실패했습니다.');
+      showError('파일 업로드에 실패했습니다.');
     }
   };
 
@@ -877,7 +879,7 @@ export default function EnhancedItineraryEditor({
       }
     } catch (error) {
       console.error('Failed to upload tour image:', error);
-      alert('파일 업로드에 실패했습니다.');
+      showError('파일 업로드에 실패했습니다.');
     }
   };
 
@@ -908,7 +910,7 @@ export default function EnhancedItineraryEditor({
       }
     } catch (error) {
       console.error('Failed to upload accommodation image:', error);
-      alert('파일 업로드에 실패했습니다.');
+      showError('파일 업로드에 실패했습니다.');
     }
   };
 

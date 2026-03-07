@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import prisma from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 import { backupProductImages } from '@/lib/google-drive-product-backup';
 import { logger } from '@/lib/logger';
@@ -368,6 +369,13 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, product });
   } catch (error) {
+    // P2002: 중복 productCode → 409 Conflict (사용자에게 명확한 원인 안내)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json(
+        { ok: false, message: '이미 존재하는 상품코드입니다. 상품 목록에서 편집해주세요.' },
+        { status: 409 }
+      );
+    }
     logger.error('POST /api/admin/products error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ ok: false, message: 'Server error' }, { status: 500 });
   }

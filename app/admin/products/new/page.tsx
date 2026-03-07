@@ -27,6 +27,7 @@ import { getKoreanCruiseLineName, getKoreanShipName } from '@/lib/utils/cruiseNa
 export default function NewProductPage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+  const [savedProductCode, setSavedProductCode] = useState<string | null>(null); // 저장 완료 상태 추적 (중복 제출 방지)
 
   // 기본 정보
   const [formData, setFormData] = useState({
@@ -635,6 +636,12 @@ export default function NewProductPage() {
   };
 
   const handleSave = async () => {
+    if (saving) return; // 더블클릭 방지
+    // 이미 저장 완료된 상품코드로 재시도 차단 (P2002 중복 방지)
+    if (savedProductCode && savedProductCode === formData.productCode) {
+      showError('이미 저장된 상품입니다. 수정은 상품 목록 → 편집에서 진행해주세요.');
+      return;
+    }
     if (!formData.productCode) {
       showError('상품 코드를 입력해주세요.');
       return;
@@ -812,7 +819,13 @@ export default function NewProductPage() {
       });
 
       if (!createRes.ok) {
-        throw new Error('상품 생성에 실패했습니다.');
+        const errData = await createRes.json().catch(() => ({}));
+        // 409: 이미 존재하는 상품코드 (이전 저장 성공 후 재시도)
+        if (createRes.status === 409) {
+          setSavedProductCode(formData.productCode);
+          throw new Error(errData.message || '이미 존재하는 상품코드입니다. 상품 목록에서 편집해주세요.');
+        }
+        throw new Error(errData.message || '상품 생성에 실패했습니다.');
       }
       const productData = await createRes.json();
 
@@ -875,7 +888,8 @@ export default function NewProductPage() {
         localStorage.removeItem(AUTO_SAVE_KEY);
         setLastSavedAt(null);
         setAutoSaveStatus(null);
-        showSuccess('상품이 등록되었습니다.');
+        setSavedProductCode(formData.productCode); // 저장 완료 마킹 → 재저장 차단
+        showSuccess('상품이 등록되었습니다. 추가 수정은 상품 목록 → 편집에서 가능합니다.');
         
         // 저장 성공 후 자동으로 미리보기 열기
         if (formData.productCode) {
@@ -1011,11 +1025,11 @@ export default function NewProductPage() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || !!savedProductCode}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FiSave size={20} />
-                {saving ? '저장 중...' : '저장하기'}
+                {saving ? '저장 중...' : savedProductCode ? '저장 완료 ✓' : '저장하기'}
               </button>
             </div>
           </div>
@@ -2071,11 +2085,11 @@ export default function NewProductPage() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || !!savedProductCode}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold shadow-md text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FiSave size={20} />
-              {saving ? '저장 중...' : '저장하기'}
+              {saving ? '저장 중...' : savedProductCode ? '저장 완료 ✓' : '저장하기'}
             </button>
           </div>
         </div>

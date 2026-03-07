@@ -961,6 +961,8 @@ export default function ProductEditPage() {
             flightInfo: flightInfo || null,
             startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
             endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
+            nights: parseInt(formData.nights.toString()) || 0,
+            days: parseInt(formData.days.toString()) || 0,
           };
           break;
 
@@ -2166,7 +2168,19 @@ export default function ProductEditPage() {
           </p>
           <FlightInfoEditor
             flightInfo={flightInfo}
-            onChange={setFlightInfo}
+            onChange={(info) => {
+              setFlightInfo(info);
+              // 항공정보에서 계산된 nights/days를 formData에도 동기화 (7박1일 표기 버그 방지)
+              if (info?.travelPeriod?.days && info.travelPeriod.days > 0) {
+                setFormData(prev => ({
+                  ...prev,
+                  nights: info.travelPeriod.nights,
+                  days: info.travelPeriod.days,
+                  ...(info.travelPeriod.startDate ? { startDate: info.travelPeriod.startDate } : {}),
+                  ...(info.travelPeriod.endDate ? { endDate: info.travelPeriod.endDate } : {}),
+                }));
+              }
+            }}
             startDate={formData.startDate}
             endDate={formData.endDate}
             nights={formData.nights}
