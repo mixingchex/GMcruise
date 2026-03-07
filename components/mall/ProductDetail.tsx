@@ -231,7 +231,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
       'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
       'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
       'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-      'PH': '필리핀', 'ID': '인도네시아'
+      'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다',
+      'HR': '크로아티아', 'ME': '몬테네그로', 'NO': '노르웨이',
+      'PT': '포르투갈', 'MT': '몰타', 'AL': '알바니아', 'BA': '보스니아헤르체고비나',
     };
     itineraryPattern.forEach((day: any) => {
       if (day.country && day.country !== 'KR' && (day.type === 'PortVisit' || day.type === 'Embarkation' || day.type === 'Disembarkation')) {
@@ -1350,7 +1352,9 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                         'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
                         'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
                         'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-                        'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다'
+                        'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다',
+                        'HR': '크로아티아', 'ME': '몬테네그로', 'NO': '노르웨이',
+                        'PT': '포르투갈', 'MT': '몰타', 'AL': '알바니아', 'BA': '보스니아헤르체고비나',
                       };
                       const countryName = countryNames[countryCode] || countryCode;
                       return (

@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import logger from '@/lib/logger';
 
 /**
  * GET: 상품 상세 정보 조회
@@ -27,12 +28,12 @@ export async function GET(
     }
 
 
-    // 상품 노출 기준: CruiseProduct.saleStatus='판매중'만으로 결정
+    // 상품 노출 기준: saleStatus='판매중' 화이트리스트 — 새 상태 추가 시 자동 차단
     // AffiliateProduct는 수당 추적 전용 — 노출 여부에 영향 없음
     const product = await prisma.cruiseProduct.findFirst({
       where: {
         productCode,
-        NOT: { saleStatus: { in: ['판매중지', '판매완료', '3일체험'] } },
+        saleStatus: '판매중',
       },
       select: {
         id: true,
@@ -62,7 +63,7 @@ export async function GET(
     });
 
     if (!product) {
-      console.warn('[Public Product Detail API] 상품을 찾을 수 없음:', productCode);
+      logger.warn('[Public Product Detail API] 상품을 찾을 수 없음:', productCode);
       return NextResponse.json(
         { ok: false, error: '상품을 찾을 수 없습니다.' },
         { status: 404 }
@@ -74,8 +75,7 @@ export async function GET(
       product,
     });
   } catch (error) {
-    console.error('[Public Product Detail API] GET error:', error);
-    console.error('[Public Product Detail API] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    logger.error('[Public Product Detail API] GET error:', error instanceof Error ? error.message : String(error));
     return NextResponse.json(
       { 
         ok: false, 

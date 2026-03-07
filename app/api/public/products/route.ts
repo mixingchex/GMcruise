@@ -80,15 +80,11 @@ export async function GET(req: NextRequest) {
         break;
     }
 
-    // 상품 노출 기준: CruiseProduct.saleStatus='판매중'만으로 결정
+    // 상품 노출 기준: saleStatus='판매중' 화이트리스트 — 새 상태 추가 시 자동 차단
     // AffiliateProduct는 수당 계산/추적 용도로만 사용하며 노출 여부에 영향 없음
-
-    // 상품 조회 (saleStatus='판매중'인 상품만)
     let allProducts = await prisma.cruiseProduct.findMany({
       where: {
-        NOT: {
-          saleStatus: { in: ['판매중지', '판매완료', '3일체험'] },
-        },
+        saleStatus: '판매중',
       },
       orderBy,
       select: {

@@ -123,12 +123,19 @@ export default function FlightInfoEditor({
   // pending 여부 플래그 (값 전달은 localFlightInfoRef 사용)
   const pendingFlightInfoRef = useRef<FlightInfo | null>(null);
 
+  // "YYYY-MM-DD" 문자열을 로컬 날짜로 파싱 (타임존 문제 방지)
+  const parseDateLocal = (s: string): number => {
+    const [y, m, d] = s.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  };
+
   // startDate, endDate 변경 시 travelPeriod 자동 업데이트 (nights/days는 날짜에서 직접 계산)
   useEffect(() => {
     if (startDate && endDate) {
       // DB에 저장된 nights/days 값이 잘못될 수 있으므로 항상 날짜에서 재계산
-      const startMs = new Date(startDate).getTime();
-      const endMs = new Date(endDate).getTime();
+      // Date.UTC로 파싱 — "YYYY-MM-DD"를 new Date()로 파싱하면 UTC midnight 기준이라 UTC- 타임존에서 하루 오차 발생
+      const startMs = parseDateLocal(startDate);
+      const endMs = parseDateLocal(endDate);
       const diffDays = Math.ceil((endMs - startMs) / (1000 * 60 * 60 * 24)) + 1;
       const calcDays = diffDays > 0 ? diffDays : (days || 0);
       const calcNights = calcDays > 0 ? calcDays - 1 : (nights || 0);
@@ -541,9 +548,7 @@ export default function FlightInfoEditor({
                 const newStartDate = e.target.value;
                 const newPeriod = { ...localFlightInfo.travelPeriod, startDate: newStartDate };
                 if (newStartDate && localFlightInfo.travelPeriod.endDate) {
-                  const start = new Date(newStartDate);
-                  const end = new Date(localFlightInfo.travelPeriod.endDate);
-                  const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                  const diffDays = Math.ceil((parseDateLocal(localFlightInfo.travelPeriod.endDate) - parseDateLocal(newStartDate)) / (1000 * 60 * 60 * 24)) + 1;
                   if (diffDays > 0) {
                     newPeriod.days = diffDays;
                     newPeriod.nights = diffDays - 1;
@@ -566,9 +571,7 @@ export default function FlightInfoEditor({
                 const newEndDate = e.target.value;
                 const newPeriod = { ...localFlightInfo.travelPeriod, endDate: newEndDate };
                 if (localFlightInfo.travelPeriod.startDate && newEndDate) {
-                  const start = new Date(localFlightInfo.travelPeriod.startDate);
-                  const end = new Date(newEndDate);
-                  const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                  const diffDays = Math.ceil((parseDateLocal(newEndDate) - parseDateLocal(localFlightInfo.travelPeriod.startDate)) / (1000 * 60 * 60 * 24)) + 1;
                   if (diffDays > 0) {
                     newPeriod.days = diffDays;
                     newPeriod.nights = diffDays - 1;

@@ -75,6 +75,14 @@ export default function EnhancedItineraryEditor({
   useEffect(() => { daysRef.current = days; }, [days]);
 
   const [expandedDay, setExpandedDay] = useState<number | null>(null);
+
+  // 복제된 상품 로드 시 데이터가 있는 Day1을 자동 펼침 (빈 것처럼 보이는 UX 방지)
+  useEffect(() => {
+    if (days.length > 0 && expandedDay === null) {
+      setExpandedDay(1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days.length]);
   const [showGroupManager, setShowGroupManager] = useState(false);
   const [savedGroups, setSavedGroups] = useState<any[]>([]);
   const [newGroupName, setNewGroupName] = useState('');
