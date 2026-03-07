@@ -1600,19 +1600,26 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                     </div>
                   )}
                   {hasCruisedotStaff && (
-                    <div className="flex items-center gap-4 p-4 bg-white rounded-xl border-2 border-gray-200 shadow-md hover:shadow-lg transition-all">
-                      <FiCheck className="text-green-600 flex-shrink-0" size={24} />
-                      <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-300 shadow-md hover:shadow-lg transition-all">
+                      <FiCheck className="text-blue-600 flex-shrink-0" size={26} />
+                      <div className="flex items-center gap-3 flex-wrap">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src="/images/ai-cruise-logo.png"
                           alt="Cruisedot"
-                          className="w-6 h-6 md:w-8 md:h-8 object-contain flex-shrink-0"
+                          className="w-7 h-7 md:w-9 md:h-9 object-contain flex-shrink-0"
                           onError={(e) => {
                             (e.target as HTMLImageElement).style.display = 'none';
                           }}
                         />
-                        <span className="text-base md:text-lg font-bold text-gray-900" style={{ wordBreak: 'keep-all', lineHeight: '1.5' }}>크루즈닷 전용 스탭 있음</span>
+                        <span className="text-lg md:text-xl font-extrabold text-gray-900" style={{ wordBreak: 'keep-all', lineHeight: '1.5' }}>
+                          {/* 형광펜 강조 */}
+                          <span
+                            className="px-1.5 py-0.5 rounded font-extrabold text-blue-900"
+                            style={{ background: 'linear-gradient(transparent 40%, #BFDBFE 40%)' }}
+                          >크루즈닷 전용</span>
+                          {' '}스탭 있음
+                        </span>
                       </div>
                     </div>
                   )}
