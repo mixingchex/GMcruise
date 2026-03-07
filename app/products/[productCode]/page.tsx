@@ -84,16 +84,16 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
 
   }
 
-  // 판매중지/준비중/삭제 상품은 notFound (URL 직접 접근 차단)
-  if (['판매중지', '준비중', '삭제'].includes(product.saleStatus || '')) {
+  // 2. 로그인 유저 확인 (saleStatus 체크보다 먼저 — 관리자 바이패스용)
+  const session = await getSession();
+  const isAdmin = session?.role === 'admin';
+
+  // 판매중지/준비중/삭제 상품: 관리자만 접근 가능, 일반 유저는 404
+  const isNonSaleStatus = ['판매중지', '준비중', '삭제'].includes(product.saleStatus || '');
+  if (isNonSaleStatus && !isAdmin) {
     return notFound();
   }
-
-
-
-  // 2. 로그인 유저 확인 및 예약 여부 체크 (UserTrip 사용)
-
-  const session = await getSession();
+  const isAdminTestMode = isNonSaleStatus && isAdmin;
 
   let hasUserTrip = false;
 
@@ -128,6 +128,13 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
   return (
 
     <div className="min-h-screen bg-gray-50">
+
+      {/* 관리자 테스트 모드 배너 */}
+      {isAdminTestMode && (
+        <div className="bg-yellow-400 text-yellow-900 text-center py-2 px-4 font-bold text-sm sticky top-0 z-50">
+          🔒 관리자 전용 테스트 상품 — 일반 고객에게 노출되지 않습니다
+        </div>
+      )}
 
       {/* 파트너 트래킹 (URL에 파트너 ID가 있을 경우 작동) */}
 
