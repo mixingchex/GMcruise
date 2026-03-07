@@ -25,8 +25,8 @@ export async function POST() {
       }
     }
 
-    // 쿠키 삭제 — login에서 .cruiseai.co.kr 도메인으로 심은 쿠키이므로 도메인 일치 필수
-    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined;
+    // 쿠키 삭제 — login에서 .cruisedot.co.kr 도메인으로 심은 쿠키이므로 도메인 일치 필수
+    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined;
     cookieStore.set(SESSION_COOKIE, '', {
       maxAge: 0,
       path: '/',
@@ -47,7 +47,7 @@ export async function POST() {
   } catch {
     logger.error('[Logout] Error');
     // 쿠키는 삭제 시도
-    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruiseai.co.kr' : undefined;
+    const cookieDomain = process.env.NODE_ENV === 'production' ? '.cruisedot.co.kr' : undefined;
     cookieStore.set(SESSION_COOKIE, '', {
       maxAge: 0,
       path: '/',
