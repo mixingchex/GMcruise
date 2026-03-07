@@ -16,6 +16,8 @@ interface ProductCardProps {
     packageName: string;
     nights: number;
     days: number;
+    startDate?: Date | string | null;
+    endDate?: Date | string | null;
     basePrice: number | null;
     source?: string | null;
     destination?: string[] | string | null;
@@ -262,7 +264,20 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         </div>
 
         <div className="flex items-center text-sm text-gray-500 mb-3 font-medium flex-wrap gap-1.5">
-          <span className="whitespace-nowrap font-semibold text-[#0A2342]">{product.nights}박 {product.days}일</span>
+          <span className="whitespace-nowrap font-semibold text-[#0A2342]">
+            {(() => {
+              // startDate/endDate가 있으면 날짜에서 직접 계산 (DB 저장 오류 방지)
+              if (product.startDate && product.endDate) {
+                const s = new Date(product.startDate);
+                const e = new Date(product.endDate);
+                const calcDays = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+                if (calcDays > 1) return `${calcDays - 1}박 ${calcDays}일`;
+              }
+              // fallback: DB 값 사용, days가 nights보다 작으면 보정
+              const safeDays = product.days > product.nights ? product.days : product.nights + 1;
+              return `${product.nights}박 ${safeDays}일`;
+            })()}
+          </span>
           <span className="text-gray-300">·</span>
           <span className="line-clamp-1 flex-1 min-w-0 text-[#1B5FA8] font-bold">
             {countryCount > 0 && portCount > 0

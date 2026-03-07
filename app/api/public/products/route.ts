@@ -105,6 +105,7 @@ export async function GET(req: NextRequest) {
         updatedAt: true, // 최근 설정 순서를 위해 필요
         createdAt: true,
         startDate: true, // 출발일 (계절 필터용)
+        endDate: true,   // 종료일 (nights/days 재계산용)
         tags: true,
         isPopular: true,
         isRecommended: true,

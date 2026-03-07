@@ -98,18 +98,14 @@ export function formatTravelPeriod(
   nights?: number | null,
   days?: number | null
 ): string {
-  if (!startDate || !endDate) {
-    // 날짜가 없으면 박수/일수만 표시
-    if (nights && days) {
-      return `${nights}박 ${days}일`;
-    }
-    return '';
-  }
+  // YYYY-MM-DD 로컬 날짜 파싱 (UTC 변환으로 인한 하루 오차 방지)
+  const parseLocalDate = (d: Date | string): Date => {
+    if (d instanceof Date) return d;
+    const parts = d.split('T')[0].split('-').map(Number); // ISO 문자열에서 날짜 부분만 추출
+    return new Date(parts[0], parts[1] - 1, parts[2]); // 로컬 타임존으로 생성
+  };
 
-  const start = startDate instanceof Date ? startDate : new Date(startDate);
-  const end = endDate instanceof Date ? endDate : new Date(endDate);
-
-  // YYYY-MM-DD 형식으로 변환
+  // YYYY-MM-DD 형식으로 변환 (로컬 타임존 기준)
   const formatDate = (date: Date): string => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -117,10 +113,32 @@ export function formatTravelPeriod(
     return `${year}-${month}-${day}`;
   };
 
+  if (!startDate || !endDate) {
+    // 날짜가 없으면 박수/일수만 표시 (DB 값이 올바른 경우에 한해)
+    if (nights != null && days != null && nights >= 0 && days > nights) {
+      return `${nights}박 ${days}일`;
+    }
+    if (nights != null && nights >= 0) {
+      return `${nights}박 ${nights + 1}일`;
+    }
+    return '';
+  }
+
+  const start = parseLocalDate(startDate);
+  const end = parseLocalDate(endDate);
+
   const startStr = formatDate(start);
   const endStr = formatDate(end);
-  const periodStr = nights && days ? ` (${nights}박 ${days}일)` : '';
 
-  return `${startStr} ~ ${endStr}${periodStr}`;
+  // 날짜에서 직접 계산 — DB에 저장된 nights/days 값은 잘못 입력될 수 있으므로 신뢰하지 않음
+  // (예: days=1, nights=7인 경우 → 날짜로 재계산하면 8일 7박)
+  const diffMs = end.getTime() - start.getTime();
+  const calcDays = Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1;
+  if (calcDays > 1) {
+    const calcNights = calcDays - 1;
+    return `${startStr} ~ ${endStr} (${calcNights}박 ${calcDays}일)`;
+  }
+
+  return `${startStr} ~ ${endStr}`;
 }
 

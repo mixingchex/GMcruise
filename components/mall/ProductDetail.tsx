@@ -1512,10 +1512,19 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                         <>
                           {formatDateWithDay(flightInfo.travelPeriod.startDate)} ~ {formatDateWithDay(flightInfo.travelPeriod.endDate)}
                           <br />
-                          <span className="text-lg md:text-xl font-bold text-gray-700 mt-2 block">{flightInfo.travelPeriod.nights}박 {flightInfo.travelPeriod.days}일</span>
+                          {(() => {
+                            // 날짜에서 직접 계산 (DB/layout 저장값 오류 방지)
+                            const s = new Date(flightInfo.travelPeriod.startDate);
+                            const e = new Date(flightInfo.travelPeriod.endDate);
+                            const calcDays = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+                            const displayNights = calcDays > 1 ? calcDays - 1 : flightInfo.travelPeriod.nights;
+                            const displayDays = calcDays > 1 ? calcDays : flightInfo.travelPeriod.days;
+                            return <span className="text-lg md:text-xl font-bold text-gray-700 mt-2 block">{displayNights}박 {displayDays}일</span>;
+                          })()}
                         </>
                       ) : (
-                        `${flightInfo.travelPeriod.nights}박 ${flightInfo.travelPeriod.days}일`
+                        // 날짜 없는 경우: nights는 신뢰, days는 nights+1로 보정
+                        `${flightInfo.travelPeriod.nights}박 ${Math.max(flightInfo.travelPeriod.days, flightInfo.travelPeriod.nights + 1)}일`
                       )}
                     </div>
                   </div>
