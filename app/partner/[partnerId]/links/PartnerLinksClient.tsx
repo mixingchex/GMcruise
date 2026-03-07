@@ -58,16 +58,12 @@ type PartnerLinksClientProps = {
 
 type ShareLinks = {
   mall: string;
-  tracked: string;
   landing: string | null;
 };
 
 type ProductLink = {
-  id: string | number;
-  code: string;
-  title: string | null;
   productCode: string;
-  status: string;
+  title: string | null;
   url: string;
   product: {
     id: number;
@@ -75,6 +71,7 @@ type ProductLink = {
     title: string;
   };
   isAutoLink: boolean;
+  isComputedLink?: boolean;
   _count?: {
     leads: number;
     sales: number;
@@ -91,6 +88,7 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [productSearchTerm, setProductSearchTerm] = useState('');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   useEffect(() => {
     loadLinks();
@@ -125,12 +123,10 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
 
       // 파트너의 기본 판매 링크 설정
       if (json.shareLinks) {
-        const fullShareLinks = {
+        setShareLinks({
           mall: `${window.location.origin}${json.shareLinks.mall}`,
-          tracked: `${window.location.origin}${json.shareLinks.tracked}`,
           landing: json.shareLinks.landing ? `${window.location.origin}${json.shareLinks.landing}` : null,
-        };
-        setShareLinks(fullShareLinks);
+        });
       }
 
     // 링크 URL에 base URL 추가
@@ -155,7 +151,6 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
     // 링크 유효성 검사 (비동기, 백그라운드에서 실행)
     validateLinks(linksWithFullUrl);
     } catch (error: any) {
-      console.error('[Partner Links] Load error', error);
       showError(error.message || '링크 목록을 불러오는 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
@@ -184,13 +179,13 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
       });
 
       if (!res.ok) {
-        console.warn('[Partner Links] Validation API error:', res.status);
+        // validation API unavailable — show all links
         return;
       }
 
       const json = await res.json();
       if (!json.ok || !json.results) {
-        console.warn('[Partner Links] Validation failed:', json);
+        // validation response malformed — show all links
         return;
       }
 
@@ -203,20 +198,20 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
       });
 
       setValidLinks(validUrls);
-    } catch (error: any) {
-      console.warn('[Partner Links] Link validation error:', error);
+    } catch {
       // 검사 실패해도 계속 진행 (모든 링크 표시)
     } finally {
       setIsValidating(false);
     }
   };
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, key: string) => {
     try {
       await navigator.clipboard.writeText(text);
       showSuccess('링크가 클립보드에 복사되었습니다.');
-    } catch (error) {
-      console.error('[Partner Links] Copy error', error);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    } catch {
       showError('링크 복사에 실패했습니다.');
     }
   };
@@ -370,17 +365,21 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
                   </div>
                   <div className="text-xs text-blue-700 font-mono break-all">{shareLinks.mall}</div>
                   <div className="text-xs text-blue-600 mt-1">
-                    이 링크를 통해 접속한 고객은 자동으로 추적됩니다
+                    이 링크 하나로 어떤 상품이든 구매 시 자동으로 내 실적으로 귀속됩니다
                   </div>
                 </div>
                 <div className="flex gap-2 ml-4">
                   <button
-                    onClick={() => copyToClipboard(shareLinks.mall)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-blue-300 bg-blue-100 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-200"
+                    onClick={() => copyToClipboard(shareLinks.mall, 'mall')}
+                    className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                      copiedKey === 'mall'
+                        ? 'border-emerald-300 bg-emerald-100 text-emerald-700'
+                        : 'border-blue-300 bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    }`}
                     title="링크 복사"
                   >
-                    <FiCopy />
-                    복사
+                    {copiedKey === 'mall' ? <FiCheckCircle /> : <FiCopy />}
+                    {copiedKey === 'mall' ? '복사됨!' : '복사'}
                   </button>
                   <a
                     href={shareLinks.mall}
@@ -524,12 +523,16 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
                           {link.url ? (
                             <>
                               <button
-                                onClick={() => copyToClipboard(link.url!)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                                onClick={() => copyToClipboard(link.url!, `link-${link.id}`)}
+                                className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition-colors ${
+                                  copiedKey === `link-${link.id}`
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    : 'border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                }`}
                                 title="링크 복사"
                               >
-                                <FiCopy />
-                                복사
+                                {copiedKey === `link-${link.id}` ? <FiCheckCircle /> : <FiCopy />}
+                                {copiedKey === `link-${link.id}` ? '복사됨' : '복사'}
                               </button>
                               <a
                                 href={link.url}
@@ -609,7 +612,7 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
             <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
               {filteredProductLinks.map((link) => (
                 <div
-                  key={link.id}
+                  key={link.productCode}
                   className="px-6 py-4 hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-4">
@@ -631,7 +634,7 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
                       </div>
                     </div>
                     {/* 통계 표시 (DB 저장된 자동 링크용) */}
-                    {(link._count?.leads > 0 || link._count?.sales > 0) && (
+                    {((link._count?.leads ?? 0) > 0 || (link._count?.sales ?? 0) > 0) && (
                       <div className="flex flex-col items-end text-xs text-gray-600 mr-2">
                         <span>리드: <span className="font-semibold text-blue-600">{link._count?.leads || 0}</span></span>
                         <span>판매: <span className="font-semibold text-emerald-600">{link._count?.sales || 0}</span></span>
@@ -639,12 +642,16 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
                     )}
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
-                        onClick={() => copyToClipboard(link.url)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        onClick={() => copyToClipboard(link.url, link.productCode)}
+                        className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                          copiedKey === link.productCode
+                            ? 'border-emerald-400 bg-emerald-100 text-emerald-800'
+                            : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        }`}
                         title="링크 복사"
                       >
-                        <FiCopy />
-                        복사
+                        {copiedKey === link.productCode ? <FiCheckCircle /> : <FiCopy />}
+                        {copiedKey === link.productCode ? '복사됨!' : '복사'}
                       </button>
                       <a
                         href={link.url}
@@ -671,12 +678,16 @@ export default function PartnerLinksClient({ partnerId }: PartnerLinksClientProp
                   const allLinks = filteredProductLinks
                     .map((link) => `[${link.title || link.productCode}]\n${link.url}`)
                     .join('\n\n');
-                  copyToClipboard(allLinks);
+                  copyToClipboard(allLinks, 'all');
                 }}
-                className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                  copiedKey === 'all'
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                    : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'
+                }`}
               >
-                <FiCopy />
-                전체 링크 복사 ({filteredProductLinks.length}개)
+                {copiedKey === 'all' ? <FiCheckCircle /> : <FiCopy />}
+                {copiedKey === 'all' ? '복사됨!' : `전체 링크 복사 (${filteredProductLinks.length}개)`}
               </button>
             </div>
           )}

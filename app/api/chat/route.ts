@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { handleShowPhotos } from './handlers/photos';
 import { handleDirections } from './handlers/directions';
 import { handleKeywordSearch } from './handlers/keyword-search';
@@ -205,7 +206,7 @@ Now translate and output ONLY the translation in ${normalizedTo} (no labels, no 
           } catch (genError: any) {
             // Rate limit (429) 에러 처리
             if (genError?.status === 429 || genError?.message?.includes('429') || genError?.message?.includes('Too Many Requests')) {
-              console.warn(`[Translation] Rate limit hit, attempt ${attempts}/${maxAttempts}. Waiting before retry...`);
+              logger.warn(`[Translation] Rate limit hit, attempt ${attempts}/${maxAttempts}. Waiting before retry...`);
 
               if (attempts < maxAttempts) {
                 // 지수 백오프: 2초, 4초, 8초...
@@ -214,7 +215,7 @@ Now translate and output ONLY the translation in ${normalizedTo} (no labels, no 
                 continue;
               } else {
                 // 최대 재시도 횟수 초과
-                console.warn('[Translation] Rate limit - max retries exceeded');
+                logger.warn('[Translation] Rate limit - max retries exceeded');
                 return NextResponse.json({
                   ok: false,
                   error: '번역 서버가 바쁩니다. 잠시 후 다시 시도해주세요.',
@@ -250,7 +251,7 @@ Now translate and output ONLY the translation in ${normalizedTo} (no labels, no 
 
           // 번역 결과가 원문과 동일한 경우 재시도 (단, 같은 언어 간 번역이 아닌 경우만)
           if (trimmedTranslated === trimmedOriginal && trimmedOriginal.length > 3 && normalizedFrom !== normalizedTo) {
-            console.warn(`[Translation] Attempt ${attempts}: Translation same as original, retrying...`, {
+            logger.warn(`[Translation] Attempt ${attempts}: Translation same as original, retrying...`, {
               from: normalizedFrom,
               to: normalizedTo,
               text: text.substring(0, 50)
@@ -260,7 +261,7 @@ Now translate and output ONLY the translation in ${normalizedTo} (no labels, no 
               continue;
             } else {
               // 최대 재시도 횟수 초과 - 번역 실패 에러 반환
-              console.error('[Translation] Failed after max attempts - translation same as original');
+              logger.error('[Translation] Failed after max attempts - translation same as original');
               return NextResponse.json(
                 { ok: false, error: '번역에 실패했습니다. 다른 표현으로 다시 시도해주세요.' },
                 { status: 500 }
@@ -284,7 +285,7 @@ Now translate and output ONLY the translation in ${normalizedTo} (no labels, no 
           ]
         });
       } catch (error: any) {
-        console.error('[Translation API] Error:', error);
+        logger.error('[Translation API] Error:', error);
         return NextResponse.json(
           { ok: false, error: '번역 중 오류가 발생했습니다.' },
           { status: 500 }
@@ -298,7 +299,7 @@ Now translate and output ONLY the translation in ${normalizedTo} (no labels, no 
       { status: 400 }
     );
   } catch (error: any) {
-    console.error('[Chat API] Error:', error);
+    logger.error('[Chat API] Error:', error);
     return NextResponse.json(
       { ok: false, error: error.message || 'Internal server error' },
       { status: 500 }

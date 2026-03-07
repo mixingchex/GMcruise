@@ -256,16 +256,19 @@ export async function POST(req: Request) {
     logger.debug('[Stream API] Converted contents:', contents.length, 'messages');
 
     // Google Generative AI API 직접 호출 (스트리밍)
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:streamGenerateContent?key=${encodeURIComponent(apiKey)}`;
+    // P0-5/P0-6: API 키 URL 제거 → 헤더로 이동 + ?alt=sse 추가 (실제 SSE 스트리밍)
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:streamGenerateContent?alt=sse`;
 
     logger.debug('[Stream API] Requesting Gemini API:', modelName);
-    logger.debug('[Stream API] URL (key hidden):', url.replace(/key=[^&]+/, 'key=***'));
     logger.debug('[Stream API] Contents count:', contents.length);
 
     // 통번역기와 동일한 fetch 설정 (단, 스트리밍용)
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey, // URL ?key= 대신 헤더로 전달 (서버 로그 미노출)
+      },
       body: JSON.stringify({
         contents,
         generationConfig: {

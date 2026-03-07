@@ -314,52 +314,46 @@ export async function POST(request: NextRequest) {
     // ============================================
     log('[Callback v12.0] ===== 자동화 실행 시작 =====');
 
-    // 자동화를 비동기로 실행 (리다이렉트 지연 방지)
-    // ⚠️ IMPROVED: 실패 시 재시도 큐에 추가하도록 강화된 에러 핸들링
-    executeAutomation({
-      orderId: finalOid,
-      tid: finalTid,
-      amount: parseInt(finalAmt) || payment.amount,
-      partnerId: finalPartnerId,
-      productCode: finalProductCode || payment.productCode || '',
-      customerName: payment.buyerName || '',
-      customerPhone: payment.buyerTel || '',
-      customerEmail: payment.buyerEmail || '',
-      partnerSource,
-    }).then(result => {
+    // [P0 수정] await로 실행 보장 — Vercel Serverless는 응답 전송 후 Promise를 종료할 수 있음
+    // fire-and-forget이면 AffiliateSale/CommissionLedger가 생성되지 않는 silent failure 발생
+    try {
+      const result = await executeAutomation({
+        orderId: finalOid,
+        tid: finalTid,
+        amount: receivedAmt, // parseInt(finalAmt)는 line 261에서 이미 검증된 값 재사용
+        partnerId: finalPartnerId,
+        productCode: finalProductCode || payment.productCode || '',
+        customerName: payment.buyerName || '',
+        customerPhone: payment.buyerTel || '',
+        customerEmail: payment.buyerEmail || '',
+        partnerSource,
+      });
       if (result.affiliateSaleCreated) {
         log(`[Callback v12.0] ✅ 자동화 완료! 파트너: ${finalPartnerId}, 실적ID: ${result.saleId}`);
       } else if (finalPartnerId) {
         log(`[Callback v12.0] ⚠️ 파트너(${finalPartnerId}) 있으나 실적 저장 실패`);
       }
-    }).catch((automationError) => {
-      // ✅ BUG FIX: async 제거 - Promise 체이닝으로 에러 전파 보장
-      // ⚠️ CRITICAL: 자동화 실패 시 DB에 재시도 필요 플래그 저장
+    } catch (automationError: unknown) {
       error('[Callback v12.0] ⚠️ 자동화 실행 실패:', automationError);
-
-      // Promise 반환하여 에러 전파 보장
-      return prisma.payment.update({
-        where: { orderId: finalOid },
-        data: {
-          metadata: {
-            ...(payment.metadata as object || {}),
-            automationFailed: true,
-            automationFailureReason: automationError instanceof Error ? automationError.message : String(automationError),
-            automationFailedAt: new Date().toISOString(),
-            requiresRetry: true, // 재시도 필요 플래그
+      // 자동화 실패 시 DB에 재시도 플래그 기록
+      try {
+        await prisma.payment.update({
+          where: { orderId: finalOid },
+          data: {
+            metadata: {
+              ...(payment.metadata as object || {}),
+              automationFailed: true,
+              automationFailureReason: automationError instanceof Error ? automationError.message : String(automationError),
+              automationFailedAt: new Date().toISOString(),
+              requiresRetry: true,
+            },
           },
-        },
-      })
-      .then(() => {
-        log('[Callback v12.0] 자동화 실패 정보 DB 기록 완료 (백그라운드 재시도 대기)');
-        // TODO: Job Queue(Bull/Inngest)에 재시도 작업 추가
-        // await retryQueue.add('automation-retry', { orderId: finalOid, attemptCount: 1 });
-      })
-      .catch(dbError => {
+        });
+        log('[Callback v12.0] 자동화 실패 정보 DB 기록 완료');
+      } catch (dbError: unknown) {
         error('[Callback v12.0] CRITICAL: 자동화 실패 정보 기록 2중 실패:', dbError);
-        // 여기서도 실패하면 최소한 로그는 남김 (모니터링 시스템에서 감지 가능)
-      });
-    });
+      }
+    }
 
     // ============================================
     // [Step 9] 성공 페이지로 리다이렉트

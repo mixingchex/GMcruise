@@ -552,15 +552,6 @@ export async function POST(req: NextRequest) {
       await syncSalesAgentMentor(profile.id, managerProfileId);
     }
 
-    // 자동 설정: 기본 리소스 생성 (링크, 고객 그룹, 랜딩 페이지)
-    try {
-      const { autoSetupAffiliateProfile } = await import('@/lib/affiliate/auto-setup');
-      await autoSetupAffiliateProfile(profile.id);
-    } catch (autoSetupError) {
-      console.error('[admin/affiliate/profiles][POST] Auto-setup error:', autoSetupError);
-      // 자동 설정 실패해도 프로필 생성은 성공으로 처리
-    }
-
     const refreshed = await prisma.affiliateProfile.findUnique({
       where: { id: profile.id },
       include: profileInclude,

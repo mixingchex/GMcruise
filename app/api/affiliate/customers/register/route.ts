@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     // 판매원/대리점장 프로필 확인
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
-      where: { userId: sessionUser.id },
+      where: { userId: sessionUser.id, status: 'ACTIVE' },
       select: {
         id: true,
         type: true,

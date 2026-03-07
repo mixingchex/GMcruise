@@ -14,7 +14,7 @@ export const profileInclude: any = {
       onboarded: true,
       mallNickname: true,
       mallUserId: true,
-      password: true, // 비밀번호 추가
+      // password 필드 제외 — 해시라도 API 응답에 불필요
     },
   },
   // 관리자-판매원 관계 (이 프로필이 판매원인 경우의 관리자 정보)
@@ -61,7 +61,7 @@ export const profileInclude: any = {
 type ProfileWithRelations = any;
 
 // @ts-ignore - Prisma 타입과 런타임 타입이 다를 수 있음
-export function serializeProfile(profile: any, includePassword: boolean = false) {
+export function serializeProfile(profile: any, _includePassword?: boolean) {
   // _count는 별도 쿼리로 조회하지 않으므로 모든 counts를 0으로 설정
   // 필요시 별도 API로 통계 정보를 제공할 수 있음
   const managedRelations = 0;
@@ -145,7 +145,7 @@ export function serializeProfile(profile: any, includePassword: boolean = false)
           onboarded: (profile as any).User?.onboarded,
           mallNickname: (profile as any).User?.mallNickname,
           mallUserId: (profile as any).User?.mallUserId,
-          ...(includePassword && (profile as any).User?.password ? { password: (profile as any).User.password } : {}), // 관리자일 때만 비밀번호 포함
+          // password 절대 포함 금지
         }
       : null,
   };

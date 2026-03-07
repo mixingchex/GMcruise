@@ -488,6 +488,20 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
 
   const finalDestination = destinationFromLayout || destinationFromPattern || null;
 
+  // 기항지 목록 (itinerary days의 location에서 추출 — 바다/해상 제외)
+  const portLocations = (() => {
+    const itinerary = layoutData?.itinerary;
+    if (!Array.isArray(itinerary) || itinerary.length === 0) return [];
+    const ports: string[] = [];
+    itinerary.forEach((day: any) => {
+      const loc = day?.arrivalLocation || day?.location;
+      if (loc && loc !== '해상' && loc !== 'Sea' && loc !== 'sea' && !ports.includes(loc)) {
+        ports.push(loc);
+      }
+    });
+    return ports;
+  })();
+
   // 포함/불포함 기본값
   const defaultIncluded = [
     '크루즈 객실료 (TAX 및 항구세 포함)',
@@ -1325,27 +1339,47 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
               </div>
             </div>
 
-            {/* 방문 국가 (파란색 버튼) - 상품 설명 위에 표시 */}
-            {finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
-              <div className="mb-5 md:mb-6 flex flex-wrap gap-2">
-                {finalDestination.map((countryCode: string) => {
-                  const countryNames: Record<string, string> = {
-                    'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
-                    'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
-                    'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
-                    'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다'
-                  };
-                  const countryName = countryNames[countryCode] || countryCode;
-                  return (
-                    <span
-                      key={countryCode}
-                      className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
-                      style={{ wordBreak: 'keep-all' }}
-                    >
-                      {countryName}
-                    </span>
-                  );
-                })}
+            {/* 방문 국가/기항지 배지 - 상품 설명 위에 표시 */}
+            {((finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0) || portLocations.length > 0) && (
+              <div className="mb-5 md:mb-6">
+                {/* 방문 국가/지역 배지 */}
+                {finalDestination && Array.isArray(finalDestination) && finalDestination.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {finalDestination.map((countryCode: string) => {
+                      const countryNames: Record<string, string> = {
+                        'JP': '일본', 'KR': '한국', 'TH': '태국', 'VN': '베트남', 'MY': '말레이시아',
+                        'SG': '싱가포르', 'ES': '스페인', 'FR': '프랑스', 'IT': '이탈리아', 'GR': '그리스',
+                        'TR': '터키', 'US': '미국', 'CN': '중국', 'TW': '대만', 'HK': '홍콩',
+                        'PH': '필리핀', 'ID': '인도네시아', 'CA': '캐나다'
+                      };
+                      const countryName = countryNames[countryCode] || countryCode;
+                      return (
+                        <span
+                          key={countryCode}
+                          className="px-4 py-2 bg-[#051C2C] text-white rounded-full text-sm md:text-base font-bold hover:bg-[#0A2E46] transition-colors shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
+                          style={{ wordBreak: 'keep-all' }}
+                        >
+                          {countryName}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* 지역 배지 (itinerary에서 추출) */}
+                {portLocations.length > 0 && (
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <span className="text-xs text-gray-500 font-medium">{portLocations.length}개 지역:</span>
+                    {portLocations.map((port: string) => (
+                      <span
+                        key={port}
+                        className="px-3 py-1 bg-blue-50 text-blue-800 border border-blue-200 rounded-full text-sm font-medium"
+                        style={{ wordBreak: 'keep-all' }}
+                      >
+                        {port}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

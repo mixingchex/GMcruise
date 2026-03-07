@@ -107,7 +107,7 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-2 flex-1 overflow-y-auto" ref={scrollRef} style={{ minHeight: '60vh' }}>
+    <div className="mx-auto max-w-6xl px-3 py-2 flex-1 min-h-0 overflow-y-auto" ref={scrollRef}>
       {(messages.length === 0 || !messages.some(m => m.role === 'user')) && mode === 'go' && (
         <div className="mx-auto max-w-6xl w-full">
           <GoAnywhere onSend={onSend} />
@@ -221,7 +221,7 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
                   {message.images?.slice(0, 4).map((image, idx) => (
                     <div key={idx} className="relative aspect-square bg-gray-100 rounded-lg">
                       <Image
-                        src={image}
+                        src={typeof image === 'string' ? image : (image as any).url}
                         alt={`사진 ${idx + 1}`}
                         fill
                         className="object-cover rounded-lg"
@@ -231,12 +231,8 @@ export default function ChatWindow({ messages, mode, onSend }: Props) {
                         placeholder="blur"
                         blurDataURL={getGrayBlurDataURL()}
                         onError={(e) => {
-                          // 이미지 로드 실패 시 placeholder 표시
+                          // 이미지 로드 실패: 이미지 숨김 (부모의 bg-gray-100이 fallback 역할)
                           e.currentTarget.style.display = 'none';
-                          const parent = e.currentTarget.parentElement;
-                          if (parent && !parent.querySelector('.error-placeholder')) {
-                            parent.innerHTML = '<div class="error-placeholder flex items-center justify-center h-full text-gray-400"><svg class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>';
-                          }
                         }}
                       />
                     </div>

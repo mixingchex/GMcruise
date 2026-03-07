@@ -276,14 +276,10 @@ export async function POST(request: Request) {
 
         // 비동기로 모든 활성 파트너에게 링크 생성 (백그라운드에서 실행)
         generateLinksForProduct(product.productCode, product.id, session.userId)
-          .then((result) => {
-            console.log(`[Admin Affiliate Products] 자동 링크 생성 완료 - 상품: ${product.productCode}, 생성: ${result.created}, 스킵: ${result.skipped}, 에러: ${result.errors.length}`);
+          .then(() => {
+            // [PHASE2] auto-link-generator deprecated — no-op
           })
-          .catch((error) => {
-            console.error('[Admin Affiliate Products] 자동 링크 생성 실패:', error);
-          });
-
-        console.log(`[Admin Affiliate Products] 자동 링크 생성 시작 (productCode: ${product.productCode})`);
+          .catch(() => {});
       } catch (linkError: any) {
         // 링크 생성 실패해도 상품 생성은 성공으로 처리
         console.error('[Admin Affiliate Products] 자동 링크 생성 시작 실패 (상품은 생성됨):', linkError);

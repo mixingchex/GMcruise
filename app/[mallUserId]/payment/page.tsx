@@ -17,7 +17,7 @@ export default async function PersonalPaymentPage({
   searchParams
 }: {
   params: Promise<{ mallUserId: string }>;
-  searchParams?: Promise<{ productCode?: string; amount?: string; sessionId?: string }>;
+  searchParams?: Promise<{ productCode?: string; amount?: string; sessionId?: string; affiliateCode?: string }>;
 }) {
   const sessionUser = await getSessionUser();
   const { mallUserId } = await params;
@@ -25,6 +25,8 @@ export default async function PersonalPaymentPage({
   const productCode = resolvedSearchParams?.productCode;
   const amount = resolvedSearchParams?.amount ? parseInt(resolvedSearchParams.amount) : null;
   const sessionId = resolvedSearchParams?.sessionId;
+  // /products/[code]/payment?affiliate=CODE 직접 접근 시 redirect로 전달된 값
+  const affiliateCodeFromParam = resolvedSearchParams?.affiliateCode;
 
   // 세션이 없으면 파트너 로그인으로 리다이렉트
   if (!sessionUser) {
@@ -133,6 +135,7 @@ export default async function PersonalPaymentPage({
           pricingRows={pricingRows}
           chatSessionId={sessionId ?? undefined}
           partnerId={mallUserId} // 판매원몰에서 직접 접근한 경우
+          affiliateCode={affiliateCodeFromParam ?? undefined}
         />
       );
     } catch (error) {

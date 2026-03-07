@@ -70,16 +70,7 @@ export async function GET(request: NextRequest) {
       results.push({ name: 'drive-sync', success: false, error: e.message });
     }
 
-    // 3. Excel Backup (월별 어필리에이트 데이터)
-    try {
-      const { uploadAllExcels } = await import('@/lib/affiliate/excel-backup');
-      const now = new Date();
-      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const period = `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
-      results.push(await runTask('excel-backup', () => uploadAllExcels(period)));
-    } catch (e: any) {
-      results.push({ name: 'excel-backup', success: false, error: e.message });
-    }
+    // 3. Excel Backup — [PHASE2] 제거됨 (크루즈가이드AI 경량화)
 
     // 4. Expire Trips (만료된 여행 - 기존 로직 완전 이식)
     results.push(await runTask('expire-trips', async () => {
@@ -153,16 +144,7 @@ export async function GET(request: NextRequest) {
       return { deletedCount: messageIds.length };
     }));
 
-    // 6. Payslip Sender (매월 1일만 실행)
-    const now = new Date();
-    if (now.getDate() === 1) {
-      try {
-        const { sendApprovedPayslips } = await import('@/lib/scheduler/payslipSender');
-        results.push(await runTask('payslip-sender', sendApprovedPayslips));
-      } catch (e: any) {
-        results.push({ name: 'payslip-sender', success: false, error: e.message });
-      }
-    }
+    // 6. Payslip Sender — [PHASE2] 제거됨 (크루즈가이드AI 경량화)
 
     // 7. Supabase Backup (증분 동기화 — Neon → Supabase)
     try {

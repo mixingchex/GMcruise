@@ -118,22 +118,25 @@ img {
 }
 
 /* 중요 버튼/칩 최소 높이 56px (50대 이상 사용자 친화) */
-button,
-.button,
-.chip,
-input[type="submit"],
-input[type="button"],
-a.button {
-  min-height: 56px;
-  /* ⭐ 52px → 56px로 상향 */
-  padding-top: 1rem;
-  /* py-4 */
-  padding-bottom: 1rem;
-  /* py-4 */
-  font-weight: 600;
-  /* ⭐ font-semibold 적용 */
-  font-size: 1.125rem;
-  /* ⭐ 18px 기본 크기 */
+/* @layer base 감싸기: Tailwind utilities(min-h-0 등)가 이 규칙을 올바르게 오버라이드할 수 있게 함 */
+@layer base {
+  button,
+  .button,
+  .chip,
+  input[type="submit"],
+  input[type="button"],
+  a.button {
+    min-height: 56px;
+    /* ⭐ 52px → 56px로 상향 */
+    padding-top: 1rem;
+    /* py-4 */
+    padding-bottom: 1rem;
+    /* py-4 */
+    font-weight: 600;
+    /* ⭐ font-semibold 적용 */
+    font-size: 1.125rem;
+    /* ⭐ 18px 기본 크기 */
+  }
 }
 
 /* 입력 필드 가독성 개선 */
@@ -384,3 +387,10 @@ a {
 }
 .animate-kb-zoom-tl { animation: kb-zoom-tl 6s ease-in-out forwards; }
 .animate-kb-zoom-tr { animation: kb-zoom-tr 6s ease-in-out forwards; }
+
+/* checklist 페이지 모바일 하단 패딩 (동적 Tailwind sm:pb-0 대체) */
+@media (max-width: 640px) {
+  body.has-checklist-open {
+    padding-bottom: 6rem;
+  }
+}

@@ -10,6 +10,8 @@ import { trackFeature } from '@/lib/analytics';
 import TutorialCountdown from '@/app/chat/components/TutorialCountdown';
 import { checkTestModeClient, TestModeInfo, getCorrectPath } from '@/lib/test-mode-client';
 import { clearAllLocalStorage } from '@/lib/csrf-client';
+import { showError } from '@/components/ui/Toast';
+import { logger } from '@/lib/logger';
 
 type Tab = 'calculator' | 'expenses' | 'statistics';
 
@@ -45,12 +47,12 @@ export default function WalletPage() {
         clearAllLocalStorage();
         window.location.href = '/login-test';
       } else {
-        console.error('로그아웃 실패');
-        alert('로그아웃에 실패했습니다. 다시 시도해주세요.');
+        logger.error('[WalletTest] 로그아웃 실패');
+        showError('로그아웃에 실패했습니다. 다시 시도해주세요.');
       }
     } catch (error) {
-      console.error('로그아웃 요청 중 오류 발생:', error);
-      alert('로그아웃 중 오류가 발생했습니다.');
+      logger.error('[WalletTest] 로그아웃 요청 중 오류 발생:', error);
+      showError('로그아웃 중 오류가 발생했습니다.');
     }
   };
 
@@ -60,7 +62,7 @@ export default function WalletPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
+    <div className="min-h-[100dvh] bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50">
       {/* 72시간 카운트다운 배너 (상단 고정) */}
       {testModeInfo && testModeInfo.isTestMode && (
         <TutorialCountdown testModeInfo={testModeInfo} onLogout={handleLogout} />

@@ -4,11 +4,20 @@
  * 개인정보보호법 제17조 제3자 제공 최소화 원칙 적용
  */
 
-/** 이름 마스킹: 2자 이하 → null, 3자 → "홍*동", 4자+ → "홍**이" */
+/**
+ * 이름 마스킹
+ *   1자  → '*'
+ *   2자  → '김*' (첫글자 + *)
+ *   3자  → '홍*동'
+ *   4자+ → '홍**이'
+ * customerName 자체가 없을 때만 null 반환 (UI에서 "null 님" 방지)
+ */
 export function maskName(name: string | null | undefined): string | null {
   if (!name) return null;
   const t = name.trim();
-  if (t.length <= 2) return null; // 식별 위험 — 비공개
+  if (t.length === 0) return null;
+  if (t.length === 1) return '*';
+  if (t.length === 2) return t[0] + '*';
   if (t.length === 3) return t[0] + '*' + t[2];
   return t[0] + '*'.repeat(t.length - 2) + t[t.length - 1];
 }

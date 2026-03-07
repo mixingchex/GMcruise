@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 import { profileInclude, serializeProfile, toNullableString } from '@/app/api/admin/affiliate/profiles/shared';
+import { error as logError } from '@/lib/logger-wrapper';
 
 function normalizePhone(phone: string | null | undefined) {
   if (!phone) return phone;
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ ok: true, profile: serializeProfile(profile) });
   } catch (error) {
-    console.error('GET /api/affiliate/me/profile error:', error);
+    logError('[GET /api/affiliate/me/profile]', error);
     return NextResponse.json({ ok: false, message: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }
@@ -79,7 +80,7 @@ export async function PUT(req: NextRequest) {
     try {
       payload = await req.json();
     } catch (parseError) {
-      console.error('PUT /api/affiliate/me/profile JSON parse error:', parseError);
+      logError('[PUT /api/affiliate/me/profile] JSON parse error:', parseError);
       return NextResponse.json({ ok: false, message: '요청 데이터 형식이 올바르지 않습니다.' }, { status: 400 });
     }
 
@@ -112,15 +113,10 @@ export async function PUT(req: NextRequest) {
 
     return NextResponse.json({ ok: true, profile: serializeProfile(updated) });
   } catch (error: any) {
-    console.error('PUT /api/affiliate/me/profile error:', error);
-    
-    // Prisma 에러 처리
+    logError('[PUT /api/affiliate/me/profile]', error);
     if (error.code === 'P2025') {
       return NextResponse.json({ ok: false, message: '프로필을 찾을 수 없습니다.' }, { status: 404 });
     }
-    
-    // 일반적인 에러 메시지
-    const errorMessage = error?.message || '서버 오류가 발생했습니다.';
-    return NextResponse.json({ ok: false, message: errorMessage }, { status: 500 });
+    return NextResponse.json({ ok: false, message: '서버 오류가 발생했습니다.' }, { status: 500 });
   }
 }

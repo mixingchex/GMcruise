@@ -1,19 +1,17 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
 import prisma from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
-// 짧은 slug 생성 함수
+// [보안] crypto.randomBytes 사용 — Math.random()은 암호학적으로 안전하지 않음
 function generateSlug(length: number = 8): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = randomBytes(length);
+  return Array.from(bytes).map(b => chars[b % chars.length]).join('');
 }
 
 export async function POST(req: NextRequest) {

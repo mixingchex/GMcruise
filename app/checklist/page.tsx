@@ -283,9 +283,9 @@ export default function ChecklistPage() {
   useEffect(() => {
     loadItems();
     // iOS 키보드 가림 방지용 safest area 여백
-    document.body.classList.add('pb-24', 'sm:pb-0');
+    document.body.classList.add('has-checklist-open');
     return () => {
-      document.body.classList.remove('pb-24', 'sm:pb-0');
+      document.body.classList.remove('has-checklist-open');
       // 컴포넌트 언마운트 시 음성 읽기 중지
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         try {

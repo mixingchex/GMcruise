@@ -2,7 +2,6 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { getSessionUser } from '@/lib/auth';
 import { requirePartnerContext } from '@/app/api/partner/_utils';
 
 /**
@@ -11,11 +10,6 @@ import { requirePartnerContext } from '@/app/api/partner/_utils';
  */
 export async function GET(req: NextRequest) {
   try {
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { profile } = await requirePartnerContext();
     
     // 대리점장만 가능

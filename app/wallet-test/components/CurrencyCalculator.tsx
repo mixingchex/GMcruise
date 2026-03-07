@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FiRefreshCw, FiAlertCircle } from 'react-icons/fi';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { logger } from '@/lib/logger';
 
 type Currency = {
   code: string;
@@ -57,7 +58,8 @@ export default function CurrencyCalculator() {
 
   const [showFromSheet, setShowFromSheet] = useState(false);
   const [showToSheet, setShowToSheet] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [fromSearchQuery, setFromSearchQuery] = useState('');
+  const [toSearchQuery, setToSearchQuery] = useState('');
   const [showHelpModal, setShowHelpModal] = useState(false);
 
   const formatNumber = (value: string): string => {
@@ -131,6 +133,7 @@ export default function CurrencyCalculator() {
   }, [fromAmount, fromCurrency, toCurrency, rates]);
 
   const handleRefresh = async () => {
+    setError(''); // 이전 에러 초기화
     setLoading(true);
     try {
       const currencyCodes = currencies.map(c => c.code);
@@ -144,7 +147,10 @@ export default function CurrencyCalculator() {
         setRates(ratesData.rates);
         setLastUpdate(new Date(ratesData.timestamp).toLocaleString('ko-KR'));
       }
-    } catch { /* ignore */ } finally {
+    } catch (err) {
+      setError('환율을 업데이트할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      logger.error('[CurrencyCalculator] 환율 fetch 오류:', err);
+    } finally {
       setLoading(false);
     }
   };
@@ -306,25 +312,25 @@ export default function CurrencyCalculator() {
       </div>
 
       {/* From 통화 선택 시트 */}
-      <BottomSheet open={showFromSheet} onClose={() => { setShowFromSheet(false); setSearchQuery(''); }} title="통화 선택">
+      <BottomSheet open={showFromSheet} onClose={() => { setShowFromSheet(false); setFromSearchQuery(''); }} title="통화 선택">
         <div className="px-4 pt-3 pb-2">
           <input
             type="text"
             inputMode="search"
             placeholder="통화 검색 (USD, 달러, 미국...)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={fromSearchQuery}
+            onChange={(e) => setFromSearchQuery(e.target.value)}
             autoFocus
             className="w-full px-4 py-2.5 rounded-xl bg-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
         <ul className="pb-4">
           {currencies
-            .filter((c) => searchQuery === '' || c.code.toLowerCase().includes(searchQuery.toLowerCase()) || c.country.includes(searchQuery) || c.name.includes(searchQuery))
+            .filter((c) => fromSearchQuery === '' || c.code.toLowerCase().includes(fromSearchQuery.toLowerCase()) || c.country.includes(fromSearchQuery) || c.name.includes(fromSearchQuery))
             .map((c) => (
               <li key={c.code}>
                 <button
-                  onClick={() => { setFromCurrency(c.code); setShowFromSheet(false); setSearchQuery(''); }}
+                  onClick={() => { setFromCurrency(c.code); setShowFromSheet(false); setFromSearchQuery(''); }}
                   className={`w-full min-h-0 flex items-center justify-between px-4 py-3 active:bg-gray-50 ${fromCurrency === c.code ? 'bg-blue-50' : ''}`}
                 >
                   <span className="font-semibold text-gray-900">{c.code}</span>
@@ -336,25 +342,25 @@ export default function CurrencyCalculator() {
       </BottomSheet>
 
       {/* To 통화 선택 시트 */}
-      <BottomSheet open={showToSheet} onClose={() => { setShowToSheet(false); setSearchQuery(''); }} title="통화 선택">
+      <BottomSheet open={showToSheet} onClose={() => { setShowToSheet(false); setToSearchQuery(''); }} title="통화 선택">
         <div className="px-4 pt-3 pb-2">
           <input
             type="text"
             inputMode="search"
             placeholder="통화 검색 (USD, 달러, 미국...)"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={toSearchQuery}
+            onChange={(e) => setToSearchQuery(e.target.value)}
             autoFocus
             className="w-full px-4 py-2.5 rounded-xl bg-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
         <ul className="pb-4">
           {currencies
-            .filter((c) => searchQuery === '' || c.code.toLowerCase().includes(searchQuery.toLowerCase()) || c.country.includes(searchQuery) || c.name.includes(searchQuery))
+            .filter((c) => toSearchQuery === '' || c.code.toLowerCase().includes(toSearchQuery.toLowerCase()) || c.country.includes(toSearchQuery) || c.name.includes(toSearchQuery))
             .map((c) => (
               <li key={c.code}>
                 <button
-                  onClick={() => { setToCurrency(c.code); setShowToSheet(false); setSearchQuery(''); }}
+                  onClick={() => { setToCurrency(c.code); setShowToSheet(false); setToSearchQuery(''); }}
                   className={`w-full min-h-0 flex items-center justify-between px-4 py-3 active:bg-gray-50 ${toCurrency === c.code ? 'bg-green-50' : ''}`}
                 >
                   <span className="font-semibold text-gray-900">{c.code}</span>

@@ -50,12 +50,7 @@ export {
   startSpreadsheetBackupScheduler,
 } from '../scheduler/spreadsheetBackup';
 
-// 급여명세서 발송
-export {
-  sendApprovedPayslips,
-  startPayslipSenderScheduler,
-  manualSendPayslips,
-} from '../scheduler/payslipSender';
+// [PHASE2] 급여명세서(payslipSender) 제거됨
 
 // 어필리에이트 링크 정리
 export {

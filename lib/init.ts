@@ -36,8 +36,7 @@ export async function initializeApp() {
     const { startScheduledMessageSender } = await import('./scheduler/scheduledMessageSender');
     startScheduledMessageSender();
 
-    const { startPayslipSenderScheduler } = await import('./scheduler/payslipSender');
-    startPayslipSenderScheduler();
+    // [PHASE2] payslipSender 제거됨
 
     // 정리 및 유지보수 스케줄러 시작
     const { startAffiliateLinkCleanupScheduler } = await import('./scheduler/affiliateLinkCleanup');

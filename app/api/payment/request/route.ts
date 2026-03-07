@@ -12,7 +12,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { productCode, productName: bodyProductName, amount, buyerName, buyerEmail, buyerTel, roomSelections, chatSessionId, partnerId } = body;
+    const { productCode, productName: bodyProductName, amount, buyerName, buyerEmail, buyerTel, roomSelections, chatSessionId, partnerId, affiliateCodeFallback } = body;
 
     // 필수 필드 검증
     if (!productCode || !amount || !buyerName || !buyerTel) {
@@ -64,12 +64,19 @@ export async function POST(req: NextRequest) {
     }
 
     // 어필리에이트 추적 정보
-    // 우선순위: body의 partnerId (URL 파라미터) > 쿠키의 affiliate_mall_user_id
-    // URL의 partner 파라미터를 최우선으로 사용 (정확한 판매원 추적)
+    // 우선순위: 쿠키(정상 경로) > body의 affiliateCodeFallback(직접 결제 URL 접근 시 쿠키 미설정 대체)
     const cookies = req.cookies;
-    const affiliateCode = cookies.get('affiliate_code')?.value || null;
+    const affiliateCodeFromCookie = cookies.get('affiliate_code')?.value || null;
     const affiliateMallUserIdFromCookie = cookies.get('affiliate_mall_user_id')?.value || null;
-    const finalPartnerId = partnerId || affiliateMallUserIdFromCookie || null;
+    // affiliateCodeFallback: ?affiliate=CODE 직접 접근 시 쿠키가 없어도 affiliateCode 보존
+    // [SEC] 길이(64자 이하) + 허용 문자(영숫자, -, _) 검증으로 DB 오염 방지
+    const AFFILIATE_CODE_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
+    const rawFallback = typeof affiliateCodeFallback === 'string' ? affiliateCodeFallback.trim() : '';
+    const sanitizedFallback = rawFallback && AFFILIATE_CODE_PATTERN.test(rawFallback) ? rawFallback : null;
+    const affiliateCode = affiliateCodeFromCookie || sanitizedFallback;
+    const rawPartnerId = typeof partnerId === 'string' ? partnerId.trim() : '';
+    const sanitizedPartnerId = rawPartnerId && AFFILIATE_CODE_PATTERN.test(rawPartnerId) ? rawPartnerId : null;
+    const finalPartnerId = sanitizedPartnerId || affiliateMallUserIdFromCookie || null;
 
     // 방 선택 정보 검증 (크루즈 상품의 경우에만 필수)
     interface RoomSelection {
@@ -183,7 +190,7 @@ export async function POST(req: NextRequest) {
     // 에러는 항상 로깅 (결제 오류는 중요)
     error('[Payment Request] Error:', err);
     return NextResponse.json(
-      { ok: false, error: err instanceof Error ? err.message : '결제 요청 중 오류가 발생했습니다.' },
+      { ok: false, error: '결제 요청 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

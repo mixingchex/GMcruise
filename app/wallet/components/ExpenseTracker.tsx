@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiCalendar, FiAlertCircle, FiEdit2, FiCheck, FiX } from 'react-icons/fi';
 import { logger } from '@/lib/logger';
+import { showError, showSuccess } from '@/components/ui/Toast';
 
 type Currency = {
   code: string;
@@ -77,6 +78,7 @@ export default function ExpenseTracker() {
   const [amount, setAmount] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [amountInKRW, setAmountInKRW] = useState<number>(0); // 원화 환산 금액
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
   // 데이터 로드
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function ExpenseTracker() {
           }
         }
       } catch (error) {
-        console.error('[ExpenseTracker] Error calculating KRW:', error);
+        logger.error('[ExpenseTracker] Error calculating KRW:', error);
       }
     };
 
@@ -131,7 +133,7 @@ export default function ExpenseTracker() {
         return JSON.parse(saved);
       }
     } catch (e) {
-      console.error('[ExpenseTracker] Failed to load from localStorage:', e);
+      logger.error('[ExpenseTracker] Failed to load from localStorage:', e);
     }
     return [];
   };
@@ -143,7 +145,7 @@ export default function ExpenseTracker() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
       return true;
     } catch (e) {
-      console.error('[ExpenseTracker] Failed to save to localStorage:', e);
+      logger.error('[ExpenseTracker] Failed to save to localStorage:', e);
       return false;
     }
   };
@@ -205,7 +207,7 @@ export default function ExpenseTracker() {
           }
         }
       } catch (apiError: any) {
-        console.warn('[ExpenseTracker] API failed, using localStorage:', apiError);
+        logger.warn('[ExpenseTracker] API failed, using localStorage:', apiError);
       }
 
       // API 실패 시 localStorage에서 로드
@@ -217,7 +219,7 @@ export default function ExpenseTracker() {
         setExpenses([]);
       }
     } catch (error: any) {
-      console.error('[ExpenseTracker] Error loading data:', error);
+      logger.error('[ExpenseTracker] Error loading data:', error);
       // localStorage에서라도 로드 시도
       const localItems = loadFromLocalStorage();
       if (localItems.length > 0) {
@@ -233,13 +235,13 @@ export default function ExpenseTracker() {
   // 지출 추가
   const handleAddExpense = async () => {
     if (!description.trim()) {
-      alert('지출 내용을 입력해주세요.');
+      showError('지출 내용을 입력해주세요.');
       return;
     }
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      alert('올바른 금액을 입력해주세요.');
+      showError('올바른 금액을 입력해주세요.');
       return;
     }
 
@@ -264,7 +266,7 @@ export default function ExpenseTracker() {
           }
         }
       } catch (rateError) {
-        console.warn('[ExpenseTracker] Exchange rate API failed, using default:', rateError);
+        logger.warn('[ExpenseTracker] Exchange rate API failed, using default:', rateError);
         // 기본 환율 사용 (USD = 1300원)
         if (selectedCurrency !== 'KRW') {
           amountInKRW = Math.round(amountNum * 1300);
@@ -328,7 +330,7 @@ export default function ExpenseTracker() {
           }
         }
       } catch (apiError: any) {
-        console.warn('[ExpenseTracker] API save failed, keeping local:', apiError);
+        logger.warn('[ExpenseTracker] API save failed, keeping local:', apiError);
         // API 실패해도 localStorage에는 저장됨
       }
 
@@ -339,20 +341,15 @@ export default function ExpenseTracker() {
 
       // 성공 메시지는 표시하지 않음 (자동 저장이므로)
     } catch (error: any) {
-      console.error('[ExpenseTracker] Add expense error:', error);
-      alert(`지출 추가 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
+      logger.error('[ExpenseTracker] Add expense error:', error);
+      showError(`지출 추가 중 오류가 발생했습니다: ${error.message || '알 수 없는 오류'}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // 모든 지출 삭제 (리셋)
-  const handleResetAll = async () => {
-    if (expenses.length === 0) return;
-
-    const confirmMessage = `정말로 모든 지출 기록(${expenses.length}개)을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`;
-    if (!confirm(confirmMessage)) return;
-
+  // 모든 지출 삭제 (리셋) — 실제 작업
+  const doResetAll = async () => {
     setLoading(true);
     try {
       // 즉시 상태에서 삭제 (낙관적 업데이트)
@@ -361,7 +358,7 @@ export default function ExpenseTracker() {
       // localStorage에 저장 시도
       const saved = saveToLocalStorage([]);
       if (!saved) {
-        alert('로컬 저장소에 저장하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
+        showError('로컬 저장소에 저장하는 중 오류가 발생했습니다. 페이지를 새로고침해주세요.');
         // 저장 실패 시 다시 로드
         await loadData();
         return;
@@ -377,20 +374,18 @@ export default function ExpenseTracker() {
         if (res.ok) {
           const result = await res.json();
           logger.debug('[ExpenseTracker] All expenses deleted:', result.deletedCount);
-          alert(`모든 지출 기록이 삭제되었습니다. (${result.deletedCount || expenses.length}개)`);
+          showSuccess(`모든 지출 기록이 삭제되었습니다. (${result.deletedCount || expenses.length}개)`);
         } else {
-          console.warn('[ExpenseTracker] API delete all failed, but local delete succeeded');
-          // localStorage는 성공했으므로 성공 메시지 표시
-          alert(`모든 지출 기록이 삭제되었습니다. (${expenses.length}개)\n서버 동기화는 나중에 자동으로 시도됩니다.`);
+          logger.warn('[ExpenseTracker] API delete all failed, but local delete succeeded');
+          showSuccess(`모든 지출 기록이 삭제되었습니다. (${expenses.length}개)`);
         }
       } catch (apiError) {
-        console.warn('[ExpenseTracker] API delete all error, but local delete succeeded:', apiError);
-        // localStorage는 성공했으므로 성공 메시지 표시
-        alert(`모든 지출 기록이 삭제되었습니다. (${expenses.length}개)\n서버 동기화는 나중에 자동으로 시도됩니다.`);
+        logger.warn('[ExpenseTracker] API delete all error, but local delete succeeded:', apiError);
+        showSuccess(`모든 지출 기록이 삭제되었습니다. (${expenses.length}개)`);
       }
     } catch (error: any) {
-      console.error('[ExpenseTracker] Reset all error:', error);
-      alert(error.message || '삭제 중 오류가 발생했습니다.');
+      logger.error('[ExpenseTracker] Reset all error:', error);
+      showError(error.message || '삭제 중 오류가 발생했습니다.');
       // 에러 발생 시 다시 로드
       await loadData();
     } finally {
@@ -398,10 +393,16 @@ export default function ExpenseTracker() {
     }
   };
 
-  // 지출 삭제
-  const handleDeleteExpense = async (id: number | string) => {
-    if (!confirm('이 지출을 삭제하시겠습니까?')) return;
+  const handleResetAll = () => {
+    if (expenses.length === 0) return;
+    setConfirmDialog({
+      message: `정말로 모든 지출 기록(${expenses.length}개)을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      onConfirm: doResetAll,
+    });
+  };
 
+  // 지출 삭제 — 실제 작업
+  const doDeleteExpense = async (id: number | string) => {
     setLoading(true);
     try {
       // 즉시 localStorage에서 삭제 (낙관적 업데이트)
@@ -418,20 +419,27 @@ export default function ExpenseTracker() {
           });
 
           if (!res.ok) {
-            console.warn('[ExpenseTracker] API delete failed, but local delete succeeded');
+            logger.warn('[ExpenseTracker] API delete failed, but local delete succeeded');
           }
         } catch (apiError) {
-          console.warn('[ExpenseTracker] API delete error, but local delete succeeded:', apiError);
+          logger.warn('[ExpenseTracker] API delete error, but local delete succeeded:', apiError);
         }
       }
     } catch (error: any) {
-      console.error('[ExpenseTracker] Delete error:', error);
-      alert(error.message || '삭제 중 오류가 발생했습니다.');
+      logger.error('[ExpenseTracker] Delete error:', error);
+      showError(error.message || '삭제 중 오류가 발생했습니다.');
       // 에러 발생 시 다시 로드
       await loadData();
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteExpense = (id: number | string) => {
+    setConfirmDialog({
+      message: '이 지출을 삭제하시겠습니까?',
+      onConfirm: () => doDeleteExpense(id),
+    });
   };
 
   // 지출 수정
@@ -454,7 +462,7 @@ export default function ExpenseTracker() {
   const handleSaveEdit = async (id: number | string) => {
     const amountNum = parseFloat(editingAmount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      alert('올바른 금액을 입력해주세요.');
+      showError('올바른 금액을 입력해주세요.');
       return;
     }
 
@@ -500,11 +508,11 @@ export default function ExpenseTracker() {
             });
 
             if (!res.ok) {
-              console.warn('[ExpenseTracker] API update failed, but local update succeeded');
+              logger.warn('[ExpenseTracker] API update failed, but local update succeeded');
             }
           }
         } catch (apiError) {
-          console.warn('[ExpenseTracker] API update error, but local update succeeded:', apiError);
+          logger.warn('[ExpenseTracker] API update error, but local update succeeded:', apiError);
         }
       }
 
@@ -512,8 +520,8 @@ export default function ExpenseTracker() {
       setEditingAmount('');
       setEditingDescription('');
     } catch (error: any) {
-      console.error('[ExpenseTracker] Update error:', error);
-      alert(error.message || '수정 중 오류가 발생했습니다.');
+      logger.error('[ExpenseTracker] Update error:', error);
+      showError(error.message || '수정 중 오류가 발생했습니다.');
       await loadData();
     } finally {
       setLoading(false);
@@ -566,6 +574,24 @@ export default function ExpenseTracker() {
 
   return (
     <div className="space-y-6">
+      {/* 확인 다이얼로그 */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border-2 border-red-200">
+            <p className="text-base font-semibold text-gray-800 mb-6 leading-relaxed">{confirmDialog.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="flex-1 py-3 rounded-xl border-2 border-gray-300 text-gray-700 font-semibold text-base hover:bg-gray-50"
+              >취소</button>
+              <button
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+                className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold text-base hover:bg-red-600"
+              >삭제</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* 에러 메시지 */}
       {error && (
         <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-4 flex items-center gap-3">
@@ -637,6 +663,7 @@ export default function ExpenseTracker() {
             </select>
             <input
               type="number"
+              inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="금액"
@@ -735,6 +762,7 @@ export default function ExpenseTracker() {
                             <div className="flex-1 flex flex-col gap-2">
                               <input
                                 type="number"
+                                inputMode="decimal"
                                 value={editingAmount}
                                 onChange={(e) => setEditingAmount(e.target.value)}
                                 placeholder="금액"

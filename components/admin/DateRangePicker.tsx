@@ -171,7 +171,13 @@ export default function DateRangePicker({
                 ? `${formatDate(startDate)} ~ 종료일 선택`
                 : '출발일과 종료일을 선택하세요'
             }
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => {
+              if (!isOpen) {
+                // 열릴 때 기존 range 초기화 → 첫 클릭이 항상 출발일(from)로 설정되도록
+                setSelectedRange(undefined);
+              }
+              setIsOpen(!isOpen);
+            }}
             placeholder="출발일과 종료일을 선택하세요"
             className={`w-full px-4 py-3 md:px-5 md:py-4 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base md:text-lg cursor-pointer ${
               !startDate || !endDate ? 'border-red-500 bg-red-50' : 'border-gray-300'

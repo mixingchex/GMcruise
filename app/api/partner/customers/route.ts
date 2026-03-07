@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
 import {
   PartnerApiError,
@@ -42,11 +43,8 @@ function buildOrderBy(sort: string | null) {
 
 export async function GET(req: NextRequest) {
   try {
-    console.log('[GET /api/partner/customers] Starting request...');
     const { profile } = await requirePartnerContext({ includeManagedAgents: true });
-    console.log('[GET /api/partner/customers] Profile:', { id: profile.id, type: profile.type });
     const { searchParams } = new URL(req.url);
-    console.log('[GET /api/partner/customers] Search params:', Object.fromEntries(searchParams.entries()));
 
     const { page, limit, skip } = parsePagination(searchParams);
     const statusFilter = ensureValidLeadStatus(searchParams.get('status'));
@@ -717,20 +715,9 @@ export async function GET(req: NextRequest) {
       });
       return NextResponse.json({ ok: false, message: error.message }, { status: error.status });
     }
-    console.error('[GET /api/partner/customers] Unexpected error:', error);
-    if (error instanceof Error) {
-      console.error('[GET /api/partner/customers] Error name:', error.name);
-      console.error('[GET /api/partner/customers] Error message:', error.message);
-      console.error('[GET /api/partner/customers] Error stack:', error.stack);
-    } else {
-      console.error('[GET /api/partner/customers] Non-Error object:', JSON.stringify(error, null, 2));
-    }
+    logger.error('[GET /api/partner/customers] Unexpected error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
-      {
-        ok: false,
-        message: '고객 목록을 불러오지 못했습니다.',
-        error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
-      },
+      { ok: false, message: '고객 목록을 불러오지 못했습니다.' },
       { status: 500 }
     );
   }
@@ -895,10 +882,9 @@ export async function POST(req: NextRequest) {
             select: { id: true, name: true, phone: true },
           });
           userInfo = newUser;
-          console.log('[POST /api/partner/customers] Created User:', newUser.id);
         } catch (error: any) {
           // User 생성 실패 (예: 전화번호 중복 등)
-          console.error('[POST /api/partner/customers] Failed to create User:', error);
+          logger.error('[POST /api/partner/customers] Failed to create User:', { error: error instanceof Error ? error.message : String(error) });
           // User 생성 실패해도 AffiliateLead는 이미 생성되었으므로 계속 진행
         }
       }
@@ -935,7 +921,6 @@ export async function POST(req: NextRequest) {
     // B2B 소스인 경우 B2B 전용 스프레드시트에도 백업 (동기 대기 - Vercel 서버리스 환경 필수)
     if (isB2BSource) {
       try {
-        console.log('[Partner Customers] B2B 스프레드시트 백업 시작...');
         const { appendB2BLeadToSheet } = await import('@/lib/google/b2b-backup');
         const backupResult = await appendB2BLeadToSheet({
           name: customerName || '',
@@ -945,9 +930,8 @@ export async function POST(req: NextRequest) {
           createdAt: new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
           notes: notes || '',
         });
-        console.log('[Partner Customers] B2B 스프레드시트 백업 완료:', backupResult);
       } catch (backupErr: any) {
-        console.error('[Partner Customers] B2B 백업 실패:', backupErr?.message || backupErr);
+        logger.error('[Partner Customers] B2B 백업 실패:', { error: backupErr instanceof Error ? backupErr.message : String(backupErr) });
       }
     }
 

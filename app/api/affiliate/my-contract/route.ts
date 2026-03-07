@@ -5,6 +5,7 @@ export const runtime = 'nodejs';        // Edge Runtime 금지 (Prisma 사용)
 export const dynamic = 'force-dynamic'; // 동적 데이터는 캐시 X
 
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 import { getSession } from '@/lib/session';
 
@@ -21,7 +22,7 @@ export async function GET(req: Request) {
         return NextResponse.json({ ok: false, error: 'Invalid User ID' }, { status: 400 });
     }
 
-    console.log('[My Contract API] Fetching contract for userId:', userId);
+    logger.debug('[My Contract API] Fetching contract', { userId });
 
     // 세션 사용자 정보 가져오기 (phone, mallUserId 확인용)
     const sessionUser = await prisma.user.findUnique({
@@ -29,7 +30,7 @@ export async function GET(req: Request) {
       select: { id: true, phone: true, mallUserId: true }
     });
 
-    console.log('[My Contract API] Session user:', { id: sessionUser?.id, phone: sessionUser?.phone, mallUserId: sessionUser?.mallUserId });
+    logger.debug('[My Contract API] Session user', { userId: sessionUser?.id });
 
     // userId로 먼저 조회 (완료/승인된 계약서)
     let contract = await prisma.affiliateContract.findFirst({
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
       }
     });
 
-    console.log('[My Contract API] Completed/approved contract found by userId:', contract ? { id: contract.id, status: contract.status } : 'null');
+    logger.debug('[My Contract API] Completed/approved contract found by userId:');
 
     // userId로 조회되지 않았고, phone이나 mallUserId가 있으면 그것으로도 조회
     if (!contract && sessionUser?.phone) {
@@ -56,7 +57,7 @@ export async function GET(req: Request) {
       });
 
       if (userByPhone && userByPhone.id !== userId) {
-        console.log('[My Contract API] Found different user by phone:', { userId: userByPhone.id, phone: sessionUser.phone });
+        logger.debug('[My Contract API] Found different user by phone:');
         
         contract = await prisma.affiliateContract.findFirst({
           where: { 
@@ -71,7 +72,7 @@ export async function GET(req: Request) {
           }
         });
 
-        console.log('[My Contract API] Completed/approved contract found by phone user:', contract ? { id: contract.id, status: contract.status } : 'null');
+        logger.debug('[My Contract API] Completed/approved contract found by phone user:');
       }
 
       // phone으로 직접 계약서 조회 (수동 입력 계약서의 경우)
@@ -89,7 +90,7 @@ export async function GET(req: Request) {
           }
         });
 
-        console.log('[My Contract API] Completed/approved contract found by phone field:', contract ? { id: contract.id, status: contract.status } : 'null');
+        logger.debug('[My Contract API] Completed/approved contract found by phone field:');
       }
     }
 
@@ -104,61 +105,31 @@ export async function GET(req: Request) {
       }
     });
 
-    // fallback도 없으면 phone으로 조회
+    // fallback: 계약서 phone 필드로 직접 조회 (본인 phone과 일치하는 계약서만)
+    // ⚠️ IDOR 방어: 다른 userId 경유 조회 제거 — sessionUser 본인의 phone 기준으로만 조회
     if (!fallbackContract && sessionUser?.phone) {
-      // phone으로 사용자 찾기
-      const userByPhone = await prisma.user.findFirst({
+      fallbackContract = await prisma.affiliateContract.findFirst({
         where: { phone: sessionUser.phone },
-        select: { id: true }
-      });
-
-      if (userByPhone && userByPhone.id !== userId) {
-        fallbackContract = await prisma.affiliateContract.findFirst({
-          where: { userId: userByPhone.id },
-          orderBy: { createdAt: 'desc' },
-          include: {
-            User_AffiliateContract_userIdToUser: {
-              select: { name: true, email: true, phone: true }
-            }
+        orderBy: { createdAt: 'desc' },
+        include: {
+          User_AffiliateContract_userIdToUser: {
+            select: { name: true, email: true, phone: true }
           }
-        });
-      }
-
-      // phone으로 직접 계약서 조회
-      if (!fallbackContract) {
-        fallbackContract = await prisma.affiliateContract.findFirst({
-          where: { phone: sessionUser.phone },
-          orderBy: { createdAt: 'desc' },
-          include: {
-            User_AffiliateContract_userIdToUser: {
-              select: { name: true, email: true, phone: true }
-            }
-          }
-        });
-      }
-    }
-
-    console.log('[My Contract API] Fallback contract found:', fallbackContract ? { id: fallbackContract.id, status: fallbackContract.status } : 'null');
-
-    // 모든 상태의 계약서 개수 확인 (디버깅용)
-    const allContractsCount = await prisma.affiliateContract.count({
-      where: { userId }
-    });
-    console.log('[My Contract API] Total contracts for userId', userId, ':', allContractsCount);
-    
-    // phone으로도 개수 확인
-    if (sessionUser?.phone) {
-      const contractsByPhone = await prisma.affiliateContract.count({
-        where: { phone: sessionUser.phone }
+        }
       });
-      console.log('[My Contract API] Total contracts for phone', sessionUser.phone, ':', contractsByPhone);
     }
 
     // Prisma 관계 필드명을 프론트엔드 형식으로 변환
+    // ⚠️ PII 보호: residentId, bankAccount, bankName, idCardPath, bankbookPath 제외
+    // 파트너 본인도 API 응답으로 주민등록번호/계좌번호를 수신할 필요 없음
     const formattedContract = fallbackContract ? {
-      ...fallbackContract,
+      id: fallbackContract.id,
+      status: fallbackContract.status,
+      contractType: (fallbackContract as any).contractType ?? null,
+      signedAt: (fallbackContract as any).signedAt ?? null,
+      createdAt: fallbackContract.createdAt,
+      updatedAt: fallbackContract.updatedAt,
       user: fallbackContract.User_AffiliateContract_userIdToUser,
-      // PDF URL을 metadata에서 추출하여 직접 접근 가능하도록 추가
       pdfUrl: (fallbackContract.metadata as any)?.pdfUrl || null,
     } : null;
 
@@ -166,12 +137,11 @@ export async function GET(req: Request) {
       ok: true, 
       contract: formattedContract
     });
-  } catch (error: any) {
-    console.error('[My Contract API] Error:', error);
+  } catch (error: unknown) {
+    logger.error('[My Contract API] Error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ 
         ok: false,
-        error: 'Internal Server Error', 
-        details: error.message 
+        error: '계약서 조회 중 오류가 발생했습니다.',
     }, { status: 500 });
   }
 }

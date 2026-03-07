@@ -1,4 +1,5 @@
 import { logger } from '@/lib/logger';
+import { showError } from '@/components/ui/Toast';
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import HelpModal from '@/components/HelpModal';
 import { type POI } from '@/lib/terminals'; // Terminal 대신 POI 임포트
@@ -90,7 +91,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
 
     const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      console.warn('[InputBar] Speech Recognition not supported');
+      logger.warn('[InputBar] Speech Recognition not supported');
       return;
     }
 
@@ -106,6 +107,11 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
     };
 
     recRef.current = recog;
+
+    return () => {
+      recRef.current?.abort();
+      recRef.current = null;
+    };
   }, []);
 
   // 모드 변경 시 입력 필드 및 제안 초기화
@@ -177,7 +183,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
       logger.log('[InputBar] ✅ fetchSuggestions returning:', mapped.length, 'items (cached)');
       return mapped;
     } catch (error) {
-      console.error('[InputBar] ❌ fetchSuggestions error:', error);
+      logger.error('[InputBar] ❌ fetchSuggestions error:', error);
 
       // 사용자 친화적 에러 메시지 반환 (빈 배열 대신 에러 표시용)
       // 실제로는 빈 배열을 반환하되, UI에서 로딩 상태를 해제
@@ -215,7 +221,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           setOriginLoading(false);
         }
       }, 200);
-      return;
+      return () => window.clearTimeout(typingO.current);
     }
 
     // 텍스트 입력 시: 고정 버튼 + 연관검색 결과 (국가별 검색 시 더 많이 표시)
@@ -251,13 +257,14 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         setOSug(chips);
         logger.log('[InputBar] ✅ setOSug called with', chips.length, 'items');
       } catch (error) {
-        console.error('[InputBar] ❌ Error fetching suggestions:', error);
+        logger.error('[InputBar] ❌ Error fetching suggestions:', error);
         // 에러 발생 시에도 고정 버튼은 유지
         setOSug(fixedOriginButtons);
       } finally {
         setOriginLoading(false);
       }
     }, 200)
+    return () => window.clearTimeout(typingO.current);
   }, [originText, destText, fetchSuggestions, mode])
 
   useEffect(() => {
@@ -336,13 +343,14 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         setDSug(chips);
         logger.log('[InputBar] ✅ setDSug called with', chips.length, 'items');
       } catch (error) {
-        console.error('[InputBar] ❌ Error fetching dest suggestions:', error);
+        logger.error('[InputBar] ❌ Error fetching dest suggestions:', error);
         // 에러 발생 시에도 고정 버튼은 유지
         setDSug(fixedDestButtons);
       } finally {
         setDestLoading(false);
       }
     }, 180)
+    return () => window.clearTimeout(typingD.current);
   }, [destText, originText, destFocused, fetchSuggestions, mode])
 
   const examples = useMemo(() => {
@@ -407,7 +415,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         : finalDest || finalOrigin || '';
 
       if (!combinedText.trim()) {
-        console.error('[InputBar] Empty text, cannot send');
+        logger.error('[InputBar] Empty text, cannot send');
         return;
       }
 
@@ -439,14 +447,14 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   // 음성 인식 시작 함수 (출발지용)
   async function startVoiceInputOrigin() {
     if (!recRef.current) {
-      alert('❌ 이 브라우저는 음성 인식을 지원하지 않습니다.');
+      showError('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome, Edge, Safari를 사용해주세요.');
       return;
     }
 
     try {
       recRef.current.abort?.();
     } catch (e) {
-      console.error('[InputBar] Error aborting speech recognition:', e);
+      logger.error('[InputBar] Error aborting speech recognition:', e);
     }
 
     setListeningOrigin(true);
@@ -474,7 +482,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
 
       const r = recRef.current!;
       if (!r) {
-        alert('❌ 음성 인식 초기화에 실패했습니다.');
+        showError('음성 인식 초기화에 실패했습니다.');
         setListeningOrigin(false);
         return;
       }
@@ -508,7 +516,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         }
         setListeningOrigin(false);
         if (errorType === 'not-allowed' || errorType === 'permission-denied') {
-          alert('❌ 마이크 권한이 필요합니다.\n\n💡 해결 방법:\n1. 브라우저 주소창 왼쪽 🔒 아이콘 클릭\n2. "마이크" → "허용" 선택\n3. 페이지 새로고침 (F5)');
+          showError('마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
         }
       };
 
@@ -520,7 +528,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           setListeningOrigin(false);
           return;
         }
-        console.error('[InputBar] Speech recognition start error:', startError);
+        logger.error('[InputBar] Speech recognition start error:', startError);
         setListeningOrigin(false);
       }
     } catch (error: any) {
@@ -529,7 +537,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         setListeningOrigin(false);
         return;
       }
-      console.error('[InputBar] Start voice input error:', error);
+      logger.error('[InputBar] Start voice input error:', error);
       setListeningOrigin(false);
     }
   }
@@ -537,14 +545,14 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   // 음성 인식 시작 함수 (도착지용)
   async function startVoiceInputDest() {
     if (!recRef.current) {
-      alert('❌ 이 브라우저는 음성 인식을 지원하지 않습니다.');
+      showError('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome, Edge, Safari를 사용해주세요.');
       return;
     }
 
     try {
       recRef.current.abort?.();
     } catch (e) {
-      console.error('[InputBar] Error aborting speech recognition:', e);
+      logger.error('[InputBar] Error aborting speech recognition:', e);
     }
 
     setListeningDest(true);
@@ -572,7 +580,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
 
       const r = recRef.current!;
       if (!r) {
-        alert('❌ 음성 인식 초기화에 실패했습니다.');
+        showError('음성 인식 초기화에 실패했습니다.');
         setListeningDest(false);
         return;
       }
@@ -606,7 +614,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         }
         setListeningDest(false);
         if (errorType === 'not-allowed' || errorType === 'permission-denied') {
-          alert('❌ 마이크 권한이 필요합니다.\n\n💡 해결 방법:\n1. 브라우저 주소창 왼쪽 🔒 아이콘 클릭\n2. "마이크" → "허용" 선택\n3. 페이지 새로고침 (F5)');
+          showError('마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
         }
       };
 
@@ -618,7 +626,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           setListeningDest(false);
           return;
         }
-        console.error('[InputBar] Speech recognition start error:', startError);
+        logger.error('[InputBar] Speech recognition start error:', startError);
         setListeningDest(false);
       }
     } catch (error: any) {
@@ -627,7 +635,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         setListeningDest(false);
         return;
       }
-      console.error('[InputBar] Start voice input error:', error);
+      logger.error('[InputBar] Start voice input error:', error);
       setListeningDest(false);
     }
   }
@@ -635,14 +643,14 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
   // 음성 인식 시작 함수 (일반 입력용)
   async function startVoiceInputGeneral() {
     if (!recRef.current) {
-      alert('❌ 이 브라우저는 음성 인식을 지원하지 않습니다.');
+      showError('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome, Edge, Safari를 사용해주세요.');
       return;
     }
 
     try {
       recRef.current.abort?.();
     } catch (e) {
-      console.error('[InputBar] Error aborting speech recognition:', e);
+      logger.error('[InputBar] Error aborting speech recognition:', e);
     }
 
     setListeningGeneral(true);
@@ -670,7 +678,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
 
       const r = recRef.current!;
       if (!r) {
-        alert('❌ 음성 인식 초기화에 실패했습니다.');
+        showError('음성 인식 초기화에 실패했습니다.');
         setListeningGeneral(false);
         return;
       }
@@ -703,7 +711,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         }
         setListeningGeneral(false);
         if (errorType === 'not-allowed' || errorType === 'permission-denied') {
-          alert('❌ 마이크 권한이 필요합니다.\n\n💡 해결 방법:\n1. 브라우저 주소창 왼쪽 🔒 아이콘 클릭\n2. "마이크" → "허용" 선택\n3. 페이지 새로고침 (F5)');
+          showError('마이크 권한이 필요합니다. 브라우저 설정에서 허용해주세요.');
         }
       };
 
@@ -715,7 +723,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
           setListeningGeneral(false);
           return;
         }
-        console.error('[InputBar] Speech recognition start error:', startError);
+        logger.error('[InputBar] Speech recognition start error:', startError);
         setListeningGeneral(false);
       }
     } catch (error: any) {
@@ -724,7 +732,7 @@ export default function InputBar({ mode, trip, onSend, disabled = false }: Props
         setListeningGeneral(false);
         return;
       }
-      console.error('[InputBar] Start voice input error:', error);
+      logger.error('[InputBar] Start voice input error:', error);
       setListeningGeneral(false);
     }
   }

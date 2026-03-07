@@ -283,10 +283,18 @@ export async function POST(req: NextRequest) {
 
       // 3. 싱글차지 처리: totalPeople이 1명이거나 동일 여권번호가 2개 이상이면 '싱글차지' 기록
       const totalPeople = travelers.length;
-      let finalCabinType = cabinType || null;
-      
+      // [1-2] cabinType 영문→한글 정규화 (MallProductContent에서 영문값이 올 수 있음)
+      const CABIN_TYPE_MAP: Record<string, string> = {
+        'INSIDE': '인사이드', 'inside': '인사이드',
+        'OCEANVIEW': '오션뷰', 'oceanview': '오션뷰', 'OCEAN_VIEW': '오션뷰',
+        'BALCONY': '발코니', 'balcony': '발코니',
+        'SUITE': '스위트', 'suite': '스위트',
+      };
+      const normalizedCabinType = cabinType ? (CABIN_TYPE_MAP[cabinType] ?? cabinType) : null;
+      let finalCabinType = normalizedCabinType;
+
       if (isSingleCharge) {
-        finalCabinType = cabinType ? `${cabinType} (싱글차지)` : '싱글차지';
+        finalCabinType = normalizedCabinType ? `${normalizedCabinType} (싱글차지)` : '싱글차지';
         // [WO-LOG-01] 삭제 — DEBUG 레벨, 로직에 이미 반영됨
       }
 

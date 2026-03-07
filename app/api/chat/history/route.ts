@@ -186,3 +186,17 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// P1-5: DELETE 핸들러 추가 (ChatClientShell.tsx에서 DELETE 요청 사용)
+export async function DELETE(req: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ ok: false }, { status: 401 });
+
+  const sessionId = req.nextUrl.searchParams.get('sessionId') ?? 'default';
+
+  await prisma.chatHistory.deleteMany({
+    where: { userId: user.id, sessionId },
+  });
+
+  return NextResponse.json({ ok: true });
+}

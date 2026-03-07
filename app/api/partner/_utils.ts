@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 import { leadStatusOptions, type AffiliateLeadStatus } from './constants';
 
 // Prisma 스키마에서 enum이 아닌 String으로 정의되어 있으므로 직접 타입 정의
@@ -25,11 +26,9 @@ type PartnerContextOptions = {
 export async function requirePartnerContext(options: PartnerContextOptions = {}) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
-    console.log('[requirePartnerContext] No session user');
+    logger.warn('[requirePartnerContext] No session user');
     throw new PartnerApiError('로그인이 필요합니다.', 401);
   }
-
-  console.log('[requirePartnerContext] Session user:', { id: sessionUser.id, name: sessionUser.name });
 
   const include: Prisma.AffiliateProfileInclude = {
     User: {
@@ -97,10 +96,8 @@ export async function requirePartnerContext(options: PartnerContextOptions = {})
     orderBy: { updatedAt: 'desc' },
   });
 
-  console.log('[requirePartnerContext] Profile found:', profile ? { id: profile.id, type: profile.type, userId: profile.userId } : 'null');
-
   if (!profile) {
-    console.log('[requirePartnerContext] No profile found for user:', sessionUser.id);
+    logger.warn('[requirePartnerContext] No affiliate profile found', { userId: sessionUser.id });
     throw new PartnerApiError('파트너 권한이 필요합니다. 관리자에게 문의해주세요.', 403);
   }
 

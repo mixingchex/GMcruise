@@ -12,21 +12,16 @@ import TutorialWelcomePopup from './TutorialWelcomePopup';
 import TutorialCountdown from './TutorialCountdown';
 import TutorialFeatureGuide from './TutorialFeatureGuide';
 import { clearAllLocalStorage } from '@/lib/csrf-client';
+import { showError } from '@/components/ui/Toast';
+import { logger } from '@/lib/logger';
 import PWAInstallButtonMall from '@/components/PWAInstallButtonMall';
 
 interface TutorialChatPageProps {
   testModeInfo: TestModeInfo;
 }
 
-export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps) {
-  const router = useRouter();
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [showFeatureGuide, setShowFeatureGuide] = useState(false);
-  const [currentGuideStep, setCurrentGuideStep] = useState(0);
-  const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
-
-  // 3가지 대화 기능 메시지
-  const chatFeatures = [
+// 3가지 대화 기능 메시지 (모듈 레벨 상수 — 렌더마다 재생성 방지)
+const CHAT_FEATURES = [
     {
       title: '크루즈닷 가자',
       description: '클릭만 해도 원하는 관광지, 맛집을 찾아드려요',
@@ -43,16 +38,23 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
       description: '정확한 크루즈 정보를 알려드려요',
       example: '예: "코스타세레나는 몇 톤이야?"',
     },
-  ];
+];
+
+export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps) {
+  const router = useRouter();
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showFeatureGuide, setShowFeatureGuide] = useState(false);
+  const [currentGuideStep, setCurrentGuideStep] = useState(0);
+  const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
 
   // 3초마다 기능 메시지 자동 변경
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentFeatureIndex((prev) => (prev + 1) % chatFeatures.length);
+      setCurrentFeatureIndex((prev) => (prev + 1) % CHAT_FEATURES.length);
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [chatFeatures.length]);
+  }, []);
 
   useEffect(() => {
     // 환영 팝업 표시 (페이지 진입 시마다 항상 표시)
@@ -80,12 +82,12 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
         // 로그아웃 후 로그인 페이지로 이동
         window.location.href = '/login-test';
       } else {
-        console.error('로그아웃 실패');
-        alert('로그아웃에 실패했습니다. 다시 시도해주세요.');
+        logger.error('[TutorialChat] 로그아웃 실패');
+        showError('로그아웃에 실패했습니다. 다시 시도해주세요.');
       }
     } catch (error) {
-      console.error('로그아웃 요청 중 오류 발생:', error);
-      alert('로그아웃 중 오류가 발생했습니다.');
+      logger.error('[TutorialChat] 로그아웃 요청 중 오류 발생:', error);
+      showError('로그아웃 중 오류가 발생했습니다.');
     }
   };
 
@@ -165,22 +167,22 @@ export default function TutorialChatPage({ testModeInfo }: TutorialChatPageProps
                 {currentFeatureIndex === 2 && '💬'}
               </div>
               <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 leading-tight">
-                &quot;{chatFeatures[currentFeatureIndex].title}&quot;
+                &quot;{CHAT_FEATURES[currentFeatureIndex].title}&quot;
               </h3>
               <p className="text-gray-700 mb-3 text-lg md:text-xl leading-relaxed">
-                {chatFeatures[currentFeatureIndex].description}
+                {CHAT_FEATURES[currentFeatureIndex].description}
               </p>
-              {chatFeatures[currentFeatureIndex].bonus && (
+              {CHAT_FEATURES[currentFeatureIndex].bonus && (
                 <p className="text-base md:text-lg text-purple-600 font-semibold mb-3 leading-relaxed">
-                  ✨ {chatFeatures[currentFeatureIndex].bonus}
+                  ✨ {CHAT_FEATURES[currentFeatureIndex].bonus}
                 </p>
               )}
               <p className="text-gray-600 italic text-base md:text-lg leading-relaxed">
-                💡 {chatFeatures[currentFeatureIndex].example}
+                💡 {CHAT_FEATURES[currentFeatureIndex].example}
               </p>
               {/* 진행 표시 점들 */}
               <div className="flex justify-center gap-2 mt-5">
-                {chatFeatures.map((_, index) => (
+                {CHAT_FEATURES.map((_, index) => (
                   <div
                     key={index}
                     className={`h-3 rounded-full transition-all duration-300 ${

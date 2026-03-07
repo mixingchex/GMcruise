@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/affiliate/customers/create-test
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     // 판매원/대리점장 프로필 확인
     const affiliateProfile = await prisma.affiliateProfile.findFirst({
-      where: { userId: sessionUser.id },
+      where: { userId: sessionUser.id, status: 'ACTIVE' },
       select: {
         id: true,
         type: true,
@@ -191,22 +192,17 @@ export async function POST(req: NextRequest) {
       ok: true,
       customer: {
         id: userId,
-        name: customerName,
-        phone: normalizedPhone,
         customerSource: 'cruise-guide',
         customerStatus: 'active',
-        password: '3800',
       },
       lead: {
         id: lead.id,
-        customerName: lead.customerName,
-        customerPhone: lead.customerPhone,
         status: lead.status,
       },
-      message: `테스트 고객이 생성되었습니다. 이름: ${customerName}, 전화번호: ${normalizedPhone}, 비밀번호: 3800`,
+      message: '테스트 고객이 생성되었습니다.',
     });
   } catch (error: any) {
-    console.error('[Create Test Customer] Error:', error);
+    logger.error('[Create Test Customer] Error:', error);
     return NextResponse.json(
       { ok: false, error: error.message || '테스트 고객 생성 중 오류가 발생했습니다.' },
       { status: 500 }

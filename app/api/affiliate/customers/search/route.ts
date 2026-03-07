@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const query = searchParams.get('q') || '';
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10', 10) || 10));
     const hasPurchase = searchParams.get('hasPurchase') === 'true';
     const certificateType = searchParams.get('certificateType'); // 'purchase' or 'refund'
 
@@ -70,14 +70,12 @@ export async function GET(req: NextRequest) {
           OR: [
             { name: { contains: query } },
             { phone: { contains: query } },
-            { email: { contains: query } },
           ],
         },
         select: {
           id: true,
           name: true,
           phone: true,
-          email: true,
           customerStatus: true,
         },
         take: limit,
@@ -88,11 +86,10 @@ export async function GET(req: NextRequest) {
         ok: true,
         customers: users.map(u => ({
           id: u.id,
-          name: u.name || '',
-          phone: u.phone || '',
-          email: u.email || '',
+          maskedName: maskName(u.name) ?? '고객',
+          maskedPhone: maskPhone(u.phone),
           customerStatus: u.customerStatus,
-          displayName: `${u.name || '이름 없음'}${u.phone ? ` (${u.phone})` : ''}`,
+          displayName: `${maskName(u.name) ?? '고객'} 님`,
         })),
       });
     }
@@ -103,7 +100,6 @@ export async function GET(req: NextRequest) {
       OR: [
         { customerName: { contains: query } },
         { customerPhone: { contains: query } },
-        { customerEmail: { contains: query } },
       ],
     };
 
@@ -149,7 +145,6 @@ export async function GET(req: NextRequest) {
         id: true,
         customerName: true,
         customerPhone: true,
-        customerEmail: true,
       },
       take: limit,
       orderBy: { createdAt: 'desc' },
@@ -160,7 +155,6 @@ export async function GET(req: NextRequest) {
       id: number;
       name: string;
       phone: string;
-      email: string;
     }>();
 
     leads.forEach(lead => {
@@ -171,7 +165,6 @@ export async function GET(req: NextRequest) {
           id: tempId,
           name: lead.customerName || '',
           phone: lead.customerPhone || '',
-          email: lead.customerEmail || '',
         });
       }
     });

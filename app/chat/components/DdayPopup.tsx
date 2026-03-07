@@ -39,10 +39,19 @@ function normalizeRowsToMap(rows: Row[]): DMap {
   return out;
 }
 
+function escapeHtml(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 const fill = (s: string, u: User | null, t: Trip | null) => {
-  const name = u?.name ?? '';
-  const ship = t?.cruiseName ?? '';
-  const dest = (() => {
+  const name = escapeHtml(u?.name ?? '');
+  const ship = escapeHtml(t?.cruiseName ?? '');
+  const dest = escapeHtml((() => {
     const v = t?.destination as unknown;
     if (Array.isArray(v)) return v.join(', ');
     if (typeof v === 'string') {
@@ -56,7 +65,7 @@ const fill = (s: string, u: User | null, t: Trip | null) => {
       return v;
     }
     return '';
-  })();
+  })());
 
   return (s || '')
     .replaceAll('[고객명]', name)

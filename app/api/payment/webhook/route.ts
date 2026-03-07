@@ -4,11 +4,13 @@ export const dynamic = 'force-dynamic';
 // 결제 완료 웹훅 (외부 결제 시스템에서 호출)
 
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import prisma from '@/lib/prisma';
 import { generateLedgerEntries, calculateCommissionBreakdown } from '@/lib/affiliate/commission';
 import { notifyCommissionTierMissing } from '@/lib/affiliate/admin-notifications';
 import { log, error, warn } from '@/lib/logger-wrapper';
 import { hashPassword, SYSTEM_PASSWORDS } from '@/lib/password';
+import { syncPurchaseToSupabase } from '@/lib/supabase-purchase-sync';
 import { normalizePhone } from '@/lib/phone-utils';
 
 /**
@@ -25,8 +27,12 @@ export async function POST(req: NextRequest) {
     error('[Payment Webhook] INTERNAL_WEBHOOK_SECRET 환경변수가 설정되지 않았습니다. 모든 요청 거부.');
     return NextResponse.json({ ok: false, message: '서버 설정 오류' }, { status: 500 });
   }
-  const requestSecret = req.headers.get('x-internal-webhook-secret');
-  if (requestSecret !== webhookSecret) {
+  const requestSecret = req.headers.get('x-internal-webhook-secret') ?? '';
+  // [P1 수정] 타이밍 공격 방어: === 대신 timingSafeEqual 사용
+  const secretsMatch =
+    requestSecret.length === webhookSecret.length &&
+    timingSafeEqual(Buffer.from(requestSecret), Buffer.from(webhookSecret));
+  if (!secretsMatch) {
     error('[Payment Webhook] Unauthorized request - invalid x-internal-webhook-secret');
     return NextResponse.json({ ok: false, message: '인증되지 않은 요청입니다.' }, { status: 401 });
   }
@@ -121,10 +127,10 @@ export async function POST(req: NextRequest) {
       // 중복 생성 방지를 위해 나중에 skipDuplicates: true 사용
     }
 
-    // [v11.0] 어필리에이트 코드 추적 - 우선순위: 직접전달 > 쿠키 > metadata
-    const cookies = req.cookies;
-    const affiliateCode = directAffiliateCode || cookies.get('affiliate_code')?.value || metadata?.affiliateCode || null;
-    const affiliateMallUserId = directAffiliateUserId || cookies.get('affiliate_mall_user_id')?.value || metadata?.partnerId || null;
+    // [v11.0] 어필리에이트 코드 추적 - 우선순위: 직접전달 > metadata
+    // ※ 이 웹훅은 서버→서버 내부 fetch로만 호출되므로 브라우저 쿠키가 전달되지 않음
+    const affiliateCode = directAffiliateCode || metadata?.affiliateCode || null;
+    const affiliateMallUserId = directAffiliateUserId || metadata?.partnerId || null;
     const leadId = metadata?.leadId || null;
 
     log('[Payment Webhook v11.0] 최종 파트너 정보:', {
@@ -208,9 +214,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Lead에서 어필리에이트 정보 가져오기 (없는 경우)
-    if (!managerId && !agentId && leadId) {
+    // NaN 방어: leadId가 비정수이면 건너뜀 (findUnique에 NaN 전달 시 Prisma 런타임 에러)
+    const _leadIdNum = leadId != null ? Number(leadId) : null;
+    const safeLeadId = _leadIdNum !== null && Number.isInteger(_leadIdNum) && _leadIdNum > 0 ? _leadIdNum : null;
+    if (!managerId && !agentId && safeLeadId) {
       const lead = await prisma.affiliateLead.findUnique({
-        where: { id: Number(leadId) },
+        where: { id: safeLeadId },
         select: {
           managerId: true,
           agentId: true,
@@ -224,6 +233,8 @@ export async function POST(req: NextRequest) {
     }
 
     // 고아 결제 → 본사(HQ) 자동 연결: 어필리에이트 정보 없으면 HQ managerId로 귀속
+    // isHqFallback: true이면 수당 0원 처리 + AffiliateLead 생성 제외 (HQ 직판 구분)
+    let isHqFallback = false;
     if (!managerId && !agentId) {
       const hqProfile = await prisma.affiliateProfile.findFirst({
         where: { type: 'HQ', status: 'ACTIVE' },
@@ -232,6 +243,7 @@ export async function POST(req: NextRequest) {
       }).catch(() => null);
       if (hqProfile) {
         managerId = hqProfile.id;
+        isHqFallback = true; // HQ 자동 귀속 표시 — 파트너 수당 없음
       }
     }
 
@@ -342,9 +354,82 @@ export async function POST(req: NextRequest) {
     });
 
     // 🎯 실제 수당 결정 (어필리에이트 여부에 따라)
-    const actualBranchCommission = managerId && !agentId ? breakdown.branchCommission : 0;
+    // isHqFallback이면 본사 직접 판매 → 수당 전액 0원 (HQ가 CommissionTier 수당을 수령하지 않음)
+    const actualBranchCommission = managerId && !agentId && !isHqFallback ? breakdown.branchCommission : 0;
     const actualSalesCommission = agentId ? breakdown.salesCommission : 0;
     const actualOverrideCommission = managerId && agentId ? breakdown.overrideCommission : 0;
+
+    // P1-A: AffiliateLead 처리를 $transaction 전으로 이동
+    // → resolvedLeadId를 AffiliateSale.leadId에 주입하여 Case B(leadId=null 영구) 버그 수정
+    // NaN 방어: leadId가 'abc' 등 비정수인 경우 null로 처리
+    const _rawLeadNum = leadId != null ? Number(leadId) : null;
+    let resolvedLeadId: number | null =
+      _rawLeadNum !== null && Number.isInteger(_rawLeadNum) && _rawLeadNum > 0
+        ? _rawLeadNum
+        : null;
+
+    try {
+      if (resolvedLeadId) {
+        // Case A: metadata에 leadId가 있음 → 상태만 PURCHASED로 업데이트
+        await prisma.affiliateLead.update({
+          where: { id: resolvedLeadId },
+          data: { status: 'PURCHASED' },
+        });
+      } else if (customerName && customerPhone && (managerId || agentId) && !isHqFallback) {
+        // isHqFallback=true(본사 직판)이면 Lead 생성 제외 — HQ 직판은 AffiliateLead와 무관
+        // Case B/C: leadId 없음 → 전화번호 기준 find-or-create
+        const normalizedLeadPhone = normalizePhone(customerPhone) ?? '';
+        if (normalizedLeadPhone.length >= 10) {
+          const existingLead = await prisma.affiliateLead.findFirst({
+            where: { customerPhone: normalizedLeadPhone, status: { not: 'CANCELLED' } },
+            select: { id: true, managerId: true, agentId: true },
+          });
+
+          if (existingLead) {
+            await prisma.affiliateLead.update({
+              where: { id: existingLead.id },
+              data: {
+                status: 'PURCHASED',
+                customerName: customerName.trim(),
+                managerId: existingLead.managerId ?? managerId,
+                agentId: existingLead.agentId ?? agentId,
+                metadata: {
+                  purchasedAt: new Date().toISOString(),
+                  productCode,
+                  orderId: merchant_uid,
+                },
+              },
+            });
+            resolvedLeadId = existingLead.id;
+          } else {
+            const newLead = await prisma.affiliateLead.create({
+              data: {
+                customerName: customerName.trim(),
+                customerPhone: normalizedLeadPhone,
+                status: 'PURCHASED',
+                source: 'purchase',
+                managerId,
+                agentId,
+                metadata: {
+                  purchasedAt: new Date().toISOString(),
+                  productCode,
+                  orderId: merchant_uid,
+                  imp_uid,
+                },
+                updatedAt: new Date(),
+              },
+              select: { id: true },
+            });
+            resolvedLeadId = newLead.id;
+          }
+        }
+      }
+    } catch (leadPreErr: unknown) {
+      // Lead 처리 실패는 결제 차단 대상 아님 — warn 후 leadId=null로 안전 처리
+      // ⚠️ 재보정 금지: 존재 불명 leadId를 AffiliateSale FK로 연결하면 $transaction 전체 롤백
+      warn('[Payment Webhook] Lead 사전 처리 실패 (AffiliateSale.leadId=null로 진행):', leadPreErr);
+      resolvedLeadId = null;
+    }
 
     // WO-PROD-01: AffiliateSale + CommissionLedger + Payment 원자적 트랜잭션
     // 셋 중 하나라도 실패하면 전체 롤백 → 불일치 상태 원천 차단
@@ -353,7 +438,7 @@ export async function POST(req: NextRequest) {
       const createdSale = await tx.affiliateSale.create({
         data: {
           externalOrderCode: merchant_uid,
-          leadId: leadId ? Number(leadId) : null,
+          leadId: resolvedLeadId,
           affiliateProductId,
           managerId: managerId,
           agentId: agentId,
@@ -385,11 +470,12 @@ export async function POST(req: NextRequest) {
       });
 
       // 2. CommissionLedger 엔트리 계산 (순수 함수 — DB 없음)
+      // isHqFallback=true이면 branchCommission 강제 0 (HQ 직판 수당 없음 — AffiliateSale과 일관성 유지)
       const calculatedLedger = generateLedgerEntries({
         saleId: createdSale.id,
         saleAmount: amount,
         costAmount: commissionTier?.costAmount || costAmount || 0,
-        branchCommission: agentId ? 0 : (commissionTier?.branchShareAmount || 0),
+        branchCommission: agentId ? 0 : (isHqFallback ? 0 : (commissionTier?.branchShareAmount || 0)),
         salesCommission: agentId ? (commissionTier?.salesShareAmount || 0) : 0,
         overrideCommission: managerId && agentId ? (commissionTier?.overrideAmount || 0) : 0,
         managerProfileId: managerId ?? undefined,
@@ -780,78 +866,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Lead 상태 업데이트 또는 생성
-    let updatedLeadId: number | null = null;
-    if (leadId) {
-      try {
-        await prisma.affiliateLead.update({
-          where: { id: Number(leadId) },
-          data: { status: 'PURCHASED' },
-        });
-        updatedLeadId = Number(leadId);
-      } catch (leadErr: any) {
-        // P2025: Lead가 삭제된 경우 등 — 결제 자체는 완료이므로 warn 후 계속
-        warn('[Payment Webhook] Lead 상태 업데이트 실패 (무시):', {
-          leadId,
-          code: leadErr?.code,
-          message: leadErr?.message,
-        });
-      }
-    } else if (customerName && customerPhone && (managerId || agentId)) {
-      // Lead가 없지만 고객 정보와 어필리에이트 정보가 있으면 새로 생성
-      const normalizedPhone = normalizePhone(customerPhone) ?? '';
-
-      if (normalizedPhone.length >= 10) {
-        // 기존 Lead 확인
-        const existingLead = await prisma.affiliateLead.findFirst({
-          where: {
-            customerPhone: normalizedPhone,
-            status: { not: 'CANCELLED' },
-          },
-        });
-
-        if (existingLead) {
-          // 기존 Lead 업데이트
-          await prisma.affiliateLead.update({
-            where: { id: existingLead.id },
-            data: {
-              status: 'PURCHASED',
-              customerName: customerName.trim(),
-              customerPhone: normalizedPhone,
-              managerId: managerId || existingLead.managerId,
-              agentId: agentId || existingLead.agentId,
-              metadata: {
-                ...(existingLead.metadata as any || {}),
-                purchasedAt: new Date().toISOString(),
-                productCode,
-                orderId: merchant_uid,
-              },
-            },
-          });
-          updatedLeadId = existingLead.id;
-        } else {
-          // 새 Lead 생성
-          const newLead = await prisma.affiliateLead.create({
-            data: {
-              customerName: customerName.trim(),
-              customerPhone: normalizedPhone,
-              status: 'PURCHASED',
-              source: 'purchase',
-              managerId: managerId,
-              agentId: agentId,
-              metadata: {
-                purchasedAt: new Date().toISOString(),
-                productCode,
-                orderId: merchant_uid,
-                imp_uid,
-              },
-              updatedAt: new Date(),
-            },
-          });
-          updatedLeadId = newLead.id;
-        }
-      }
-    }
+    // P1-A: Lead 처리는 $transaction 전에 완료됨 (resolvedLeadId 확정)
 
     // 결제 완료 시 자동으로 일반 크루즈 가이드 승인 처리
     if (customerPhone) {
@@ -1159,6 +1174,18 @@ export async function POST(req: NextRequest) {
           error('[Automation] Async Task Error:', err);
         }
       })();
+
+    // Supabase 즉시 동기화 (fire-and-forget — 결제 흐름에 영향 없음)
+    // 판매원·대리점장·본사 계층 정보 포함 → 계약서·AI 가이드에서 활용
+    syncPurchaseToSupabase({
+      saleId: sale.id,
+      orderId: merchant_uid,
+      managerId: managerId ?? null,
+      agentId: agentId ?? null,
+      leadId: resolvedLeadId,
+    }).catch((e) => {
+      error('[Payment Webhook] Supabase 즉시 동기화 실패 (결제는 정상):', e);
+    });
 
     // [v11.0] 응답에 실적 저장 결과 포함
     return NextResponse.json({

@@ -14,6 +14,8 @@ import {
   FiXCircle,
   FiX,
   FiFileText,
+  FiLink,
+  FiCopy,
 } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
@@ -32,6 +34,15 @@ type AffiliateProfile = {
     mallUserId: string | null;
     mallNickname: string | null;
   } | null;
+};
+
+type Product = {
+  productCode: string;
+  packageName: string;
+  saleStatus: string | null;
+  basePrice: number | null;
+  nights: number | null;
+  days: number | null;
 };
 
 type MallFormState = {
@@ -63,6 +74,140 @@ export default function AffiliateMallManagementPage() {
   const [selectedProfile, setSelectedProfile] = useState<AffiliateProfile | null>(null);
   const [formState, setFormState] = useState<MallFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  // ── 상품 링크 생성 모달 ────────────────────────────────────────────────────
+  const [isProductLinkModalOpen, setIsProductLinkModalOpen] = useState(false);
+  const [selectedProfileForLinks, setSelectedProfileForLinks] = useState<AffiliateProfile | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const loadProducts = useCallback(async () => {
+    if (products.length > 0) return; // 이미 로드됨
+    try {
+      setProductsLoading(true);
+      const res = await fetch('/api/admin/products');
+      const json = await res.json();
+      if (json.ok) {
+        setProducts((json.products as Product[]).filter((p) => p.saleStatus === '판매중'));
+      }
+    } catch {
+      showError('상품 목록을 불러오지 못했습니다.');
+    } finally {
+      setProductsLoading(false);
+    }
+  }, [products.length]);
+
+  const openProductLinkModal = (profile: AffiliateProfile) => {
+    setSelectedProfileForLinks(profile);
+    setProductSearch('');
+    setIsProductLinkModalOpen(true);
+    loadProducts();
+  };
+
+  const copyProductLink = async (productCode: string) => {
+    if (!selectedProfileForLinks?.affiliateCode) return;
+    const paramKey = selectedProfileForLinks.type === 'BRANCH_MANAGER' ? 'affiliate' : 'agent';
+    const url = `${window.location.origin}/products/${productCode}?${paramKey}=${selectedProfileForLinks.affiliateCode}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showSuccess('링크가 복사되었습니다!');
+      setCopiedCode(productCode);
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch {
+      showError('링크 복사에 실패했습니다.');
+    }
+  };
+
+  const filteredProducts = products.filter((p) => {
+    if (!productSearch.trim()) return true;
+    const term = productSearch.toLowerCase();
+    return (
+      p.productCode.toLowerCase().includes(term) ||
+      p.packageName.toLowerCase().includes(term)
+    );
+  });
+
+  // ── 본사 직접 링크 모달 ────────────────────────────────────────────────────
+  const [isHqLinkModalOpen, setIsHqLinkModalOpen] = useState(false);
+  const [hqProductSearch, setHqProductSearch] = useState('');
+  const [hqCopiedCode, setHqCopiedCode] = useState<string | null>(null);
+
+  const filteredHqProducts = products.filter((p) => {
+    if (!hqProductSearch.trim()) return true;
+    const term = hqProductSearch.toLowerCase();
+    return p.productCode.toLowerCase().includes(term) || p.packageName.toLowerCase().includes(term);
+  });
+
+  const copyHqLink = async (productCode: string) => {
+    const url = `${window.location.origin}/products/${productCode}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      showSuccess('본사 직접 링크가 복사되었습니다!');
+      setHqCopiedCode(productCode);
+      setTimeout(() => setHqCopiedCode(null), 2000);
+    } catch {
+      showError('링크 복사에 실패했습니다.');
+    }
+  };
+
+  // ── 수동 매출 등록 모달 ────────────────────────────────────────────────────
+  const [isManualSaleModalOpen, setIsManualSaleModalOpen] = useState(false);
+  const [manualSaving, setManualSaving] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    customerName: '',
+    customerPhone: '',
+    productCode: '',
+    amount: '',
+    saleDate: new Date().toISOString().slice(0, 10),
+    cabinType: '',
+    headcount: '',
+    remarks: '',
+  });
+  const [manualProductSearch, setManualProductSearch] = useState('');
+  const [showManualProductList, setShowManualProductList] = useState(false);
+
+  const filteredManualProducts = products.filter((p) => {
+    if (!manualProductSearch.trim()) return true;
+    const term = manualProductSearch.toLowerCase();
+    return p.productCode.toLowerCase().includes(term) || p.packageName.toLowerCase().includes(term);
+  });
+
+  const handleManualSale = async () => {
+    try {
+      setManualSaving(true);
+      const res = await fetch('/api/admin/affiliate/sales/manual', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: manualForm.customerName,
+          customerPhone: manualForm.customerPhone,
+          productCode: manualForm.productCode,
+          amount: manualForm.amount,
+          saleDate: manualForm.saleDate,
+          cabinType: manualForm.cabinType || null,
+          headcount: manualForm.headcount ? parseInt(manualForm.headcount, 10) : null,
+          remarks: manualForm.remarks || null,
+        }),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.message);
+      showSuccess(`매출 등록 완료! 주문번호: ${json.orderId}`);
+      setIsManualSaleModalOpen(false);
+      setManualForm({
+        customerName: '', customerPhone: '', productCode: '', amount: '',
+        saleDate: new Date().toISOString().slice(0, 10),
+        cabinType: '', headcount: '', remarks: '',
+      });
+      setManualProductSearch('');
+    } catch (err: any) {
+      showError(err.message || '매출 등록 중 오류가 발생했습니다.');
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
   const [editFormState, setEditFormState] = useState({
     mallUserId: '',
     landingSlug: '',
@@ -186,13 +331,27 @@ export default function AffiliateMallManagementPage() {
               판매원/대리점장의 개인몰 생성 상태 확인, 개인 대시보드 접근, 모든 설정 수정 및 관할이 가능합니다.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <button
               onClick={loadProfiles}
               className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
             >
               <FiRefreshCw className="text-base" />
               새로고침
+            </button>
+            <button
+              onClick={() => { setIsHqLinkModalOpen(true); loadProducts(); setHqProductSearch(''); }}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
+            >
+              <FiLink className="text-base" />
+              본사 직접 링크
+            </button>
+            <button
+              onClick={() => { setIsManualSaleModalOpen(true); loadProducts(); }}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+            >
+              <FiPlus className="text-base" />
+              수동 매출 등록
             </button>
             <button
               onClick={() => setIsCreateModalOpen(true)}
@@ -390,6 +549,16 @@ export default function AffiliateMallManagementPage() {
                               <FiFileText />
                               계약초대
                             </a>
+                          )}
+                          {profile.affiliateCode && (
+                            <button
+                              onClick={() => openProductLinkModal(profile)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"
+                              title="상품별 판매 링크 생성"
+                            >
+                              <FiLink />
+                              상품 링크
+                            </button>
                           )}
                           <button
                             onClick={() => openEditModal(profile)}
@@ -629,6 +798,268 @@ export default function AffiliateMallManagementPage() {
                 className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white shadow hover:bg-blue-700 disabled:bg-blue-300"
               >
                 {saving ? '저장 중...' : '저장하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 상품별 판매 링크 생성 모달 */}
+      {isProductLinkModalOpen && selectedProfileForLinks && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="flex w-full max-w-2xl flex-col rounded-3xl bg-white shadow-2xl" style={{ maxHeight: '90vh' }}>
+            {/* 헤더 */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">상품별 판매 링크</h2>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  <span className="font-semibold text-indigo-700">
+                    {selectedProfileForLinks.nickname || selectedProfileForLinks.displayName}
+                  </span>
+                  {' '}({selectedProfileForLinks.affiliateCode}) ·{' '}
+                  {selectedProfileForLinks.type === 'BRANCH_MANAGER' ? '대리점장' : '판매원'}
+                  {selectedProfileForLinks.branchLabel && ` · ${selectedProfileForLinks.branchLabel}`}
+                </p>
+              </div>
+              <button
+                onClick={() => { setIsProductLinkModalOpen(false); setSelectedProfileForLinks(null); }}
+                className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+
+            {/* 안내 */}
+            <div className="mx-6 mt-4 rounded-xl bg-indigo-50 px-4 py-3 text-xs text-indigo-700">
+              복사된 링크로 고객이 접속하면 <strong>{selectedProfileForLinks.nickname || selectedProfileForLinks.displayName}</strong>의 실적으로 자동 연결됩니다.
+              파라미터: <code className="font-mono font-bold">
+                ?{selectedProfileForLinks.type === 'BRANCH_MANAGER' ? 'affiliate' : 'agent'}={selectedProfileForLinks.affiliateCode}
+              </code>
+            </div>
+
+            {/* 검색 */}
+            <div className="px-6 pt-4">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  placeholder="상품명 또는 상품코드 검색"
+                  className="w-full rounded-xl border border-gray-300 py-2 pl-9 pr-4 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* 상품 목록 */}
+            <div className="mt-3 flex-1 overflow-y-auto px-6 pb-6">
+              {productsLoading && (
+                <p className="py-8 text-center text-sm text-gray-400">상품 로딩 중...</p>
+              )}
+              {!productsLoading && filteredProducts.length === 0 && (
+                <p className="py-8 text-center text-sm text-gray-400">
+                  {productSearch ? '검색 결과 없음' : '판매중 상품이 없습니다.'}
+                </p>
+              )}
+              {!productsLoading && filteredProducts.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  {filteredProducts.map((product) => {
+                    const isCopied = copiedCode === product.productCode;
+                    const paramKey = selectedProfileForLinks.type === 'BRANCH_MANAGER' ? 'affiliate' : 'agent';
+                    const linkUrl = `/products/${product.productCode}?${paramKey}=${selectedProfileForLinks.affiliateCode}`;
+                    return (
+                      <div
+                        key={product.productCode}
+                        className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 hover:border-indigo-200 hover:bg-indigo-50/40 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{product.packageName}</p>
+                          <p className="text-xs text-gray-500 font-mono mt-0.5 truncate">
+                            {linkUrl}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <a
+                            href={`/products/${product.productCode}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 hover:bg-gray-100"
+                            title="상품 페이지 열기"
+                          >
+                            <FiExternalLink size={14} />
+                          </a>
+                          <button
+                            onClick={() => copyProductLink(product.productCode)}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${
+                              isCopied
+                                ? 'border-emerald-300 bg-emerald-100 text-emerald-700'
+                                : 'border-indigo-300 bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                            }`}
+                          >
+                            {isCopied ? <FiCheckCircle size={13} /> : <FiCopy size={13} />}
+                            {isCopied ? '복사됨!' : '복사'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 본사 직접 링크 모달 */}
+      {isHqLinkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="flex w-full max-w-2xl flex-col rounded-3xl bg-white shadow-2xl" style={{ maxHeight: '90vh' }}>
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">본사 직접 링크 복사</h2>
+                <p className="mt-0.5 text-xs text-gray-500">어필리에이트 파라미터 없는 클린 URL — 본사 직접 매출로 기록됩니다.</p>
+              </div>
+              <button onClick={() => setIsHqLinkModalOpen(false)} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <FiX size={18} />
+              </button>
+            </div>
+            <div className="mx-6 mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+              이 링크로 결제 완료 시 <strong>판매원 수당 없이 본사 매출</strong>로 자동 처리됩니다.
+              SNS 광고, 이메일 뉴스레터, 홈페이지 배너 등에 활용하세요.
+            </div>
+            <div className="px-6 pt-4">
+              <div className="relative">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={hqProductSearch}
+                  onChange={(e) => setHqProductSearch(e.target.value)}
+                  placeholder="상품명 또는 상품코드 검색"
+                  className="w-full rounded-xl border border-gray-300 py-2 pl-9 pr-4 text-sm focus:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-100"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex-1 overflow-y-auto px-6 pb-6">
+              {productsLoading && <p className="py-8 text-center text-sm text-gray-400">상품 로딩 중...</p>}
+              {!productsLoading && filteredHqProducts.length === 0 && (
+                <p className="py-8 text-center text-sm text-gray-400">
+                  {hqProductSearch ? '검색 결과 없음' : '판매중 상품이 없습니다.'}
+                </p>
+              )}
+              {!productsLoading && filteredHqProducts.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  {filteredHqProducts.map((product) => {
+                    const isCopied = hqCopiedCode === product.productCode;
+                    return (
+                      <div key={product.productCode} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 hover:border-gray-300 hover:bg-gray-100/60 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{product.packageName}</p>
+                          <p className="text-xs text-gray-500 font-mono mt-0.5 truncate">/products/{product.productCode}</p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <a href={`/products/${product.productCode}`} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500 hover:bg-gray-100">
+                            <FiExternalLink size={14} />
+                          </a>
+                          <button
+                            onClick={() => copyHqLink(product.productCode)}
+                            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors ${isCopied ? 'border-emerald-300 bg-emerald-100 text-emerald-700' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-100'}`}
+                          >
+                            {isCopied ? <FiCheckCircle size={13} /> : <FiCopy size={13} />}
+                            {isCopied ? '복사됨!' : '복사'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수동 매출 등록 모달 */}
+      {isManualSaleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="flex w-full max-w-lg flex-col rounded-3xl bg-white shadow-2xl" style={{ maxHeight: '95vh' }}>
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-gray-900">본사 직접 매출 등록</h2>
+                <p className="mt-0.5 text-xs text-gray-500">PG 결제 없이 오프라인/전화 거래를 수동으로 등록합니다.</p>
+              </div>
+              <button onClick={() => setIsManualSaleModalOpen(false)} className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <FiX size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-700">
+                수동 등록 매출은 <strong>판매원 수당 없이 본사 직접 매출</strong>로 기록됩니다. (pgProvider: manual, isHqFallback: true)
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-semibold">고객명 *</span>
+                  <input value={manualForm.customerName} onChange={(e) => setManualForm((p) => ({ ...p, customerName: e.target.value }))} placeholder="홍길동" className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-semibold">연락처 *</span>
+                  <input value={manualForm.customerPhone} onChange={(e) => setManualForm((p) => ({ ...p, customerPhone: e.target.value }))} placeholder="010-0000-0000" className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+                </label>
+              </div>
+              <div className="flex flex-col gap-1 text-sm text-gray-700">
+                <span className="font-semibold">상품 *</span>
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={manualProductSearch}
+                    onChange={(e) => { setManualProductSearch(e.target.value); setShowManualProductList(true); }}
+                    onFocus={() => setShowManualProductList(true)}
+                    placeholder="상품명 또는 상품코드 검색"
+                    className="w-full rounded-xl border border-gray-300 py-2 pl-9 pr-4 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"
+                  />
+                </div>
+                {manualForm.productCode && <p className="text-xs text-emerald-700 font-mono">선택: {manualForm.productCode}</p>}
+                {showManualProductList && filteredManualProducts.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
+                    {filteredManualProducts.slice(0, 20).map((p) => (
+                      <button key={p.productCode} type="button" onClick={() => { setManualForm((prev) => ({ ...prev, productCode: p.productCode })); setManualProductSearch(p.packageName); setShowManualProductList(false); }} className="w-full px-4 py-2.5 text-left text-sm hover:bg-emerald-50 border-b border-gray-100 last:border-0">
+                        <span className="font-semibold text-gray-900">{p.packageName}</span>
+                        <span className="ml-2 font-mono text-xs text-gray-400">{p.productCode}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-semibold">결제금액 (원) *</span>
+                  <input type="number" value={manualForm.amount} onChange={(e) => setManualForm((p) => ({ ...p, amount: e.target.value }))} placeholder="3500000" className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-semibold">거래일</span>
+                  <input type="date" value={manualForm.saleDate} onChange={(e) => setManualForm((p) => ({ ...p, saleDate: e.target.value }))} className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-semibold">객실 유형</span>
+                  <input value={manualForm.cabinType} onChange={(e) => setManualForm((p) => ({ ...p, cabinType: e.target.value }))} placeholder="발코니, 내부 등" className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+                </label>
+                <label className="flex flex-col gap-1 text-sm text-gray-700">
+                  <span className="font-semibold">인원수</span>
+                  <input type="number" value={manualForm.headcount} onChange={(e) => setManualForm((p) => ({ ...p, headcount: e.target.value }))} placeholder="2" min={1} className="rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+                </label>
+              </div>
+              <label className="flex flex-col gap-1 text-sm text-gray-700">
+                <span className="font-semibold">비고</span>
+                <textarea value={manualForm.remarks} onChange={(e) => setManualForm((p) => ({ ...p, remarks: e.target.value }))} placeholder="전화 계약, 오프라인 방문 등 특이사항" rows={2} className="rounded-xl border border-gray-300 px-3 py-2 text-sm resize-none focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100" />
+              </label>
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button onClick={() => setIsManualSaleModalOpen(false)} className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100" disabled={manualSaving}>취소</button>
+              <button
+                onClick={handleManualSale}
+                disabled={manualSaving || !manualForm.customerName || !manualForm.productCode || !manualForm.amount}
+                className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow hover:bg-emerald-700 disabled:bg-emerald-300"
+              >
+                {manualSaving ? '등록 중...' : '매출 등록'}
               </button>
             </div>
           </div>

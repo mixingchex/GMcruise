@@ -10,6 +10,7 @@ import { ChatMessageSkeleton } from '@/components/ui/Skeleton';
 import { csrfFetch } from '@/lib/csrf-client';
 import tts, { extractPlainText } from '@/lib/tts';
 import { checkTestModeClient } from '@/lib/test-mode-client';
+import { showError } from '@/components/ui/Toast';
 
 // 성능 최적화: 큰 컴포넌트들을 동적 임포트
 const ChatWindow = dynamic(() => import('@/components/ChatWindow'), {
@@ -41,10 +42,26 @@ export default function ChatClientShell({
   const [isSending, setIsSending] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isOnline, setIsOnline] = useState(true); // 네트워크 상태
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const streamAbortRef = useRef<AbortController | null>(null); // 스트리밍 AbortController
   const prevModeRef = useRef<ChatInputMode | null>(null); // 이전 모드 추적
   const hasLoadedHistoryRef = useRef(false); // 히스토리 로드 여부 추적
   const [isTestMode, setIsTestMode] = useState(false); // test 모드 여부
+
+  // 네트워크 온/오프라인 감지
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    // 초기 상태 동기화
+    setIsOnline(navigator.onLine);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // test 모드 확인
   useEffect(() => {
@@ -53,7 +70,7 @@ export default function ChatClientShell({
         const testModeInfo = await checkTestModeClient();
         setIsTestMode(testModeInfo.isTestMode);
       } catch (error) {
-        console.error('[ChatClientShell] Test mode check error:', error);
+        logger.error('[ChatClientShell] Test mode check error:', error);
         setIsTestMode(false);
       }
     };
@@ -107,7 +124,7 @@ export default function ChatClientShell({
           }
         }
       } catch (error) {
-        console.error('[ChatClientShell] 히스토리 로드 실패:', error);
+        logger.error('[ChatClientShell] 히스토리 로드 실패:', error);
       } finally {
         setIsLoading(false);
         hasLoadedHistoryRef.current = true;
@@ -126,6 +143,7 @@ export default function ChatClientShell({
         logger.log('[ChatClientShell] Mode changed from', prevModeRef.current, 'to', mode, '- Clearing messages');
       }
       // 빈 상태 UI는 ChatWindow에서 처리하므로 메시지는 비워둠
+      streamAbortRef.current?.abort(); // 진행 중인 스트리밍 취소
       setMessages([]);
       setIsSending(false);
       hasLoadedHistoryRef.current = false; // 모드 변경 시 히스토리 다시 로드 가능하도록
@@ -147,8 +165,8 @@ export default function ChatClientShell({
           mode === 'show' ? 'show' :
             mode === 'translate' ? 'translate' : 'default') + testSuffix;
 
-      // ChatMessage 형식을 API 형식으로 변환
-      const apiMessages = messagesToSave.map(msg => {
+      // ChatMessage 형식을 API 형식으로 변환 (최대 200개로 제한 — DB 비대화 방지)
+      const apiMessages = messagesToSave.slice(-200).map(msg => {
         const base = {
           id: msg.id,
           role: msg.role,
@@ -182,11 +200,17 @@ export default function ChatClientShell({
         }),
       });
     } catch (error) {
-      console.error('[ChatClientShell] 히스토리 저장 실패:', error);
+      logger.error('[ChatClientShell] 히스토리 저장 실패:', error);
     }
   };
 
   const onSend = async (payload: ChatInputPayload) => {
+    // 오프라인 상태 차단
+    if (!navigator.onLine) {
+      showError('인터넷 연결이 없습니다. 연결 후 다시 시도해주세요.');
+      return;
+    }
+
     // 사용자 메시지 추가
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -214,6 +238,11 @@ export default function ChatClientShell({
 
         setMessages((prevMessages) => [...prevMessages, streamingMessage]);
 
+        // 이전 스트리밍 취소 후 새 AbortController 생성
+        streamAbortRef.current?.abort();
+        const abortCtrl = new AbortController();
+        streamAbortRef.current = abortCtrl;
+
         // 스트리밍 API 호출
         const requestBody = {
           messages: [
@@ -237,6 +266,7 @@ export default function ChatClientShell({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+          signal: abortCtrl.signal,
           body: JSON.stringify(requestBody),
         });
 
@@ -261,11 +291,11 @@ export default function ChatClientShell({
           try {
             const errorData = await response.json();
             errorMessage = errorData.error || errorData.details || errorMessage;
-            console.error('[ChatClientShell] Stream API error:', errorData);
+            logger.error('[ChatClientShell] Stream API error:', errorData);
           } catch (e) {
             const errorText = await response.text().catch(() => '');
             errorMessage = errorText || errorMessage;
-            console.error('[ChatClientShell] Stream API error (text):', errorText);
+            logger.error('[ChatClientShell] Stream API error (text):', errorText);
           }
 
           // 스트리밍 메시지를 에러 메시지로 교체
@@ -296,6 +326,7 @@ export default function ChatClientShell({
 
         let readCount = 0;
         while (true) {
+          if (abortCtrl.signal.aborted) break; // 언마운트/탭전환 시 루프 종료
           const { done, value } = await reader.read();
           readCount++;
           if (isDev) {
@@ -308,7 +339,7 @@ export default function ChatClientShell({
             }
             if (accumulatedText.length === 0) {
               // 에러는 항상 로깅
-              console.warn('[ChatClientShell] No text accumulated! This might indicate a server-side issue.');
+              logger.warn('[ChatClientShell] No text accumulated! This might indicate a server-side issue.');
               // 사용자에게 에러 메시지 표시
               setMessages((prevMessages) =>
                 prevMessages.map((msg) =>
@@ -323,7 +354,7 @@ export default function ChatClientShell({
 
           if (!value) {
             if (isDev) {
-              console.warn('[ChatClientShell] No value in chunk, continuing...');
+              logger.warn('[ChatClientShell] No value in chunk, continuing...');
             }
             continue;
           }
@@ -360,12 +391,12 @@ export default function ChatClientShell({
                   );
                 } else {
                   if (isDev) {
-                    console.warn('[ChatClientShell] Parsed value is not a string:', typeof parsed, parsed);
+                    logger.warn('[ChatClientShell] Parsed value is not a string:', typeof parsed, parsed);
                   }
                 }
               } catch (e) {
                 // 에러는 항상 로깅
-                console.error('[ChatClientShell] JSON parse error:', e, 'line:', line.substring(0, 100));
+                logger.error('[ChatClientShell] JSON parse error:', e, 'line:', line.substring(0, 100));
               }
             } else if (line.trim() && isDev) {
               logger.log('[ChatClientShell] Non-matching line:', line.substring(0, 100));
@@ -401,10 +432,14 @@ export default function ChatClientShell({
         }
       } else {
         // 다른 모드는 기존 API 사용 (구조화된 응답)
+        streamAbortRef.current?.abort();
+        const abortCtrl = new AbortController();
+        streamAbortRef.current = abortCtrl;
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+          signal: abortCtrl.signal,
           body: JSON.stringify({
             text: payload.text,
             mode: currentMode,
@@ -484,7 +519,28 @@ export default function ChatClientShell({
         }
       }
     } catch (error) {
-      console.error('[ChatClientShell] Error sending message:', error);
+      // AbortError: 사용자가 취소하거나 새 요청이 시작된 경우 - 에러 표시 안 함
+      if (error instanceof Error && error.name === 'AbortError') {
+        setIsSending(false);
+        return;
+      }
+
+      logger.error('[ChatClientShell] Error sending message:', error);
+
+      // 오프라인 상태면 간결한 메시지
+      if (!navigator.onLine) {
+        setMessages((prevMessages) => {
+          const hasStreamingMessage = prevMessages.some(msg => msg.id.startsWith('streaming-'));
+          if (hasStreamingMessage) {
+            return prevMessages.map(msg =>
+              msg.id.startsWith('streaming-') ? { ...msg, text: '📡 오프라인 상태입니다. 연결 후 다시 시도해주세요.' } : msg
+            );
+          }
+          return [...prevMessages, { id: Date.now().toString(), role: 'assistant' as const, type: 'text' as const, text: '📡 오프라인 상태입니다. 연결 후 다시 시도해주세요.' }];
+        });
+        setIsSending(false);
+        return;
+      }
 
       // 에러 타입에 따라 다른 메시지 표시
       let errorText = '네트워크 오류가 발생했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.';
@@ -530,27 +586,32 @@ export default function ChatClientShell({
     setIsDeleting(true);
 
     try {
-      const response = await fetch('/api/chat/history', {
+      // 현재 탭의 sessionId 계산 (saveChatHistory와 동일한 로직)
+      const testModeInfo = await checkTestModeClient();
+      const testSuffix = testModeInfo.isTestMode ? '_test' : '';
+      const sessionId = (mode === 'general' ? 'general' :
+        mode === 'go' ? 'go' :
+          mode === 'show' ? 'show' :
+            mode === 'translate' ? 'translate' : 'default') + testSuffix;
+
+      const response = await fetch(`/api/chat/history?sessionId=${encodeURIComponent(sessionId)}`, {
         method: 'DELETE',
         credentials: 'include',
       });
 
       if (response.ok) {
-        // 성공적으로 삭제되면 메시지 상태 초기화
         setMessages([]);
         setIsDeleteModalOpen(false);
-
-        // 성공 메시지 표시 (선택사항)
         if (process.env.NODE_ENV === 'development') {
           logger.log('채팅 기록이 삭제되었습니다.');
         }
       } else {
-        console.error('Failed to delete chat history:', response.statusText);
-        alert('채팅 기록 삭제에 실패했습니다. 다시 시도해 주세요.');
+        logger.error('Failed to delete chat history:', response.statusText);
+        showError('채팅 기록 삭제에 실패했습니다. 다시 시도해 주세요.');
       }
     } catch (error) {
-      console.error('Error deleting chat history:', error);
-      alert('네트워크 오류가 발생했습니다. 다시 시도해 주세요.');
+      logger.error('Error deleting chat history:', error);
+      showError('네트워크 오류가 발생했습니다. 다시 시도해 주세요.');
     } finally {
       setIsDeleting(false);
     }
@@ -597,23 +658,9 @@ export default function ChatClientShell({
       clearTimeout(saveTimeoutRef.current);
     }
 
-    // 1초 후에 저장 (debounce)
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await csrfFetch('/api/chat/history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ messages }),
-        });
-
-        if (!response.ok) {
-          console.error('Failed to save chat history:', response.statusText);
-        }
-      } catch (error) {
-        console.error('Error saving chat history:', error);
-      }
+    // 1초 후에 저장 (debounce) — saveChatHistory 재사용으로 sessionId 자동 포함
+    saveTimeoutRef.current = setTimeout(() => {
+      saveChatHistory(messages);
     }, 1000); // 1초 debounce
 
     // 클린업: 컴포넌트 언마운트 시 타이머 정리
@@ -622,10 +669,23 @@ export default function ChatClientShell({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [messages, isLoading]); // messages가 변경될 때마다 실행
+  }, [messages, isLoading, mode]); // messages나 mode가 변경될 때마다 실행
+
+  // 언마운트 시 진행 중인 스트리밍 취소
+  useEffect(() => {
+    return () => {
+      streamAbortRef.current?.abort();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
+      {/* 오프라인 배너 */}
+      {!isOnline && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white text-center text-sm py-2 px-4 font-semibold">
+          📡 인터넷 연결이 끊겼습니다. 연결 후 자동으로 복구됩니다.
+        </div>
+      )}
       {isLoading ? (
         <div className="flex items-center justify-center" style={{ minHeight: '60vh' }}>
           <div className="text-center">
@@ -719,7 +779,7 @@ export default function ChatClientShell({
             );
           })()}
 
-          <div className="px-3 pb-3 pt-2 bg-white border-t">
+          <div className="px-3 pt-2 bg-white border-t" style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}>
             <InputBar mode={mode} onSend={onSend} disabled={isSending} />
             {isSending && (
               <div className="text-center text-sm text-gray-500 mt-2">

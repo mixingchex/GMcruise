@@ -112,6 +112,18 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
       ? (() => { try { return JSON.parse(product.mallProductContent!.layout); } catch { return null; } })()
       : product.mallProductContent.layout)
     : null;
+
+  // 지역 수 (itinerary 기항지에서 해상 제외 추출)
+  const portCount = (() => {
+    const itinerary = layout?.itinerary;
+    if (!Array.isArray(itinerary) || itinerary.length === 0) return 0;
+    const ports = new Set<string>();
+    itinerary.forEach((day: any) => {
+      const loc = day?.arrivalLocation || day?.location;
+      if (loc && loc !== '해상' && loc !== 'Sea' && loc !== 'sea') ports.add(loc);
+    });
+    return ports.size;
+  })();
   // [WO-LEGAL-FE-01] 가짜 기본값 제거 — 표시광고법 위반 방지 (null: 별점 섹션 미표시)
   const rating = layout?.rating ?? product.rating ?? null;
   const reviewCount = layout?.reviewCount ?? product.reviewCount ?? 0;
@@ -248,7 +260,9 @@ export default function ProductCard({ product, partnerId }: ProductCardProps) {
         <div className="flex items-center text-sm text-gray-500 mb-3 font-medium flex-wrap gap-1.5">
           <span className="whitespace-nowrap font-semibold text-[#0A2342]">{product.nights}박 {product.days}일</span>
           <span className="text-gray-300">·</span>
-          <span className="line-clamp-1 flex-1 min-w-0 text-[#1B5FA8] font-bold">{getDestinations()}</span>
+          <span className="line-clamp-1 flex-1 min-w-0 text-[#1B5FA8] font-bold">
+            {portCount > 0 ? `${portCount}개 지역` : getDestinations()}
+          </span>
           {(product as any).category && (
             <>
               <span className="text-gray-300">·</span>

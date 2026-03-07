@@ -4,10 +4,18 @@ export const dynamic = 'force-dynamic';
 // 링크 유효성 검사 API
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionUser } from '@/lib/auth';
+import { error as logError } from '@/lib/logger-wrapper';
 
 // POST: 링크 유효성 검사
 export async function POST(req: NextRequest) {
   try {
+    // 파트너 인증 필수 — 무인증 SSRF 방지
+    const sessionUser = await getSessionUser();
+    if (!sessionUser) {
+      return NextResponse.json({ ok: false, error: '로그인이 필요합니다.' }, { status: 401 });
+    }
+
     const { links } = await req.json();
 
     if (!Array.isArray(links)) {
@@ -77,9 +85,9 @@ export async function POST(req: NextRequest) {
       results,
     });
   } catch (error: any) {
-    console.error('[Link Validation] Error:', error);
+    logError('[Link Validation] Error:', error);
     return NextResponse.json(
-      { ok: false, error: error.message || 'Link validation failed' },
+      { ok: false, error: 'Link validation failed' },
       { status: 500 }
     );
   }

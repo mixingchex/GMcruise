@@ -4,6 +4,16 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { ChatInputMode } from '@/lib/types';
 
+type TabProps = { id: ChatInputMode; label: string; mode: ChatInputMode; onChangeTab: (m: ChatInputMode) => void };
+const Tab = ({ id, label, mode, onChangeTab }: TabProps) => (
+  <button
+    className={`px-3 py-2 rounded-md text-sm ${mode === id ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+    onClick={() => onChangeTab(id)}
+  >
+    {label}
+  </button>
+);
+
 export default function ModeBar({
   mode,
   onChangeTab,
@@ -11,21 +21,12 @@ export default function ModeBar({
   mode: ChatInputMode;
   onChangeTab: (m: ChatInputMode) => void;
 }) {
-  const Tab = ({ id, label }: { id: ChatInputMode; label: string }) => (
-    <button
-      className={`px-3 py-2 rounded-md text-sm ${mode === id ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-      onClick={() => onChangeTab(id)}
-    >
-      {label}
-    </button>
-  );
-
   return (
     <div className="w-full border-b bg-white">
       <div className="mx-auto max-w-6xl px-3 flex gap-2 p-3 border-b bg-white">
-        <Tab id="go" label="크루즈닷 가자" />
-        <Tab id="show" label="크루즈닷 보여줘" />
-        <Tab id="general" label="일반" />
+        <Tab id="go" label="크루즈닷 가자" mode={mode} onChangeTab={onChangeTab} />
+        <Tab id="show" label="크루즈닷 보여줘" mode={mode} onChangeTab={onChangeTab} />
+        <Tab id="general" label="일반" mode={mode} onChangeTab={onChangeTab} />
         <div className="ml-auto text-sm text-gray-500">
           <button
             className={`px-3 py-2 rounded-md text-sm bg-gray-100 text-gray-700`}

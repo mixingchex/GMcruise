@@ -152,45 +152,22 @@ export async function POST(
     if (contract.invitedByProfileId) {
       console.log('[Admin Contract Complete] 구글 드라이브 백업 시작...');
 
-      // 1. 계약서 PDF 업로드
-      const pdfUploadResult = await uploadContractPDFToDrive(contractId);
-      if (pdfUploadResult.ok) {
-        pdfUrl = pdfUploadResult.url;
-        console.log('[Admin Contract Complete] 계약서 PDF 구글 드라이브 업로드 성공:', pdfUploadResult.url);
-
-        // PDF URL을 metadata에 저장
-        await prisma.affiliateContract.update({
-          where: { id: contractId },
-          data: {
-            metadata: {
-              ...metadata,
-              pdfUrl: pdfUrl,
-              pdfBackupUrl: pdfUploadResult.backupUrl || null,
-              pdfFileName: pdfUploadResult.fileName || null,
-            },
-          },
-        });
-      } else {
-        console.error('[Admin Contract Complete] 계약서 PDF 구글 드라이브 업로드 실패:', pdfUploadResult.error);
-      }
+      // 1. 계약서 PDF 업로드 — [PHASE2] document-drive-sync deprecated (no-op)
+      await uploadContractPDFToDrive(contractId);
 
       // 2. 신분증 업로드 (있는 경우)
       if (contract.idCardPath) {
         try {
           const idCardFilePath = join(process.cwd(), 'public', contract.idCardPath);
           const idCardBuffer = await readFile(idCardFilePath);
-          const idCardUploadResult = await uploadDocumentToDrive({
+          // [PHASE2] document-drive-sync deprecated — no-op
+          await uploadDocumentToDrive({
             profileId: contract.invitedByProfileId,
             documentType: 'ID_CARD',
             buffer: idCardBuffer,
             fileName: contract.idCardOriginalName || 'id_card.jpg',
             mimeType: 'image/jpeg',
           });
-          if (idCardUploadResult.ok) {
-            console.log('[Admin Contract Complete] 신분증 구글 드라이브 업로드 성공:', idCardUploadResult.url);
-          } else {
-            console.error('[Admin Contract Complete] 신분증 구글 드라이브 업로드 실패:', idCardUploadResult.error);
-          }
         } catch (idCardError: any) {
           console.error('[Admin Contract Complete] 신분증 읽기 실패:', idCardError);
         }
@@ -201,18 +178,14 @@ export async function POST(
         try {
           const bankbookFilePath = join(process.cwd(), 'public', contract.bankbookPath);
           const bankbookBuffer = await readFile(bankbookFilePath);
-          const bankbookUploadResult = await uploadDocumentToDrive({
+          // [PHASE2] document-drive-sync deprecated — no-op
+          await uploadDocumentToDrive({
             profileId: contract.invitedByProfileId,
             documentType: 'BANKBOOK',
             buffer: bankbookBuffer,
             fileName: contract.bankbookOriginalName || 'bankbook.jpg',
             mimeType: 'image/jpeg',
           });
-          if (bankbookUploadResult.ok) {
-            console.log('[Admin Contract Complete] 통장 사본 구글 드라이브 업로드 성공:', bankbookUploadResult.url);
-          } else {
-            console.error('[Admin Contract Complete] 통장 사본 구글 드라이브 업로드 실패:', bankbookUploadResult.error);
-          }
         } catch (bankbookError: any) {
           console.error('[Admin Contract Complete] 통장 사본 읽기 실패:', bankbookError);
         }

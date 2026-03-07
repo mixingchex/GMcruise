@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { PartnerApiError, requirePartnerContext } from '@/app/api/partner/_utils';
+import { logger } from '@/lib/logger';
 
 const CONFIRMED_SALE_STATUS = ['CONFIRMED', 'PAID', 'PAYOUT_SCHEDULED'] as const;
 const LEAD_ACTIVE_STATUS = ['NEW', 'CONTACTED', 'IN_PROGRESS'] as const;
@@ -48,11 +49,9 @@ export async function GET(req: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
-              phone: true,
+              // email/phone 응답에 미포함 — 개인정보보호법 제17조, select에서도 제거
               mallUserId: true,
               mallNickname: true,
-
             },
           },
         },
@@ -164,15 +163,10 @@ export async function GET(req: NextRequest) {
         if (row.entryType === 'SALES_COMMISSION') {
           if (row.isSettled) settledCommission += amount;
           else pendingCommission += amount;
-        }
-        if (row.entryType === 'OVERRIDE_COMMISSION') {
+        } else if (row.entryType === 'OVERRIDE_COMMISSION') {
           overrideCommission += amount;
-        }
-        if (row.entryType === 'WITHHOLDING') {
+        } else if (row.entryType === 'WITHHOLDING') {
           withholding += amount;
-        }
-        if (!row.isSettled) {
-          pendingCommission += amount;
         }
       });
 
@@ -187,8 +181,7 @@ export async function GET(req: NextRequest) {
         user: {
           id: base.User?.id ?? null,
           name: base.User?.name ?? null,
-          email: base.User?.email ?? null,
-          phone: base.User?.phone ?? null,
+          // email/phone 원본 미노출 — 개인정보보호법 제17조 제3자 제공 최소화
           mallUserId: base.User?.mallUserId ?? null,
           mallNickname: base.User?.mallNickname ?? null,
         },
@@ -239,11 +232,11 @@ export async function GET(req: NextRequest) {
       agents,
       summary,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     if (error instanceof PartnerApiError) {
       return NextResponse.json({ ok: false, message: error.message }, { status: error.status });
     }
-    console.error('GET /api/partner/agents error:', error);
+    logger.error('GET /api/partner/agents error:', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json({ ok: false, message: '판매원 정보를 불러오지 못했습니다.' }, { status: 500 });
   }
 }

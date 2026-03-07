@@ -482,11 +482,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ con
       import('@/lib/affiliate/auto-link-generator').then(({ generateLinksForPartner }) => {
         generateLinksForPartner(profile.id, partnerType as 'BRANCH_MANAGER' | 'SALES_AGENT', sessionUser.id)
           .then((result) => {
-            console.log(`[Approve Contract] 자동 링크 생성 완료 - 파트너: ${contract.name}, 생성: ${result.created}, 스킵: ${result.skipped}, 에러: ${result.errors.length}`);
+            if (result) {
+              // [PHASE2] auto-link-generator deprecated — no-op
+            }
           })
-          .catch((error) => {
-            console.error('[Approve Contract] 자동 링크 생성 실패:', error);
-          });
+          .catch(() => {});
       }).catch((importError) => {
         console.error('[Approve Contract] 자동 링크 생성 모듈 로드 실패:', importError);
       });

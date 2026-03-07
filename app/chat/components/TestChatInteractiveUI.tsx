@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { logger } from '@/lib/logger';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { ChatInputMode } from '@/lib/types';
@@ -130,7 +131,7 @@ export default function TestChatInteractiveUI() {
           }
         }
       } catch (error) {
-        console.error('[TestChatInteractiveUI] Error loading user data:', error);
+        logger.error('[TestChatInteractiveUI] Error loading user data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -225,7 +226,7 @@ export default function TestChatInteractiveUI() {
       
       {/* 채팅창 - 화면의 80%+ 차지 (여행 종료 시 숨김) */}
       {!tripExpired && (
-        <div className="mx-auto max-w-6xl w-full flex-1">
+        <div className="flex-1 flex flex-col min-h-0 w-full mx-auto max-w-6xl">
           <ChatClientShell mode={mode} />
         </div>
       )}

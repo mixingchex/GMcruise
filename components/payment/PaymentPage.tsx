@@ -36,6 +36,7 @@ interface PaymentPageProps {
   pricingRows: PricingRow[];
   chatSessionId?: string;
   partnerId?: string; // URL의 partner 파라미터 (최우선 사용)
+  affiliateCode?: string; // ?affiliate=CODE 직접 접근 시 쿠키 대체용
 }
 
 interface PublicProductDetail {
@@ -60,7 +61,7 @@ interface PublicProductDetail {
   } | null;
 }
 
-export default function PaymentPage({ productCode, productName, pricingRows, chatSessionId, partnerId: partnerIdFromProps }: PaymentPageProps) {
+export default function PaymentPage({ productCode, productName, pricingRows, chatSessionId, partnerId: partnerIdFromProps, affiliateCode: affiliateCodeFromProps }: PaymentPageProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   // URL의 partner 파라미터를 최우선으로 사용 (정확한 판매원 추적)
@@ -286,6 +287,8 @@ export default function PaymentPage({ productCode, productName, pricingRows, cha
           roomSelections: roomSelections.filter(s => s.adult > 0 || s.adult3rd > 0 || s.child2to11 > 0 || s.infantUnder2 > 0),
           chatSessionId: chatSessionId || null,
           partnerId: finalPartnerId,
+          // 쿠키 미설정 경로(직접 결제 URL 접근) 대비 props로 받은 affiliateCode 전달
+          affiliateCodeFallback: affiliateCodeFromProps || null,
         }),
       });
 

@@ -128,6 +128,12 @@ export default async function ProductPaymentPage({ params, searchParams }: PageP
       if (sessionId) {
         query.set('sessionId', sessionId);
       }
+      // affiliateCode를 보존해 Payment.metadata.affiliateCode 감사 로그 유지
+      // (affiliate_code 쿠키가 없는 경우 [mallUserId]/payment 페이지에서 대체)
+      const resolvedAffiliateCode = affiliateParam || agentParam;
+      if (resolvedAffiliateCode) {
+        query.set('affiliateCode', resolvedAffiliateCode);
+      }
       redirect(`/${partnerId}/payment?${query.toString()}`);
     }
 

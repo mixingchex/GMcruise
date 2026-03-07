@@ -9,6 +9,7 @@ export const revalidate = 60;
 import ProductDetail from '@/components/mall/ProductDetail';
 
 import AffiliateTracker from '@/components/affiliate/AffiliateTracker';
+import PartnerShareButton from '@/components/affiliate/PartnerShareButton';
 
 import { getSession } from '@/lib/session';
 
@@ -141,6 +142,9 @@ export default async function ProductDetailPage({ params, searchParams }: PagePr
       {partnerId && <AffiliateTracker mallUserId={partnerId} affiliateCode={affiliateCode} />}
 
 
+
+      {/* 파트너 로그인 시: 현재 상품 페이지에 내 어필리에이트 링크 복사 버튼 */}
+      <PartnerShareButton productCode={productCode} />
 
       {/* 상품 상세 UI */}
 

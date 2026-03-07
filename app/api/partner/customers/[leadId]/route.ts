@@ -173,10 +173,20 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       });
     }
 
-    await prisma.affiliateLead.update({
-      where: { id: leadId },
-      data,
+    // [H-2] TOCTOU 방지: updateMany로 소유권 조건 포함 (ownership already verified by getPartnerLead, but atomic update prevents race condition)
+    const updated = await prisma.affiliateLead.updateMany({
+      where: {
+        id: leadId,
+        OR: [
+          { managerId: profile.id },
+          { agentId: profile.id },
+        ],
+      },
+      data: data as any,
     });
+    if (updated.count === 0) {
+      throw new PartnerApiError('수정 권한이 없습니다.', 403);
+    }
 
     await prisma.adminActionLog.create({
       data: {

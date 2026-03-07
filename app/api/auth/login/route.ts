@@ -635,12 +635,12 @@ export async function POST(req: Request) {
                 await prisma.user.update({
                   where: { id: testUser.id },
                   data: {
-                    name: name || testUser.name,
+                    name: testUser.name || name,
                     phone: phone || testUser.phone,
                     password: await hashPassword(normalizedTestPassword), // 비밀번호를 1101로 업데이트
                   },
                 });
-                testUser.name = name || testUser.name;
+                testUser.name = testUser.name || name;
                 testUser.phone = phone || testUser.phone;
                 testUser.password = normalizedTestPassword;
                 console.log('[Login] 기존 사용자 업데이트 완료 (중복 처리)');
@@ -665,7 +665,7 @@ export async function POST(req: Request) {
           await prisma.user.update({
             where: { id: testUser.id },
             data: {
-              name: name || testUser.name,
+              name: testUser.name || name,
               phone: phone || testUser.phone,
               password: await hashPassword(normalizedTestPassword),
               customerSource: 'test-guide',
@@ -1663,43 +1663,12 @@ export async function POST(req: Request) {
         isLocked: activeUser?.isLocked,
       });
 
-      // 사용자가 없으면 자동 생성 (크루즈 가이드 지니 AI 요구사항)
+      // 구매 기록이 없으면 로그인 차단 (자동 생성 금지)
       if (!activeUser) {
-        console.log('[Login] 3800 신규 사용자 자동 생성:', { phone: normalizedPhone, name });
-        try {
-          const now = new Date();
-          const newUser = await prisma.user.create({
-            data: {
-              name,
-              phone: normalizedPhone, // 정규화된 전화번호 사용
-              password: await hashPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE),
-              onboarded: false, // 온보딩 없이 채팅창에 들어갈 수 있도록 false로 설정
-              loginCount: 1,
-              role: 'user',
-              customerStatus: 'active',
-              customerSource: 'cruise-guide',
-              updatedAt: now,
-            },
-            select: {
-              id: true,
-              password: true,
-              onboarded: true,
-              loginCount: true,
-              isLocked: true,
-              customerStatus: true,
-              customerSource: true,
-              UserTrip: { select: { id: true }, take: 1 },
-            },
-          });
-          activeUser = newUser;
-          console.log('[Login] 3800 신규 사용자 생성 완료:', { userId: activeUser.id, phone, name });
-        } catch (createError) {
-          console.error('[Login] 3800 신규 사용자 생성 실패:', createError);
-          return NextResponse.json({
-            ok: false,
-            error: '사용자 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-          }, { status: 500 });
-        }
+        return NextResponse.json({
+          ok: false,
+          error: '구매 기록이 없습니다. 크루즈닷에서 상품 구매 후 이용 가능합니다.',
+        }, { status: 403 });
       } else {
         // 기존 사용자: customerSource 확인
         const userSource = activeUser.customerSource || null;
@@ -1707,6 +1676,18 @@ export async function POST(req: Request) {
           userId: activeUser.id,
           customerSource: userSource,
         });
+
+        // A-3: 비밀번호 검증 — 이름+전화번호만으로 3800 로그인 불가
+        const originalStoredPw = activeUser.password || '';
+        const isValidGuidePassword = isBcryptHash(originalStoredPw)
+          ? (await verifyPassword(SYSTEM_PASSWORDS.GUIDE_ACTIVE, originalStoredPw)).valid
+          : originalStoredPw === SYSTEM_PASSWORDS.GUIDE_ACTIVE;
+        if (!isValidGuidePassword) {
+          return NextResponse.json({
+            ok: false,
+            error: '이름, 전화번호, 비밀번호를 확인해주세요.',
+          }, { status: 401 });
+        }
 
         // Lazy Migration: 평문 '3800'이 저장된 경우 bcrypt 해시로 업그레이드
         // customerSource는 비어있을 때만 설정 (guide-purchase 보호)
@@ -2271,23 +2252,11 @@ export async function POST(req: Request) {
         next,
       });
     } else {
-      // 2) 신규 생성 (요구사항: 신규는 온보딩 필요)
-      const now = new Date();
-      const created = await prisma.user.create({
-        data: {
-          phone,
-          name: name ?? null,
-          password: await hashPassword(password), // bcrypt 해시로 저장
-          onboarded: false,
-          loginCount: 1,   // 첫 로그인
-          role: 'user',    // 명시적으로 user role 설정
-          updatedAt: now,
-        },
-        select: { id: true },
-      });
-      // @ts-ignore
-      userId = created.id as unknown as number;
-      next = '/onboarding'; // 신규 고객은 항상 온보딩 먼저
+      // A-8: 미등록 사용자 자동 생성 금지 — 구매 후 관리자가 등록한 계정만 로그인 가능
+      return NextResponse.json({
+        ok: false,
+        error: '등록된 계정을 찾을 수 없습니다. 크루즈닷에서 상품 구매 후 이용 가능합니다.',
+      }, { status: 403 });
     }
 
     // 기존 세션 정리 (동시 로그인 방지 및 세션 테이블 정리)

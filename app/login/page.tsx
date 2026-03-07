@@ -19,7 +19,7 @@ function LoginPageContent() {
     // URL 파라미터에서 메시지 확인
     const message = sp.get('message');
     if (message) {
-      alert(message);
+      setError(message);
     }
   }, [sp]);
 
@@ -43,12 +43,6 @@ function LoginPageContent() {
     }
     if (!trimmedPassword) {
       setError('비밀번호를 입력해주세요.');
-      return;
-    }
-
-    // 크루즈 가이드 지니 비밀번호 검증 (3800=구매고객용, 1101=3일체험)
-    if (trimmedPassword !== '3800' && trimmedPassword !== '1101') {
-      setError('비밀번호가 올바르지 않습니다. 비밀번호를 확인해주세요.');
       return;
     }
 

@@ -317,14 +317,14 @@ export default function ChatInteractiveUI() {
       
       {/* 채팅창 - 화면의 80%+ 차지 (여행 종료 시 숨김) */}
       {!tripExpired && (
-        <div className="mx-auto max-w-6xl w-full flex-1">
+        <div className="mx-auto max-w-6xl w-full flex-1 h-full min-h-0 flex flex-col">
           <ChatClientShell mode={mode} />
         </div>
       )}
       
       {showDdayModal && ddayMessageData && (
         <DdayPushModal
-          userId={"monica_user"} // 하드코딩된 사용자 ID 유지
+          userId={userId?.toString() ?? ''}
           userName={userName}
           trip={trip || { cruiseName: '크루즈 여행', destination: '목적지 미정', startDate: '시작일 미정', startDateIso: '', endDate: '종료일 미정' }}
           message={{ d: getDdayMessage(trip?.startDateIso || trip?.startDate || '', trip?.endDate || '', userPhone), title: ddayMessageData.title, html: ddayMessageData.message }}

@@ -287,7 +287,11 @@ export async function POST(req: NextRequest) {
               }),
             });
           } catch (webhookErr) {
-            error('[Payment Return v12.0] Webhook 호출 실패:', webhookErr);
+            error('[Payment Return v12.0] Webhook 호출 실패 — 재시도 필요:', { orderId, err: webhookErr instanceof Error ? webhookErr.message : String(webhookErr) });
+            await prisma.payment.updateMany({
+              where: { orderId, status: 'completed' },
+              data: { metadata: { ...(payment.metadata as any || {}), webhookFailed: true, webhookFailedAt: new Date().toISOString() } },
+            }).catch(() => {});
           }
         }
 
@@ -426,7 +430,11 @@ export async function POST(req: NextRequest) {
               }),
             });
           } catch (webhookErr) {
-            error('[Payment Return v11.0] Webhook 호출 실패:', webhookErr);
+            error('[Payment Return v11.0] Webhook 호출 실패 — 재시도 필요:', { orderId, err: webhookErr instanceof Error ? webhookErr.message : String(webhookErr) });
+            await prisma.payment.updateMany({
+              where: { orderId, status: 'completed' },
+              data: { metadata: { ...(payment.metadata as any || {}), webhookFailed: true, webhookFailedAt: new Date().toISOString() } },
+            }).catch(() => {});
           }
           } // end if legacyUpdated.count > 0
         } else {

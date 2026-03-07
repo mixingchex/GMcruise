@@ -959,6 +959,8 @@ export default function ProductEditPage() {
         case 3: // 항공 정보
           sectionPayload = {
             flightInfo: flightInfo || null,
+            startDate: formData.startDate ? new Date(formData.startDate).toISOString() : null,
+            endDate: formData.endDate ? new Date(formData.endDate).toISOString() : null,
           };
           break;
 

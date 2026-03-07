@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useParams, usePathname } from 'next/navigation';
 import { showError, showSuccess } from '@/components/ui/Toast';
 import { getAffiliateTerm } from '@/lib/utils';
+import { csrfFetch } from '@/lib/csrf-client';
 
 type AgentMetrics = {
   leadsTotal: number;
@@ -208,7 +209,7 @@ export default function PartnerTeamClient() {
     if (!confirm('이 계약서를 완료하여 PDF를 이메일로 전송하시겠습니까?')) return;
     try {
       setCompletingContract(true);
-      const res = await fetch(`/api/partner/contracts/${contractId}/complete`, {
+      const res = await csrfFetch(`/api/partner/contracts/${contractId}/complete`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -233,7 +234,7 @@ export default function PartnerTeamClient() {
     if (!confirm('계약서 PDF를 계약자 이메일 주소로 전송하시겠습니까?')) return;
     try {
       setSendingPdf(true);
-      const res = await fetch(`/api/partner/contracts/${contractId}/send-pdf`, {
+      const res = await csrfFetch(`/api/partner/contracts/${contractId}/send-pdf`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -256,7 +257,7 @@ export default function PartnerTeamClient() {
     if (!reason) return;
     try {
       setRejectingContract(true);
-      const res = await fetch(`/api/partner/contracts/${contractId}/reject`, {
+      const res = await csrfFetch(`/api/partner/contracts/${contractId}/reject`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -283,7 +284,7 @@ export default function PartnerTeamClient() {
     if (!confirm('정말로 이 계약서를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
     try {
       setDeletingContract(true);
-      const res = await fetch(`/api/partner/contracts/${contractId}`, {
+      const res = await csrfFetch(`/api/partner/contracts/${contractId}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -350,7 +351,7 @@ export default function PartnerTeamClient() {
       // 각 고객을 순차적으로 판매원에게 할당
       for (const customerId of customerIds) {
         try {
-          const res = await fetch(`/api/partner/customers/${customerId}`, {
+          const res = await csrfFetch(`/api/partner/customers/${customerId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -592,8 +593,6 @@ export default function PartnerTeamClient() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-700">
                         <div className="flex flex-col gap-1">
-                          <span>{agent.user.phone ?? '연락처 미등록'}</span>
-
                           {agent.user.mallUserId ? (
                             <Link
                               href={`/products/${agent.user.mallUserId}`}
@@ -640,7 +639,8 @@ export default function PartnerTeamClient() {
                             onClick={() => {
                               setSelectedAgentId(agent.profileId);
                               setShowDbTransferModal(true);
-                              loadAvailableCustomers();
+                              // race condition 방지: state 업데이트 전 직접 ID 전달
+                              setTimeout(() => loadAvailableCustomers(), 0);
                             }}
                             className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors"
                           >

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FiArrowLeft, FiUsers, FiTrendingUp, FiDollarSign, FiEye, FiEyeOff, FiRefreshCw } from 'react-icons/fi';
+import { FiArrowLeft, FiUsers, FiTrendingUp, FiDollarSign, FiRefreshCw } from 'react-icons/fi';
 import { showError, showSuccess } from '@/components/ui/Toast';
 
 interface Agent {
@@ -20,7 +20,6 @@ interface Agent {
     phone: string | null;
     mallUserId: string | null;
     mallNickname: string | null;
-    password: string | null;
   };
   metrics: {
     leadsTotal: number;
@@ -65,8 +64,6 @@ export default function AgentsManagement({
 }) {
   const [data, setData] = useState<AgentsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showPasswords, setShowPasswords] = useState<Record<number, boolean>>({});
-
   const fetchAgents = async () => {
     try {
       setLoading(true);
@@ -89,13 +86,6 @@ export default function AgentsManagement({
   useEffect(() => {
     fetchAgents();
   }, []);
-
-  const togglePasswordVisibility = (agentId: number) => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [agentId]: !prev[agentId]
-    }));
-  };
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -295,29 +285,6 @@ export default function AgentsManagement({
                         >
                           {agent.user.phone}
                         </button>
-                      </div>
-                    )}
-                    {agent.user.password && (
-                      <div className="flex justify-between items-center py-2 border-b">
-                        <span className="text-sm text-slate-600">비밀번호</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => copyToClipboard(agent.user.password!, '비밀번호')}
-                            className="text-sm text-blue-600 hover:text-blue-700 font-mono"
-                          >
-                            {showPasswords[agent.profileId] ? agent.user.password : '••••••••'}
-                          </button>
-                          <button
-                            onClick={() => togglePasswordVisibility(agent.profileId)}
-                            className="p-1 hover:bg-slate-100 rounded"
-                          >
-                            {showPasswords[agent.profileId] ? (
-                              <FiEyeOff className="w-4 h-4 text-slate-600" />
-                            ) : (
-                              <FiEye className="w-4 h-4 text-slate-600" />
-                            )}
-                          </button>
-                        </div>
                       </div>
                     )}
                   </div>
