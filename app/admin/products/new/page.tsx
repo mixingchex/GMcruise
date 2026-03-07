@@ -1771,7 +1771,20 @@ export default function NewProductPage() {
           </p>
           <FlightInfoEditor
             flightInfo={flightInfo}
-            onChange={setFlightInfo}
+            onChange={(info) => {
+              setFlightInfo(info);
+              // flightInfo.travelPeriod가 바뀌면 formData.nights/days도 동기화
+              // (FlightInfoEditor 내부 날짜 입력 → 저장 시 CruiseProduct.nights/days에도 반영)
+              if (info?.travelPeriod?.days && info.travelPeriod.days > 0) {
+                setFormData(prev => ({
+                  ...prev,
+                  nights: info.travelPeriod.nights,
+                  days: info.travelPeriod.days,
+                  ...(info.travelPeriod.startDate && { startDate: info.travelPeriod.startDate }),
+                  ...(info.travelPeriod.endDate && { endDate: info.travelPeriod.endDate }),
+                }));
+              }
+            }}
             startDate={formData.startDate}
             endDate={formData.endDate}
             nights={formData.nights}
