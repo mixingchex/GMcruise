@@ -2852,17 +2852,9 @@ export default function ProductsManagementPage() {
                           startDate={formData.startDate}
                           endDate={formData.endDate}
                           onStartDateChange={(date) => {
-                            setFormData(prev => {
-                              let newEndDate = prev.endDate;
-                              // 종료일 자동 계산 (시작일 + 일수 - 1)
-                              if (date && prev.days > 0) {
-                                const start = new Date(date);
-                                const end = new Date(start);
-                                end.setDate(end.getDate() + prev.days - 1);
-                                newEndDate = end.toISOString().split('T')[0];
-                              }
-                              return { ...prev, startDate: date, endDate: newEndDate };
-                            });
+                            // DateRangePicker는 onStartDateChange + onEndDateChange를 동시에 호출하므로
+                            // 여기서 endDate를 자동계산하면 onEndDateChange가 설정할 정확한 값을 덮어씌우는 버그 발생
+                            setFormData(prev => ({ ...prev, startDate: date }));
                           }}
                           onEndDateChange={(date) => {
                             setFormData(prev => {
@@ -2908,12 +2900,12 @@ export default function ProductsManagementPage() {
                               setFormData(prev => {
                                 const days = nights + 1;
                                 let newEndDate = prev.endDate;
-                                // 종료일 자동 계산 (시작일 + 일수 - 1)
+                                // 종료일 자동 계산: Date.UTC 기반으로 타임존 오차 없이 계산
                                 if (prev.startDate && days > 0) {
-                                  const start = new Date(prev.startDate);
-                                  const end = new Date(start);
-                                  end.setDate(end.getDate() + days - 1);
-                                  newEndDate = end.toISOString().split('T')[0];
+                                  const [y, m, d] = prev.startDate.split('-').map(Number);
+                                  const endMs = Date.UTC(y, m - 1, d) + (days - 1) * 86400000;
+                                  const endD = new Date(endMs);
+                                  newEndDate = `${endD.getUTCFullYear()}-${String(endD.getUTCMonth() + 1).padStart(2, '0')}-${String(endD.getUTCDate()).padStart(2, '0')}`;
                                 }
                                 return { ...prev, nights, days, endDate: newEndDate };
                               });
@@ -2936,12 +2928,12 @@ export default function ProductsManagementPage() {
                               setFormData(prev => {
                                 const nights = days > 0 ? days - 1 : 0;
                                 let newEndDate = prev.endDate;
-                                // 종료일 자동 계산 (시작일 + 일수 - 1)
+                                // 종료일 자동 계산: Date.UTC 기반으로 타임존 오차 없이 계산
                                 if (prev.startDate && days > 0) {
-                                  const start = new Date(prev.startDate);
-                                  const end = new Date(start);
-                                  end.setDate(end.getDate() + days - 1);
-                                  newEndDate = end.toISOString().split('T')[0];
+                                  const [y, m, d] = prev.startDate.split('-').map(Number);
+                                  const endMs = Date.UTC(y, m - 1, d) + (days - 1) * 86400000;
+                                  const endD = new Date(endMs);
+                                  newEndDate = `${endD.getUTCFullYear()}-${String(endD.getUTCMonth() + 1).padStart(2, '0')}-${String(endD.getUTCDate()).padStart(2, '0')}`;
                                 }
                                 return { ...prev, days, nights, endDate: newEndDate };
                               });

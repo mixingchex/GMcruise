@@ -131,6 +131,9 @@ export default function FlightInfoEditor({
 
   // startDate, endDate 변경 시 travelPeriod 자동 업데이트 (nights/days는 날짜에서 직접 계산)
   useEffect(() => {
+    // 출발일만 있고 도착일이 없는 상태 → stale endDate로 잘못된 nights/days 계산 방지
+    if (startDate && !endDate) return;
+
     // props.startDate/endDate가 없으면 flightInfo 내부 travelPeriod 날짜로 fallback
     const effectiveStart = startDate || localFlightInfo.travelPeriod?.startDate || '';
     const effectiveEnd = endDate || localFlightInfo.travelPeriod?.endDate || '';

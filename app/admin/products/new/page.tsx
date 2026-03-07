@@ -1584,12 +1584,12 @@ export default function NewProductPage() {
                   setFormData(prev => {
                     const days = nights + 1;
                     let newEndDate = prev.endDate;
-                    // 종료일 자동 계산 (시작일 + 일수 - 1)
+                    // 종료일 자동 계산: Date.UTC 기반으로 타임존 오차 없이 계산
                     if (prev.startDate && days > 0) {
-                      const start = new Date(prev.startDate);
-                      const end = new Date(start);
-                      end.setDate(end.getDate() + days - 1);
-                      newEndDate = end.toISOString().split('T')[0];
+                      const [y, m, d] = prev.startDate.split('-').map(Number);
+                      const endMs = Date.UTC(y, m - 1, d) + (days - 1) * 86400000;
+                      const endD = new Date(endMs);
+                      newEndDate = `${endD.getUTCFullYear()}-${String(endD.getUTCMonth() + 1).padStart(2, '0')}-${String(endD.getUTCDate()).padStart(2, '0')}`;
                     }
                     return { ...prev, nights, days, endDate: newEndDate };
                   });
@@ -1612,12 +1612,12 @@ export default function NewProductPage() {
                   setFormData(prev => {
                     const nights = days > 0 ? days - 1 : 0;
                     let newEndDate = prev.endDate;
-                    // 종료일 자동 계산 (시작일 + 일수 - 1)
+                    // 종료일 자동 계산: Date.UTC 기반으로 타임존 오차 없이 계산
                     if (prev.startDate && days > 0) {
-                      const start = new Date(prev.startDate);
-                      const end = new Date(start);
-                      end.setDate(end.getDate() + days - 1);
-                      newEndDate = end.toISOString().split('T')[0];
+                      const [y, m, d] = prev.startDate.split('-').map(Number);
+                      const endMs = Date.UTC(y, m - 1, d) + (days - 1) * 86400000;
+                      const endD = new Date(endMs);
+                      newEndDate = `${endD.getUTCFullYear()}-${String(endD.getUTCMonth() + 1).padStart(2, '0')}-${String(endD.getUTCDate()).padStart(2, '0')}`;
                     }
                     return { ...prev, days, nights, endDate: newEndDate };
                   });
