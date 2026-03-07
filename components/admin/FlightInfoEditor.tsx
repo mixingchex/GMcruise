@@ -171,12 +171,12 @@ export default function FlightInfoEditor({
         clearTimeout(travelPeriodTimerRef.current);
       }
 
-      // onChange는 setState가 완료된 다음 렌더 사이클에서 호출
-      // localFlightInfoRef.current 사용 — startDate/endDate 변경과 flightInfo 로드가 동시에 일어날 때
-      // pendingFlightInfoRef(stale)가 아닌 최신 localFlightInfo를 부모에 전달
+      // pendingFlightInfoRef.current 사용 — updater 함수 내에서 동기적으로 계산된 최신값
+      // localFlightInfoRef.current는 별도 useEffect에서 업데이트되므로
+      // React가 리렌더하기 전에 setTimeout이 실행되면 stale 값을 가리킬 수 있음
       travelPeriodTimerRef.current = setTimeout(() => {
         if (pendingFlightInfoRef.current !== null) {
-          onChange(localFlightInfoRef.current);
+          onChange(pendingFlightInfoRef.current);
           pendingFlightInfoRef.current = null;
         }
         travelPeriodTimerRef.current = null;

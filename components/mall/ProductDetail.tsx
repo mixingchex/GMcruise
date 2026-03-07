@@ -2429,7 +2429,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                           만 2세 미만
                           {(product.startDate || layoutData?.departureDate) && (
                             <div className="text-xs font-normal text-gray-300 mt-1">
-                              {calculateAgeRange(0, 1)}
+                              {calculateAgeRange(0, null)}
                             </div>
                           )}
                         </th>
@@ -2781,7 +2781,7 @@ export default function ProductDetail({ product, partnerId, hasUserTrip, isPrevi
                         만 2세 미만
                         {(product.startDate || layoutData?.departureDate) && (
                           <div className="text-xs font-normal text-gray-300 mt-1">
-                            {calculateAgeRange(0, 1)}
+                            {calculateAgeRange(0, null)}
                           </div>
                         )}
                       </th>
