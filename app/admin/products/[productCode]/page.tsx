@@ -1867,17 +1867,9 @@ export default function ProductEditPage() {
                 startDate={formData.startDate}
                 endDate={formData.endDate}
                 onStartDateChange={(date) => {
-                  setFormData(prev => {
-                    let newEndDate = prev.endDate;
-                    // 종료일 자동 계산 (시작일 + 일수 - 1)
-                    if (date && prev.days > 0) {
-                      const start = new Date(date);
-                      const end = new Date(start);
-                      end.setDate(end.getDate() + prev.days - 1);
-                      newEndDate = end.toISOString().split('T')[0];
-                    }
-                    return { ...prev, startDate: date, endDate: newEndDate };
-                  });
+                  // DateRangePicker는 onStartDateChange + onEndDateChange를 동시에 호출하므로
+                  // 여기서 endDate를 자동계산하면 onEndDateChange가 설정할 정확한 값을 덮어씌우는 버그 발생
+                  setFormData(prev => ({ ...prev, startDate: date }));
                 }}
                 onEndDateChange={(date) => {
                   setFormData(prev => {
